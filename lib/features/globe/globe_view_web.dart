@@ -1,9 +1,75 @@
+import 'dart:js_interop';
+
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
-/// Web implementation of the CesiumJS globe.
-class GlobeView extends StatelessWidget {
-  const GlobeView({super.key});
+import 'globe_controller.dart';
+
+class GlobeView extends StatefulWidget {
+  const GlobeView({super.key, required this.controller});
+
+  final GlobeController controller;
+
+  @override
+  State<GlobeView> createState() => _GlobeViewState();
+}
+
+class _GlobeViewState extends State<GlobeView> {
+  web.HTMLIFrameElement? _iframe;
+  late final JSFunction _messageListener;
+
+  @override
+  void initState() {
+    super.initState();
+
+    widget.controller.attach(_sendCommand);
+
+    _messageListener = ((web.Event event) {
+      if (!mounted) return;
+
+      final message = event as web.MessageEvent;
+
+      if (message.origin != web.window.location.origin) {
+        return;
+      }
+
+      final data = message.data.dartify();
+
+      if (data is String) {
+        widget.controller.handleEvent(data);
+      }
+    }).toJS;
+
+    web.window.addEventListener('message', _messageListener);
+  }
+
+  Future<void> _sendCommand(String command) async {
+    final target = _iframe?.contentWindow;
+
+    if (target == null) {
+      throw StateError('Globe iframe is unavailable');
+    }
+
+    target.postMessage(command.toJS, web.window.location.origin.toJS);
+  }
+
+  @override
+  void didUpdateWidget(covariant GlobeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.detach();
+      widget.controller.attach(_sendCommand);
+    }
+  }
+
+  @override
+  void dispose() {
+    web.window.removeEventListener('message', _messageListener);
+
+    widget.controller.detach();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +86,8 @@ class GlobeView extends StatelessWidget {
           ..border = '0';
 
         iframe.setAttribute('title', 'FPVManager 3D Globe');
+
+        _iframe = iframe;
       },
     );
   }

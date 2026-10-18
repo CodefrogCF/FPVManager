@@ -5,12 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'globe_controller.dart';
+
 /// Native implementation of the FPVManager 3D globe.
 ///
 /// Android and iOS use a native WebView.
 /// Other native platforms display a fallback.
 class GlobeView extends StatefulWidget {
-  const GlobeView({super.key});
+  const GlobeView({super.key, required this.controller});
+
+  final GlobeController controller;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();
@@ -29,9 +33,23 @@ class _GlobeViewState extends State<GlobeView> {
   void initState() {
     super.initState();
 
+    widget.controller.attach(_sendCommand);
+
     if (_supported) {
       _initializeGlobe();
     }
+  }
+
+  Future<void> _sendCommand(String command) async {
+    final controller = _controller;
+
+    if (controller == null) {
+      throw StateError('WebView is not initialized');
+    }
+
+    await controller.runJavaScript(
+      'window.FPVManager.receive(${jsonEncode(command)});',
+    );
   }
 
   Future<void> _initializeGlobe() async {
@@ -105,7 +123,24 @@ class _GlobeViewState extends State<GlobeView> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant GlobeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.detach();
+      widget.controller.attach(_sendCommand);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.detach();
+    super.dispose();
+  }
+
   void _handleJavaScriptMessage(JavaScriptMessage message) {
+    widget.controller.handleEvent(message.message);
     try {
       final decoded = jsonDecode(message.message);
 

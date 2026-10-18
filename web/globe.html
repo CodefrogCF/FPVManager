@@ -50,21 +50,192 @@
 
     <script>
 
+    
     function sendToFlutter(type, payload = {}) {
-        const bridge = window.FPVBridge;
+        const message = JSON.stringify({
+            source: "fpvmanager-globe",
+            type,
+            ...payload
+        });
 
-        if (
-            bridge &&
-            typeof bridge.postMessage === "function"
-        ) {
-            bridge.postMessage(
-            JSON.stringify({
-                type,
-                ...payload
-            })
+        // Native Flutter Android/iOS bridge.
+        if (window.FPVBridge?.postMessage) {
+            window.FPVBridge.postMessage(message);
+        }
+
+        // Flutter Web iframe bridge.
+        if (window.parent !== window) {
+            window.parent.postMessage(
+                message,
+                window.location.origin
             );
         }
     }
+
+    let activeViewer = null;
+    let activeBaseLayer = null;
+
+    const MAP_STYLES = {
+        satellite: {
+            layer: "ch.swisstopo.swissimage",
+            extension: "jpeg",
+            maximumLevel: 19
+        },
+        topographic: {
+            layer: "ch.swisstopo.pixelkarte-farbe",
+            extension: "jpeg",
+            maximumLevel: 19
+        },
+        relief: {
+            layer: "ch.swisstopo.swissalti3d-reliefschattierung",
+            extension: "png",
+            maximumLevel: 18
+        }
+    };
+
+    function createMapProvider(style) {
+        const config = MAP_STYLES[style];
+
+        if (!config) {
+            throw new Error(`Unknown map style: ${style}`);
+        }
+
+        return new Cesium.UrlTemplateImageryProvider({
+            url:
+                "https://wmts.geo.admin.ch/1.0.0/" +
+                `${config.layer}/default/current/3857/` +
+                "{z}/{x}/{y}." + config.extension,
+
+            tilingScheme:
+                new Cesium.WebMercatorTilingScheme(),
+
+            maximumLevel: config.maximumLevel,
+
+            credit: new Cesium.Credit("© swisstopo")
+        });
+    }
+
+    function resetCamera() {
+        activeViewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(
+                8.4,
+                46.7,
+                180000
+            ),
+            orientation: {
+                heading: 0,
+                pitch: Cesium.Math.toRadians(-55),
+                roll: 0
+            },
+            duration: 1.5
+        });
+    }
+
+    function flyToCoordinates(command) {
+        const latitude = Number(command.latitude);
+        const longitude = Number(command.longitude);
+        const altitude = Number(command.altitude);
+
+        if (
+            !Number.isFinite(latitude) ||
+            !Number.isFinite(longitude) ||
+            !Number.isFinite(altitude) ||
+            Math.abs(latitude) > 90 ||
+            Math.abs(longitude) > 180 ||
+            altitude <= 0
+        ) {
+            throw new Error("Invalid camera coordinates");
+        }
+
+        activeViewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(
+                longitude,
+                latitude,
+                altitude
+            ),
+            orientation: {
+                heading: 0,
+                pitch: Cesium.Math.toRadians(-60),
+                roll: 0
+            },
+            duration: 1.5
+        });
+    }
+
+    function setMapStyle(style) {
+        const provider = createMapProvider(style);
+        const newLayer = new Cesium.ImageryLayer(provider);
+
+        activeViewer.imageryLayers.add(newLayer, 0);
+
+        if (activeBaseLayer) {
+            activeViewer.imageryLayers.remove(
+                activeBaseLayer,
+                true
+            );
+        }
+
+        activeBaseLayer = newLayer;
+
+        sendToFlutter("map-style-changed", {
+            style
+        });
+    }
+
+    function executeCommand(rawCommand) {
+        try {
+            if (!activeViewer) {
+                throw new Error("Globe is not initialized");
+            }
+
+            const command = typeof rawCommand === "string"
+                ? JSON.parse(rawCommand)
+                : rawCommand;
+
+            switch (command.type) {
+                case "reset-camera":
+                    resetCamera();
+                    break;
+
+                case "fly-to":
+                    flyToCoordinates(command);
+                    break;
+
+                case "set-map-style":
+                    setMapStyle(command.style);
+                    break;
+
+                default:
+                    throw new Error(
+                        `Unsupported command: ${command.type}`
+                    );
+            }
+        } catch (error) {
+            console.error("Globe command error:", error);
+
+            sendToFlutter("globe-error", {
+                message: error.message
+            });
+        }
+    }
+
+    // Called directly by the native WebView.
+    window.FPVManager = {
+        receive: executeCommand
+    };
+
+    // Commands received from Flutter Web.
+    window.addEventListener("message", (event) => {
+        if (
+            window.parent === window ||
+            event.source !== window.parent ||
+            event.origin !== window.location.origin
+        ) {
+            return;
+        }
+
+        executeCommand(event.data);
+    });
 
     async function initializeGlobe() {
         const info = document.getElementById("info");
@@ -114,6 +285,8 @@
         });
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
+        activeViewer = viewer;
+        activeBaseLayer = viewer.imageryLayers.get(0);
 
         // Initial camera position: Swiss Alps
         viewer.camera.setView({
