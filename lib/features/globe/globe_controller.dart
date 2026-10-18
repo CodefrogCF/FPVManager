@@ -26,7 +26,13 @@ class GlobeController extends ChangeNotifier {
   GlobeMapStyle _mapStyle = GlobeMapStyle.satellite;
   GlobePoint? _selectedPoint;
   String? _error;
+  bool _uasZonesVisible = false;
+  bool _uasZonesLoading = false;
+  String? _uasZonesError;
 
+  bool get uasZonesVisible => _uasZonesVisible;
+  bool get uasZonesLoading => _uasZonesLoading;
+  String? get uasZonesError => _uasZonesError;
   bool get isReady => _ready;
   bool get terrainAvailable => _terrainAvailable;
   GlobeMapStyle get mapStyle => _mapStyle;
@@ -85,6 +91,10 @@ class GlobeController extends ChangeNotifier {
     await _send({'type': 'set-map-style', 'style': style.name});
   }
 
+  Future<void> setUasZonesVisible(bool visible) {
+    return _send({'type': 'set-uas-zones', 'visible': visible});
+  }
+
   void handleEvent(String message) {
     Map<String, dynamic> data;
 
@@ -134,6 +144,22 @@ class GlobeController extends ChangeNotifier {
 
       case 'globe-error':
         _error = data['message']?.toString() ?? 'Unknown globe error';
+        notifyListeners();
+
+      case 'uas-zones-status':
+        final visible = data['visible'];
+        final loading = data['loading'];
+
+        if (visible is! bool || loading is! bool) {
+          return;
+        }
+
+        _uasZonesVisible = visible;
+        _uasZonesLoading = loading;
+        _uasZonesError = data['error'] is String
+            ? data['error'] as String
+            : null;
+
         notifyListeners();
     }
   }

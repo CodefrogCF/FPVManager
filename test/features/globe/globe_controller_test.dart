@@ -86,5 +86,65 @@ void main() {
 
       expect(controller.isReady, isFalse);
     });
+
+    test('toggles UAS zone overlay and processes status', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      // Request activation.
+      await controller.setUasZonesVisible(true);
+
+      expect(commands.last['type'], 'set-uas-zones');
+
+      expect(commands.last['visible'], isTrue);
+
+      // Cesium reports that the download has started.
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': false,
+          'loading': true,
+        }),
+      );
+
+      expect(controller.uasZonesLoading, isTrue);
+      expect(controller.uasZonesVisible, isFalse);
+
+      // Cesium reports successful activation.
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': true,
+          'loading': false,
+        }),
+      );
+
+      expect(controller.uasZonesLoading, isFalse);
+      expect(controller.uasZonesVisible, isTrue);
+      expect(controller.uasZonesError, isNull);
+
+      // Request deactivation.
+      await controller.setUasZonesVisible(false);
+
+      expect(commands.last['visible'], isFalse);
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': false,
+          'loading': false,
+        }),
+      );
+
+      expect(controller.uasZonesVisible, isFalse);
+    });
   });
 }

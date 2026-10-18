@@ -75,6 +75,16 @@
     let activeViewer = null;
     let activeBaseLayer = null;
 
+    const UAS_ZONES_URL =
+        "https://data.geo.admin.ch/" +
+        "ch.bazl.einschraenkungen-drohnen/" +
+        "einschraenkungen-drohnen/" +
+        "einschraenkungen-drohnen_4326.geojson";
+
+    let uasDataSource = null;
+    let uasLoadPromise = null;
+    let uasRequestedVisible = false;
+
     const MAP_STYLES = {
         satellite: {
             layer: "ch.swisstopo.swissimage",
@@ -182,6 +192,113 @@
         });
     }
 
+    function sendUasStatus({
+        visible,
+        loading = false,
+        error = null
+    }) {
+        sendToFlutter("uas-zones-status", {
+            visible,
+            loading,
+            error
+        });
+    }
+
+    async function setUasZonesVisible(visible) {
+        uasRequestedVisible = visible;
+
+        // Disable without reloading or destroying data.
+        if (!visible) {
+            if (uasDataSource) {
+                uasDataSource.show = false;
+            }
+
+            sendUasStatus({
+                visible: false,
+                loading: false
+            });
+
+            return;
+        }
+
+        // Reuse the existing data source.
+        if (uasDataSource) {
+            uasDataSource.show = true;
+
+            sendUasStatus({
+                visible: true,
+                loading: false
+            });
+
+            return;
+        }
+
+        // First activation: load official FOCA data.
+        sendUasStatus({
+            visible: false,
+            loading: true
+        });
+
+        try {
+            if (!uasLoadPromise) {
+                uasLoadPromise = (async () => {
+                    const dataSource =
+                        await Cesium.GeoJsonDataSource.load(
+                            UAS_ZONES_URL,
+                            {
+                                clampToGround: true,
+
+                                stroke:
+                                    Cesium.Color.RED.withAlpha(0.85),
+
+                                fill:
+                                    Cesium.Color.RED.withAlpha(0.20),
+
+                                strokeWidth: 2,
+
+                                credit: new Cesium.Credit(
+                                    "© BAZL / FOCA"
+                                )
+                            }
+                        );
+
+                    await activeViewer.dataSources.add(
+                        dataSource
+                    );
+
+                    return dataSource;
+                })();
+            }
+
+            uasDataSource = await uasLoadPromise;
+            uasDataSource.show = uasRequestedVisible;
+
+            sendUasStatus({
+                visible: uasDataSource.show,
+                loading: false
+            });
+
+            console.log(
+                "[FPVManager] UAS zones loaded:",
+                uasDataSource.entities.values.length
+            );
+        } catch (error) {
+            console.error(
+                "[FPVManager] UAS zone loading failed:",
+                error
+            );
+
+            uasRequestedVisible = false;
+            uasLoadPromise = null;
+
+            sendUasStatus({
+                visible: false,
+                loading: false,
+                error: String(error.message || error)
+            });
+        }
+    }
+
     function executeCommand(rawCommand) {
         try {
             if (!activeViewer) {
@@ -203,6 +320,12 @@
 
                 case "set-map-style":
                     setMapStyle(command.style);
+                    break;
+
+                case "set-uas-zones":
+                    void setUasZonesVisible(
+                        command.visible === true
+                    );
                     break;
 
                 default:

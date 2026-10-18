@@ -101,6 +101,39 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     onPressed: ready ? _openCoordinatesDialog : null,
                     icon: const Icon(Icons.place_outlined),
                   ),
+                  if (_globeController.uasZonesLoading)
+                    const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    )
+                  else
+                    IconButton(
+                      tooltip: _globeController.uasZonesVisible
+                          ? 'Hide UAS zones'
+                          : 'Show UAS zones',
+                      onPressed: ready
+                          ? () => _runCommand(
+                              () => _globeController.setUasZonesVisible(
+                                !_globeController.uasZonesVisible,
+                              ),
+                            )
+                          : null,
+                      icon: Icon(
+                        _globeController.uasZonesVisible
+                            ? Icons.shield
+                            : Icons.shield_outlined,
+                        color: _globeController.uasZonesVisible
+                            ? Colors.orangeAccent
+                            : null,
+                      ),
+                    ),
                   PopupMenuButton<GlobeMapStyle>(
                     tooltip: 'Map style',
                     enabled: ready,
@@ -141,6 +174,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             status = 'Map error: $error';
           } else if (!_globeController.isReady) {
             status = 'Loading globe...';
+          } else if (_globeController.uasZonesError != null) {
+            status = 'UAS zones: ${_globeController.uasZonesError}';
+          } else if (_globeController.uasZonesLoading) {
+            status = 'Loading Swiss UAS zones...';
+          } else if (_globeController.uasZonesVisible) {
+            status = 'Swiss UAS zones active | Source: FOCA';
           } else if (point != null) {
             status =
                 '${point.latitude.toStringAsFixed(5)}, '
