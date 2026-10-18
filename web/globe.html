@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+    <title>FPVManager – 3D Globe Prototype</title>
+
+    <script>
+    window.CESIUM_BASE_URL =
+        "https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/";
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
+
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
+
+    <style>
+    html, body, #globe {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #101820;
+        font-family: Arial, sans-serif;
+    }
+
+    #info {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        z-index: 10;
+        padding: 12px 16px;
+        background: rgba(12, 20, 28, 0.88);
+        color: white;
+        border-radius: 8px;
+        font-size: 13px;
+        pointer-events: none;
+        max-width: 350px;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="globe"></div>
+    <div id="info">FPVManager – Loading 3D terrain...</div>
+
+    <script>
+
+    function sendToFlutter(type, payload = {}) {
+        const bridge = window.FPVBridge;
+
+        if (
+            bridge &&
+            typeof bridge.postMessage === "function"
+        ) {
+            bridge.postMessage(
+            JSON.stringify({
+                type,
+                ...payload
+            })
+            );
+        }
+    }
+
+    async function initializeGlobe() {
+        const info = document.getElementById("info");
+
+        const imageryProvider =
+            new Cesium.UrlTemplateImageryProvider({
+                url:
+                "https://wmts.geo.admin.ch/1.0.0/" +
+                "ch.swisstopo.swissimage/default/current/" +
+                "3857/{z}/{x}/{y}.jpeg",
+                tilingScheme:
+                new Cesium.WebMercatorTilingScheme(),
+                maximumLevel: 19,
+                credit: new Cesium.Credit("© swisstopo")
+            });
+
+        let terrainProvider;
+        let terrainAvailable = false;
+
+        try {
+            terrainProvider =
+                await Cesium.CesiumTerrainProvider.fromUrl(
+                "https://3d.geo.admin.ch/" +
+                "ch.swisstopo.terrain.3d/v1/"
+            );
+
+            terrainAvailable = true;
+            } catch (error) {
+                console.error("Terrain loading failed:", error);
+                terrainProvider =
+                new Cesium.EllipsoidTerrainProvider();
+            }
+
+        const viewer = new Cesium.Viewer("globe", {
+            baseLayerPicker: false,
+            baseLayer: new Cesium.ImageryLayer(imageryProvider),
+            terrainProvider: terrainProvider,
+            animation: false,
+            timeline: false,
+            geocoder: false,
+            homeButton: false,
+            fullscreenButton: false,
+            sceneModePicker: false,
+            navigationHelpButton: false,
+            infoBox: false,
+            selectionIndicator: false
+        });
+
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+
+        // Initial camera position: Swiss Alps
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(
+                8.4,
+                46.7,
+                180000
+            ),
+            orientation: {
+            heading: 0,
+            pitch: Cesium.Math.toRadians(-55),
+            roll: 0
+            }
+        });
+
+        info.textContent = terrainAvailable
+            ? "FPVManager | Swiss 3D terrain loaded"
+            : "FPVManager | Terrain unavailable – flat fallback";
+
+        sendToFlutter("globe-ready", {
+            terrainAvailable: terrainAvailable
+        });
+
+
+        // Display coordinates and elevation on click.
+        viewer.screenSpaceEventHandler.setInputAction(
+            function (event) {
+                const ray =
+                    viewer.camera.getPickRay(event.position);
+
+                if (!ray) return;
+
+                const position =
+                    viewer.scene.globe.pick(ray, viewer.scene);
+
+                if (!position) return;
+
+                const coordinates =
+                    Cesium.Cartographic.fromCartesian(position);
+
+                const longitude = Cesium.Math.toDegrees(
+                    coordinates.longitude
+                );
+
+                const latitude = Cesium.Math.toDegrees(
+                    coordinates.latitude
+                );
+
+                const altitude = coordinates.height;
+
+                info.textContent =
+                    `Lat: ${latitude.toFixed(6)} | ` +
+                    `Lon: ${longitude.toFixed(6)} | ` +
+                    `Elevation: ${altitude.toFixed(1)} m`;
+
+                sendToFlutter("point-selected", {
+                    latitude: latitude,
+                    longitude: longitude,
+                    altitude: altitude
+                });
+            },
+            Cesium.ScreenSpaceEventType.LEFT_CLICK
+        );
+    }
+
+    initializeGlobe().catch((error) => {
+        console.error(error);
+
+        document.getElementById("info").textContent =
+            "Failed to initialize 3D globe: " + error.message;
+
+        sendToFlutter("globe-error", {
+            message: error.message
+        });
+    });
+    </script>
+</body>
+</html>
