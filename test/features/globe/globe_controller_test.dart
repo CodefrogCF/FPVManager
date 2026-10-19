@@ -419,5 +419,69 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('synchronizes saved spot markers', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      await controller.setSpotMarkers([
+        const SpotMapMarker(
+          id: 7,
+          name: 'FPV Test Spot',
+          latitude: 46.95108,
+          longitude: 7.43863,
+        ),
+      ]);
+
+      final command = commands.last;
+
+      expect(command['type'], 'set-spot-markers');
+      expect(command['spots'], hasLength(1));
+      expect(command['spots'][0]['id'], 7);
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'spot-selected',
+          'id': 7,
+        }),
+      );
+
+      expect(controller.selectedSpotId, 7);
+
+      await controller.setSpotMarkers([]);
+
+      expect(controller.selectedSpotId, isNull);
+      expect(commands.last['spots'], isEmpty);
+    });
+
+    test('rejects invalid and unknown spot markers', () async {
+      await expectLater(
+        controller.setSpotMarkers([
+          const SpotMapMarker(
+            id: 1,
+            name: 'Invalid Spot',
+            latitude: 120,
+            longitude: 8,
+          ),
+        ]),
+        throwsArgumentError,
+      );
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'spot-selected',
+          'id': 999,
+        }),
+      );
+
+      expect(controller.selectedSpotId, isNull);
+    });
   });
 }

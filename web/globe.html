@@ -520,6 +520,135 @@
         }
     }
 
+    let spotsDataSource = null;
+    let lastSpotRevision = -1;
+
+    function setSpotMarkers(command) {
+        if (!activeViewer) {
+            throw new Error("Globe is not ready");
+        }
+
+        const spots = command.spots;
+        const revision = command.revision;
+
+        if (
+            !Array.isArray(spots) ||
+            spots.length > 5000 ||
+            !Number.isSafeInteger(revision) ||
+            revision < 0
+        ) {
+            throw new Error("Invalid spot marker data");
+        }
+
+        if (revision < lastSpotRevision) {
+            return;
+        }
+
+        // Validate the entire incoming dataset before
+        // changing the displayed entities.
+        const incoming = new Set();
+
+        for (const spot of spots) {
+            if (
+                !Number.isSafeInteger(spot.id) ||
+                spot.id <= 0 ||
+                typeof spot.name !== "string" ||
+                !Number.isFinite(spot.latitude) ||
+                !Number.isFinite(spot.longitude) ||
+                spot.latitude < -90 ||
+                spot.latitude > 90 ||
+                spot.longitude < -180 ||
+                spot.longitude > 180 ||
+                incoming.has(spot.id)
+            ) {
+                throw new Error("Invalid spot feature");
+            }
+
+            incoming.add(spot.id);
+        }
+
+        if (!spotsDataSource) {
+            spotsDataSource = new Cesium.CustomDataSource(
+                "FPVManager Saved Spots"
+            );
+
+            void activeViewer.dataSources.add(
+                spotsDataSource
+            );
+        }
+
+        const entities = spotsDataSource.entities;
+
+        entities.suspendEvents();
+
+        try {
+            const expectedIds = new Set();
+
+            for (const spot of spots) {
+                const id = `fpv-spot-${spot.id}`;
+
+                expectedIds.add(id);
+
+                const position =
+                    Cesium.Cartesian3.fromDegrees(
+                        spot.longitude,
+                        spot.latitude,
+                        0
+                    );
+
+                let entity = entities.getById(id);
+
+                if (!entity) {
+                    entity = entities.add({
+                        id,
+                        name: spot.name,
+                        position,
+                        point: {
+                            pixelSize: 13,
+                            color: Cesium.Color.CYAN,
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 2,
+                            heightReference:
+                                Cesium.HeightReference.CLAMP_TO_GROUND
+                        },
+                        label: {
+                            text: spot.name,
+                            font: "12px sans-serif",
+                            fillColor: Cesium.Color.WHITE,
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 3,
+                            style:
+                                Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            pixelOffset:
+                                new Cesium.Cartesian2(0, -25),
+                            heightReference:
+                                Cesium.HeightReference.CLAMP_TO_GROUND,
+                            distanceDisplayCondition:
+                                new Cesium.DistanceDisplayCondition(
+                                    0,
+                                    15000
+                                )
+                        }
+                    });
+                } else {
+                    entity.name = spot.name;
+                    entity.position = position;
+                    entity.label.text = spot.name;
+                }
+            }
+
+            for (const entity of [...entities.values]) {
+                if (!expectedIds.has(entity.id)) {
+                    entities.removeById(entity.id);
+                }
+            }
+        } finally {
+            entities.resumeEvents();
+        }
+
+        lastSpotRevision = revision;
+    }
+
     function executeCommand(rawCommand) {
         try {
             const command = typeof rawCommand === "string"
@@ -577,6 +706,10 @@
                     void queryTerrainElevation(command);
                     break;
 
+                case "set-spot-markers":
+                    setSpotMarkers(command);
+                    break;
+
                 case "focus-spot": {
                     const latitude = command.latitude;
                     const longitude = command.longitude;
@@ -598,42 +731,16 @@
                         throw new Error("Invalid spot focus parameters");
                     }
 
-                    // Actual terrain surface at the saved coordinates.
                     const target = Cesium.Cartesian3.fromDegrees(
                         longitude,
                         latitude,
                         terrainHeight
                     );
 
-                    // A very small bounding sphere ensures the
-                    // camera focuses on the location itself.
                     const boundingSphere = new Cesium.BoundingSphere(
                         target,
                         1
                     );
-
-                    // One temporary marker for the currently focused spot.
-                    const markerId = "fpvmanager-focused-spot";
-
-                    let marker = activeViewer.entities.getById(markerId);
-
-                    if (!marker) {
-                        marker = activeViewer.entities.add({
-                            id: markerId,
-                            name: "Focused FPV Spot",
-                            position: target,
-                            point: {
-                                pixelSize: 12,
-                                color: Cesium.Color.CYAN,
-                                outlineColor: Cesium.Color.BLACK,
-                                outlineWidth: 2,
-                                heightReference:
-                                    Cesium.HeightReference.CLAMP_TO_GROUND
-                            }
-                        });
-                    } else {
-                        marker.position = target;
-                    }
 
                     activeViewer.camera.flyToBoundingSphere(
                         boundingSphere,
@@ -771,6 +878,28 @@
                     uasDataSource.show &&
                     entity instanceof Cesium.Entity &&
                     uasDataSource.entities.contains(entity);
+
+                const isSavedSpot =
+                    spotsDataSource !== null &&
+                    entity instanceof Cesium.Entity &&
+                    spotsDataSource.entities.contains(entity);
+
+                if (isSavedSpot) {
+                    const spotId = Number(
+                        entity.id.replace("fpv-spot-", "")
+                    );
+
+                    sendToFlutter("uas-zone-cleared");
+
+                    sendToFlutter("spot-selected", {
+                        id: spotId
+                    });
+
+                    return;
+                }
+
+                // Any non-spot click dismisses the spot selection.
+                sendToFlutter("spot-cleared");
 
                 if (isUasZone) {
                     const rawAttributes =

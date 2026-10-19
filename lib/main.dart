@@ -49,6 +49,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   FpvDatabase? _database;
   SpotRepository? _spotRepository;
 
+  StreamSubscription<List<Spot>>? _spotsSubscription;
+  Map<int, Spot> _spotsById = const {};
+
   Future<void> _runCommand(Future<void> Function() command) async {
     try {
       await command();
@@ -74,10 +77,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openSpots() async {
-    // Initialize persistent storage only when needed.
-    final database = _database ??= FpvDatabase.open();
+    _startSpotSynchronization();
 
-    final repository = _spotRepository ??= SpotRepository(database);
+    final repository = _spotRepository!;
 
     final point = _globeController.selectedUasZone == null
         ? _globeController.selectedPoint
@@ -249,15 +251,84 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   @override
   void dispose() {
+    _globeController.removeListener(_onGlobeStateChanged);
+
+    unawaited(_closeSpotResources(_spotsSubscription, _database));
+
     _globeController.dispose();
+    super.dispose();
+  }
 
-    final database = _database;
+  void _startSpotSynchronization() {
+    if (_spotsSubscription != null) return;
 
-    if (database != null) {
-      unawaited(database.close());
+    final database = _database ??= FpvDatabase.open();
+
+    final repository = _spotRepository ??= SpotRepository(database);
+
+    _spotsSubscription = repository.watchSpots().listen(
+      (spots) {
+        if (!mounted) return;
+
+        setState(() {
+          _spotsById = {for (final spot in spots) spot.id: spot};
+        });
+
+        final markers = spots.map((spot) {
+          return SpotMapMarker(
+            id: spot.id,
+            name: spot.name,
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+          );
+        }).toList();
+
+        unawaited(
+          _globeController.setSpotMarkers(markers).catchError((
+            Object error,
+            StackTrace stack,
+          ) {
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Spot marker sync failed: $error')),
+            );
+          }),
+        );
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to load stored spots: $error')),
+        );
+      },
+    );
+  }
+
+  Future<void> _closeSpotResources(
+    StreamSubscription<List<Spot>>? subscription,
+    FpvDatabase? database,
+  ) async {
+    if (subscription != null) {
+      await subscription.cancel();
     }
 
-    super.dispose();
+    if (database != null) {
+      await database.close();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _globeController.addListener(_onGlobeStateChanged);
+  }
+
+  void _onGlobeStateChanged() {
+    if (_globeController.isReady && _spotsSubscription == null) {
+      _startSpotSynchronization();
+    }
   }
 
   @override
@@ -318,6 +389,56 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       bottomNavigationBar: ListenableBuilder(
         listenable: _globeController,
         builder: (context, child) {
+          final spotId = _globeController.selectedSpotId;
+
+          final selectedSpot = spotId == null ? null : _spotsById[spotId];
+
+          if (selectedSpot != null) {
+            return SafeArea(
+              top: false,
+              child: Card(
+                margin: const EdgeInsets.all(8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(
+                        Icons.place,
+                        color: Colors.cyanAccent,
+                      ),
+                      title: Text(selectedSpot.name),
+                      subtitle: Text(
+                        '${selectedSpot.latitude.toStringAsFixed(8)}, '
+                        '${selectedSpot.longitude.toStringAsFixed(8)}',
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Close spot details',
+                        onPressed: _globeController.clearSelectedSpot,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                          onPressed: () => _runCommand(
+                            () => _globeController.focusSpot(
+                              latitude: selectedSpot.latitude,
+                              longitude: selectedSpot.longitude,
+                              rangeMeters: 300,
+                            ),
+                          ),
+                          icon: const Icon(Icons.navigation),
+                          label: const Text('Fly to Spot'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           final selectedZone = _globeController.selectedUasZone;
           if (selectedZone != null) {
             return _UasZoneDetailsPanel(

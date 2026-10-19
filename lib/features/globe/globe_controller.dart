@@ -52,6 +52,27 @@ class TerrainElevation {
   final String samplingMethod;
 }
 
+class SpotMapMarker {
+  const SpotMapMarker({
+    required this.id,
+    required this.name,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final int id;
+  final String name;
+  final double latitude;
+  final double longitude;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'latitude': latitude,
+    'longitude': longitude,
+  };
+}
+
 class GlobeController extends ChangeNotifier {
   GlobeController({OsintProvider<Map<String, dynamic>>? uasProvider})
     : _uasProvider = uasProvider ?? SwissUasProvider(),
@@ -81,6 +102,9 @@ class GlobeController extends ChangeNotifier {
   double _uasZonesFillOpacity = 0.20;
   DateTime? _uasZonesDownloadedAt;
   int? _uasZonesFeatureCount;
+  List<SpotMapMarker> _spotMarkers = const [];
+  int? _selectedSpotId;
+  int _spotMarkerRevision = 0;
 
   bool get uasZonesVisible => _uasZonesVisible;
   bool get uasZonesLoading => _uasZonesLoading;
@@ -94,6 +118,54 @@ class GlobeController extends ChangeNotifier {
   double get uasZonesFillOpacity => _uasZonesFillOpacity;
   DateTime? get uasZonesDownloadedAt => _uasZonesDownloadedAt;
   int? get uasZonesFeatureCount => _uasZonesFeatureCount;
+  int? get selectedSpotId => _selectedSpotId;
+
+  void clearSelectedSpot() {
+    if (_selectedSpotId == null) return;
+    _selectedSpotId = null;
+    notifyListeners();
+  }
+
+  Future<void> setSpotMarkers(List<SpotMapMarker> markers) async {
+    final ids = <int>{};
+
+    if (markers.length > 5000) {
+      throw ArgumentError('Too many spot markers');
+    }
+
+    for (final marker in markers) {
+      if (marker.id <= 0 ||
+          !ids.add(marker.id) ||
+          marker.name.trim().isEmpty ||
+          !marker.latitude.isFinite ||
+          !marker.longitude.isFinite ||
+          marker.latitude < -90 ||
+          marker.latitude > 90 ||
+          marker.longitude < -180 ||
+          marker.longitude > 180) {
+        throw ArgumentError('Invalid spot marker');
+      }
+    }
+
+    _spotMarkers = List.unmodifiable(markers);
+
+    if (_selectedSpotId != null &&
+        !_spotMarkers.any((spot) => spot.id == _selectedSpotId)) {
+      clearSelectedSpot();
+    }
+
+    if (_ready) {
+      await _pushSpotMarkers();
+    }
+  }
+
+  Future<void> _pushSpotMarkers() {
+    return _send({
+      'type': 'set-spot-markers',
+      'revision': ++_spotMarkerRevision,
+      'spots': _spotMarkers.map((spot) => spot.toJson()).toList(),
+    });
+  }
 
   void clearSelectedUasZone() {
     if (_selectedUasZone == null) return;
@@ -346,7 +418,29 @@ class GlobeController extends ChangeNotifier {
         _error = null;
         _terrainAvailable = data['terrainAvailable'] == true;
         _uasDatasetSentToRenderer = false;
+        if (_spotMarkers.isNotEmpty) {
+          unawaited(
+            _pushSpotMarkers().catchError((Object error, StackTrace stack) {
+              _error = 'Spot marker sync failed: $error';
+              notifyListeners();
+            }),
+          );
+        }
         notifyListeners();
+
+      case 'spot-selected':
+        final id = data['id'];
+
+        if (id is! int || !_spotMarkers.any((spot) => spot.id == id)) {
+          return;
+        }
+
+        _selectedSpotId = id;
+        _selectedUasZone = null;
+        notifyListeners();
+
+      case 'spot-cleared':
+        clearSelectedSpot();
 
       case 'point-selected':
         final latitude = data['latitude'];
