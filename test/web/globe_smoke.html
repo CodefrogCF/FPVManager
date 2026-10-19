@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>FPVManager offline renderer smoke</title>
+<style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:20px;padding:12px;margin:0}iframe{width:100%;height:65vh;border:0}pre{white-space:pre-wrap;padding:12px;margin:0}</style>
+<h1 id="status">Running offline renderer smoke…</h1>
+<iframe id="map" title="Actual Cesium renderer" src="/globe.html?offline=1"></iframe><pre id="log"></pre>
+<script>
+const frame = document.getElementById('map'), output = document.getElementById('log');
+const log = text => { output.textContent += text + '\n'; };
+const pending = new Map();
+let session, next = 0, lastStatus, readyWaiters = [], failed = false;
+function fail(error) { failed = true; document.getElementById('status').textContent = 'FAIL: ' + error; log(String(error)); }
+function readyAfter(previous) { return new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error('Ready timeout')), 30000);
+  readyWaiters.push(value => { if (value !== previous) { clearTimeout(timer); resolve(value); return true; } return false; });
+}); }
+window.addEventListener('message', event => {
+  if (event.source !== frame.contentWindow || event.origin !== location.origin) return;
+  let data; try { data = JSON.parse(event.data); } catch { return; }
+  if (data.source !== 'fpvmanager-globe' || data.version !== 1) return;
+  if (data.type === 'globe-ready') {
+    session = data.sessionId;
+    readyWaiters = readyWaiters.filter(waiter => !waiter(session));
+  }
+  if (data.type === 'uas-zones-status') lastStatus = data;
+  if (data.type === 'globe-error') fail(data.message);
+  if (data.type === 'command-result' && data.sessionId === session) {
+    const request = pending.get(data.requestId); if (!request) return;
+    clearTimeout(request.timer); pending.delete(data.requestId);
+    data.ok ? request.resolve(data.result) : request.reject(new Error(data.error));
+  }
+});
+function command(type, fields = {}) { return new Promise((resolve, reject) => {
+  const requestId = String(++next);
+  const timer = setTimeout(() => { pending.delete(requestId); reject(new Error(type + ' timeout')); }, 20000);
+  pending.set(requestId, { resolve, reject, timer });
+  frame.contentWindow.postMessage(JSON.stringify({ version: 1, sessionId: session, requestId, type, ...fields }), location.origin);
+}); }
+const zone = { type: 'FeatureCollection', features: [{ type: 'Feature', id: 'fixture',
+  properties: { name: 'Local integration fixture' }, geometry: { type: 'Polygon',
+  coordinates: [[[8.4,46.7],[8.5,46.7],[8.5,46.8],[8.4,46.7]]] } }] };
+async function settings() {
+  await command('set-map-style', { style: 'topographic' });
+  await command('fly-to', { latitude:46.73, longitude:8.43, altitude:10000 });
+  await command('set-uas-opacity', { opacity: 0.45 });
+  await command('set-spot-markers', { revision: 1, spots: [{id:1,name:'Local fixture',latitude:46.7,longitude:8.4}] });
+  await command('set-uas-zones', { visible: true, geojson: zone, downloadedAtUtc: '2026-10-19T00:00:00Z' });
+  if (!lastStatus?.visible || lastStatus.featureCount !== 1 || lastStatus.fillOpacity !== 0.45) throw new Error('Incorrect UAS status');
+}
+async function checkWorker() {
+  const processor = new frame.contentWindow.Cesium.TaskProcessor('createGeometry');
+  let timer;
+  try {
+    await Promise.race([
+      processor.scheduleTask({ subTasks: [] }),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Local geometry worker timeout')), 20000); })
+    ]);
+  } finally { clearTimeout(timer); processor.destroy(); }
+}
+(async () => {
+  await readyAfter(null); log('PASS: local Cesium/WebGL initializes without online map resources');
+  await checkWorker(); log('PASS: bundled geometry worker executes and returns a result');
+  await settings(); log('PASS: map style, opacity, spot markers and real GeoJSON import acknowledged');
+  try { await command('query-terrain-elevation', { latitude:46.7, longitude:8.4 }); throw new Error('Expected terrain error'); }
+  catch (error) { if (!String(error).includes('Detailed terrain data unavailable')) throw error; }
+  log('PASS: unavailable offline terrain returns a correlated error');
+  const previous = session, reloaded = readyAfter(previous);
+  await command('reload-renderer'); await reloaded; await settings();
+  log('PASS: new renderer session after real iframe reload accepts restored settings');
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  if (!failed) { document.getElementById('status').textContent = 'PASS — offline renderer and bridge smoke'; log('PASS: renderer remains free of render errors'); }
+})().catch(fail);
+</script></html>

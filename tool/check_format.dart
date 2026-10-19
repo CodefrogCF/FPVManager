@@ -3,7 +3,7 @@ import 'dart:io';
 /// Run from the repository root. Generated Drift sources keep generator output.
 void main() {
   final files = <String>[];
-  for (final root in ['lib', 'test', 'tool']) {
+  for (final root in ['lib', 'test', 'tool', 'integration_test']) {
     for (final entity in Directory(root).listSync(recursive: true)) {
       if (entity is! File) continue;
       final path = entity.path.replaceAll('\\', '/');

@@ -1,27 +1,30 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'globe_controller.dart';
+import 'globe_asset_server.dart';
 
 /// Native implementation of the FPVManager 3D globe.
 ///
 /// Android and iOS use a native WebView.
 /// Other native platforms display a fallback.
 class GlobeView extends StatefulWidget {
-  const GlobeView({super.key, required this.controller});
+  const GlobeView({super.key, required this.controller, this.offline = false});
 
   final GlobeController controller;
+  final bool offline;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();
 }
 
-class _GlobeViewState extends State<GlobeView> {
+class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   WebViewController? _controller;
+  GlobeAssetServer? _assetServer;
 
   bool _loading = true;
   String? _error;
@@ -34,6 +37,8 @@ class _GlobeViewState extends State<GlobeView> {
     super.initState();
 
     widget.controller.attach(_sendCommand);
+    widget.controller.addListener(_onControllerChanged);
+    WidgetsBinding.instance.addObserver(this);
 
     if (_supported) {
       _initializeGlobe();
@@ -54,6 +59,12 @@ class _GlobeViewState extends State<GlobeView> {
 
   Future<void> _initializeGlobe() async {
     try {
+      final server = await GlobeAssetServer.start();
+      if (!mounted) {
+        await server.close();
+        return;
+      }
+      _assetServer = server;
       final controller = WebViewController();
 
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
@@ -68,6 +79,14 @@ class _GlobeViewState extends State<GlobeView> {
 
       await controller.setNavigationDelegate(
         NavigationDelegate(
+          onPageStarted: (_) {
+            if (!mounted) return;
+            widget.controller.rendererLoading();
+            setState(() {
+              _loading = true;
+              _error = null;
+            });
+          },
           onPageFinished: (_) {
             if (!mounted) return;
 
@@ -88,11 +107,11 @@ class _GlobeViewState extends State<GlobeView> {
             }
           },
           onNavigationRequest: (request) {
-            final scheme = Uri.tryParse(request.url)?.scheme;
-
-            // Allow local assets but prevent navigation
-            // to arbitrary external websites.
-            if (scheme == 'file' || scheme == 'about') {
+            final uri = Uri.tryParse(request.url);
+            if (uri?.scheme == 'http' &&
+                    uri?.host == '127.0.0.1' &&
+                    uri?.port == server.origin.port ||
+                request.url == 'about:blank') {
               return NavigationDecision.navigate;
             }
 
@@ -107,11 +126,10 @@ class _GlobeViewState extends State<GlobeView> {
         _controller = controller;
       });
 
-      final html = await rootBundle.loadString('web/globe.html');
-
-      await controller.loadHtmlString(
-        html,
-        baseUrl: 'https://appassets.androidplatform.net/',
+      await controller.loadRequest(
+        server.origin.resolve(
+          widget.offline ? '/globe.html?offline=1' : '/globe.html',
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -128,55 +146,55 @@ class _GlobeViewState extends State<GlobeView> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onControllerChanged);
       oldWidget.controller.detach();
       widget.controller.attach(_sendCommand);
+      widget.controller.addListener(_onControllerChanged);
+      unawaited(_controller?.reload() ?? Future<void>.value());
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.controller.removeListener(_onControllerChanged);
     widget.controller.detach();
+    unawaited(_assetServer?.close() ?? Future<void>.value());
     super.dispose();
   }
 
   void _handleJavaScriptMessage(JavaScriptMessage message) {
+    if (!mounted) return;
     widget.controller.handleEvent(message.message);
+  }
+
+  void _onControllerChanged() {
+    if (!mounted) return;
+    final point = widget.controller.selectedPoint;
+    setState(() {
+      _coordinates = point == null
+          ? null
+          : '${point.latitude.toStringAsFixed(5)}, '
+                '${point.longitude.toStringAsFixed(5)} | '
+                '${point.altitude.toStringAsFixed(1)} m';
+      _error = widget.controller.error;
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_supported) return;
+    if (state == AppLifecycleState.paused) widget.controller.suspend();
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_resumeRenderer());
+    }
+  }
+
+  Future<void> _resumeRenderer() async {
     try {
-      final decoded = jsonDecode(message.message);
-
-      if (decoded is! Map<String, dynamic>) return;
-
-      switch (decoded['type']) {
-        case 'globe-ready':
-          debugPrint('FPVManager: CesiumJS globe initialized');
-
-        case 'point-selected':
-          final latitude = decoded['latitude'];
-          final longitude = decoded['longitude'];
-          final altitude = decoded['altitude'];
-
-          if (latitude is num &&
-              longitude is num &&
-              altitude is num &&
-              mounted) {
-            setState(() {
-              _coordinates =
-                  '${latitude.toStringAsFixed(5)}, '
-                  '${longitude.toStringAsFixed(5)} | '
-                  '${altitude.toStringAsFixed(1)} m';
-            });
-          }
-
-        case 'globe-error':
-          if (!mounted) return;
-
-          setState(() {
-            _error = decoded['message']?.toString() ?? 'Unknown globe error';
-            _loading = false;
-          });
-      }
-    } catch (error) {
-      debugPrint('Invalid globe message: $error');
+      await _controller?.runJavaScript('window.FPVManager?.hello();');
+    } catch (_) {
+      if (mounted) await _controller?.reload();
     }
   }
 

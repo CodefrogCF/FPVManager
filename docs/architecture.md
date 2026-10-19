@@ -5,7 +5,8 @@
 FPVManager is a Flutter application with a CesiumJS rendering surface. Flutter
 owns application navigation, personal data and observable map state. Cesium owns
 terrain/imagery rendering, picking and camera movements. The implementation is a
-prototype; reliability and geospatial reference work remain under #10 and #48.
+prototype. See [the bridge protocol](globe_bridge.md) for reliability boundaries;
+end-to-end geospatial reference verification remains under #10.
 
 `FPVHomeScreen` composes the globe, layer controls and spot navigation. It opens a
 local `FpvDatabase` lazily and watches `SpotRepository` to synchronize saved
@@ -16,7 +17,8 @@ that it created itself.
 
 - Web embeds `web/globe.html` in an iframe. Flutter sends JSON using `postMessage`;
   the Flutter listener checks the origin. The renderer checks origin and parent.
-- Android uses `webview_flutter`, loading `web/globe.html` from Flutter assets.
+- Android uses `webview_flutter`, loading bundled files from an app-owned loopback
+  asset server with a real origin for Workers and Wasm.
   Flutter sends typed commands through `window.FPVManager.receive`; events return
   through the `FPVBridge` JavaScript channel.
 - `GlobeController` validates recognized events, updates state and notifies its
@@ -25,9 +27,10 @@ that it created itself.
   a 30-second timeout and cancellation when detached/disposed. Marker revisions
   help ignore older marker datasets.
 
-The bridge does not yet offer a generally versioned protocol, acknowledgements
-for all commands, bounded transfer storage or full renderer-reload recovery.
-These are remaining work in #48, not guarantees of this design.
+The bridge uses protocol version 1, per-page sessions, command acknowledgements,
+configurable timeouts and bounded transfer buffers. It restores requested map
+style, UAS visibility/opacity and markers on reload/resume. Camera and transient
+selection return to the initial state. See [protocol details](globe_bridge.md).
 
 ## Selection semantics
 
@@ -79,16 +82,15 @@ Current external dependencies include:
 
 | Purpose | Host / source |
 |---|---|
-| CesiumJS code, styles and related assets | `cdn.jsdelivr.net` |
+| CesiumJS code, styles and related assets | Local pinned `web/cesium/` bundle |
 | Swiss imagery and map styles | `wmts.geo.admin.ch` |
 | Swiss terrain | `3d.geo.admin.ch` |
 | FOCA/BAZL UAS GeoJSON | `data.geo.admin.ch` |
 | REFRAME transformation services, when invoked | `geodesy.geo.admin.ch` |
 
-Flutter's Web bootstrap may also load renderer resources from Google-hosted
-services according to its build configuration. This list is an architecture
-inventory, not a completed privacy/license audit. #5/#44 cover that documentation;
-#49 covers local Cesium assets. Map requests disclose the viewed area to their
+The documented Web build uses `--no-web-resources-cdn` to load Flutter renderer
+resources locally as well. This list is an architecture inventory, not a completed
+privacy/license audit; #5/#44 cover that documentation. Map requests disclose the viewed area to their
 providers; REFRAME requests contain supplied positions and elevations.
 
 ## Verification
@@ -98,5 +100,7 @@ and controller behavior. Widget tests cover home-screen selection effects and
 layer controls, including cached overlay reactivation and renderer metadata.
 CI runs formatting, analysis and tests before separate Web/Android build jobs.
 
-These checks do not start a real WebGL globe, validate current official airspace
-restrictions, assess iOS compatibility or measure performance on physical devices.
+The separately run [native integration test](../integration_test/globe_runtime_test.dart)
+and local browser smoke harness start the real renderer with offline fixtures.
+They do not validate current official airspace restrictions, assess iOS
+compatibility or measure physical-device performance.

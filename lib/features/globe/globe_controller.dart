@@ -1,14 +1,14 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
 import '../../core/osint/osint_provider.dart';
 import '../airspace/data/swiss_uas_provider.dart';
+import 'globe_bridge.dart';
+
+export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 
 enum GlobeMapStyle { satellite, topographic, relief }
-
-typedef GlobeCommandSender = Future<void> Function(String command);
 
 class GlobePoint {
   const GlobePoint({
@@ -74,22 +74,24 @@ class SpotMapMarker {
 }
 
 class GlobeController extends ChangeNotifier {
-  GlobeController({OsintProvider<Map<String, dynamic>>? uasProvider})
-    : _uasProvider = uasProvider ?? SwissUasProvider(),
-      _ownsUasProvider = uasProvider == null;
+  GlobeController({
+    OsintProvider<Map<String, dynamic>>? uasProvider,
+    GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
+  }) : _uasProvider = uasProvider ?? SwissUasProvider(),
+       _ownsUasProvider = uasProvider == null,
+       _bridge = GlobeBridge(options: bridgeOptions);
 
   final OsintProvider<Map<String, dynamic>> _uasProvider;
   final bool _ownsUasProvider;
+  final GlobeBridge _bridge;
+  bool _disposed = false;
+  int _connectionGeneration = 0;
+  int _uasOperation = 0;
+  GlobeMapStyle _requestedMapStyle = GlobeMapStyle.satellite;
+  double _requestedUasOpacity = 0.20;
 
   bool _uasDatasetSentToRenderer = false;
   bool _uasRequestedVisible = false;
-  int _nextTransferId = 0;
-  int _nextElevationRequestId = 0;
-
-  final Map<String, Completer<TerrainElevation>> _pendingElevationRequests = {};
-
-  GlobeCommandSender? _sender;
-
   bool _ready = false;
   bool _terrainAvailable = false;
   GlobeMapStyle _mapStyle = GlobeMapStyle.satellite;
@@ -178,15 +180,41 @@ class GlobeController extends ChangeNotifier {
   }
 
   void attach(GlobeCommandSender sender) {
-    _sender = sender;
+    _bridge.attach(sender);
+    _connectionGeneration++;
     _ready = false;
   }
 
   void detach() {
-    _cancelElevationRequests();
-    _sender = null;
+    _bridge.detach();
+    _resetConnection();
+  }
+
+  void rendererLoading() {
+    _bridge.endSession();
+    _resetConnection();
+  }
+
+  void suspend() {
+    _bridge.cancelPending();
+    _resetConnection();
+  }
+
+  void _resetConnection() {
+    _connectionGeneration++;
+    _uasOperation++;
+    _spotFocusSequence++;
     _ready = false;
+    _terrainAvailable = false;
     _uasDatasetSentToRenderer = false;
+    _uasZonesVisible = false;
+    _uasZonesLoading = false;
+    _error = null;
+    _uasZonesError = null;
+    _selectedPoint = null;
+    _selectedSpotId = null;
+    _selectedUasZone = null;
+    if (!_disposed) notifyListeners();
   }
 
   Future<TerrainElevation> queryTerrainElevation({
@@ -206,91 +234,49 @@ class GlobeController extends ChangeNotifier {
       throw StateError('Globe is not ready');
     }
 
-    final requestId = (++_nextElevationRequestId).toString();
-    final completer = Completer<TerrainElevation>();
-
-    _pendingElevationRequests[requestId] = completer;
-
-    try {
-      await _send({
-        'type': 'query-terrain-elevation',
-        'requestId': requestId,
-        'latitude': latitude,
-        'longitude': longitude,
-      });
-
-      return await completer.future.timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Terrain elevation request timed out');
-        },
-      );
-    } finally {
-      _pendingElevationRequests.remove(requestId);
+    final result = await _request({
+      'type': 'query-terrain-elevation',
+      'latitude': latitude,
+      'longitude': longitude,
+    }, timeout: _bridge.options.terrainTimeout);
+    final height = result['heightMeters'];
+    final method = result['samplingMethod'];
+    if (result['latitude'] != latitude ||
+        result['longitude'] != longitude ||
+        height is! num ||
+        !height.isFinite ||
+        method is! String ||
+        method.isEmpty ||
+        method.length > 80) {
+      throw const FormatException('Invalid terrain elevation response');
     }
+    return TerrainElevation(
+      latitude: latitude,
+      longitude: longitude,
+      heightMeters: height.toDouble(),
+      samplingMethod: method,
+    );
   }
 
-  void _cancelElevationRequests() {
-    final pending = _pendingElevationRequests.values.toList();
-    _pendingElevationRequests.clear();
-
-    for (final completer in pending) {
-      if (!completer.isCompleted) {
-        completer.completeError(StateError('Globe connection closed'));
-      }
+  Future<Map<String, dynamic>> _request(
+    Map<String, dynamic> command, {
+    Duration? timeout,
+  }) {
+    if (!_ready || _disposed) {
+      return Future.error(StateError('Globe is not ready'));
     }
+    return _bridge.send(command, timeout: timeout);
   }
 
   Future<void> _send(Map<String, dynamic> command) async {
-    final sender = _sender;
-
-    if (!_ready || sender == null) {
-      throw StateError('Globe is not ready');
-    }
-
-    final encoded = jsonEncode(command);
-
-    const chunkSize = 32 * 1024;
-
-    if (encoded.length <= chunkSize) {
-      await sender(encoded);
-      return;
-    }
-
-    final transferId = (++_nextTransferId).toString();
-
-    await sender(jsonEncode({'type': 'transfer-start', 'id': transferId}));
-
-    try {
-      for (var offset = 0; offset < encoded.length; offset += chunkSize) {
-        final end = (offset + chunkSize < encoded.length)
-            ? offset + chunkSize
-            : encoded.length;
-
-        await sender(
-          jsonEncode({
-            'type': 'transfer-chunk',
-            'id': transferId,
-            'data': encoded.substring(offset, end),
-          }),
-        );
-      }
-
-      await sender(jsonEncode({'type': 'transfer-complete', 'id': transferId}));
-    } catch (_) {
-      try {
-        await sender(jsonEncode({'type': 'transfer-abort', 'id': transferId}));
-      } catch (_) {
-        // The renderer may already be unavailable.
-      }
-
-      rethrow;
-    }
+    await _request(command);
   }
 
   Future<void> resetCamera() {
     return _send({'type': 'reset-camera'});
   }
+
+  Future<void> reloadRenderer() => _send({'type': 'reload-renderer'});
 
   Future<void> flyTo({
     required double latitude,
@@ -317,79 +303,55 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> setMapStyle(GlobeMapStyle style) async {
+    _requestedMapStyle = style;
     await _send({'type': 'set-map-style', 'style': style.name});
   }
 
-  Future<void> setUasZonesVisible(bool visible) async {
+  Future<void> setUasZonesVisible(bool visible) {
     _uasRequestedVisible = visible;
+    return _updateUas(forceRefresh: false);
+  }
 
-    if (!visible) {
+  Future<void> refreshUasZones() => _updateUas(forceRefresh: true);
+
+  Future<void> _updateUas({required bool forceRefresh}) async {
+    if (!_ready) throw StateError('Globe is not ready');
+    final operation = ++_uasOperation;
+    final generation = _connectionGeneration;
+    bool current() =>
+        !_disposed &&
+        operation == _uasOperation &&
+        generation == _connectionGeneration;
+    if (!_uasRequestedVisible && !forceRefresh) {
       await _send({'type': 'set-uas-zones', 'visible': false});
       return;
     }
-
-    if (_uasDatasetSentToRenderer) {
-      await _send({'type': 'set-uas-zones', 'visible': true});
-      return;
-    }
-
-    if (!_ready) {
-      throw StateError('Globe is not ready');
-    }
-
     _uasZonesLoading = true;
     _uasZonesError = null;
     notifyListeners();
-
     try {
-      final dataset = await _uasProvider.fetch();
-
-      if (!_uasRequestedVisible) {
+      if (_uasDatasetSentToRenderer && !forceRefresh) {
+        await _send({'type': 'set-uas-zones', 'visible': true});
+      } else {
+        final dataset = await _uasProvider.fetch(forceRefresh: forceRefresh);
+        if (!current()) return;
+        await _request({
+          'type': forceRefresh ? 'replace-uas-zones' : 'set-uas-zones',
+          'visible': _uasRequestedVisible,
+          'geojson': dataset.data,
+          'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
+        }, timeout: _bridge.options.datasetTimeout);
+        if (current()) _uasDatasetSentToRenderer = true;
+      }
+    } catch (error) {
+      if (!current()) return;
+      _uasZonesError = error.toString();
+      rethrow;
+    } finally {
+      if (current()) {
         _uasZonesLoading = false;
         notifyListeners();
-        return;
       }
-
-      await _send({
-        'type': 'set-uas-zones',
-        'visible': true,
-        'geojson': dataset.data,
-        'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
-      });
-
-      _uasDatasetSentToRenderer = true;
-    } catch (error) {
-      _uasZonesLoading = false;
-      _uasZonesError = error.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> refreshUasZones() async {
-    if (!_ready) {
-      throw StateError('Globe is not ready');
-    }
-
-    _uasZonesLoading = true;
-    _uasZonesError = null;
-    notifyListeners();
-
-    try {
-      final dataset = await _uasProvider.fetch(forceRefresh: true);
-
-      await _send({
-        'type': 'replace-uas-zones',
-        'geojson': dataset.data,
-        'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
-      });
-
-      _uasDatasetSentToRenderer = true;
-    } catch (error) {
-      _uasZonesLoading = false;
-      _uasZonesError = error.toString();
-      notifyListeners();
-      rethrow;
     }
   }
 
@@ -398,37 +360,41 @@ class GlobeController extends ChangeNotifier {
       throw ArgumentError.value(opacity, 'opacity', 'Must be between 0 and 1');
     }
 
+    _requestedUasOpacity = opacity;
     return _send({'type': 'set-uas-opacity', 'opacity': opacity});
   }
 
   void handleEvent(String message) {
-    Map<String, dynamic> data;
-
-    try {
-      final decoded = jsonDecode(message);
-
-      if (decoded is! Map<String, dynamic>) return;
-      if (decoded['source'] != 'fpvmanager-globe') return;
-
-      data = decoded;
-    } on FormatException {
+    if (_disposed) return;
+    final previousSession = _bridge.session;
+    final data = _bridge.receive(message);
+    if (data == null) return;
+    if (!_ready &&
+        data['type'] != 'globe-ready' &&
+        data['type'] != 'renderer-loading' &&
+        data['type'] != 'globe-error') {
       return;
     }
 
     switch (data['type']) {
+      case 'renderer-loading':
+        _resetConnection();
+
       case 'globe-ready':
+        if (_ready && previousSession == _bridge.session) return;
+        _connectionGeneration++;
+        _uasOperation++;
         _ready = true;
         _error = null;
         _terrainAvailable = data['terrainAvailable'] == true;
         _uasDatasetSentToRenderer = false;
-        if (_spotMarkers.isNotEmpty) {
-          unawaited(
-            _pushSpotMarkers().catchError((Object error, StackTrace stack) {
-              _error = 'Spot marker sync failed: $error';
-              notifyListeners();
-            }),
-          );
-        }
+        _uasZonesVisible = false;
+        _uasZonesLoading = false;
+        _selectedPoint = null;
+        _selectedSpotId = null;
+        _selectedUasZone = null;
+        final generation = _connectionGeneration;
+        unawaited(_restoreRendererState(generation));
         notifyListeners();
 
       case 'spot-selected':
@@ -451,7 +417,16 @@ class GlobeController extends ChangeNotifier {
         final longitude = data['longitude'];
         final altitude = data['altitude'];
 
-        if (latitude is num && longitude is num && altitude is num) {
+        if (latitude is num &&
+            longitude is num &&
+            altitude is num &&
+            latitude.isFinite &&
+            longitude.isFinite &&
+            altitude.isFinite &&
+            latitude >= -90 &&
+            latitude <= 90 &&
+            longitude >= -180 &&
+            longitude <= 180) {
           _selectedSpotId = null;
           _selectedUasZone = null;
           _selectedPoint = GlobePoint(
@@ -546,55 +521,38 @@ class GlobeController extends ChangeNotifier {
 
         notifyListeners();
 
-      case 'terrain-elevation-result':
-        final requestId = data['requestId']?.toString();
-
-        if (requestId == null) return;
-
-        final completer = _pendingElevationRequests[requestId];
-
-        if (completer == null || completer.isCompleted) {
-          return;
-        }
-
-        final error = data['error'];
-
-        if (error is String && error.isNotEmpty) {
-          completer.completeError(StateError(error));
-          return;
-        }
-
-        final latitude = data['latitude'];
-        final longitude = data['longitude'];
-        final height = data['heightMeters'];
-        final samplingMethod = data['samplingMethod'];
-
-        if (latitude is! num ||
-            longitude is! num ||
-            height is! num ||
-            samplingMethod is! String ||
-            !latitude.toDouble().isFinite ||
-            !longitude.toDouble().isFinite ||
-            !height.toDouble().isFinite) {
-          completer.completeError(
-            const FormatException('Invalid terrain elevation response'),
-          );
-          return;
-        }
-
-        completer.complete(
-          TerrainElevation(
-            latitude: latitude.toDouble(),
-            longitude: longitude.toDouble(),
-            heightMeters: height.toDouble(),
-            samplingMethod: samplingMethod,
-          ),
-        );
-
       case 'uas-zone-cleared':
         clearSelectedUasZone();
 
         notifyListeners();
+    }
+  }
+
+  Future<void> _restoreRendererState(int generation) async {
+    bool current() =>
+        !_disposed && _ready && generation == _connectionGeneration;
+    try {
+      if (_requestedMapStyle != GlobeMapStyle.satellite) {
+        await _send({
+          'type': 'set-map-style',
+          'style': _requestedMapStyle.name,
+        });
+      }
+      if (!current()) return;
+      if (_requestedUasOpacity != 0.20) {
+        await _send({
+          'type': 'set-uas-opacity',
+          'opacity': _requestedUasOpacity,
+        });
+      }
+      if (!current()) return;
+      if (_spotMarkers.isNotEmpty) await _pushSpotMarkers();
+      if (!current()) return;
+      if (_uasRequestedVisible) await _updateUas(forceRefresh: false);
+    } catch (error) {
+      if (!current()) return;
+      _error = 'Unable to restore map state: $error';
+      notifyListeners();
     }
   }
 
@@ -654,7 +612,10 @@ class GlobeController extends ChangeNotifier {
     if (_ownsUasProvider) {
       _uasProvider.dispose();
     }
-    _cancelElevationRequests();
+    _disposed = true;
+    _connectionGeneration++;
+    _uasOperation++;
+    _bridge.detach();
     super.dispose();
   }
 }

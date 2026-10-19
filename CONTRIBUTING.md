@@ -41,6 +41,8 @@ Run from the repository root with the Flutter/Dart versions listed in README:
 ```sh
 flutter pub get --enforce-lockfile
 dart run tool/check_format.dart
+python tool/vendor_cesium.py --check
+node --test test/js/globe_bridge.test.cjs
 flutter analyze --no-pub
 flutter test --no-pub
 ```
@@ -48,7 +50,7 @@ flutter test --no-pub
 For changes affecting platform integration, also run:
 
 ```sh
-flutter build web --release --no-pub
+flutter build web --release --no-pub --no-web-resources-cdn
 flutter build apk --debug --no-pub
 ```
 
@@ -56,6 +58,10 @@ The same commands are in `.github/workflows/ci.yml`. That workflow uses actions
 pinned to commit SHAs, read-only repository permissions and no deployment step.
 When upgrading Flutter, update its workflow pin and README together, intentionally
 refresh `pubspec.lock` if needed, and repeat both platform builds.
+
+The real renderer/lifecycle test is
+`flutter test integration_test/globe_runtime_test.dart -d <android-device-id>`.
+Use [the local browser smoke harness](docs/cesium_assets.md) for WebGL verification.
 
 ## Database changes
 

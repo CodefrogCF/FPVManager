@@ -41,6 +41,8 @@ dependencies:
   drift_flutter: ^0.3.1
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
 
@@ -71,6 +73,59 @@ flutter:
 
   assets:
     - web/globe.html
+    # BEGIN CESIUM ASSETS
+    - web/cesium/
+    - web/cesium/Assets/
+    - web/cesium/Assets/IAU2006_XYS/
+    - web/cesium/Assets/Images/
+    - web/cesium/Assets/Textures/
+    - web/cesium/Assets/Textures/LensFlare/
+    - web/cesium/Assets/Textures/NaturalEarthII/
+    - web/cesium/Assets/Textures/NaturalEarthII/0/0/
+    - web/cesium/Assets/Textures/NaturalEarthII/0/1/
+    - web/cesium/Assets/Textures/NaturalEarthII/1/0/
+    - web/cesium/Assets/Textures/NaturalEarthII/1/1/
+    - web/cesium/Assets/Textures/NaturalEarthII/1/2/
+    - web/cesium/Assets/Textures/NaturalEarthII/1/3/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/0/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/1/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/2/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/3/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/4/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/5/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/6/
+    - web/cesium/Assets/Textures/NaturalEarthII/2/7/
+    - web/cesium/Assets/Textures/SkyBox/
+    - web/cesium/Assets/Textures/maki/
+    - web/cesium/ThirdParty/
+    - web/cesium/ThirdParty/Workers/
+    - web/cesium/Widgets/
+    - web/cesium/Widgets/Animation/
+    - web/cesium/Widgets/BaseLayerPicker/
+    - web/cesium/Widgets/Cesium3DTilesInspector/
+    - web/cesium/Widgets/CesiumInspector/
+    - web/cesium/Widgets/CesiumWidget/
+    - web/cesium/Widgets/FullscreenButton/
+    - web/cesium/Widgets/Geocoder/
+    - web/cesium/Widgets/I3SBuildingSceneLayerExplorer/
+    - web/cesium/Widgets/Images/
+    - web/cesium/Widgets/Images/ImageryProviders/
+    - web/cesium/Widgets/Images/NavigationHelp/
+    - web/cesium/Widgets/Images/TerrainProviders/
+    - web/cesium/Widgets/InfoBox/
+    - web/cesium/Widgets/NavigationHelpButton/
+    - web/cesium/Widgets/PerformanceWatchdog/
+    - web/cesium/Widgets/ProjectionPicker/
+    - web/cesium/Widgets/SceneModePicker/
+    - web/cesium/Widgets/SelectionIndicator/
+    - web/cesium/Widgets/Timeline/
+    - web/cesium/Widgets/VRButton/
+    - web/cesium/Widgets/Viewer/
+    - web/cesium/Widgets/VoxelInspector/
+    - web/cesium/Workers/
+    # END CESIUM ASSETS
+    - web/globe.js
+    - web/globe_bridge.js
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

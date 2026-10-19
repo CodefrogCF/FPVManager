@@ -1,4 +1,4 @@
-import 'dart:convert';
+import '../../helpers/fake_globe_renderer.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +13,7 @@ void main() {
   late MockClient client;
   late List<Map<String, dynamic>> commands;
   late int downloads;
+  late FakeGlobeRenderer renderer;
 
   setUp(() {
     downloads = 0;
@@ -22,11 +23,10 @@ void main() {
       return http.Response('{"type":"FeatureCollection","features":[]}', 200);
     });
     controller = GlobeController(uasProvider: SwissUasProvider(client: client));
-    controller.attach((message) async {
-      commands.add(jsonDecode(message) as Map<String, dynamic>);
-    });
+    renderer = FakeGlobeRenderer(controller, commands: commands);
+    renderer.attach();
     controller.handleEvent(
-      jsonEncode({
+      renderer.encode({
         'source': 'fpvmanager-globe',
         'type': 'globe-ready',
         'terrainAvailable': true,
@@ -41,7 +41,7 @@ void main() {
 
   void status({required bool visible, bool loading = false, String? error}) {
     controller.handleEvent(
-      jsonEncode({
+      renderer.encode({
         'source': 'fpvmanager-globe',
         'type': 'uas-zones-status',
         'visible': visible,

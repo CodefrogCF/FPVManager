@@ -40,22 +40,31 @@ Android and Web are the current build targets. The native view contains an iOS
 code path, but an iOS runner and compatibility validation are still pending (#2).
 Other native platforms show a globe fallback message.
 
-Online imagery, terrain and UAS downloads require network access. CesiumJS itself
-currently loads from jsDelivr; local bundling is tracked in #49.
+Online imagery, terrain and UAS downloads require network access. CesiumJS 1.145.0
+is bundled locally, including workers, textures and Wasm. The renderer can start
+with an offline grid/ellipsoid when online map resources are unavailable. See
+[asset packaging](docs/cesium_assets.md) and [bridge protocol](docs/globe_bridge.md).
 
 ## Quality checks and builds
 
 ```sh
 dart run tool/check_format.dart
+python tool/vendor_cesium.py --check
+node --test test/js/globe_bridge.test.cjs
 flutter analyze --no-pub
 flutter test --no-pub
-flutter build web --release --no-pub
+flutter build web --release --no-pub --no-web-resources-cdn
 flutter build apk --debug --no-pub
 ```
 
-The format helper checks hand-written Dart in `lib/`, `test/` and `tool/`, without
+The format helper checks hand-written Dart in `lib/`, `test/`, `integration_test/` and `tool/`, without
 changing files. Generated `.g.dart` and `test/generated_migrations/` sources are
 excluded. Format edited files with `dart format <path>`.
+
+Vendor verification needs Python 3.9+; JavaScript receiver tests need Node.js 20+.
+The native integration test can be run with
+`flutter test integration_test/globe_runtime_test.dart -d <android-device-id>`.
+It uses an offline renderer and local fixtures without opening the personal database.
 
 GitHub Actions runs on pull requests, pushes to `main` and manual dispatches.
 Formatting, analysis and tests gate the separate Web and Android build jobs.
@@ -74,7 +83,7 @@ validation are separate work.
 | `lib/features/globe/` | Map controller, platform views and layer controls |
 | `lib/features/airspace/` | Swiss UAS data adapter |
 | `lib/features/spots/` | Spot repository and editing/list UI |
-| `web/globe.html` | Cesium renderer and the JavaScript side of the bridge |
+| `web/globe.html`, `web/globe.js`, `web/globe_bridge.js` | Renderer entry point, Cesium commands and bridge protocol |
 | `test/` | Unit, migration and widget regression tests |
 | `drift_schemas/` | Versioned database schema snapshots |
 

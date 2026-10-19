@@ -1,4 +1,4 @@
-import 'dart:convert';
+import '../../helpers/fake_globe_renderer.dart';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -36,9 +36,10 @@ void main() {
       final controller = tester
           .widget<GlobeView>(find.byType(GlobeView))
           .controller;
-      controller.attach((_) async {});
+      final renderer = FakeGlobeRenderer(controller);
+      renderer.attach();
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -47,7 +48,7 @@ void main() {
       await tester.pumpAndSettle();
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'point-selected',
           'latitude': 46.7,
@@ -63,7 +64,7 @@ void main() {
       expect(tester.widget<IconButton>(terrainButton).onPressed, isNotNull);
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'spot-selected',
           'id': spotId,

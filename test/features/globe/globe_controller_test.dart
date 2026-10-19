@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:async';
+
+import '../../helpers/fake_globe_renderer.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -12,6 +15,7 @@ void main() {
     late GlobeController controller;
     late List<Map<String, dynamic>> commands;
     late MockClient mockClient;
+    late FakeGlobeRenderer renderer;
 
     setUp(() {
       commands = [];
@@ -39,9 +43,8 @@ void main() {
         uasProvider: SwissUasProvider(client: mockClient),
       );
 
-      controller.attach((message) async {
-        commands.add(jsonDecode(message) as Map<String, dynamic>);
-      });
+      renderer = FakeGlobeRenderer(controller, commands: commands);
+      renderer.attach();
     });
 
     tearDown(() {
@@ -51,7 +54,7 @@ void main() {
 
     test('processes globe-ready event', () {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -64,7 +67,7 @@ void main() {
 
     test('sends reset camera command', () async {
       controller.handleEvent(
-        jsonEncode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),
+        renderer.encode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),
       );
 
       await controller.resetCamera();
@@ -74,7 +77,7 @@ void main() {
 
     test('sends coordinate navigation command', () async {
       controller.handleEvent(
-        jsonEncode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),
+        renderer.encode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),
       );
 
       await controller.flyTo(latitude: 46.7, longitude: 8.4, altitude: 12000);
@@ -86,7 +89,7 @@ void main() {
 
     test('rejects invalid coordinates', () {
       controller.handleEvent(
-        jsonEncode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),
+        renderer.encode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),
       );
 
       expect(
@@ -96,8 +99,9 @@ void main() {
     });
 
     test('handles map style updates', () {
+      renderer.ready();
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'map-style-changed',
           'style': 'topographic',
@@ -109,7 +113,7 @@ void main() {
 
     test('ignores messages from unknown sources', () {
       controller.handleEvent(
-        jsonEncode({'source': 'other-application', 'type': 'globe-ready'}),
+        renderer.encode({'source': 'other-application', 'type': 'globe-ready'}),
       );
 
       expect(controller.isReady, isFalse);
@@ -117,7 +121,7 @@ void main() {
 
     test('toggles UAS zone overlay and processes status', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -133,7 +137,7 @@ void main() {
 
       // Cesium reports that the download has started.
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': false,
@@ -146,7 +150,7 @@ void main() {
 
       // Cesium reports successful activation.
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': true,
@@ -164,7 +168,7 @@ void main() {
       expect(commands.last['visible'], isFalse);
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': false,
@@ -176,8 +180,9 @@ void main() {
     });
 
     test('selects and clears UAS zone details', () {
+      renderer.ready();
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zone-selected',
           'id': 'test-zone-123',
@@ -199,7 +204,10 @@ void main() {
       );
 
       controller.handleEvent(
-        jsonEncode({'source': 'fpvmanager-globe', 'type': 'uas-zone-cleared'}),
+        renderer.encode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zone-cleared',
+        }),
       );
 
       expect(controller.selectedUasZone, isNull);
@@ -207,7 +215,7 @@ void main() {
 
     test('updates UAS opacity and source metadata', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -220,7 +228,7 @@ void main() {
       expect(commands.last['opacity'], 0.4);
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': true,
@@ -247,6 +255,7 @@ void main() {
     });
 
     test('notifies listeners after applying a complete UAS status', () {
+      renderer.ready();
       var notifications = 0;
       controller.addListener(() {
         notifications++;
@@ -259,7 +268,7 @@ void main() {
       });
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': true,
@@ -275,11 +284,12 @@ void main() {
     });
 
     test('ignores malformed UAS status without changing state', () {
+      renderer.ready();
       var notifications = 0;
       controller.addListener(() => notifications++);
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': 'true',
@@ -296,6 +306,7 @@ void main() {
     test(
       'keeps point, saved spot and UAS selections mutually exclusive',
       () async {
+        renderer.ready();
         await controller.setSpotMarkers([
           const SpotMapMarker(
             id: 1,
@@ -306,7 +317,7 @@ void main() {
         ]);
 
         void selectPoint() => controller.handleEvent(
-          jsonEncode({
+          renderer.encode({
             'source': 'fpvmanager-globe',
             'type': 'point-selected',
             'latitude': 46.7,
@@ -315,14 +326,14 @@ void main() {
           }),
         );
         void selectSpot() => controller.handleEvent(
-          jsonEncode({
+          renderer.encode({
             'source': 'fpvmanager-globe',
             'type': 'spot-selected',
             'id': 1,
           }),
         );
         void selectZone() => controller.handleEvent(
-          jsonEncode({
+          renderer.encode({
             'source': 'fpvmanager-globe',
             'type': 'uas-zone-selected',
             'id': 'zone',
@@ -364,7 +375,7 @@ void main() {
 
     test('refreshes UAS zones through the provider', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -378,7 +389,7 @@ void main() {
       expect(commands.last['geojson']['type'], 'FeatureCollection');
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'uas-zones-status',
           'visible': true,
@@ -395,7 +406,7 @@ void main() {
 
     test('queries terrain elevation and receives result', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -417,14 +428,18 @@ void main() {
       expect(command['longitude'], 8.4);
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
-          'type': 'terrain-elevation-result',
+          'type': 'command-result',
+          'commandType': 'query-terrain-elevation',
+          'ok': true,
           'requestId': command['requestId'],
-          'latitude': 46.7,
-          'longitude': 8.4,
-          'heightMeters': 1450.5,
-          'samplingMethod': 'most-detailed',
+          'result': {
+            'latitude': 46.7,
+            'longitude': 8.4,
+            'heightMeters': 1450.5,
+            'samplingMethod': 'most-detailed',
+          },
         }),
       );
 
@@ -436,7 +451,7 @@ void main() {
 
     test('rejects invalid terrain coordinates', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -451,7 +466,7 @@ void main() {
 
     test('propagates terrain sampling errors', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -470,9 +485,11 @@ void main() {
       final requestId = commands.last['requestId'];
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
-          'type': 'terrain-elevation-result',
+          'type': 'command-result',
+          'commandType': 'query-terrain-elevation',
+          'ok': false,
           'requestId': requestId,
           'error': 'Terrain unavailable',
         }),
@@ -483,7 +500,7 @@ void main() {
 
     test('focuses a spot using sampled terrain height', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -503,14 +520,18 @@ void main() {
       expect(terrainCommand['type'], 'query-terrain-elevation');
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
-          'type': 'terrain-elevation-result',
+          'type': 'command-result',
+          'commandType': 'query-terrain-elevation',
+          'ok': true,
           'requestId': terrainCommand['requestId'],
-          'latitude': 46.95108,
-          'longitude': 7.43863,
-          'heightMeters': 550.0,
-          'samplingMethod': 'most-detailed',
+          'result': {
+            'latitude': 46.95108,
+            'longitude': 7.43863,
+            'heightMeters': 550.0,
+            'samplingMethod': 'most-detailed',
+          },
         }),
       );
 
@@ -538,7 +559,7 @@ void main() {
 
     test('synchronizes saved spot markers', () async {
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'globe-ready',
           'terrainAvailable': true,
@@ -561,7 +582,7 @@ void main() {
       expect(command['spots'][0]['id'], 7);
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'spot-selected',
           'id': 7,
@@ -590,7 +611,7 @@ void main() {
       );
 
       controller.handleEvent(
-        jsonEncode({
+        renderer.encode({
           'source': 'fpvmanager-globe',
           'type': 'spot-selected',
           'id': 999,
@@ -599,5 +620,110 @@ void main() {
 
       expect(controller.selectedSpotId, isNull);
     });
+
+    test(
+      'restores requested layers, opacity and markers for a new renderer',
+      () async {
+        renderer.ready();
+        await controller.setMapStyle(GlobeMapStyle.topographic);
+        await controller.setUasZonesFillOpacity(0.45);
+        await controller.setSpotMarkers([
+          const SpotMapMarker(
+            id: 1,
+            name: 'Saved',
+            latitude: 46.7,
+            longitude: 8.4,
+          ),
+        ]);
+        await controller.setUasZonesVisible(true);
+        commands.clear();
+        renderer.sessionId = 'renderer-2';
+        renderer.sequence = 0;
+        renderer.emit({'type': 'renderer-loading'});
+        expect(controller.isReady, isFalse);
+        expect(controller.uasZonesVisible, isFalse);
+        renderer.ready();
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          commands.map((command) => command['type']),
+          containsAllInOrder([
+            'set-map-style',
+            'set-uas-opacity',
+            'set-spot-markers',
+            'set-uas-zones',
+          ]),
+        );
+        expect(
+          commands.every((command) => command['sessionId'] == 'renderer-2'),
+          isTrue,
+        );
+        expect(commands.first['style'], 'topographic');
+        expect(commands[1]['opacity'], 0.45);
+        expect(commands[2]['spots'], hasLength(1));
+        expect(commands.last['geojson'], isNotNull);
+      },
+    );
+
+    test(
+      'suspension cancels terrain requests and accepts the resumed renderer',
+      () async {
+        renderer.ready();
+        final query = controller.queryTerrainElevation(
+          latitude: 46.7,
+          longitude: 8.4,
+        );
+        final check = expectLater(query, throwsStateError);
+        controller.suspend();
+        expect(controller.isReady, isFalse);
+        await check;
+        renderer.emit({
+          'type': 'uas-zones-status',
+          'visible': true,
+          'loading': true,
+        });
+        renderer.emit({
+          'type': 'point-selected',
+          'latitude': 46.7,
+          'longitude': 8.4,
+          'altitude': 500,
+        });
+        expect(controller.uasZonesVisible, isFalse);
+        expect(controller.uasZonesLoading, isFalse);
+        expect(controller.selectedPoint, isNull);
+        renderer.ready();
+        expect(controller.isReady, isTrue);
+      },
+    );
+
+    test(
+      'a download completed after reload only goes to the current renderer',
+      () async {
+        controller.dispose();
+        mockClient.close();
+        final response = Completer<http.Response>();
+        mockClient = MockClient((_) => response.future);
+        controller = GlobeController(
+          uasProvider: SwissUasProvider(client: mockClient),
+        );
+        renderer = FakeGlobeRenderer(controller, commands: commands);
+        renderer.attach();
+        renderer.ready();
+        final original = controller.setUasZonesVisible(true);
+        renderer.sessionId = 'new-renderer';
+        renderer.sequence = 0;
+        renderer.emit({'type': 'renderer-loading'});
+        renderer.ready();
+        response.complete(
+          http.Response('{"type":"FeatureCollection","features":[]}', 200),
+        );
+        await original;
+        await Future<void>.delayed(Duration.zero);
+        final datasets = commands.where(
+          (command) => command['geojson'] != null,
+        );
+        expect(datasets, hasLength(1));
+        expect(datasets.single['sessionId'], 'new-renderer');
+      },
+    );
   });
 }

@@ -1,0 +1,2 @@
+# Preserve upstream bytes so vendor hashes also match Windows checkouts.
+web/cesium/** -text
