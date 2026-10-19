@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'features/globe/globe_controller.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
+import 'core/geo/geo_coordinate_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +96,17 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
       if (!mounted) return;
 
+      const geoService = GeoCoordinateService();
+
+      final wgs84 = Wgs84Coordinate(
+        latitude: result.latitude,
+        longitude: result.longitude,
+      );
+
+      final Lv95Coordinate? lv95 = geoService.supportsWgs84(wgs84)
+          ? geoService.wgs84ToLv95(wgs84)
+          : null;
+
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
@@ -118,6 +130,38 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                 '${result.longitude.toStringAsFixed(6)}°',
               ),
 
+              const SizedBox(height: 16),
+
+              if (lv95 != null) ...[
+                const Text(
+                  'Swiss Coordinates (LV95)',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Easting: '
+                  '${lv95.easting.toStringAsFixed(2)} m',
+                ),
+
+                Text(
+                  'Northing: '
+                  '${lv95.northing.toStringAsFixed(2)} m',
+                ),
+
+                const SizedBox(height: 4),
+
+                const Text(
+                  'Approximate conversion (swisstopo)',
+                  style: TextStyle(fontSize: 11, color: Colors.white70),
+                ),
+              ] else
+                const Text(
+                  'LV95 conversion unavailable '
+                  'outside the supported Swiss region.',
+                ),
+
               const SizedBox(height: 20),
 
               Text(
@@ -127,7 +171,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
               const SizedBox(height: 8),
 
-              const Text('Height reference: WGS84 ellipsoid'),
+              const Text('Terrain height reference: pending verification'),
 
               const SizedBox(height: 4),
 
