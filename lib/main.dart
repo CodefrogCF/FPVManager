@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
+import 'features/spots/spot_storage_debug_screen.dart';
 import 'features/globe/globe_controller.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
@@ -63,6 +65,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
       builder: (context) => MapLayersSheet(controller: _globeController),
+    );
+  }
+
+  void _openSpotStorageDebug() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => const SpotStorageDebugScreen(),
+      ),
     );
   }
 
@@ -222,6 +232,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         title: const Text('FPVManager'),
         backgroundColor: const Color(0xFF101820),
         actions: [
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Test local storage',
+              onPressed: _openSpotStorageDebug,
+              icon: const Icon(Icons.storage_outlined),
+            ),
+
           ListenableBuilder(
             listenable: _globeController,
             builder: (context, child) {
