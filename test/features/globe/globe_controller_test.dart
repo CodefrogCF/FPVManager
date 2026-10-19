@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+import 'package:fpvmanager/features/airspace/data/swiss_uas_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 
@@ -7,10 +11,33 @@ void main() {
   group('GlobeController', () {
     late GlobeController controller;
     late List<Map<String, dynamic>> commands;
+    late MockClient mockClient;
 
     setUp(() {
-      controller = GlobeController();
       commands = [];
+
+      mockClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'type': 'FeatureCollection',
+            'features': [
+              {
+                'type': 'Feature',
+                'geometry': {
+                  'type': 'Point',
+                  'coordinates': [8.5, 47.4],
+                },
+                'properties': {'name': 'Test UAS Zone'},
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      controller = GlobeController(
+        uasProvider: SwissUasProvider(client: mockClient),
+      );
 
       controller.attach((message) async {
         commands.add(jsonDecode(message) as Map<String, dynamic>);
@@ -19,6 +46,7 @@ void main() {
 
     tearDown(() {
       controller.dispose();
+      mockClient.close();
     });
 
     test('processes globe-ready event', () {
@@ -216,6 +244,37 @@ void main() {
       );
 
       expect(() => controller.setUasZonesFillOpacity(1.5), throwsArgumentError);
+    });
+
+    test('refreshes UAS zones through the provider', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      await controller.setUasZonesVisible(true);
+
+      expect(commands.last['type'], 'set-uas-zones');
+
+      expect(commands.last['geojson']['type'], 'FeatureCollection');
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': true,
+          'loading': false,
+        }),
+      );
+
+      await controller.refreshUasZones();
+
+      expect(commands.last['type'], 'replace-uas-zones');
+
+      expect(commands.last['geojson']['features'], isNotEmpty);
     });
   });
 }

@@ -75,17 +75,11 @@
     let activeViewer = null;
     let activeBaseLayer = null;
 
-    const UAS_ZONES_URL =
-        "https://data.geo.admin.ch/" +
-        "ch.bazl.einschraenkungen-drohnen/" +
-        "einschraenkungen-drohnen/" +
-        "einschraenkungen-drohnen_4326.geojson";
-
     let uasDataSource = null;
-    let uasLoadPromise = null;
     let uasRequestedVisible = false;
     let uasFillOpacity = 0.20;
     let uasDownloadedAtUtc = null;
+    let uasFeatureCount = null;
 
     const MAP_STYLES = {
         satellite: {
@@ -205,8 +199,7 @@
             error,
             fillOpacity: uasFillOpacity,
             downloadedAtUtc: uasDownloadedAtUtc,
-            featureCount:
-                uasDataSource?.entities.values.length ?? null
+            featureCount: uasFeatureCount
         });
     }
 
@@ -246,116 +239,191 @@
         }
     }
 
-    async function setUasZonesVisible(visible) {
+    async function setUasZonesVisible(
+        visible,
+        geojson = null,
+        downloadedAtUtc = null,
+        replace = false
+    ) {
         uasRequestedVisible = visible;
 
-        // Disable without reloading or destroying data.
-        if (!visible) {
+        // Hide without deleting the currently loaded data.
+        if (!visible && !replace) {
             if (uasDataSource) {
                 uasDataSource.show = false;
             }
 
-            sendUasStatus({
-                visible: false,
-                loading: false
-            });
-
             sendToFlutter("uas-zone-cleared");
 
-            return;
-        }
-
-        // Reuse the existing data source.
-        if (uasDataSource) {
-            uasDataSource.show = true;
-
             sendUasStatus({
-                visible: true,
-                loading: false
+                visible: false
             });
 
             return;
         }
 
-        // First activation: load official FOCA data.
+        // Reuse the existing Cesium data source.
+        if (uasDataSource && !replace) {
+            uasDataSource.show = visible;
+
+            sendUasStatus({
+                visible
+            });
+
+            return;
+        }
+
+        if (
+            !geojson ||
+            geojson.type !== "FeatureCollection" ||
+            !Array.isArray(geojson.features)
+        ) {
+            sendUasStatus({
+                visible: uasDataSource?.show === true,
+                error: "Invalid or missing UAS GeoJSON"
+            });
+
+            return;
+        }
+
         sendUasStatus({
-            visible: false,
+            visible: uasDataSource?.show === true,
             loading: true
         });
 
         try {
-            if (!uasLoadPromise) {
-                uasLoadPromise = (async () => {
-                    const dataSource =
-                        await Cesium.GeoJsonDataSource.load(
-                            UAS_ZONES_URL,
-                            {
-                                clampToGround: true,
+            const replacement =
+                await Cesium.GeoJsonDataSource.load(
+                    geojson,
+                    {
+                        clampToGround: true,
 
-                                stroke:
-                                    Cesium.Color.RED.withAlpha(0.85),
+                        stroke:
+                            Cesium.Color.RED.withAlpha(0.85),
 
-                                fill:
-                                    Cesium.Color.RED.withAlpha(0.20),
+                        fill:
+                            Cesium.Color.RED.withAlpha(
+                                uasFillOpacity
+                            ),
 
-                                strokeWidth: 2,
+                        strokeWidth: 2,
 
-                                credit: new Cesium.Credit(
-                                    "© BAZL / FOCA"
-                                )
-                            }
-                        );
+                        credit: new Cesium.Credit(
+                            "© BAZL / FOCA"
+                        )
+                    }
+                );
 
-                    await activeViewer.dataSources.add(
-                        dataSource
-                    );
+            await activeViewer.dataSources.add(
+                replacement
+            );
 
-                    return dataSource;
-                })();
-            }
+            const previous = uasDataSource;
 
-            uasDataSource = await uasLoadPromise;
+            uasDataSource = replacement;
             uasDataSource.show = uasRequestedVisible;
 
-            uasDownloadedAtUtc = new Date().toISOString();
+            if (previous) {
+                activeViewer.dataSources.remove(
+                    previous,
+                    true
+                );
+            }
+
+            uasDownloadedAtUtc = downloadedAtUtc;
+            uasFeatureCount = geojson.features.length;
 
             setUasFillOpacity(uasFillOpacity);
 
+            sendToFlutter("uas-zone-cleared");
+
             sendUasStatus({
-                visible: uasDataSource.show,
-                loading: false
+                visible: uasDataSource.show
             });
 
             console.log(
-                "[FPVManager] UAS zones loaded:",
-                uasDataSource.entities.values.length
+                "[FPVManager] UAS dataset imported:",
+                uasFeatureCount,
+                "features"
             );
         } catch (error) {
             console.error(
-                "[FPVManager] UAS zone loading failed:",
+                "[FPVManager] UAS import failed:",
                 error
             );
 
-            uasRequestedVisible = false;
-            uasLoadPromise = null;
-
             sendUasStatus({
-                visible: false,
-                loading: false,
+                visible: uasDataSource?.show === true,
                 error: String(error.message || error)
             });
         }
     }
 
-    function executeCommand(rawCommand) {
-        try {
-            if (!activeViewer) {
-                throw new Error("Globe is not initialized");
+    const pendingTransfers = new Map();
+
+    function handleTransfer(command) {
+        switch (command.type) {
+            case "transfer-start":
+                pendingTransfers.set(
+                    command.id,
+                    []
+                );
+                return true;
+
+            case "transfer-chunk": {
+                const parts = pendingTransfers.get(
+                    command.id
+                );
+
+                if (!parts) {
+                    throw new Error(
+                        "Unknown data transfer"
+                    );
+                }
+
+                parts.push(command.data);
+                return true;
             }
 
+            case "transfer-complete": {
+                const parts = pendingTransfers.get(
+                    command.id
+                );
+
+                if (!parts) {
+                    throw new Error(
+                        "Unknown data transfer"
+                    );
+                }
+
+                pendingTransfers.delete(command.id);
+
+                executeCommand(parts.join(""));
+                return true;
+            }
+
+            case "transfer-abort":
+                pendingTransfers.delete(command.id);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    function executeCommand(rawCommand) {
+        try {
             const command = typeof rawCommand === "string"
                 ? JSON.parse(rawCommand)
                 : rawCommand;
+
+            if (handleTransfer(command)) {
+                return;
+            }
+
+            if (!activeViewer) {
+                throw new Error("Globe is not initialized");
+            }
 
             switch (command.type) {
                 case "reset-camera":
@@ -372,7 +440,18 @@
 
                 case "set-uas-zones":
                     void setUasZonesVisible(
-                        command.visible === true
+                        command.visible === true,
+                        command.geojson ?? null,
+                        command.downloadedAtUtc ?? null
+                    );
+                    break;
+
+                case "replace-uas-zones":
+                    void setUasZonesVisible(
+                        uasRequestedVisible,
+                        command.geojson ?? null,
+                        command.downloadedAtUtc ?? null,
+                        true
                     );
                     break;
 

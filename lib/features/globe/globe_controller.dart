@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/osint/osint_provider.dart';
+import '../airspace/data/swiss_uas_provider.dart';
+
 enum GlobeMapStyle { satellite, topographic, relief }
 
 typedef GlobeCommandSender = Future<void> Function(String command);
@@ -31,6 +34,17 @@ class UasZoneDetails {
 }
 
 class GlobeController extends ChangeNotifier {
+  GlobeController({OsintProvider<Map<String, dynamic>>? uasProvider})
+    : _uasProvider = uasProvider ?? SwissUasProvider(),
+      _ownsUasProvider = uasProvider == null;
+
+  final OsintProvider<Map<String, dynamic>> _uasProvider;
+  final bool _ownsUasProvider;
+
+  bool _uasDatasetSentToRenderer = false;
+  bool _uasRequestedVisible = false;
+  int _nextTransferId = 0;
+
   GlobeCommandSender? _sender;
 
   bool _ready = false;
@@ -74,6 +88,7 @@ class GlobeController extends ChangeNotifier {
   void detach() {
     _sender = null;
     _ready = false;
+    _uasDatasetSentToRenderer = false;
   }
 
   Future<void> _send(Map<String, dynamic> command) async {
@@ -83,7 +98,44 @@ class GlobeController extends ChangeNotifier {
       throw StateError('Globe is not ready');
     }
 
-    await sender(jsonEncode(command));
+    final encoded = jsonEncode(command);
+
+    const chunkSize = 32 * 1024;
+
+    if (encoded.length <= chunkSize) {
+      await sender(encoded);
+      return;
+    }
+
+    final transferId = (++_nextTransferId).toString();
+
+    await sender(jsonEncode({'type': 'transfer-start', 'id': transferId}));
+
+    try {
+      for (var offset = 0; offset < encoded.length; offset += chunkSize) {
+        final end = (offset + chunkSize < encoded.length)
+            ? offset + chunkSize
+            : encoded.length;
+
+        await sender(
+          jsonEncode({
+            'type': 'transfer-chunk',
+            'id': transferId,
+            'data': encoded.substring(offset, end),
+          }),
+        );
+      }
+
+      await sender(jsonEncode({'type': 'transfer-complete', 'id': transferId}));
+    } catch (_) {
+      try {
+        await sender(jsonEncode({'type': 'transfer-abort', 'id': transferId}));
+      } catch (_) {
+        // The renderer may already be unavailable.
+      }
+
+      rethrow;
+    }
   }
 
   Future<void> resetCamera() {
@@ -118,8 +170,77 @@ class GlobeController extends ChangeNotifier {
     await _send({'type': 'set-map-style', 'style': style.name});
   }
 
-  Future<void> setUasZonesVisible(bool visible) {
-    return _send({'type': 'set-uas-zones', 'visible': visible});
+  Future<void> setUasZonesVisible(bool visible) async {
+    _uasRequestedVisible = visible;
+
+    if (!visible) {
+      await _send({'type': 'set-uas-zones', 'visible': false});
+      return;
+    }
+
+    if (_uasDatasetSentToRenderer) {
+      await _send({'type': 'set-uas-zones', 'visible': true});
+      return;
+    }
+
+    if (!_ready) {
+      throw StateError('Globe is not ready');
+    }
+
+    _uasZonesLoading = true;
+    _uasZonesError = null;
+    notifyListeners();
+
+    try {
+      final dataset = await _uasProvider.fetch();
+
+      if (!_uasRequestedVisible) {
+        _uasZonesLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      await _send({
+        'type': 'set-uas-zones',
+        'visible': true,
+        'geojson': dataset.data,
+        'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
+      });
+
+      _uasDatasetSentToRenderer = true;
+    } catch (error) {
+      _uasZonesLoading = false;
+      _uasZonesError = error.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> refreshUasZones() async {
+    if (!_ready) {
+      throw StateError('Globe is not ready');
+    }
+
+    _uasZonesLoading = true;
+    _uasZonesError = null;
+    notifyListeners();
+
+    try {
+      final dataset = await _uasProvider.fetch(forceRefresh: true);
+
+      await _send({
+        'type': 'replace-uas-zones',
+        'geojson': dataset.data,
+        'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
+      });
+
+      _uasDatasetSentToRenderer = true;
+    } catch (error) {
+      _uasZonesLoading = false;
+      _uasZonesError = error.toString();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> setUasZonesFillOpacity(double opacity) {
@@ -149,6 +270,7 @@ class GlobeController extends ChangeNotifier {
         _ready = true;
         _error = null;
         _terrainAvailable = data['terrainAvailable'] == true;
+        _uasDatasetSentToRenderer = false;
         notifyListeners();
 
       case 'point-selected':
@@ -179,6 +301,7 @@ class GlobeController extends ChangeNotifier {
 
       case 'globe-error':
         _error = data['message']?.toString() ?? 'Unknown globe error';
+        _uasZonesLoading = false;
         notifyListeners();
 
       case 'uas-zones-status':
@@ -194,6 +317,10 @@ class GlobeController extends ChangeNotifier {
         _uasZonesError = data['error'] is String
             ? data['error'] as String
             : null;
+
+        if (_uasZonesError != null && !_uasZonesVisible) {
+          _uasDatasetSentToRenderer = false;
+        }
 
         final opacity = data['fillOpacity'];
 
@@ -245,5 +372,13 @@ class GlobeController extends ChangeNotifier {
 
         notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsUasProvider) {
+      _uasProvider.dispose();
+    }
+    super.dispose();
   }
 }

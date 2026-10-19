@@ -191,9 +191,25 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
 
                   const SizedBox(height: 8),
 
-                  Text(
-                    'DATA SOURCE',
-                    style: Theme.of(context).textTheme.labelLarge,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'DATA SOURCE',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh UAS data',
+                        onPressed:
+                            controller.isReady &&
+                                controller.uasZonesVisible &&
+                                !controller.uasZonesLoading
+                            ? () => _execute(controller.refreshUasZones)
+                            : null,
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 8),
