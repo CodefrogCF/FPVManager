@@ -577,6 +577,79 @@
                     void queryTerrainElevation(command);
                     break;
 
+                case "focus-spot": {
+                    const latitude = command.latitude;
+                    const longitude = command.longitude;
+                    const terrainHeight = command.terrainHeightMeters;
+                    const range = command.rangeMeters;
+
+                    if (
+                        !Number.isFinite(latitude) ||
+                        !Number.isFinite(longitude) ||
+                        !Number.isFinite(terrainHeight) ||
+                        !Number.isFinite(range) ||
+                        latitude < -90 ||
+                        latitude > 90 ||
+                        longitude < -180 ||
+                        longitude > 180 ||
+                        range < 50 ||
+                        range > 10000
+                    ) {
+                        throw new Error("Invalid spot focus parameters");
+                    }
+
+                    // Actual terrain surface at the saved coordinates.
+                    const target = Cesium.Cartesian3.fromDegrees(
+                        longitude,
+                        latitude,
+                        terrainHeight
+                    );
+
+                    // A very small bounding sphere ensures the
+                    // camera focuses on the location itself.
+                    const boundingSphere = new Cesium.BoundingSphere(
+                        target,
+                        1
+                    );
+
+                    // One temporary marker for the currently focused spot.
+                    const markerId = "fpvmanager-focused-spot";
+
+                    let marker = activeViewer.entities.getById(markerId);
+
+                    if (!marker) {
+                        marker = activeViewer.entities.add({
+                            id: markerId,
+                            name: "Focused FPV Spot",
+                            position: target,
+                            point: {
+                                pixelSize: 12,
+                                color: Cesium.Color.CYAN,
+                                outlineColor: Cesium.Color.BLACK,
+                                outlineWidth: 2,
+                                heightReference:
+                                    Cesium.HeightReference.CLAMP_TO_GROUND
+                            }
+                        });
+                    } else {
+                        marker.position = target;
+                    }
+
+                    activeViewer.camera.flyToBoundingSphere(
+                        boundingSphere,
+                        {
+                            duration: 2.5,
+                            offset: new Cesium.HeadingPitchRange(
+                                Cesium.Math.toRadians(0),
+                                Cesium.Math.toRadians(-55),
+                                range
+                            )
+                        }
+                    );
+
+                    break;
+                }
+
                 default:
                     throw new Error(
                         `Unsupported command: ${command.type}`

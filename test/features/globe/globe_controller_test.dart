@@ -364,5 +364,60 @@ void main() {
 
       await expectation;
     });
+
+    test('focuses a spot using sampled terrain height', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      final request = controller.focusSpot(
+        latitude: 46.95108,
+        longitude: 7.43863,
+        rangeMeters: 300,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      final terrainCommand = commands.last;
+
+      expect(terrainCommand['type'], 'query-terrain-elevation');
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'terrain-elevation-result',
+          'requestId': terrainCommand['requestId'],
+          'latitude': 46.95108,
+          'longitude': 7.43863,
+          'heightMeters': 550.0,
+          'samplingMethod': 'most-detailed',
+        }),
+      );
+
+      await request;
+
+      final focusCommand = commands.last;
+
+      expect(focusCommand['type'], 'focus-spot');
+      expect(focusCommand['latitude'], 46.95108);
+      expect(focusCommand['longitude'], 7.43863);
+      expect(focusCommand['terrainHeightMeters'], 550.0);
+      expect(focusCommand['rangeMeters'], 300);
+    });
+
+    test('rejects invalid spot focus distance', () async {
+      await expectLater(
+        controller.focusSpot(
+          latitude: 46.95108,
+          longitude: 7.43863,
+          rangeMeters: -100,
+        ),
+        throwsArgumentError,
+      );
+    });
   });
 }

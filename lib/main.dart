@@ -96,10 +96,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     if (!mounted || spot == null) return;
 
     await _runCommand(
-      () => _globeController.flyTo(
+      () => _globeController.focusSpot(
         latitude: spot.latitude,
         longitude: spot.longitude,
-        altitude: 12000,
+        rangeMeters: 300,
       ),
     );
   }

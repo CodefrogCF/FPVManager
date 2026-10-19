@@ -494,6 +494,57 @@ class GlobeController extends ChangeNotifier {
     }
   }
 
+  int _spotFocusSequence = 0;
+
+  // Focuses a saved FPV spot on the actual terrain.
+  //
+  // Unlike flyTo(), this uses the terrain position as
+  // the camera's target and an independent zoom distance.
+  Future<void> focusSpot({
+    required double latitude,
+    required double longitude,
+    double rangeMeters = 300,
+  }) async {
+    if (!latitude.isFinite ||
+        latitude < -90 ||
+        latitude > 90 ||
+        !longitude.isFinite ||
+        longitude < -180 ||
+        longitude > 180) {
+      throw ArgumentError('Invalid spot coordinates');
+    }
+
+    if (!rangeMeters.isFinite || rangeMeters < 50 || rangeMeters > 10000) {
+      throw ArgumentError.value(
+        rangeMeters,
+        'rangeMeters',
+        'Must be between 50 and 10000 meters',
+      );
+    }
+
+    final sequence = ++_spotFocusSequence;
+
+    // Reuse our existing Cesium terrain elevation query.
+    final terrain = await queryTerrainElevation(
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    // Ignore outdated results when another spot was
+    // selected while this request was in progress.
+    if (sequence != _spotFocusSequence) {
+      return;
+    }
+
+    await _send({
+      'type': 'focus-spot',
+      'latitude': latitude,
+      'longitude': longitude,
+      'terrainHeightMeters': terrain.heightMeters,
+      'rangeMeters': rangeMeters,
+    });
+  }
+
   @override
   void dispose() {
     if (_ownsUasProvider) {

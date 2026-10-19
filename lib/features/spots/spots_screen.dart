@@ -248,12 +248,12 @@ class _SpotEditorDialogState extends State<_SpotEditorDialog> {
 
     _latitude = TextEditingController(
       text:
-          (spot?.latitude ?? widget.initialLatitude)?.toStringAsFixed(6) ?? '',
+          (spot?.latitude ?? widget.initialLatitude)?.toStringAsFixed(8) ?? '',
     );
 
     _longitude = TextEditingController(
       text:
-          (spot?.longitude ?? widget.initialLongitude)?.toStringAsFixed(6) ??
+          (spot?.longitude ?? widget.initialLongitude)?.toStringAsFixed(8) ??
           '',
     );
 
