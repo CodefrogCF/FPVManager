@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 
-import 'features/spots/spot_storage_debug_screen.dart';
+import 'dart:async';
+
+import 'core/database/fpv_database.dart';
+import 'features/spots/data/spot_repository.dart';
+import 'features/spots/spots_screen.dart';
 import 'features/globe/globe_controller.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
@@ -43,6 +46,8 @@ class FPVHomeScreen extends StatefulWidget {
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
   final GlobeController _globeController = GlobeController();
+  FpvDatabase? _database;
+  SpotRepository? _spotRepository;
 
   Future<void> _runCommand(Future<void> Function() command) async {
     try {
@@ -68,10 +73,33 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     );
   }
 
-  void _openSpotStorageDebug() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => const SpotStorageDebugScreen(),
+  Future<void> _openSpots() async {
+    // Initialize persistent storage only when needed.
+    final database = _database ??= FpvDatabase.open();
+
+    final repository = _spotRepository ??= SpotRepository(database);
+
+    final point = _globeController.selectedUasZone == null
+        ? _globeController.selectedPoint
+        : null;
+
+    final spot = await Navigator.of(context).push<Spot>(
+      MaterialPageRoute(
+        builder: (context) => SpotsScreen(
+          repository: repository,
+          initialLatitude: point?.latitude,
+          initialLongitude: point?.longitude,
+        ),
+      ),
+    );
+
+    if (!mounted || spot == null) return;
+
+    await _runCommand(
+      () => _globeController.flyTo(
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        altitude: 12000,
       ),
     );
   }
@@ -222,6 +250,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   void dispose() {
     _globeController.dispose();
+
+    final database = _database;
+
+    if (database != null) {
+      unawaited(database.close());
+    }
+
     super.dispose();
   }
 
@@ -232,12 +267,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         title: const Text('FPVManager'),
         backgroundColor: const Color(0xFF101820),
         actions: [
-          if (kDebugMode)
-            IconButton(
-              tooltip: 'Test local storage',
-              onPressed: _openSpotStorageDebug,
-              icon: const Icon(Icons.storage_outlined),
-            ),
+          IconButton(
+            tooltip: 'FPV Spots',
+            onPressed: _openSpots,
+            icon: const Icon(Icons.bookmark_outline),
+          ),
 
           ListenableBuilder(
             listenable: _globeController,
