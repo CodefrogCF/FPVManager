@@ -42,6 +42,9 @@ class GlobeController extends ChangeNotifier {
   bool _uasZonesLoading = false;
   String? _uasZonesError;
   UasZoneDetails? _selectedUasZone;
+  double _uasZonesFillOpacity = 0.20;
+  DateTime? _uasZonesDownloadedAt;
+  int? _uasZonesFeatureCount;
 
   bool get uasZonesVisible => _uasZonesVisible;
   bool get uasZonesLoading => _uasZonesLoading;
@@ -52,6 +55,9 @@ class GlobeController extends ChangeNotifier {
   GlobePoint? get selectedPoint => _selectedPoint;
   String? get error => _error;
   UasZoneDetails? get selectedUasZone => _selectedUasZone;
+  double get uasZonesFillOpacity => _uasZonesFillOpacity;
+  DateTime? get uasZonesDownloadedAt => _uasZonesDownloadedAt;
+  int? get uasZonesFeatureCount => _uasZonesFeatureCount;
 
   void clearSelectedUasZone() {
     if (_selectedUasZone == null) return;
@@ -114,6 +120,14 @@ class GlobeController extends ChangeNotifier {
 
   Future<void> setUasZonesVisible(bool visible) {
     return _send({'type': 'set-uas-zones', 'visible': visible});
+  }
+
+  Future<void> setUasZonesFillOpacity(double opacity) {
+    if (!opacity.isFinite || opacity < 0 || opacity > 1) {
+      throw ArgumentError.value(opacity, 'opacity', 'Must be between 0 and 1');
+    }
+
+    return _send({'type': 'set-uas-opacity', 'opacity': opacity});
   }
 
   void handleEvent(String message) {
@@ -180,6 +194,28 @@ class GlobeController extends ChangeNotifier {
         _uasZonesError = data['error'] is String
             ? data['error'] as String
             : null;
+
+        final opacity = data['fillOpacity'];
+
+        if (opacity is num) {
+          final value = opacity.toDouble();
+
+          if (value.isFinite && value >= 0 && value <= 1) {
+            _uasZonesFillOpacity = value;
+          }
+        }
+
+        final downloadedAt = data['downloadedAtUtc'];
+
+        if (downloadedAt is String) {
+          _uasZonesDownloadedAt = DateTime.tryParse(downloadedAt)?.toUtc();
+        }
+
+        final featureCount = data['featureCount'];
+
+        if (featureCount is int && featureCount >= 0) {
+          _uasZonesFeatureCount = featureCount;
+        }
 
       case 'uas-zone-selected':
         final rawAttributes = data['attributes'];

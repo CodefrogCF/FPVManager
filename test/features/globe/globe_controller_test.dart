@@ -176,5 +176,46 @@ void main() {
 
       expect(controller.selectedUasZone, isNull);
     });
+
+    test('updates UAS opacity and source metadata', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      await controller.setUasZonesFillOpacity(0.4);
+
+      expect(commands.last['type'], 'set-uas-opacity');
+      expect(commands.last['opacity'], 0.4);
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': true,
+          'loading': false,
+          'fillOpacity': 0.4,
+          'featureCount': 42,
+          'downloadedAtUtc': '2026-10-19T08:00:00.000Z',
+        }),
+      );
+
+      expect(controller.uasZonesFillOpacity, 0.4);
+      expect(controller.uasZonesFeatureCount, 42);
+      expect(controller.uasZonesDownloadedAt, isNotNull);
+      expect(controller.uasZonesDownloadedAt!.isUtc, isTrue);
+    });
+
+    test('rejects invalid UAS opacity', () {
+      expect(
+        () => controller.setUasZonesFillOpacity(-0.1),
+        throwsArgumentError,
+      );
+
+      expect(() => controller.setUasZonesFillOpacity(1.5), throwsArgumentError);
+    });
   });
 }

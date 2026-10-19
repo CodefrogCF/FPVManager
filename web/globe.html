@@ -84,6 +84,8 @@
     let uasDataSource = null;
     let uasLoadPromise = null;
     let uasRequestedVisible = false;
+    let uasFillOpacity = 0.20;
+    let uasDownloadedAtUtc = null;
 
     const MAP_STYLES = {
         satellite: {
@@ -200,8 +202,48 @@
         sendToFlutter("uas-zones-status", {
             visible,
             loading,
-            error
+            error,
+            fillOpacity: uasFillOpacity,
+            downloadedAtUtc: uasDownloadedAtUtc,
+            featureCount:
+                uasDataSource?.entities.values.length ?? null
         });
+    }
+
+    function setUasFillOpacity(opacity) {
+        if (
+            typeof opacity !== "number" ||
+            !Number.isFinite(opacity) ||
+            opacity < 0 ||
+            opacity > 1
+        ) {
+            throw new Error("Invalid UAS fill opacity");
+        }
+
+        uasFillOpacity = opacity;
+
+        if (!uasDataSource) {
+            return;
+        }
+
+        const entities = uasDataSource.entities;
+
+        entities.suspendEvents();
+
+        try {
+            for (const entity of entities.values) {
+                if (entity.polygon) {
+                    entity.polygon.material =
+                        new Cesium.ColorMaterialProperty(
+                            Cesium.Color.RED.withAlpha(
+                                uasFillOpacity
+                            )
+                        );
+                }
+            }
+        } finally {
+            entities.resumeEvents();
+        }
     }
 
     async function setUasZonesVisible(visible) {
@@ -275,6 +317,10 @@
             uasDataSource = await uasLoadPromise;
             uasDataSource.show = uasRequestedVisible;
 
+            uasDownloadedAtUtc = new Date().toISOString();
+
+            setUasFillOpacity(uasFillOpacity);
+
             sendUasStatus({
                 visible: uasDataSource.show,
                 loading: false
@@ -328,6 +374,15 @@
                     void setUasZonesVisible(
                         command.visible === true
                     );
+                    break;
+
+                case "set-uas-opacity":
+                    setUasFillOpacity(command.opacity);
+
+                    sendUasStatus({
+                        visible: uasDataSource?.show === true,
+                        loading: false
+                    });
                     break;
 
                 default:

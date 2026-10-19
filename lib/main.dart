@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'features/globe/globe_controller.dart';
 import 'features/globe/globe_view.dart';
+import 'features/globe/map_layers_sheet.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +50,19 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Map error: $error')));
     }
+  }
+
+  Future<void> _openMapLayers() {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      constraints: BoxConstraints(
+        maxWidth: 560,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+      ),
+      builder: (context) => MapLayersSheet(controller: _globeController),
+    );
   }
 
   Future<void> _openCoordinatesDialog() async {
@@ -101,59 +115,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     onPressed: ready ? _openCoordinatesDialog : null,
                     icon: const Icon(Icons.place_outlined),
                   ),
-                  if (_globeController.uasZonesLoading)
-                    const SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    )
-                  else
-                    IconButton(
-                      tooltip: _globeController.uasZonesVisible
-                          ? 'Hide UAS zones'
-                          : 'Show UAS zones',
-                      onPressed: ready
-                          ? () => _runCommand(
-                              () => _globeController.setUasZonesVisible(
-                                !_globeController.uasZonesVisible,
-                              ),
-                            )
-                          : null,
-                      icon: Icon(
-                        _globeController.uasZonesVisible
-                            ? Icons.shield
-                            : Icons.shield_outlined,
-                        color: _globeController.uasZonesVisible
-                            ? Colors.orangeAccent
-                            : null,
-                      ),
-                    ),
-                  PopupMenuButton<GlobeMapStyle>(
-                    tooltip: 'Map style',
-                    enabled: ready,
+                  IconButton(
+                    tooltip: 'Map layers',
+                    onPressed: ready ? _openMapLayers : null,
                     icon: const Icon(Icons.layers_outlined),
-                    onSelected: (style) =>
-                        _runCommand(() => _globeController.setMapStyle(style)),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: GlobeMapStyle.satellite,
-                        child: Text('Satellite'),
-                      ),
-                      PopupMenuItem(
-                        value: GlobeMapStyle.topographic,
-                        child: Text('Topographic'),
-                      ),
-                      PopupMenuItem(
-                        value: GlobeMapStyle.relief,
-                        child: Text('Relief'),
-                      ),
-                    ],
                   ),
                 ],
               );
