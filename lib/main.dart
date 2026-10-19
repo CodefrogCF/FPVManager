@@ -165,6 +165,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       bottomNavigationBar: ListenableBuilder(
         listenable: _globeController,
         builder: (context, child) {
+          final selectedZone = _globeController.selectedUasZone;
+          if (selectedZone != null) {
+            return _UasZoneDetailsPanel(
+              zone: selectedZone,
+              onClose: _globeController.clearSelectedUasZone,
+            );
+          }
           final point = _globeController.selectedPoint;
           final error = _globeController.error;
 
@@ -299,6 +306,88 @@ class _CoordinatesDialogState extends State<_CoordinatesDialog> {
           child: const Text('Go'),
         ),
       ],
+    );
+  }
+}
+
+class _UasZoneDetailsPanel extends StatelessWidget {
+  const _UasZoneDetailsPanel({required this.zone, required this.onClose});
+
+  final UasZoneDetails zone;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final attributes = zone.attributes.entries.toList();
+
+    return SafeArea(
+      top: false,
+      child: Card(
+        margin: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.shield_outlined,
+                color: Colors.orangeAccent,
+              ),
+              title: Text(
+                zone.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: const Text('UAS Geographical Zone · FOCA / BAZL'),
+              trailing: IconButton(
+                tooltip: 'Close details',
+                icon: const Icon(Icons.close),
+                onPressed: onClose,
+              ),
+            ),
+
+            const Divider(height: 1),
+
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 210),
+              child: attributes.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No additional attributes available.'),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: attributes.length,
+                      itemBuilder: (context, index) {
+                        final attribute = attributes[index];
+
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                            attribute.key,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: SelectableText(attribute.value),
+                        );
+                      },
+                    ),
+            ),
+
+            const Divider(height: 1),
+
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                'Source: Swiss Federal Office of Civil '
+                'Aviation (FOCA). Verify current '
+                'restrictions with official sources '
+                'before flying.',
+                style: TextStyle(fontSize: 11, color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

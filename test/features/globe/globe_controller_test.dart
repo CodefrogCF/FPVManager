@@ -146,5 +146,35 @@ void main() {
 
       expect(controller.uasZonesVisible, isFalse);
     });
+
+    test('selects and clears UAS zone details', () {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zone-selected',
+          'id': 'test-zone-123',
+          'name': 'Example UAS Zone',
+          'attributes': {
+            'category': 'Test category',
+            'authority': 'Test authority',
+          },
+        }),
+      );
+
+      expect(controller.selectedUasZone, isNotNull);
+
+      expect(controller.selectedUasZone!.name, 'Example UAS Zone');
+
+      expect(
+        controller.selectedUasZone!.attributes['authority'],
+        'Test authority',
+      );
+
+      controller.handleEvent(
+        jsonEncode({'source': 'fpvmanager-globe', 'type': 'uas-zone-cleared'}),
+      );
+
+      expect(controller.selectedUasZone, isNull);
+    });
   });
 }

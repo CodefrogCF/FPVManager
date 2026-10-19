@@ -218,6 +218,8 @@
                 loading: false
             });
 
+            sendToFlutter("uas-zone-cleared");
+
             return;
         }
 
@@ -437,6 +439,61 @@
         // Display coordinates and elevation on click.
         viewer.screenSpaceEventHandler.setInputAction(
             function (event) {
+
+                const picked = viewer.scene.pick(event.position);
+
+                const entity = picked?.id instanceof Cesium.Entity
+                    ? picked.id
+                    : picked?.primitive?.id;
+
+                const isUasZone =
+                    uasDataSource !== null &&
+                    uasDataSource.show &&
+                    entity instanceof Cesium.Entity &&
+                    uasDataSource.entities.contains(entity);
+
+                if (isUasZone) {
+                    const rawAttributes =
+                        entity.properties?.getValue(
+                            viewer.clock.currentTime
+                        ) ?? {};
+
+                    const attributes = {};
+
+                    for (const [key, value] of
+                        Object.entries(rawAttributes).slice(0, 50)) {
+
+                        if (value === null || value === undefined) {
+                            continue;
+                        }
+
+                        let formattedValue;
+
+                        try {
+                            formattedValue = typeof value === "object"
+                                ? JSON.stringify(value)
+                                : String(value);
+                        } catch {
+                            formattedValue = "[Unsupported value]";
+                        }
+
+                        attributes[String(key).slice(0, 120)] =
+                            formattedValue.slice(0, 1000);
+                    }
+
+                    sendToFlutter("uas-zone-selected", {
+                        id: String(entity.id).slice(0, 160),
+                        name: String(
+                            entity.name || "UAS Geographical Zone"
+                        ).slice(0, 160),
+                        attributes
+                    });
+
+                    return;
+                }
+
+                sendToFlutter("uas-zone-cleared");
+
                 const ray =
                     viewer.camera.getPickRay(event.position);
 

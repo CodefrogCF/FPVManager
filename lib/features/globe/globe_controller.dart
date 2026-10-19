@@ -18,6 +18,18 @@ class GlobePoint {
   final double altitude;
 }
 
+class UasZoneDetails {
+  const UasZoneDetails({
+    required this.id,
+    required this.name,
+    required this.attributes,
+  });
+
+  final String id;
+  final String name;
+  final Map<String, String> attributes;
+}
+
 class GlobeController extends ChangeNotifier {
   GlobeCommandSender? _sender;
 
@@ -29,6 +41,7 @@ class GlobeController extends ChangeNotifier {
   bool _uasZonesVisible = false;
   bool _uasZonesLoading = false;
   String? _uasZonesError;
+  UasZoneDetails? _selectedUasZone;
 
   bool get uasZonesVisible => _uasZonesVisible;
   bool get uasZonesLoading => _uasZonesLoading;
@@ -38,6 +51,14 @@ class GlobeController extends ChangeNotifier {
   GlobeMapStyle get mapStyle => _mapStyle;
   GlobePoint? get selectedPoint => _selectedPoint;
   String? get error => _error;
+  UasZoneDetails? get selectedUasZone => _selectedUasZone;
+
+  void clearSelectedUasZone() {
+    if (_selectedUasZone == null) return;
+
+    _selectedUasZone = null;
+    notifyListeners();
+  }
 
   void attach(GlobeCommandSender sender) {
     _sender = sender;
@@ -159,6 +180,32 @@ class GlobeController extends ChangeNotifier {
         _uasZonesError = data['error'] is String
             ? data['error'] as String
             : null;
+
+      case 'uas-zone-selected':
+        final rawAttributes = data['attributes'];
+
+        if (rawAttributes is! Map<String, dynamic>) {
+          return;
+        }
+
+        final attributes = <String, String>{};
+
+        for (final entry in rawAttributes.entries) {
+          if (entry.value is String) {
+            attributes[entry.key] = entry.value as String;
+          }
+        }
+
+        _selectedUasZone = UasZoneDetails(
+          id: data['id']?.toString() ?? '',
+          name: data['name']?.toString() ?? 'UAS Zone',
+          attributes: attributes,
+        );
+
+        notifyListeners();
+
+      case 'uas-zone-cleared':
+        clearSelectedUasZone();
 
         notifyListeners();
     }
