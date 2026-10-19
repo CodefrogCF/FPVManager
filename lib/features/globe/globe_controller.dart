@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/osint/osint_provider.dart';
+import '../../core/geo/geo_coordinate_service.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import 'globe_bridge.dart';
 
@@ -15,11 +16,13 @@ class GlobePoint {
     required this.latitude,
     required this.longitude,
     required this.altitude,
+    this.heightReference = VerticalReference.unverified,
   });
 
   final double latitude;
   final double longitude;
   final double altitude;
+  final VerticalReference heightReference;
 }
 
 class UasZoneDetails {
@@ -38,15 +41,16 @@ class TerrainElevation {
   const TerrainElevation({
     required this.latitude,
     required this.longitude,
-    required this.heightMeters,
+    required this.elevation,
     required this.samplingMethod,
   });
 
   final double latitude;
   final double longitude;
 
-  /// Height relative to the WGS84 reference ellipsoid.
-  final double heightMeters;
+  final ReferencedElevation elevation;
+
+  double get heightMeters => elevation.meters;
 
   /// Method used by Cesium to sample the terrain.
   final String samplingMethod;
@@ -243,6 +247,7 @@ class GlobeController extends ChangeNotifier {
     final method = result['samplingMethod'];
     if (result['latitude'] != latitude ||
         result['longitude'] != longitude ||
+        result['heightReference'] != VerticalReference.wgs84Ellipsoid.name ||
         height is! num ||
         !height.isFinite ||
         method is! String ||
@@ -253,7 +258,10 @@ class GlobeController extends ChangeNotifier {
     return TerrainElevation(
       latitude: latitude,
       longitude: longitude,
-      heightMeters: height.toDouble(),
+      elevation: ReferencedElevation(
+        meters: height.toDouble(),
+        reference: VerticalReference.wgs84Ellipsoid,
+      ),
       samplingMethod: method,
     );
   }
@@ -433,6 +441,10 @@ class GlobeController extends ChangeNotifier {
             latitude: latitude.toDouble(),
             longitude: longitude.toDouble(),
             altitude: altitude.toDouble(),
+            heightReference:
+                data['heightReference'] == VerticalReference.wgs84Ellipsoid.name
+                ? VerticalReference.wgs84Ellipsoid
+                : VerticalReference.unverified,
           );
 
           notifyListeners();

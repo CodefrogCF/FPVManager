@@ -5,8 +5,8 @@
 FPVManager is a Flutter application with a CesiumJS rendering surface. Flutter
 owns application navigation, personal data and observable map state. Cesium owns
 terrain/imagery rendering, picking and camera movements. The implementation is a
-prototype. See [the bridge protocol](globe_bridge.md) for reliability boundaries;
-end-to-end geospatial reference verification remains under #10.
+prototype. See [the bridge protocol](globe_bridge.md) for reliability boundaries
+and [coordinates and heights](coordinates_and_heights.md) for geospatial references.
 
 `FPVHomeScreen` composes the globe, layer controls and spot navigation. It opens a
 local `FpvDatabase` lazily and watches `SpotRepository` to synchronize saved
@@ -73,10 +73,12 @@ refresh. A renderer layer can currently be reused without checking that TTL.
 Persistent cache/freshness states are tracked in #51.
 
 `GeoCoordinateService` implements approximate Swiss WGS84/LV95 transformations and
-defines explicit height references. Separate REFRAME services support official
-height transformations, but the terrain dialog does not yet invoke them.
-Terrain heights must not silently be treated as verified AMSL/AGL values; #10
-tracks end-to-end reference handling.
+defines explicit height references. Terrain responses carry a required WGS84
+ellipsoid reference. The terrain dialog offers opt-in REFRAME conversion through
+Bessel to LN02, retaining the original value on failure. Its AGL calculator adds
+a relative offset to ground in the same datum. Datum mismatches and unknown
+references are rejected; no fixed geoid offset is assumed. See
+[reference contracts, calculations and limits](coordinates_and_heights.md).
 
 Current external dependencies include:
 

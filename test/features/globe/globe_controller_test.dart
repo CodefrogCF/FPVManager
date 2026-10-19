@@ -1,3 +1,5 @@
+import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
+
 import 'dart:convert';
 import 'dart:async';
 
@@ -438,6 +440,7 @@ void main() {
             'latitude': 46.7,
             'longitude': 8.4,
             'heightMeters': 1450.5,
+            'heightReference': 'wgs84Ellipsoid',
             'samplingMethod': 'most-detailed',
           },
         }),
@@ -446,7 +449,29 @@ void main() {
       final result = await request;
 
       expect(result.heightMeters, 1450.5);
+      expect(result.elevation.reference, VerticalReference.wgs84Ellipsoid);
       expect(result.samplingMethod, 'most-detailed');
+    });
+
+    test('rejects terrain heights without a matching explicit datum', () async {
+      renderer.ready();
+      for (final reference in [null, 'ln02', 'unverified', 'unknown']) {
+        final request = controller.queryTerrainElevation(
+          latitude: 46.7,
+          longitude: 8.4,
+        );
+        renderer.acknowledge(
+          commands.last,
+          result: {
+            'latitude': 46.7,
+            'longitude': 8.4,
+            'heightMeters': 550,
+            'heightReference': ?reference,
+            'samplingMethod': 'most-detailed',
+          },
+        );
+        await expectLater(request, throwsFormatException);
+      }
     });
 
     test('rejects invalid terrain coordinates', () async {
@@ -530,6 +555,7 @@ void main() {
             'latitude': 46.95108,
             'longitude': 7.43863,
             'heightMeters': 550.0,
+            'heightReference': 'wgs84Ellipsoid',
             'samplingMethod': 'most-detailed',
           },
         }),

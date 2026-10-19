@@ -8,6 +8,7 @@ import 'features/spots/spots_screen.dart';
 import 'features/globe/globe_controller.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
+import 'features/globe/terrain_information_dialog.dart';
 import 'core/geo/geo_coordinate_service.dart';
 
 void main() {
@@ -128,124 +129,19 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   Future<void> _showTerrainElevation() async {
     final point = _globeController.selectedPoint;
-
     if (point == null) return;
-
     try {
       final result = await _globeController.queryTerrainElevation(
         latitude: point.latitude,
         longitude: point.longitude,
       );
-
-      if (!mounted) return;
-
-      const geoService = GeoCoordinateService();
-
-      final wgs84 = Wgs84Coordinate(
-        latitude: result.latitude,
-        longitude: result.longitude,
-      );
-
-      final Lv95Coordinate? lv95 = geoService.supportsWgs84(wgs84)
-          ? geoService.wgs84ToLv95(wgs84)
-          : null;
-
+      if (!mounted || !identical(point, _globeController.selectedPoint)) return;
       await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.terrain),
-              SizedBox(width: 12),
-              Text('Terrain Information'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Latitude: '
-                '${result.latitude.toStringAsFixed(6)}°',
-              ),
-              Text(
-                'Longitude: '
-                '${result.longitude.toStringAsFixed(6)}°',
-              ),
-
-              const SizedBox(height: 16),
-
-              if (lv95 != null) ...[
-                const Text(
-                  'Swiss Coordinates (LV95)',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  'Easting: '
-                  '${lv95.easting.toStringAsFixed(2)} m',
-                ),
-
-                Text(
-                  'Northing: '
-                  '${lv95.northing.toStringAsFixed(2)} m',
-                ),
-
-                const SizedBox(height: 4),
-
-                const Text(
-                  'Approximate conversion (swisstopo)',
-                  style: TextStyle(fontSize: 11, color: Colors.white70),
-                ),
-              ] else
-                const Text(
-                  'LV95 conversion unavailable '
-                  'outside the supported Swiss region.',
-                ),
-
-              const SizedBox(height: 20),
-
-              Text(
-                '${result.heightMeters.toStringAsFixed(1)} m',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-
-              const SizedBox(height: 8),
-
-              const Text('Terrain height reference: pending verification'),
-
-              const SizedBox(height: 4),
-
-              Text(
-                'Sampling: ${result.samplingMethod}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                'Source: swisstopo terrain. '
-                'Elevation is derived from a '
-                'digital terrain model and must '
-                'not be used as a verified '
-                'obstacle-clearance measurement.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
+        builder: (context) => TerrainInformationDialog(terrain: result),
       );
     } catch (error) {
-      if (!mounted) return;
-
+      if (!mounted || !identical(point, _globeController.selectedPoint)) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Terrain query failed: $error')));
@@ -468,7 +364,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             status =
                 '${point.latitude.toStringAsFixed(5)}, '
                 '${point.longitude.toStringAsFixed(5)} | '
-                '${point.altitude.toStringAsFixed(1)} m';
+                '${point.altitude.toStringAsFixed(1)} m '
+                '(${point.heightReference.label})';
           } else {
             status = '3D globe ready';
           }

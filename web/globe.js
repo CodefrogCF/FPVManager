@@ -329,6 +329,7 @@ function postToFlutter(message) {
         const height = sampled[0]?.height;
         if (!Number.isFinite(height)) throw new Error("No terrain elevation available at these coordinates");
         return { latitude, longitude, heightMeters: height,
+            heightReference: "wgs84Ellipsoid",
             samplingMethod: detailed ? "most-detailed" : "level-12" };
     }
 
@@ -569,7 +570,8 @@ function postToFlutter(message) {
             try {
               terrainProvider = await Promise.race([Cesium.CesiumTerrainProvider.fromUrl(
                 "https://3d.geo.admin.ch/" +
-                "ch.swisstopo.terrain.3d/v1/"
+                "ch.swisstopo.terrain.3d/v1/",
+                { ellipsoid: Cesium.Ellipsoid.WGS84 }
               ), new Promise((_, reject) => {
                 timeout = setTimeout(() => reject(new Error("Terrain connection timed out")), 8000);
               })]);
@@ -733,12 +735,13 @@ function postToFlutter(message) {
                 info.textContent =
                     `Lat: ${latitude.toFixed(6)} | ` +
                     `Lon: ${longitude.toFixed(6)} | ` +
-                    `Elevation: ${altitude.toFixed(1)} m`;
+                `Height: ${altitude.toFixed(1)} m (WGS84 ellipsoid, rendered terrain)`;
 
                 sendToFlutter("point-selected", {
                     latitude: latitude,
                     longitude: longitude,
-                    altitude: altitude
+                    altitude: altitude,
+                    heightReference: "wgs84Ellipsoid"
                 });
             },
             Cesium.ScreenSpaceEventType.LEFT_CLICK

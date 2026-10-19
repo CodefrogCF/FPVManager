@@ -9,7 +9,9 @@ spot library stored with Drift/SQLite.
 
 - Switzerland-centered globe, camera navigation and satellite/topographic/relief styles.
 - UAS overlay with visibility, fill opacity, raw zone attributes and download metadata.
-- Terrain elevation queries and WGS84/LV95 coordinate services.
+- Terrain elevation queries with explicit WGS84 ellipsoidal heights, optional
+  Swiss LN02 conversion and a local AGL height calculator.
+- WGS84/LV95 coordinate services with documented reference systems.
 - Local spot creation, editing and deletion with coordinates and notes.
 - Saved spot markers, a selection panel and terrain-aware camera focus.
 - Database schema snapshots and a tested v1-to-v2 migration.
@@ -95,14 +97,15 @@ database generation and the branching workflow.
 
 Personal spot records are stored locally, without a mandatory account or an
 automatic publishing feature. Maps and external data services still perform
-network requests. REFRAME service code sends supplied coordinates and elevations
-when invoked; it is not yet wired into the terrain information dialog.
+network requests. The terrain dialog sends the selected coordinates and elevation
+to swisstopo REFRAME only when Swiss LN02 conversion is explicitly requested.
 
 UAS download time is a retrieval timestamp, not proof of official validity or
 completeness. Zone attributes currently remain largely unclassified. Terrain
-height reference verification and end-to-end AGL/absolute-height handling remain
-open in #10. Do not treat this prototype as flight authorization or a verified
-obstacle-clearance calculation.
+ellipsoid heights, Swiss LN02 heights and AGL offsets remain explicitly separate;
+see [coordinates and heights](docs/coordinates_and_heights.md) for transformations,
+sources and limitations. Do not treat this prototype as flight authorization or a
+verified obstacle-clearance calculation.
 
 Map credits are displayed in the renderer. A complete source/license inventory
 and privacy policy remain tracked under #5, #8 and #44.

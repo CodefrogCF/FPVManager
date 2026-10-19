@@ -29,6 +29,16 @@ enum VerticalReference {
   unverified,
 }
 
+extension VerticalReferenceLabel on VerticalReference {
+  String get label => switch (this) {
+    VerticalReference.wgs84Ellipsoid => 'WGS84 ellipsoid',
+    VerticalReference.besselEllipsoid => 'Bessel ellipsoid',
+    VerticalReference.ln02 => 'AMSL (Swiss LN02)',
+    VerticalReference.lhn95 => 'AMSL (Swiss LHN95)',
+    VerticalReference.unverified => 'unverified reference',
+  };
+}
+
 /// AGL is relative to terrain at a particular location,
 /// not an independent geodetic reference datum.
 enum FlightAltitudeMode { absolute, aboveGroundLevel }

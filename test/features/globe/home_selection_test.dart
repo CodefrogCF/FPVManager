@@ -7,6 +7,7 @@ import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/features/globe/globe_view.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 import 'package:fpvmanager/main.dart';
+import 'package:fpvmanager/features/globe/terrain_information_dialog.dart';
 
 void main() {
   late FpvDatabase database;
@@ -26,6 +27,53 @@ void main() {
   tearDown(() async {
     await database.close();
   });
+
+  testWidgets(
+    'terrain results reach the typed dialog and stale selections do not',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: FPVHomeScreen(spotRepository: repository)),
+      );
+      final controller = tester
+          .widget<GlobeView>(find.byType(GlobeView))
+          .controller;
+      final renderer = FakeGlobeRenderer(controller)..attach();
+      renderer.ready();
+      void point(double latitude) => renderer.emit({
+        'type': 'point-selected',
+        'latitude': latitude,
+        'longitude': 8.4,
+        'altitude': 500,
+        'heightReference': 'wgs84Ellipsoid',
+      });
+      void answer() => renderer.acknowledge(
+        renderer.commands.last,
+        result: {
+          'latitude': 46.7,
+          'longitude': 8.4,
+          'heightMeters': 550,
+          'heightReference': 'wgs84Ellipsoid',
+          'samplingMethod': 'most-detailed',
+        },
+      );
+      point(46.7);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Query terrain elevation'));
+      answer();
+      await tester.pumpAndSettle();
+      expect(find.byType(TerrainInformationDialog), findsOneWidget);
+      expect(find.text('550.0 m · WGS84 ellipsoid'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Query terrain elevation'));
+      point(47);
+      answer();
+      await tester.pumpAndSettle();
+      expect(find.byType(TerrainInformationDialog), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'saved spot selection prevents terrain queries and stale defaults',

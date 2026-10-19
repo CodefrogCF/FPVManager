@@ -51,12 +51,12 @@ class ReframeHeightService {
     if (!elevation.meters.isFinite) {
       throw ArgumentError('Invalid elevation');
     }
+    if (elevation.reference == VerticalReference.unverified ||
+        target == VerticalReference.unverified) {
+      throw ArgumentError('Cannot transform an unverified height');
+    }
 
     if (elevation.reference == target) {
-      if (target == VerticalReference.unverified) {
-        throw ArgumentError('Cannot transform an unverified height');
-      }
-
       return elevation;
     }
 
@@ -100,6 +100,22 @@ class ReframeHeightService {
 
     if (transformed == null || !transformed.isFinite) {
       throw const FormatException('Invalid transformed altitude');
+    }
+    double? number(Object? value) => switch (value) {
+      num value => value.toDouble(),
+      String value => double.tryParse(value),
+      _ => null,
+    };
+    final easting = number(decoded['easting']);
+    final northing = number(decoded['northing']);
+    // Height-only transformations must echo the requested horizontal position.
+    if (easting == null ||
+        northing == null ||
+        !easting.isFinite ||
+        !northing.isFinite ||
+        (easting - position.easting).abs() > 0.01 ||
+        (northing - position.northing).abs() > 0.01) {
+      throw const FormatException('REFRAME returned a different position');
     }
 
     return ReferencedElevation(meters: transformed, reference: target);

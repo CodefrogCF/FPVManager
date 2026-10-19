@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'globe_controller.dart';
 import 'globe_asset_server.dart';
+import '../../core/geo/geo_coordinate_service.dart';
 
 /// Native implementation of the FPVManager 3D globe.
 ///
@@ -176,7 +177,8 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
           ? null
           : '${point.latitude.toStringAsFixed(5)}, '
                 '${point.longitude.toStringAsFixed(5)} | '
-                '${point.altitude.toStringAsFixed(1)} m';
+                '${point.altitude.toStringAsFixed(1)} m '
+                '(${point.heightReference.label})';
       _error = widget.controller.error;
     });
   }

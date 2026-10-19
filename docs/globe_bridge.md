@@ -20,7 +20,9 @@ Every command finishes with `command-result`, including the original `requestId`
 and `commandType`, `ok` and either a `result` object or an `error` string. Dart
 waits for this result rather than considering a successful send an acknowledgement.
 Terrain coordinates, height and sampling method are returned in `result` and
-checked against the requested coordinates. An acknowledgement confirms processing,
+checked against the requested coordinates. Terrain results must also carry
+`heightReference: "wgs84Ellipsoid"`; unknown or missing references are rejected.
+An acknowledgement confirms processing,
 not successful retrieval of every future imagery/terrain tile or camera animation
 completion.
 
