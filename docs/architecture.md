@@ -57,10 +57,16 @@ Drift/SQLite stores spots, drones, batteries, radio equipment, flight plans,
 waypoints and settings. Current schema version: 2. The v1-to-v2 migration preserves
 spots and adds the other six tables. Foreign keys are enabled before use.
 
-Only spots currently have a repository and full CRUD interface. Other tables
-are foundations rather than completed user-facing features. Web uses the checked
-in `sqlite3.wasm` / `drift_worker.js` resources; native tests use an in-memory
-database. Migration snapshots and fixtures live in `drift_schemas/` and
+Typed repository interfaces cover spots, drones, batteries, radio equipment,
+flight plans/waypoints and preferences. Route snapshots retain explicit height
+references and separate AGL offsets. Plan creation, waypoint replacement and
+preference saves are transactional. Only spots currently have editing/list
+screens; map preference persistence is not yet wired to the controls. See
+[local data contracts and remaining feature scope](local_data.md).
+
+Web uses the checked-in `sqlite3.wasm` / `drift_worker.js` resources. Native
+repository tests use independent in-memory databases and a temporary file-backed
+reopen test. Migration snapshots and fixtures live in `drift_schemas/` and
 `test/generated_migrations/`.
 
 ## External data and geospatial services

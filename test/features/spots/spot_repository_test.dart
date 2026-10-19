@@ -18,6 +18,67 @@ void main() {
   });
 
   group('SpotRepository', () {
+    test(
+      'favorite changes preserve spot data and survive full edits',
+      () async {
+        final id = await repository.createSpot(
+          name: ' Original ',
+          latitude: 47,
+          longitude: 8,
+          notes: 'Private',
+        );
+        final original = (await repository.getSpot(id))!;
+        expect(original.name, 'Original');
+        final changed = repository.watchSpots().firstWhere(
+          (rows) => rows.any((spot) => spot.isFavorite),
+        );
+        expect(await repository.setFavorite(id: id, isFavorite: true), isTrue);
+        expect((await changed).single.id, id);
+        final favorite = (await repository.getSpot(id))!;
+        expect(favorite.name, original.name);
+        expect(favorite.notes, original.notes);
+        expect(favorite.latitude, original.latitude);
+        expect(favorite.longitude, original.longitude);
+        expect(favorite.createdAt, original.createdAt);
+        await repository.updateSpot(
+          id: id,
+          name: 'Edited',
+          latitude: 46,
+          longitude: 7,
+        );
+        final updated = (await repository.getSpot(id))!;
+        expect(updated.isFavorite, isTrue);
+        expect(updated.notes, isNull);
+        expect(updated.createdAt, original.createdAt);
+        expect(
+          await repository.setFavorite(id: 999, isFavorite: true),
+          isFalse,
+        );
+      },
+    );
+
+    test('invalid edits and IDs cannot overwrite a saved spot', () async {
+      final id = await repository.createSpot(
+        name: 'Original',
+        latitude: 47,
+        longitude: 8,
+      );
+      for (final operation in <Future<Object?> Function()>[
+        () => repository.updateSpot(
+          id: id,
+          name: 'Changed',
+          latitude: double.nan,
+          longitude: 8,
+        ),
+        () => repository.getSpot(0),
+        () => repository.deleteSpot(-1),
+        () => repository.setFavorite(id: 0, isFavorite: true),
+      ]) {
+        await expectLater(operation, throwsArgumentError);
+      }
+      expect((await repository.getSpot(id))!.name, 'Original');
+    });
+
     test('creates and retrieves a spot', () async {
       final id = await repository.createSpot(
         name: 'Test Spot',

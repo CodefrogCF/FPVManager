@@ -1,30 +1,46 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/fpv_database.dart';
+import '../../../core/database/repository_validation.dart';
 
-class SpotRepository {
-  const SpotRepository(this.database);
+abstract interface class SpotRepository {
+  const factory SpotRepository(FpvDatabase database) = DriftSpotRepository;
 
-  final FpvDatabase database;
+  Future<int> createSpot({
+    required String name,
+    required double latitude,
+    required double longitude,
+    String? notes,
+  });
+  Future<List<Spot>> getAllSpots();
+  Stream<List<Spot>> watchSpots();
+  Future<Spot?> getSpot(int id);
+  Future<bool> updateSpot({
+    required int id,
+    required String name,
+    required double latitude,
+    required double longitude,
+    String? notes,
+  });
+  Future<int> deleteSpot(int id);
+  Future<bool> setFavorite({required int id, required bool isFavorite});
+}
+
+final class DriftSpotRepository implements SpotRepository {
+  const DriftSpotRepository(this._database);
+
+  final FpvDatabase _database;
 
   void _validate({
     required String name,
     required double latitude,
     required double longitude,
   }) {
-    if (name.trim().isEmpty || name.trim().length > 120) {
-      throw ArgumentError('Spot name must contain 1–120 characters');
-    }
-
-    if (!latitude.isFinite || latitude < -90 || latitude > 90) {
-      throw ArgumentError('Invalid latitude');
-    }
-
-    if (!longitude.isFinite || longitude < -180 || longitude > 180) {
-      throw ArgumentError('Invalid longitude');
-    }
+    RepositoryValidation.text(name, 'name');
+    RepositoryValidation.coordinates(latitude, longitude);
   }
 
+  @override
   Future<int> createSpot({
     required String name,
     required double latitude,
@@ -33,8 +49,8 @@ class SpotRepository {
   }) {
     _validate(name: name, latitude: latitude, longitude: longitude);
 
-    return database
-        .into(database.spots)
+    return _database
+        .into(_database.spots)
         .insert(
           SpotsCompanion.insert(
             name: name.trim(),
@@ -45,28 +61,33 @@ class SpotRepository {
         );
   }
 
+  @override
   Future<List<Spot>> getAllSpots() {
-    return (database.select(database.spots)..orderBy([
+    return (_database.select(_database.spots)..orderBy([
           (table) =>
               OrderingTerm(expression: table.id, mode: OrderingMode.desc),
         ]))
         .get();
   }
 
+  @override
   Stream<List<Spot>> watchSpots() {
-    return (database.select(database.spots)..orderBy([
+    return (_database.select(_database.spots)..orderBy([
           (table) =>
               OrderingTerm(expression: table.id, mode: OrderingMode.desc),
         ]))
         .watch();
   }
 
+  @override
   Future<Spot?> getSpot(int id) {
-    return (database.select(
-      database.spots,
+    RepositoryValidation.id(id);
+    return (_database.select(
+      _database.spots,
     )..where((table) => table.id.equals(id))).getSingleOrNull();
   }
 
+  @override
   Future<bool> updateSpot({
     required int id,
     required String name,
@@ -74,11 +95,12 @@ class SpotRepository {
     required double longitude,
     String? notes,
   }) async {
+    RepositoryValidation.id(id);
     _validate(name: name, latitude: latitude, longitude: longitude);
 
     final changed =
-        await (database.update(
-          database.spots,
+        await (_database.update(
+          _database.spots,
         )..where((table) => table.id.equals(id))).write(
           SpotsCompanion(
             name: Value(name.trim()),
@@ -91,9 +113,20 @@ class SpotRepository {
     return changed > 0;
   }
 
+  @override
   Future<int> deleteSpot(int id) {
-    return (database.delete(
-      database.spots,
+    RepositoryValidation.id(id);
+    return (_database.delete(
+      _database.spots,
     )..where((table) => table.id.equals(id))).go();
+  }
+
+  @override
+  Future<bool> setFavorite({required int id, required bool isFavorite}) async {
+    RepositoryValidation.id(id);
+    return await (_database.update(_database.spots)
+              ..where((table) => table.id.equals(id)))
+            .write(SpotsCompanion(isFavorite: Value(isFavorite))) >
+        0;
   }
 }

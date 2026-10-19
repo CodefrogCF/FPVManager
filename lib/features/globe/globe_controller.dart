@@ -4,12 +4,12 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/osint/osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
+import '../../core/models/user_preferences.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import 'globe_bridge.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
-
-enum GlobeMapStyle { satellite, topographic, relief }
+export '../../core/models/user_preferences.dart' show GlobeMapStyle;
 
 class GlobePoint {
   const GlobePoint({

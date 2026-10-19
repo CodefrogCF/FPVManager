@@ -15,8 +15,10 @@ spot library stored with Drift/SQLite.
 - Local spot creation, editing and deletion with coordinates and notes.
 - Saved spot markers, a selection panel and terrain-aware camera focus.
 - Database schema snapshots and a tested v1-to-v2 migration.
+- Typed local repositories for spots, drones, batteries, radio equipment,
+  flight plans/waypoints and map preferences, with transactional route storage.
 
-Drone, battery, radio-equipment and flight-plan tables are foundations for future
+The [local data layer](docs/local_data.md) provides the storage foundation for future
 features. Equipment screens, weather, route planning, simulation, spot photos/GPS,
 backups and offline map downloads are not implemented yet. See the
 [issue backlog](https://github.com/CodefrogCF/FPVManager/issues).
@@ -79,7 +81,8 @@ validation are separate work.
 | Path | Responsibility |
 |---|---|
 | `lib/main.dart` | App theme, home screen, navigation and spot synchronization |
-| `lib/core/database/` | Drift tables, persistence and migrations |
+| `lib/core/database/` | Drift tables, repository contracts, persistence and migrations |
+| `lib/core/models/` | Typed route, waypoint-height and preference models |
 | `lib/core/geo/` | Coordinate and explicit height-reference services |
 | `lib/core/osint/` | Provider contract and dataset provenance |
 | `lib/features/globe/` | Map controller, platform views and layer controls |
@@ -95,7 +98,7 @@ database generation and the branching workflow.
 
 ## Data and limitations
 
-Personal spot records are stored locally, without a mandatory account or an
+Personal records are stored locally, without a mandatory account or an
 automatic publishing feature. Maps and external data services still perform
 network requests. The terrain dialog sends the selected coordinates and elevation
 to swisstopo REFRAME only when Swiss LN02 conversion is explicitly requested.
