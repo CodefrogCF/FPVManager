@@ -411,6 +411,115 @@
         }
     }
 
+    async function queryTerrainElevation(command) {
+        const requestId = String(
+            command.requestId ?? ""
+        );
+
+        const latitude = command.latitude;
+        const longitude = command.longitude;
+
+        try {
+            if (!activeViewer) {
+                throw new Error("Globe is not initialized");
+            }
+
+            if (
+                typeof latitude !== "number" ||
+                typeof longitude !== "number" ||
+                !Number.isFinite(latitude) ||
+                !Number.isFinite(longitude) ||
+                latitude < -90 ||
+                latitude > 90 ||
+                longitude < -180 ||
+                longitude > 180
+            ) {
+                throw new Error(
+                    "Invalid terrain coordinates"
+                );
+            }
+
+            const terrainProvider =
+                activeViewer.terrainProvider;
+
+            if (
+                !terrainProvider ||
+                terrainProvider instanceof
+                    Cesium.EllipsoidTerrainProvider
+            ) {
+                throw new Error(
+                    "Detailed terrain data unavailable"
+                );
+            }
+
+            const position =
+                Cesium.Cartographic.fromDegrees(
+                    longitude,
+                    latitude
+                );
+
+            let sampled;
+            let samplingMethod;
+
+            if (terrainProvider.availability) {
+                sampled =
+                    await Cesium.sampleTerrainMostDetailed(
+                        terrainProvider,
+                        [position],
+                        true
+                    );
+
+                samplingMethod = "most-detailed";
+            } else {
+                // Fallback for terrain providers without
+                // advertised tile availability.
+                sampled = await Cesium.sampleTerrain(
+                    terrainProvider,
+                    12,
+                    [position],
+                    true
+                );
+
+                samplingMethod = "level-12";
+            }
+
+            const height = sampled[0]?.height;
+
+            if (!Number.isFinite(height)) {
+                throw new Error(
+                    "No terrain elevation available " +
+                    "at these coordinates"
+                );
+            }
+
+            sendToFlutter(
+                "terrain-elevation-result",
+                {
+                    requestId,
+                    latitude,
+                    longitude,
+                    heightMeters: height,
+                    samplingMethod
+                }
+            );
+        } catch (error) {
+            console.error(
+                "[FPVManager] Terrain query failed:",
+                error
+            );
+
+            sendToFlutter(
+                "terrain-elevation-result",
+                {
+                    requestId,
+                    error: String(
+                        error?.message ?? error
+                    )
+                }
+            );
+        }
+    }
+
     function executeCommand(rawCommand) {
         try {
             const command = typeof rawCommand === "string"
@@ -462,6 +571,10 @@
                         visible: uasDataSource?.show === true,
                         loading: false
                     });
+                    break;
+
+                case "query-terrain-elevation":
+                    void queryTerrainElevation(command);
                     break;
 
                 default:

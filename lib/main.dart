@@ -82,6 +82,89 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     );
   }
 
+  Future<void> _showTerrainElevation() async {
+    final point = _globeController.selectedPoint;
+
+    if (point == null) return;
+
+    try {
+      final result = await _globeController.queryTerrainElevation(
+        latitude: point.latitude,
+        longitude: point.longitude,
+      );
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.terrain),
+              SizedBox(width: 12),
+              Text('Terrain Information'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Latitude: '
+                '${result.latitude.toStringAsFixed(6)}°',
+              ),
+              Text(
+                'Longitude: '
+                '${result.longitude.toStringAsFixed(6)}°',
+              ),
+
+              const SizedBox(height: 20),
+
+              Text(
+                '${result.heightMeters.toStringAsFixed(1)} m',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+
+              const SizedBox(height: 8),
+
+              const Text('Height reference: WGS84 ellipsoid'),
+
+              const SizedBox(height: 4),
+
+              Text(
+                'Sampling: ${result.samplingMethod}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+
+              const SizedBox(height: 16),
+
+              Text(
+                'Source: swisstopo terrain. '
+                'Elevation is derived from a '
+                'digital terrain model and must '
+                'not be used as a verified '
+                'obstacle-clearance measurement.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Terrain query failed: $error')));
+    }
+  }
+
   @override
   void dispose() {
     _globeController.dispose();
@@ -114,6 +197,16 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     tooltip: 'Go to coordinates',
                     onPressed: ready ? _openCoordinatesDialog : null,
                     icon: const Icon(Icons.place_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Query terrain elevation',
+                    onPressed:
+                        ready &&
+                            _globeController.selectedPoint != null &&
+                            _globeController.selectedUasZone == null
+                        ? _showTerrainElevation
+                        : null,
+                    icon: const Icon(Icons.terrain_outlined),
                   ),
                   IconButton(
                     tooltip: 'Map layers',

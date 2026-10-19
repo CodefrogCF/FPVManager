@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
@@ -33,6 +34,24 @@ class UasZoneDetails {
   final Map<String, String> attributes;
 }
 
+class TerrainElevation {
+  const TerrainElevation({
+    required this.latitude,
+    required this.longitude,
+    required this.heightMeters,
+    required this.samplingMethod,
+  });
+
+  final double latitude;
+  final double longitude;
+
+  /// Height relative to the WGS84 reference ellipsoid.
+  final double heightMeters;
+
+  /// Method used by Cesium to sample the terrain.
+  final String samplingMethod;
+}
+
 class GlobeController extends ChangeNotifier {
   GlobeController({OsintProvider<Map<String, dynamic>>? uasProvider})
     : _uasProvider = uasProvider ?? SwissUasProvider(),
@@ -44,6 +63,9 @@ class GlobeController extends ChangeNotifier {
   bool _uasDatasetSentToRenderer = false;
   bool _uasRequestedVisible = false;
   int _nextTransferId = 0;
+  int _nextElevationRequestId = 0;
+
+  final Map<String, Completer<TerrainElevation>> _pendingElevationRequests = {};
 
   GlobeCommandSender? _sender;
 
@@ -86,9 +108,62 @@ class GlobeController extends ChangeNotifier {
   }
 
   void detach() {
+    _cancelElevationRequests();
     _sender = null;
     _ready = false;
     _uasDatasetSentToRenderer = false;
+  }
+
+  Future<TerrainElevation> queryTerrainElevation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (!latitude.isFinite ||
+        !longitude.isFinite ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      throw ArgumentError('Invalid terrain coordinates');
+    }
+
+    if (!_ready) {
+      throw StateError('Globe is not ready');
+    }
+
+    final requestId = (++_nextElevationRequestId).toString();
+    final completer = Completer<TerrainElevation>();
+
+    _pendingElevationRequests[requestId] = completer;
+
+    try {
+      await _send({
+        'type': 'query-terrain-elevation',
+        'requestId': requestId,
+        'latitude': latitude,
+        'longitude': longitude,
+      });
+
+      return await completer.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Terrain elevation request timed out');
+        },
+      );
+    } finally {
+      _pendingElevationRequests.remove(requestId);
+    }
+  }
+
+  void _cancelElevationRequests() {
+    final pending = _pendingElevationRequests.values.toList();
+    _pendingElevationRequests.clear();
+
+    for (final completer in pending) {
+      if (!completer.isCompleted) {
+        completer.completeError(StateError('Globe connection closed'));
+      }
+    }
   }
 
   Future<void> _send(Map<String, dynamic> command) async {
@@ -367,6 +442,51 @@ class GlobeController extends ChangeNotifier {
 
         notifyListeners();
 
+      case 'terrain-elevation-result':
+        final requestId = data['requestId']?.toString();
+
+        if (requestId == null) return;
+
+        final completer = _pendingElevationRequests[requestId];
+
+        if (completer == null || completer.isCompleted) {
+          return;
+        }
+
+        final error = data['error'];
+
+        if (error is String && error.isNotEmpty) {
+          completer.completeError(StateError(error));
+          return;
+        }
+
+        final latitude = data['latitude'];
+        final longitude = data['longitude'];
+        final height = data['heightMeters'];
+        final samplingMethod = data['samplingMethod'];
+
+        if (latitude is! num ||
+            longitude is! num ||
+            height is! num ||
+            samplingMethod is! String ||
+            !latitude.toDouble().isFinite ||
+            !longitude.toDouble().isFinite ||
+            !height.toDouble().isFinite) {
+          completer.completeError(
+            const FormatException('Invalid terrain elevation response'),
+          );
+          return;
+        }
+
+        completer.complete(
+          TerrainElevation(
+            latitude: latitude.toDouble(),
+            longitude: longitude.toDouble(),
+            heightMeters: height.toDouble(),
+            samplingMethod: samplingMethod,
+          ),
+        );
+
       case 'uas-zone-cleared':
         clearSelectedUasZone();
 
@@ -379,6 +499,7 @@ class GlobeController extends ChangeNotifier {
     if (_ownsUasProvider) {
       _uasProvider.dispose();
     }
+    _cancelElevationRequests();
     super.dispose();
   }
 }

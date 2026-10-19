@@ -276,5 +276,93 @@ void main() {
 
       expect(commands.last['geojson']['features'], isNotEmpty);
     });
+
+    test('queries terrain elevation and receives result', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      final request = controller.queryTerrainElevation(
+        latitude: 46.7,
+        longitude: 8.4,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      final command = commands.last;
+
+      expect(command['type'], 'query-terrain-elevation');
+
+      expect(command['latitude'], 46.7);
+      expect(command['longitude'], 8.4);
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'terrain-elevation-result',
+          'requestId': command['requestId'],
+          'latitude': 46.7,
+          'longitude': 8.4,
+          'heightMeters': 1450.5,
+          'samplingMethod': 'most-detailed',
+        }),
+      );
+
+      final result = await request;
+
+      expect(result.heightMeters, 1450.5);
+      expect(result.samplingMethod, 'most-detailed');
+    });
+
+    test('rejects invalid terrain coordinates', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      await expectLater(
+        controller.queryTerrainElevation(latitude: 95, longitude: 8.4),
+        throwsArgumentError,
+      );
+    });
+
+    test('propagates terrain sampling errors', () async {
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'globe-ready',
+          'terrainAvailable': true,
+        }),
+      );
+
+      final request = controller.queryTerrainElevation(
+        latitude: 46.7,
+        longitude: 8.4,
+      );
+
+      final expectation = expectLater(request, throwsStateError);
+
+      await Future<void>.delayed(Duration.zero);
+
+      final requestId = commands.last['requestId'];
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'terrain-elevation-result',
+          'requestId': requestId,
+          'error': 'Terrain unavailable',
+        }),
+      );
+
+      await expectation;
+    });
   });
 }
