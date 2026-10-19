@@ -38,7 +38,10 @@ class FPVManagerApp extends StatelessWidget {
 }
 
 class FPVHomeScreen extends StatefulWidget {
-  const FPVHomeScreen({super.key});
+  const FPVHomeScreen({super.key, this.spotRepository});
+
+  /// An injected repository remains owned by its caller.
+  final SpotRepository? spotRepository;
 
   @override
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
@@ -262,9 +265,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   void _startSpotSynchronization() {
     if (_spotsSubscription != null) return;
 
-    final database = _database ??= FpvDatabase.open();
-
-    final repository = _spotRepository ??= SpotRepository(database);
+    final repository = _spotRepository ??=
+        widget.spotRepository ??
+        SpotRepository(_database ??= FpvDatabase.open());
 
     _spotsSubscription = repository.watchSpots().listen(
       (spots) {

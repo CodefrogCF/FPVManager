@@ -112,6 +112,9 @@ class GlobeController extends ChangeNotifier {
   bool get isReady => _ready;
   bool get terrainAvailable => _terrainAvailable;
   GlobeMapStyle get mapStyle => _mapStyle;
+
+  /// The active raw map point. Saved spots and UAS zones are separate,
+  /// mutually exclusive selections and clear this value when selected.
   GlobePoint? get selectedPoint => _selectedPoint;
   String? get error => _error;
   UasZoneDetails? get selectedUasZone => _selectedUasZone;
@@ -436,6 +439,7 @@ class GlobeController extends ChangeNotifier {
         }
 
         _selectedSpotId = id;
+        _selectedPoint = null;
         _selectedUasZone = null;
         notifyListeners();
 
@@ -448,6 +452,8 @@ class GlobeController extends ChangeNotifier {
         final altitude = data['altitude'];
 
         if (latitude is num && longitude is num && altitude is num) {
+          _selectedSpotId = null;
+          _selectedUasZone = null;
           _selectedPoint = GlobePoint(
             latitude: latitude.toDouble(),
             longitude: longitude.toDouble(),
@@ -513,6 +519,8 @@ class GlobeController extends ChangeNotifier {
           _uasZonesFeatureCount = featureCount;
         }
 
+        notifyListeners();
+
       case 'uas-zone-selected':
         final rawAttributes = data['attributes'];
 
@@ -528,6 +536,8 @@ class GlobeController extends ChangeNotifier {
           }
         }
 
+        _selectedPoint = null;
+        _selectedSpotId = null;
         _selectedUasZone = UasZoneDetails(
           id: data['id']?.toString() ?? '',
           name: data['name']?.toString() ?? 'UAS Zone',

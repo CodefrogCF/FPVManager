@@ -246,6 +246,122 @@ void main() {
       expect(() => controller.setUasZonesFillOpacity(1.5), throwsArgumentError);
     });
 
+    test('notifies listeners after applying a complete UAS status', () {
+      var notifications = 0;
+      controller.addListener(() {
+        notifications++;
+        expect(controller.uasZonesVisible, isTrue);
+        expect(controller.uasZonesLoading, isFalse);
+        expect(controller.uasZonesFillOpacity, 0.4);
+        expect(controller.uasZonesFeatureCount, 42);
+        expect(controller.uasZonesDownloadedAt, DateTime.utc(2026, 10, 19, 8));
+        expect(controller.uasZonesError, 'Refresh failed');
+      });
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': true,
+          'loading': false,
+          'fillOpacity': 0.4,
+          'featureCount': 42,
+          'downloadedAtUtc': '2026-10-19T08:00:00.000Z',
+          'error': 'Refresh failed',
+        }),
+      );
+
+      expect(notifications, 1);
+    });
+
+    test('ignores malformed UAS status without changing state', () {
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      controller.handleEvent(
+        jsonEncode({
+          'source': 'fpvmanager-globe',
+          'type': 'uas-zones-status',
+          'visible': 'true',
+          'loading': false,
+          'fillOpacity': 0.8,
+        }),
+      );
+
+      expect(notifications, 0);
+      expect(controller.uasZonesVisible, isFalse);
+      expect(controller.uasZonesFillOpacity, 0.2);
+    });
+
+    test(
+      'keeps point, saved spot and UAS selections mutually exclusive',
+      () async {
+        await controller.setSpotMarkers([
+          const SpotMapMarker(
+            id: 1,
+            name: 'Spot B',
+            latitude: 47,
+            longitude: 8.5,
+          ),
+        ]);
+
+        void selectPoint() => controller.handleEvent(
+          jsonEncode({
+            'source': 'fpvmanager-globe',
+            'type': 'point-selected',
+            'latitude': 46.7,
+            'longitude': 8.4,
+            'altitude': 500,
+          }),
+        );
+        void selectSpot() => controller.handleEvent(
+          jsonEncode({
+            'source': 'fpvmanager-globe',
+            'type': 'spot-selected',
+            'id': 1,
+          }),
+        );
+        void selectZone() => controller.handleEvent(
+          jsonEncode({
+            'source': 'fpvmanager-globe',
+            'type': 'uas-zone-selected',
+            'id': 'zone',
+            'attributes': <String, String>{},
+          }),
+        );
+
+        selectPoint();
+        selectSpot();
+        expect(controller.selectedSpotId, 1);
+        expect(controller.selectedPoint, isNull);
+        expect(controller.selectedUasZone, isNull);
+
+        selectZone();
+        expect(controller.selectedUasZone, isNotNull);
+        expect(controller.selectedSpotId, isNull);
+        expect(controller.selectedPoint, isNull);
+
+        selectPoint();
+        expect(controller.selectedPoint?.latitude, 46.7);
+        expect(controller.selectedSpotId, isNull);
+        expect(controller.selectedUasZone, isNull);
+
+        selectZone();
+        controller.clearSelectedUasZone();
+        expect(controller.selectedPoint, isNull);
+
+        selectZone();
+        selectSpot();
+        expect(controller.selectedUasZone, isNull);
+        selectPoint();
+        expect(controller.selectedSpotId, isNull);
+
+        selectSpot();
+        controller.clearSelectedSpot();
+        expect(controller.selectedPoint, isNull);
+      },
+    );
+
     test('refreshes UAS zones through the provider', () async {
       controller.handleEvent(
         jsonEncode({

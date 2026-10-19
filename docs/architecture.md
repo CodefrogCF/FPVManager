@@ -1,0 +1,102 @@
+# Architecture
+
+## Current boundaries
+
+FPVManager is a Flutter application with a CesiumJS rendering surface. Flutter
+owns application navigation, personal data and observable map state. Cesium owns
+terrain/imagery rendering, picking and camera movements. The implementation is a
+prototype; reliability and geospatial reference work remain under #10 and #48.
+
+`FPVHomeScreen` composes the globe, layer controls and spot navigation. It opens a
+local `FpvDatabase` lazily and watches `SpotRepository` to synchronize saved
+markers. Tests may inject a repository; the home screen closes only a database
+that it created itself.
+
+## Renderer communication
+
+- Web embeds `web/globe.html` in an iframe. Flutter sends JSON using `postMessage`;
+  the Flutter listener checks the origin. The renderer checks origin and parent.
+- Android uses `webview_flutter`, loading `web/globe.html` from Flutter assets.
+  Flutter sends typed commands through `window.FPVManager.receive`; events return
+  through the `FPVBridge` JavaScript channel.
+- `GlobeController` validates recognized events, updates state and notifies its
+  Flutter listeners. Layer visibility is confirmed by renderer status events.
+- Large JSON commands are transferred in chunks. Terrain requests use IDs,
+  a 30-second timeout and cancellation when detached/disposed. Marker revisions
+  help ignore older marker datasets.
+
+The bridge does not yet offer a generally versioned protocol, acknowledgements
+for all commands, bounded transfer storage or full renderer-reload recovery.
+These are remaining work in #48, not guarantees of this design.
+
+## Selection semantics
+
+Raw map points, saved spots and UAS features are mutually exclusive selections:
+
+| New selection | Active state | Cleared state |
+|---|---|---|
+| Map point | `selectedPoint` | `selectedSpotId`, `selectedUasZone` |
+| Saved spot | `selectedSpotId` | `selectedPoint`, `selectedUasZone` |
+| UAS feature | `selectedUasZone` | `selectedPoint`, `selectedSpotId` |
+
+Closing a saved-spot or UAS panel clears that selection without restoring a
+previous raw point. Raw-point terrain queries and Add Spot defaults read only
+`selectedPoint`. Consequently, terrain queries are disabled while a saved spot
+is selected, and Add Spot opens without unrelated prior point coordinates.
+The saved-spot Fly to action uses the spot's own coordinates.
+
+The layer sheet displays confirmed renderer opacity, with a local preview only
+while the user is adjusting the slider.
+
+## Local data
+
+Drift/SQLite stores spots, drones, batteries, radio equipment, flight plans,
+waypoints and settings. Current schema version: 2. The v1-to-v2 migration preserves
+spots and adds the other six tables. Foreign keys are enabled before use.
+
+Only spots currently have a repository and full CRUD interface. Other tables
+are foundations rather than completed user-facing features. Web uses the checked
+in `sqlite3.wasm` / `drift_worker.js` resources; native tests use an in-memory
+database. Migration snapshots and fixtures live in `drift_schemas/` and
+`test/generated_migrations/`.
+
+## External data and geospatial services
+
+`OsintProvider<T>` separates fetching from the controller. `OsintDataset<T>` records
+provider identity, source URL, fetch time and optional HTTP Last-Modified.
+`SwissUasProvider` validates downloaded GeoJSON, deduplicates in-flight requests,
+provides a one-hour in-memory cache and retains a previous dataset on failed
+refresh. A renderer layer can currently be reused without checking that TTL.
+Persistent cache/freshness states are tracked in #51.
+
+`GeoCoordinateService` implements approximate Swiss WGS84/LV95 transformations and
+defines explicit height references. Separate REFRAME services support official
+height transformations, but the terrain dialog does not yet invoke them.
+Terrain heights must not silently be treated as verified AMSL/AGL values; #10
+tracks end-to-end reference handling.
+
+Current external dependencies include:
+
+| Purpose | Host / source |
+|---|---|
+| CesiumJS code, styles and related assets | `cdn.jsdelivr.net` |
+| Swiss imagery and map styles | `wmts.geo.admin.ch` |
+| Swiss terrain | `3d.geo.admin.ch` |
+| FOCA/BAZL UAS GeoJSON | `data.geo.admin.ch` |
+| REFRAME transformation services, when invoked | `geodesy.geo.admin.ch` |
+
+Flutter's Web bootstrap may also load renderer resources from Google-hosted
+services according to its build configuration. This list is an architecture
+inventory, not a completed privacy/license audit. #5/#44 cover that documentation;
+#49 covers local Cesium assets. Map requests disclose the viewed area to their
+providers; REFRAME requests contain supplied positions and elevations.
+
+## Verification
+
+Unit tests cover providers, coordinate services, database migration, repositories
+and controller behavior. Widget tests cover home-screen selection effects and
+layer controls, including cached overlay reactivation and renderer metadata.
+CI runs formatting, analysis and tests before separate Web/Android build jobs.
+
+These checks do not start a real WebGL globe, validate current official airspace
+restrictions, assess iOS compatibility or measure performance on physical devices.

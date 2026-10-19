@@ -12,13 +12,7 @@ class MapLayersSheet extends StatefulWidget {
 }
 
 class _MapLayersSheetState extends State<MapLayersSheet> {
-  late double _previewOpacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _previewOpacity = widget.controller.uasZonesFillOpacity;
-  }
+  double? _previewOpacity;
 
   Future<void> _execute(Future<void> Function() command) async {
     try {
@@ -55,6 +49,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
         listenable: widget.controller,
         builder: (context, child) {
           final controller = widget.controller;
+          final opacity = _previewOpacity ?? controller.uasZonesFillOpacity;
 
           final canEditOpacity =
               controller.isReady &&
@@ -165,14 +160,14 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
 
                   Text(
                     'Polygon fill opacity: '
-                    '${(_previewOpacity * 100).round()}%',
+                    '${(opacity * 100).round()}%',
                   ),
 
                   Slider(
                     min: 0,
                     max: 1,
                     divisions: 20,
-                    value: _previewOpacity,
+                    value: opacity,
                     onChanged: canEditOpacity
                         ? (value) {
                             setState(() {
@@ -181,10 +176,12 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                           }
                         : null,
                     onChangeEnd: canEditOpacity
-                        ? (value) {
-                            _execute(
+                        ? (value) async {
+                            await _execute(
                               () => controller.setUasZonesFillOpacity(value),
                             );
+                            if (!mounted) return;
+                            setState(() => _previewOpacity = null);
                           }
                         : null,
                   ),
