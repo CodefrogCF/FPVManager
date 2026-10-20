@@ -68,7 +68,7 @@ Android and Web are the supported targets; an iOS runner/validation remains #2.
 ## Migration and verification
 
 Schema **3** adds `spot_photos` and its index. The v1/v2 snapshots are retained.
-Current migration tests validate v1/v2/v3 → v4, preserving personal records and
+Current migration tests validate v1/v2/v3/v4 → v5, preserving personal records and
 height references. Repository tests cover ownership, limits, replacement,
 cascading deletion and transaction rollback after forced write failures. A
 temporary file-backed reopen test verifies photo bytes with all other domains.

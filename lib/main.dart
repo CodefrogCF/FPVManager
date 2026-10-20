@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'core/database/fpv_database.dart';
+import 'core/database/repositories/drone_repository.dart';
+import 'features/drones/drones_screen.dart';
 import 'features/spots/data/spot_repository.dart';
 import 'features/spots/data/spot_query.dart';
 import 'features/spots/spot_details_screen.dart';
@@ -42,19 +44,23 @@ class FPVManagerApp extends StatelessWidget {
 }
 
 class FPVHomeScreen extends StatefulWidget {
-  const FPVHomeScreen({super.key, this.spotRepository});
+  const FPVHomeScreen({super.key, this.spotRepository, this.droneRepository});
 
   /// An injected repository remains owned by its caller.
   final SpotRepository? spotRepository;
+  final DroneRepository? droneRepository;
 
   @override
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
 }
 
+enum _MapAction { home, coordinates, terrain, layers }
+
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
   final GlobeController _globeController = GlobeController();
   FpvDatabase? _database;
   SpotRepository? _spotRepository;
+  DroneRepository? _droneRepository;
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
   Map<int, SpotMapEntry> _spotsById = const {};
@@ -109,6 +115,17 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         latitude: spot.latitude,
         longitude: spot.longitude,
         rangeMeters: 300,
+      ),
+    );
+  }
+
+  Future<void> _openDrones() async {
+    final repository = _droneRepository ??=
+        widget.droneRepository ??
+        DroneRepository(_database ??= FpvDatabase.open());
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => DronesScreen(repository: repository),
       ),
     );
   }
@@ -253,20 +270,95 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            children: [
+              const ListTile(
+                title: Text('FPVManager'),
+                subtitle: Text('Places & equipment'),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.bookmark_outline),
+                title: const Text('FPV Spots'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openSpots());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.flight_outlined),
+                title: const Text('Drone profiles'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openDrones());
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
       appBar: AppBar(
         title: const Text('FPVManager'),
         backgroundColor: const Color(0xFF101820),
         actions: [
-          IconButton(
-            tooltip: 'FPV Spots',
-            onPressed: _openSpots,
-            icon: const Icon(Icons.bookmark_outline),
-          ),
+          if (MediaQuery.sizeOf(context).width >= 720)
+            IconButton(
+              tooltip: 'FPV Spots',
+              onPressed: _openSpots,
+              icon: const Icon(Icons.bookmark_outline),
+            ),
 
           ListenableBuilder(
             listenable: _globeController,
             builder: (context, child) {
               final ready = _globeController.isReady;
+
+              if (MediaQuery.sizeOf(context).width < 720) {
+                final terrain =
+                    ready &&
+                    _globeController.selectedPoint != null &&
+                    _globeController.selectedUasZone == null;
+                return PopupMenuButton<_MapAction>(
+                  tooltip: 'Map actions',
+                  onSelected: (action) {
+                    switch (action) {
+                      case _MapAction.home:
+                        unawaited(_runCommand(_globeController.resetCamera));
+                      case _MapAction.coordinates:
+                        unawaited(_openCoordinatesDialog());
+                      case _MapAction.terrain:
+                        unawaited(_showTerrainElevation());
+                      case _MapAction.layers:
+                        unawaited(_openMapLayers());
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: _MapAction.home,
+                      enabled: ready,
+                      child: const Text('Home'),
+                    ),
+                    PopupMenuItem(
+                      value: _MapAction.coordinates,
+                      enabled: ready,
+                      child: const Text('Go to coordinates'),
+                    ),
+                    PopupMenuItem(
+                      value: _MapAction.terrain,
+                      enabled: terrain,
+                      child: const Text('Query terrain elevation'),
+                    ),
+                    PopupMenuItem(
+                      value: _MapAction.layers,
+                      enabled: ready,
+                      child: const Text('Map layers'),
+                    ),
+                  ],
+                );
+              }
 
               return Row(
                 mainAxisSize: MainAxisSize.min,

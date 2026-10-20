@@ -1297,6 +1297,215 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
         type: DriftSqlType.double,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _lengthMmMeta = const VerificationMeta(
+    'lengthMm',
+  );
+  @override
+  late final GeneratedColumn<double> lengthMm = GeneratedColumn<double>(
+    'length_mm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _widthMmMeta = const VerificationMeta(
+    'widthMm',
+  );
+  @override
+  late final GeneratedColumn<double> widthMm = GeneratedColumn<double>(
+    'width_mm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _heightMmMeta = const VerificationMeta(
+    'heightMm',
+  );
+  @override
+  late final GeneratedColumn<double> heightMm = GeneratedColumn<double>(
+    'height_mm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _propellerDiameterInchesMeta =
+      const VerificationMeta('propellerDiameterInches');
+  @override
+  late final GeneratedColumn<double> propellerDiameterInches =
+      GeneratedColumn<double>(
+        'propeller_diameter_inches',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _propellerPitchInchesMeta =
+      const VerificationMeta('propellerPitchInches');
+  @override
+  late final GeneratedColumn<double> propellerPitchInches =
+      GeneratedColumn<double>(
+        'propeller_pitch_inches',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _propellerCountMeta = const VerificationMeta(
+    'propellerCount',
+  );
+  @override
+  late final GeneratedColumn<int> propellerCount = GeneratedColumn<int>(
+    'propeller_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _motorCountMeta = const VerificationMeta(
+    'motorCount',
+  );
+  @override
+  late final GeneratedColumn<int> motorCount = GeneratedColumn<int>(
+    'motor_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _motorKvMeta = const VerificationMeta(
+    'motorKv',
+  );
+  @override
+  late final GeneratedColumn<double> motorKv = GeneratedColumn<double>(
+    'motor_kv',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cruiseSpeedMetersPerSecondMeta =
+      const VerificationMeta('cruiseSpeedMetersPerSecond');
+  @override
+  late final GeneratedColumn<double> cruiseSpeedMetersPerSecond =
+      GeneratedColumn<double>(
+        'cruise_speed_meters_per_second',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _maxClimbRateMetersPerSecondMeta =
+      const VerificationMeta('maxClimbRateMetersPerSecond');
+  @override
+  late final GeneratedColumn<double> maxClimbRateMetersPerSecond =
+      GeneratedColumn<double>(
+        'max_climb_rate_meters_per_second',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _hoverPowerWattsMeta = const VerificationMeta(
+    'hoverPowerWatts',
+  );
+  @override
+  late final GeneratedColumn<double> hoverPowerWatts = GeneratedColumn<double>(
+    'hover_power_watts',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cruisePowerWattsMeta = const VerificationMeta(
+    'cruisePowerWatts',
+  );
+  @override
+  late final GeneratedColumn<double> cruisePowerWatts = GeneratedColumn<double>(
+    'cruise_power_watts',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _maxPowerWattsMeta = const VerificationMeta(
+    'maxPowerWatts',
+  );
+  @override
+  late final GeneratedColumn<double> maxPowerWatts = GeneratedColumn<double>(
+    'max_power_watts',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _referenceVoltageVoltsMeta =
+      const VerificationMeta('referenceVoltageVolts');
+  @override
+  late final GeneratedColumn<double> referenceVoltageVolts =
+      GeneratedColumn<double>(
+        'reference_voltage_volts',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _configurationMeta = const VerificationMeta(
+    'configuration',
+  );
+  @override
+  late final GeneratedColumn<String> configuration = GeneratedColumn<String>(
+    'configuration',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _propellerDescriptionMeta =
+      const VerificationMeta('propellerDescription');
+  @override
+  late final GeneratedColumn<String> propellerDescription =
+      GeneratedColumn<String>(
+        'propeller_description',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _motorDescriptionMeta = const VerificationMeta(
+    'motorDescription',
+  );
+  @override
+  late final GeneratedColumn<String> motorDescription = GeneratedColumn<String>(
+    'motor_description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _escDescriptionMeta = const VerificationMeta(
+    'escDescription',
+  );
+  @override
+  late final GeneratedColumn<String> escDescription = GeneratedColumn<String>(
+    'esc_description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _measurementContextMeta =
+      const VerificationMeta('measurementContext');
+  @override
+  late final GeneratedColumn<String> measurementContext =
+      GeneratedColumn<String>(
+        'measurement_context',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -1325,6 +1534,25 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
     type,
     takeoffWeightGrams,
     maxSpeedMetersPerSecond,
+    lengthMm,
+    widthMm,
+    heightMm,
+    propellerDiameterInches,
+    propellerPitchInches,
+    propellerCount,
+    motorCount,
+    motorKv,
+    cruiseSpeedMetersPerSecond,
+    maxClimbRateMetersPerSecond,
+    hoverPowerWatts,
+    cruisePowerWatts,
+    maxPowerWatts,
+    referenceVoltageVolts,
+    configuration,
+    propellerDescription,
+    motorDescription,
+    escDescription,
+    measurementContext,
     notes,
     createdAt,
   ];
@@ -1375,6 +1603,162 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
         ),
       );
     }
+    if (data.containsKey('length_mm')) {
+      context.handle(
+        _lengthMmMeta,
+        lengthMm.isAcceptableOrUnknown(data['length_mm']!, _lengthMmMeta),
+      );
+    }
+    if (data.containsKey('width_mm')) {
+      context.handle(
+        _widthMmMeta,
+        widthMm.isAcceptableOrUnknown(data['width_mm']!, _widthMmMeta),
+      );
+    }
+    if (data.containsKey('height_mm')) {
+      context.handle(
+        _heightMmMeta,
+        heightMm.isAcceptableOrUnknown(data['height_mm']!, _heightMmMeta),
+      );
+    }
+    if (data.containsKey('propeller_diameter_inches')) {
+      context.handle(
+        _propellerDiameterInchesMeta,
+        propellerDiameterInches.isAcceptableOrUnknown(
+          data['propeller_diameter_inches']!,
+          _propellerDiameterInchesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('propeller_pitch_inches')) {
+      context.handle(
+        _propellerPitchInchesMeta,
+        propellerPitchInches.isAcceptableOrUnknown(
+          data['propeller_pitch_inches']!,
+          _propellerPitchInchesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('propeller_count')) {
+      context.handle(
+        _propellerCountMeta,
+        propellerCount.isAcceptableOrUnknown(
+          data['propeller_count']!,
+          _propellerCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('motor_count')) {
+      context.handle(
+        _motorCountMeta,
+        motorCount.isAcceptableOrUnknown(data['motor_count']!, _motorCountMeta),
+      );
+    }
+    if (data.containsKey('motor_kv')) {
+      context.handle(
+        _motorKvMeta,
+        motorKv.isAcceptableOrUnknown(data['motor_kv']!, _motorKvMeta),
+      );
+    }
+    if (data.containsKey('cruise_speed_meters_per_second')) {
+      context.handle(
+        _cruiseSpeedMetersPerSecondMeta,
+        cruiseSpeedMetersPerSecond.isAcceptableOrUnknown(
+          data['cruise_speed_meters_per_second']!,
+          _cruiseSpeedMetersPerSecondMeta,
+        ),
+      );
+    }
+    if (data.containsKey('max_climb_rate_meters_per_second')) {
+      context.handle(
+        _maxClimbRateMetersPerSecondMeta,
+        maxClimbRateMetersPerSecond.isAcceptableOrUnknown(
+          data['max_climb_rate_meters_per_second']!,
+          _maxClimbRateMetersPerSecondMeta,
+        ),
+      );
+    }
+    if (data.containsKey('hover_power_watts')) {
+      context.handle(
+        _hoverPowerWattsMeta,
+        hoverPowerWatts.isAcceptableOrUnknown(
+          data['hover_power_watts']!,
+          _hoverPowerWattsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cruise_power_watts')) {
+      context.handle(
+        _cruisePowerWattsMeta,
+        cruisePowerWatts.isAcceptableOrUnknown(
+          data['cruise_power_watts']!,
+          _cruisePowerWattsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('max_power_watts')) {
+      context.handle(
+        _maxPowerWattsMeta,
+        maxPowerWatts.isAcceptableOrUnknown(
+          data['max_power_watts']!,
+          _maxPowerWattsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reference_voltage_volts')) {
+      context.handle(
+        _referenceVoltageVoltsMeta,
+        referenceVoltageVolts.isAcceptableOrUnknown(
+          data['reference_voltage_volts']!,
+          _referenceVoltageVoltsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('configuration')) {
+      context.handle(
+        _configurationMeta,
+        configuration.isAcceptableOrUnknown(
+          data['configuration']!,
+          _configurationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('propeller_description')) {
+      context.handle(
+        _propellerDescriptionMeta,
+        propellerDescription.isAcceptableOrUnknown(
+          data['propeller_description']!,
+          _propellerDescriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('motor_description')) {
+      context.handle(
+        _motorDescriptionMeta,
+        motorDescription.isAcceptableOrUnknown(
+          data['motor_description']!,
+          _motorDescriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('esc_description')) {
+      context.handle(
+        _escDescriptionMeta,
+        escDescription.isAcceptableOrUnknown(
+          data['esc_description']!,
+          _escDescriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('measurement_context')) {
+      context.handle(
+        _measurementContextMeta,
+        measurementContext.isAcceptableOrUnknown(
+          data['measurement_context']!,
+          _measurementContextMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -1416,6 +1800,82 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
         DriftSqlType.double,
         data['${effectivePrefix}max_speed_meters_per_second'],
       ),
+      lengthMm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}length_mm'],
+      ),
+      widthMm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}width_mm'],
+      ),
+      heightMm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}height_mm'],
+      ),
+      propellerDiameterInches: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}propeller_diameter_inches'],
+      ),
+      propellerPitchInches: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}propeller_pitch_inches'],
+      ),
+      propellerCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}propeller_count'],
+      ),
+      motorCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}motor_count'],
+      ),
+      motorKv: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}motor_kv'],
+      ),
+      cruiseSpeedMetersPerSecond: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}cruise_speed_meters_per_second'],
+      ),
+      maxClimbRateMetersPerSecond: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}max_climb_rate_meters_per_second'],
+      ),
+      hoverPowerWatts: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}hover_power_watts'],
+      ),
+      cruisePowerWatts: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}cruise_power_watts'],
+      ),
+      maxPowerWatts: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}max_power_watts'],
+      ),
+      referenceVoltageVolts: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}reference_voltage_volts'],
+      ),
+      configuration: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}configuration'],
+      ),
+      propellerDescription: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}propeller_description'],
+      ),
+      motorDescription: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}motor_description'],
+      ),
+      escDescription: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}esc_description'],
+      ),
+      measurementContext: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}measurement_context'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -1439,6 +1899,25 @@ class Drone extends DataClass implements Insertable<Drone> {
   final String type;
   final double? takeoffWeightGrams;
   final double? maxSpeedMetersPerSecond;
+  final double? lengthMm;
+  final double? widthMm;
+  final double? heightMm;
+  final double? propellerDiameterInches;
+  final double? propellerPitchInches;
+  final int? propellerCount;
+  final int? motorCount;
+  final double? motorKv;
+  final double? cruiseSpeedMetersPerSecond;
+  final double? maxClimbRateMetersPerSecond;
+  final double? hoverPowerWatts;
+  final double? cruisePowerWatts;
+  final double? maxPowerWatts;
+  final double? referenceVoltageVolts;
+  final String? configuration;
+  final String? propellerDescription;
+  final String? motorDescription;
+  final String? escDescription;
+  final String? measurementContext;
   final String? notes;
   final DateTime createdAt;
   const Drone({
@@ -1447,6 +1926,25 @@ class Drone extends DataClass implements Insertable<Drone> {
     required this.type,
     this.takeoffWeightGrams,
     this.maxSpeedMetersPerSecond,
+    this.lengthMm,
+    this.widthMm,
+    this.heightMm,
+    this.propellerDiameterInches,
+    this.propellerPitchInches,
+    this.propellerCount,
+    this.motorCount,
+    this.motorKv,
+    this.cruiseSpeedMetersPerSecond,
+    this.maxClimbRateMetersPerSecond,
+    this.hoverPowerWatts,
+    this.cruisePowerWatts,
+    this.maxPowerWatts,
+    this.referenceVoltageVolts,
+    this.configuration,
+    this.propellerDescription,
+    this.motorDescription,
+    this.escDescription,
+    this.measurementContext,
     this.notes,
     required this.createdAt,
   });
@@ -1463,6 +1961,69 @@ class Drone extends DataClass implements Insertable<Drone> {
       map['max_speed_meters_per_second'] = Variable<double>(
         maxSpeedMetersPerSecond,
       );
+    }
+    if (!nullToAbsent || lengthMm != null) {
+      map['length_mm'] = Variable<double>(lengthMm);
+    }
+    if (!nullToAbsent || widthMm != null) {
+      map['width_mm'] = Variable<double>(widthMm);
+    }
+    if (!nullToAbsent || heightMm != null) {
+      map['height_mm'] = Variable<double>(heightMm);
+    }
+    if (!nullToAbsent || propellerDiameterInches != null) {
+      map['propeller_diameter_inches'] = Variable<double>(
+        propellerDiameterInches,
+      );
+    }
+    if (!nullToAbsent || propellerPitchInches != null) {
+      map['propeller_pitch_inches'] = Variable<double>(propellerPitchInches);
+    }
+    if (!nullToAbsent || propellerCount != null) {
+      map['propeller_count'] = Variable<int>(propellerCount);
+    }
+    if (!nullToAbsent || motorCount != null) {
+      map['motor_count'] = Variable<int>(motorCount);
+    }
+    if (!nullToAbsent || motorKv != null) {
+      map['motor_kv'] = Variable<double>(motorKv);
+    }
+    if (!nullToAbsent || cruiseSpeedMetersPerSecond != null) {
+      map['cruise_speed_meters_per_second'] = Variable<double>(
+        cruiseSpeedMetersPerSecond,
+      );
+    }
+    if (!nullToAbsent || maxClimbRateMetersPerSecond != null) {
+      map['max_climb_rate_meters_per_second'] = Variable<double>(
+        maxClimbRateMetersPerSecond,
+      );
+    }
+    if (!nullToAbsent || hoverPowerWatts != null) {
+      map['hover_power_watts'] = Variable<double>(hoverPowerWatts);
+    }
+    if (!nullToAbsent || cruisePowerWatts != null) {
+      map['cruise_power_watts'] = Variable<double>(cruisePowerWatts);
+    }
+    if (!nullToAbsent || maxPowerWatts != null) {
+      map['max_power_watts'] = Variable<double>(maxPowerWatts);
+    }
+    if (!nullToAbsent || referenceVoltageVolts != null) {
+      map['reference_voltage_volts'] = Variable<double>(referenceVoltageVolts);
+    }
+    if (!nullToAbsent || configuration != null) {
+      map['configuration'] = Variable<String>(configuration);
+    }
+    if (!nullToAbsent || propellerDescription != null) {
+      map['propeller_description'] = Variable<String>(propellerDescription);
+    }
+    if (!nullToAbsent || motorDescription != null) {
+      map['motor_description'] = Variable<String>(motorDescription);
+    }
+    if (!nullToAbsent || escDescription != null) {
+      map['esc_description'] = Variable<String>(escDescription);
+    }
+    if (!nullToAbsent || measurementContext != null) {
+      map['measurement_context'] = Variable<String>(measurementContext);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -1482,6 +2043,65 @@ class Drone extends DataClass implements Insertable<Drone> {
       maxSpeedMetersPerSecond: maxSpeedMetersPerSecond == null && nullToAbsent
           ? const Value.absent()
           : Value(maxSpeedMetersPerSecond),
+      lengthMm: lengthMm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lengthMm),
+      widthMm: widthMm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(widthMm),
+      heightMm: heightMm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heightMm),
+      propellerDiameterInches: propellerDiameterInches == null && nullToAbsent
+          ? const Value.absent()
+          : Value(propellerDiameterInches),
+      propellerPitchInches: propellerPitchInches == null && nullToAbsent
+          ? const Value.absent()
+          : Value(propellerPitchInches),
+      propellerCount: propellerCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(propellerCount),
+      motorCount: motorCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(motorCount),
+      motorKv: motorKv == null && nullToAbsent
+          ? const Value.absent()
+          : Value(motorKv),
+      cruiseSpeedMetersPerSecond:
+          cruiseSpeedMetersPerSecond == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cruiseSpeedMetersPerSecond),
+      maxClimbRateMetersPerSecond:
+          maxClimbRateMetersPerSecond == null && nullToAbsent
+          ? const Value.absent()
+          : Value(maxClimbRateMetersPerSecond),
+      hoverPowerWatts: hoverPowerWatts == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hoverPowerWatts),
+      cruisePowerWatts: cruisePowerWatts == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cruisePowerWatts),
+      maxPowerWatts: maxPowerWatts == null && nullToAbsent
+          ? const Value.absent()
+          : Value(maxPowerWatts),
+      referenceVoltageVolts: referenceVoltageVolts == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceVoltageVolts),
+      configuration: configuration == null && nullToAbsent
+          ? const Value.absent()
+          : Value(configuration),
+      propellerDescription: propellerDescription == null && nullToAbsent
+          ? const Value.absent()
+          : Value(propellerDescription),
+      motorDescription: motorDescription == null && nullToAbsent
+          ? const Value.absent()
+          : Value(motorDescription),
+      escDescription: escDescription == null && nullToAbsent
+          ? const Value.absent()
+          : Value(escDescription),
+      measurementContext: measurementContext == null && nullToAbsent
+          ? const Value.absent()
+          : Value(measurementContext),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -1504,6 +2124,39 @@ class Drone extends DataClass implements Insertable<Drone> {
       maxSpeedMetersPerSecond: serializer.fromJson<double?>(
         json['maxSpeedMetersPerSecond'],
       ),
+      lengthMm: serializer.fromJson<double?>(json['lengthMm']),
+      widthMm: serializer.fromJson<double?>(json['widthMm']),
+      heightMm: serializer.fromJson<double?>(json['heightMm']),
+      propellerDiameterInches: serializer.fromJson<double?>(
+        json['propellerDiameterInches'],
+      ),
+      propellerPitchInches: serializer.fromJson<double?>(
+        json['propellerPitchInches'],
+      ),
+      propellerCount: serializer.fromJson<int?>(json['propellerCount']),
+      motorCount: serializer.fromJson<int?>(json['motorCount']),
+      motorKv: serializer.fromJson<double?>(json['motorKv']),
+      cruiseSpeedMetersPerSecond: serializer.fromJson<double?>(
+        json['cruiseSpeedMetersPerSecond'],
+      ),
+      maxClimbRateMetersPerSecond: serializer.fromJson<double?>(
+        json['maxClimbRateMetersPerSecond'],
+      ),
+      hoverPowerWatts: serializer.fromJson<double?>(json['hoverPowerWatts']),
+      cruisePowerWatts: serializer.fromJson<double?>(json['cruisePowerWatts']),
+      maxPowerWatts: serializer.fromJson<double?>(json['maxPowerWatts']),
+      referenceVoltageVolts: serializer.fromJson<double?>(
+        json['referenceVoltageVolts'],
+      ),
+      configuration: serializer.fromJson<String?>(json['configuration']),
+      propellerDescription: serializer.fromJson<String?>(
+        json['propellerDescription'],
+      ),
+      motorDescription: serializer.fromJson<String?>(json['motorDescription']),
+      escDescription: serializer.fromJson<String?>(json['escDescription']),
+      measurementContext: serializer.fromJson<String?>(
+        json['measurementContext'],
+      ),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -1519,6 +2172,33 @@ class Drone extends DataClass implements Insertable<Drone> {
       'maxSpeedMetersPerSecond': serializer.toJson<double?>(
         maxSpeedMetersPerSecond,
       ),
+      'lengthMm': serializer.toJson<double?>(lengthMm),
+      'widthMm': serializer.toJson<double?>(widthMm),
+      'heightMm': serializer.toJson<double?>(heightMm),
+      'propellerDiameterInches': serializer.toJson<double?>(
+        propellerDiameterInches,
+      ),
+      'propellerPitchInches': serializer.toJson<double?>(propellerPitchInches),
+      'propellerCount': serializer.toJson<int?>(propellerCount),
+      'motorCount': serializer.toJson<int?>(motorCount),
+      'motorKv': serializer.toJson<double?>(motorKv),
+      'cruiseSpeedMetersPerSecond': serializer.toJson<double?>(
+        cruiseSpeedMetersPerSecond,
+      ),
+      'maxClimbRateMetersPerSecond': serializer.toJson<double?>(
+        maxClimbRateMetersPerSecond,
+      ),
+      'hoverPowerWatts': serializer.toJson<double?>(hoverPowerWatts),
+      'cruisePowerWatts': serializer.toJson<double?>(cruisePowerWatts),
+      'maxPowerWatts': serializer.toJson<double?>(maxPowerWatts),
+      'referenceVoltageVolts': serializer.toJson<double?>(
+        referenceVoltageVolts,
+      ),
+      'configuration': serializer.toJson<String?>(configuration),
+      'propellerDescription': serializer.toJson<String?>(propellerDescription),
+      'motorDescription': serializer.toJson<String?>(motorDescription),
+      'escDescription': serializer.toJson<String?>(escDescription),
+      'measurementContext': serializer.toJson<String?>(measurementContext),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -1530,6 +2210,25 @@ class Drone extends DataClass implements Insertable<Drone> {
     String? type,
     Value<double?> takeoffWeightGrams = const Value.absent(),
     Value<double?> maxSpeedMetersPerSecond = const Value.absent(),
+    Value<double?> lengthMm = const Value.absent(),
+    Value<double?> widthMm = const Value.absent(),
+    Value<double?> heightMm = const Value.absent(),
+    Value<double?> propellerDiameterInches = const Value.absent(),
+    Value<double?> propellerPitchInches = const Value.absent(),
+    Value<int?> propellerCount = const Value.absent(),
+    Value<int?> motorCount = const Value.absent(),
+    Value<double?> motorKv = const Value.absent(),
+    Value<double?> cruiseSpeedMetersPerSecond = const Value.absent(),
+    Value<double?> maxClimbRateMetersPerSecond = const Value.absent(),
+    Value<double?> hoverPowerWatts = const Value.absent(),
+    Value<double?> cruisePowerWatts = const Value.absent(),
+    Value<double?> maxPowerWatts = const Value.absent(),
+    Value<double?> referenceVoltageVolts = const Value.absent(),
+    Value<String?> configuration = const Value.absent(),
+    Value<String?> propellerDescription = const Value.absent(),
+    Value<String?> motorDescription = const Value.absent(),
+    Value<String?> escDescription = const Value.absent(),
+    Value<String?> measurementContext = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
   }) => Drone(
@@ -1542,6 +2241,53 @@ class Drone extends DataClass implements Insertable<Drone> {
     maxSpeedMetersPerSecond: maxSpeedMetersPerSecond.present
         ? maxSpeedMetersPerSecond.value
         : this.maxSpeedMetersPerSecond,
+    lengthMm: lengthMm.present ? lengthMm.value : this.lengthMm,
+    widthMm: widthMm.present ? widthMm.value : this.widthMm,
+    heightMm: heightMm.present ? heightMm.value : this.heightMm,
+    propellerDiameterInches: propellerDiameterInches.present
+        ? propellerDiameterInches.value
+        : this.propellerDiameterInches,
+    propellerPitchInches: propellerPitchInches.present
+        ? propellerPitchInches.value
+        : this.propellerPitchInches,
+    propellerCount: propellerCount.present
+        ? propellerCount.value
+        : this.propellerCount,
+    motorCount: motorCount.present ? motorCount.value : this.motorCount,
+    motorKv: motorKv.present ? motorKv.value : this.motorKv,
+    cruiseSpeedMetersPerSecond: cruiseSpeedMetersPerSecond.present
+        ? cruiseSpeedMetersPerSecond.value
+        : this.cruiseSpeedMetersPerSecond,
+    maxClimbRateMetersPerSecond: maxClimbRateMetersPerSecond.present
+        ? maxClimbRateMetersPerSecond.value
+        : this.maxClimbRateMetersPerSecond,
+    hoverPowerWatts: hoverPowerWatts.present
+        ? hoverPowerWatts.value
+        : this.hoverPowerWatts,
+    cruisePowerWatts: cruisePowerWatts.present
+        ? cruisePowerWatts.value
+        : this.cruisePowerWatts,
+    maxPowerWatts: maxPowerWatts.present
+        ? maxPowerWatts.value
+        : this.maxPowerWatts,
+    referenceVoltageVolts: referenceVoltageVolts.present
+        ? referenceVoltageVolts.value
+        : this.referenceVoltageVolts,
+    configuration: configuration.present
+        ? configuration.value
+        : this.configuration,
+    propellerDescription: propellerDescription.present
+        ? propellerDescription.value
+        : this.propellerDescription,
+    motorDescription: motorDescription.present
+        ? motorDescription.value
+        : this.motorDescription,
+    escDescription: escDescription.present
+        ? escDescription.value
+        : this.escDescription,
+    measurementContext: measurementContext.present
+        ? measurementContext.value
+        : this.measurementContext,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -1556,6 +2302,55 @@ class Drone extends DataClass implements Insertable<Drone> {
       maxSpeedMetersPerSecond: data.maxSpeedMetersPerSecond.present
           ? data.maxSpeedMetersPerSecond.value
           : this.maxSpeedMetersPerSecond,
+      lengthMm: data.lengthMm.present ? data.lengthMm.value : this.lengthMm,
+      widthMm: data.widthMm.present ? data.widthMm.value : this.widthMm,
+      heightMm: data.heightMm.present ? data.heightMm.value : this.heightMm,
+      propellerDiameterInches: data.propellerDiameterInches.present
+          ? data.propellerDiameterInches.value
+          : this.propellerDiameterInches,
+      propellerPitchInches: data.propellerPitchInches.present
+          ? data.propellerPitchInches.value
+          : this.propellerPitchInches,
+      propellerCount: data.propellerCount.present
+          ? data.propellerCount.value
+          : this.propellerCount,
+      motorCount: data.motorCount.present
+          ? data.motorCount.value
+          : this.motorCount,
+      motorKv: data.motorKv.present ? data.motorKv.value : this.motorKv,
+      cruiseSpeedMetersPerSecond: data.cruiseSpeedMetersPerSecond.present
+          ? data.cruiseSpeedMetersPerSecond.value
+          : this.cruiseSpeedMetersPerSecond,
+      maxClimbRateMetersPerSecond: data.maxClimbRateMetersPerSecond.present
+          ? data.maxClimbRateMetersPerSecond.value
+          : this.maxClimbRateMetersPerSecond,
+      hoverPowerWatts: data.hoverPowerWatts.present
+          ? data.hoverPowerWatts.value
+          : this.hoverPowerWatts,
+      cruisePowerWatts: data.cruisePowerWatts.present
+          ? data.cruisePowerWatts.value
+          : this.cruisePowerWatts,
+      maxPowerWatts: data.maxPowerWatts.present
+          ? data.maxPowerWatts.value
+          : this.maxPowerWatts,
+      referenceVoltageVolts: data.referenceVoltageVolts.present
+          ? data.referenceVoltageVolts.value
+          : this.referenceVoltageVolts,
+      configuration: data.configuration.present
+          ? data.configuration.value
+          : this.configuration,
+      propellerDescription: data.propellerDescription.present
+          ? data.propellerDescription.value
+          : this.propellerDescription,
+      motorDescription: data.motorDescription.present
+          ? data.motorDescription.value
+          : this.motorDescription,
+      escDescription: data.escDescription.present
+          ? data.escDescription.value
+          : this.escDescription,
+      measurementContext: data.measurementContext.present
+          ? data.measurementContext.value
+          : this.measurementContext,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -1569,6 +2364,25 @@ class Drone extends DataClass implements Insertable<Drone> {
           ..write('type: $type, ')
           ..write('takeoffWeightGrams: $takeoffWeightGrams, ')
           ..write('maxSpeedMetersPerSecond: $maxSpeedMetersPerSecond, ')
+          ..write('lengthMm: $lengthMm, ')
+          ..write('widthMm: $widthMm, ')
+          ..write('heightMm: $heightMm, ')
+          ..write('propellerDiameterInches: $propellerDiameterInches, ')
+          ..write('propellerPitchInches: $propellerPitchInches, ')
+          ..write('propellerCount: $propellerCount, ')
+          ..write('motorCount: $motorCount, ')
+          ..write('motorKv: $motorKv, ')
+          ..write('cruiseSpeedMetersPerSecond: $cruiseSpeedMetersPerSecond, ')
+          ..write('maxClimbRateMetersPerSecond: $maxClimbRateMetersPerSecond, ')
+          ..write('hoverPowerWatts: $hoverPowerWatts, ')
+          ..write('cruisePowerWatts: $cruisePowerWatts, ')
+          ..write('maxPowerWatts: $maxPowerWatts, ')
+          ..write('referenceVoltageVolts: $referenceVoltageVolts, ')
+          ..write('configuration: $configuration, ')
+          ..write('propellerDescription: $propellerDescription, ')
+          ..write('motorDescription: $motorDescription, ')
+          ..write('escDescription: $escDescription, ')
+          ..write('measurementContext: $measurementContext, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1576,15 +2390,34 @@ class Drone extends DataClass implements Insertable<Drone> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     type,
     takeoffWeightGrams,
     maxSpeedMetersPerSecond,
+    lengthMm,
+    widthMm,
+    heightMm,
+    propellerDiameterInches,
+    propellerPitchInches,
+    propellerCount,
+    motorCount,
+    motorKv,
+    cruiseSpeedMetersPerSecond,
+    maxClimbRateMetersPerSecond,
+    hoverPowerWatts,
+    cruisePowerWatts,
+    maxPowerWatts,
+    referenceVoltageVolts,
+    configuration,
+    propellerDescription,
+    motorDescription,
+    escDescription,
+    measurementContext,
     notes,
     createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1594,6 +2427,26 @@ class Drone extends DataClass implements Insertable<Drone> {
           other.type == this.type &&
           other.takeoffWeightGrams == this.takeoffWeightGrams &&
           other.maxSpeedMetersPerSecond == this.maxSpeedMetersPerSecond &&
+          other.lengthMm == this.lengthMm &&
+          other.widthMm == this.widthMm &&
+          other.heightMm == this.heightMm &&
+          other.propellerDiameterInches == this.propellerDiameterInches &&
+          other.propellerPitchInches == this.propellerPitchInches &&
+          other.propellerCount == this.propellerCount &&
+          other.motorCount == this.motorCount &&
+          other.motorKv == this.motorKv &&
+          other.cruiseSpeedMetersPerSecond == this.cruiseSpeedMetersPerSecond &&
+          other.maxClimbRateMetersPerSecond ==
+              this.maxClimbRateMetersPerSecond &&
+          other.hoverPowerWatts == this.hoverPowerWatts &&
+          other.cruisePowerWatts == this.cruisePowerWatts &&
+          other.maxPowerWatts == this.maxPowerWatts &&
+          other.referenceVoltageVolts == this.referenceVoltageVolts &&
+          other.configuration == this.configuration &&
+          other.propellerDescription == this.propellerDescription &&
+          other.motorDescription == this.motorDescription &&
+          other.escDescription == this.escDescription &&
+          other.measurementContext == this.measurementContext &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt);
 }
@@ -1604,6 +2457,25 @@ class DronesCompanion extends UpdateCompanion<Drone> {
   final Value<String> type;
   final Value<double?> takeoffWeightGrams;
   final Value<double?> maxSpeedMetersPerSecond;
+  final Value<double?> lengthMm;
+  final Value<double?> widthMm;
+  final Value<double?> heightMm;
+  final Value<double?> propellerDiameterInches;
+  final Value<double?> propellerPitchInches;
+  final Value<int?> propellerCount;
+  final Value<int?> motorCount;
+  final Value<double?> motorKv;
+  final Value<double?> cruiseSpeedMetersPerSecond;
+  final Value<double?> maxClimbRateMetersPerSecond;
+  final Value<double?> hoverPowerWatts;
+  final Value<double?> cruisePowerWatts;
+  final Value<double?> maxPowerWatts;
+  final Value<double?> referenceVoltageVolts;
+  final Value<String?> configuration;
+  final Value<String?> propellerDescription;
+  final Value<String?> motorDescription;
+  final Value<String?> escDescription;
+  final Value<String?> measurementContext;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   const DronesCompanion({
@@ -1612,6 +2484,25 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     this.type = const Value.absent(),
     this.takeoffWeightGrams = const Value.absent(),
     this.maxSpeedMetersPerSecond = const Value.absent(),
+    this.lengthMm = const Value.absent(),
+    this.widthMm = const Value.absent(),
+    this.heightMm = const Value.absent(),
+    this.propellerDiameterInches = const Value.absent(),
+    this.propellerPitchInches = const Value.absent(),
+    this.propellerCount = const Value.absent(),
+    this.motorCount = const Value.absent(),
+    this.motorKv = const Value.absent(),
+    this.cruiseSpeedMetersPerSecond = const Value.absent(),
+    this.maxClimbRateMetersPerSecond = const Value.absent(),
+    this.hoverPowerWatts = const Value.absent(),
+    this.cruisePowerWatts = const Value.absent(),
+    this.maxPowerWatts = const Value.absent(),
+    this.referenceVoltageVolts = const Value.absent(),
+    this.configuration = const Value.absent(),
+    this.propellerDescription = const Value.absent(),
+    this.motorDescription = const Value.absent(),
+    this.escDescription = const Value.absent(),
+    this.measurementContext = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -1621,6 +2512,25 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     this.type = const Value.absent(),
     this.takeoffWeightGrams = const Value.absent(),
     this.maxSpeedMetersPerSecond = const Value.absent(),
+    this.lengthMm = const Value.absent(),
+    this.widthMm = const Value.absent(),
+    this.heightMm = const Value.absent(),
+    this.propellerDiameterInches = const Value.absent(),
+    this.propellerPitchInches = const Value.absent(),
+    this.propellerCount = const Value.absent(),
+    this.motorCount = const Value.absent(),
+    this.motorKv = const Value.absent(),
+    this.cruiseSpeedMetersPerSecond = const Value.absent(),
+    this.maxClimbRateMetersPerSecond = const Value.absent(),
+    this.hoverPowerWatts = const Value.absent(),
+    this.cruisePowerWatts = const Value.absent(),
+    this.maxPowerWatts = const Value.absent(),
+    this.referenceVoltageVolts = const Value.absent(),
+    this.configuration = const Value.absent(),
+    this.propellerDescription = const Value.absent(),
+    this.motorDescription = const Value.absent(),
+    this.escDescription = const Value.absent(),
+    this.measurementContext = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : name = Value(name);
@@ -1630,6 +2540,25 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     Expression<String>? type,
     Expression<double>? takeoffWeightGrams,
     Expression<double>? maxSpeedMetersPerSecond,
+    Expression<double>? lengthMm,
+    Expression<double>? widthMm,
+    Expression<double>? heightMm,
+    Expression<double>? propellerDiameterInches,
+    Expression<double>? propellerPitchInches,
+    Expression<int>? propellerCount,
+    Expression<int>? motorCount,
+    Expression<double>? motorKv,
+    Expression<double>? cruiseSpeedMetersPerSecond,
+    Expression<double>? maxClimbRateMetersPerSecond,
+    Expression<double>? hoverPowerWatts,
+    Expression<double>? cruisePowerWatts,
+    Expression<double>? maxPowerWatts,
+    Expression<double>? referenceVoltageVolts,
+    Expression<String>? configuration,
+    Expression<String>? propellerDescription,
+    Expression<String>? motorDescription,
+    Expression<String>? escDescription,
+    Expression<String>? measurementContext,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
   }) {
@@ -1641,6 +2570,31 @@ class DronesCompanion extends UpdateCompanion<Drone> {
         'takeoff_weight_grams': takeoffWeightGrams,
       if (maxSpeedMetersPerSecond != null)
         'max_speed_meters_per_second': maxSpeedMetersPerSecond,
+      if (lengthMm != null) 'length_mm': lengthMm,
+      if (widthMm != null) 'width_mm': widthMm,
+      if (heightMm != null) 'height_mm': heightMm,
+      if (propellerDiameterInches != null)
+        'propeller_diameter_inches': propellerDiameterInches,
+      if (propellerPitchInches != null)
+        'propeller_pitch_inches': propellerPitchInches,
+      if (propellerCount != null) 'propeller_count': propellerCount,
+      if (motorCount != null) 'motor_count': motorCount,
+      if (motorKv != null) 'motor_kv': motorKv,
+      if (cruiseSpeedMetersPerSecond != null)
+        'cruise_speed_meters_per_second': cruiseSpeedMetersPerSecond,
+      if (maxClimbRateMetersPerSecond != null)
+        'max_climb_rate_meters_per_second': maxClimbRateMetersPerSecond,
+      if (hoverPowerWatts != null) 'hover_power_watts': hoverPowerWatts,
+      if (cruisePowerWatts != null) 'cruise_power_watts': cruisePowerWatts,
+      if (maxPowerWatts != null) 'max_power_watts': maxPowerWatts,
+      if (referenceVoltageVolts != null)
+        'reference_voltage_volts': referenceVoltageVolts,
+      if (configuration != null) 'configuration': configuration,
+      if (propellerDescription != null)
+        'propeller_description': propellerDescription,
+      if (motorDescription != null) 'motor_description': motorDescription,
+      if (escDescription != null) 'esc_description': escDescription,
+      if (measurementContext != null) 'measurement_context': measurementContext,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -1652,6 +2606,25 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     Value<String>? type,
     Value<double?>? takeoffWeightGrams,
     Value<double?>? maxSpeedMetersPerSecond,
+    Value<double?>? lengthMm,
+    Value<double?>? widthMm,
+    Value<double?>? heightMm,
+    Value<double?>? propellerDiameterInches,
+    Value<double?>? propellerPitchInches,
+    Value<int?>? propellerCount,
+    Value<int?>? motorCount,
+    Value<double?>? motorKv,
+    Value<double?>? cruiseSpeedMetersPerSecond,
+    Value<double?>? maxClimbRateMetersPerSecond,
+    Value<double?>? hoverPowerWatts,
+    Value<double?>? cruisePowerWatts,
+    Value<double?>? maxPowerWatts,
+    Value<double?>? referenceVoltageVolts,
+    Value<String?>? configuration,
+    Value<String?>? propellerDescription,
+    Value<String?>? motorDescription,
+    Value<String?>? escDescription,
+    Value<String?>? measurementContext,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
   }) {
@@ -1662,6 +2635,29 @@ class DronesCompanion extends UpdateCompanion<Drone> {
       takeoffWeightGrams: takeoffWeightGrams ?? this.takeoffWeightGrams,
       maxSpeedMetersPerSecond:
           maxSpeedMetersPerSecond ?? this.maxSpeedMetersPerSecond,
+      lengthMm: lengthMm ?? this.lengthMm,
+      widthMm: widthMm ?? this.widthMm,
+      heightMm: heightMm ?? this.heightMm,
+      propellerDiameterInches:
+          propellerDiameterInches ?? this.propellerDiameterInches,
+      propellerPitchInches: propellerPitchInches ?? this.propellerPitchInches,
+      propellerCount: propellerCount ?? this.propellerCount,
+      motorCount: motorCount ?? this.motorCount,
+      motorKv: motorKv ?? this.motorKv,
+      cruiseSpeedMetersPerSecond:
+          cruiseSpeedMetersPerSecond ?? this.cruiseSpeedMetersPerSecond,
+      maxClimbRateMetersPerSecond:
+          maxClimbRateMetersPerSecond ?? this.maxClimbRateMetersPerSecond,
+      hoverPowerWatts: hoverPowerWatts ?? this.hoverPowerWatts,
+      cruisePowerWatts: cruisePowerWatts ?? this.cruisePowerWatts,
+      maxPowerWatts: maxPowerWatts ?? this.maxPowerWatts,
+      referenceVoltageVolts:
+          referenceVoltageVolts ?? this.referenceVoltageVolts,
+      configuration: configuration ?? this.configuration,
+      propellerDescription: propellerDescription ?? this.propellerDescription,
+      motorDescription: motorDescription ?? this.motorDescription,
+      escDescription: escDescription ?? this.escDescription,
+      measurementContext: measurementContext ?? this.measurementContext,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -1687,6 +2683,75 @@ class DronesCompanion extends UpdateCompanion<Drone> {
         maxSpeedMetersPerSecond.value,
       );
     }
+    if (lengthMm.present) {
+      map['length_mm'] = Variable<double>(lengthMm.value);
+    }
+    if (widthMm.present) {
+      map['width_mm'] = Variable<double>(widthMm.value);
+    }
+    if (heightMm.present) {
+      map['height_mm'] = Variable<double>(heightMm.value);
+    }
+    if (propellerDiameterInches.present) {
+      map['propeller_diameter_inches'] = Variable<double>(
+        propellerDiameterInches.value,
+      );
+    }
+    if (propellerPitchInches.present) {
+      map['propeller_pitch_inches'] = Variable<double>(
+        propellerPitchInches.value,
+      );
+    }
+    if (propellerCount.present) {
+      map['propeller_count'] = Variable<int>(propellerCount.value);
+    }
+    if (motorCount.present) {
+      map['motor_count'] = Variable<int>(motorCount.value);
+    }
+    if (motorKv.present) {
+      map['motor_kv'] = Variable<double>(motorKv.value);
+    }
+    if (cruiseSpeedMetersPerSecond.present) {
+      map['cruise_speed_meters_per_second'] = Variable<double>(
+        cruiseSpeedMetersPerSecond.value,
+      );
+    }
+    if (maxClimbRateMetersPerSecond.present) {
+      map['max_climb_rate_meters_per_second'] = Variable<double>(
+        maxClimbRateMetersPerSecond.value,
+      );
+    }
+    if (hoverPowerWatts.present) {
+      map['hover_power_watts'] = Variable<double>(hoverPowerWatts.value);
+    }
+    if (cruisePowerWatts.present) {
+      map['cruise_power_watts'] = Variable<double>(cruisePowerWatts.value);
+    }
+    if (maxPowerWatts.present) {
+      map['max_power_watts'] = Variable<double>(maxPowerWatts.value);
+    }
+    if (referenceVoltageVolts.present) {
+      map['reference_voltage_volts'] = Variable<double>(
+        referenceVoltageVolts.value,
+      );
+    }
+    if (configuration.present) {
+      map['configuration'] = Variable<String>(configuration.value);
+    }
+    if (propellerDescription.present) {
+      map['propeller_description'] = Variable<String>(
+        propellerDescription.value,
+      );
+    }
+    if (motorDescription.present) {
+      map['motor_description'] = Variable<String>(motorDescription.value);
+    }
+    if (escDescription.present) {
+      map['esc_description'] = Variable<String>(escDescription.value);
+    }
+    if (measurementContext.present) {
+      map['measurement_context'] = Variable<String>(measurementContext.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -1704,8 +2769,304 @@ class DronesCompanion extends UpdateCompanion<Drone> {
           ..write('type: $type, ')
           ..write('takeoffWeightGrams: $takeoffWeightGrams, ')
           ..write('maxSpeedMetersPerSecond: $maxSpeedMetersPerSecond, ')
+          ..write('lengthMm: $lengthMm, ')
+          ..write('widthMm: $widthMm, ')
+          ..write('heightMm: $heightMm, ')
+          ..write('propellerDiameterInches: $propellerDiameterInches, ')
+          ..write('propellerPitchInches: $propellerPitchInches, ')
+          ..write('propellerCount: $propellerCount, ')
+          ..write('motorCount: $motorCount, ')
+          ..write('motorKv: $motorKv, ')
+          ..write('cruiseSpeedMetersPerSecond: $cruiseSpeedMetersPerSecond, ')
+          ..write('maxClimbRateMetersPerSecond: $maxClimbRateMetersPerSecond, ')
+          ..write('hoverPowerWatts: $hoverPowerWatts, ')
+          ..write('cruisePowerWatts: $cruisePowerWatts, ')
+          ..write('maxPowerWatts: $maxPowerWatts, ')
+          ..write('referenceVoltageVolts: $referenceVoltageVolts, ')
+          ..write('configuration: $configuration, ')
+          ..write('propellerDescription: $propellerDescription, ')
+          ..write('motorDescription: $motorDescription, ')
+          ..write('escDescription: $escDescription, ')
+          ..write('measurementContext: $measurementContext, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DroneParameterSourcesTable extends DroneParameterSources
+    with TableInfo<$DroneParameterSourcesTable, DroneParameterSource> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DroneParameterSourcesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _droneIdMeta = const VerificationMeta(
+    'droneId',
+  );
+  @override
+  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
+    'drone_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES drones (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _parameterKeyMeta = const VerificationMeta(
+    'parameterKey',
+  );
+  @override
+  late final GeneratedColumn<String> parameterKey = GeneratedColumn<String>(
+    'parameter_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [droneId, parameterKey, source];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'drone_parameter_sources';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DroneParameterSource> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('drone_id')) {
+      context.handle(
+        _droneIdMeta,
+        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_droneIdMeta);
+    }
+    if (data.containsKey('parameter_key')) {
+      context.handle(
+        _parameterKeyMeta,
+        parameterKey.isAcceptableOrUnknown(
+          data['parameter_key']!,
+          _parameterKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_parameterKeyMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {droneId, parameterKey};
+  @override
+  DroneParameterSource map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DroneParameterSource(
+      droneId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}drone_id'],
+      )!,
+      parameterKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parameter_key'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+    );
+  }
+
+  @override
+  $DroneParameterSourcesTable createAlias(String alias) {
+    return $DroneParameterSourcesTable(attachedDatabase, alias);
+  }
+}
+
+class DroneParameterSource extends DataClass
+    implements Insertable<DroneParameterSource> {
+  final int droneId;
+  final String parameterKey;
+  final String source;
+  const DroneParameterSource({
+    required this.droneId,
+    required this.parameterKey,
+    required this.source,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['drone_id'] = Variable<int>(droneId);
+    map['parameter_key'] = Variable<String>(parameterKey);
+    map['source'] = Variable<String>(source);
+    return map;
+  }
+
+  DroneParameterSourcesCompanion toCompanion(bool nullToAbsent) {
+    return DroneParameterSourcesCompanion(
+      droneId: Value(droneId),
+      parameterKey: Value(parameterKey),
+      source: Value(source),
+    );
+  }
+
+  factory DroneParameterSource.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DroneParameterSource(
+      droneId: serializer.fromJson<int>(json['droneId']),
+      parameterKey: serializer.fromJson<String>(json['parameterKey']),
+      source: serializer.fromJson<String>(json['source']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'droneId': serializer.toJson<int>(droneId),
+      'parameterKey': serializer.toJson<String>(parameterKey),
+      'source': serializer.toJson<String>(source),
+    };
+  }
+
+  DroneParameterSource copyWith({
+    int? droneId,
+    String? parameterKey,
+    String? source,
+  }) => DroneParameterSource(
+    droneId: droneId ?? this.droneId,
+    parameterKey: parameterKey ?? this.parameterKey,
+    source: source ?? this.source,
+  );
+  DroneParameterSource copyWithCompanion(DroneParameterSourcesCompanion data) {
+    return DroneParameterSource(
+      droneId: data.droneId.present ? data.droneId.value : this.droneId,
+      parameterKey: data.parameterKey.present
+          ? data.parameterKey.value
+          : this.parameterKey,
+      source: data.source.present ? data.source.value : this.source,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DroneParameterSource(')
+          ..write('droneId: $droneId, ')
+          ..write('parameterKey: $parameterKey, ')
+          ..write('source: $source')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(droneId, parameterKey, source);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DroneParameterSource &&
+          other.droneId == this.droneId &&
+          other.parameterKey == this.parameterKey &&
+          other.source == this.source);
+}
+
+class DroneParameterSourcesCompanion
+    extends UpdateCompanion<DroneParameterSource> {
+  final Value<int> droneId;
+  final Value<String> parameterKey;
+  final Value<String> source;
+  final Value<int> rowid;
+  const DroneParameterSourcesCompanion({
+    this.droneId = const Value.absent(),
+    this.parameterKey = const Value.absent(),
+    this.source = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DroneParameterSourcesCompanion.insert({
+    required int droneId,
+    required String parameterKey,
+    required String source,
+    this.rowid = const Value.absent(),
+  }) : droneId = Value(droneId),
+       parameterKey = Value(parameterKey),
+       source = Value(source);
+  static Insertable<DroneParameterSource> custom({
+    Expression<int>? droneId,
+    Expression<String>? parameterKey,
+    Expression<String>? source,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (droneId != null) 'drone_id': droneId,
+      if (parameterKey != null) 'parameter_key': parameterKey,
+      if (source != null) 'source': source,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DroneParameterSourcesCompanion copyWith({
+    Value<int>? droneId,
+    Value<String>? parameterKey,
+    Value<String>? source,
+    Value<int>? rowid,
+  }) {
+    return DroneParameterSourcesCompanion(
+      droneId: droneId ?? this.droneId,
+      parameterKey: parameterKey ?? this.parameterKey,
+      source: source ?? this.source,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (droneId.present) {
+      map['drone_id'] = Variable<int>(droneId.value);
+    }
+    if (parameterKey.present) {
+      map['parameter_key'] = Variable<String>(parameterKey.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DroneParameterSourcesCompanion(')
+          ..write('droneId: $droneId, ')
+          ..write('parameterKey: $parameterKey, ')
+          ..write('source: $source, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -3841,6 +5202,8 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   late final $SpotTagsTable spotTags = $SpotTagsTable(this);
   late final $SpotPhotosTable spotPhotos = $SpotPhotosTable(this);
   late final $DronesTable drones = $DronesTable(this);
+  late final $DroneParameterSourcesTable droneParameterSources =
+      $DroneParameterSourcesTable(this);
   late final $BatteriesTable batteries = $BatteriesTable(this);
   late final $RadioEquipmentTable radioEquipment = $RadioEquipmentTable(this);
   late final $FlightPlansTable flightPlans = $FlightPlansTable(this);
@@ -3873,6 +5236,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     spotTags,
     spotPhotos,
     drones,
+    droneParameterSources,
     batteries,
     radioEquipment,
     flightPlans,
@@ -3898,6 +5262,13 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('spot_photos', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'drones',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('drone_parameter_sources', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -5094,6 +6465,25 @@ typedef $$DronesTableCreateCompanionBuilder = DronesCompanion Function({
   Value<String> type,
   Value<double?> takeoffWeightGrams,
   Value<double?> maxSpeedMetersPerSecond,
+  Value<double?> lengthMm,
+  Value<double?> widthMm,
+  Value<double?> heightMm,
+  Value<double?> propellerDiameterInches,
+  Value<double?> propellerPitchInches,
+  Value<int?> propellerCount,
+  Value<int?> motorCount,
+  Value<double?> motorKv,
+  Value<double?> cruiseSpeedMetersPerSecond,
+  Value<double?> maxClimbRateMetersPerSecond,
+  Value<double?> hoverPowerWatts,
+  Value<double?> cruisePowerWatts,
+  Value<double?> maxPowerWatts,
+  Value<double?> referenceVoltageVolts,
+  Value<String?> configuration,
+  Value<String?> propellerDescription,
+  Value<String?> motorDescription,
+  Value<String?> escDescription,
+  Value<String?> measurementContext,
   Value<String?> notes,
   Value<DateTime> createdAt,
 });
@@ -5103,6 +6493,25 @@ typedef $$DronesTableUpdateCompanionBuilder = DronesCompanion Function({
   Value<String> type,
   Value<double?> takeoffWeightGrams,
   Value<double?> maxSpeedMetersPerSecond,
+  Value<double?> lengthMm,
+  Value<double?> widthMm,
+  Value<double?> heightMm,
+  Value<double?> propellerDiameterInches,
+  Value<double?> propellerPitchInches,
+  Value<int?> propellerCount,
+  Value<int?> motorCount,
+  Value<double?> motorKv,
+  Value<double?> cruiseSpeedMetersPerSecond,
+  Value<double?> maxClimbRateMetersPerSecond,
+  Value<double?> hoverPowerWatts,
+  Value<double?> cruisePowerWatts,
+  Value<double?> maxPowerWatts,
+  Value<double?> referenceVoltageVolts,
+  Value<String?> configuration,
+  Value<String?> propellerDescription,
+  Value<String?> motorDescription,
+  Value<String?> escDescription,
+  Value<String?> measurementContext,
   Value<String?> notes,
   Value<DateTime> createdAt,
 });
@@ -5110,6 +6519,31 @@ typedef $$DronesTableUpdateCompanionBuilder = DronesCompanion Function({
 final class $$DronesTableReferences
     extends BaseReferences<_$FpvDatabase, $DronesTable, Drone> {
   $$DronesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<
+    $DroneParameterSourcesTable,
+    List<DroneParameterSource>
+  >
+  _droneParameterSourcesRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.droneParameterSources,
+        aliasName: 'drones__id__drone_parameter_sources__drone_id',
+      );
+
+  $$DroneParameterSourcesTableProcessedTableManager
+  get droneParameterSourcesRefs {
+    final manager = $$DroneParameterSourcesTableTableManager(
+      $_db,
+      $_db.droneParameterSources,
+    ).filter((f) => f.droneId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _droneParameterSourcesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$FlightPlansTable, List<FlightPlan>>
   _flightPlansRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
@@ -5164,6 +6598,101 @@ class $$DronesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get lengthMm => $composableBuilder(
+    column: $table.lengthMm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get widthMm => $composableBuilder(
+    column: $table.widthMm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get heightMm => $composableBuilder(
+    column: $table.heightMm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get propellerDiameterInches => $composableBuilder(
+    column: $table.propellerDiameterInches,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get propellerPitchInches => $composableBuilder(
+    column: $table.propellerPitchInches,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get propellerCount => $composableBuilder(
+    column: $table.propellerCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get motorCount => $composableBuilder(
+    column: $table.motorCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get motorKv => $composableBuilder(
+    column: $table.motorKv,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get cruiseSpeedMetersPerSecond => $composableBuilder(
+    column: $table.cruiseSpeedMetersPerSecond,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get maxClimbRateMetersPerSecond => $composableBuilder(
+    column: $table.maxClimbRateMetersPerSecond,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get hoverPowerWatts => $composableBuilder(
+    column: $table.hoverPowerWatts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get cruisePowerWatts => $composableBuilder(
+    column: $table.cruisePowerWatts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get maxPowerWatts => $composableBuilder(
+    column: $table.maxPowerWatts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get referenceVoltageVolts => $composableBuilder(
+    column: $table.referenceVoltageVolts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get configuration => $composableBuilder(
+    column: $table.configuration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get propellerDescription => $composableBuilder(
+    column: $table.propellerDescription,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get motorDescription => $composableBuilder(
+    column: $table.motorDescription,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get escDescription => $composableBuilder(
+    column: $table.escDescription,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get measurementContext => $composableBuilder(
+    column: $table.measurementContext,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnFilters(column),
@@ -5173,6 +6702,32 @@ class $$DronesTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> droneParameterSourcesRefs(
+    Expression<bool> Function($$DroneParameterSourcesTableFilterComposer f) f,
+  ) {
+    final $$DroneParameterSourcesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.droneParameterSources,
+          getReferencedColumn: (t) => t.droneId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DroneParameterSourcesTableFilterComposer(
+                $db: $db,
+                $table: $db.droneParameterSources,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 
   Expression<bool> flightPlansRefs(
     Expression<bool> Function($$FlightPlansTableFilterComposer f) f,
@@ -5234,6 +6789,101 @@ class $$DronesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get lengthMm => $composableBuilder(
+    column: $table.lengthMm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get widthMm => $composableBuilder(
+    column: $table.widthMm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get heightMm => $composableBuilder(
+    column: $table.heightMm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get propellerDiameterInches => $composableBuilder(
+    column: $table.propellerDiameterInches,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get propellerPitchInches => $composableBuilder(
+    column: $table.propellerPitchInches,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get propellerCount => $composableBuilder(
+    column: $table.propellerCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get motorCount => $composableBuilder(
+    column: $table.motorCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get motorKv => $composableBuilder(
+    column: $table.motorKv,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get cruiseSpeedMetersPerSecond => $composableBuilder(
+    column: $table.cruiseSpeedMetersPerSecond,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get maxClimbRateMetersPerSecond => $composableBuilder(
+    column: $table.maxClimbRateMetersPerSecond,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get hoverPowerWatts => $composableBuilder(
+    column: $table.hoverPowerWatts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get cruisePowerWatts => $composableBuilder(
+    column: $table.cruisePowerWatts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get maxPowerWatts => $composableBuilder(
+    column: $table.maxPowerWatts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get referenceVoltageVolts => $composableBuilder(
+    column: $table.referenceVoltageVolts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get configuration => $composableBuilder(
+    column: $table.configuration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get propellerDescription => $composableBuilder(
+    column: $table.propellerDescription,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get motorDescription => $composableBuilder(
+    column: $table.motorDescription,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get escDescription => $composableBuilder(
+    column: $table.escDescription,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get measurementContext => $composableBuilder(
+    column: $table.measurementContext,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -5273,11 +6923,124 @@ class $$DronesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get lengthMm =>
+      $composableBuilder(column: $table.lengthMm, builder: (column) => column);
+
+  GeneratedColumn<double> get widthMm =>
+      $composableBuilder(column: $table.widthMm, builder: (column) => column);
+
+  GeneratedColumn<double> get heightMm =>
+      $composableBuilder(column: $table.heightMm, builder: (column) => column);
+
+  GeneratedColumn<double> get propellerDiameterInches => $composableBuilder(
+    column: $table.propellerDiameterInches,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get propellerPitchInches => $composableBuilder(
+    column: $table.propellerPitchInches,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get propellerCount => $composableBuilder(
+    column: $table.propellerCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get motorCount => $composableBuilder(
+    column: $table.motorCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get motorKv =>
+      $composableBuilder(column: $table.motorKv, builder: (column) => column);
+
+  GeneratedColumn<double> get cruiseSpeedMetersPerSecond => $composableBuilder(
+    column: $table.cruiseSpeedMetersPerSecond,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get maxClimbRateMetersPerSecond => $composableBuilder(
+    column: $table.maxClimbRateMetersPerSecond,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get hoverPowerWatts => $composableBuilder(
+    column: $table.hoverPowerWatts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get cruisePowerWatts => $composableBuilder(
+    column: $table.cruisePowerWatts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get maxPowerWatts => $composableBuilder(
+    column: $table.maxPowerWatts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get referenceVoltageVolts => $composableBuilder(
+    column: $table.referenceVoltageVolts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get configuration => $composableBuilder(
+    column: $table.configuration,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get propellerDescription => $composableBuilder(
+    column: $table.propellerDescription,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get motorDescription => $composableBuilder(
+    column: $table.motorDescription,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get escDescription => $composableBuilder(
+    column: $table.escDescription,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get measurementContext => $composableBuilder(
+    column: $table.measurementContext,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> droneParameterSourcesRefs<T extends Object>(
+    Expression<T> Function($$DroneParameterSourcesTableAnnotationComposer a) f,
+  ) {
+    final $$DroneParameterSourcesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.droneParameterSources,
+          getReferencedColumn: (t) => t.droneId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DroneParameterSourcesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.droneParameterSources,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 
   Expression<T> flightPlansRefs<T extends Object>(
     Expression<T> Function($$FlightPlansTableAnnotationComposer a) f,
@@ -5318,7 +7081,10 @@ class $$DronesTableTableManager
           $$DronesTableUpdateCompanionBuilder,
           (Drone, $$DronesTableReferences),
           Drone,
-          PrefetchHooks Function({bool flightPlansRefs})
+          PrefetchHooks Function({
+            bool droneParameterSourcesRefs,
+            bool flightPlansRefs,
+          })
         > {
   $$DronesTableTableManager(_$FpvDatabase db, $DronesTable table)
     : super(
@@ -5338,6 +7104,27 @@ class $$DronesTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<double?> takeoffWeightGrams = const Value.absent(),
                 Value<double?> maxSpeedMetersPerSecond = const Value.absent(),
+                Value<double?> lengthMm = const Value.absent(),
+                Value<double?> widthMm = const Value.absent(),
+                Value<double?> heightMm = const Value.absent(),
+                Value<double?> propellerDiameterInches = const Value.absent(),
+                Value<double?> propellerPitchInches = const Value.absent(),
+                Value<int?> propellerCount = const Value.absent(),
+                Value<int?> motorCount = const Value.absent(),
+                Value<double?> motorKv = const Value.absent(),
+                Value<double?> cruiseSpeedMetersPerSecond =
+                    const Value.absent(),
+                Value<double?> maxClimbRateMetersPerSecond =
+                    const Value.absent(),
+                Value<double?> hoverPowerWatts = const Value.absent(),
+                Value<double?> cruisePowerWatts = const Value.absent(),
+                Value<double?> maxPowerWatts = const Value.absent(),
+                Value<double?> referenceVoltageVolts = const Value.absent(),
+                Value<String?> configuration = const Value.absent(),
+                Value<String?> propellerDescription = const Value.absent(),
+                Value<String?> motorDescription = const Value.absent(),
+                Value<String?> escDescription = const Value.absent(),
+                Value<String?> measurementContext = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => DronesCompanion(
@@ -5346,6 +7133,25 @@ class $$DronesTableTableManager
                 type: type,
                 takeoffWeightGrams: takeoffWeightGrams,
                 maxSpeedMetersPerSecond: maxSpeedMetersPerSecond,
+                lengthMm: lengthMm,
+                widthMm: widthMm,
+                heightMm: heightMm,
+                propellerDiameterInches: propellerDiameterInches,
+                propellerPitchInches: propellerPitchInches,
+                propellerCount: propellerCount,
+                motorCount: motorCount,
+                motorKv: motorKv,
+                cruiseSpeedMetersPerSecond: cruiseSpeedMetersPerSecond,
+                maxClimbRateMetersPerSecond: maxClimbRateMetersPerSecond,
+                hoverPowerWatts: hoverPowerWatts,
+                cruisePowerWatts: cruisePowerWatts,
+                maxPowerWatts: maxPowerWatts,
+                referenceVoltageVolts: referenceVoltageVolts,
+                configuration: configuration,
+                propellerDescription: propellerDescription,
+                motorDescription: motorDescription,
+                escDescription: escDescription,
+                measurementContext: measurementContext,
                 notes: notes,
                 createdAt: createdAt,
               ),
@@ -5356,6 +7162,27 @@ class $$DronesTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<double?> takeoffWeightGrams = const Value.absent(),
                 Value<double?> maxSpeedMetersPerSecond = const Value.absent(),
+                Value<double?> lengthMm = const Value.absent(),
+                Value<double?> widthMm = const Value.absent(),
+                Value<double?> heightMm = const Value.absent(),
+                Value<double?> propellerDiameterInches = const Value.absent(),
+                Value<double?> propellerPitchInches = const Value.absent(),
+                Value<int?> propellerCount = const Value.absent(),
+                Value<int?> motorCount = const Value.absent(),
+                Value<double?> motorKv = const Value.absent(),
+                Value<double?> cruiseSpeedMetersPerSecond =
+                    const Value.absent(),
+                Value<double?> maxClimbRateMetersPerSecond =
+                    const Value.absent(),
+                Value<double?> hoverPowerWatts = const Value.absent(),
+                Value<double?> cruisePowerWatts = const Value.absent(),
+                Value<double?> maxPowerWatts = const Value.absent(),
+                Value<double?> referenceVoltageVolts = const Value.absent(),
+                Value<String?> configuration = const Value.absent(),
+                Value<String?> propellerDescription = const Value.absent(),
+                Value<String?> motorDescription = const Value.absent(),
+                Value<String?> escDescription = const Value.absent(),
+                Value<String?> measurementContext = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => DronesCompanion.insert(
@@ -5364,6 +7191,25 @@ class $$DronesTableTableManager
                 type: type,
                 takeoffWeightGrams: takeoffWeightGrams,
                 maxSpeedMetersPerSecond: maxSpeedMetersPerSecond,
+                lengthMm: lengthMm,
+                widthMm: widthMm,
+                heightMm: heightMm,
+                propellerDiameterInches: propellerDiameterInches,
+                propellerPitchInches: propellerPitchInches,
+                propellerCount: propellerCount,
+                motorCount: motorCount,
+                motorKv: motorKv,
+                cruiseSpeedMetersPerSecond: cruiseSpeedMetersPerSecond,
+                maxClimbRateMetersPerSecond: maxClimbRateMetersPerSecond,
+                hoverPowerWatts: hoverPowerWatts,
+                cruisePowerWatts: cruisePowerWatts,
+                maxPowerWatts: maxPowerWatts,
+                referenceVoltageVolts: referenceVoltageVolts,
+                configuration: configuration,
+                propellerDescription: propellerDescription,
+                motorDescription: motorDescription,
+                escDescription: escDescription,
+                measurementContext: measurementContext,
                 notes: notes,
                 createdAt: createdAt,
               ),
@@ -5375,31 +7221,63 @@ class $$DronesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({flightPlansRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (flightPlansRefs) db.flightPlans],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (flightPlansRefs)
-                    await $_getPrefetchedData<Drone, $DronesTable, FlightPlan>(
-                      currentTable: table,
-                      referencedTable: $$DronesTableReferences
-                          ._flightPlansRefsTable(db),
-                      managerFromTypedResult: (p0) => $$DronesTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).flightPlansRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.droneId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({droneParameterSourcesRefs = false, flightPlansRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (droneParameterSourcesRefs) db.droneParameterSources,
+                    if (flightPlansRefs) db.flightPlans,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (droneParameterSourcesRefs)
+                        await $_getPrefetchedData<
+                          Drone,
+                          $DronesTable,
+                          DroneParameterSource
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DronesTableReferences
+                              ._droneParameterSourcesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DronesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).droneParameterSourcesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.droneId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (flightPlansRefs)
+                        await $_getPrefetchedData<
+                          Drone,
+                          $DronesTable,
+                          FlightPlan
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DronesTableReferences
+                              ._flightPlansRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DronesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).flightPlansRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.droneId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -5416,7 +7294,312 @@ typedef $$DronesTableProcessedTableManager =
       $$DronesTableUpdateCompanionBuilder,
       (Drone, $$DronesTableReferences),
       Drone,
-      PrefetchHooks Function({bool flightPlansRefs})
+      PrefetchHooks Function({
+        bool droneParameterSourcesRefs,
+        bool flightPlansRefs,
+      })
+    >;
+typedef $$DroneParameterSourcesTableCreateCompanionBuilder =
+    DroneParameterSourcesCompanion Function({
+      required int droneId,
+      required String parameterKey,
+      required String source,
+      Value<int> rowid,
+    });
+typedef $$DroneParameterSourcesTableUpdateCompanionBuilder =
+    DroneParameterSourcesCompanion Function({
+      Value<int> droneId,
+      Value<String> parameterKey,
+      Value<String> source,
+      Value<int> rowid,
+    });
+
+final class $$DroneParameterSourcesTableReferences
+    extends
+        BaseReferences<
+          _$FpvDatabase,
+          $DroneParameterSourcesTable,
+          DroneParameterSource
+        > {
+  $$DroneParameterSourcesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
+      db.drones.createAlias('drone_parameter_sources__drone_id__drones__id');
+
+  $$DronesTableProcessedTableManager get droneId {
+    final $_column = $_itemColumn<int>('drone_id')!;
+
+    final manager = $$DronesTableTableManager(
+      $_db,
+      $_db.drones,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DroneParameterSourcesTableFilterComposer
+    extends Composer<_$FpvDatabase, $DroneParameterSourcesTable> {
+  $$DroneParameterSourcesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get parameterKey => $composableBuilder(
+    column: $table.parameterKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DronesTableFilterComposer get droneId {
+    final $$DronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableFilterComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DroneParameterSourcesTableOrderingComposer
+    extends Composer<_$FpvDatabase, $DroneParameterSourcesTable> {
+  $$DroneParameterSourcesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get parameterKey => $composableBuilder(
+    column: $table.parameterKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DronesTableOrderingComposer get droneId {
+    final $$DronesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableOrderingComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DroneParameterSourcesTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $DroneParameterSourcesTable> {
+  $$DroneParameterSourcesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get parameterKey => $composableBuilder(
+    column: $table.parameterKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  $$DronesTableAnnotationComposer get droneId {
+    final $$DronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DroneParameterSourcesTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $DroneParameterSourcesTable,
+          DroneParameterSource,
+          $$DroneParameterSourcesTableFilterComposer,
+          $$DroneParameterSourcesTableOrderingComposer,
+          $$DroneParameterSourcesTableAnnotationComposer,
+          $$DroneParameterSourcesTableCreateCompanionBuilder,
+          $$DroneParameterSourcesTableUpdateCompanionBuilder,
+          (DroneParameterSource, $$DroneParameterSourcesTableReferences),
+          DroneParameterSource,
+          PrefetchHooks Function({bool droneId})
+        > {
+  $$DroneParameterSourcesTableTableManager(
+    _$FpvDatabase db,
+    $DroneParameterSourcesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DroneParameterSourcesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DroneParameterSourcesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DroneParameterSourcesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> droneId = const Value.absent(),
+                Value<String> parameterKey = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DroneParameterSourcesCompanion(
+                droneId: droneId,
+                parameterKey: parameterKey,
+                source: source,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int droneId,
+                required String parameterKey,
+                required String source,
+                Value<int> rowid = const Value.absent(),
+              }) => DroneParameterSourcesCompanion.insert(
+                droneId: droneId,
+                parameterKey: parameterKey,
+                source: source,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DroneParameterSourcesTable,
+                    DroneParameterSource
+                  >(table),
+                  $$DroneParameterSourcesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({droneId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (droneId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.droneId,
+                        referencedTable: $$DroneParameterSourcesTableReferences
+                            ._droneIdTable(db),
+                        referencedColumn: $$DroneParameterSourcesTableReferences
+                            ._droneIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DroneParameterSourcesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $DroneParameterSourcesTable,
+      DroneParameterSource,
+      $$DroneParameterSourcesTableFilterComposer,
+      $$DroneParameterSourcesTableOrderingComposer,
+      $$DroneParameterSourcesTableAnnotationComposer,
+      $$DroneParameterSourcesTableCreateCompanionBuilder,
+      $$DroneParameterSourcesTableUpdateCompanionBuilder,
+      (DroneParameterSource, $$DroneParameterSourcesTableReferences),
+      DroneParameterSource,
+      PrefetchHooks Function({bool droneId})
     >;
 typedef $$BatteriesTableCreateCompanionBuilder = BatteriesCompanion Function({
   Value<int> id,
@@ -6991,6 +9174,8 @@ class $FpvDatabaseManager {
       $$SpotPhotosTableTableManager(_db, _db.spotPhotos);
   $$DronesTableTableManager get drones =>
       $$DronesTableTableManager(_db, _db.drones);
+  $$DroneParameterSourcesTableTableManager get droneParameterSources =>
+      $$DroneParameterSourcesTableTableManager(_db, _db.droneParameterSources);
   $$BatteriesTableTableManager get batteries =>
       $$BatteriesTableTableManager(_db, _db.batteries);
   $$RadioEquipmentTableTableManager get radioEquipment =>

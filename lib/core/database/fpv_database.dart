@@ -60,9 +60,39 @@ class Drones extends Table {
 
   RealColumn get maxSpeedMetersPerSecond => real().nullable()();
 
+  RealColumn get lengthMm => real().nullable()();
+  RealColumn get widthMm => real().nullable()();
+  RealColumn get heightMm => real().nullable()();
+  RealColumn get propellerDiameterInches => real().nullable()();
+  RealColumn get propellerPitchInches => real().nullable()();
+  IntColumn get propellerCount => integer().nullable()();
+  IntColumn get motorCount => integer().nullable()();
+  RealColumn get motorKv => real().nullable()();
+  RealColumn get cruiseSpeedMetersPerSecond => real().nullable()();
+  RealColumn get maxClimbRateMetersPerSecond => real().nullable()();
+  RealColumn get hoverPowerWatts => real().nullable()();
+  RealColumn get cruisePowerWatts => real().nullable()();
+  RealColumn get maxPowerWatts => real().nullable()();
+  RealColumn get referenceVoltageVolts => real().nullable()();
+  TextColumn get configuration => text().nullable()();
+  TextColumn get propellerDescription => text().nullable()();
+  TextColumn get motorDescription => text().nullable()();
+  TextColumn get escDescription => text().nullable()();
+  TextColumn get measurementContext => text().nullable()();
+
   TextColumn get notes => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// Provenance belongs to a particular numeric field, not an entire profile.
+class DroneParameterSources extends Table {
+  IntColumn get droneId =>
+      integer().references(Drones, #id, onDelete: KeyAction.cascade)();
+  TextColumn get parameterKey => text()();
+  TextColumn get source => text()();
+  @override
+  Set<Column> get primaryKey => {droneId, parameterKey};
 }
 
 /// Individual batteries owned by the user.
@@ -165,6 +195,7 @@ class AppSettings extends Table {
     SpotTags,
     SpotPhotos,
     Drones,
+    DroneParameterSources,
     Batteries,
     RadioEquipment,
     FlightPlans,
@@ -189,7 +220,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -250,6 +281,35 @@ class FpvDatabase extends _$FpvDatabase {
           });
           afterId = rows.last.id;
         }
+      }
+      if (from < 5) {
+        // v1 creates the current drones table above; v2-v4 need new columns.
+        if (from >= 2) {
+          for (final column in [
+            drones.lengthMm,
+            drones.widthMm,
+            drones.heightMm,
+            drones.propellerDiameterInches,
+            drones.propellerPitchInches,
+            drones.propellerCount,
+            drones.motorCount,
+            drones.motorKv,
+            drones.cruiseSpeedMetersPerSecond,
+            drones.maxClimbRateMetersPerSecond,
+            drones.hoverPowerWatts,
+            drones.cruisePowerWatts,
+            drones.maxPowerWatts,
+            drones.referenceVoltageVolts,
+            drones.configuration,
+            drones.propellerDescription,
+            drones.motorDescription,
+            drones.escDescription,
+            drones.measurementContext,
+          ]) {
+            await m.addColumn(drones, column);
+          }
+        }
+        await m.createTable(droneParameterSources);
       }
     },
     beforeOpen: (details) async {

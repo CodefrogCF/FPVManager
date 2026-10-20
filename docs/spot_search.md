@@ -39,7 +39,7 @@ indexes support exact filters. Legacy search text is backfilled in batches of
 and photo writes share a transaction. Omitting classification in a repository
 update preserves it; explicitly passing an empty classification clears it.
 
-Tests cover migration from all three older schemas, Unicode/literal search,
+Tests cover migrations from older schemas, Unicode/literal search,
 combined filters, pagination, reactive details, rollback and file reopen. The
 10,000-record file-backed SQLite test records native query timings and checks
 bounded pages plus the lightweight map projection. These timings do not measure

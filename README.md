@@ -17,12 +17,14 @@ spot library stored with Drift/SQLite.
 - Opt-in device location in the editor, with manual coordinates as fallback.
 - Saved spot markers, a selection panel and terrain-aware camera focus.
 - Search, categories, tags, favorites and spot details with paged list queries.
-- Database schema snapshots and tested v1/v2/v3-to-v4 migrations.
+- Drone profiles with dimensions, propellers, propulsion and power/performance
+  parameters, with measured/estimated/unspecified provenance per value.
+- Database schema snapshots and tested v1/v2/v3/v4-to-v5 migrations.
 - Typed local repositories for spots, drones, batteries, radio equipment,
   flight plans/waypoints and map preferences, with transactional route storage.
 
 The [local data layer](docs/local_data.md) provides the storage foundation for future
-features. Equipment screens, weather, route planning, simulation,
+features. Battery/radio screens, weather, route planning, simulation,
 backups and offline map downloads are not implemented yet. See the
 [issue backlog](https://github.com/CodefrogCF/FPVManager/issues).
 
@@ -30,6 +32,8 @@ See [spot photos and location](docs/spot_photos_and_location.md) for image limit
 local storage, foreground permissions and platform requirements.
 See [spot search and classification](docs/spot_search.md) for filter semantics,
 pagination and large-collection validation.
+See [drone profiles](docs/drone_profiles.md) for units, provenance, migration and
+the distinction between recording parameters and calculating flight performance.
 
 ## Development setup
 

@@ -54,8 +54,9 @@ while the user is adjusting the slider.
 ## Local data
 
 Drift/SQLite stores spots, photos, drones, batteries, radio equipment, flight
-plans, waypoints and settings. Current schema version: 4. Migrations preserve v1,
-v2 and v3 records while adding the photo table in v3 and spot classification in v4. Foreign keys
+plans, waypoints and settings. Current schema version: 5. Migrations preserve v1,
+v2, v3 and v4 records, adding photos in v3, spot classification in v4 and drone
+profile fields plus per-parameter provenance in v5. Foreign keys
 are enabled before use. Photo BLOBs are separate from spot/marker list queries;
 spot edits, tags and photo changes commit together. Paged list queries select a
 short notes preview; marker streams select only ID, name and coordinates and
@@ -65,8 +66,8 @@ suppress unchanged projections. See [spot search](spot_search.md) and
 Typed repository interfaces cover spots, drones, batteries, radio equipment,
 flight plans/waypoints and preferences. Route snapshots retain explicit height
 references and separate AGL offsets. Plan creation, waypoint replacement and
-preference saves are transactional. Only spots currently have editing/list
-screens; map preference persistence is not yet wired to the controls. See
+preference saves are transactional. Spots and drone profiles have editing/list
+and detail screens; map preference persistence is not yet wired to the controls. See
 [local data contracts and remaining feature scope](local_data.md).
 
 Web uses the checked-in `sqlite3.wasm` / `drift_worker.js` resources. Native

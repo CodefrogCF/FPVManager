@@ -9,6 +9,10 @@ import '../../generated_migrations/schema.dart';
 import '../../generated_migrations/schema_v1.dart' as v1;
 import '../../generated_migrations/schema_v2.dart' as v2;
 import '../../generated_migrations/schema_v3.dart' as v3;
+import '../../generated_migrations/schema_v4.dart' as v4;
+
+import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
+import 'package:fpvmanager/core/models/drone_profile.dart';
 
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 import 'package:fpvmanager/features/spots/data/spot_query.dart';
@@ -22,7 +26,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates v1 to v4 without losing spots', () async {
+  test('migrates v1 to v5 without losing spots', () async {
     final schema = await verifier.schemaAt(1);
 
     // Create a database with the original v1 schema.
@@ -43,7 +47,7 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 4);
+    await verifier.migrateAndValidate(database, 5);
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -76,7 +80,7 @@ void main() {
   });
 
   test(
-    'migrates v2 to v4 preserving personal records and references',
+    'migrates v2 to v5 preserving personal records and references',
     () async {
       final schema = await verifier.schemaAt(2);
       final old = v2.DatabaseAtV2(schema.newConnection());
@@ -140,7 +144,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 4);
+      await verifier.migrateAndValidate(database, 5);
       expect(
         (await database.select(database.spots).get()).single.name,
         'Private spot',
@@ -175,7 +179,7 @@ void main() {
     },
   );
 
-  test('v3 to v4 preserves photos and favorites and backfills Unicode search in batches', () async {
+  test('v3 to v5 preserves photos and favorites and backfills Unicode search in batches', () async {
     final schema = await verifier.schemaAt(3);
     final old = v3.DatabaseAtV3(schema.newConnection());
     for (var i = 0; i < 405; i++) {
@@ -206,7 +210,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 4);
+    await verifier.migrateAndValidate(database, 5);
     final repository = SpotRepository(database);
     final page = await repository.getSpotPage(
       filter: SpotFilter(query: 'älpler 404 über', favoritesOnly: true),
@@ -224,7 +228,94 @@ void main() {
     expect(await repository.getPhotos(405), isEmpty);
   });
 
-  test('new v4 database creates all tables', () async {
+  test('v4 to v5 preserves classified spots and drones without inventing provenance', () async {
+    final schema = await verifier.schemaAt(4);
+    final old = v4.DatabaseAtV4(schema.newConnection());
+    final spotId = await old
+        .into(old.spots)
+        .insert(
+          v4.SpotsCompanion.insert(
+            name: 'Existing spot',
+            latitude: 47,
+            longitude: 8,
+            category: const Value('Alpine'),
+            categoryKey: const Value('alpine'),
+            searchText: const Value('existing spot alpine quiet'),
+          ),
+        );
+    await old
+        .into(old.spotTags)
+        .insert(v4.SpotTagsCompanion.insert(spotId: spotId, tag: 'quiet'));
+    final bytes = Uint8List.fromList([1, 2, 3]);
+    await old
+        .into(old.spotPhotos)
+        .insert(
+          v4.SpotPhotosCompanion.insert(
+            spotId: spotId,
+            imageBytes: bytes,
+            thumbnailBytes: bytes,
+            width: 8,
+            height: 4,
+          ),
+        );
+    final droneId = await old
+        .into(old.drones)
+        .insert(
+          v4.DronesCompanion.insert(
+            name: 'Existing drone',
+            type: const Value('fixed-wing'),
+            takeoffWeightGrams: const Value(710),
+            maxSpeedMetersPerSecond: const Value(33),
+            notes: const Value('Existing notes'),
+          ),
+        );
+    final planId = await old
+        .into(old.flightPlans)
+        .insert(
+          v4.FlightPlansCompanion.insert(
+            name: 'Existing plan',
+            droneId: Value(droneId),
+            startSpotId: Value(spotId),
+          ),
+        );
+    await old.close();
+    final database = FpvDatabase(schema.newConnection());
+    addTearDown(database.close);
+    await verifier.migrateAndValidate(database, 5);
+    final profile = (await DroneRepository(database).getProfile(droneId))!;
+    expect(profile.drone.name, 'Existing drone');
+    expect(profile.drone.type, 'fixed-wing');
+    expect(profile.drone.notes, 'Existing notes');
+    expect(profile.drone.motorDescription, isNull);
+    expect(profile.measurements, hasLength(2));
+    expect(profile.measurements[DroneParameter.takeoffWeightGrams]!.value, 710);
+    expect(
+      profile.measurements[DroneParameter.maxSpeedMetersPerSecond]!.value,
+      33,
+    );
+    expect(
+      profile.measurements.values.every(
+        (value) => value.source == DroneValueSource.unspecified,
+      ),
+      isTrue,
+    );
+    expect(
+      await database.select(database.droneParameterSources).get(),
+      isEmpty,
+    );
+    final spot = (await SpotRepository(database).getSpotPage(
+      filter: SpotFilter(category: 'Alpine', tags: ['quiet']),
+    )).items.single;
+    expect(spot.id, spotId);
+    expect((await SpotRepository(database).getPhotos(spotId)), hasLength(1));
+    final plan = (await (database.select(
+      database.flightPlans,
+    )..where((row) => row.id.equals(planId))).getSingle());
+    expect(plan.droneId, droneId);
+    expect(plan.startSpotId, spotId);
+  });
+
+  test('new v5 database creates all tables', () async {
     final database = FpvDatabase(NativeDatabase.memory());
 
     // Trigger database initialization.
@@ -243,6 +334,7 @@ void main() {
     expect(names, contains('spot_photos'));
     expect(names, contains('spot_tags'));
     expect(names, contains('drones'));
+    expect(names, contains('drone_parameter_sources'));
     expect(names, contains('batteries'));
     expect(names, contains('radio_equipment'));
     expect(names, contains('flight_plans'));

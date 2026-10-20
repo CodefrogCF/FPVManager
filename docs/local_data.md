@@ -17,7 +17,7 @@ table representation alone cannot express the application contract.
 | Contract | Location | Operations |
 |---|---|---|
 | `SpotRepository` | `lib/features/spots/data/` | CRUD, watch, favorite toggle, photo drafts/previews |
-| `DroneRepository` | `lib/core/database/repositories/` | CRUD, watch |
+| `DroneRepository` | `lib/core/database/repositories/` | CRUD/watch, complete profile snapshots and transactional provenance |
 | `BatteryRepository` | `lib/core/database/repositories/` | CRUD, watch |
 | `RadioEquipmentRepository` | `lib/core/database/repositories/` | CRUD, watch |
 | `FlightPlanRepository` | `lib/core/database/repositories/` | Metadata CRUD/watch, route snapshots, waypoint replacement |
@@ -95,16 +95,19 @@ follow-up work for the map/settings feature (#9).
 
 ## Schema and scope
 
-Schema version is **4**. The indexed `spot_photos` table adds normalized photos
+Schema version is **5**. The indexed `spot_photos` table adds normalized photos
 and thumbnails with cascading spot ownership. Spot category/search columns and
 the indexed `spot_tags` table support classification and filtering. Migration
-tests validate v1/v2/v3 → v4 while preserving existing records. Repository tests cover CRUD,
+tests validate v1/v2/v3/v4 → v5 while preserving existing records. Drone fields
+and `drone_parameter_sources` preserve per-value provenance. Repository tests cover CRUD,
 validation, watchers, relationship deletion, rollback, height references and
 preferences. A file-backed test closes and reopens SQLite and verifies records
 from every domain.
 
 Spots have editing/list screens, a photo gallery and opt-in device location;
-see [photo and location contracts](spot_photos_and_location.md). Equipment profiles (#13–#15),
+see [photo and location contracts](spot_photos_and_location.md). Drone profiles
+have list/editor/detail screens; see [drone profile contracts](drone_profiles.md).
+Battery and radio equipment profiles (#14–#15),
 route editing (#25) and settings UI
 integration remain separate feature work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.
