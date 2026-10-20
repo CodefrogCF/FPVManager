@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../core/osint/osint_provider_state.dart';
+import '../../core/osint/osint_source.dart';
 import 'globe_controller.dart';
 
 class MapLayersSheet extends StatefulWidget {
@@ -13,6 +17,22 @@ class MapLayersSheet extends StatefulWidget {
 
 class _MapLayersSheetState extends State<MapLayersSheet> {
   double? _previewOpacity;
+  Timer? _ageTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Age the visible cache status without fetching data or polling a service.
+    _ageTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ageTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _execute(Future<void> Function() command) async {
     try {
@@ -50,6 +70,15 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
         builder: (context, child) {
           final controller = widget.controller;
           final opacity = _previewOpacity ?? controller.uasZonesFillOpacity;
+          final source = controller.uasSource;
+          final provider = controller.uasProviderStatus;
+          final displayed = controller.uasDisplayedDataset;
+          final updateFailed =
+              controller.uasZonesError != null ||
+              provider.update == OsintUpdateState.failed;
+          final validity =
+              displayed?.validity?.at(provider.checkedAtUtc) ??
+              OsintValidity.unknown;
 
           final canEditOpacity =
               controller.isReady &&
@@ -191,7 +220,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                       subtitle: Text(
                         overlay == GlobeOverlay.savedSpots
                             ? 'Local library'
-                            : 'FOCA / BAZL',
+                            : source.publisher,
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -253,11 +282,11 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     secondary: const Icon(Icons.shield_outlined),
-                    title: const Text('Swiss UAS Geographical Zones'),
+                    title: Text(source.name),
                     subtitle: Text(
                       controller.uasZonesLoading
-                          ? 'Loading official zone data...'
-                          : 'FOCA / BAZL · GeoJSON',
+                          ? 'Loading zone data...'
+                          : source.publisher,
                     ),
                     value: controller.uasZonesVisible,
                     onChanged:
@@ -331,7 +360,26 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
 
                   const SizedBox(height: 8),
 
-                  _InfoRow(label: 'Provider', value: 'FOCA / BAZL'),
+                  _InfoRow(label: 'Provider', value: source.publisher),
+
+                  _InfoRow(
+                    label: 'Licence',
+                    value:
+                        source.licenseName ?? 'Not declared in source metadata',
+                  ),
+
+                  _InfoRow(
+                    label: 'Update',
+                    value: controller.uasZonesLoading
+                        ? 'Updating...'
+                        : updateFailed
+                        ? (displayed == null
+                              ? 'Update failed'
+                              : 'Update failed — previous map data retained')
+                        : displayed == null
+                        ? 'Not loaded'
+                        : 'Loaded',
+                  ),
 
                   _InfoRow(
                     label: 'Downloaded',
@@ -343,13 +391,60 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                     value: controller.uasZonesFeatureCount?.toString() ?? '—',
                   ),
 
-                  _InfoRow(label: 'Source', value: 'data.geo.admin.ch'),
+                  _InfoRow(
+                    label: 'Cache status',
+                    value: switch (controller.uasDataFreshness) {
+                      OsintFreshness.notLoaded => 'Not loaded',
+                      OsintFreshness.fresh => 'Within local cache lifetime',
+                      OsintFreshness.stale =>
+                        'Cache expired — refresh recommended',
+                      OsintFreshness.clockSkew =>
+                        'Device clock precedes download',
+                    },
+                  ),
 
-                  if (controller.uasZonesError != null)
+                  _InfoRow(
+                    label: 'Official validity',
+                    value: switch (validity) {
+                      OsintValidity.unknown => 'Not supplied by this dataset',
+                      OsintValidity.notYetValid => 'Not yet applicable',
+                      OsintValidity.withinPeriod => 'Within declared period',
+                      OsintValidity.expired => 'Declared period expired',
+                    },
+                  ),
+                  if (displayed?.validity?.fromUtc != null)
+                    _InfoRow(
+                      label: 'Valid from',
+                      value: _formatDownloadTime(displayed!.validity!.fromUtc),
+                    ),
+                  if (displayed?.validity?.untilUtc != null)
+                    _InfoRow(
+                      label: 'Valid until',
+                      value: _formatDownloadTime(displayed!.validity!.untilUtc),
+                    ),
+
+                  _InfoRow(label: 'Source', value: source.dataUri.host),
+                  _InfoRow(
+                    label: 'Metadata',
+                    value: source.metadataUri.toString(),
+                  ),
+                  if (source.licenseUri != null)
+                    _InfoRow(
+                      label: 'Licence terms',
+                      value: source.licenseUri.toString(),
+                    ),
+                  if (displayed?.httpLastModified != null)
+                    _InfoRow(
+                      label: 'HTTP modified',
+                      value: displayed!.httpLastModified!,
+                    ),
+
+                  if (controller.uasZonesError != null ||
+                      provider.error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        controller.uasZonesError!,
+                        controller.uasZonesError ?? provider.error!.message,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                         ),
@@ -363,6 +458,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                     'drone operations. The download time '
                     'does not represent the official '
                     'dataset publication date. '
+                    'Cache age and HTTP Last-Modified do not establish official validity. '
                     'Always verify current flight '
                     'restrictions using official sources.',
                     style: Theme.of(context).textTheme.bodySmall,

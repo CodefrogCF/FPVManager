@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:fpvmanager/features/airspace/data/swiss_uas_provider.dart';
+import 'package:fpvmanager/core/osint/osint_provider_state.dart';
 
 void main() {
   const validGeoJson = {
@@ -93,7 +94,16 @@ void main() {
 
       final provider = SwissUasProvider(client: client);
 
-      await expectLater(provider.fetch(), throwsFormatException);
+      await expectLater(
+        provider.fetch(),
+        throwsA(
+          isA<OsintProviderException>().having(
+            (error) => error.kind,
+            'kind',
+            OsintFailureKind.invalidData,
+          ),
+        ),
+      );
 
       provider.dispose();
       client.close();
@@ -106,7 +116,14 @@ void main() {
 
       final provider = SwissUasProvider(client: client);
 
-      await expectLater(provider.fetch(), throwsStateError);
+      await expectLater(
+        provider.fetch(),
+        throwsA(
+          isA<OsintProviderException>()
+              .having((error) => error.kind, 'kind', OsintFailureKind.http)
+              .having((error) => error.httpStatus, 'HTTP status', 503),
+        ),
+      );
 
       provider.dispose();
       client.close();
@@ -129,7 +146,10 @@ void main() {
 
       final previous = await provider.fetch();
 
-      await expectLater(provider.fetch(forceRefresh: true), throwsStateError);
+      await expectLater(
+        provider.fetch(forceRefresh: true),
+        throwsA(isA<OsintProviderException>()),
+      );
 
       expect(identical(provider.cached, previous), isTrue);
 

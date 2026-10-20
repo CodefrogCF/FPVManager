@@ -51,7 +51,9 @@ fee determination. The published terms below govern use. The service's `current`
 path and a successful retrieval do not prove a particular acquisition date or
 official validity. Terrain metadata's global bounds also do not establish
 uniform resolution or the component datasets in every country. Dataset-level
-provenance/freshness remains part of #4.
+provenance/freshness follows the [provider contracts](osint_providers.md) (#4).
+Tile services retain unknown dataset-wide validity and have no fabricated
+whole-dataset retrieval time.
 
 ## Usage conditions for this integration
 
@@ -88,7 +90,8 @@ ion/world imagery or alternative external basemap is configured.
 
 ## Display and packaged notices
 
-`web/globe.js` uses one imagery factory for startup and subsequent style changes.
+`web/map_providers.js` supplies the imagery factory used by `web/globe.js` for
+startup and subsequent style changes, plus the terrain factory.
 Each online provider has a complete `Cesium.Credit(..., true)`. The terrain
 provider receives its own explicit on-screen source credit, including when an
 imagery provider is replaced. Cesium can consolidate identical credits.

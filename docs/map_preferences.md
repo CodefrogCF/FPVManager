@@ -18,7 +18,9 @@ Only successful user commands update the persisted snapshot. Renderer metadata,
 temporary loading/visibility changes, downloads, selection events and renderer
 recovery never save preferences. A stored enabled UAS overlay causes an official
 dataset request when the app next starts; disabling it stores that choice.
-Cached-data freshness remains separate work under #51.
+The current in-memory cache age and update state follow the
+[provider contracts](osint_providers.md); re-enabling expired UAS data fetches and
+replaces it. Persistent/offline cache policies remain separate work under #51.
 
 A load failure disables preference editing and offers Retry or an explicit
 Reset map preferences action. Reset affects only the five map preference keys.

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/osint/osint_provider.dart';
+import '../../core/osint/osint_dataset.dart';
+import '../../core/osint/osint_provider_state.dart';
+import '../../core/osint/osint_source.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/user_preferences.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
@@ -87,7 +90,13 @@ class GlobeController extends ChangeNotifier {
     GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
   }) : _uasProvider = uasProvider ?? SwissUasProvider(),
        _ownsUasProvider = uasProvider == null,
-       _bridge = GlobeBridge(options: bridgeOptions);
+       _bridge = GlobeBridge(options: bridgeOptions) {
+    _uasProvider.addListener(_handleProviderChanged);
+  }
+
+  void _handleProviderChanged() {
+    if (!_disposed) notifyListeners();
+  }
 
   final OsintProvider<Map<String, dynamic>> _uasProvider;
   final bool _ownsUasProvider;
@@ -99,6 +108,7 @@ class GlobeController extends ChangeNotifier {
   double _requestedUasOpacity = 0.20;
 
   bool _uasDatasetSentToRenderer = false;
+  OsintDataset<Map<String, dynamic>>? _uasDisplayedDataset;
   bool _uasRequestedVisible = false;
   bool _ready = false;
   bool _terrainAvailable = false;
@@ -267,6 +277,15 @@ class GlobeController extends ChangeNotifier {
   String? get uasZonesError => _uasZonesError;
   bool get isReady => _ready;
   bool get terrainAvailable => _terrainAvailable;
+  OsintSource get uasSource =>
+      _uasDisplayedDataset?.source ?? _uasProvider.source;
+  OsintDataset<Map<String, dynamic>>? get uasDisplayedDataset =>
+      _uasDisplayedDataset;
+  OsintProviderState<Map<String, dynamic>> get uasProviderStatus =>
+      _uasProvider.status;
+  OsintFreshness get uasDataFreshness =>
+      _uasDisplayedDataset?.freshnessAt(_uasProvider.status.checkedAtUtc) ??
+      OsintFreshness.notLoaded;
   GlobeTerrainState get terrainState => _terrainState;
   String? get terrainReason => _terrainReason;
   bool get terrainRetrying => _terrainRetrying;
@@ -375,6 +394,7 @@ class GlobeController extends ChangeNotifier {
     _terrainEpoch++;
     _terrainRetryOperation++;
     _uasDatasetSentToRenderer = false;
+    _uasDisplayedDataset = null;
     _uasZonesVisible = false;
     _uasZonesLoading = false;
     _error = null;
@@ -579,18 +599,27 @@ class GlobeController extends ChangeNotifier {
     _uasZonesError = null;
     notifyListeners();
     try {
-      if (_uasDatasetSentToRenderer && !forceRefresh) {
+      if (_uasDatasetSentToRenderer &&
+          !forceRefresh &&
+          uasDataFreshness == OsintFreshness.fresh) {
         await _send({'type': 'set-uas-zones', 'visible': true});
       } else {
         final dataset = await _uasProvider.fetch(forceRefresh: forceRefresh);
         if (!current()) return;
         await _request({
-          'type': forceRefresh ? 'replace-uas-zones' : 'set-uas-zones',
+          'type': forceRefresh || _uasDatasetSentToRenderer
+              ? 'replace-uas-zones'
+              : 'set-uas-zones',
           'visible': _uasRequestedVisible,
           'geojson': dataset.data,
           'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
+          'sourceAttribution':
+              dataset.source.attribution ?? dataset.source.publisher,
         }, timeout: _bridge.options.datasetTimeout);
-        if (current()) _uasDatasetSentToRenderer = true;
+        if (current()) {
+          _uasDatasetSentToRenderer = true;
+          _uasDisplayedDataset = dataset;
+        }
       }
     } catch (error) {
       if (!current()) return;
@@ -644,6 +673,7 @@ class GlobeController extends ChangeNotifier {
         _terrainReason = _terrainAvailable ? null : 'connectionFailed';
         _terrainEpoch++;
         _uasDatasetSentToRenderer = false;
+        _uasDisplayedDataset = null;
         _uasZonesVisible = false;
         _uasZonesLoading = false;
         _selectedPoint = null;
@@ -896,6 +926,7 @@ class GlobeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _uasProvider.removeListener(_handleProviderChanged);
     if (_ownsUasProvider) {
       _uasProvider.dispose();
     }

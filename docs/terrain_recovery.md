@@ -142,4 +142,6 @@ Implementation follows the pinned CesiumJS **1.145.0** APIs:
 [tile error and retry](https://cesium.com/learn/cesiumjs/ref-doc/TileProviderError.html),
 and the actual [tile-error propagation in 1.145](https://github.com/CesiumGS/cesium/blob/1.145/packages/engine/Source/Scene/GlobeSurfaceTile.js).
 Vendored runtime files and their licences remain unchanged. This work does not
-implement downloaded regions, cross-provider fallback or dataset freshness (#4/#40/#51).
+implement downloaded regions or automatic cross-provider fallback. Snapshot
+provenance and in-memory freshness follow the [OSINT contracts](osint_providers.md)
+(#4); persistent/offline cache policies remain #40/#51.

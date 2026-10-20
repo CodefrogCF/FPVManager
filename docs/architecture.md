@@ -81,12 +81,14 @@ reopen test. Migration snapshots and fixtures live in `drift_schemas/` and
 
 ## External data and geospatial services
 
-`OsintProvider<T>` separates fetching from the controller. `OsintDataset<T>` records
-provider identity, source URL, fetch time and optional HTTP Last-Modified.
-`SwissUasProvider` validates downloaded GeoJSON, deduplicates in-flight requests,
-provides a one-hour in-memory cache and retains a previous dataset on failed
-refresh. A renderer layer can currently be reused without checking that TTL.
-Persistent cache/freshness states are tracked in #51.
+`OsintProvider<T>` separates fetching and normalization from the controller, with
+source/licence metadata, typed failures and listenable cache/update state.
+`CachedOsintProvider<T>` shares the memory-cache lifecycle; `SwissUasProvider`
+configures the normalized GeoJSON adapter. The controller preserves the provenance
+of the actually displayed dataset and replaces expired layers on reactivation.
+Imagery/terrain factories and source configuration live in `web/map_providers.js`.
+See [provider contracts and provenance](osint_providers.md) for time/validity
+semantics and substitution. Persistent caches remain #51.
 
 `GeoCoordinateService` implements approximate Swiss WGS84/LV95 transformations and
 defines explicit height references. Terrain responses carry a required WGS84

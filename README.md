@@ -143,3 +143,9 @@ fallback with disabled height queries. **Retry terrain** reconnects within the
 existing viewer, preserving camera and layer settings. See
 [terrain failures and recovery](docs/terrain_recovery.md) for deadlines,
 late-response protection, synthetic HTTP fault tests and device-check limits (#7).
+
+OSINT adapters expose source/licence metadata, explicit cache and update status,
+typed failures and optional official validity. The Layer dialog retains the
+provenance of the data actually displayed after a failed update. Imagery and
+terrain factories live behind a replaceable adapter boundary. See
+[provider contracts and provenance](docs/osint_providers.md) (#4).

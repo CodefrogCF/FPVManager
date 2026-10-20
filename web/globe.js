@@ -15,6 +15,7 @@ function postToFlutter(message) {
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
     let currentMapStyle = "satellite";
+    const mapProviders = FPVMapProviders.createAdapters(Cesium, window.FPVMapProviderConfig);
     const terrainAvailable = () => terrainManager?.status().state === "ready";
     const offlineReason = () => offline ? "diagnosticOffline" :
         navigator.onLine === false ? "networkOffline" : null;
@@ -70,52 +71,8 @@ function postToFlutter(message) {
     let uasDownloadedAtUtc = null;
     let uasFeatureCount = null;
 
-    const MAP_STYLES = {
-        satellite: {
-            layer: "ch.swisstopo.swissimage",
-            extension: "jpeg",
-            maximumLevel: 19,
-            // Background metadata includes SPOT imagery outside Switzerland;
-            // SWISSIMAGE's lake imagery also requires the Planet notice.
-            // Sources/terms checked in docs/map_sources_and_attribution.md.
-            credit: "© swisstopo · © CNES, Spot Image, NPOC · " +
-                "Includes material © (2016-2018) Planet. All rights reserved"
-        },
-        topographic: {
-            layer: "ch.swisstopo.pixelkarte-farbe",
-            extension: "jpeg",
-            maximumLevel: 19,
-            credit: "© swisstopo"
-        },
-        relief: {
-            layer: "ch.swisstopo.swissalti3d-reliefschattierung",
-            extension: "png",
-            maximumLevel: 18,
-            credit: "© swisstopo"
-        }
-    };
-
     function createMapProvider(style) {
-        const config = MAP_STYLES[style];
-
-        if (!config) {
-            throw new Error(`Unknown map style: ${style}`);
-        }
-        if (offlineReason()) return new Cesium.GridImageryProvider();
-
-        return new Cesium.UrlTemplateImageryProvider({
-            url:
-                "https://wmts.geo.admin.ch/1.0.0/" +
-                `${config.layer}/default/current/3857/` +
-                "{z}/{x}/{y}." + config.extension,
-
-            tilingScheme:
-                new Cesium.WebMercatorTilingScheme(),
-
-            maximumLevel: config.maximumLevel,
-
-            credit: new Cesium.Credit(config.credit, true)
-        });
+        return mapProviders.imagery(style, Boolean(offlineReason()));
     }
 
     function resetCamera() {
@@ -242,7 +199,8 @@ function postToFlutter(message) {
         geojson = null,
         downloadedAtUtc = null,
         replace = false,
-        signal
+        signal,
+        sourceAttribution = 'Airspace data'
     ) {
         const revision = ++uasImportRevision;
         uasRequestedVisible = visible;
@@ -308,9 +266,7 @@ function postToFlutter(message) {
 
                         strokeWidth: 2,
 
-                        credit: new Cesium.Credit(
-                            "© BAZL / FOCA"
-                        )
+                        credit: new Cesium.Credit(FPVMapProviders.escapeCredit(sourceAttribution))
                     }
                 );
 
@@ -542,7 +498,8 @@ function postToFlutter(message) {
             case "replace-uas-zones":
                 if (typeof command.visible !== "boolean") throw new Error("Invalid visibility");
                 await setUasZonesVisible(command.visible, command.geojson ?? null,
-                    command.downloadedAtUtc ?? null, command.type === "replace-uas-zones", signal);
+                    command.downloadedAtUtc ?? null, command.type === "replace-uas-zones", signal,
+                    command.sourceAttribution ?? 'Airspace data');
                 return layerState();
             case "set-uas-opacity":
                 setUasFillOpacity(command.opacity);
@@ -627,21 +584,13 @@ function postToFlutter(message) {
 
         function terrainInfo(status) {
             info.textContent = status.state === "ready"
-                ? "FPVManager | Swiss 3D terrain loaded"
+                ? "FPVManager | 3D terrain loaded"
                 : status.state === "loading"
                     ? "Connecting to 3D terrain | Flat map shown"
                     : "3D terrain unavailable | Flat map shown — terrain heights disabled";
         }
         terrainManager = FPVTerrain.createTerrainManager({
-            createProvider: () => Cesium.CesiumTerrainProvider.fromUrl(
-                "https://3d.geo.admin.ch/" +
-                "ch.swisstopo.terrain.3d/v1/",
-                {
-                    ellipsoid: Cesium.Ellipsoid.WGS84,
-                    // The live layer.json has an empty attribution field.
-                    credit: new Cesium.Credit("© swisstopo", true)
-                }
-            ),
+            createProvider: () => mapProviders.terrain(),
             createFallback: () => new Cesium.EllipsoidTerrainProvider(),
             applyProvider: provider => {
                 if (activeViewer) activeViewer.terrainProvider = provider;

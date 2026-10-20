@@ -4,21 +4,23 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { createBridge } = require('../../web/globe_bridge.js');
 const FPVTerrain = require('../../web/terrain_service.js');
+const FPVMapProviders = require('../../web/map_providers.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
-async function renderer({ offline = false, terrainFails = false } = {}) {
+async function renderer({ offline = false, terrainFails = false, configuration } = {}) {
     const imagery = [], terrain = [], events = [];
     const info = {};
     const window = {
+        FPVMapProviderConfig: configuration,
         location: { search: offline ? '?offline=1' : '', origin: 'http://localhost' },
         addEventListener() {},
         FPVBridge: { postMessage: raw => events.push(JSON.parse(raw)) }
     };
     window.parent = window;
     const context = vm.createContext({
-        window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain,
+        window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders,
         document: { getElementById: () => info },
         console: { error() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
@@ -98,4 +100,20 @@ test('offline diagnostic grid does not claim external imagery or terrain', async
     assert.equal(page.imagery.length, 0);
     assert.equal(page.terrain.length, 0);
     assert.equal(page.events.find(e => e.type === 'globe-ready').terrainAvailable, false);
+});
+
+test('replacing imagery and terrain adapters needs no renderer or map UI edits', async () => {
+    const customSource = {id:'fixture.source', name:'Fixture source', publisher:'Fixture publisher',
+        attribution:'Fixture <source> & contributors', metadataUri:'https://example.invalid/metadata',
+        licenseName:null, licenseUri:null, validity:null};
+    const page = await renderer({configuration: {
+        imagery: {satellite: {source:customSource, url:'https://example.invalid/{z}/{x}/{y}.png', maximumLevel:10}},
+        terrain: {source:customSource, url:'https://example.invalid/terrain/'}
+    }});
+    assert.equal(page.imagery[0].url, 'https://example.invalid/{z}/{x}/{y}.png');
+    assert.equal(page.imagery[0].maximumLevel, 10);
+    assert.equal(page.imagery[0].credit.html, 'Fixture &lt;source&gt; &amp; contributors');
+    assert.equal(page.terrain[0].url, 'https://example.invalid/terrain/');
+    assert.equal(page.terrain[0].credit.html, page.imagery[0].credit.html);
+    assert.throws(() => page.context.setMapStyle('toString'), /Unknown map style/);
 });

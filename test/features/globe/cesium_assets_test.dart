@@ -41,6 +41,11 @@ void main() {
         contains('createBridge'),
       );
       expect(html, contains('src="terrain_service.js"'));
+      expect(html, contains('src="map_providers.js"'));
+      expect(
+        await rootBundle.loadString('web/map_providers.js'),
+        contains('createAdapters'),
+      );
       expect(
         await rootBundle.loadString('web/terrain_service.js'),
         contains('createTerrainManager'),

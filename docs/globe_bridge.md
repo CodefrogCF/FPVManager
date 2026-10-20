@@ -68,6 +68,9 @@ See [terrain failures and recovery](terrain_recovery.md) for the deadlines,
 late-response rules and conservative flat fallback. Height-query command
 results from a previous terrain generation are rejected independently of the
 renderer session.
+UAS dataset imports can include a plain-text `sourceAttribution`; the renderer
+escapes it for its source credit. The controller keeps imported dataset metadata
+separate from a newer downloaded snapshot until the import is acknowledged.
 Web accepts events only from the bound iframe and matching origin. Native pages
 are loaded from an app-owned loopback origin; navigation to other origins is
 blocked. Disposed native views ignore subsequent JavaScript events.

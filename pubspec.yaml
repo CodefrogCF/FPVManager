@@ -130,6 +130,7 @@ flutter:
     - web/globe.js
     - web/globe_bridge.js
     - web/terrain_service.js
+    - web/map_providers.js
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

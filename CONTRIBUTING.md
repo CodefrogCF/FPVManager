@@ -3,9 +3,9 @@
 ## Branching and review
 
 - Keep `main` as the integration branch.
-- Start focused work from current `main`, using `codex/<short-topic>` for agent
-  branches or `feature/<short-topic>` / `fix/<short-topic>` for other work.
-- Keep one independently reviewable concern per branch/PR where practical.
+- Agent work continues on the currently checked-out branch. Do not create
+  additional branches unless the user explicitly requests one.
+- Keep one independently reviewable concern per change set where practical.
 - Describe the user-visible change, related issue, validation and known limits.
 - Run the checks below before submitting a PR. CI must pass before merge;
   branch protection must be configured separately by a repository administrator.
