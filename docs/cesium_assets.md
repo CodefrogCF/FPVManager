@@ -70,9 +70,17 @@ the notices in Workers and ThirdParty assets. CesiumJS uses Apache-2.0; its
 third-party components have their own terms recorded by upstream. Keep those
 files when distributing the bundle.
 
-This asset packaging does not complete the broader application/data-source
-license and privacy audit in #5/#8/#44. swisstopo imagery/terrain and FOCA UAS
-attribution remain in the renderer/UI.
+The current imagery/terrain terms and on-screen notices are recorded in
+[map sources and attribution](map_sources_and_attribution.md) (#8), and current
+data flows in the [privacy policy](privacy_and_permissions.md) (#5). The broader
+source/dependency and release documentation inventory remains #44. FOCA UAS
+attribution remains in the renderer/UI.
+
+For live attribution verification, open `/smoke?online=1` on the same smoke
+server. It deliberately loads swisstopo imagery and terrain, asserts complete
+visible source notices for all three styles and repeats after a real renderer
+reload. This optional check requires working provider access and is separate
+from the deterministic offline smoke and CI tests.
 
 References: [Cesium static asset configuration](https://cesium.com/learn/cesiumjs-learn/cesiumjs-quickstart/)
 and [pinned npm package](https://registry.npmjs.org/cesium/1.145.0).

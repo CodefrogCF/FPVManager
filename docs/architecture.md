@@ -107,8 +107,9 @@ Current external dependencies include:
 | REFRAME transformation services, when invoked | `geodesy.geo.admin.ch` |
 
 The documented Web build uses `--no-web-resources-cdn` to load Flutter renderer
-resources locally as well. This list is an architecture inventory, not a completed
-license audit; #8/#44 cover those remaining checks. The
+resources locally as well. The current imagery/terrain source notices and service
+terms are recorded in [map sources and attribution](map_sources_and_attribution.md)
+(#8); the complete source/dependency release audit remains #44. The
 [privacy and permission policy](privacy_and_permissions.md) records current request triggers and data flows.
 Map requests disclose the viewed area to their providers; REFRAME requests contain supplied positions and elevations.
 

@@ -243,31 +243,25 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Stack(
-      fit: StackFit.expand,
+    return Column(
       children: [
-        WebViewWidget(controller: controller),
+        Expanded(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              WebViewWidget(controller: controller),
+              if (_loading) const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        ),
 
-        if (_loading) const Center(child: CircularProgressIndicator()),
-
+        // Keep the selected-point footer outside the map's source credits.
         if (_coordinates != null)
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: IgnorePointer(
-              child: Center(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xDD101820),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Text(_coordinates!, textAlign: TextAlign.center),
-                  ),
-                ),
-              ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Text(_coordinates!, textAlign: TextAlign.center),
             ),
           ),
       ],

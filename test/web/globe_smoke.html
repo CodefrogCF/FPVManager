@@ -2,12 +2,16 @@
 <html lang="en"><meta charset="utf-8"><title>FPVManager offline renderer smoke</title>
 <style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:20px;padding:12px;margin:0}iframe{width:100%;height:65vh;border:0}pre{white-space:pre-wrap;padding:12px;margin:0}</style>
 <h1 id="status">Running offline renderer smoke…</h1>
-<iframe id="map" title="Actual Cesium renderer" src="/globe.html?offline=1"></iframe><pre id="log"></pre>
+<iframe id="map" title="Actual Cesium renderer"></iframe><pre id="log"></pre>
 <script>
 const frame = document.getElementById('map'), output = document.getElementById('log');
+const online = new URLSearchParams(location.search).get('online') === '1';
+if (new URLSearchParams(location.search).get('narrow') === '1') frame.style.width = '320px';
+frame.src = online ? '/globe.html' : '/globe.html?offline=1';
+if (online) document.getElementById('status').textContent = 'Running online attribution smoke…';
 const log = text => { output.textContent += text + '\n'; };
 const pending = new Map();
-let session, next = 0, lastStatus, readyWaiters = [], failed = false;
+let session, next = 0, lastStatus, terrainAvailable, readyWaiters = [], failed = false;
 function fail(error) { failed = true; document.getElementById('status').textContent = 'FAIL: ' + error; log(String(error)); }
 function readyAfter(previous) { return new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error('Ready timeout')), 30000);
@@ -19,6 +23,7 @@ window.addEventListener('message', event => {
   if (data.source !== 'fpvmanager-globe' || data.version !== 1) return;
   if (data.type === 'globe-ready') {
     session = data.sessionId;
+    terrainAvailable = data.terrainAvailable;
     readyWaiters = readyWaiters.filter(waiter => !waiter(session));
   }
   if (data.type === 'uas-zones-status') lastStatus = data;
@@ -89,17 +94,50 @@ async function checkWorker() {
     ]);
   } finally { clearTimeout(timer); processor.destroy(); }
 }
+async function checkAttribution() {
+  if (!terrainAvailable) throw new Error('Online smoke requires loaded terrain');
+  for (const style of ['satellite', 'topographic', 'relief', 'satellite']) {
+    await command('set-map-style', { style });
+    const deadline = performance.now() + 15000;
+    while (true) {
+      const credit = frame.contentDocument.querySelector('.cesium-credit-textContainer');
+      const text = credit?.innerText ?? '';
+      const satellite = style === 'satellite';
+      const complete = text.includes('swisstopo') && (satellite
+        ? ['CNES', 'Spot Image', 'NPOC', 'Includes material © (2016-2018) Planet. All rights reserved'].every(value => text.includes(value))
+        : !text.includes('Planet') && !text.includes('CNES'));
+      if (complete && credit.getBoundingClientRect().height > 0) {
+        const fontSize = parseFloat(frame.contentWindow.getComputedStyle(credit).fontSize);
+        if (fontSize < 12) throw new Error('Credit font is too small: ' + fontSize + 'px');
+        const area = frame.contentDocument.querySelector('.cesium-widget-credits').getBoundingClientRect();
+        if (area.left < 0 || area.right > frame.contentWindow.innerWidth + 1 ||
+            area.bottom > frame.contentWindow.innerHeight + 1 ||
+            frame.contentDocument.documentElement.scrollWidth > frame.contentWindow.innerWidth) {
+          throw new Error(style + ' credit area overflows the map viewport');
+        }
+        break;
+      }
+      if (performance.now() > deadline) throw new Error(style + ' visible attribution missing: ' + text);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    log('PASS: ' + style + ' displays its complete credit beside the actual map');
+  }
+}
 (async () => {
-  await readyAfter(null); log('PASS: local Cesium/WebGL initializes without online map resources');
+  await readyAfter(null); log(online ? 'PASS: actual online renderer initializes' : 'PASS: local Cesium/WebGL initializes without online map resources');
   await checkWorker(); log('PASS: bundled geometry worker executes and returns a result');
+  if (online) await checkAttribution();
   await settings(); log('PASS: map style, opacity, spot markers and real GeoJSON import acknowledged');
-  try { await command('query-terrain-elevation', { latitude:46.7, longitude:8.4 }); throw new Error('Expected terrain error'); }
-  catch (error) { if (!String(error).includes('Detailed terrain data unavailable')) throw error; }
-  log('PASS: unavailable offline terrain returns a correlated error');
+  if (!online) {
+    try { await command('query-terrain-elevation', { latitude:46.7, longitude:8.4 }); throw new Error('Expected terrain error'); }
+    catch (error) { if (!String(error).includes('Detailed terrain data unavailable')) throw error; }
+    log('PASS: unavailable offline terrain returns a correlated error');
+  }
   const previous = session, reloaded = readyAfter(previous);
   await command('reload-renderer'); await reloaded; await settings();
   log('PASS: new renderer session after real iframe reload accepts restored settings');
+  if (online) await checkAttribution();
   await new Promise(resolve => setTimeout(resolve, 3000));
-  if (!failed) { document.getElementById('status').textContent = 'PASS — offline renderer and bridge smoke'; log('PASS: renderer remains free of render errors'); }
+  if (!failed) { document.getElementById('status').textContent = online ? 'PASS — online attribution and renderer smoke' : 'PASS — offline renderer and bridge smoke'; log('PASS: renderer remains free of render errors'); }
 })().catch(fail);
 </script></html>

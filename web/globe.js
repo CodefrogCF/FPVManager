@@ -67,17 +67,24 @@ function postToFlutter(message) {
         satellite: {
             layer: "ch.swisstopo.swissimage",
             extension: "jpeg",
-            maximumLevel: 19
+            maximumLevel: 19,
+            // Background metadata includes SPOT imagery outside Switzerland;
+            // SWISSIMAGE's lake imagery also requires the Planet notice.
+            // Sources/terms checked in docs/map_sources_and_attribution.md.
+            credit: "© swisstopo · © CNES, Spot Image, NPOC · " +
+                "Includes material © (2016-2018) Planet. All rights reserved"
         },
         topographic: {
             layer: "ch.swisstopo.pixelkarte-farbe",
             extension: "jpeg",
-            maximumLevel: 19
+            maximumLevel: 19,
+            credit: "© swisstopo"
         },
         relief: {
             layer: "ch.swisstopo.swissalti3d-reliefschattierung",
             extension: "png",
-            maximumLevel: 18
+            maximumLevel: 18,
+            credit: "© swisstopo"
         }
     };
 
@@ -100,7 +107,7 @@ function postToFlutter(message) {
 
             maximumLevel: config.maximumLevel,
 
-            credit: new Cesium.Credit("© swisstopo")
+            credit: new Cesium.Credit(config.credit, true)
         });
     }
 
@@ -598,17 +605,7 @@ function postToFlutter(message) {
     async function initializeGlobe() {
         const info = document.getElementById("info");
 
-        const imageryProvider = offline ? new Cesium.GridImageryProvider() :
-            new Cesium.UrlTemplateImageryProvider({
-                url:
-                "https://wmts.geo.admin.ch/1.0.0/" +
-                "ch.swisstopo.swissimage/default/current/" +
-                "3857/{z}/{x}/{y}.jpeg",
-                tilingScheme:
-                new Cesium.WebMercatorTilingScheme(),
-                maximumLevel: 19,
-                credit: new Cesium.Credit("© swisstopo")
-            });
+        const imageryProvider = createMapProvider("satellite");
 
         let terrainProvider;
         let terrainAvailable = false;
@@ -620,7 +617,11 @@ function postToFlutter(message) {
               terrainProvider = await Promise.race([Cesium.CesiumTerrainProvider.fromUrl(
                 "https://3d.geo.admin.ch/" +
                 "ch.swisstopo.terrain.3d/v1/",
-                { ellipsoid: Cesium.Ellipsoid.WGS84 }
+                {
+                    ellipsoid: Cesium.Ellipsoid.WGS84,
+                    // The live layer.json has an empty attribution field.
+                    credit: new Cesium.Credit("© swisstopo", true)
+                }
               ), new Promise((_, reject) => {
                 timeout = setTimeout(() => reject(new Error("Terrain connection timed out")), 8000);
               })]);
