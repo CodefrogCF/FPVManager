@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'core/database/fpv_database.dart';
 import 'features/spots/data/spot_repository.dart';
+import 'features/spots/data/spot_query.dart';
+import 'features/spots/spot_details_screen.dart';
 import 'features/spots/spots_screen.dart';
 import 'features/spots/spot_photo_viewer.dart';
 import 'features/globe/globe_controller.dart';
@@ -54,8 +56,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   FpvDatabase? _database;
   SpotRepository? _spotRepository;
 
-  StreamSubscription<List<Spot>>? _spotsSubscription;
-  Map<int, Spot> _spotsById = const {};
+  StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
+  Map<int, SpotMapEntry> _spotsById = const {};
 
   Future<void> _runCommand(Future<void> Function() command) async {
     try {
@@ -128,6 +130,23 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     );
   }
 
+  Future<void> _openSpotDetails(int id) async {
+    final spot = await Navigator.of(context).push<Spot>(
+      MaterialPageRoute(
+        builder: (context) =>
+            SpotDetailsScreen(repository: _spotRepository!, spotId: id),
+      ),
+    );
+    if (spot == null || !mounted) return;
+    await _runCommand(
+      () => _globeController.focusSpot(
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        rangeMeters: 300,
+      ),
+    );
+  }
+
   Future<void> _showTerrainElevation() async {
     final point = _globeController.selectedPoint;
     if (point == null) return;
@@ -166,7 +185,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         widget.spotRepository ??
         SpotRepository(_database ??= FpvDatabase.open());
 
-    _spotsSubscription = repository.watchSpots().listen(
+    _spotsSubscription = repository.watchMapSpots().listen(
       (spots) {
         if (!mounted) return;
 
@@ -207,7 +226,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _closeSpotResources(
-    StreamSubscription<List<Spot>>? subscription,
+    StreamSubscription<List<SpotMapEntry>>? subscription,
     FpvDatabase? database,
   ) async {
     if (subscription != null) {
@@ -324,6 +343,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _openSpotDetails(selectedSpot.id),
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('Details'),
+                          ),
                           OutlinedButton.icon(
                             onPressed: () => showDialog<void>(
                               context: context,

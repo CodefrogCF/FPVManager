@@ -623,6 +623,36 @@ void main() {
       expect(commands.last['spots'], isEmpty);
     });
 
+    test('transfers 10000 markers and rejects larger snapshots', () async {
+      renderer.ready();
+      final markers = List.generate(
+        10000,
+        (i) => SpotMapMarker(
+          id: i + 1,
+          name: 'Spot $i',
+          latitude: 47,
+          longitude: 8,
+        ),
+      );
+      await controller.setSpotMarkers(markers);
+      expect(commands.last['type'], 'set-spot-markers');
+      expect(commands.last['spots'], hasLength(10000));
+      await expectLater(
+        controller.setSpotMarkers([
+          ...markers,
+          const SpotMapMarker(
+            id: 10001,
+            name: 'Over limit',
+            latitude: 47,
+            longitude: 8,
+          ),
+        ]),
+        throwsArgumentError,
+      );
+      renderer.emit({'type': 'spot-selected', 'id': 10000});
+      expect(controller.selectedSpotId, 10000);
+    });
+
     test('rejects invalid and unknown spot markers', () async {
       await expectLater(
         controller.setSpotMarkers([

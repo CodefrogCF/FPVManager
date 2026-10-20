@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart';
+import '../../core/models/spot_classification.dart';
 import 'data/spot_location_service.dart';
 import 'data/spot_photo.dart';
 import 'data/spot_photo_service.dart';
 import 'data/spot_repository.dart';
 import 'spot_photo_viewer.dart';
+import 'spot_label_field.dart';
 
 class SpotEditorDialog extends StatefulWidget {
   const SpotEditorDialog({
@@ -35,6 +37,8 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
   late final TextEditingController _latitude;
   late final TextEditingController _longitude;
   late final TextEditingController _notes;
+  late final TextEditingController _category;
+  final _tags = TextEditingController();
   List<SpotPhotoPreview> _existingPhotos = [];
   final _newPhotos = <PreparedSpotPhoto>[];
   bool _loading = false;
@@ -64,6 +68,7 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
           '',
     );
     _notes = TextEditingController(text: spot?.notes ?? '');
+    _category = TextEditingController(text: spot?.category ?? '');
     _latitude.addListener(_coordinatesChanged);
     _longitude.addListener(_coordinatesChanged);
     if (spot != null) unawaited(_loadPhotos());
@@ -81,13 +86,22 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
       _error = null;
     });
     try {
-      final photos = await widget.repository.getPhotos(widget.spot!.id);
-      if (mounted) setState(() => _existingPhotos = photos);
+      final (photos, tags) = await (
+        widget.repository.getPhotos(widget.spot!.id),
+        widget.repository.getTags(widget.spot!.id),
+      ).wait;
+      if (mounted) {
+        setState(() {
+          _existingPhotos = photos;
+          _tags.text = tags.join(', ');
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(() {
           _loadFailed = true;
-          _error = 'Unable to load existing photos. Retry before saving.';
+          _error =
+              'Unable to load existing photos and tags. Retry before saving.';
         });
       }
     } finally {
@@ -178,6 +192,10 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
       final latitude = _parseCoordinate(_latitude.text)!;
       final longitude = _parseCoordinate(_longitude.text)!;
       final notes = _notes.text.trim().isEmpty ? null : _notes.text.trim();
+      final classification = SpotClassification(
+        category: _category.text,
+        tags: SpotClassification.parseTags(_tags.text),
+      );
       if (widget.spot == null) {
         await widget.repository.createSpot(
           name: name,
@@ -185,6 +203,7 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
           longitude: longitude,
           notes: notes,
           photos: _newPhotos,
+          classification: classification,
         );
       } else {
         final updated = await widget.repository.updateSpot(
@@ -195,6 +214,7 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
           notes: notes,
           retainedPhotoIds: _existingPhotos.map((photo) => photo.id).toList(),
           newPhotos: _newPhotos,
+          classification: classification,
         );
         if (!updated) throw StateError('This spot no longer exists.');
       }
@@ -253,6 +273,8 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
     _latitude.dispose();
     _longitude.dispose();
     _notes.dispose();
+    _category.dispose();
+    _tags.dispose();
     super.dispose();
   }
 
@@ -329,6 +351,19 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                   decoration: const InputDecoration(
                     labelText: 'Description / notes (optional)',
                   ),
+                ),
+                const SizedBox(height: 16),
+                SpotLabelField(
+                  controller: _category,
+                  repository: widget.repository,
+                  enabled: !_saving,
+                ),
+                const SizedBox(height: 12),
+                SpotLabelField(
+                  controller: _tags,
+                  repository: widget.repository,
+                  tags: true,
+                  enabled: !_loading && !_loadFailed && !_saving,
                 ),
                 const SizedBox(height: 16),
                 Text(

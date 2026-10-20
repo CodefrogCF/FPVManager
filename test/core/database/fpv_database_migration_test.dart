@@ -8,6 +8,12 @@ import 'package:fpvmanager/core/database/fpv_database.dart';
 import '../../generated_migrations/schema.dart';
 import '../../generated_migrations/schema_v1.dart' as v1;
 import '../../generated_migrations/schema_v2.dart' as v2;
+import '../../generated_migrations/schema_v3.dart' as v3;
+
+import 'package:fpvmanager/features/spots/data/spot_repository.dart';
+import 'package:fpvmanager/features/spots/data/spot_query.dart';
+
+import 'dart:typed_data';
 
 void main() {
   late SchemaVerifier verifier;
@@ -16,7 +22,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates v1 to v3 without losing spots', () async {
+  test('migrates v1 to v4 without losing spots', () async {
     final schema = await verifier.schemaAt(1);
 
     // Create a database with the original v1 schema.
@@ -37,7 +43,7 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 3);
+    await verifier.migrateAndValidate(database, 4);
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -64,12 +70,13 @@ void main() {
     expect(names, contains('flight_waypoints'));
     expect(names, contains('app_settings'));
     expect(names, contains('spot_photos'));
+    expect(names, contains('spot_tags'));
 
     await database.close();
   });
 
   test(
-    'migrates v2 to v3 preserving personal records and references',
+    'migrates v2 to v4 preserving personal records and references',
     () async {
       final schema = await verifier.schemaAt(2);
       final old = v2.DatabaseAtV2(schema.newConnection());
@@ -133,7 +140,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 3);
+      await verifier.migrateAndValidate(database, 4);
       expect(
         (await database.select(database.spots).get()).single.name,
         'Private spot',
@@ -168,7 +175,56 @@ void main() {
     },
   );
 
-  test('new v3 database creates all tables', () async {
+  test('v3 to v4 preserves photos and favorites and backfills Unicode search in batches', () async {
+    final schema = await verifier.schemaAt(3);
+    final old = v3.DatabaseAtV3(schema.newConnection());
+    for (var i = 0; i < 405; i++) {
+      await old
+          .into(old.spots)
+          .insert(
+            v3.SpotsCompanion.insert(
+              name: 'Älpler $i',
+              latitude: 47,
+              longitude: 8,
+              notes: const Value('Über dem See'),
+              isFavorite: const Value(1),
+            ),
+          );
+    }
+    final bytes = Uint8List.fromList([1, 2, 3]);
+    await old
+        .into(old.spotPhotos)
+        .insert(
+          v3.SpotPhotosCompanion.insert(
+            spotId: 405,
+            imageBytes: bytes,
+            thumbnailBytes: bytes,
+            width: 8,
+            height: 4,
+          ),
+        );
+    await old.close();
+    final database = FpvDatabase(schema.newConnection());
+    addTearDown(database.close);
+    await verifier.migrateAndValidate(database, 4);
+    final repository = SpotRepository(database);
+    final page = await repository.getSpotPage(
+      filter: SpotFilter(query: 'älpler 404 über', favoritesOnly: true),
+    );
+    expect(page.items.single.id, 405);
+    expect(page.items.single.category, isNull);
+    expect(page.items.single.tags, isEmpty);
+    expect((await database.select(database.spots).get()), hasLength(405));
+    final photo = (await repository.getPhotos(405)).single;
+    expect(
+      await repository.getPhotoBytes(spotId: 405, photoId: photo.id),
+      bytes,
+    );
+    await repository.deleteSpot(405);
+    expect(await repository.getPhotos(405), isEmpty);
+  });
+
+  test('new v4 database creates all tables', () async {
     final database = FpvDatabase(NativeDatabase.memory());
 
     // Trigger database initialization.
@@ -185,6 +241,7 @@ void main() {
 
     expect(names, contains('spots'));
     expect(names, contains('spot_photos'));
+    expect(names, contains('spot_tags'));
     expect(names, contains('drones'));
     expect(names, contains('batteries'));
     expect(names, contains('radio_equipment'));

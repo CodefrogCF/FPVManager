@@ -138,7 +138,7 @@ class GlobeController extends ChangeNotifier {
   Future<void> setSpotMarkers(List<SpotMapMarker> markers) async {
     final ids = <int>{};
 
-    if (markers.length > 5000) {
+    if (markers.length > 10000) {
       throw ArgumentError('Too many spot markers');
     }
 

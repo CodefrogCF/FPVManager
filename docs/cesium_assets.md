@@ -57,6 +57,10 @@ For a visible browser check, run `python tool/serve_globe_smoke.py` and open
 `http://127.0.0.1:8765/smoke`. The harness uses the actual WebGL renderer,
 synthetic polygons and a real iframe reload. It also schedules a real task in the
 bundled `createGeometry` worker and waits for its result. Results appear on the page.
+Use `/smoke?spots=10000` to exercise a 10,000-marker snapshot, reject an oversized
+snapshot and repeat after renderer reload. Reported command timings do not
+measure frame rate or performance on Android devices. The harness transfers large
+commands in indexed 32 KiB blocks using the same protocol as the Dart bridge.
 
 ## Upstream notices
 

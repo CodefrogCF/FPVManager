@@ -95,15 +95,17 @@ follow-up work for the map/settings feature (#9).
 
 ## Schema and scope
 
-Schema version is **3**. The indexed `spot_photos` table adds normalized photos
-and thumbnails with cascading spot ownership. Migration tests validate v1 → v3
-and v2 → v3 while preserving existing records. Repository tests cover CRUD,
+Schema version is **4**. The indexed `spot_photos` table adds normalized photos
+and thumbnails with cascading spot ownership. Spot category/search columns and
+the indexed `spot_tags` table support classification and filtering. Migration
+tests validate v1/v2/v3 → v4 while preserving existing records. Repository tests cover CRUD,
 validation, watchers, relationship deletion, rollback, height references and
 preferences. A file-backed test closes and reopens SQLite and verifies records
 from every domain.
 
 Spots have editing/list screens, a photo gallery and opt-in device location;
 see [photo and location contracts](spot_photos_and_location.md). Equipment profiles (#13–#15),
-route editing (#25), spot search/categories/tags (#12) and settings UI
+route editing (#25) and settings UI
 integration remain separate feature work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.
+See [spot search and classification](spot_search.md) for the spot list contract.

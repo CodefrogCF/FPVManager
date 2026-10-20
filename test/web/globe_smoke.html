@@ -29,11 +29,25 @@ window.addEventListener('message', event => {
     data.ok ? request.resolve(data.result) : request.reject(new Error(data.error));
   }
 });
+async function transmit(type, fields, requestId) {
+  const envelope = { version: 1, sessionId: session, requestId };
+  const raw = JSON.stringify({ ...envelope, type, ...fields });
+  const post = value => frame.contentWindow.postMessage(JSON.stringify(value), location.origin);
+  const chunkSize = 32 * 1024;
+  if (raw.length <= chunkSize) { frame.contentWindow.postMessage(raw, location.origin); return; }
+  post({ ...envelope, type: 'transfer-start', commandType: type, length: raw.length });
+  let index = 0;
+  for (let offset = 0; offset < raw.length; offset += chunkSize) {
+    post({ ...envelope, type: 'transfer-chunk', index: index++, data: raw.slice(offset, offset + chunkSize) });
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+  post({ ...envelope, type: 'transfer-complete' });
+}
 function command(type, fields = {}) { return new Promise((resolve, reject) => {
   const requestId = String(++next);
   const timer = setTimeout(() => { pending.delete(requestId); reject(new Error(type + ' timeout')); }, 20000);
   pending.set(requestId, { resolve, reject, timer });
-  frame.contentWindow.postMessage(JSON.stringify({ version: 1, sessionId: session, requestId, type, ...fields }), location.origin);
+  transmit(type, fields, requestId).catch(error => { clearTimeout(timer); pending.delete(requestId); reject(error); });
 }); }
 const zone = { type: 'FeatureCollection', features: [{ type: 'Feature', id: 'fixture',
   properties: { name: 'Local integration fixture' }, geometry: { type: 'Polygon',
@@ -42,7 +56,16 @@ async function settings() {
   await command('set-map-style', { style: 'topographic' });
   await command('fly-to', { latitude:46.73, longitude:8.43, altitude:10000 });
   await command('set-uas-opacity', { opacity: 0.45 });
-  await command('set-spot-markers', { revision: 1, spots: [{id:1,name:'Local fixture',latitude:46.7,longitude:8.4}] });
+  const count = new URLSearchParams(location.search).get('spots') === '10000' ? 10000 : 1;
+  const spots = Array.from({length: count}, (_, i) => ({id:i+1,name:'Local fixture '+(i+1),latitude:46.68+Math.floor(i/100)*.001,longitude:8.38+(i%100)*.001}));
+  const started = performance.now();
+  await command('set-spot-markers', { revision: 1, spots });
+  log('PASS: '+count+' markers acknowledged in '+(performance.now()-started).toFixed(0)+' ms (command time, not FPS)');
+  if (count === 10000) {
+    try { await command('set-spot-markers', { revision: 2, spots: [...spots, {...spots[0], id:10001}] }); throw new Error('Expected marker limit error'); }
+    catch (error) { if (!String(error).includes('Invalid spot marker')) throw error; }
+    log('PASS: oversized marker snapshot rejected without replacing valid markers');
+  }
   await command('set-uas-zones', { visible: true, geojson: zone, downloadedAtUtc: '2026-10-19T00:00:00Z' });
   if (!lastStatus?.visible || lastStatus.featureCount !== 1 || lastStatus.fillOpacity !== 0.45) throw new Error('Incorrect UAS status');
 }

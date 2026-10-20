@@ -12,6 +12,7 @@ import 'package:fpvmanager/core/database/repositories/user_preferences_repositor
 import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
 import 'package:fpvmanager/core/models/flight_route.dart';
 import 'package:fpvmanager/core/models/user_preferences.dart';
+import 'package:fpvmanager/core/models/spot_classification.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 import 'package:fpvmanager/features/spots/data/spot_photo_service.dart';
 
@@ -38,6 +39,10 @@ void main() {
           longitude: 8,
           notes: 'Private access notes',
           photos: [photo],
+          classification: SpotClassification(
+            category: 'Alpine',
+            tags: ['Quiet', 'Freestyle'],
+          ),
         );
         await spots.setFavorite(id: spotId, isFavorite: true);
         final droneId = await DroneRepository(first)
@@ -84,6 +89,11 @@ void main() {
         final spot = (await SpotRepository(reopened).getSpot(spotId))!;
         expect(spot.notes, 'Private access notes');
         expect(spot.isFavorite, isTrue);
+        expect(spot.category, 'Alpine');
+        expect(await SpotRepository(reopened).getTags(spotId), [
+          'freestyle',
+          'quiet',
+        ]);
         final storedPhotos = await SpotRepository(reopened).getPhotos(spotId);
         expect(storedPhotos, hasLength(1));
         expect(

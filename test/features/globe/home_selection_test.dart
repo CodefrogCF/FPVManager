@@ -28,6 +28,43 @@ void main() {
     await database.close();
   });
 
+  testWidgets('map selection opens live spot details and returns focus', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: FPVHomeScreen(spotRepository: repository)),
+    );
+    final controller = tester
+        .widget<GlobeView>(find.byType(GlobeView))
+        .controller;
+    final renderer = FakeGlobeRenderer(controller)..attach();
+    renderer.ready();
+    await tester.pumpAndSettle();
+    renderer.emit({'type': 'spot-selected', 'id': spotId});
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Spot details'), findsOneWidget);
+    expect(find.text('Saved Spot B'), findsOneWidget);
+    await tester.tap(find.text('Show on map'));
+    await tester.pumpAndSettle();
+    renderer.acknowledge(
+      renderer.commands.last,
+      result: {
+        'latitude': 47.0,
+        'longitude': 8.5,
+        'heightMeters': 500.0,
+        'heightReference': 'wgs84Ellipsoid',
+        'samplingMethod': 'most-detailed',
+      },
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Spot details'), findsNothing);
+    expect(renderer.commands.last['type'], 'focus-spot');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
     'terrain results reach the typed dialog and stale selections do not',
     (tester) async {

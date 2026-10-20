@@ -1,9 +1,13 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../models/spot_classification.dart';
+
 part 'fpv_database.g.dart';
 
 /// Locally stored FPV flying spots.
+@TableIndex(name: 'spots_category_id', columns: {#categoryKey, #id})
+@TableIndex(name: 'spots_favorite_id', columns: {#isFavorite, #id})
 class Spots extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -14,10 +18,22 @@ class Spots extends Table {
   RealColumn get longitude => real()();
 
   TextColumn get notes => text().nullable()();
+  TextColumn get category => text().nullable()();
+  TextColumn get categoryKey => text().withDefault(const Constant(''))();
+  TextColumn get searchText => text().withDefault(const Constant(''))();
 
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+@TableIndex(name: 'spot_tags_tag_spot', columns: {#tag, #spotId})
+class SpotTags extends Table {
+  IntColumn get spotId =>
+      integer().references(Spots, #id, onDelete: KeyAction.cascade)();
+  TextColumn get tag => text().withLength(min: 1, max: 32)();
+  @override
+  Set<Column> get primaryKey => {spotId, tag};
 }
 
 /// Normalized local JPEGs, kept out of spot list and marker queries.
@@ -146,6 +162,7 @@ class AppSettings extends Table {
 @DriftDatabase(
   tables: [
     Spots,
+    SpotTags,
     SpotPhotos,
     Drones,
     Batteries,
@@ -172,7 +189,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -195,6 +212,44 @@ class FpvDatabase extends _$FpvDatabase {
       if (from < 3) {
         await m.createTable(spotPhotos);
         await m.createIndex(spotPhotosSpotId);
+      }
+      if (from < 4) {
+        await m.addColumn(spots, spots.category);
+        await m.addColumn(spots, spots.categoryKey);
+        await m.addColumn(spots, spots.searchText);
+        await m.createTable(spotTags);
+        await m.createIndex(spotTagsTagSpot);
+        await m.createIndex(spotsCategoryId);
+        await m.createIndex(spotsFavoriteId);
+        // Dart lowercasing also handles non-ASCII case pairs in legacy text.
+        // Backfill in bounded batches rather than materializing all spots.
+        var afterId = 0;
+        while (true) {
+          final rows =
+              await (select(spots)
+                    ..where((table) => table.id.isBiggerThanValue(afterId))
+                    ..orderBy([(table) => OrderingTerm.asc(table.id)])
+                    ..limit(200))
+                  .get();
+          if (rows.isEmpty) break;
+          await batch((batch) {
+            for (final row in rows) {
+              batch.update(
+                spots,
+                SpotsCompanion(
+                  searchText: Value(
+                    SpotClassification.searchText(
+                      name: row.name,
+                      notes: row.notes,
+                    ),
+                  ),
+                ),
+                where: (table) => table.id.equals(row.id),
+              );
+            }
+          });
+          afterId = rows.last.id;
+        }
       }
     },
     beforeOpen: (details) async {

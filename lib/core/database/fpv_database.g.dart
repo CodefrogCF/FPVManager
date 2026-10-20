@@ -65,6 +65,41 @@ class $SpotsTable extends Spots with TableInfo<$SpotsTable, Spot> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryKeyMeta = const VerificationMeta(
+    'categoryKey',
+  );
+  @override
+  late final GeneratedColumn<String> categoryKey = GeneratedColumn<String>(
+    'category_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _searchTextMeta = const VerificationMeta(
+    'searchText',
+  );
+  @override
+  late final GeneratedColumn<String> searchText = GeneratedColumn<String>(
+    'search_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _isFavoriteMeta = const VerificationMeta(
     'isFavorite',
   );
@@ -99,6 +134,9 @@ class $SpotsTable extends Spots with TableInfo<$SpotsTable, Spot> {
     latitude,
     longitude,
     notes,
+    category,
+    categoryKey,
+    searchText,
     isFavorite,
     createdAt,
   ];
@@ -147,6 +185,27 @@ class $SpotsTable extends Spots with TableInfo<$SpotsTable, Spot> {
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('category_key')) {
+      context.handle(
+        _categoryKeyMeta,
+        categoryKey.isAcceptableOrUnknown(
+          data['category_key']!,
+          _categoryKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('search_text')) {
+      context.handle(
+        _searchTextMeta,
+        searchText.isAcceptableOrUnknown(data['search_text']!, _searchTextMeta),
+      );
+    }
     if (data.containsKey('is_favorite')) {
       context.handle(
         _isFavoriteMeta,
@@ -188,6 +247,18 @@ class $SpotsTable extends Spots with TableInfo<$SpotsTable, Spot> {
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      categoryKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_key'],
+      )!,
+      searchText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}search_text'],
+      )!,
       isFavorite: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_favorite'],
@@ -211,6 +282,9 @@ class Spot extends DataClass implements Insertable<Spot> {
   final double latitude;
   final double longitude;
   final String? notes;
+  final String? category;
+  final String categoryKey;
+  final String searchText;
   final bool isFavorite;
   final DateTime createdAt;
   const Spot({
@@ -219,6 +293,9 @@ class Spot extends DataClass implements Insertable<Spot> {
     required this.latitude,
     required this.longitude,
     this.notes,
+    this.category,
+    required this.categoryKey,
+    required this.searchText,
     required this.isFavorite,
     required this.createdAt,
   });
@@ -232,6 +309,11 @@ class Spot extends DataClass implements Insertable<Spot> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    map['category_key'] = Variable<String>(categoryKey);
+    map['search_text'] = Variable<String>(searchText);
     map['is_favorite'] = Variable<bool>(isFavorite);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -246,6 +328,11 @@ class Spot extends DataClass implements Insertable<Spot> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      categoryKey: Value(categoryKey),
+      searchText: Value(searchText),
       isFavorite: Value(isFavorite),
       createdAt: Value(createdAt),
     );
@@ -262,6 +349,9 @@ class Spot extends DataClass implements Insertable<Spot> {
       latitude: serializer.fromJson<double>(json['latitude']),
       longitude: serializer.fromJson<double>(json['longitude']),
       notes: serializer.fromJson<String?>(json['notes']),
+      category: serializer.fromJson<String?>(json['category']),
+      categoryKey: serializer.fromJson<String>(json['categoryKey']),
+      searchText: serializer.fromJson<String>(json['searchText']),
       isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -275,6 +365,9 @@ class Spot extends DataClass implements Insertable<Spot> {
       'latitude': serializer.toJson<double>(latitude),
       'longitude': serializer.toJson<double>(longitude),
       'notes': serializer.toJson<String?>(notes),
+      'category': serializer.toJson<String?>(category),
+      'categoryKey': serializer.toJson<String>(categoryKey),
+      'searchText': serializer.toJson<String>(searchText),
       'isFavorite': serializer.toJson<bool>(isFavorite),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -286,6 +379,9 @@ class Spot extends DataClass implements Insertable<Spot> {
     double? latitude,
     double? longitude,
     Value<String?> notes = const Value.absent(),
+    Value<String?> category = const Value.absent(),
+    String? categoryKey,
+    String? searchText,
     bool? isFavorite,
     DateTime? createdAt,
   }) => Spot(
@@ -294,6 +390,9 @@ class Spot extends DataClass implements Insertable<Spot> {
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
     notes: notes.present ? notes.value : this.notes,
+    category: category.present ? category.value : this.category,
+    categoryKey: categoryKey ?? this.categoryKey,
+    searchText: searchText ?? this.searchText,
     isFavorite: isFavorite ?? this.isFavorite,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -304,6 +403,13 @@ class Spot extends DataClass implements Insertable<Spot> {
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
       notes: data.notes.present ? data.notes.value : this.notes,
+      category: data.category.present ? data.category.value : this.category,
+      categoryKey: data.categoryKey.present
+          ? data.categoryKey.value
+          : this.categoryKey,
+      searchText: data.searchText.present
+          ? data.searchText.value
+          : this.searchText,
       isFavorite: data.isFavorite.present
           ? data.isFavorite.value
           : this.isFavorite,
@@ -319,6 +425,9 @@ class Spot extends DataClass implements Insertable<Spot> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('notes: $notes, ')
+          ..write('category: $category, ')
+          ..write('categoryKey: $categoryKey, ')
+          ..write('searchText: $searchText, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -326,8 +435,18 @@ class Spot extends DataClass implements Insertable<Spot> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, latitude, longitude, notes, isFavorite, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    latitude,
+    longitude,
+    notes,
+    category,
+    categoryKey,
+    searchText,
+    isFavorite,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -337,6 +456,9 @@ class Spot extends DataClass implements Insertable<Spot> {
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.notes == this.notes &&
+          other.category == this.category &&
+          other.categoryKey == this.categoryKey &&
+          other.searchText == this.searchText &&
           other.isFavorite == this.isFavorite &&
           other.createdAt == this.createdAt);
 }
@@ -347,6 +469,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
   final Value<double> latitude;
   final Value<double> longitude;
   final Value<String?> notes;
+  final Value<String?> category;
+  final Value<String> categoryKey;
+  final Value<String> searchText;
   final Value<bool> isFavorite;
   final Value<DateTime> createdAt;
   const SpotsCompanion({
@@ -355,6 +480,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.notes = const Value.absent(),
+    this.category = const Value.absent(),
+    this.categoryKey = const Value.absent(),
+    this.searchText = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -364,6 +492,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
     required double latitude,
     required double longitude,
     this.notes = const Value.absent(),
+    this.category = const Value.absent(),
+    this.categoryKey = const Value.absent(),
+    this.searchText = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : name = Value(name),
@@ -375,6 +506,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<String>? notes,
+    Expression<String>? category,
+    Expression<String>? categoryKey,
+    Expression<String>? searchText,
     Expression<bool>? isFavorite,
     Expression<DateTime>? createdAt,
   }) {
@@ -384,6 +518,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (notes != null) 'notes': notes,
+      if (category != null) 'category': category,
+      if (categoryKey != null) 'category_key': categoryKey,
+      if (searchText != null) 'search_text': searchText,
       if (isFavorite != null) 'is_favorite': isFavorite,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -395,6 +532,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
     Value<double>? latitude,
     Value<double>? longitude,
     Value<String?>? notes,
+    Value<String?>? category,
+    Value<String>? categoryKey,
+    Value<String>? searchText,
     Value<bool>? isFavorite,
     Value<DateTime>? createdAt,
   }) {
@@ -404,6 +544,9 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       notes: notes ?? this.notes,
+      category: category ?? this.category,
+      categoryKey: categoryKey ?? this.categoryKey,
+      searchText: searchText ?? this.searchText,
       isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -427,6 +570,15 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (categoryKey.present) {
+      map['category_key'] = Variable<String>(categoryKey.value);
+    }
+    if (searchText.present) {
+      map['search_text'] = Variable<String>(searchText.value);
+    }
     if (isFavorite.present) {
       map['is_favorite'] = Variable<bool>(isFavorite.value);
     }
@@ -444,8 +596,225 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('notes: $notes, ')
+          ..write('category: $category, ')
+          ..write('categoryKey: $categoryKey, ')
+          ..write('searchText: $searchText, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SpotTagsTable extends SpotTags with TableInfo<$SpotTagsTable, SpotTag> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpotTagsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _spotIdMeta = const VerificationMeta('spotId');
+  @override
+  late final GeneratedColumn<int> spotId = GeneratedColumn<int>(
+    'spot_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES spots (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _tagMeta = const VerificationMeta('tag');
+  @override
+  late final GeneratedColumn<String> tag = GeneratedColumn<String>(
+    'tag',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 32,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [spotId, tag];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spot_tags';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpotTag> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('spot_id')) {
+      context.handle(
+        _spotIdMeta,
+        spotId.isAcceptableOrUnknown(data['spot_id']!, _spotIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_spotIdMeta);
+    }
+    if (data.containsKey('tag')) {
+      context.handle(
+        _tagMeta,
+        tag.isAcceptableOrUnknown(data['tag']!, _tagMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tagMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {spotId, tag};
+  @override
+  SpotTag map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpotTag(
+      spotId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spot_id'],
+      )!,
+      tag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag'],
+      )!,
+    );
+  }
+
+  @override
+  $SpotTagsTable createAlias(String alias) {
+    return $SpotTagsTable(attachedDatabase, alias);
+  }
+}
+
+class SpotTag extends DataClass implements Insertable<SpotTag> {
+  final int spotId;
+  final String tag;
+  const SpotTag({required this.spotId, required this.tag});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['spot_id'] = Variable<int>(spotId);
+    map['tag'] = Variable<String>(tag);
+    return map;
+  }
+
+  SpotTagsCompanion toCompanion(bool nullToAbsent) {
+    return SpotTagsCompanion(spotId: Value(spotId), tag: Value(tag));
+  }
+
+  factory SpotTag.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpotTag(
+      spotId: serializer.fromJson<int>(json['spotId']),
+      tag: serializer.fromJson<String>(json['tag']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'spotId': serializer.toJson<int>(spotId),
+      'tag': serializer.toJson<String>(tag),
+    };
+  }
+
+  SpotTag copyWith({int? spotId, String? tag}) =>
+      SpotTag(spotId: spotId ?? this.spotId, tag: tag ?? this.tag);
+  SpotTag copyWithCompanion(SpotTagsCompanion data) {
+    return SpotTag(
+      spotId: data.spotId.present ? data.spotId.value : this.spotId,
+      tag: data.tag.present ? data.tag.value : this.tag,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpotTag(')
+          ..write('spotId: $spotId, ')
+          ..write('tag: $tag')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(spotId, tag);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpotTag &&
+          other.spotId == this.spotId &&
+          other.tag == this.tag);
+}
+
+class SpotTagsCompanion extends UpdateCompanion<SpotTag> {
+  final Value<int> spotId;
+  final Value<String> tag;
+  final Value<int> rowid;
+  const SpotTagsCompanion({
+    this.spotId = const Value.absent(),
+    this.tag = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SpotTagsCompanion.insert({
+    required int spotId,
+    required String tag,
+    this.rowid = const Value.absent(),
+  }) : spotId = Value(spotId),
+       tag = Value(tag);
+  static Insertable<SpotTag> custom({
+    Expression<int>? spotId,
+    Expression<String>? tag,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (spotId != null) 'spot_id': spotId,
+      if (tag != null) 'tag': tag,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SpotTagsCompanion copyWith({
+    Value<int>? spotId,
+    Value<String>? tag,
+    Value<int>? rowid,
+  }) {
+    return SpotTagsCompanion(
+      spotId: spotId ?? this.spotId,
+      tag: tag ?? this.tag,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (spotId.present) {
+      map['spot_id'] = Variable<int>(spotId.value);
+    }
+    if (tag.present) {
+      map['tag'] = Variable<String>(tag.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpotTagsCompanion(')
+          ..write('spotId: $spotId, ')
+          ..write('tag: $tag, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -3469,6 +3838,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   _$FpvDatabase(QueryExecutor e) : super(e);
   $FpvDatabaseManager get managers => $FpvDatabaseManager(this);
   late final $SpotsTable spots = $SpotsTable(this);
+  late final $SpotTagsTable spotTags = $SpotTagsTable(this);
   late final $SpotPhotosTable spotPhotos = $SpotPhotosTable(this);
   late final $DronesTable drones = $DronesTable(this);
   late final $BatteriesTable batteries = $BatteriesTable(this);
@@ -3478,6 +3848,18 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     this,
   );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final Index spotsCategoryId = Index(
+    'spots_category_id',
+    'CREATE INDEX spots_category_id ON spots (category_key, id)',
+  );
+  late final Index spotsFavoriteId = Index(
+    'spots_favorite_id',
+    'CREATE INDEX spots_favorite_id ON spots (is_favorite, id)',
+  );
+  late final Index spotTagsTagSpot = Index(
+    'spot_tags_tag_spot',
+    'CREATE INDEX spot_tags_tag_spot ON spot_tags (tag, spot_id)',
+  );
   late final Index spotPhotosSpotId = Index(
     'spot_photos_spot_id',
     'CREATE INDEX spot_photos_spot_id ON spot_photos (spot_id)',
@@ -3488,6 +3870,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     spots,
+    spotTags,
     spotPhotos,
     drones,
     batteries,
@@ -3495,10 +3878,20 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     flightPlans,
     flightWaypoints,
     appSettings,
+    spotsCategoryId,
+    spotsFavoriteId,
+    spotTagsTagSpot,
     spotPhotosSpotId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'spots',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spot_tags', kind: UpdateKind.delete)],
+    ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'spots',
@@ -3536,6 +3929,9 @@ typedef $$SpotsTableCreateCompanionBuilder = SpotsCompanion Function({
   required double latitude,
   required double longitude,
   Value<String?> notes,
+  Value<String?> category,
+  Value<String> categoryKey,
+  Value<String> searchText,
   Value<bool> isFavorite,
   Value<DateTime> createdAt,
 });
@@ -3545,6 +3941,9 @@ typedef $$SpotsTableUpdateCompanionBuilder = SpotsCompanion Function({
   Value<double> latitude,
   Value<double> longitude,
   Value<String?> notes,
+  Value<String?> category,
+  Value<String> categoryKey,
+  Value<String> searchText,
   Value<bool> isFavorite,
   Value<DateTime> createdAt,
 });
@@ -3552,6 +3951,25 @@ typedef $$SpotsTableUpdateCompanionBuilder = SpotsCompanion Function({
 final class $$SpotsTableReferences
     extends BaseReferences<_$FpvDatabase, $SpotsTable, Spot> {
   $$SpotsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$SpotTagsTable, List<SpotTag>> _spotTagsRefsTable(
+    _$FpvDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.spotTags,
+    aliasName: 'spots__id__spot_tags__spot_id',
+  );
+
+  $$SpotTagsTableProcessedTableManager get spotTagsRefs {
+    final manager = $$SpotTagsTableTableManager(
+      $_db,
+      $_db.spotTags,
+    ).filter((f) => f.spotId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_spotTagsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$SpotPhotosTable, List<SpotPhoto>>
   _spotPhotosRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
@@ -3623,6 +4041,21 @@ class $$SpotsTableFilterComposer extends Composer<_$FpvDatabase, $SpotsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryKey => $composableBuilder(
+    column: $table.categoryKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get searchText => $composableBuilder(
+    column: $table.searchText,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
     builder: (column) => ColumnFilters(column),
@@ -3632,6 +4065,31 @@ class $$SpotsTableFilterComposer extends Composer<_$FpvDatabase, $SpotsTable> {
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> spotTagsRefs(
+    Expression<bool> Function($$SpotTagsTableFilterComposer f) f,
+  ) {
+    final $$SpotTagsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.spotTags,
+      getReferencedColumn: (t) => t.spotId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotTagsTableFilterComposer(
+            $db: $db,
+            $table: $db.spotTags,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> spotPhotosRefs(
     Expression<bool> Function($$SpotPhotosTableFilterComposer f) f,
@@ -3718,6 +4176,21 @@ class $$SpotsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryKey => $composableBuilder(
+    column: $table.categoryKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get searchText => $composableBuilder(
+    column: $table.searchText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
     builder: (column) => ColumnOrderings(column),
@@ -3753,6 +4226,19 @@ class $$SpotsTableAnnotationComposer
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryKey => $composableBuilder(
+    column: $table.categoryKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get searchText => $composableBuilder(
+    column: $table.searchText,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
     builder: (column) => column,
@@ -3760,6 +4246,31 @@ class $$SpotsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> spotTagsRefs<T extends Object>(
+    Expression<T> Function($$SpotTagsTableAnnotationComposer a) f,
+  ) {
+    final $$SpotTagsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.spotTags,
+      getReferencedColumn: (t) => t.spotId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotTagsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.spotTags,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<T> spotPhotosRefs<T extends Object>(
     Expression<T> Function($$SpotPhotosTableAnnotationComposer a) f,
@@ -3825,7 +4336,11 @@ class $$SpotsTableTableManager
           $$SpotsTableUpdateCompanionBuilder,
           (Spot, $$SpotsTableReferences),
           Spot,
-          PrefetchHooks Function({bool spotPhotosRefs, bool flightPlansRefs})
+          PrefetchHooks Function({
+            bool spotTagsRefs,
+            bool spotPhotosRefs,
+            bool flightPlansRefs,
+          })
         > {
   $$SpotsTableTableManager(_$FpvDatabase db, $SpotsTable table)
     : super(
@@ -3845,6 +4360,9 @@ class $$SpotsTableTableManager
                 Value<double> latitude = const Value.absent(),
                 Value<double> longitude = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String> categoryKey = const Value.absent(),
+                Value<String> searchText = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => SpotsCompanion(
@@ -3853,6 +4371,9 @@ class $$SpotsTableTableManager
                 latitude: latitude,
                 longitude: longitude,
                 notes: notes,
+                category: category,
+                categoryKey: categoryKey,
+                searchText: searchText,
                 isFavorite: isFavorite,
                 createdAt: createdAt,
               ),
@@ -3863,6 +4384,9 @@ class $$SpotsTableTableManager
                 required double latitude,
                 required double longitude,
                 Value<String?> notes = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String> categoryKey = const Value.absent(),
+                Value<String> searchText = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => SpotsCompanion.insert(
@@ -3871,6 +4395,9 @@ class $$SpotsTableTableManager
                 latitude: latitude,
                 longitude: longitude,
                 notes: notes,
+                category: category,
+                categoryKey: categoryKey,
+                searchText: searchText,
                 isFavorite: isFavorite,
                 createdAt: createdAt,
               ),
@@ -3883,16 +4410,38 @@ class $$SpotsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({spotPhotosRefs = false, flightPlansRefs = false}) {
+              ({
+                spotTagsRefs = false,
+                spotPhotosRefs = false,
+                flightPlansRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (spotTagsRefs) db.spotTags,
                     if (spotPhotosRefs) db.spotPhotos,
                     if (flightPlansRefs) db.flightPlans,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (spotTagsRefs)
+                        await $_getPrefetchedData<Spot, $SpotsTable, SpotTag>(
+                          currentTable: table,
+                          referencedTable: $$SpotsTableReferences
+                              ._spotTagsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpotsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).spotTagsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.spotId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (spotPhotosRefs)
                         await $_getPrefetchedData<Spot, $SpotsTable, SpotPhoto>(
                           currentTable: table,
@@ -3951,7 +4500,263 @@ typedef $$SpotsTableProcessedTableManager =
       $$SpotsTableUpdateCompanionBuilder,
       (Spot, $$SpotsTableReferences),
       Spot,
-      PrefetchHooks Function({bool spotPhotosRefs, bool flightPlansRefs})
+      PrefetchHooks Function({
+        bool spotTagsRefs,
+        bool spotPhotosRefs,
+        bool flightPlansRefs,
+      })
+    >;
+typedef $$SpotTagsTableCreateCompanionBuilder = SpotTagsCompanion Function({
+  required int spotId,
+  required String tag,
+  Value<int> rowid,
+});
+typedef $$SpotTagsTableUpdateCompanionBuilder = SpotTagsCompanion Function({
+  Value<int> spotId,
+  Value<String> tag,
+  Value<int> rowid,
+});
+
+final class $$SpotTagsTableReferences
+    extends BaseReferences<_$FpvDatabase, $SpotTagsTable, SpotTag> {
+  $$SpotTagsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpotsTable _spotIdTable(_$FpvDatabase db) =>
+      db.spots.createAlias('spot_tags__spot_id__spots__id');
+
+  $$SpotsTableProcessedTableManager get spotId {
+    final $_column = $_itemColumn<int>('spot_id')!;
+
+    final manager = $$SpotsTableTableManager(
+      $_db,
+      $_db.spots,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_spotIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpotTagsTableFilterComposer
+    extends Composer<_$FpvDatabase, $SpotTagsTable> {
+  $$SpotTagsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get tag => $composableBuilder(
+    column: $table.tag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpotsTableFilterComposer get spotId {
+    final $$SpotsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.spotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableFilterComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpotTagsTableOrderingComposer
+    extends Composer<_$FpvDatabase, $SpotTagsTable> {
+  $$SpotTagsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get tag => $composableBuilder(
+    column: $table.tag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpotsTableOrderingComposer get spotId {
+    final $$SpotsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.spotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableOrderingComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpotTagsTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $SpotTagsTable> {
+  $$SpotTagsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get tag =>
+      $composableBuilder(column: $table.tag, builder: (column) => column);
+
+  $$SpotsTableAnnotationComposer get spotId {
+    final $$SpotsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.spotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpotTagsTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $SpotTagsTable,
+          SpotTag,
+          $$SpotTagsTableFilterComposer,
+          $$SpotTagsTableOrderingComposer,
+          $$SpotTagsTableAnnotationComposer,
+          $$SpotTagsTableCreateCompanionBuilder,
+          $$SpotTagsTableUpdateCompanionBuilder,
+          (SpotTag, $$SpotTagsTableReferences),
+          SpotTag,
+          PrefetchHooks Function({bool spotId})
+        > {
+  $$SpotTagsTableTableManager(_$FpvDatabase db, $SpotTagsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpotTagsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpotTagsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpotTagsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> spotId = const Value.absent(),
+            Value<String> tag = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) => SpotTagsCompanion(spotId: spotId, tag: tag, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required int spotId,
+                required String tag,
+                Value<int> rowid = const Value.absent(),
+              }) => SpotTagsCompanion.insert(
+                spotId: spotId,
+                tag: tag,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpotTagsTable, SpotTag>(table),
+                  $$SpotTagsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({spotId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (spotId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.spotId,
+                        referencedTable: $$SpotTagsTableReferences._spotIdTable(
+                          db,
+                        ),
+                        referencedColumn: $$SpotTagsTableReferences
+                            ._spotIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpotTagsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $SpotTagsTable,
+      SpotTag,
+      $$SpotTagsTableFilterComposer,
+      $$SpotTagsTableOrderingComposer,
+      $$SpotTagsTableAnnotationComposer,
+      $$SpotTagsTableCreateCompanionBuilder,
+      $$SpotTagsTableUpdateCompanionBuilder,
+      (SpotTag, $$SpotTagsTableReferences),
+      SpotTag,
+      PrefetchHooks Function({bool spotId})
     >;
 typedef $$SpotPhotosTableCreateCompanionBuilder = SpotPhotosCompanion Function({
   Value<int> id,
@@ -6180,6 +6985,8 @@ class $FpvDatabaseManager {
   $FpvDatabaseManager(this._db);
   $$SpotsTableTableManager get spots =>
       $$SpotsTableTableManager(_db, _db.spots);
+  $$SpotTagsTableTableManager get spotTags =>
+      $$SpotTagsTableTableManager(_db, _db.spotTags);
   $$SpotPhotosTableTableManager get spotPhotos =>
       $$SpotPhotosTableTableManager(_db, _db.spotPhotos);
   $$DronesTableTableManager get drones =>

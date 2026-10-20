@@ -346,7 +346,7 @@ function postToFlutter(message) {
 
         if (
             !Array.isArray(spots) ||
-            spots.length > 5000 ||
+            spots.length > 10000 ||
             !Number.isSafeInteger(revision) ||
             revision < 0
         ) {
