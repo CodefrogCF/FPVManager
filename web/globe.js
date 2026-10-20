@@ -7,12 +7,19 @@ function postToFlutter(message) {
     const bridge = FPVGlobeBridge.createBridge({ send: postToFlutter, execute: executeCommand });
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
-    window.addEventListener("pagehide", event => { if (!event.persisted) bridge.dispose(); });
+    window.addEventListener("pagehide", event => {
+        if (!event.persisted) { terrainManager?.dispose(); bridge.dispose(); }
+    });
     let rendererReady = false;
-    let terrainIsAvailable = false;
+    let terrainManager = null;
     let uasImportRevision = 0;
-    const offline = new URLSearchParams(window.location.search).get("offline") === "1" ||
-        navigator.onLine === false;
+    const offline = new URLSearchParams(window.location.search).get("offline") === "1";
+    let currentMapStyle = "satellite";
+    const terrainAvailable = () => terrainManager?.status().state === "ready";
+    const offlineReason = () => offline ? "diagnosticOffline" :
+        navigator.onLine === false ? "networkOffline" : null;
+    window.addEventListener("offline", () => terrainManager?.networkChanged());
+    window.addEventListener("online", () => terrainManager?.networkChanged());
 
     let activeViewer = null;
     let activeBaseLayer = null;
@@ -94,7 +101,7 @@ function postToFlutter(message) {
         if (!config) {
             throw new Error(`Unknown map style: ${style}`);
         }
-        if (offline) return new Cesium.GridImageryProvider();
+        if (offlineReason()) return new Cesium.GridImageryProvider();
 
         return new Cesium.UrlTemplateImageryProvider({
             url:
@@ -172,6 +179,7 @@ function postToFlutter(message) {
         }
 
         activeBaseLayer = newLayer;
+        currentMapStyle = style;
 
         sendToFlutter("map-style-changed", {
             style
@@ -364,15 +372,14 @@ function postToFlutter(message) {
             latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
             throw new Error("Invalid terrain coordinates");
         }
-        const terrainProvider = activeViewer.terrainProvider;
-        if (!terrainProvider || terrainProvider instanceof Cesium.EllipsoidTerrainProvider) {
-            throw new Error("Detailed terrain data unavailable");
-        }
         const position = Cesium.Cartographic.fromDegrees(longitude, latitude);
-        const detailed = Boolean(terrainProvider.availability);
-        const sampled = detailed
-            ? await Cesium.sampleTerrainMostDetailed(terrainProvider, [position], true)
-            : await Cesium.sampleTerrain(terrainProvider, 12, [position], true);
+        let detailed;
+        const sampled = await terrainManager.sample(terrainProvider => {
+            detailed = Boolean(terrainProvider.availability);
+            return detailed
+                ? Cesium.sampleTerrainMostDetailed(terrainProvider, [position], true)
+                : Cesium.sampleTerrain(terrainProvider, 12, [position], true);
+        }, signal);
         signal.throwIfAborted();
         const height = sampled[0]?.height;
         if (!Number.isFinite(height)) throw new Error("No terrain elevation available at these coordinates");
@@ -522,6 +529,13 @@ function postToFlutter(message) {
         switch (command.type) {
             case "reset-camera": resetCamera(); return {};
             case "reload-renderer": setTimeout(() => window.location.reload(), 0); return {};
+            case "retry-terrain": {
+                await terrainManager.retry(signal);
+                signal.throwIfAborted();
+                // Refresh failed imagery requests too, preserving the selected style.
+                if (terrainAvailable()) setMapStyle(currentMapStyle);
+                return terrainManager.status();
+            }
             case "fly-to": flyToCoordinates(command); return {};
             case "set-map-style": setMapStyle(command.style); return {};
             case "set-uas-zones":
@@ -592,7 +606,11 @@ function postToFlutter(message) {
     window.FPVManager = {
         receive: bridge.receive,
         hello: () => {
-            if (rendererReady) sendToFlutter("globe-ready", { terrainAvailable: terrainIsAvailable });
+            if (rendererReady) {
+                terrainManager.networkChanged();
+                sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable() });
+                sendToFlutter("terrain-status", terrainManager.status());
+            }
         }
     };
     window.addEventListener("message", event => {
@@ -607,14 +625,15 @@ function postToFlutter(message) {
 
         const imageryProvider = createMapProvider("satellite");
 
-        let terrainProvider;
-        let terrainAvailable = false;
-
-        try {
-            if (offline) throw new Error("Offline diagnostic mode");
-            let timeout;
-            try {
-              terrainProvider = await Promise.race([Cesium.CesiumTerrainProvider.fromUrl(
+        function terrainInfo(status) {
+            info.textContent = status.state === "ready"
+                ? "FPVManager | Swiss 3D terrain loaded"
+                : status.state === "loading"
+                    ? "Connecting to 3D terrain | Flat map shown"
+                    : "3D terrain unavailable | Flat map shown — terrain heights disabled";
+        }
+        terrainManager = FPVTerrain.createTerrainManager({
+            createProvider: () => Cesium.CesiumTerrainProvider.fromUrl(
                 "https://3d.geo.admin.ch/" +
                 "ch.swisstopo.terrain.3d/v1/",
                 {
@@ -622,22 +641,35 @@ function postToFlutter(message) {
                     // The live layer.json has an empty attribution field.
                     credit: new Cesium.Credit("© swisstopo", true)
                 }
-              ), new Promise((_, reject) => {
-                timeout = setTimeout(() => reject(new Error("Terrain connection timed out")), 8000);
-              })]);
-            } finally { clearTimeout(timeout); }
-
-            terrainAvailable = true;
-            } catch (error) {
-                console.error("Terrain loading failed:", error);
-                terrainProvider =
-                new Cesium.EllipsoidTerrainProvider();
+            ),
+            createFallback: () => new Cesium.EllipsoidTerrainProvider(),
+            applyProvider: provider => {
+                if (activeViewer) activeViewer.terrainProvider = provider;
+            },
+            offlineReason,
+            probe: async (provider, signal) => {
+                // Metadata alone does not establish that terrain tiles can be read.
+                let request;
+                while (request === undefined) {
+                    signal.throwIfAborted();
+                    request = provider.requestTileGeometry(0, 0, 0);
+                    if (request === undefined) await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                const tile = await request;
+                signal.throwIfAborted();
+                if (!tile) throw new Error("Terrain probe returned no tile");
+            },
+            onStatus: status => {
+                terrainInfo(status);
+                if (rendererReady) sendToFlutter("terrain-status", status);
             }
+        });
+        await terrainManager.retry();
 
         const viewer = new Cesium.Viewer("globe", {
             baseLayerPicker: false,
             baseLayer: new Cesium.ImageryLayer(imageryProvider),
-            terrainProvider: terrainProvider,
+            terrainProvider: terrainManager.provider,
             animation: false,
             timeline: false,
             geocoder: false,
@@ -670,12 +702,9 @@ function postToFlutter(message) {
             }
         });
 
-        info.textContent = terrainAvailable
-            ? "FPVManager | Swiss 3D terrain loaded"
-            : "FPVManager | Online map resources unavailable – flat fallback";
+        terrainInfo(terrainManager.status());
 
         rendererReady = true;
-        terrainIsAvailable = terrainAvailable;
         window.FPVManager.hello();
 
 
@@ -786,13 +815,15 @@ function postToFlutter(message) {
                 info.textContent =
                     `Lat: ${latitude.toFixed(6)} | ` +
                     `Lon: ${longitude.toFixed(6)} | ` +
-                `Height: ${altitude.toFixed(1)} m (WGS84 ellipsoid, rendered terrain)`;
+                    (terrainAvailable()
+                        ? `Height: ${altitude.toFixed(1)} m (WGS84 ellipsoid, rendered terrain)`
+                        : "Flat map — terrain height unavailable");
 
                 sendToFlutter("point-selected", {
                     latitude: latitude,
                     longitude: longitude,
                     altitude: altitude,
-                    heightReference: "wgs84Ellipsoid"
+                    heightReference: terrainAvailable() ? "wgs84Ellipsoid" : "unverified"
                 });
             },
             Cesium.ScreenSpaceEventType.LEFT_CLICK

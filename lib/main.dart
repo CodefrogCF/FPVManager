@@ -12,6 +12,7 @@ import 'features/spots/spot_details_screen.dart';
 import 'features/spots/spots_screen.dart';
 import 'features/spots/spot_photo_viewer.dart';
 import 'features/globe/globe_controller.dart';
+import 'features/globe/terrain_status_banner.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
 import 'features/globe/terrain_information_dialog.dart';
@@ -337,6 +338,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               if (MediaQuery.sizeOf(context).width < 720) {
                 final terrain =
                     ready &&
+                    _globeController.terrainAvailable &&
                     _globeController.selectedPoint != null &&
                     _globeController.selectedUasZone == null;
                 return PopupMenuButton<_MapAction>(
@@ -397,6 +399,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     tooltip: 'Query terrain elevation',
                     onPressed:
                         ready &&
+                            _globeController.terrainAvailable &&
                             _globeController.selectedPoint != null &&
                             _globeController.selectedUasZone == null
                         ? _showTerrainElevation
@@ -414,7 +417,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           ),
         ],
       ),
-      body: GlobeView(controller: _globeController),
+      body: Column(
+        children: [
+          TerrainStatusBanner(controller: _globeController),
+          Expanded(child: GlobeView(controller: _globeController)),
+        ],
+      ),
       bottomNavigationBar: ListenableBuilder(
         listenable: _globeController,
         builder: (context, child) {
@@ -505,6 +513,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             status = 'Map error: $error';
           } else if (!_globeController.isReady) {
             status = 'Loading globe...';
+          } else if (!_globeController.terrainAvailable) {
+            status = 'Flat map — terrain heights unavailable';
           } else if (_globeController.uasZonesError != null) {
             status = 'UAS zones: ${_globeController.uasZonesError}';
           } else if (_globeController.uasZonesLoading) {

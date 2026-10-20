@@ -137,3 +137,9 @@ attribution evidence and applicable service terms are recorded in
 [map sources and attribution](docs/map_sources_and_attribution.md) (#8).
 The broader source/dependency and release documentation audit remains #44;
 current privacy/permission behavior is documented above.
+
+Terrain initialization and runtime tile/network failures show a labelled flat
+fallback with disabled height queries. **Retry terrain** reconnects within the
+existing viewer, preserving camera and layer settings. See
+[terrain failures and recovery](docs/terrain_recovery.md) for deadlines,
+late-response protection, synthetic HTTP fault tests and device-check limits (#7).

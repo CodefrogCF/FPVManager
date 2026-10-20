@@ -27,6 +27,7 @@ window.addEventListener('message', event => {
     readyWaiters = readyWaiters.filter(waiter => !waiter(session));
   }
   if (data.type === 'uas-zones-status') lastStatus = data;
+  if (data.type === 'terrain-status') terrainAvailable = data.state === 'ready';
   if (data.type === 'globe-error') fail(data.message);
   if (data.type === 'command-result' && data.sessionId === session) {
     const request = pending.get(data.requestId); if (!request) return;
@@ -97,6 +98,7 @@ async function checkWorker() {
 async function checkAttribution() {
   if (!terrainAvailable) throw new Error('Online smoke requires loaded terrain');
   for (const style of ['satellite', 'topographic', 'relief', 'satellite']) {
+    if (!terrainAvailable) throw new Error('Terrain became unavailable during the online smoke');
     await command('set-map-style', { style });
     const deadline = performance.now() + 15000;
     while (true) {

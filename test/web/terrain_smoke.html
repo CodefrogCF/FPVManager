@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>FPVManager terrain recovery smoke</title>
+<style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:20px;padding:12px;margin:0}iframe{width:100%;height:58vh;border:0}pre{white-space:pre-wrap;padding:12px}</style>
+<h1 id="status">Running terrain recovery smoke…</h1>
+<iframe id="map" title="Actual Cesium with synthetic local terrain"></iframe><pre id="log"></pre>
+<script>
+const frame = document.getElementById('map'), output = document.getElementById('log');
+const pending = new Map(), errors = [];
+let session, next = 0, terrain, style;
+const log = text => { output.textContent += 'PASS: ' + text + '\n'; };
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function until(predicate, description, timeout = 20000) {
+  const deadline = performance.now() + timeout;
+  while (!predicate()) {
+    if (errors.length) throw new Error(errors.join('; '));
+    if (performance.now() > deadline) throw new Error(description + ' timed out');
+    await pause(50);
+  }
+}
+window.addEventListener('message', event => {
+  if (event.source !== frame.contentWindow || event.origin !== location.origin) return;
+  let data; try { data = JSON.parse(event.data); } catch { return; }
+  if (data.source !== 'fpvmanager-globe' || data.version !== 1) return;
+  if (data.type === 'globe-ready') session = data.sessionId;
+  if (data.type === 'terrain-status') terrain = data;
+  if (data.type === 'map-style-changed') style = data.style;
+  if (data.type === 'globe-error') errors.push(data.message);
+  if (data.type === 'command-result' && data.sessionId === session) {
+    const request = pending.get(data.requestId); if (!request) return;
+    clearTimeout(request.timer); pending.delete(data.requestId);
+    data.ok ? request.resolve(data.result) : request.reject(new Error(data.error));
+  }
+});
+function command(type, fields = {}) { return new Promise((resolve, reject) => {
+  const requestId = String(++next);
+  const timer = setTimeout(() => { pending.delete(requestId); reject(new Error(type + ' timeout')); }, 20000);
+  pending.set(requestId, { resolve, reject, timer });
+  frame.contentWindow.postMessage(JSON.stringify({ version:1, sessionId:session, requestId, type, ...fields }), location.origin);
+}); }
+async function mode(value) {
+  const response = await fetch('/terrain-control', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:value}) });
+  if (!response.ok) throw new Error('Fixture control failed: ' + response.status);
+}
+const state = value => until(() => terrain?.state === value, value);
+async function heightUnavailable() {
+  try { await command('query-terrain-elevation', {latitude:46.7,longitude:8.4}); }
+  catch (error) { if (String(error).includes('Detailed terrain data unavailable')) return; throw error; }
+  throw new Error('Flat fallback returned a terrain height');
+}
+async function retry() { await command('retry-terrain'); await state('ready'); }
+const zone = {type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[8.4,46.7],[8.5,46.7],[8.5,46.8],[8.4,46.7]]]},properties:{name:'Synthetic test zone'}}]};
+(async () => {
+  await mode('metadata-fail'); frame.src = '/terrain-globe.html';
+  await until(() => session, 'Renderer startup'); await state('unavailable');
+  await heightUnavailable();
+  await command('set-map-style',{style:'relief'});
+  await command('set-spot-markers',{revision:1,spots:[{id:1,name:'Fixture',latitude:46.7,longitude:8.4}]});
+  await command('set-spots-visible',{visible:false});
+  await command('set-uas-zones',{visible:true,geojson:zone,downloadedAtUtc:'2026-10-20T00:00:00Z'});
+  log('HTTP 503 metadata failure starts a usable flat map with disabled heights');
+  await mode('healthy'); await retry();
+  const elevation = await command('query-terrain-elevation',{latitude:46.7,longitude:8.4});
+  if (Math.abs(elevation.heightMeters - 1000) > .1 || elevation.heightReference !== 'wgs84Ellipsoid') throw new Error('Incorrect synthetic height');
+  log('Explicit retry loads actual Cesium terrain and returns the synthetic 1000m height');
+  const viewer = frame.contentWindow.fixtureViewer;
+  for (const [fault,longitude] of [['tile-404',-122],['tile-500',130]]) {
+    const sources = Array.from({length:viewer.dataSources.length},(_,i)=>viewer.dataSources.get(i));
+    await mode(fault);
+    await command('fly-to',{latitude:37,longitude,altitude:12000});
+    await state('unavailable'); await heightUnavailable();
+    await pause(1800); // The camera's acknowledged 1.5s flight must finish first.
+    const position = viewer.camera.positionWC.clone();
+    await mode('healthy'); await retry();
+    const distance = frame.contentWindow.Cesium.Cartesian3.distance(position,viewer.camera.positionWC);
+    if (distance > .01 || style !== 'relief' || viewer !== frame.contentWindow.fixtureViewer ||
+        sources.some((source,i)=>source!==viewer.dataSources.get(i))) throw new Error('Retry replaced camera or layers: distance=' + distance + ', style=' + style);
+    const layers = await command('set-overlay-order',{order:['savedSpots','uasZones']});
+    if (layers.spotsVisible || JSON.stringify(layers.overlayOrder)!=='["savedSpots","uasZones"]') throw new Error('Retry lost layer settings');
+    log(fault + ' from the real tile loader falls back and recovers with camera, style and layers preserved');
+  }
+  frame.contentWindow.postMessage({fixtureOffline:true},location.origin); await state('offline');
+  await heightUnavailable(); const attempts = frame.contentWindow.fixtureProviderAttempts;
+  await command('retry-terrain');
+  if (frame.contentWindow.fixtureProviderAttempts !== attempts) throw new Error('Offline retry issued a provider request');
+  frame.contentWindow.postMessage({fixtureOffline:false},location.origin); await state('unavailable');
+  if (frame.contentWindow.fixtureProviderAttempts !== attempts) throw new Error('Online event caused an automatic retry');
+  await retry(); log('Offline/online browser events disable heights and allow explicit recovery without a retry loop');
+  await mode('tile-stall');
+  await command('fly-to',{latitude:-30,longitude:-60,altitude:12000});
+  await state('unavailable');
+  await mode('healthy'); await retry();
+  log('A stalled render-tile request falls back within its deadline without any height query');
+  await mode('tile-stall'); const started = performance.now();
+  const stalled = await command('retry-terrain');
+  if (stalled.state !== 'unavailable' || performance.now()-started > 11000) throw new Error('Stalled tile probe was not bounded');
+  await mode('healthy'); await retry(); const recovered = viewer.terrainProvider;
+  await pause(Math.max(0,16000-(performance.now()-started)));
+  if (terrain.state !== 'ready' || viewer.terrainProvider !== recovered) throw new Error('Late stalled response changed recovered terrain');
+  log('A real stalled HTTP tile request times out; its late response cannot replace recovered terrain');
+  if (errors.length) throw new Error(errors.join('; '));
+  document.getElementById('status').textContent = 'PASS — terrain failure and recovery smoke';
+  log('No fatal renderer error; all fault controls and data were local synthetic fixtures');
+})().catch(error => { document.getElementById('status').textContent = 'FAIL: ' + error.message; output.textContent += String(error.stack || error); });
+</script></html>

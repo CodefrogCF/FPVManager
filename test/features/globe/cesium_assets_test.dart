@@ -40,6 +40,11 @@ void main() {
         await rootBundle.loadString('web/globe_bridge.js'),
         contains('createBridge'),
       );
+      expect(html, contains('src="terrain_service.js"'));
+      expect(
+        await rootBundle.loadString('web/terrain_service.js'),
+        contains('createTerrainManager'),
+      );
     },
   );
 }

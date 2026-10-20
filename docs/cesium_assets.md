@@ -46,12 +46,15 @@ The documented/CI Web build uses `--no-web-resources-cdn` so Flutter renderer
 resources are also local. This does not implement downloaded map regions or
 offline data freshness (#40/#51).
 
-The renderer can start without online terrain or imagery. If initial terrain
-connection fails/times out, it displays an ellipsoid fallback and reports that
-online map resources are unavailable. `globe.html?offline=1` is a diagnostic mode
+The renderer can start without online terrain or imagery. Initial failures,
+runtime terrain tile errors and reported offline transitions use a labelled
+ellipsoid fallback, with disabled heights and an explicit retry control. See
+[terrain failures and recovery](terrain_recovery.md) for deadlines and tests.
+`globe.html?offline=1` is a diagnostic mode
 using a local grid, with no imagery/terrain requests. Integration tests use this
-mode and synthetic UAS polygons. Live provider failures and device performance
-need additional checks.
+mode and synthetic UAS polygons. Device network behavior and performance
+need additional checks. `/terrain-smoke` exercises the actual terrain loader
+against local HTTP failure/delay fixtures; `--build` serves the compiled app.
 
 For a visible browser check, run `python tool/serve_globe_smoke.py` and open
 `http://127.0.0.1:8765/smoke`. The harness uses the actual WebGL renderer,

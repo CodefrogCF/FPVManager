@@ -40,8 +40,8 @@ jobs:
         run: python3 tool/vendor_cesium.py --check
       - name: Test verified SQLite download preparation
         run: python3 -m unittest discover -s test/tool -p 'test_*.py'
-      - name: Test renderer protocol and attribution
-        run: node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs
+      - name: Test renderer protocol, attribution and terrain recovery
+        run: node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs test/js/terrain_service.test.cjs
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Test

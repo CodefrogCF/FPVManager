@@ -60,6 +60,14 @@ into a new renderer. Provider caching remains separate (#51). Point/spot/UAS
 selection is cleared on reload; the camera returns to its initial Swiss view.
 
 The public `reloadRenderer()` command requests a page reload after acknowledgement.
+`retry-terrain` instead replaces only the terrain provider in the current viewer.
+`terrain-status` events report `state` (`loading`, `ready`, `unavailable`, `offline`)
+and a reason checked against that state. The current status follows each
+`globe-ready` announcement; duplicate hello messages do not start a retry.
+See [terrain failures and recovery](terrain_recovery.md) for the deadlines,
+late-response rules and conservative flat fallback. Height-query command
+results from a previous terrain generation are rejected independently of the
+renderer session.
 Web accepts events only from the bound iframe and matching origin. Native pages
 are loaded from an app-owned loopback origin; navigation to other origins is
 blocked. Disposed native views ignore subsequent JavaScript events.

@@ -79,6 +79,8 @@ class SpotMapMarker {
   };
 }
 
+enum GlobeTerrainState { loading, ready, unavailable, offline }
+
 class GlobeController extends ChangeNotifier {
   GlobeController({
     OsintProvider<Map<String, dynamic>>? uasProvider,
@@ -100,6 +102,11 @@ class GlobeController extends ChangeNotifier {
   bool _uasRequestedVisible = false;
   bool _ready = false;
   bool _terrainAvailable = false;
+  GlobeTerrainState _terrainState = GlobeTerrainState.loading;
+  String? _terrainReason;
+  bool _terrainRetrying = false;
+  int _terrainEpoch = 0;
+  int _terrainRetryOperation = 0;
   GlobeMapStyle _mapStyle = GlobeMapStyle.satellite;
   GlobePoint? _selectedPoint;
   String? _error;
@@ -260,6 +267,15 @@ class GlobeController extends ChangeNotifier {
   String? get uasZonesError => _uasZonesError;
   bool get isReady => _ready;
   bool get terrainAvailable => _terrainAvailable;
+  GlobeTerrainState get terrainState => _terrainState;
+  String? get terrainReason => _terrainReason;
+  bool get terrainRetrying => _terrainRetrying;
+  bool get canRetryTerrain =>
+      _ready &&
+      !_terrainRetrying &&
+      _terrainState != GlobeTerrainState.loading &&
+      _terrainState != GlobeTerrainState.ready &&
+      _terrainReason != 'diagnosticOffline';
   GlobeMapStyle get mapStyle => _mapStyle;
 
   /// The active raw map point. Saved spots and UAS zones are separate,
@@ -353,6 +369,11 @@ class GlobeController extends ChangeNotifier {
     _spotFocusSequence++;
     _ready = false;
     _terrainAvailable = false;
+    _terrainState = GlobeTerrainState.loading;
+    _terrainReason = null;
+    _terrainRetrying = false;
+    _terrainEpoch++;
+    _terrainRetryOperation++;
     _uasDatasetSentToRenderer = false;
     _uasZonesVisible = false;
     _uasZonesLoading = false;
@@ -381,11 +402,19 @@ class GlobeController extends ChangeNotifier {
       throw StateError('Globe is not ready');
     }
 
+    if (!_terrainAvailable) {
+      throw StateError('Detailed terrain data unavailable');
+    }
+    final terrainEpoch = _terrainEpoch;
+
     final result = await _request({
       'type': 'query-terrain-elevation',
       'latitude': latitude,
       'longitude': longitude,
     }, timeout: _bridge.options.terrainTimeout);
+    if (_disposed || !_terrainAvailable || terrainEpoch != _terrainEpoch) {
+      throw StateError('Terrain changed during the request');
+    }
     final height = result['heightMeters'];
     final method = result['samplingMethod'];
     if (result['latitude'] != latitude ||
@@ -428,6 +457,62 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> reloadRenderer() => _send({'type': 'reload-renderer'});
+
+  Future<void> retryTerrain() async {
+    if (_terrainRetrying) return;
+    if (!_ready) throw StateError('Globe is not ready');
+    if (!canRetryTerrain) return;
+    final operation = ++_terrainRetryOperation;
+    final generation = _connectionGeneration;
+    _terrainRetrying = true;
+    notifyListeners();
+    try {
+      await _send({'type': 'retry-terrain'});
+    } catch (_) {
+      if (!_disposed &&
+          generation == _connectionGeneration &&
+          operation == _terrainRetryOperation &&
+          _terrainState == GlobeTerrainState.loading) {
+        _applyTerrainStatus('unavailable', 'connectionFailed');
+      }
+      rethrow;
+    } finally {
+      if (!_disposed && operation == _terrainRetryOperation) {
+        _terrainRetrying = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  void _applyTerrainStatus(Object? state, Object? reason) {
+    final next = switch (state) {
+      'loading' => GlobeTerrainState.loading,
+      'ready' => GlobeTerrainState.ready,
+      'unavailable' => GlobeTerrainState.unavailable,
+      'offline' => GlobeTerrainState.offline,
+      _ => null,
+    };
+    if (next == null) return;
+    final validReason = switch (next) {
+      GlobeTerrainState.ready || GlobeTerrainState.loading => reason == null,
+      GlobeTerrainState.offline =>
+        reason == 'networkOffline' || reason == 'diagnosticOffline',
+      GlobeTerrainState.unavailable =>
+        reason == 'connectionFailed' ||
+            reason == 'tileFailed' ||
+            reason == 'networkRestored',
+    };
+    if (!validReason || (_terrainState == next && _terrainReason == reason)) {
+      return;
+    }
+    _terrainState = next;
+    _terrainReason = reason as String?;
+    _terrainAvailable = next == GlobeTerrainState.ready;
+    _terrainEpoch++;
+    _spotFocusSequence++;
+    _selectedPoint = null;
+    notifyListeners();
+  }
 
   Future<void> flyTo({
     required double latitude,
@@ -553,6 +638,11 @@ class GlobeController extends ChangeNotifier {
         _ready = true;
         _error = null;
         _terrainAvailable = data['terrainAvailable'] == true;
+        _terrainState = _terrainAvailable
+            ? GlobeTerrainState.ready
+            : GlobeTerrainState.unavailable;
+        _terrainReason = _terrainAvailable ? null : 'connectionFailed';
+        _terrainEpoch++;
         _uasDatasetSentToRenderer = false;
         _uasZonesVisible = false;
         _uasZonesLoading = false;
@@ -562,6 +652,9 @@ class GlobeController extends ChangeNotifier {
         final generation = _connectionGeneration;
         unawaited(_restoreRendererState(generation));
         notifyListeners();
+
+      case 'terrain-status':
+        _applyTerrainStatus(data['state'], data['reason']);
 
       case 'spot-selected':
         final id = data['id'];
@@ -602,7 +695,9 @@ class GlobeController extends ChangeNotifier {
             longitude: longitude.toDouble(),
             altitude: altitude.toDouble(),
             heightReference:
-                data['heightReference'] == VerticalReference.wgs84Ellipsoid.name
+                _terrainAvailable &&
+                    data['heightReference'] ==
+                        VerticalReference.wgs84Ellipsoid.name
                 ? VerticalReference.wgs84Ellipsoid
                 : VerticalReference.unverified,
           );

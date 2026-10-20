@@ -47,8 +47,8 @@ receives the connection IP address and request metadata. The current flows are:
 
 | Resource | Destination | Trigger and application data sent |
 |---|---|---|
-| Satellite, topographic and relief imagery | `wmts.geo.admin.ch` | Map startup/navigation/style changes; layer, tile coordinates/zoom and format. These identify the viewed map area. |
-| Terrain | `3d.geo.admin.ch` | Map startup, navigation and height sampling; terrain layer and tile identifiers. A terrain query samples the renderer's provider, without uploading a spot record. |
+| Satellite, topographic and relief imagery | `wmts.geo.admin.ch` | Map startup/navigation/style changes and refresh of the selected style after an explicit terrain retry; layer, tile coordinates/zoom and format. These identify the viewed map area. |
+| Terrain | `3d.geo.admin.ch` | Map startup (including a bounded level-zero tile probe), navigation, height sampling and explicit **Retry terrain**; terrain layer and tile identifiers. A terrain query samples the renderer's provider, without uploading a spot record. Offline/online events do not start an automatic reconnection loop. |
 | Official Swiss UAS GeoJSON | `data.geo.admin.ch` | Enabling/refreshing UAS zones or restoring a previously enabled preference; the public national dataset URL, without personal spot/route fields or a user-position query. |
 | Optional Swiss height conversion | `geodesy.geo.admin.ch` | Only the explicit LN02 conversion action in the terrain dialog; selected longitude/latitude and elevation, followed by the corresponding LV95 easting/northing and Bessel elevation. Position/elevation values appear in GET query parameters. |
 | Application, Cesium, workers, Wasm and Flutter renderer assets | App origin on Web; app-owned loopback origin on Android | Local/package asset loads. The documented Web release uses `--no-web-resources-cdn`; Cesium is vendored and pinned. |

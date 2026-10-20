@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { createBridge } = require('../../web/globe_bridge.js');
+const FPVTerrain = require('../../web/terrain_service.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
@@ -17,7 +18,7 @@ async function renderer({ offline = false, terrainFails = false } = {}) {
     };
     window.parent = window;
     const context = vm.createContext({
-        window, navigator: { onLine: true }, URLSearchParams,
+        window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain,
         document: { getElementById: () => info },
         console: { error() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
@@ -31,7 +32,9 @@ async function renderer({ offline = false, terrainFails = false } = {}) {
             CesiumTerrainProvider: { async fromUrl(url, options) {
                 terrain.push({ url, ...options });
                 if (terrainFails) throw new Error('Fixture: terrain unavailable');
-                return { credit: options.credit }; // No metadata-derived credit.
+                return { credit: options.credit, // No metadata-derived credit.
+                    errorEvent: { addEventListener: () => () => {} },
+                    requestTileGeometry: async () => ({}) };
             } },
             ImageryLayer: class { constructor(provider) { this.imageryProvider = provider; } },
             Viewer: class { constructor(_id, options) {
