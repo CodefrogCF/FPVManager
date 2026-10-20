@@ -77,5 +77,7 @@ cannot initialize; runtime tile interruption handling remains #7.
   contracts; external request construction contains no automatic personal-record
   upload. Future sharing must retain an explicit user action.
 
-The remaining source/license inventory is tracked separately under #8/#44.
-This document does not claim that those legal/attribution checks are complete.
+The current imagery/terrain source and service terms are recorded separately in
+[map sources and attribution](map_sources_and_attribution.md) (#8).
+The complete source/dependency release inventory remains #44. This privacy
+policy does not substitute for those dataset and dependency conditions.

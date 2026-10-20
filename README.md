@@ -131,5 +131,9 @@ see [coordinates and heights](docs/coordinates_and_heights.md) for transformatio
 sources and limitations. Do not treat this prototype as flight authorization or a
 verified obstacle-clearance calculation.
 
-Map credits are displayed in the renderer. A complete source/license inventory
-remains tracked under #8 and #44; current privacy/permission behavior is documented above.
+Map credits are displayed directly beside the map, including SWISSIMAGE's
+third-party notices and an explicit terrain source. The checked endpoints,
+attribution evidence and applicable service terms are recorded in
+[map sources and attribution](docs/map_sources_and_attribution.md) (#8).
+The broader source/dependency and release documentation audit remains #44;
+current privacy/permission behavior is documented above.
