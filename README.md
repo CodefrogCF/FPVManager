@@ -13,15 +13,20 @@ spot library stored with Drift/SQLite.
   Swiss LN02 conversion and a local AGL height calculator.
 - WGS84/LV95 coordinate services with documented reference systems.
 - Local spot creation, editing and deletion with coordinates and notes.
+- Spot photos with local thumbnails, image normalization and a zoomable gallery.
+- Opt-in device location in the editor, with manual coordinates as fallback.
 - Saved spot markers, a selection panel and terrain-aware camera focus.
-- Database schema snapshots and a tested v1-to-v2 migration.
+- Database schema snapshots and tested v1/v2-to-v3 migrations.
 - Typed local repositories for spots, drones, batteries, radio equipment,
   flight plans/waypoints and map preferences, with transactional route storage.
 
 The [local data layer](docs/local_data.md) provides the storage foundation for future
-features. Equipment screens, weather, route planning, simulation, spot photos/GPS,
+features. Equipment screens, weather, route planning, simulation,
 backups and offline map downloads are not implemented yet. See the
 [issue backlog](https://github.com/CodefrogCF/FPVManager/issues).
+
+See [spot photos and location](docs/spot_photos_and_location.md) for image limits,
+local storage, foreground permissions and platform requirements.
 
 ## Development setup
 

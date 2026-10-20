@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,7 @@ import 'package:fpvmanager/core/database/fpv_database.dart';
 
 import '../../generated_migrations/schema.dart';
 import '../../generated_migrations/schema_v1.dart' as v1;
+import '../../generated_migrations/schema_v2.dart' as v2;
 
 void main() {
   late SchemaVerifier verifier;
@@ -14,7 +16,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates v1 to v2 without losing spots', () async {
+  test('migrates v1 to v3 without losing spots', () async {
     final schema = await verifier.schemaAt(1);
 
     // Create a database with the original v1 schema.
@@ -35,7 +37,7 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 2);
+    await verifier.migrateAndValidate(database, 3);
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -61,11 +63,112 @@ void main() {
     expect(names, contains('flight_plans'));
     expect(names, contains('flight_waypoints'));
     expect(names, contains('app_settings'));
+    expect(names, contains('spot_photos'));
 
     await database.close();
   });
 
-  test('new v2 database creates all tables', () async {
+  test(
+    'migrates v2 to v3 preserving personal records and references',
+    () async {
+      final schema = await verifier.schemaAt(2);
+      final old = v2.DatabaseAtV2(schema.newConnection());
+      final spotId = await old
+          .into(old.spots)
+          .insert(
+            v2.SpotsCompanion.insert(
+              name: 'Private spot',
+              latitude: 47,
+              longitude: 8,
+            ),
+          );
+      final droneId = await old
+          .into(old.drones)
+          .insert(v2.DronesCompanion.insert(name: 'My drone'));
+      await old
+          .into(old.batteries)
+          .insert(
+            v2.BatteriesCompanion.insert(
+              name: 'Pack',
+              cellCount: 6,
+              capacityMah: 1500,
+            ),
+          );
+      await old
+          .into(old.radioEquipment)
+          .insert(
+            v2.RadioEquipmentCompanion.insert(
+              name: 'Radio',
+              category: 'control',
+            ),
+          );
+      final planId = await old
+          .into(old.flightPlans)
+          .insert(
+            v2.FlightPlansCompanion.insert(
+              name: 'My route',
+              droneId: Value(droneId),
+              startSpotId: Value(spotId),
+            ),
+          );
+      await old
+          .into(old.flightWaypoints)
+          .insert(
+            v2.FlightWaypointsCompanion.insert(
+              planId: planId,
+              sequenceNumber: 0,
+              latitude: 47,
+              longitude: 8,
+              heightMeters: const Value(830),
+            ),
+          );
+      await old
+          .into(old.appSettings)
+          .insert(
+            v2.AppSettingsCompanion.insert(
+              key: 'legacy.keep',
+              value: 'private',
+            ),
+          );
+      await old.close();
+      final database = FpvDatabase(schema.newConnection());
+      addTearDown(database.close);
+      await verifier.migrateAndValidate(database, 3);
+      expect(
+        (await database.select(database.spots).get()).single.name,
+        'Private spot',
+      );
+      expect((await database.select(database.drones).get()).single.id, droneId);
+      expect(
+        (await database.select(database.batteries).get()).single.capacityMah,
+        1500,
+      );
+      expect(
+        (await database.select(database.radioEquipment).get()).single.category,
+        'control',
+      );
+      final plan = (await database.select(database.flightPlans).get()).single;
+      expect(plan.droneId, droneId);
+      expect(plan.startSpotId, spotId);
+      final waypoint =
+          (await database.select(database.flightWaypoints).get()).single;
+      expect(waypoint.heightMeters, 830);
+      expect(waypoint.heightReference, 'unverified');
+      expect(
+        (await database.select(database.appSettings).get()).single.value,
+        'private',
+      );
+      expect(await database.select(database.spotPhotos).get(), isEmpty);
+      final index = await database
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'spot_photos_spot_id'",
+          )
+          .get();
+      expect(index, hasLength(1));
+    },
+  );
+
+  test('new v3 database creates all tables', () async {
     final database = FpvDatabase(NativeDatabase.memory());
 
     // Trigger database initialization.
@@ -81,6 +184,7 @@ void main() {
     final names = tables.map((row) => row.read<String>('name')).toSet();
 
     expect(names, contains('spots'));
+    expect(names, contains('spot_photos'));
     expect(names, contains('drones'));
     expect(names, contains('batteries'));
     expect(names, contains('radio_equipment'));

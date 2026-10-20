@@ -20,6 +20,18 @@ class Spots extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Normalized local JPEGs, kept out of spot list and marker queries.
+@TableIndex(name: 'spot_photos_spot_id', columns: {#spotId})
+class SpotPhotos extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get spotId =>
+      integer().references(Spots, #id, onDelete: KeyAction.cascade)();
+  BlobColumn get imageBytes => blob()();
+  BlobColumn get thumbnailBytes => blob()();
+  IntColumn get width => integer()();
+  IntColumn get height => integer()();
+}
+
 /// User-owned FPV drones.
 class Drones extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -134,6 +146,7 @@ class AppSettings extends Table {
 @DriftDatabase(
   tables: [
     Spots,
+    SpotPhotos,
     Drones,
     Batteries,
     RadioEquipment,
@@ -159,7 +172,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -178,6 +191,10 @@ class FpvDatabase extends _$FpvDatabase {
         await m.createTable(flightPlans);
         await m.createTable(flightWaypoints);
         await m.createTable(appSettings);
+      }
+      if (from < 3) {
+        await m.createTable(spotPhotos);
+        await m.createIndex(spotPhotosSpotId);
       }
     },
     beforeOpen: (details) async {

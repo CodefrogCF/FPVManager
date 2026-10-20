@@ -53,9 +53,11 @@ while the user is adjusting the slider.
 
 ## Local data
 
-Drift/SQLite stores spots, drones, batteries, radio equipment, flight plans,
-waypoints and settings. Current schema version: 2. The v1-to-v2 migration preserves
-spots and adds the other six tables. Foreign keys are enabled before use.
+Drift/SQLite stores spots, photos, drones, batteries, radio equipment, flight
+plans, waypoints and settings. Current schema version: 3. Migrations preserve v1
+spots and all v2 records while adding the indexed photo table in v3. Foreign keys
+are enabled before use. Photo BLOBs are separate from spot/marker list queries;
+spot edits and photo changes commit together. See [photos and location](spot_photos_and_location.md).
 
 Typed repository interfaces cover spots, drones, batteries, radio equipment,
 flight plans/waypoints and preferences. Route snapshots retain explicit height

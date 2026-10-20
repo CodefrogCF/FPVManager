@@ -9,14 +9,14 @@ in-memory databases or a temporary SQLite file, never the personal app database.
 ## Typed records and contracts
 
 The generated immutable Drift records are also the persisted domain records:
-`Spot`, `Drone`, `Battery`, `RadioEquipmentData`, `FlightPlan`, `FlightWaypoint`
+`Spot`, `SpotPhoto`, `Drone`, `Battery`, `RadioEquipmentData`, `FlightPlan`, `FlightWaypoint`
 and `AppSetting`. A second copy of each database record is not maintained.
 `FlightRoute`, `RouteWaypoint` and `UserPreferences` add typed views where the
 table representation alone cannot express the application contract.
 
 | Contract | Location | Operations |
 |---|---|---|
-| `SpotRepository` | `lib/features/spots/data/` | CRUD, watch, favorite toggle |
+| `SpotRepository` | `lib/features/spots/data/` | CRUD, watch, favorite toggle, photo drafts/previews |
 | `DroneRepository` | `lib/core/database/repositories/` | CRUD, watch |
 | `BatteryRepository` | `lib/core/database/repositories/` | CRUD, watch |
 | `RadioEquipmentRepository` | `lib/core/database/repositories/` | CRUD, watch |
@@ -95,14 +95,15 @@ follow-up work for the map/settings feature (#9).
 
 ## Schema and scope
 
-Schema version remains **2**. This change uses the existing tables and columns;
-no migration or generated-schema change is needed. Existing migration tests
-validate v1 → v2 and preservation of saved spots. Repository tests cover CRUD,
+Schema version is **3**. The indexed `spot_photos` table adds normalized photos
+and thumbnails with cascading spot ownership. Migration tests validate v1 → v3
+and v2 → v3 while preserving existing records. Repository tests cover CRUD,
 validation, watchers, relationship deletion, rollback, height references and
 preferences. A file-backed test closes and reopens SQLite and verifies records
 from every domain.
 
-Only spots currently have editing/list screens. Equipment profiles (#13–#15),
-route editing (#25), spot photos/GPS/search/categories (#11/#12) and settings UI
+Spots have editing/list screens, a photo gallery and opt-in device location;
+see [photo and location contracts](spot_photos_and_location.md). Equipment profiles (#13–#15),
+route editing (#25), spot search/categories/tags (#12) and settings UI
 integration remain separate feature work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.

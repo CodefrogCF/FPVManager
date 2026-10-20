@@ -451,6 +451,420 @@ class SpotsCompanion extends UpdateCompanion<Spot> {
   }
 }
 
+class $SpotPhotosTable extends SpotPhotos
+    with TableInfo<$SpotPhotosTable, SpotPhoto> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpotPhotosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _spotIdMeta = const VerificationMeta('spotId');
+  @override
+  late final GeneratedColumn<int> spotId = GeneratedColumn<int>(
+    'spot_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES spots (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _imageBytesMeta = const VerificationMeta(
+    'imageBytes',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> imageBytes = GeneratedColumn<Uint8List>(
+    'image_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _thumbnailBytesMeta = const VerificationMeta(
+    'thumbnailBytes',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> thumbnailBytes =
+      GeneratedColumn<Uint8List>(
+        'thumbnail_bytes',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+    'width',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  @override
+  late final GeneratedColumn<int> height = GeneratedColumn<int>(
+    'height',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    spotId,
+    imageBytes,
+    thumbnailBytes,
+    width,
+    height,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spot_photos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpotPhoto> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spot_id')) {
+      context.handle(
+        _spotIdMeta,
+        spotId.isAcceptableOrUnknown(data['spot_id']!, _spotIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_spotIdMeta);
+    }
+    if (data.containsKey('image_bytes')) {
+      context.handle(
+        _imageBytesMeta,
+        imageBytes.isAcceptableOrUnknown(data['image_bytes']!, _imageBytesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_imageBytesMeta);
+    }
+    if (data.containsKey('thumbnail_bytes')) {
+      context.handle(
+        _thumbnailBytesMeta,
+        thumbnailBytes.isAcceptableOrUnknown(
+          data['thumbnail_bytes']!,
+          _thumbnailBytesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_thumbnailBytesMeta);
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+        _widthMeta,
+        width.isAcceptableOrUnknown(data['width']!, _widthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_widthMeta);
+    }
+    if (data.containsKey('height')) {
+      context.handle(
+        _heightMeta,
+        height.isAcceptableOrUnknown(data['height']!, _heightMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_heightMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpotPhoto map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpotPhoto(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      spotId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spot_id'],
+      )!,
+      imageBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}image_bytes'],
+      )!,
+      thumbnailBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}thumbnail_bytes'],
+      )!,
+      width: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}width'],
+      )!,
+      height: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}height'],
+      )!,
+    );
+  }
+
+  @override
+  $SpotPhotosTable createAlias(String alias) {
+    return $SpotPhotosTable(attachedDatabase, alias);
+  }
+}
+
+class SpotPhoto extends DataClass implements Insertable<SpotPhoto> {
+  final int id;
+  final int spotId;
+  final Uint8List imageBytes;
+  final Uint8List thumbnailBytes;
+  final int width;
+  final int height;
+  const SpotPhoto({
+    required this.id,
+    required this.spotId,
+    required this.imageBytes,
+    required this.thumbnailBytes,
+    required this.width,
+    required this.height,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spot_id'] = Variable<int>(spotId);
+    map['image_bytes'] = Variable<Uint8List>(imageBytes);
+    map['thumbnail_bytes'] = Variable<Uint8List>(thumbnailBytes);
+    map['width'] = Variable<int>(width);
+    map['height'] = Variable<int>(height);
+    return map;
+  }
+
+  SpotPhotosCompanion toCompanion(bool nullToAbsent) {
+    return SpotPhotosCompanion(
+      id: Value(id),
+      spotId: Value(spotId),
+      imageBytes: Value(imageBytes),
+      thumbnailBytes: Value(thumbnailBytes),
+      width: Value(width),
+      height: Value(height),
+    );
+  }
+
+  factory SpotPhoto.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpotPhoto(
+      id: serializer.fromJson<int>(json['id']),
+      spotId: serializer.fromJson<int>(json['spotId']),
+      imageBytes: serializer.fromJson<Uint8List>(json['imageBytes']),
+      thumbnailBytes: serializer.fromJson<Uint8List>(json['thumbnailBytes']),
+      width: serializer.fromJson<int>(json['width']),
+      height: serializer.fromJson<int>(json['height']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'spotId': serializer.toJson<int>(spotId),
+      'imageBytes': serializer.toJson<Uint8List>(imageBytes),
+      'thumbnailBytes': serializer.toJson<Uint8List>(thumbnailBytes),
+      'width': serializer.toJson<int>(width),
+      'height': serializer.toJson<int>(height),
+    };
+  }
+
+  SpotPhoto copyWith({
+    int? id,
+    int? spotId,
+    Uint8List? imageBytes,
+    Uint8List? thumbnailBytes,
+    int? width,
+    int? height,
+  }) => SpotPhoto(
+    id: id ?? this.id,
+    spotId: spotId ?? this.spotId,
+    imageBytes: imageBytes ?? this.imageBytes,
+    thumbnailBytes: thumbnailBytes ?? this.thumbnailBytes,
+    width: width ?? this.width,
+    height: height ?? this.height,
+  );
+  SpotPhoto copyWithCompanion(SpotPhotosCompanion data) {
+    return SpotPhoto(
+      id: data.id.present ? data.id.value : this.id,
+      spotId: data.spotId.present ? data.spotId.value : this.spotId,
+      imageBytes: data.imageBytes.present
+          ? data.imageBytes.value
+          : this.imageBytes,
+      thumbnailBytes: data.thumbnailBytes.present
+          ? data.thumbnailBytes.value
+          : this.thumbnailBytes,
+      width: data.width.present ? data.width.value : this.width,
+      height: data.height.present ? data.height.value : this.height,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpotPhoto(')
+          ..write('id: $id, ')
+          ..write('spotId: $spotId, ')
+          ..write('imageBytes: $imageBytes, ')
+          ..write('thumbnailBytes: $thumbnailBytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    spotId,
+    $driftBlobEquality.hash(imageBytes),
+    $driftBlobEquality.hash(thumbnailBytes),
+    width,
+    height,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpotPhoto &&
+          other.id == this.id &&
+          other.spotId == this.spotId &&
+          $driftBlobEquality.equals(other.imageBytes, this.imageBytes) &&
+          $driftBlobEquality.equals(
+            other.thumbnailBytes,
+            this.thumbnailBytes,
+          ) &&
+          other.width == this.width &&
+          other.height == this.height);
+}
+
+class SpotPhotosCompanion extends UpdateCompanion<SpotPhoto> {
+  final Value<int> id;
+  final Value<int> spotId;
+  final Value<Uint8List> imageBytes;
+  final Value<Uint8List> thumbnailBytes;
+  final Value<int> width;
+  final Value<int> height;
+  const SpotPhotosCompanion({
+    this.id = const Value.absent(),
+    this.spotId = const Value.absent(),
+    this.imageBytes = const Value.absent(),
+    this.thumbnailBytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+  });
+  SpotPhotosCompanion.insert({
+    this.id = const Value.absent(),
+    required int spotId,
+    required Uint8List imageBytes,
+    required Uint8List thumbnailBytes,
+    required int width,
+    required int height,
+  }) : spotId = Value(spotId),
+       imageBytes = Value(imageBytes),
+       thumbnailBytes = Value(thumbnailBytes),
+       width = Value(width),
+       height = Value(height);
+  static Insertable<SpotPhoto> custom({
+    Expression<int>? id,
+    Expression<int>? spotId,
+    Expression<Uint8List>? imageBytes,
+    Expression<Uint8List>? thumbnailBytes,
+    Expression<int>? width,
+    Expression<int>? height,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (spotId != null) 'spot_id': spotId,
+      if (imageBytes != null) 'image_bytes': imageBytes,
+      if (thumbnailBytes != null) 'thumbnail_bytes': thumbnailBytes,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+    });
+  }
+
+  SpotPhotosCompanion copyWith({
+    Value<int>? id,
+    Value<int>? spotId,
+    Value<Uint8List>? imageBytes,
+    Value<Uint8List>? thumbnailBytes,
+    Value<int>? width,
+    Value<int>? height,
+  }) {
+    return SpotPhotosCompanion(
+      id: id ?? this.id,
+      spotId: spotId ?? this.spotId,
+      imageBytes: imageBytes ?? this.imageBytes,
+      thumbnailBytes: thumbnailBytes ?? this.thumbnailBytes,
+      width: width ?? this.width,
+      height: height ?? this.height,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (spotId.present) {
+      map['spot_id'] = Variable<int>(spotId.value);
+    }
+    if (imageBytes.present) {
+      map['image_bytes'] = Variable<Uint8List>(imageBytes.value);
+    }
+    if (thumbnailBytes.present) {
+      map['thumbnail_bytes'] = Variable<Uint8List>(thumbnailBytes.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (height.present) {
+      map['height'] = Variable<int>(height.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpotPhotosCompanion(')
+          ..write('id: $id, ')
+          ..write('spotId: $spotId, ')
+          ..write('imageBytes: $imageBytes, ')
+          ..write('thumbnailBytes: $thumbnailBytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -3055,6 +3469,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   _$FpvDatabase(QueryExecutor e) : super(e);
   $FpvDatabaseManager get managers => $FpvDatabaseManager(this);
   late final $SpotsTable spots = $SpotsTable(this);
+  late final $SpotPhotosTable spotPhotos = $SpotPhotosTable(this);
   late final $DronesTable drones = $DronesTable(this);
   late final $BatteriesTable batteries = $BatteriesTable(this);
   late final $RadioEquipmentTable radioEquipment = $RadioEquipmentTable(this);
@@ -3063,21 +3478,34 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     this,
   );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final Index spotPhotosSpotId = Index(
+    'spot_photos_spot_id',
+    'CREATE INDEX spot_photos_spot_id ON spot_photos (spot_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     spots,
+    spotPhotos,
     drones,
     batteries,
     radioEquipment,
     flightPlans,
     flightWaypoints,
     appSettings,
+    spotPhotosSpotId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'spots',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spot_photos', kind: UpdateKind.delete)],
+    ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'drones',
@@ -3124,6 +3552,24 @@ typedef $$SpotsTableUpdateCompanionBuilder = SpotsCompanion Function({
 final class $$SpotsTableReferences
     extends BaseReferences<_$FpvDatabase, $SpotsTable, Spot> {
   $$SpotsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$SpotPhotosTable, List<SpotPhoto>>
+  _spotPhotosRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
+    db.spotPhotos,
+    aliasName: 'spots__id__spot_photos__spot_id',
+  );
+
+  $$SpotPhotosTableProcessedTableManager get spotPhotosRefs {
+    final manager = $$SpotPhotosTableTableManager(
+      $_db,
+      $_db.spotPhotos,
+    ).filter((f) => f.spotId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_spotPhotosRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$FlightPlansTable, List<FlightPlan>>
   _flightPlansRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
@@ -3186,6 +3632,31 @@ class $$SpotsTableFilterComposer extends Composer<_$FpvDatabase, $SpotsTable> {
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> spotPhotosRefs(
+    Expression<bool> Function($$SpotPhotosTableFilterComposer f) f,
+  ) {
+    final $$SpotPhotosTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.spotPhotos,
+      getReferencedColumn: (t) => t.spotId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotPhotosTableFilterComposer(
+            $db: $db,
+            $table: $db.spotPhotos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> flightPlansRefs(
     Expression<bool> Function($$FlightPlansTableFilterComposer f) f,
@@ -3290,6 +3761,31 @@ class $$SpotsTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  Expression<T> spotPhotosRefs<T extends Object>(
+    Expression<T> Function($$SpotPhotosTableAnnotationComposer a) f,
+  ) {
+    final $$SpotPhotosTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.spotPhotos,
+      getReferencedColumn: (t) => t.spotId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotPhotosTableAnnotationComposer(
+            $db: $db,
+            $table: $db.spotPhotos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> flightPlansRefs<T extends Object>(
     Expression<T> Function($$FlightPlansTableAnnotationComposer a) f,
   ) {
@@ -3329,7 +3825,7 @@ class $$SpotsTableTableManager
           $$SpotsTableUpdateCompanionBuilder,
           (Spot, $$SpotsTableReferences),
           Spot,
-          PrefetchHooks Function({bool flightPlansRefs})
+          PrefetchHooks Function({bool spotPhotosRefs, bool flightPlansRefs})
         > {
   $$SpotsTableTableManager(_$FpvDatabase db, $SpotsTable table)
     : super(
@@ -3386,30 +3882,59 @@ class $$SpotsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({flightPlansRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (flightPlansRefs) db.flightPlans],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (flightPlansRefs)
-                    await $_getPrefetchedData<Spot, $SpotsTable, FlightPlan>(
-                      currentTable: table,
-                      referencedTable: $$SpotsTableReferences
-                          ._flightPlansRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$SpotsTableReferences(db, table, p0).flightPlansRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.startSpotId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({spotPhotosRefs = false, flightPlansRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (spotPhotosRefs) db.spotPhotos,
+                    if (flightPlansRefs) db.flightPlans,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (spotPhotosRefs)
+                        await $_getPrefetchedData<Spot, $SpotsTable, SpotPhoto>(
+                          currentTable: table,
+                          referencedTable: $$SpotsTableReferences
+                              ._spotPhotosRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpotsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).spotPhotosRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.spotId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (flightPlansRefs)
+                        await $_getPrefetchedData<
+                          Spot,
+                          $SpotsTable,
+                          FlightPlan
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpotsTableReferences
+                              ._flightPlansRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpotsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).flightPlansRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.startSpotId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3426,7 +3951,337 @@ typedef $$SpotsTableProcessedTableManager =
       $$SpotsTableUpdateCompanionBuilder,
       (Spot, $$SpotsTableReferences),
       Spot,
-      PrefetchHooks Function({bool flightPlansRefs})
+      PrefetchHooks Function({bool spotPhotosRefs, bool flightPlansRefs})
+    >;
+typedef $$SpotPhotosTableCreateCompanionBuilder = SpotPhotosCompanion Function({
+  Value<int> id,
+  required int spotId,
+  required Uint8List imageBytes,
+  required Uint8List thumbnailBytes,
+  required int width,
+  required int height,
+});
+typedef $$SpotPhotosTableUpdateCompanionBuilder = SpotPhotosCompanion Function({
+  Value<int> id,
+  Value<int> spotId,
+  Value<Uint8List> imageBytes,
+  Value<Uint8List> thumbnailBytes,
+  Value<int> width,
+  Value<int> height,
+});
+
+final class $$SpotPhotosTableReferences
+    extends BaseReferences<_$FpvDatabase, $SpotPhotosTable, SpotPhoto> {
+  $$SpotPhotosTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpotsTable _spotIdTable(_$FpvDatabase db) =>
+      db.spots.createAlias('spot_photos__spot_id__spots__id');
+
+  $$SpotsTableProcessedTableManager get spotId {
+    final $_column = $_itemColumn<int>('spot_id')!;
+
+    final manager = $$SpotsTableTableManager(
+      $_db,
+      $_db.spots,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_spotIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpotPhotosTableFilterComposer
+    extends Composer<_$FpvDatabase, $SpotPhotosTable> {
+  $$SpotPhotosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get imageBytes => $composableBuilder(
+    column: $table.imageBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get thumbnailBytes => $composableBuilder(
+    column: $table.thumbnailBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpotsTableFilterComposer get spotId {
+    final $$SpotsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.spotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableFilterComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpotPhotosTableOrderingComposer
+    extends Composer<_$FpvDatabase, $SpotPhotosTable> {
+  $$SpotPhotosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get imageBytes => $composableBuilder(
+    column: $table.imageBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get thumbnailBytes => $composableBuilder(
+    column: $table.thumbnailBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpotsTableOrderingComposer get spotId {
+    final $$SpotsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.spotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableOrderingComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpotPhotosTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $SpotPhotosTable> {
+  $$SpotPhotosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get imageBytes => $composableBuilder(
+    column: $table.imageBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get thumbnailBytes => $composableBuilder(
+    column: $table.thumbnailBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<int> get height =>
+      $composableBuilder(column: $table.height, builder: (column) => column);
+
+  $$SpotsTableAnnotationComposer get spotId {
+    final $$SpotsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.spotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpotPhotosTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $SpotPhotosTable,
+          SpotPhoto,
+          $$SpotPhotosTableFilterComposer,
+          $$SpotPhotosTableOrderingComposer,
+          $$SpotPhotosTableAnnotationComposer,
+          $$SpotPhotosTableCreateCompanionBuilder,
+          $$SpotPhotosTableUpdateCompanionBuilder,
+          (SpotPhoto, $$SpotPhotosTableReferences),
+          SpotPhoto,
+          PrefetchHooks Function({bool spotId})
+        > {
+  $$SpotPhotosTableTableManager(_$FpvDatabase db, $SpotPhotosTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpotPhotosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpotPhotosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpotPhotosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> spotId = const Value.absent(),
+                Value<Uint8List> imageBytes = const Value.absent(),
+                Value<Uint8List> thumbnailBytes = const Value.absent(),
+                Value<int> width = const Value.absent(),
+                Value<int> height = const Value.absent(),
+              }) => SpotPhotosCompanion(
+                id: id,
+                spotId: spotId,
+                imageBytes: imageBytes,
+                thumbnailBytes: thumbnailBytes,
+                width: width,
+                height: height,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int spotId,
+                required Uint8List imageBytes,
+                required Uint8List thumbnailBytes,
+                required int width,
+                required int height,
+              }) => SpotPhotosCompanion.insert(
+                id: id,
+                spotId: spotId,
+                imageBytes: imageBytes,
+                thumbnailBytes: thumbnailBytes,
+                width: width,
+                height: height,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpotPhotosTable, SpotPhoto>(table),
+                  $$SpotPhotosTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({spotId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (spotId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.spotId,
+                        referencedTable: $$SpotPhotosTableReferences
+                            ._spotIdTable(db),
+                        referencedColumn: $$SpotPhotosTableReferences
+                            ._spotIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpotPhotosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $SpotPhotosTable,
+      SpotPhoto,
+      $$SpotPhotosTableFilterComposer,
+      $$SpotPhotosTableOrderingComposer,
+      $$SpotPhotosTableAnnotationComposer,
+      $$SpotPhotosTableCreateCompanionBuilder,
+      $$SpotPhotosTableUpdateCompanionBuilder,
+      (SpotPhoto, $$SpotPhotosTableReferences),
+      SpotPhoto,
+      PrefetchHooks Function({bool spotId})
     >;
 typedef $$DronesTableCreateCompanionBuilder = DronesCompanion Function({
   Value<int> id,
@@ -5325,6 +6180,8 @@ class $FpvDatabaseManager {
   $FpvDatabaseManager(this._db);
   $$SpotsTableTableManager get spots =>
       $$SpotsTableTableManager(_db, _db.spots);
+  $$SpotPhotosTableTableManager get spotPhotos =>
+      $$SpotPhotosTableTableManager(_db, _db.spotPhotos);
   $$DronesTableTableManager get drones =>
       $$DronesTableTableManager(_db, _db.drones);
   $$BatteriesTableTableManager get batteries =>

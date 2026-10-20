@@ -5,6 +5,7 @@ import 'dart:async';
 import 'core/database/fpv_database.dart';
 import 'features/spots/data/spot_repository.dart';
 import 'features/spots/spots_screen.dart';
+import 'features/spots/spot_photo_viewer.dart';
 import 'features/globe/globe_controller.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
@@ -318,19 +319,35 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          onPressed: () => _runCommand(
-                            () => _globeController.focusSpot(
-                              latitude: selectedSpot.latitude,
-                              longitude: selectedSpot.longitude,
-                              rangeMeters: 300,
+                      child: Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => showDialog<void>(
+                              context: context,
+                              builder: (context) => SpotPhotosDialog(
+                                repository: _spotRepository!,
+                                spotId: selectedSpot.id,
+                                spotName: selectedSpot.name,
+                              ),
                             ),
+                            icon: const Icon(Icons.photo_library_outlined),
+                            label: const Text('Photos'),
                           ),
-                          icon: const Icon(Icons.navigation),
-                          label: const Text('Fly to Spot'),
-                        ),
+                          FilledButton.icon(
+                            onPressed: () => _runCommand(
+                              () => _globeController.focusSpot(
+                                latitude: selectedSpot.latitude,
+                                longitude: selectedSpot.longitude,
+                                rangeMeters: 300,
+                              ),
+                            ),
+                            icon: const Icon(Icons.navigation),
+                            label: const Text('Fly to Spot'),
+                          ),
+                        ],
                       ),
                     ),
                   ],

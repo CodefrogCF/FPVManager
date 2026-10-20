@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/core/database/repositories/battery_repository.dart';
 import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
@@ -12,6 +13,7 @@ import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
 import 'package:fpvmanager/core/models/flight_route.dart';
 import 'package:fpvmanager/core/models/user_preferences.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
+import 'package:fpvmanager/features/spots/data/spot_photo_service.dart';
 
 void main() {
   test(
@@ -27,11 +29,15 @@ void main() {
       try {
         final first = database = FpvDatabase(NativeDatabase(file));
         final spots = SpotRepository(first);
+        final photo = prepareSpotPhoto(
+          img.encodeJpg(img.Image(width: 8, height: 4)),
+        );
         final spotId = await spots.createSpot(
           name: 'Private spot',
           latitude: 47,
           longitude: 8,
           notes: 'Private access notes',
+          photos: [photo],
         );
         await spots.setFavorite(id: spotId, isFavorite: true);
         final droneId = await DroneRepository(first)
@@ -78,6 +84,13 @@ void main() {
         final spot = (await SpotRepository(reopened).getSpot(spotId))!;
         expect(spot.notes, 'Private access notes');
         expect(spot.isFavorite, isTrue);
+        final storedPhotos = await SpotRepository(reopened).getPhotos(spotId);
+        expect(storedPhotos, hasLength(1));
+        expect(
+          await SpotRepository(reopened)
+              .getPhotoBytes(spotId: spotId, photoId: storedPhotos.single.id),
+          photo.imageBytes,
+        );
         expect(
           (await DroneRepository(reopened).getDrone(droneId))!
               .takeoffWeightGrams,

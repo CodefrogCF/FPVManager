@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart';
 import 'data/spot_repository.dart';
+import 'spot_editor_dialog.dart';
+import 'spot_photo_viewer.dart';
 
 class SpotsScreen extends StatefulWidget {
   const SpotsScreen({
@@ -19,7 +21,7 @@ class SpotsScreen extends StatefulWidget {
   State<SpotsScreen> createState() => _SpotsScreenState();
 }
 
-enum _SpotAction { edit, delete }
+enum _SpotAction { photos, edit, delete }
 
 class _SpotsScreenState extends State<SpotsScreen> {
   late final Stream<List<Spot>> _spots;
@@ -31,38 +33,16 @@ class _SpotsScreenState extends State<SpotsScreen> {
   }
 
   Future<void> _editSpot([Spot? existing]) async {
-    final input = await showDialog<_SpotInput>(
+    await showDialog<bool>(
       context: context,
-      builder: (context) => _SpotEditorDialog(
+      barrierDismissible: false,
+      builder: (context) => SpotEditorDialog(
+        repository: widget.repository,
         spot: existing,
         initialLatitude: widget.initialLatitude,
         initialLongitude: widget.initialLongitude,
       ),
     );
-
-    if (!mounted || input == null) return;
-
-    try {
-      if (existing == null) {
-        await widget.repository.createSpot(
-          name: input.name,
-          latitude: input.latitude,
-          longitude: input.longitude,
-          notes: input.notes,
-        );
-      } else {
-        await widget.repository.updateSpot(
-          id: existing.id,
-          name: input.name,
-          latitude: input.latitude,
-          longitude: input.longitude,
-          notes: input.notes,
-        );
-      }
-    } catch (error) {
-      if (!mounted) return;
-      _showError('Unable to save spot: $error');
-    }
   }
 
   Future<void> _deleteSpot(Spot spot) async {
@@ -173,6 +153,15 @@ class _SpotsScreenState extends State<SpotsScreen> {
                   tooltip: 'Spot options',
                   onSelected: (action) {
                     switch (action) {
+                      case _SpotAction.photos:
+                        showDialog<void>(
+                          context: context,
+                          builder: (context) => SpotPhotosDialog(
+                            repository: widget.repository,
+                            spotId: spot.id,
+                            spotName: spot.name,
+                          ),
+                        );
                       case _SpotAction.edit:
                         _editSpot(spot);
                       case _SpotAction.delete:
@@ -180,6 +169,10 @@ class _SpotsScreenState extends State<SpotsScreen> {
                     }
                   },
                   itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: _SpotAction.photos,
+                      child: Text('View photos'),
+                    ),
                     PopupMenuItem(value: _SpotAction.edit, child: Text('Edit')),
                     PopupMenuItem(
                       value: _SpotAction.delete,
@@ -197,181 +190,6 @@ class _SpotsScreenState extends State<SpotsScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Spot'),
       ),
-    );
-  }
-}
-
-class _SpotInput {
-  const _SpotInput({
-    required this.name,
-    required this.latitude,
-    required this.longitude,
-    this.notes,
-  });
-
-  final String name;
-  final double latitude;
-  final double longitude;
-  final String? notes;
-}
-
-class _SpotEditorDialog extends StatefulWidget {
-  const _SpotEditorDialog({
-    this.spot,
-    this.initialLatitude,
-    this.initialLongitude,
-  });
-
-  final Spot? spot;
-  final double? initialLatitude;
-  final double? initialLongitude;
-
-  @override
-  State<_SpotEditorDialog> createState() => _SpotEditorDialogState();
-}
-
-class _SpotEditorDialogState extends State<_SpotEditorDialog> {
-  final _formKey = GlobalKey<FormState>();
-
-  late final TextEditingController _name;
-  late final TextEditingController _latitude;
-  late final TextEditingController _longitude;
-  late final TextEditingController _notes;
-
-  @override
-  void initState() {
-    super.initState();
-
-    final spot = widget.spot;
-
-    _name = TextEditingController(text: spot?.name ?? '');
-
-    _latitude = TextEditingController(
-      text:
-          (spot?.latitude ?? widget.initialLatitude)?.toStringAsFixed(8) ?? '',
-    );
-
-    _longitude = TextEditingController(
-      text:
-          (spot?.longitude ?? widget.initialLongitude)?.toStringAsFixed(8) ??
-          '',
-    );
-
-    _notes = TextEditingController(text: spot?.notes ?? '');
-  }
-
-  double? _parseCoordinate(String text) {
-    return double.tryParse(text.trim().replaceAll(',', '.'));
-  }
-
-  String? _validateCoordinate(String? value, double minimum, double maximum) {
-    final coordinate = _parseCoordinate(value ?? '');
-
-    if (coordinate == null ||
-        !coordinate.isFinite ||
-        coordinate < minimum ||
-        coordinate > maximum) {
-      return 'Enter a value from $minimum to $maximum';
-    }
-
-    return null;
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final notes = _notes.text.trim();
-
-    Navigator.pop(
-      context,
-      _SpotInput(
-        name: _name.text.trim(),
-        latitude: _parseCoordinate(_latitude.text)!,
-        longitude: _parseCoordinate(_longitude.text)!,
-        notes: notes.isEmpty ? null : notes,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _latitude.dispose();
-    _longitude.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.spot == null ? 'Add Spot' : 'Edit Spot'),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _name,
-                  autofocus: true,
-                  maxLength: 120,
-                  decoration: const InputDecoration(labelText: 'Spot name'),
-                  validator: (value) {
-                    if ((value ?? '').trim().isEmpty) {
-                      return 'Enter a spot name';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _latitude,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    signed: true,
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Latitude (WGS84)',
-                  ),
-                  validator: (value) => _validateCoordinate(value, -90, 90),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _longitude,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    signed: true,
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Longitude (WGS84)',
-                  ),
-                  validator: (value) => _validateCoordinate(value, -180, 180),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _notes,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _submit, child: const Text('Save')),
-      ],
     );
   }
 }
