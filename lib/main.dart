@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'core/database/fpv_database.dart';
 import 'core/database/repositories/drone_repository.dart';
+import 'core/database/repositories/battery_repository.dart';
+import 'features/batteries/batteries_screen.dart';
 import 'core/database/repositories/user_preferences_repository.dart';
 import 'features/drones/drones_screen.dart';
 import 'features/spots/data/spot_repository.dart';
@@ -50,12 +52,14 @@ class FPVHomeScreen extends StatefulWidget {
     super.key,
     this.spotRepository,
     this.droneRepository,
+    this.batteryRepository,
     this.preferencesRepository,
   });
 
   /// An injected repository remains owned by its caller.
   final SpotRepository? spotRepository;
   final DroneRepository? droneRepository;
+  final BatteryRepository? batteryRepository;
   final UserPreferencesRepository? preferencesRepository;
 
   @override
@@ -69,6 +73,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   FpvDatabase? _database;
   SpotRepository? _spotRepository;
   DroneRepository? _droneRepository;
+  BatteryRepository? _batteryRepository;
   bool _preferencesStarted = false;
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
@@ -135,6 +140,17 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => DronesScreen(repository: repository),
+      ),
+    );
+  }
+
+  Future<void> _openBatteries() async {
+    final repository = _batteryRepository ??=
+        widget.batteryRepository ??
+        BatteryRepository(_database ??= FpvDatabase.open());
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => BatteriesScreen(repository: repository),
       ),
     );
   }
@@ -313,6 +329,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   unawaited(_openDrones());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.battery_full_outlined),
+                title: const Text('Battery inventory'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openBatteries());
                 },
               ),
             ],

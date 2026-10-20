@@ -20,7 +20,7 @@ spot library stored with Drift/SQLite.
 - Search, categories, tags, favorites and spot details with paged list queries.
 - Drone profiles with dimensions, propellers, propulsion and power/performance
   parameters, with measured/estimated/unspecified provenance per value.
-- Database schema snapshots and tested v1/v2/v3/v4-to-v5 migrations.
+- Database schema snapshots and tested v1/v2/v3/v4/v5-to-v6 migrations.
 - Typed local repositories for spots, drones, batteries, radio equipment,
   flight plans/waypoints and map preferences, with transactional route storage.
 
@@ -149,3 +149,9 @@ typed failures and optional official validity. The Layer dialog retains the
 provenance of the data actually displayed after a failed update. Imagery and
 terrain factories live behind a replaceable adapter boundary. See
 [provider contracts and provenance](docs/osint_providers.md) (#4).
+
+**Battery inventory** in the navigation drawer manages individual packs and
+reusable type templates, explicit V/mAh/Wh/g specifications, optional manual
+condition/availability records and assignments to saved drones/flight plans.
+See [battery inventory](docs/battery_inventory.md) for template semantics,
+schema-v6 migration and validation (#14).

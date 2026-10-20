@@ -38,3 +38,31 @@ Relevant implementation: `lib/core/osint/`,
 `lib/features/spots/data/spot_location_service.dart`,
 `lib/features/globe/globe_controller.dart`, `web/globe.js`,
 `lib/core/database/repositories/user_preferences_repository.dart`.
+
+## Equipment follow-up: #14
+
+The private [Battery Inventory & Battery Health issue](https://github.com/CodefrogCF/FPVManager/issues/14)
+was checked against its four current acceptance criteria. The implementation now
+records cell count, capacity, nominal voltage, explicit energy and weight;
+distinguishes reusable type templates from individual packs; supports optional
+manual charge, cycles, condition notes and availability; and associates packs
+with saved drones and flight plans. Type changes preserve independent pack
+specifications. Schema v6 preserves existing battery records and adds
+transactional assignment tables. See [battery inventory](battery_inventory.md)
+for behavior, migration and validation evidence.
+
+The complete Flutter suite (207 tests), JavaScript (22), Python tooling (4),
+fatal-warning analysis, formatting and bundled Cesium checks passed. The built
+Web app was exercised for type/pack creation, independent specifications,
+condition records, persistence after reload and drone assignment. Web release
+and Android debug builds passed with bundled-asset verification, including all
+three Android SQLite architectures. An Android
+device check remains for keyboard/layout, persistence after app restart and the
+same create/edit/assignment flows. This does not establish automatic battery
+health estimation or electrical compatibility; those are outside the current
+acceptance criteria. Existing flight-plan records can be selected; the battery
+editor does not provide a flight-plan creation workflow.
+
+Next in the agreed equipment order is #15. No additional issue is needed for
+the current #14 criteria, and its GitHub checklist remains unchanged pending
+acceptance review.

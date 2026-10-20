@@ -3156,10 +3156,90 @@ class $BatteriesTable extends Batteries
   late final GeneratedColumn<int> cycleCount = GeneratedColumn<int>(
     'cycle_count',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _isTypeMeta = const VerificationMeta('isType');
+  @override
+  late final GeneratedColumn<bool> isType = GeneratedColumn<bool>(
+    'is_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_type" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _typeIdMeta = const VerificationMeta('typeId');
+  @override
+  late final GeneratedColumn<int> typeId = GeneratedColumn<int>(
+    'type_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES batteries (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _nominalVoltageVoltsMeta =
+      const VerificationMeta('nominalVoltageVolts');
+  @override
+  late final GeneratedColumn<double> nominalVoltageVolts =
+      GeneratedColumn<double>(
+        'nominal_voltage_volts',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _energyWhMeta = const VerificationMeta(
+    'energyWh',
+  );
+  @override
+  late final GeneratedColumn<double> energyWh = GeneratedColumn<double>(
+    'energy_wh',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _chargePercentMeta = const VerificationMeta(
+    'chargePercent',
+  );
+  @override
+  late final GeneratedColumn<double> chargePercent = GeneratedColumn<double>(
+    'charge_percent',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _availabilityMeta = const VerificationMeta(
+    'availability',
+  );
+  @override
+  late final GeneratedColumn<String> availability = GeneratedColumn<String>(
+    'availability',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('unknown'),
+  );
+  static const VerificationMeta _conditionNotesMeta = const VerificationMeta(
+    'conditionNotes',
+  );
+  @override
+  late final GeneratedColumn<String> conditionNotes = GeneratedColumn<String>(
+    'condition_notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
@@ -3179,6 +3259,13 @@ class $BatteriesTable extends Batteries
     capacityMah,
     weightGrams,
     cycleCount,
+    isType,
+    typeId,
+    nominalVoltageVolts,
+    energyWh,
+    chargePercent,
+    availability,
+    conditionNotes,
     notes,
   ];
   @override
@@ -3244,6 +3331,60 @@ class $BatteriesTable extends Batteries
         cycleCount.isAcceptableOrUnknown(data['cycle_count']!, _cycleCountMeta),
       );
     }
+    if (data.containsKey('is_type')) {
+      context.handle(
+        _isTypeMeta,
+        isType.isAcceptableOrUnknown(data['is_type']!, _isTypeMeta),
+      );
+    }
+    if (data.containsKey('type_id')) {
+      context.handle(
+        _typeIdMeta,
+        typeId.isAcceptableOrUnknown(data['type_id']!, _typeIdMeta),
+      );
+    }
+    if (data.containsKey('nominal_voltage_volts')) {
+      context.handle(
+        _nominalVoltageVoltsMeta,
+        nominalVoltageVolts.isAcceptableOrUnknown(
+          data['nominal_voltage_volts']!,
+          _nominalVoltageVoltsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('energy_wh')) {
+      context.handle(
+        _energyWhMeta,
+        energyWh.isAcceptableOrUnknown(data['energy_wh']!, _energyWhMeta),
+      );
+    }
+    if (data.containsKey('charge_percent')) {
+      context.handle(
+        _chargePercentMeta,
+        chargePercent.isAcceptableOrUnknown(
+          data['charge_percent']!,
+          _chargePercentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('availability')) {
+      context.handle(
+        _availabilityMeta,
+        availability.isAcceptableOrUnknown(
+          data['availability']!,
+          _availabilityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('condition_notes')) {
+      context.handle(
+        _conditionNotesMeta,
+        conditionNotes.isAcceptableOrUnknown(
+          data['condition_notes']!,
+          _conditionNotesMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -3286,7 +3427,35 @@ class $BatteriesTable extends Batteries
       cycleCount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}cycle_count'],
+      ),
+      isType: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_type'],
       )!,
+      typeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}type_id'],
+      ),
+      nominalVoltageVolts: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}nominal_voltage_volts'],
+      ),
+      energyWh: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}energy_wh'],
+      ),
+      chargePercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}charge_percent'],
+      ),
+      availability: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}availability'],
+      )!,
+      conditionNotes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}condition_notes'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -3307,7 +3476,14 @@ class Battery extends DataClass implements Insertable<Battery> {
   final int cellCount;
   final int capacityMah;
   final double? weightGrams;
-  final int cycleCount;
+  final int? cycleCount;
+  final bool isType;
+  final int? typeId;
+  final double? nominalVoltageVolts;
+  final double? energyWh;
+  final double? chargePercent;
+  final String availability;
+  final String? conditionNotes;
   final String? notes;
   const Battery({
     required this.id,
@@ -3316,7 +3492,14 @@ class Battery extends DataClass implements Insertable<Battery> {
     required this.cellCount,
     required this.capacityMah,
     this.weightGrams,
-    required this.cycleCount,
+    this.cycleCount,
+    required this.isType,
+    this.typeId,
+    this.nominalVoltageVolts,
+    this.energyWh,
+    this.chargePercent,
+    required this.availability,
+    this.conditionNotes,
     this.notes,
   });
   @override
@@ -3330,7 +3513,26 @@ class Battery extends DataClass implements Insertable<Battery> {
     if (!nullToAbsent || weightGrams != null) {
       map['weight_grams'] = Variable<double>(weightGrams);
     }
-    map['cycle_count'] = Variable<int>(cycleCount);
+    if (!nullToAbsent || cycleCount != null) {
+      map['cycle_count'] = Variable<int>(cycleCount);
+    }
+    map['is_type'] = Variable<bool>(isType);
+    if (!nullToAbsent || typeId != null) {
+      map['type_id'] = Variable<int>(typeId);
+    }
+    if (!nullToAbsent || nominalVoltageVolts != null) {
+      map['nominal_voltage_volts'] = Variable<double>(nominalVoltageVolts);
+    }
+    if (!nullToAbsent || energyWh != null) {
+      map['energy_wh'] = Variable<double>(energyWh);
+    }
+    if (!nullToAbsent || chargePercent != null) {
+      map['charge_percent'] = Variable<double>(chargePercent);
+    }
+    map['availability'] = Variable<String>(availability);
+    if (!nullToAbsent || conditionNotes != null) {
+      map['condition_notes'] = Variable<String>(conditionNotes);
+    }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -3347,7 +3549,26 @@ class Battery extends DataClass implements Insertable<Battery> {
       weightGrams: weightGrams == null && nullToAbsent
           ? const Value.absent()
           : Value(weightGrams),
-      cycleCount: Value(cycleCount),
+      cycleCount: cycleCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cycleCount),
+      isType: Value(isType),
+      typeId: typeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(typeId),
+      nominalVoltageVolts: nominalVoltageVolts == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nominalVoltageVolts),
+      energyWh: energyWh == null && nullToAbsent
+          ? const Value.absent()
+          : Value(energyWh),
+      chargePercent: chargePercent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chargePercent),
+      availability: Value(availability),
+      conditionNotes: conditionNotes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conditionNotes),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -3366,7 +3587,16 @@ class Battery extends DataClass implements Insertable<Battery> {
       cellCount: serializer.fromJson<int>(json['cellCount']),
       capacityMah: serializer.fromJson<int>(json['capacityMah']),
       weightGrams: serializer.fromJson<double?>(json['weightGrams']),
-      cycleCount: serializer.fromJson<int>(json['cycleCount']),
+      cycleCount: serializer.fromJson<int?>(json['cycleCount']),
+      isType: serializer.fromJson<bool>(json['isType']),
+      typeId: serializer.fromJson<int?>(json['typeId']),
+      nominalVoltageVolts: serializer.fromJson<double?>(
+        json['nominalVoltageVolts'],
+      ),
+      energyWh: serializer.fromJson<double?>(json['energyWh']),
+      chargePercent: serializer.fromJson<double?>(json['chargePercent']),
+      availability: serializer.fromJson<String>(json['availability']),
+      conditionNotes: serializer.fromJson<String?>(json['conditionNotes']),
       notes: serializer.fromJson<String?>(json['notes']),
     );
   }
@@ -3380,7 +3610,14 @@ class Battery extends DataClass implements Insertable<Battery> {
       'cellCount': serializer.toJson<int>(cellCount),
       'capacityMah': serializer.toJson<int>(capacityMah),
       'weightGrams': serializer.toJson<double?>(weightGrams),
-      'cycleCount': serializer.toJson<int>(cycleCount),
+      'cycleCount': serializer.toJson<int?>(cycleCount),
+      'isType': serializer.toJson<bool>(isType),
+      'typeId': serializer.toJson<int?>(typeId),
+      'nominalVoltageVolts': serializer.toJson<double?>(nominalVoltageVolts),
+      'energyWh': serializer.toJson<double?>(energyWh),
+      'chargePercent': serializer.toJson<double?>(chargePercent),
+      'availability': serializer.toJson<String>(availability),
+      'conditionNotes': serializer.toJson<String?>(conditionNotes),
       'notes': serializer.toJson<String?>(notes),
     };
   }
@@ -3392,7 +3629,14 @@ class Battery extends DataClass implements Insertable<Battery> {
     int? cellCount,
     int? capacityMah,
     Value<double?> weightGrams = const Value.absent(),
-    int? cycleCount,
+    Value<int?> cycleCount = const Value.absent(),
+    bool? isType,
+    Value<int?> typeId = const Value.absent(),
+    Value<double?> nominalVoltageVolts = const Value.absent(),
+    Value<double?> energyWh = const Value.absent(),
+    Value<double?> chargePercent = const Value.absent(),
+    String? availability,
+    Value<String?> conditionNotes = const Value.absent(),
     Value<String?> notes = const Value.absent(),
   }) => Battery(
     id: id ?? this.id,
@@ -3401,7 +3645,20 @@ class Battery extends DataClass implements Insertable<Battery> {
     cellCount: cellCount ?? this.cellCount,
     capacityMah: capacityMah ?? this.capacityMah,
     weightGrams: weightGrams.present ? weightGrams.value : this.weightGrams,
-    cycleCount: cycleCount ?? this.cycleCount,
+    cycleCount: cycleCount.present ? cycleCount.value : this.cycleCount,
+    isType: isType ?? this.isType,
+    typeId: typeId.present ? typeId.value : this.typeId,
+    nominalVoltageVolts: nominalVoltageVolts.present
+        ? nominalVoltageVolts.value
+        : this.nominalVoltageVolts,
+    energyWh: energyWh.present ? energyWh.value : this.energyWh,
+    chargePercent: chargePercent.present
+        ? chargePercent.value
+        : this.chargePercent,
+    availability: availability ?? this.availability,
+    conditionNotes: conditionNotes.present
+        ? conditionNotes.value
+        : this.conditionNotes,
     notes: notes.present ? notes.value : this.notes,
   );
   Battery copyWithCompanion(BatteriesCompanion data) {
@@ -3419,6 +3676,21 @@ class Battery extends DataClass implements Insertable<Battery> {
       cycleCount: data.cycleCount.present
           ? data.cycleCount.value
           : this.cycleCount,
+      isType: data.isType.present ? data.isType.value : this.isType,
+      typeId: data.typeId.present ? data.typeId.value : this.typeId,
+      nominalVoltageVolts: data.nominalVoltageVolts.present
+          ? data.nominalVoltageVolts.value
+          : this.nominalVoltageVolts,
+      energyWh: data.energyWh.present ? data.energyWh.value : this.energyWh,
+      chargePercent: data.chargePercent.present
+          ? data.chargePercent.value
+          : this.chargePercent,
+      availability: data.availability.present
+          ? data.availability.value
+          : this.availability,
+      conditionNotes: data.conditionNotes.present
+          ? data.conditionNotes.value
+          : this.conditionNotes,
       notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
@@ -3433,6 +3705,13 @@ class Battery extends DataClass implements Insertable<Battery> {
           ..write('capacityMah: $capacityMah, ')
           ..write('weightGrams: $weightGrams, ')
           ..write('cycleCount: $cycleCount, ')
+          ..write('isType: $isType, ')
+          ..write('typeId: $typeId, ')
+          ..write('nominalVoltageVolts: $nominalVoltageVolts, ')
+          ..write('energyWh: $energyWh, ')
+          ..write('chargePercent: $chargePercent, ')
+          ..write('availability: $availability, ')
+          ..write('conditionNotes: $conditionNotes, ')
           ..write('notes: $notes')
           ..write(')'))
         .toString();
@@ -3447,6 +3726,13 @@ class Battery extends DataClass implements Insertable<Battery> {
     capacityMah,
     weightGrams,
     cycleCount,
+    isType,
+    typeId,
+    nominalVoltageVolts,
+    energyWh,
+    chargePercent,
+    availability,
+    conditionNotes,
     notes,
   );
   @override
@@ -3460,6 +3746,13 @@ class Battery extends DataClass implements Insertable<Battery> {
           other.capacityMah == this.capacityMah &&
           other.weightGrams == this.weightGrams &&
           other.cycleCount == this.cycleCount &&
+          other.isType == this.isType &&
+          other.typeId == this.typeId &&
+          other.nominalVoltageVolts == this.nominalVoltageVolts &&
+          other.energyWh == this.energyWh &&
+          other.chargePercent == this.chargePercent &&
+          other.availability == this.availability &&
+          other.conditionNotes == this.conditionNotes &&
           other.notes == this.notes);
 }
 
@@ -3470,7 +3763,14 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
   final Value<int> cellCount;
   final Value<int> capacityMah;
   final Value<double?> weightGrams;
-  final Value<int> cycleCount;
+  final Value<int?> cycleCount;
+  final Value<bool> isType;
+  final Value<int?> typeId;
+  final Value<double?> nominalVoltageVolts;
+  final Value<double?> energyWh;
+  final Value<double?> chargePercent;
+  final Value<String> availability;
+  final Value<String?> conditionNotes;
   final Value<String?> notes;
   const BatteriesCompanion({
     this.id = const Value.absent(),
@@ -3480,6 +3780,13 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     this.capacityMah = const Value.absent(),
     this.weightGrams = const Value.absent(),
     this.cycleCount = const Value.absent(),
+    this.isType = const Value.absent(),
+    this.typeId = const Value.absent(),
+    this.nominalVoltageVolts = const Value.absent(),
+    this.energyWh = const Value.absent(),
+    this.chargePercent = const Value.absent(),
+    this.availability = const Value.absent(),
+    this.conditionNotes = const Value.absent(),
     this.notes = const Value.absent(),
   });
   BatteriesCompanion.insert({
@@ -3490,6 +3797,13 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     required int capacityMah,
     this.weightGrams = const Value.absent(),
     this.cycleCount = const Value.absent(),
+    this.isType = const Value.absent(),
+    this.typeId = const Value.absent(),
+    this.nominalVoltageVolts = const Value.absent(),
+    this.energyWh = const Value.absent(),
+    this.chargePercent = const Value.absent(),
+    this.availability = const Value.absent(),
+    this.conditionNotes = const Value.absent(),
     this.notes = const Value.absent(),
   }) : name = Value(name),
        cellCount = Value(cellCount),
@@ -3502,6 +3816,13 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     Expression<int>? capacityMah,
     Expression<double>? weightGrams,
     Expression<int>? cycleCount,
+    Expression<bool>? isType,
+    Expression<int>? typeId,
+    Expression<double>? nominalVoltageVolts,
+    Expression<double>? energyWh,
+    Expression<double>? chargePercent,
+    Expression<String>? availability,
+    Expression<String>? conditionNotes,
     Expression<String>? notes,
   }) {
     return RawValuesInsertable({
@@ -3512,6 +3833,14 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
       if (capacityMah != null) 'capacity_mah': capacityMah,
       if (weightGrams != null) 'weight_grams': weightGrams,
       if (cycleCount != null) 'cycle_count': cycleCount,
+      if (isType != null) 'is_type': isType,
+      if (typeId != null) 'type_id': typeId,
+      if (nominalVoltageVolts != null)
+        'nominal_voltage_volts': nominalVoltageVolts,
+      if (energyWh != null) 'energy_wh': energyWh,
+      if (chargePercent != null) 'charge_percent': chargePercent,
+      if (availability != null) 'availability': availability,
+      if (conditionNotes != null) 'condition_notes': conditionNotes,
       if (notes != null) 'notes': notes,
     });
   }
@@ -3523,7 +3852,14 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     Value<int>? cellCount,
     Value<int>? capacityMah,
     Value<double?>? weightGrams,
-    Value<int>? cycleCount,
+    Value<int?>? cycleCount,
+    Value<bool>? isType,
+    Value<int?>? typeId,
+    Value<double?>? nominalVoltageVolts,
+    Value<double?>? energyWh,
+    Value<double?>? chargePercent,
+    Value<String>? availability,
+    Value<String?>? conditionNotes,
     Value<String?>? notes,
   }) {
     return BatteriesCompanion(
@@ -3534,6 +3870,13 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
       capacityMah: capacityMah ?? this.capacityMah,
       weightGrams: weightGrams ?? this.weightGrams,
       cycleCount: cycleCount ?? this.cycleCount,
+      isType: isType ?? this.isType,
+      typeId: typeId ?? this.typeId,
+      nominalVoltageVolts: nominalVoltageVolts ?? this.nominalVoltageVolts,
+      energyWh: energyWh ?? this.energyWh,
+      chargePercent: chargePercent ?? this.chargePercent,
+      availability: availability ?? this.availability,
+      conditionNotes: conditionNotes ?? this.conditionNotes,
       notes: notes ?? this.notes,
     );
   }
@@ -3562,6 +3905,29 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     if (cycleCount.present) {
       map['cycle_count'] = Variable<int>(cycleCount.value);
     }
+    if (isType.present) {
+      map['is_type'] = Variable<bool>(isType.value);
+    }
+    if (typeId.present) {
+      map['type_id'] = Variable<int>(typeId.value);
+    }
+    if (nominalVoltageVolts.present) {
+      map['nominal_voltage_volts'] = Variable<double>(
+        nominalVoltageVolts.value,
+      );
+    }
+    if (energyWh.present) {
+      map['energy_wh'] = Variable<double>(energyWh.value);
+    }
+    if (chargePercent.present) {
+      map['charge_percent'] = Variable<double>(chargePercent.value);
+    }
+    if (availability.present) {
+      map['availability'] = Variable<String>(availability.value);
+    }
+    if (conditionNotes.present) {
+      map['condition_notes'] = Variable<String>(conditionNotes.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -3578,7 +3944,872 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
           ..write('capacityMah: $capacityMah, ')
           ..write('weightGrams: $weightGrams, ')
           ..write('cycleCount: $cycleCount, ')
+          ..write('isType: $isType, ')
+          ..write('typeId: $typeId, ')
+          ..write('nominalVoltageVolts: $nominalVoltageVolts, ')
+          ..write('energyWh: $energyWh, ')
+          ..write('chargePercent: $chargePercent, ')
+          ..write('availability: $availability, ')
+          ..write('conditionNotes: $conditionNotes, ')
           ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BatteryDronesTable extends BatteryDrones
+    with TableInfo<$BatteryDronesTable, BatteryDrone> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BatteryDronesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _batteryIdMeta = const VerificationMeta(
+    'batteryId',
+  );
+  @override
+  late final GeneratedColumn<int> batteryId = GeneratedColumn<int>(
+    'battery_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES batteries (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _droneIdMeta = const VerificationMeta(
+    'droneId',
+  );
+  @override
+  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
+    'drone_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES drones (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [batteryId, droneId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'battery_drones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BatteryDrone> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('battery_id')) {
+      context.handle(
+        _batteryIdMeta,
+        batteryId.isAcceptableOrUnknown(data['battery_id']!, _batteryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batteryIdMeta);
+    }
+    if (data.containsKey('drone_id')) {
+      context.handle(
+        _droneIdMeta,
+        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_droneIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {batteryId, droneId};
+  @override
+  BatteryDrone map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BatteryDrone(
+      batteryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}battery_id'],
+      )!,
+      droneId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}drone_id'],
+      )!,
+    );
+  }
+
+  @override
+  $BatteryDronesTable createAlias(String alias) {
+    return $BatteryDronesTable(attachedDatabase, alias);
+  }
+}
+
+class BatteryDrone extends DataClass implements Insertable<BatteryDrone> {
+  final int batteryId;
+  final int droneId;
+  const BatteryDrone({required this.batteryId, required this.droneId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['battery_id'] = Variable<int>(batteryId);
+    map['drone_id'] = Variable<int>(droneId);
+    return map;
+  }
+
+  BatteryDronesCompanion toCompanion(bool nullToAbsent) {
+    return BatteryDronesCompanion(
+      batteryId: Value(batteryId),
+      droneId: Value(droneId),
+    );
+  }
+
+  factory BatteryDrone.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BatteryDrone(
+      batteryId: serializer.fromJson<int>(json['batteryId']),
+      droneId: serializer.fromJson<int>(json['droneId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'batteryId': serializer.toJson<int>(batteryId),
+      'droneId': serializer.toJson<int>(droneId),
+    };
+  }
+
+  BatteryDrone copyWith({int? batteryId, int? droneId}) => BatteryDrone(
+    batteryId: batteryId ?? this.batteryId,
+    droneId: droneId ?? this.droneId,
+  );
+  BatteryDrone copyWithCompanion(BatteryDronesCompanion data) {
+    return BatteryDrone(
+      batteryId: data.batteryId.present ? data.batteryId.value : this.batteryId,
+      droneId: data.droneId.present ? data.droneId.value : this.droneId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BatteryDrone(')
+          ..write('batteryId: $batteryId, ')
+          ..write('droneId: $droneId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(batteryId, droneId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BatteryDrone &&
+          other.batteryId == this.batteryId &&
+          other.droneId == this.droneId);
+}
+
+class BatteryDronesCompanion extends UpdateCompanion<BatteryDrone> {
+  final Value<int> batteryId;
+  final Value<int> droneId;
+  final Value<int> rowid;
+  const BatteryDronesCompanion({
+    this.batteryId = const Value.absent(),
+    this.droneId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BatteryDronesCompanion.insert({
+    required int batteryId,
+    required int droneId,
+    this.rowid = const Value.absent(),
+  }) : batteryId = Value(batteryId),
+       droneId = Value(droneId);
+  static Insertable<BatteryDrone> custom({
+    Expression<int>? batteryId,
+    Expression<int>? droneId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (batteryId != null) 'battery_id': batteryId,
+      if (droneId != null) 'drone_id': droneId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BatteryDronesCompanion copyWith({
+    Value<int>? batteryId,
+    Value<int>? droneId,
+    Value<int>? rowid,
+  }) {
+    return BatteryDronesCompanion(
+      batteryId: batteryId ?? this.batteryId,
+      droneId: droneId ?? this.droneId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (batteryId.present) {
+      map['battery_id'] = Variable<int>(batteryId.value);
+    }
+    if (droneId.present) {
+      map['drone_id'] = Variable<int>(droneId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BatteryDronesCompanion(')
+          ..write('batteryId: $batteryId, ')
+          ..write('droneId: $droneId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FlightPlansTable extends FlightPlans
+    with TableInfo<$FlightPlansTable, FlightPlan> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FlightPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 120,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _droneIdMeta = const VerificationMeta(
+    'droneId',
+  );
+  @override
+  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
+    'drone_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES drones (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _startSpotIdMeta = const VerificationMeta(
+    'startSpotId',
+  );
+  @override
+  late final GeneratedColumn<int> startSpotId = GeneratedColumn<int>(
+    'start_spot_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES spots (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    droneId,
+    startSpotId,
+    notes,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'flight_plans';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FlightPlan> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('drone_id')) {
+      context.handle(
+        _droneIdMeta,
+        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
+      );
+    }
+    if (data.containsKey('start_spot_id')) {
+      context.handle(
+        _startSpotIdMeta,
+        startSpotId.isAcceptableOrUnknown(
+          data['start_spot_id']!,
+          _startSpotIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FlightPlan map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FlightPlan(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      droneId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}drone_id'],
+      ),
+      startSpotId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_spot_id'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FlightPlansTable createAlias(String alias) {
+    return $FlightPlansTable(attachedDatabase, alias);
+  }
+}
+
+class FlightPlan extends DataClass implements Insertable<FlightPlan> {
+  final int id;
+  final String name;
+  final int? droneId;
+  final int? startSpotId;
+  final String? notes;
+  final DateTime createdAt;
+  const FlightPlan({
+    required this.id,
+    required this.name,
+    this.droneId,
+    this.startSpotId,
+    this.notes,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || droneId != null) {
+      map['drone_id'] = Variable<int>(droneId);
+    }
+    if (!nullToAbsent || startSpotId != null) {
+      map['start_spot_id'] = Variable<int>(startSpotId);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  FlightPlansCompanion toCompanion(bool nullToAbsent) {
+    return FlightPlansCompanion(
+      id: Value(id),
+      name: Value(name),
+      droneId: droneId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(droneId),
+      startSpotId: startSpotId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startSpotId),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory FlightPlan.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FlightPlan(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      droneId: serializer.fromJson<int?>(json['droneId']),
+      startSpotId: serializer.fromJson<int?>(json['startSpotId']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'droneId': serializer.toJson<int?>(droneId),
+      'startSpotId': serializer.toJson<int?>(startSpotId),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  FlightPlan copyWith({
+    int? id,
+    String? name,
+    Value<int?> droneId = const Value.absent(),
+    Value<int?> startSpotId = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+  }) => FlightPlan(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    droneId: droneId.present ? droneId.value : this.droneId,
+    startSpotId: startSpotId.present ? startSpotId.value : this.startSpotId,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  FlightPlan copyWithCompanion(FlightPlansCompanion data) {
+    return FlightPlan(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      droneId: data.droneId.present ? data.droneId.value : this.droneId,
+      startSpotId: data.startSpotId.present
+          ? data.startSpotId.value
+          : this.startSpotId,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FlightPlan(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('droneId: $droneId, ')
+          ..write('startSpotId: $startSpotId, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, droneId, startSpotId, notes, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FlightPlan &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.droneId == this.droneId &&
+          other.startSpotId == this.startSpotId &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt);
+}
+
+class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int?> droneId;
+  final Value<int?> startSpotId;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  const FlightPlansCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.droneId = const Value.absent(),
+    this.startSpotId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  FlightPlansCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.droneId = const Value.absent(),
+    this.startSpotId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : name = Value(name);
+  static Insertable<FlightPlan> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? droneId,
+    Expression<int>? startSpotId,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (droneId != null) 'drone_id': droneId,
+      if (startSpotId != null) 'start_spot_id': startSpotId,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  FlightPlansCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? droneId,
+    Value<int?>? startSpotId,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+  }) {
+    return FlightPlansCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      droneId: droneId ?? this.droneId,
+      startSpotId: startSpotId ?? this.startSpotId,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (droneId.present) {
+      map['drone_id'] = Variable<int>(droneId.value);
+    }
+    if (startSpotId.present) {
+      map['start_spot_id'] = Variable<int>(startSpotId.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FlightPlansCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('droneId: $droneId, ')
+          ..write('startSpotId: $startSpotId, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BatteryFlightPlansTable extends BatteryFlightPlans
+    with TableInfo<$BatteryFlightPlansTable, BatteryFlightPlan> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BatteryFlightPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _batteryIdMeta = const VerificationMeta(
+    'batteryId',
+  );
+  @override
+  late final GeneratedColumn<int> batteryId = GeneratedColumn<int>(
+    'battery_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES batteries (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<int> planId = GeneratedColumn<int>(
+    'plan_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES flight_plans (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [batteryId, planId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'battery_flight_plans';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BatteryFlightPlan> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('battery_id')) {
+      context.handle(
+        _batteryIdMeta,
+        batteryId.isAcceptableOrUnknown(data['battery_id']!, _batteryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batteryIdMeta);
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(
+        _planIdMeta,
+        planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_planIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {batteryId, planId};
+  @override
+  BatteryFlightPlan map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BatteryFlightPlan(
+      batteryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}battery_id'],
+      )!,
+      planId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}plan_id'],
+      )!,
+    );
+  }
+
+  @override
+  $BatteryFlightPlansTable createAlias(String alias) {
+    return $BatteryFlightPlansTable(attachedDatabase, alias);
+  }
+}
+
+class BatteryFlightPlan extends DataClass
+    implements Insertable<BatteryFlightPlan> {
+  final int batteryId;
+  final int planId;
+  const BatteryFlightPlan({required this.batteryId, required this.planId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['battery_id'] = Variable<int>(batteryId);
+    map['plan_id'] = Variable<int>(planId);
+    return map;
+  }
+
+  BatteryFlightPlansCompanion toCompanion(bool nullToAbsent) {
+    return BatteryFlightPlansCompanion(
+      batteryId: Value(batteryId),
+      planId: Value(planId),
+    );
+  }
+
+  factory BatteryFlightPlan.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BatteryFlightPlan(
+      batteryId: serializer.fromJson<int>(json['batteryId']),
+      planId: serializer.fromJson<int>(json['planId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'batteryId': serializer.toJson<int>(batteryId),
+      'planId': serializer.toJson<int>(planId),
+    };
+  }
+
+  BatteryFlightPlan copyWith({int? batteryId, int? planId}) =>
+      BatteryFlightPlan(
+        batteryId: batteryId ?? this.batteryId,
+        planId: planId ?? this.planId,
+      );
+  BatteryFlightPlan copyWithCompanion(BatteryFlightPlansCompanion data) {
+    return BatteryFlightPlan(
+      batteryId: data.batteryId.present ? data.batteryId.value : this.batteryId,
+      planId: data.planId.present ? data.planId.value : this.planId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BatteryFlightPlan(')
+          ..write('batteryId: $batteryId, ')
+          ..write('planId: $planId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(batteryId, planId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BatteryFlightPlan &&
+          other.batteryId == this.batteryId &&
+          other.planId == this.planId);
+}
+
+class BatteryFlightPlansCompanion extends UpdateCompanion<BatteryFlightPlan> {
+  final Value<int> batteryId;
+  final Value<int> planId;
+  final Value<int> rowid;
+  const BatteryFlightPlansCompanion({
+    this.batteryId = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BatteryFlightPlansCompanion.insert({
+    required int batteryId,
+    required int planId,
+    this.rowid = const Value.absent(),
+  }) : batteryId = Value(batteryId),
+       planId = Value(planId);
+  static Insertable<BatteryFlightPlan> custom({
+    Expression<int>? batteryId,
+    Expression<int>? planId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (batteryId != null) 'battery_id': batteryId,
+      if (planId != null) 'plan_id': planId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BatteryFlightPlansCompanion copyWith({
+    Value<int>? batteryId,
+    Value<int>? planId,
+    Value<int>? rowid,
+  }) {
+    return BatteryFlightPlansCompanion(
+      batteryId: batteryId ?? this.batteryId,
+      planId: planId ?? this.planId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (batteryId.present) {
+      map['battery_id'] = Variable<int>(batteryId.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<int>(planId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BatteryFlightPlansCompanion(')
+          ..write('batteryId: $batteryId, ')
+          ..write('planId: $planId, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -3993,418 +5224,6 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
           ..write('frequencyMhz: $frequencyMhz, ')
           ..write('maxPowerMw: $maxPowerMw, ')
           ..write('notes: $notes')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $FlightPlansTable extends FlightPlans
-    with TableInfo<$FlightPlansTable, FlightPlan> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $FlightPlansTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 120,
-    ),
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _droneIdMeta = const VerificationMeta(
-    'droneId',
-  );
-  @override
-  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
-    'drone_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES drones (id) ON DELETE SET NULL',
-    ),
-  );
-  static const VerificationMeta _startSpotIdMeta = const VerificationMeta(
-    'startSpotId',
-  );
-  @override
-  late final GeneratedColumn<int> startSpotId = GeneratedColumn<int>(
-    'start_spot_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES spots (id) ON DELETE SET NULL',
-    ),
-  );
-  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
-  @override
-  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-    'notes',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    name,
-    droneId,
-    startSpotId,
-    notes,
-    createdAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'flight_plans';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<FlightPlan> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('drone_id')) {
-      context.handle(
-        _droneIdMeta,
-        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
-      );
-    }
-    if (data.containsKey('start_spot_id')) {
-      context.handle(
-        _startSpotIdMeta,
-        startSpotId.isAcceptableOrUnknown(
-          data['start_spot_id']!,
-          _startSpotIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('notes')) {
-      context.handle(
-        _notesMeta,
-        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  FlightPlan map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return FlightPlan(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      droneId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}drone_id'],
-      ),
-      startSpotId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}start_spot_id'],
-      ),
-      notes: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}notes'],
-      ),
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-    );
-  }
-
-  @override
-  $FlightPlansTable createAlias(String alias) {
-    return $FlightPlansTable(attachedDatabase, alias);
-  }
-}
-
-class FlightPlan extends DataClass implements Insertable<FlightPlan> {
-  final int id;
-  final String name;
-  final int? droneId;
-  final int? startSpotId;
-  final String? notes;
-  final DateTime createdAt;
-  const FlightPlan({
-    required this.id,
-    required this.name,
-    this.droneId,
-    this.startSpotId,
-    this.notes,
-    required this.createdAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['name'] = Variable<String>(name);
-    if (!nullToAbsent || droneId != null) {
-      map['drone_id'] = Variable<int>(droneId);
-    }
-    if (!nullToAbsent || startSpotId != null) {
-      map['start_spot_id'] = Variable<int>(startSpotId);
-    }
-    if (!nullToAbsent || notes != null) {
-      map['notes'] = Variable<String>(notes);
-    }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    return map;
-  }
-
-  FlightPlansCompanion toCompanion(bool nullToAbsent) {
-    return FlightPlansCompanion(
-      id: Value(id),
-      name: Value(name),
-      droneId: droneId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(droneId),
-      startSpotId: startSpotId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(startSpotId),
-      notes: notes == null && nullToAbsent
-          ? const Value.absent()
-          : Value(notes),
-      createdAt: Value(createdAt),
-    );
-  }
-
-  factory FlightPlan.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return FlightPlan(
-      id: serializer.fromJson<int>(json['id']),
-      name: serializer.fromJson<String>(json['name']),
-      droneId: serializer.fromJson<int?>(json['droneId']),
-      startSpotId: serializer.fromJson<int?>(json['startSpotId']),
-      notes: serializer.fromJson<String?>(json['notes']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'name': serializer.toJson<String>(name),
-      'droneId': serializer.toJson<int?>(droneId),
-      'startSpotId': serializer.toJson<int?>(startSpotId),
-      'notes': serializer.toJson<String?>(notes),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-    };
-  }
-
-  FlightPlan copyWith({
-    int? id,
-    String? name,
-    Value<int?> droneId = const Value.absent(),
-    Value<int?> startSpotId = const Value.absent(),
-    Value<String?> notes = const Value.absent(),
-    DateTime? createdAt,
-  }) => FlightPlan(
-    id: id ?? this.id,
-    name: name ?? this.name,
-    droneId: droneId.present ? droneId.value : this.droneId,
-    startSpotId: startSpotId.present ? startSpotId.value : this.startSpotId,
-    notes: notes.present ? notes.value : this.notes,
-    createdAt: createdAt ?? this.createdAt,
-  );
-  FlightPlan copyWithCompanion(FlightPlansCompanion data) {
-    return FlightPlan(
-      id: data.id.present ? data.id.value : this.id,
-      name: data.name.present ? data.name.value : this.name,
-      droneId: data.droneId.present ? data.droneId.value : this.droneId,
-      startSpotId: data.startSpotId.present
-          ? data.startSpotId.value
-          : this.startSpotId,
-      notes: data.notes.present ? data.notes.value : this.notes,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('FlightPlan(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('droneId: $droneId, ')
-          ..write('startSpotId: $startSpotId, ')
-          ..write('notes: $notes, ')
-          ..write('createdAt: $createdAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(id, name, droneId, startSpotId, notes, createdAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is FlightPlan &&
-          other.id == this.id &&
-          other.name == this.name &&
-          other.droneId == this.droneId &&
-          other.startSpotId == this.startSpotId &&
-          other.notes == this.notes &&
-          other.createdAt == this.createdAt);
-}
-
-class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
-  final Value<int> id;
-  final Value<String> name;
-  final Value<int?> droneId;
-  final Value<int?> startSpotId;
-  final Value<String?> notes;
-  final Value<DateTime> createdAt;
-  const FlightPlansCompanion({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    this.droneId = const Value.absent(),
-    this.startSpotId = const Value.absent(),
-    this.notes = const Value.absent(),
-    this.createdAt = const Value.absent(),
-  });
-  FlightPlansCompanion.insert({
-    this.id = const Value.absent(),
-    required String name,
-    this.droneId = const Value.absent(),
-    this.startSpotId = const Value.absent(),
-    this.notes = const Value.absent(),
-    this.createdAt = const Value.absent(),
-  }) : name = Value(name);
-  static Insertable<FlightPlan> custom({
-    Expression<int>? id,
-    Expression<String>? name,
-    Expression<int>? droneId,
-    Expression<int>? startSpotId,
-    Expression<String>? notes,
-    Expression<DateTime>? createdAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (name != null) 'name': name,
-      if (droneId != null) 'drone_id': droneId,
-      if (startSpotId != null) 'start_spot_id': startSpotId,
-      if (notes != null) 'notes': notes,
-      if (createdAt != null) 'created_at': createdAt,
-    });
-  }
-
-  FlightPlansCompanion copyWith({
-    Value<int>? id,
-    Value<String>? name,
-    Value<int?>? droneId,
-    Value<int?>? startSpotId,
-    Value<String?>? notes,
-    Value<DateTime>? createdAt,
-  }) {
-    return FlightPlansCompanion(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      droneId: droneId ?? this.droneId,
-      startSpotId: startSpotId ?? this.startSpotId,
-      notes: notes ?? this.notes,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (droneId.present) {
-      map['drone_id'] = Variable<int>(droneId.value);
-    }
-    if (startSpotId.present) {
-      map['start_spot_id'] = Variable<int>(startSpotId.value);
-    }
-    if (notes.present) {
-      map['notes'] = Variable<String>(notes.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('FlightPlansCompanion(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('droneId: $droneId, ')
-          ..write('startSpotId: $startSpotId, ')
-          ..write('notes: $notes, ')
-          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -5205,8 +6024,11 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   late final $DroneParameterSourcesTable droneParameterSources =
       $DroneParameterSourcesTable(this);
   late final $BatteriesTable batteries = $BatteriesTable(this);
-  late final $RadioEquipmentTable radioEquipment = $RadioEquipmentTable(this);
+  late final $BatteryDronesTable batteryDrones = $BatteryDronesTable(this);
   late final $FlightPlansTable flightPlans = $FlightPlansTable(this);
+  late final $BatteryFlightPlansTable batteryFlightPlans =
+      $BatteryFlightPlansTable(this);
+  late final $RadioEquipmentTable radioEquipment = $RadioEquipmentTable(this);
   late final $FlightWaypointsTable flightWaypoints = $FlightWaypointsTable(
     this,
   );
@@ -5238,8 +6060,10 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     drones,
     droneParameterSources,
     batteries,
-    radioEquipment,
+    batteryDrones,
     flightPlans,
+    batteryFlightPlans,
+    radioEquipment,
     flightWaypoints,
     appSettings,
     spotsCategoryId,
@@ -5272,6 +6096,27 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
+        'batteries',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('batteries', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'batteries',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('battery_drones', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'drones',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('battery_drones', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
         'drones',
         limitUpdateKind: UpdateKind.delete,
       ),
@@ -5283,6 +6128,20 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('flight_plans', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'batteries',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('battery_flight_plans', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'flight_plans',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('battery_flight_plans', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -6545,6 +7404,24 @@ final class $$DronesTableReferences
     );
   }
 
+  static MultiTypedResultKey<$BatteryDronesTable, List<BatteryDrone>>
+  _batteryDronesRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
+    db.batteryDrones,
+    aliasName: 'drones__id__battery_drones__drone_id',
+  );
+
+  $$BatteryDronesTableProcessedTableManager get batteryDronesRefs {
+    final manager = $$BatteryDronesTableTableManager(
+      $_db,
+      $_db.batteryDrones,
+    ).filter((f) => f.droneId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_batteryDronesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$FlightPlansTable, List<FlightPlan>>
   _flightPlansRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
     db.flightPlans,
@@ -6726,6 +7603,31 @@ class $$DronesTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> batteryDronesRefs(
+    Expression<bool> Function($$BatteryDronesTableFilterComposer f) f,
+  ) {
+    final $$BatteryDronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.batteryDrones,
+      getReferencedColumn: (t) => t.droneId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteryDronesTableFilterComposer(
+            $db: $db,
+            $table: $db.batteryDrones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
@@ -7042,6 +7944,31 @@ class $$DronesTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> batteryDronesRefs<T extends Object>(
+    Expression<T> Function($$BatteryDronesTableAnnotationComposer a) f,
+  ) {
+    final $$BatteryDronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.batteryDrones,
+      getReferencedColumn: (t) => t.droneId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteryDronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.batteryDrones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> flightPlansRefs<T extends Object>(
     Expression<T> Function($$FlightPlansTableAnnotationComposer a) f,
   ) {
@@ -7083,6 +8010,7 @@ class $$DronesTableTableManager
           Drone,
           PrefetchHooks Function({
             bool droneParameterSourcesRefs,
+            bool batteryDronesRefs,
             bool flightPlansRefs,
           })
         > {
@@ -7222,11 +8150,16 @@ class $$DronesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({droneParameterSourcesRefs = false, flightPlansRefs = false}) {
+              ({
+                droneParameterSourcesRefs = false,
+                batteryDronesRefs = false,
+                flightPlansRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (droneParameterSourcesRefs) db.droneParameterSources,
+                    if (batteryDronesRefs) db.batteryDrones,
                     if (flightPlansRefs) db.flightPlans,
                   ],
                   addJoins: null,
@@ -7247,6 +8180,27 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).droneParameterSourcesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.droneId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (batteryDronesRefs)
+                        await $_getPrefetchedData<
+                          Drone,
+                          $DronesTable,
+                          BatteryDrone
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DronesTableReferences
+                              ._batteryDronesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DronesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).batteryDronesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.droneId == item.id,
@@ -7296,6 +8250,7 @@ typedef $$DronesTableProcessedTableManager =
       Drone,
       PrefetchHooks Function({
         bool droneParameterSourcesRefs,
+        bool batteryDronesRefs,
         bool flightPlansRefs,
       })
     >;
@@ -7608,7 +8563,14 @@ typedef $$BatteriesTableCreateCompanionBuilder = BatteriesCompanion Function({
   required int cellCount,
   required int capacityMah,
   Value<double?> weightGrams,
-  Value<int> cycleCount,
+  Value<int?> cycleCount,
+  Value<bool> isType,
+  Value<int?> typeId,
+  Value<double?> nominalVoltageVolts,
+  Value<double?> energyWh,
+  Value<double?> chargePercent,
+  Value<String> availability,
+  Value<String?> conditionNotes,
   Value<String?> notes,
 });
 typedef $$BatteriesTableUpdateCompanionBuilder = BatteriesCompanion Function({
@@ -7618,9 +8580,77 @@ typedef $$BatteriesTableUpdateCompanionBuilder = BatteriesCompanion Function({
   Value<int> cellCount,
   Value<int> capacityMah,
   Value<double?> weightGrams,
-  Value<int> cycleCount,
+  Value<int?> cycleCount,
+  Value<bool> isType,
+  Value<int?> typeId,
+  Value<double?> nominalVoltageVolts,
+  Value<double?> energyWh,
+  Value<double?> chargePercent,
+  Value<String> availability,
+  Value<String?> conditionNotes,
   Value<String?> notes,
 });
+
+final class $$BatteriesTableReferences
+    extends BaseReferences<_$FpvDatabase, $BatteriesTable, Battery> {
+  $$BatteriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $BatteriesTable _typeIdTable(_$FpvDatabase db) =>
+      db.batteries.createAlias('batteries__type_id__batteries__id');
+
+  $$BatteriesTableProcessedTableManager? get typeId {
+    final $_column = $_itemColumn<int>('type_id');
+    if ($_column == null) return null;
+    final manager = $$BatteriesTableTableManager(
+      $_db,
+      $_db.batteries,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_typeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$BatteryDronesTable, List<BatteryDrone>>
+  _batteryDronesRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
+    db.batteryDrones,
+    aliasName: 'batteries__id__battery_drones__battery_id',
+  );
+
+  $$BatteryDronesTableProcessedTableManager get batteryDronesRefs {
+    final manager = $$BatteryDronesTableTableManager(
+      $_db,
+      $_db.batteryDrones,
+    ).filter((f) => f.batteryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_batteryDronesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$BatteryFlightPlansTable, List<BatteryFlightPlan>>
+  _batteryFlightPlansRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.batteryFlightPlans,
+        aliasName: 'batteries__id__battery_flight_plans__battery_id',
+      );
+
+  $$BatteryFlightPlansTableProcessedTableManager get batteryFlightPlansRefs {
+    final manager = $$BatteryFlightPlansTableTableManager(
+      $_db,
+      $_db.batteryFlightPlans,
+    ).filter((f) => f.batteryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _batteryFlightPlansRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$BatteriesTableFilterComposer
     extends Composer<_$FpvDatabase, $BatteriesTable> {
@@ -7666,10 +8696,113 @@ class $$BatteriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isType => $composableBuilder(
+    column: $table.isType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get nominalVoltageVolts => $composableBuilder(
+    column: $table.nominalVoltageVolts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get energyWh => $composableBuilder(
+    column: $table.energyWh,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get chargePercent => $composableBuilder(
+    column: $table.chargePercent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conditionNotes => $composableBuilder(
+    column: $table.conditionNotes,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$BatteriesTableFilterComposer get typeId {
+    final $$BatteriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.typeId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableFilterComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> batteryDronesRefs(
+    Expression<bool> Function($$BatteryDronesTableFilterComposer f) f,
+  ) {
+    final $$BatteryDronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.batteryDrones,
+      getReferencedColumn: (t) => t.batteryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteryDronesTableFilterComposer(
+            $db: $db,
+            $table: $db.batteryDrones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> batteryFlightPlansRefs(
+    Expression<bool> Function($$BatteryFlightPlansTableFilterComposer f) f,
+  ) {
+    final $$BatteryFlightPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.batteryFlightPlans,
+      getReferencedColumn: (t) => t.batteryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteryFlightPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.batteryFlightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$BatteriesTableOrderingComposer
@@ -7716,10 +8849,63 @@ class $$BatteriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isType => $composableBuilder(
+    column: $table.isType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get nominalVoltageVolts => $composableBuilder(
+    column: $table.nominalVoltageVolts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get energyWh => $composableBuilder(
+    column: $table.energyWh,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get chargePercent => $composableBuilder(
+    column: $table.chargePercent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conditionNotes => $composableBuilder(
+    column: $table.conditionNotes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$BatteriesTableOrderingComposer get typeId {
+    final $$BatteriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.typeId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BatteriesTableAnnotationComposer
@@ -7758,8 +8944,108 @@ class $$BatteriesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get isType =>
+      $composableBuilder(column: $table.isType, builder: (column) => column);
+
+  GeneratedColumn<double> get nominalVoltageVolts => $composableBuilder(
+    column: $table.nominalVoltageVolts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get energyWh =>
+      $composableBuilder(column: $table.energyWh, builder: (column) => column);
+
+  GeneratedColumn<double> get chargePercent => $composableBuilder(
+    column: $table.chargePercent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conditionNotes => $composableBuilder(
+    column: $table.conditionNotes,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  $$BatteriesTableAnnotationComposer get typeId {
+    final $$BatteriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.typeId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> batteryDronesRefs<T extends Object>(
+    Expression<T> Function($$BatteryDronesTableAnnotationComposer a) f,
+  ) {
+    final $$BatteryDronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.batteryDrones,
+      getReferencedColumn: (t) => t.batteryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteryDronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.batteryDrones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> batteryFlightPlansRefs<T extends Object>(
+    Expression<T> Function($$BatteryFlightPlansTableAnnotationComposer a) f,
+  ) {
+    final $$BatteryFlightPlansTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.batteryFlightPlans,
+          getReferencedColumn: (t) => t.batteryId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BatteryFlightPlansTableAnnotationComposer(
+                $db: $db,
+                $table: $db.batteryFlightPlans,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$BatteriesTableTableManager
@@ -7773,9 +9059,13 @@ class $$BatteriesTableTableManager
           $$BatteriesTableAnnotationComposer,
           $$BatteriesTableCreateCompanionBuilder,
           $$BatteriesTableUpdateCompanionBuilder,
-          (Battery, BaseReferences<_$FpvDatabase, $BatteriesTable, Battery>),
+          (Battery, $$BatteriesTableReferences),
           Battery,
-          PrefetchHooks Function()
+          PrefetchHooks Function({
+            bool typeId,
+            bool batteryDronesRefs,
+            bool batteryFlightPlansRefs,
+          })
         > {
   $$BatteriesTableTableManager(_$FpvDatabase db, $BatteriesTable table)
     : super(
@@ -7796,7 +9086,14 @@ class $$BatteriesTableTableManager
                 Value<int> cellCount = const Value.absent(),
                 Value<int> capacityMah = const Value.absent(),
                 Value<double?> weightGrams = const Value.absent(),
-                Value<int> cycleCount = const Value.absent(),
+                Value<int?> cycleCount = const Value.absent(),
+                Value<bool> isType = const Value.absent(),
+                Value<int?> typeId = const Value.absent(),
+                Value<double?> nominalVoltageVolts = const Value.absent(),
+                Value<double?> energyWh = const Value.absent(),
+                Value<double?> chargePercent = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+                Value<String?> conditionNotes = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
               }) => BatteriesCompanion(
                 id: id,
@@ -7806,6 +9103,13 @@ class $$BatteriesTableTableManager
                 capacityMah: capacityMah,
                 weightGrams: weightGrams,
                 cycleCount: cycleCount,
+                isType: isType,
+                typeId: typeId,
+                nominalVoltageVolts: nominalVoltageVolts,
+                energyWh: energyWh,
+                chargePercent: chargePercent,
+                availability: availability,
+                conditionNotes: conditionNotes,
                 notes: notes,
               ),
           createCompanionCallback:
@@ -7816,7 +9120,14 @@ class $$BatteriesTableTableManager
                 required int cellCount,
                 required int capacityMah,
                 Value<double?> weightGrams = const Value.absent(),
-                Value<int> cycleCount = const Value.absent(),
+                Value<int?> cycleCount = const Value.absent(),
+                Value<bool> isType = const Value.absent(),
+                Value<int?> typeId = const Value.absent(),
+                Value<double?> nominalVoltageVolts = const Value.absent(),
+                Value<double?> energyWh = const Value.absent(),
+                Value<double?> chargePercent = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+                Value<String?> conditionNotes = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
               }) => BatteriesCompanion.insert(
                 id: id,
@@ -7826,21 +9137,113 @@ class $$BatteriesTableTableManager
                 capacityMah: capacityMah,
                 weightGrams: weightGrams,
                 cycleCount: cycleCount,
+                isType: isType,
+                typeId: typeId,
+                nominalVoltageVolts: nominalVoltageVolts,
+                energyWh: energyWh,
+                chargePercent: chargePercent,
+                availability: availability,
+                conditionNotes: conditionNotes,
                 notes: notes,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
                   e.readTable<$BatteriesTable, Battery>(table),
-                  BaseReferences<_$FpvDatabase, $BatteriesTable, Battery>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$BatteriesTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback:
+              ({
+                typeId = false,
+                batteryDronesRefs = false,
+                batteryFlightPlansRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (batteryDronesRefs) db.batteryDrones,
+                    if (batteryFlightPlansRefs) db.batteryFlightPlans,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (typeId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.typeId,
+                            referencedTable: $$BatteriesTableReferences
+                                ._typeIdTable(db),
+                            referencedColumn: $$BatteriesTableReferences
+                                ._typeIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (batteryDronesRefs)
+                        await $_getPrefetchedData<
+                          Battery,
+                          $BatteriesTable,
+                          BatteryDrone
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BatteriesTableReferences
+                              ._batteryDronesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BatteriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).batteryDronesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.batteryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (batteryFlightPlansRefs)
+                        await $_getPrefetchedData<
+                          Battery,
+                          $BatteriesTable,
+                          BatteryFlightPlan
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BatteriesTableReferences
+                              ._batteryFlightPlansRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BatteriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).batteryFlightPlansRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.batteryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
         ),
       );
 }
@@ -7855,9 +9258,1333 @@ typedef $$BatteriesTableProcessedTableManager =
       $$BatteriesTableAnnotationComposer,
       $$BatteriesTableCreateCompanionBuilder,
       $$BatteriesTableUpdateCompanionBuilder,
-      (Battery, BaseReferences<_$FpvDatabase, $BatteriesTable, Battery>),
+      (Battery, $$BatteriesTableReferences),
       Battery,
-      PrefetchHooks Function()
+      PrefetchHooks Function({
+        bool typeId,
+        bool batteryDronesRefs,
+        bool batteryFlightPlansRefs,
+      })
+    >;
+typedef $$BatteryDronesTableCreateCompanionBuilder =
+    BatteryDronesCompanion Function({
+      required int batteryId,
+      required int droneId,
+      Value<int> rowid,
+    });
+typedef $$BatteryDronesTableUpdateCompanionBuilder =
+    BatteryDronesCompanion Function({
+      Value<int> batteryId,
+      Value<int> droneId,
+      Value<int> rowid,
+    });
+
+final class $$BatteryDronesTableReferences
+    extends BaseReferences<_$FpvDatabase, $BatteryDronesTable, BatteryDrone> {
+  $$BatteryDronesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BatteriesTable _batteryIdTable(_$FpvDatabase db) =>
+      db.batteries.createAlias('battery_drones__battery_id__batteries__id');
+
+  $$BatteriesTableProcessedTableManager get batteryId {
+    final $_column = $_itemColumn<int>('battery_id')!;
+
+    final manager = $$BatteriesTableTableManager(
+      $_db,
+      $_db.batteries,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_batteryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
+      db.drones.createAlias('battery_drones__drone_id__drones__id');
+
+  $$DronesTableProcessedTableManager get droneId {
+    final $_column = $_itemColumn<int>('drone_id')!;
+
+    final manager = $$DronesTableTableManager(
+      $_db,
+      $_db.drones,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$BatteryDronesTableFilterComposer
+    extends Composer<_$FpvDatabase, $BatteryDronesTable> {
+  $$BatteryDronesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$BatteriesTableFilterComposer get batteryId {
+    final $$BatteriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batteryId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableFilterComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DronesTableFilterComposer get droneId {
+    final $$DronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableFilterComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BatteryDronesTableOrderingComposer
+    extends Composer<_$FpvDatabase, $BatteryDronesTable> {
+  $$BatteryDronesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$BatteriesTableOrderingComposer get batteryId {
+    final $$BatteriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batteryId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DronesTableOrderingComposer get droneId {
+    final $$DronesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableOrderingComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BatteryDronesTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $BatteryDronesTable> {
+  $$BatteryDronesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$BatteriesTableAnnotationComposer get batteryId {
+    final $$BatteriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batteryId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DronesTableAnnotationComposer get droneId {
+    final $$DronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BatteryDronesTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $BatteryDronesTable,
+          BatteryDrone,
+          $$BatteryDronesTableFilterComposer,
+          $$BatteryDronesTableOrderingComposer,
+          $$BatteryDronesTableAnnotationComposer,
+          $$BatteryDronesTableCreateCompanionBuilder,
+          $$BatteryDronesTableUpdateCompanionBuilder,
+          (BatteryDrone, $$BatteryDronesTableReferences),
+          BatteryDrone,
+          PrefetchHooks Function({bool batteryId, bool droneId})
+        > {
+  $$BatteryDronesTableTableManager(_$FpvDatabase db, $BatteryDronesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BatteryDronesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BatteryDronesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BatteryDronesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> batteryId = const Value.absent(),
+                Value<int> droneId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BatteryDronesCompanion(
+                batteryId: batteryId,
+                droneId: droneId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int batteryId,
+                required int droneId,
+                Value<int> rowid = const Value.absent(),
+              }) => BatteryDronesCompanion.insert(
+                batteryId: batteryId,
+                droneId: droneId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$BatteryDronesTable, BatteryDrone>(table),
+                  $$BatteryDronesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({batteryId = false, droneId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (batteryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.batteryId,
+                        referencedTable: $$BatteryDronesTableReferences
+                            ._batteryIdTable(db),
+                        referencedColumn: $$BatteryDronesTableReferences
+                            ._batteryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (droneId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.droneId,
+                        referencedTable: $$BatteryDronesTableReferences
+                            ._droneIdTable(db),
+                        referencedColumn: $$BatteryDronesTableReferences
+                            ._droneIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BatteryDronesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $BatteryDronesTable,
+      BatteryDrone,
+      $$BatteryDronesTableFilterComposer,
+      $$BatteryDronesTableOrderingComposer,
+      $$BatteryDronesTableAnnotationComposer,
+      $$BatteryDronesTableCreateCompanionBuilder,
+      $$BatteryDronesTableUpdateCompanionBuilder,
+      (BatteryDrone, $$BatteryDronesTableReferences),
+      BatteryDrone,
+      PrefetchHooks Function({bool batteryId, bool droneId})
+    >;
+typedef $$FlightPlansTableCreateCompanionBuilder =
+    FlightPlansCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> droneId,
+      Value<int?> startSpotId,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+    });
+typedef $$FlightPlansTableUpdateCompanionBuilder =
+    FlightPlansCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> droneId,
+      Value<int?> startSpotId,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+    });
+
+final class $$FlightPlansTableReferences
+    extends BaseReferences<_$FpvDatabase, $FlightPlansTable, FlightPlan> {
+  $$FlightPlansTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
+      db.drones.createAlias('flight_plans__drone_id__drones__id');
+
+  $$DronesTableProcessedTableManager? get droneId {
+    final $_column = $_itemColumn<int>('drone_id');
+    if ($_column == null) return null;
+    final manager = $$DronesTableTableManager(
+      $_db,
+      $_db.drones,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SpotsTable _startSpotIdTable(_$FpvDatabase db) =>
+      db.spots.createAlias('flight_plans__start_spot_id__spots__id');
+
+  $$SpotsTableProcessedTableManager? get startSpotId {
+    final $_column = $_itemColumn<int>('start_spot_id');
+    if ($_column == null) return null;
+    final manager = $$SpotsTableTableManager(
+      $_db,
+      $_db.spots,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_startSpotIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$BatteryFlightPlansTable, List<BatteryFlightPlan>>
+  _batteryFlightPlansRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.batteryFlightPlans,
+        aliasName: 'flight_plans__id__battery_flight_plans__plan_id',
+      );
+
+  $$BatteryFlightPlansTableProcessedTableManager get batteryFlightPlansRefs {
+    final manager = $$BatteryFlightPlansTableTableManager(
+      $_db,
+      $_db.batteryFlightPlans,
+    ).filter((f) => f.planId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _batteryFlightPlansRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FlightWaypointsTable, List<FlightWaypoint>>
+  _flightWaypointsRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
+    db.flightWaypoints,
+    aliasName: 'flight_plans__id__flight_waypoints__plan_id',
+  );
+
+  $$FlightWaypointsTableProcessedTableManager get flightWaypointsRefs {
+    final manager = $$FlightWaypointsTableTableManager(
+      $_db,
+      $_db.flightWaypoints,
+    ).filter((f) => f.planId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _flightWaypointsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FlightPlansTableFilterComposer
+    extends Composer<_$FpvDatabase, $FlightPlansTable> {
+  $$FlightPlansTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DronesTableFilterComposer get droneId {
+    final $$DronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableFilterComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpotsTableFilterComposer get startSpotId {
+    final $$SpotsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.startSpotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableFilterComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> batteryFlightPlansRefs(
+    Expression<bool> Function($$BatteryFlightPlansTableFilterComposer f) f,
+  ) {
+    final $$BatteryFlightPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.batteryFlightPlans,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteryFlightPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.batteryFlightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> flightWaypointsRefs(
+    Expression<bool> Function($$FlightWaypointsTableFilterComposer f) f,
+  ) {
+    final $$FlightWaypointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.flightWaypoints,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightWaypointsTableFilterComposer(
+            $db: $db,
+            $table: $db.flightWaypoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FlightPlansTableOrderingComposer
+    extends Composer<_$FpvDatabase, $FlightPlansTable> {
+  $$FlightPlansTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DronesTableOrderingComposer get droneId {
+    final $$DronesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableOrderingComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpotsTableOrderingComposer get startSpotId {
+    final $$SpotsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.startSpotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableOrderingComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FlightPlansTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $FlightPlansTable> {
+  $$FlightPlansTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$DronesTableAnnotationComposer get droneId {
+    final $$DronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpotsTableAnnotationComposer get startSpotId {
+    final $$SpotsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.startSpotId,
+      referencedTable: $db.spots,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpotsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.spots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> batteryFlightPlansRefs<T extends Object>(
+    Expression<T> Function($$BatteryFlightPlansTableAnnotationComposer a) f,
+  ) {
+    final $$BatteryFlightPlansTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.batteryFlightPlans,
+          getReferencedColumn: (t) => t.planId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BatteryFlightPlansTableAnnotationComposer(
+                $db: $db,
+                $table: $db.batteryFlightPlans,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> flightWaypointsRefs<T extends Object>(
+    Expression<T> Function($$FlightWaypointsTableAnnotationComposer a) f,
+  ) {
+    final $$FlightWaypointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.flightWaypoints,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightWaypointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.flightWaypoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FlightPlansTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $FlightPlansTable,
+          FlightPlan,
+          $$FlightPlansTableFilterComposer,
+          $$FlightPlansTableOrderingComposer,
+          $$FlightPlansTableAnnotationComposer,
+          $$FlightPlansTableCreateCompanionBuilder,
+          $$FlightPlansTableUpdateCompanionBuilder,
+          (FlightPlan, $$FlightPlansTableReferences),
+          FlightPlan,
+          PrefetchHooks Function({
+            bool droneId,
+            bool startSpotId,
+            bool batteryFlightPlansRefs,
+            bool flightWaypointsRefs,
+          })
+        > {
+  $$FlightPlansTableTableManager(_$FpvDatabase db, $FlightPlansTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FlightPlansTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FlightPlansTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FlightPlansTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> droneId = const Value.absent(),
+                Value<int?> startSpotId = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => FlightPlansCompanion(
+                id: id,
+                name: name,
+                droneId: droneId,
+                startSpotId: startSpotId,
+                notes: notes,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> droneId = const Value.absent(),
+                Value<int?> startSpotId = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => FlightPlansCompanion.insert(
+                id: id,
+                name: name,
+                droneId: droneId,
+                startSpotId: startSpotId,
+                notes: notes,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$FlightPlansTable, FlightPlan>(table),
+                  $$FlightPlansTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                droneId = false,
+                startSpotId = false,
+                batteryFlightPlansRefs = false,
+                flightWaypointsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (batteryFlightPlansRefs) db.batteryFlightPlans,
+                    if (flightWaypointsRefs) db.flightWaypoints,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (droneId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.droneId,
+                            referencedTable: $$FlightPlansTableReferences
+                                ._droneIdTable(db),
+                            referencedColumn: $$FlightPlansTableReferences
+                                ._droneIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (startSpotId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.startSpotId,
+                            referencedTable: $$FlightPlansTableReferences
+                                ._startSpotIdTable(db),
+                            referencedColumn: $$FlightPlansTableReferences
+                                ._startSpotIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (batteryFlightPlansRefs)
+                        await $_getPrefetchedData<
+                          FlightPlan,
+                          $FlightPlansTable,
+                          BatteryFlightPlan
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FlightPlansTableReferences
+                              ._batteryFlightPlansRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FlightPlansTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).batteryFlightPlansRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.planId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (flightWaypointsRefs)
+                        await $_getPrefetchedData<
+                          FlightPlan,
+                          $FlightPlansTable,
+                          FlightWaypoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FlightPlansTableReferences
+                              ._flightWaypointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FlightPlansTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).flightWaypointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.planId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FlightPlansTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $FlightPlansTable,
+      FlightPlan,
+      $$FlightPlansTableFilterComposer,
+      $$FlightPlansTableOrderingComposer,
+      $$FlightPlansTableAnnotationComposer,
+      $$FlightPlansTableCreateCompanionBuilder,
+      $$FlightPlansTableUpdateCompanionBuilder,
+      (FlightPlan, $$FlightPlansTableReferences),
+      FlightPlan,
+      PrefetchHooks Function({
+        bool droneId,
+        bool startSpotId,
+        bool batteryFlightPlansRefs,
+        bool flightWaypointsRefs,
+      })
+    >;
+typedef $$BatteryFlightPlansTableCreateCompanionBuilder =
+    BatteryFlightPlansCompanion Function({
+      required int batteryId,
+      required int planId,
+      Value<int> rowid,
+    });
+typedef $$BatteryFlightPlansTableUpdateCompanionBuilder =
+    BatteryFlightPlansCompanion Function({
+      Value<int> batteryId,
+      Value<int> planId,
+      Value<int> rowid,
+    });
+
+final class $$BatteryFlightPlansTableReferences
+    extends
+        BaseReferences<
+          _$FpvDatabase,
+          $BatteryFlightPlansTable,
+          BatteryFlightPlan
+        > {
+  $$BatteryFlightPlansTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BatteriesTable _batteryIdTable(_$FpvDatabase db) => db.batteries
+      .createAlias('battery_flight_plans__battery_id__batteries__id');
+
+  $$BatteriesTableProcessedTableManager get batteryId {
+    final $_column = $_itemColumn<int>('battery_id')!;
+
+    final manager = $$BatteriesTableTableManager(
+      $_db,
+      $_db.batteries,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_batteryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FlightPlansTable _planIdTable(_$FpvDatabase db) => db.flightPlans
+      .createAlias('battery_flight_plans__plan_id__flight_plans__id');
+
+  $$FlightPlansTableProcessedTableManager get planId {
+    final $_column = $_itemColumn<int>('plan_id')!;
+
+    final manager = $$FlightPlansTableTableManager(
+      $_db,
+      $_db.flightPlans,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_planIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$BatteryFlightPlansTableFilterComposer
+    extends Composer<_$FpvDatabase, $BatteryFlightPlansTable> {
+  $$BatteryFlightPlansTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$BatteriesTableFilterComposer get batteryId {
+    final $$BatteriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batteryId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableFilterComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableFilterComposer get planId {
+    final $$FlightPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BatteryFlightPlansTableOrderingComposer
+    extends Composer<_$FpvDatabase, $BatteryFlightPlansTable> {
+  $$BatteryFlightPlansTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$BatteriesTableOrderingComposer get batteryId {
+    final $$BatteriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batteryId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableOrderingComposer get planId {
+    final $$FlightPlansTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableOrderingComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BatteryFlightPlansTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $BatteryFlightPlansTable> {
+  $$BatteryFlightPlansTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$BatteriesTableAnnotationComposer get batteryId {
+    final $$BatteriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.batteryId,
+      referencedTable: $db.batteries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BatteriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.batteries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableAnnotationComposer get planId {
+    final $$FlightPlansTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableAnnotationComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BatteryFlightPlansTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $BatteryFlightPlansTable,
+          BatteryFlightPlan,
+          $$BatteryFlightPlansTableFilterComposer,
+          $$BatteryFlightPlansTableOrderingComposer,
+          $$BatteryFlightPlansTableAnnotationComposer,
+          $$BatteryFlightPlansTableCreateCompanionBuilder,
+          $$BatteryFlightPlansTableUpdateCompanionBuilder,
+          (BatteryFlightPlan, $$BatteryFlightPlansTableReferences),
+          BatteryFlightPlan,
+          PrefetchHooks Function({bool batteryId, bool planId})
+        > {
+  $$BatteryFlightPlansTableTableManager(
+    _$FpvDatabase db,
+    $BatteryFlightPlansTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BatteryFlightPlansTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BatteryFlightPlansTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BatteryFlightPlansTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> batteryId = const Value.absent(),
+                Value<int> planId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BatteryFlightPlansCompanion(
+                batteryId: batteryId,
+                planId: planId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int batteryId,
+                required int planId,
+                Value<int> rowid = const Value.absent(),
+              }) => BatteryFlightPlansCompanion.insert(
+                batteryId: batteryId,
+                planId: planId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$BatteryFlightPlansTable, BatteryFlightPlan>(
+                    table,
+                  ),
+                  $$BatteryFlightPlansTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({batteryId = false, planId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (batteryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.batteryId,
+                        referencedTable: $$BatteryFlightPlansTableReferences
+                            ._batteryIdTable(db),
+                        referencedColumn: $$BatteryFlightPlansTableReferences
+                            ._batteryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (planId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.planId,
+                        referencedTable: $$BatteryFlightPlansTableReferences
+                            ._planIdTable(db),
+                        referencedColumn: $$BatteryFlightPlansTableReferences
+                            ._planIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BatteryFlightPlansTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $BatteryFlightPlansTable,
+      BatteryFlightPlan,
+      $$BatteryFlightPlansTableFilterComposer,
+      $$BatteryFlightPlansTableOrderingComposer,
+      $$BatteryFlightPlansTableAnnotationComposer,
+      $$BatteryFlightPlansTableCreateCompanionBuilder,
+      $$BatteryFlightPlansTableUpdateCompanionBuilder,
+      (BatteryFlightPlan, $$BatteryFlightPlansTableReferences),
+      BatteryFlightPlan,
+      PrefetchHooks Function({bool batteryId, bool planId})
     >;
 typedef $$RadioEquipmentTableCreateCompanionBuilder =
     RadioEquipmentCompanion Function({
@@ -8090,525 +10817,6 @@ typedef $$RadioEquipmentTableProcessedTableManager =
       ),
       RadioEquipmentData,
       PrefetchHooks Function()
-    >;
-typedef $$FlightPlansTableCreateCompanionBuilder =
-    FlightPlansCompanion Function({
-      Value<int> id,
-      required String name,
-      Value<int?> droneId,
-      Value<int?> startSpotId,
-      Value<String?> notes,
-      Value<DateTime> createdAt,
-    });
-typedef $$FlightPlansTableUpdateCompanionBuilder =
-    FlightPlansCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      Value<int?> droneId,
-      Value<int?> startSpotId,
-      Value<String?> notes,
-      Value<DateTime> createdAt,
-    });
-
-final class $$FlightPlansTableReferences
-    extends BaseReferences<_$FpvDatabase, $FlightPlansTable, FlightPlan> {
-  $$FlightPlansTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
-      db.drones.createAlias('flight_plans__drone_id__drones__id');
-
-  $$DronesTableProcessedTableManager? get droneId {
-    final $_column = $_itemColumn<int>('drone_id');
-    if ($_column == null) return null;
-    final manager = $$DronesTableTableManager(
-      $_db,
-      $_db.drones,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $SpotsTable _startSpotIdTable(_$FpvDatabase db) =>
-      db.spots.createAlias('flight_plans__start_spot_id__spots__id');
-
-  $$SpotsTableProcessedTableManager? get startSpotId {
-    final $_column = $_itemColumn<int>('start_spot_id');
-    if ($_column == null) return null;
-    final manager = $$SpotsTableTableManager(
-      $_db,
-      $_db.spots,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_startSpotIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static MultiTypedResultKey<$FlightWaypointsTable, List<FlightWaypoint>>
-  _flightWaypointsRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
-    db.flightWaypoints,
-    aliasName: 'flight_plans__id__flight_waypoints__plan_id',
-  );
-
-  $$FlightWaypointsTableProcessedTableManager get flightWaypointsRefs {
-    final manager = $$FlightWaypointsTableTableManager(
-      $_db,
-      $_db.flightWaypoints,
-    ).filter((f) => f.planId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _flightWaypointsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$FlightPlansTableFilterComposer
-    extends Composer<_$FpvDatabase, $FlightPlansTable> {
-  $$FlightPlansTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get notes => $composableBuilder(
-    column: $table.notes,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$DronesTableFilterComposer get droneId {
-    final $$DronesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.droneId,
-      referencedTable: $db.drones,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DronesTableFilterComposer(
-            $db: $db,
-            $table: $db.drones,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$SpotsTableFilterComposer get startSpotId {
-    final $$SpotsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.startSpotId,
-      referencedTable: $db.spots,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SpotsTableFilterComposer(
-            $db: $db,
-            $table: $db.spots,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<bool> flightWaypointsRefs(
-    Expression<bool> Function($$FlightWaypointsTableFilterComposer f) f,
-  ) {
-    final $$FlightWaypointsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.flightWaypoints,
-      getReferencedColumn: (t) => t.planId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$FlightWaypointsTableFilterComposer(
-            $db: $db,
-            $table: $db.flightWaypoints,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-}
-
-class $$FlightPlansTableOrderingComposer
-    extends Composer<_$FpvDatabase, $FlightPlansTable> {
-  $$FlightPlansTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get notes => $composableBuilder(
-    column: $table.notes,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$DronesTableOrderingComposer get droneId {
-    final $$DronesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.droneId,
-      referencedTable: $db.drones,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DronesTableOrderingComposer(
-            $db: $db,
-            $table: $db.drones,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$SpotsTableOrderingComposer get startSpotId {
-    final $$SpotsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.startSpotId,
-      referencedTable: $db.spots,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SpotsTableOrderingComposer(
-            $db: $db,
-            $table: $db.spots,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$FlightPlansTableAnnotationComposer
-    extends Composer<_$FpvDatabase, $FlightPlansTable> {
-  $$FlightPlansTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get notes =>
-      $composableBuilder(column: $table.notes, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  $$DronesTableAnnotationComposer get droneId {
-    final $$DronesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.droneId,
-      referencedTable: $db.drones,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DronesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.drones,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$SpotsTableAnnotationComposer get startSpotId {
-    final $$SpotsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.startSpotId,
-      referencedTable: $db.spots,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SpotsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.spots,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<T> flightWaypointsRefs<T extends Object>(
-    Expression<T> Function($$FlightWaypointsTableAnnotationComposer a) f,
-  ) {
-    final $$FlightWaypointsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.flightWaypoints,
-      getReferencedColumn: (t) => t.planId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$FlightWaypointsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.flightWaypoints,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-}
-
-class $$FlightPlansTableTableManager
-    extends
-        RootTableManager<
-          _$FpvDatabase,
-          $FlightPlansTable,
-          FlightPlan,
-          $$FlightPlansTableFilterComposer,
-          $$FlightPlansTableOrderingComposer,
-          $$FlightPlansTableAnnotationComposer,
-          $$FlightPlansTableCreateCompanionBuilder,
-          $$FlightPlansTableUpdateCompanionBuilder,
-          (FlightPlan, $$FlightPlansTableReferences),
-          FlightPlan,
-          PrefetchHooks Function({
-            bool droneId,
-            bool startSpotId,
-            bool flightWaypointsRefs,
-          })
-        > {
-  $$FlightPlansTableTableManager(_$FpvDatabase db, $FlightPlansTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$FlightPlansTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$FlightPlansTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$FlightPlansTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<int?> droneId = const Value.absent(),
-                Value<int?> startSpotId = const Value.absent(),
-                Value<String?> notes = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-              }) => FlightPlansCompanion(
-                id: id,
-                name: name,
-                droneId: droneId,
-                startSpotId: startSpotId,
-                notes: notes,
-                createdAt: createdAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String name,
-                Value<int?> droneId = const Value.absent(),
-                Value<int?> startSpotId = const Value.absent(),
-                Value<String?> notes = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-              }) => FlightPlansCompanion.insert(
-                id: id,
-                name: name,
-                droneId: droneId,
-                startSpotId: startSpotId,
-                notes: notes,
-                createdAt: createdAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$FlightPlansTable, FlightPlan>(table),
-                  $$FlightPlansTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback:
-              ({
-                droneId = false,
-                startSpotId = false,
-                flightWaypointsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (flightWaypointsRefs) db.flightWaypoints,
-                  ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (droneId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.droneId,
-                            referencedTable: $$FlightPlansTableReferences
-                                ._droneIdTable(db),
-                            referencedColumn: $$FlightPlansTableReferences
-                                ._droneIdTable(db)
-                                .id,
-                          ) as T;
-                        }
-                        if (startSpotId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.startSpotId,
-                            referencedTable: $$FlightPlansTableReferences
-                                ._startSpotIdTable(db),
-                            referencedColumn: $$FlightPlansTableReferences
-                                ._startSpotIdTable(db)
-                                .id,
-                          ) as T;
-                        }
-
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (flightWaypointsRefs)
-                        await $_getPrefetchedData<
-                          FlightPlan,
-                          $FlightPlansTable,
-                          FlightWaypoint
-                        >(
-                          currentTable: table,
-                          referencedTable: $$FlightPlansTableReferences
-                              ._flightWaypointsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$FlightPlansTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).flightWaypointsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.planId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
-        ),
-      );
-}
-
-typedef $$FlightPlansTableProcessedTableManager =
-    ProcessedTableManager<
-      _$FpvDatabase,
-      $FlightPlansTable,
-      FlightPlan,
-      $$FlightPlansTableFilterComposer,
-      $$FlightPlansTableOrderingComposer,
-      $$FlightPlansTableAnnotationComposer,
-      $$FlightPlansTableCreateCompanionBuilder,
-      $$FlightPlansTableUpdateCompanionBuilder,
-      (FlightPlan, $$FlightPlansTableReferences),
-      FlightPlan,
-      PrefetchHooks Function({
-        bool droneId,
-        bool startSpotId,
-        bool flightWaypointsRefs,
-      })
     >;
 typedef $$FlightWaypointsTableCreateCompanionBuilder =
     FlightWaypointsCompanion Function({
@@ -9178,10 +11386,14 @@ class $FpvDatabaseManager {
       $$DroneParameterSourcesTableTableManager(_db, _db.droneParameterSources);
   $$BatteriesTableTableManager get batteries =>
       $$BatteriesTableTableManager(_db, _db.batteries);
-  $$RadioEquipmentTableTableManager get radioEquipment =>
-      $$RadioEquipmentTableTableManager(_db, _db.radioEquipment);
+  $$BatteryDronesTableTableManager get batteryDrones =>
+      $$BatteryDronesTableTableManager(_db, _db.batteryDrones);
   $$FlightPlansTableTableManager get flightPlans =>
       $$FlightPlansTableTableManager(_db, _db.flightPlans);
+  $$BatteryFlightPlansTableTableManager get batteryFlightPlans =>
+      $$BatteryFlightPlansTableTableManager(_db, _db.batteryFlightPlans);
+  $$RadioEquipmentTableTableManager get radioEquipment =>
+      $$RadioEquipmentTableTableManager(_db, _db.radioEquipment);
   $$FlightWaypointsTableTableManager get flightWaypoints =>
       $$FlightWaypointsTableTableManager(_db, _db.flightWaypoints);
   $$AppSettingsTableTableManager get appSettings =>

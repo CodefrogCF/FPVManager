@@ -18,7 +18,7 @@ table representation alone cannot express the application contract.
 |---|---|---|
 | `SpotRepository` | `lib/features/spots/data/` | CRUD, watch, favorite toggle, photo drafts/previews |
 | `DroneRepository` | `lib/core/database/repositories/` | CRUD/watch, complete profile snapshots and transactional provenance |
-| `BatteryRepository` | `lib/core/database/repositories/` | CRUD, watch |
+| `BatteryRepository` | `lib/core/database/repositories/` | Pack/type CRUD/watch, atomic condition/specification snapshots and drone/plan assignments |
 | `RadioEquipmentRepository` | `lib/core/database/repositories/` | CRUD, watch |
 | `FlightPlanRepository` | `lib/core/database/repositories/` | Metadata CRUD/watch, route snapshots, waypoint replacement |
 | `UserPreferencesRepository` | `lib/core/database/repositories/` | Read/watch, save, reset |
@@ -97,10 +97,10 @@ ordering and renderer recovery.
 
 ## Schema and scope
 
-Schema version is **5**. The indexed `spot_photos` table adds normalized photos
+Schema version is **6**. The indexed `spot_photos` table adds normalized photos
 and thumbnails with cascading spot ownership. Spot category/search columns and
 the indexed `spot_tags` table support classification and filtering. Migration
-tests validate v1/v2/v3/v4 → v5 while preserving existing records. Drone fields
+tests validate v1/v2/v3/v4/v5 → v6 while preserving existing records. Drone fields
 and `drone_parameter_sources` preserve per-value provenance. Repository tests cover CRUD,
 validation, watchers, relationship deletion, rollback, height references and
 preferences. A file-backed test closes and reopens SQLite and verifies records
@@ -109,7 +109,9 @@ from every domain.
 Spots have editing/list screens, a photo gallery and opt-in device location;
 see [photo and location contracts](spot_photos_and_location.md). Drone profiles
 have list/editor/detail screens; see [drone profile contracts](drone_profiles.md).
-Battery and radio equipment profiles (#14–#15),
-route editing (#25) remain separate feature work. A saved route is a local planning
+Battery inventory has pack/type editors, optional manual condition records and
+transactional drone/flight-plan links; see [battery inventory](battery_inventory.md).
+Radio equipment profiles (#15) and route editing (#25) remain separate feature
+work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.
 See [spot search and classification](spot_search.md) for the spot list contract.

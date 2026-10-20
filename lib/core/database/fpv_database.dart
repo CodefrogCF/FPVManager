@@ -109,9 +109,40 @@ class Batteries extends Table {
 
   RealColumn get weightGrams => real().nullable()();
 
-  IntColumn get cycleCount => integer().withDefault(const Constant(0))();
+  IntColumn get cycleCount => integer().nullable()();
+
+  BoolColumn get isType => boolean().withDefault(const Constant(false))();
+  IntColumn get typeId => integer().nullable().references(
+    Batteries,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  RealColumn get nominalVoltageVolts => real().nullable()();
+  RealColumn get energyWh => real().nullable()();
+  RealColumn get chargePercent => real().nullable()();
+  TextColumn get availability =>
+      text().withDefault(const Constant('unknown'))();
+  TextColumn get conditionNotes => text().nullable()();
 
   TextColumn get notes => text().nullable()();
+}
+
+class BatteryDrones extends Table {
+  IntColumn get batteryId =>
+      integer().references(Batteries, #id, onDelete: KeyAction.cascade)();
+  IntColumn get droneId =>
+      integer().references(Drones, #id, onDelete: KeyAction.cascade)();
+  @override
+  Set<Column> get primaryKey => {batteryId, droneId};
+}
+
+class BatteryFlightPlans extends Table {
+  IntColumn get batteryId =>
+      integer().references(Batteries, #id, onDelete: KeyAction.cascade)();
+  IntColumn get planId =>
+      integer().references(FlightPlans, #id, onDelete: KeyAction.cascade)();
+  @override
+  Set<Column> get primaryKey => {batteryId, planId};
 }
 
 /// Radio control, telemetry and video equipment.
@@ -197,6 +228,8 @@ class AppSettings extends Table {
     Drones,
     DroneParameterSources,
     Batteries,
+    BatteryDrones,
+    BatteryFlightPlans,
     RadioEquipment,
     FlightPlans,
     FlightWaypoints,
@@ -220,7 +253,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -310,6 +343,28 @@ class FpvDatabase extends _$FpvDatabase {
           }
         }
         await m.createTable(droneParameterSources);
+      }
+      if (from < 6) {
+        // v1 creates the current battery table above. Existing v2-v5 rows keep
+        // their IDs, specifications, notes and recorded cycles, including zero.
+        if (from >= 2) {
+          await m.alterTable(
+            TableMigration(
+              batteries,
+              newColumns: [
+                batteries.isType,
+                batteries.typeId,
+                batteries.nominalVoltageVolts,
+                batteries.energyWh,
+                batteries.chargePercent,
+                batteries.availability,
+                batteries.conditionNotes,
+              ],
+            ),
+          );
+        }
+        await m.createTable(batteryDrones);
+        await m.createTable(batteryFlightPlans);
       }
     },
     beforeOpen: (details) async {
