@@ -67,8 +67,12 @@ Typed repository interfaces cover spots, drones, batteries, radio equipment,
 flight plans/waypoints and preferences. Route snapshots retain explicit height
 references and separate AGL offsets. Plan creation, waypoint replacement and
 preference saves are transactional. Spots and drone profiles have editing/list
-and detail screens; map preference persistence is not yet wired to the controls. See
+and detail screens; map preferences are restored and saved by the controller. See
 [local data contracts and remaining feature scope](local_data.md).
+
+The layer sheet also controls saved-spot visibility and the two overlay sources'
+order. Preference loads gate editing; writes are serialized atomic snapshots.
+See [map preferences and recovery](map_preferences.md).
 
 Web uses the checked-in `sqlite3.wasm` / `drift_worker.js` resources. Native
 repository tests use independent in-memory databases and a temporary file-backed
@@ -104,8 +108,9 @@ Current external dependencies include:
 
 The documented Web build uses `--no-web-resources-cdn` to load Flutter renderer
 resources locally as well. This list is an architecture inventory, not a completed
-privacy/license audit; #5/#44 cover that documentation. Map requests disclose the viewed area to their
-providers; REFRAME requests contain supplied positions and elevations.
+license audit; #8/#44 cover those remaining checks. The
+[privacy and permission policy](privacy_and_permissions.md) records current request triggers and data flows.
+Map requests disclose the viewed area to their providers; REFRAME requests contain supplied positions and elevations.
 
 ## Verification
 

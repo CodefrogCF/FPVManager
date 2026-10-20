@@ -76,22 +76,24 @@ Invalid foreign keys fail the write; they are never stored as dangling links.
 
 ## Preferences
 
-`UserPreferencesRepository` owns these three `app_settings` keys:
+`UserPreferencesRepository` owns these five `app_settings` keys:
 
 | Key | Stored value | Default when absent |
 |---|---|---|
 | `map.style` | `satellite`, `topographic` or `relief` | `satellite` |
 | `map.uas.visible` | `true` or `false` | `false` |
 | `map.uas.fillOpacity` | Finite number in [0, 1] | `0.20` |
+| `map.spots.visible` | `true` or `false` | `true` |
+| `map.overlayOrder` | JSON array with `uasZones` and `savedSpots`, each once, back to front | `["uasZones","savedSpots"]` |
 
-Reading defaults does not write rows. Saving replaces all three owned values in
+Reading defaults does not write rows. Saving replaces all five owned values in
 one transaction, with the same update timestamp. Malformed owned values raise
 `FormatException`; a caller can offer an explicit reset. Reset deletes only
 these keys and preserves unrelated settings.
 
-This is the persistence contract. The current map controls still use controller
-state; restoring these preferences during app startup and saving UI changes are
-follow-up work for the map/settings feature (#9).
+The map controls restore these preferences at startup and save successful user
+changes. See [map preferences](map_preferences.md) for failure handling, overlay
+ordering and renderer recovery.
 
 ## Schema and scope
 
@@ -108,7 +110,6 @@ Spots have editing/list screens, a photo gallery and opt-in device location;
 see [photo and location contracts](spot_photos_and_location.md). Drone profiles
 have list/editor/detail screens; see [drone profile contracts](drone_profiles.md).
 Battery and radio equipment profiles (#14–#15),
-route editing (#25) and settings UI
-integration remain separate feature work. A saved route is a local planning
+route editing (#25) remain separate feature work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.
 See [spot search and classification](spot_search.md) for the spot list contract.

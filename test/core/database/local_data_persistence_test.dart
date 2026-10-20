@@ -80,6 +80,8 @@ void main() {
             mapStyle: GlobeMapStyle.relief,
             uasZonesVisible: true,
             uasZonesFillOpacity: .6,
+            savedSpotsVisible: false,
+            overlayOrder: [GlobeOverlay.savedSpots, GlobeOverlay.uasZones],
           ),
         );
         await first.close();
@@ -131,6 +133,11 @@ void main() {
         expect(preferences.mapStyle, GlobeMapStyle.relief);
         expect(preferences.uasZonesVisible, isTrue);
         expect(preferences.uasZonesFillOpacity, .6);
+        expect(preferences.savedSpotsVisible, isFalse);
+        expect(preferences.overlayOrder, [
+          GlobeOverlay.savedSpots,
+          GlobeOverlay.uasZones,
+        ]);
       } finally {
         await database?.close();
         // Only remove the unique fixture directory created above, within temp.

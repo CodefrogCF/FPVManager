@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../models/user_preferences.dart';
@@ -22,7 +24,9 @@ final class DriftUserPreferencesRepository
   static const _style = 'map.style';
   static const _visible = 'map.uas.visible';
   static const _opacity = 'map.uas.fillOpacity';
-  static const _keys = [_style, _visible, _opacity];
+  static const _spotsVisible = 'map.spots.visible';
+  static const _order = 'map.overlayOrder';
+  static const _keys = [_style, _visible, _opacity, _spotsVisible, _order];
 
   SimpleSelectStatement<$AppSettingsTable, AppSetting> _query() =>
       _database.select(_database.appSettings)
@@ -35,6 +39,28 @@ final class DriftUserPreferencesRepository
       final style = values[_style];
       final visible = values[_visible];
       final opacity = values[_opacity];
+      final spotsVisible = values[_spotsVisible];
+      if (spotsVisible != null &&
+          spotsVisible != 'true' &&
+          spotsVisible != 'false') {
+        throw const FormatException('Invalid saved spots visibility setting');
+      }
+      final rawOrder = values[_order];
+      final decodedOrder = rawOrder == null ? null : jsonDecode(rawOrder);
+      if (decodedOrder != null &&
+          (decodedOrder is! List ||
+              decodedOrder.any((item) => item is! String))) {
+        throw const FormatException('Invalid overlay order setting');
+      }
+      if (rawOrder != null && decodedOrder == null) {
+        throw const FormatException('Invalid overlay order setting');
+      }
+      final order = decodedOrder == null
+          ? defaults.overlayOrder
+          : (decodedOrder as List)
+                .map((item) => GlobeOverlay.values.byName(item as String))
+                .toList();
+      UserPreferences.validateOverlayOrder(order);
       if (visible != null && visible != 'true' && visible != 'false') {
         throw const FormatException('Invalid UAS visibility setting');
       }
@@ -50,6 +76,10 @@ final class DriftUserPreferencesRepository
             ? defaults.uasZonesVisible
             : visible == 'true',
         uasZonesFillOpacity: parsedOpacity,
+        savedSpotsVisible: spotsVisible == null
+            ? defaults.savedSpotsVisible
+            : spotsVisible == 'true',
+        overlayOrder: List.unmodifiable(order),
       );
     } on ArgumentError catch (error) {
       throw FormatException('Invalid stored preferences: $error');
@@ -70,15 +100,21 @@ final class DriftUserPreferencesRepository
 
   @override
   Future<void> savePreferences(UserPreferences preferences) {
-    _validateOpacity(preferences.uasZonesFillOpacity);
+    final snapshot = preferences.copyWith();
+    _validateOpacity(snapshot.uasZonesFillOpacity);
+    UserPreferences.validateOverlayOrder(snapshot.overlayOrder);
     final updatedAt = DateTime.now().toUtc();
     return _database.transaction(() async {
       await _database.batch((batch) {
         batch.insertAllOnConflictUpdate(_database.appSettings, [
           for (final entry in {
-            _style: preferences.mapStyle.name,
-            _visible: preferences.uasZonesVisible.toString(),
-            _opacity: preferences.uasZonesFillOpacity.toString(),
+            _style: snapshot.mapStyle.name,
+            _visible: snapshot.uasZonesVisible.toString(),
+            _opacity: snapshot.uasZonesFillOpacity.toString(),
+            _spotsVisible: snapshot.savedSpotsVisible.toString(),
+            _order: jsonEncode(
+              snapshot.overlayOrder.map((item) => item.name).toList(),
+            ),
           }.entries)
             AppSettingsCompanion.insert(
               key: entry.key,

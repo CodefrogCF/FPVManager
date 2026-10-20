@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'core/database/fpv_database.dart';
 import 'core/database/repositories/drone_repository.dart';
+import 'core/database/repositories/user_preferences_repository.dart';
 import 'features/drones/drones_screen.dart';
 import 'features/spots/data/spot_repository.dart';
 import 'features/spots/data/spot_query.dart';
@@ -44,11 +45,17 @@ class FPVManagerApp extends StatelessWidget {
 }
 
 class FPVHomeScreen extends StatefulWidget {
-  const FPVHomeScreen({super.key, this.spotRepository, this.droneRepository});
+  const FPVHomeScreen({
+    super.key,
+    this.spotRepository,
+    this.droneRepository,
+    this.preferencesRepository,
+  });
 
   /// An injected repository remains owned by its caller.
   final SpotRepository? spotRepository;
   final DroneRepository? droneRepository;
+  final UserPreferencesRepository? preferencesRepository;
 
   @override
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
@@ -61,6 +68,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   FpvDatabase? _database;
   SpotRepository? _spotRepository;
   DroneRepository? _droneRepository;
+  bool _preferencesStarted = false;
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
   Map<int, SpotMapEntry> _spotsById = const {};
@@ -251,6 +259,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     }
 
     if (database != null) {
+      await _globeController.preferencesSettled;
       await database.close();
     }
   }
@@ -262,6 +271,15 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    if (_globeController.isReady && !_preferencesStarted) {
+      _preferencesStarted = true;
+      unawaited(
+        _globeController.initializePreferences(
+          widget.preferencesRepository ??
+              UserPreferencesRepository(_database ??= FpvDatabase.open()),
+        ),
+      );
+    }
     if (_globeController.isReady && _spotsSubscription == null) {
       _startSpotSynchronization();
     }

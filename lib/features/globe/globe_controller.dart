@@ -5,11 +5,13 @@ import 'package:flutter/foundation.dart';
 import '../../core/osint/osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/user_preferences.dart';
+import '../../core/database/repositories/user_preferences_repository.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import 'globe_bridge.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
-export '../../core/models/user_preferences.dart' show GlobeMapStyle;
+export '../../core/models/user_preferences.dart'
+    show GlobeMapStyle, GlobeOverlay;
 
 class GlobePoint {
   const GlobePoint({
@@ -111,6 +113,147 @@ class GlobeController extends ChangeNotifier {
   List<SpotMapMarker> _spotMarkers = const [];
   int? _selectedSpotId;
   int _spotMarkerRevision = 0;
+  bool _savedSpotsVisible = true;
+  List<GlobeOverlay> _overlayOrder = const [
+    GlobeOverlay.uasZones,
+    GlobeOverlay.savedSpots,
+  ];
+  UserPreferencesRepository? _preferencesRepository;
+  UserPreferences _preferences = const UserPreferences();
+  Future<void>? _preferencesLoad;
+  Future<void>? _preferencesWrites;
+  bool _preferencesLoading = false;
+  bool _preferencesLoaded = false;
+  String? _preferencesError;
+  int _preferencesWriteRevision = 0;
+
+  bool get savedSpotsVisible => _savedSpotsVisible;
+  List<GlobeOverlay> get overlayOrder => _overlayOrder;
+  bool get preferencesLoading => _preferencesLoading;
+  bool get preferencesLoadFailed =>
+      _preferencesRepository != null &&
+      !_preferencesLoaded &&
+      !_preferencesLoading;
+  bool get canEditPreferences =>
+      !_preferencesLoading &&
+      (_preferencesRepository == null || _preferencesLoaded);
+  String? get preferencesError => _preferencesError;
+
+  /// Finish local I/O before the owner closes its database.
+  Future<void> get preferencesSettled async {
+    if (_preferencesLoading) await _preferencesLoad;
+    await _preferencesWrites;
+  }
+
+  Future<void> initializePreferences(UserPreferencesRepository repository) {
+    if (_preferencesRepository != null) {
+      return _preferencesLoad ?? Future.value();
+    }
+    _preferencesRepository = repository;
+    return retryLoadingPreferences();
+  }
+
+  Future<void> retryLoadingPreferences() {
+    if (_preferencesLoading || _disposed) {
+      return _preferencesLoad ?? Future.value();
+    }
+    return _preferencesLoad = _loadPreferences(reset: false);
+  }
+
+  Future<void> resetPreferences() {
+    if (_preferencesLoading || _disposed) {
+      return _preferencesLoad ?? Future.value();
+    }
+    return _preferencesLoad = _loadPreferences(reset: true);
+  }
+
+  Future<void> _loadPreferences({required bool reset}) async {
+    final repository = _preferencesRepository;
+    if (repository == null) return;
+    _preferencesLoading = true;
+    _preferencesError = null;
+    notifyListeners();
+    try {
+      if (reset) await repository.resetPreferences();
+      final preferences = await repository.getPreferences();
+      if (_disposed) return;
+      UserPreferences.validateOverlayOrder(preferences.overlayOrder);
+      _preferences = preferences.copyWith();
+      _requestedMapStyle = preferences.mapStyle;
+      _requestedUasOpacity = preferences.uasZonesFillOpacity;
+      _uasRequestedVisible = preferences.uasZonesVisible;
+      _savedSpotsVisible = preferences.savedSpotsVisible;
+      _overlayOrder = _preferences.overlayOrder;
+      _preferencesLoaded = true;
+      if (_ready) {
+        await _restoreRendererState(_connectionGeneration, forceSettings: true);
+      }
+    } catch (error) {
+      if (!_disposed) {
+        _preferencesError = 'Unable to load map preferences: $error';
+      }
+    } finally {
+      _preferencesLoading = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  void _checkPreferencesEditable() {
+    if (!canEditPreferences) {
+      throw StateError('Map preferences are not available');
+    }
+  }
+
+  Future<void> _savePreferences(UserPreferences preferences) {
+    if (_disposed) return Future.value();
+    _preferences = preferences.copyWith();
+    final repository = _preferencesRepository;
+    if (repository == null || !_preferencesLoaded) return Future.value();
+    final snapshot = _preferences;
+    final revision = ++_preferencesWriteRevision;
+    // A slow earlier write must never overwrite a later UI choice.
+    return _preferencesWrites = (_preferencesWrites ?? Future<void>.value())
+        .then((_) async {
+          try {
+            await repository.savePreferences(snapshot);
+            if (!_disposed && revision == _preferencesWriteRevision) {
+              _preferencesError = null;
+            }
+          } catch (error) {
+            if (!_disposed && revision == _preferencesWriteRevision) {
+              _preferencesError = 'Map changes are not saved: $error';
+            }
+          }
+          if (revision == _preferencesWriteRevision) _preferencesWrites = null;
+          if (!_disposed) notifyListeners();
+        });
+  }
+
+  Future<void> retrySavingPreferences() => _savePreferences(_preferences);
+
+  Future<void> setSavedSpotsVisible(bool visible) async {
+    _checkPreferencesEditable();
+    await _send({'type': 'set-spots-visible', 'visible': visible});
+    if (_disposed) return;
+    _savedSpotsVisible = visible;
+    if (!visible) _selectedSpotId = null;
+    notifyListeners();
+    await _savePreferences(_preferences.copyWith(savedSpotsVisible: visible));
+  }
+
+  Future<void> setOverlayOrder(List<GlobeOverlay> order) async {
+    _checkPreferencesEditable();
+    UserPreferences.validateOverlayOrder(order);
+    final snapshot = List<GlobeOverlay>.unmodifiable(order);
+    await _send({
+      'type': 'set-overlay-order',
+      'order': snapshot.map((item) => item.name).toList(),
+    });
+    if (_disposed) return;
+    _overlayOrder = snapshot;
+    notifyListeners();
+    await _savePreferences(_preferences.copyWith(overlayOrder: snapshot));
+  }
 
   bool get uasZonesVisible => _uasZonesVisible;
   bool get uasZonesLoading => _uasZonesLoading;
@@ -311,13 +454,26 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> setMapStyle(GlobeMapStyle style) async {
-    _requestedMapStyle = style;
+    _checkPreferencesEditable();
     await _send({'type': 'set-map-style', 'style': style.name});
+    _requestedMapStyle = style;
+    await _savePreferences(_preferences.copyWith(mapStyle: style));
   }
 
-  Future<void> setUasZonesVisible(bool visible) {
+  Future<void> setUasZonesVisible(bool visible) async {
+    _checkPreferencesEditable();
+    final previous = _uasRequestedVisible;
     _uasRequestedVisible = visible;
-    return _updateUas(forceRefresh: false);
+    final update = _updateUas(forceRefresh: false);
+    final operation = _uasOperation;
+    try {
+      await update;
+    } catch (_) {
+      if (operation == _uasOperation) _uasRequestedVisible = previous;
+      rethrow;
+    }
+    if (operation != _uasOperation || _disposed) return;
+    await _savePreferences(_preferences.copyWith(uasZonesVisible: visible));
   }
 
   Future<void> refreshUasZones() => _updateUas(forceRefresh: true);
@@ -363,13 +519,15 @@ class GlobeController extends ChangeNotifier {
     }
   }
 
-  Future<void> setUasZonesFillOpacity(double opacity) {
+  Future<void> setUasZonesFillOpacity(double opacity) async {
+    _checkPreferencesEditable();
     if (!opacity.isFinite || opacity < 0 || opacity > 1) {
       throw ArgumentError.value(opacity, 'opacity', 'Must be between 0 and 1');
     }
 
+    await _send({'type': 'set-uas-opacity', 'opacity': opacity});
     _requestedUasOpacity = opacity;
-    return _send({'type': 'set-uas-opacity', 'opacity': opacity});
+    await _savePreferences(_preferences.copyWith(uasZonesFillOpacity: opacity));
   }
 
   void handleEvent(String message) {
@@ -408,7 +566,9 @@ class GlobeController extends ChangeNotifier {
       case 'spot-selected':
         final id = data['id'];
 
-        if (id is! int || !_spotMarkers.any((spot) => spot.id == id)) {
+        if (!_savedSpotsVisible ||
+            id is! int ||
+            !_spotMarkers.any((spot) => spot.id == id)) {
           return;
         }
 
@@ -540,18 +700,21 @@ class GlobeController extends ChangeNotifier {
     }
   }
 
-  Future<void> _restoreRendererState(int generation) async {
+  Future<void> _restoreRendererState(
+    int generation, {
+    bool forceSettings = false,
+  }) async {
     bool current() =>
         !_disposed && _ready && generation == _connectionGeneration;
     try {
-      if (_requestedMapStyle != GlobeMapStyle.satellite) {
+      if (forceSettings || _requestedMapStyle != GlobeMapStyle.satellite) {
         await _send({
           'type': 'set-map-style',
           'style': _requestedMapStyle.name,
         });
       }
       if (!current()) return;
-      if (_requestedUasOpacity != 0.20) {
+      if (forceSettings || _requestedUasOpacity != 0.20) {
         await _send({
           'type': 'set-uas-opacity',
           'opacity': _requestedUasOpacity,
@@ -560,7 +723,24 @@ class GlobeController extends ChangeNotifier {
       if (!current()) return;
       if (_spotMarkers.isNotEmpty) await _pushSpotMarkers();
       if (!current()) return;
+      if (forceSettings || !_savedSpotsVisible) {
+        await _send({
+          'type': 'set-spots-visible',
+          'visible': _savedSpotsVisible,
+        });
+      }
+      if (!current()) return;
+      if (forceSettings || _overlayOrder.first != GlobeOverlay.uasZones) {
+        await _send({
+          'type': 'set-overlay-order',
+          'order': _overlayOrder.map((item) => item.name).toList(),
+        });
+      }
+      if (!current()) return;
       if (_uasRequestedVisible) await _updateUas(forceRefresh: false);
+      if (current() && forceSettings && !_uasRequestedVisible) {
+        await _send({'type': 'set-uas-zones', 'visible': false});
+      }
     } catch (error) {
       if (!current()) return;
       _error = 'Unable to restore map state: $error';

@@ -42,6 +42,7 @@ Run from the repository root with the Flutter/Dart versions listed in README:
 flutter pub get --enforce-lockfile
 dart run tool/check_format.dart
 python tool/vendor_cesium.py --check
+python -m unittest discover -s test/tool -p 'test_*.py'
 node --test test/js/globe_bridge.test.cjs
 flutter analyze --no-pub
 flutter test --no-pub
@@ -51,6 +52,7 @@ For changes affecting platform integration, also run:
 
 ```sh
 flutter build web --release --no-pub --no-web-resources-cdn
+python tool/prepare_sqlite_android.py
 flutter build apk --debug --no-pub
 ```
 

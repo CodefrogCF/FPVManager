@@ -64,7 +64,10 @@ void main() {
     'cached overlay reactivation immediately updates layer controls',
     (tester) async {
       await openSheet(tester);
-      final toggle = find.byType(SwitchListTile);
+      final toggle = find.widgetWithText(
+        SwitchListTile,
+        'Swiss UAS Geographical Zones',
+      );
 
       await tester.tap(toggle);
       await tester.pump();
@@ -101,7 +104,11 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.text('Loading official zone data...'), findsOneWidget);
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,
+      tester
+          .widget<SwitchListTile>(
+            find.widgetWithText(SwitchListTile, 'Swiss UAS Geographical Zones'),
+          )
+          .onChanged,
       isNull,
     );
 
@@ -110,7 +117,11 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.text('Dataset import failed'), findsOneWidget);
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).onChanged,
+      tester
+          .widget<SwitchListTile>(
+            find.widgetWithText(SwitchListTile, 'Swiss UAS Geographical Zones'),
+          )
+          .onChanged,
       isNotNull,
     );
   });

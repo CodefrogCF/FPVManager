@@ -38,6 +38,8 @@ jobs:
         run: dart run tool/check_format.dart
       - name: Verify bundled Cesium resources
         run: python3 tool/vendor_cesium.py --check
+      - name: Test verified SQLite download preparation
+        run: python3 -m unittest discover -s test/tool -p 'test_*.py'
       - name: Test renderer protocol
         run: node --test test/js/globe_bridge.test.cjs
       - name: Analyze
@@ -89,5 +91,7 @@ jobs:
           cache: true
       - name: Install locked dependencies
         run: flutter pub get --enforce-lockfile
+      - name: Prepare verified SQLite Android libraries
+        run: python3 tool/prepare_sqlite_android.py
       - name: Build Android
         run: flutter build apk --debug --no-pub

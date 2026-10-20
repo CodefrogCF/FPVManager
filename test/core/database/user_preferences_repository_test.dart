@@ -20,6 +20,11 @@ void main() {
     expect(defaults.mapStyle, GlobeMapStyle.satellite);
     expect(defaults.uasZonesVisible, isFalse);
     expect(defaults.uasZonesFillOpacity, 0.20);
+    expect(defaults.savedSpotsVisible, isTrue);
+    expect(defaults.overlayOrder, [
+      GlobeOverlay.uasZones,
+      GlobeOverlay.savedSpots,
+    ]);
     expect(await database.select(database.appSettings).get(), isEmpty);
   });
 
@@ -38,14 +43,18 @@ void main() {
           mapStyle: GlobeMapStyle.relief,
           uasZonesVisible: true,
           uasZonesFillOpacity: .8,
+          savedSpotsVisible: false,
+          overlayOrder: [GlobeOverlay.savedSpots, GlobeOverlay.uasZones],
         ),
       );
       expect(await queue.moveNext(), isTrue);
       expect(queue.current.mapStyle, GlobeMapStyle.relief);
       expect(queue.current.uasZonesVisible, isTrue);
       expect(queue.current.uasZonesFillOpacity, .8);
+      expect(queue.current.savedSpotsVisible, isFalse);
+      expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      expect(rows, hasLength(4));
+      expect(rows, hasLength(6));
       expect(
         rows
             .where((row) => row.key != 'unrelated')
@@ -63,7 +72,7 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(4));
+      expect(await database.select(database.appSettings).get(), hasLength(6));
       await repository.resetPreferences();
       expect(
         (await repository.getPreferences()).mapStyle,
@@ -99,6 +108,8 @@ void main() {
       'map.style': 'unknown',
       'map.uas.visible': 'yes',
       'map.uas.fillOpacity': 'NaN',
+      'map.spots.visible': 'yes',
+      'map.overlayOrder': '["savedSpots","savedSpots"]',
     }.entries) {
       await database
           .into(database.appSettings)
@@ -113,5 +124,61 @@ void main() {
       await repository.resetPreferences();
       expect((await repository.getPreferences()).uasZonesFillOpacity, .2);
     }
+  });
+
+  test(
+    'old three-key settings gain defaults without being rewritten',
+    () async {
+      await database
+          .into(database.appSettings)
+          .insert(
+            AppSettingsCompanion.insert(key: 'map.style', value: 'relief'),
+          );
+      final preferences = await repository.getPreferences();
+      expect(preferences.mapStyle, GlobeMapStyle.relief);
+      expect(preferences.savedSpotsVisible, isTrue);
+      expect(preferences.overlayOrder, const UserPreferences().overlayOrder);
+      expect(await database.select(database.appSettings).get(), hasLength(1));
+    },
+  );
+
+  test('invalid overlay orders cannot overwrite preferences', () async {
+    for (final order in [
+      <GlobeOverlay>[],
+      [GlobeOverlay.savedSpots],
+      [GlobeOverlay.uasZones, GlobeOverlay.uasZones],
+    ]) {
+      await expectLater(
+        () => repository.savePreferences(UserPreferences(overlayOrder: order)),
+        throwsArgumentError,
+      );
+    }
+    for (final raw in [
+      'null',
+      '{}',
+      '[]',
+      '["unknown","savedSpots"]',
+      '[1,2]',
+    ]) {
+      await database
+          .into(database.appSettings)
+          .insertOnConflictUpdate(
+            AppSettingsCompanion.insert(key: 'map.overlayOrder', value: raw),
+          );
+      await expectLater(repository.getPreferences, throwsFormatException);
+    }
+  });
+
+  test('saving snapshots a caller-owned mutable overlay list', () async {
+    final order = [GlobeOverlay.savedSpots, GlobeOverlay.uasZones];
+    final saving = repository.savePreferences(
+      UserPreferences(overlayOrder: order),
+    );
+    order.clear();
+    await saving;
+    expect((await repository.getPreferences()).overlayOrder, [
+      GlobeOverlay.savedSpots,
+      GlobeOverlay.uasZones,
+    ]);
   });
 }

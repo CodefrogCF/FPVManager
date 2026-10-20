@@ -53,6 +53,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
 
           final canEditOpacity =
               controller.isReady &&
+              controller.canEditPreferences &&
               controller.uasZonesVisible &&
               !controller.uasZonesLoading;
 
@@ -86,6 +87,43 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
 
                   const SizedBox(height: 20),
 
+                  if (controller.preferencesLoading) ...[
+                    const LinearProgressIndicator(),
+                    const Text('Loading saved map preferences...'),
+                    const SizedBox(height: 12),
+                  ],
+                  if (controller.preferencesError != null) ...[
+                    Text(
+                      controller.preferencesError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 12,
+                      children: [
+                        TextButton(
+                          onPressed: controller.preferencesLoading
+                              ? null
+                              : () => _execute(
+                                  controller.preferencesLoadFailed
+                                      ? controller.retryLoadingPreferences
+                                      : controller.retrySavingPreferences,
+                                ),
+                          child: const Text('Retry'),
+                        ),
+                        if (controller.preferencesLoadFailed)
+                          TextButton(
+                            onPressed: controller.preferencesLoading
+                                ? null
+                                : () => _execute(controller.resetPreferences),
+                            child: const Text('Reset map preferences'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
                   Text(
                     'BASE MAP',
                     style: Theme.of(context).textTheme.labelLarge,
@@ -115,7 +153,8 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                         ),
                       ],
                       selected: {controller.mapStyle},
-                      onSelectionChanged: controller.isReady
+                      onSelectionChanged:
+                          controller.isReady && controller.canEditPreferences
                           ? (selection) {
                               _execute(
                                 () => controller.setMapStyle(selection.first),
@@ -126,6 +165,83 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                   ),
 
                   const SizedBox(height: 24),
+
+                  Text(
+                    'OVERLAY ORDER · FRONT TO BACK',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Terrain and the base map stay below these overlays.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  for (final overlay in controller.overlayOrder.reversed)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        overlay == GlobeOverlay.savedSpots
+                            ? Icons.place_outlined
+                            : Icons.shield_outlined,
+                      ),
+                      title: Text(
+                        overlay == GlobeOverlay.savedSpots
+                            ? 'Saved spots'
+                            : 'UAS zones',
+                      ),
+                      subtitle: Text(
+                        overlay == GlobeOverlay.savedSpots
+                            ? 'Local library'
+                            : 'FOCA / BAZL',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip:
+                                'Bring ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} forward',
+                            onPressed:
+                                controller.isReady &&
+                                    controller.canEditPreferences &&
+                                    overlay != controller.overlayOrder.last
+                                ? () => _execute(
+                                    () => controller.setOverlayOrder(
+                                      controller.overlayOrder.reversed.toList(),
+                                    ),
+                                  )
+                                : null,
+                            icon: const Icon(Icons.arrow_upward),
+                          ),
+                          IconButton(
+                            tooltip:
+                                'Send ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} backward',
+                            onPressed:
+                                controller.isReady &&
+                                    controller.canEditPreferences &&
+                                    overlay != controller.overlayOrder.first
+                                ? () => _execute(
+                                    () => controller.setOverlayOrder(
+                                      controller.overlayOrder.reversed.toList(),
+                                    ),
+                                  )
+                                : null,
+                            icon: const Icon(Icons.arrow_downward),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Show saved spots'),
+                    value: controller.savedSpotsVisible,
+                    onChanged:
+                        controller.isReady && controller.canEditPreferences
+                        ? (visible) => _execute(
+                            () => controller.setSavedSpotsVisible(visible),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
 
                   Text(
                     'AIRSPACE',
@@ -144,7 +260,10 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                           : 'FOCA / BAZL · GeoJSON',
                     ),
                     value: controller.uasZonesVisible,
-                    onChanged: controller.isReady && !controller.uasZonesLoading
+                    onChanged:
+                        controller.isReady &&
+                            controller.canEditPreferences &&
+                            !controller.uasZonesLoading
                         ? (visible) {
                             _execute(
                               () => controller.setUasZonesVisible(visible),
@@ -200,6 +319,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                         tooltip: 'Refresh UAS data',
                         onPressed:
                             controller.isReady &&
+                                controller.canEditPreferences &&
                                 controller.uasZonesVisible &&
                                 !controller.uasZonesLoading
                             ? () => _execute(controller.refreshUasZones)

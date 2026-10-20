@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
+import 'package:fpvmanager/core/database/repositories/user_preferences_repository.dart';
 import 'package:fpvmanager/features/globe/globe_view.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 import 'package:fpvmanager/main.dart';
@@ -32,7 +33,12 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(home: FPVHomeScreen(spotRepository: repository)),
+      MaterialApp(
+        home: FPVHomeScreen(
+          spotRepository: repository,
+          preferencesRepository: UserPreferencesRepository(database),
+        ),
+      ),
     );
     final controller = tester
         .widget<GlobeView>(find.byType(GlobeView))
@@ -69,7 +75,12 @@ void main() {
     'terrain results reach the typed dialog and stale selections do not',
     (tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: FPVHomeScreen(spotRepository: repository)),
+        MaterialApp(
+          home: FPVHomeScreen(
+            spotRepository: repository,
+            preferencesRepository: UserPreferencesRepository(database),
+          ),
+        ),
       );
       final controller = tester
           .widget<GlobeView>(find.byType(GlobeView))
@@ -116,7 +127,12 @@ void main() {
     'saved spot selection prevents terrain queries and stale defaults',
     (tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: FPVHomeScreen(spotRepository: repository)),
+        MaterialApp(
+          home: FPVHomeScreen(
+            spotRepository: repository,
+            preferencesRepository: UserPreferencesRepository(database),
+          ),
+        ),
       );
       final controller = tester
           .widget<GlobeView>(find.byType(GlobeView))

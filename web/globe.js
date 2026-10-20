@@ -16,6 +16,46 @@ function postToFlutter(message) {
 
     let activeViewer = null;
     let activeBaseLayer = null;
+    let spotsRequestedVisible = true;
+    let overlayOrder = ["uasZones", "savedSpots"];
+
+    function applyOverlayOrder() {
+        const sources = { uasZones: uasDataSource, savedSpots: spotsDataSource };
+        for (const key of overlayOrder) {
+            const source = sources[key];
+            if (source && activeViewer.dataSources.contains(source)) {
+                activeViewer.dataSources.raiseToTop(source);
+            }
+        }
+    }
+
+    function setOverlayOrder(order) {
+        if (!Array.isArray(order) || order.length !== 2 ||
+            new Set(order).size !== 2 ||
+            order.some(key => key !== "uasZones" && key !== "savedSpots")) {
+            throw new Error("Invalid overlay order");
+        }
+        overlayOrder = [...order];
+        applyOverlayOrder();
+    }
+
+    function layerState() {
+        const sources = { uasZones: uasDataSource, savedSpots: spotsDataSource };
+        return {
+            overlayOrder: Object.keys(sources)
+                .filter(key => sources[key] && activeViewer.dataSources.contains(sources[key]))
+                .sort((a, b) => activeViewer.dataSources.indexOf(sources[a]) -
+                    activeViewer.dataSources.indexOf(sources[b])),
+            spotsVisible: spotsRequestedVisible
+        };
+    }
+
+    function setSpotsVisible(visible) {
+        if (typeof visible !== "boolean") throw new Error("Invalid spots visibility");
+        spotsRequestedVisible = visible;
+        if (spotsDataSource) spotsDataSource.show = visible;
+        if (!visible) sendToFlutter("spot-cleared");
+    }
 
     let uasDataSource = null;
     let uasRequestedVisible = false;
@@ -271,6 +311,7 @@ function postToFlutter(message) {
 
             uasDataSource = replacement;
             uasDataSource.show = uasRequestedVisible;
+            applyOverlayOrder();
 
             if (previous) {
                 activeViewer.dataSources.remove(
@@ -336,7 +377,7 @@ function postToFlutter(message) {
     let spotsDataSource = null;
     let lastSpotRevision = -1;
 
-    function setSpotMarkers(command) {
+    async function setSpotMarkers(command, signal) {
         if (!activeViewer) {
             throw new Error("Globe is not ready");
         }
@@ -385,10 +426,16 @@ function postToFlutter(message) {
                 "FPVManager Saved Spots"
             );
 
-            void activeViewer.dataSources.add(
+            await activeViewer.dataSources.add(
                 spotsDataSource
             );
+            applyOverlayOrder();
         }
+
+        signal.throwIfAborted();
+        if (revision < lastSpotRevision) return;
+
+        spotsDataSource.show = spotsRequestedVisible;
 
         const entities = spotsDataSource.entities;
 
@@ -475,13 +522,15 @@ function postToFlutter(message) {
                 if (typeof command.visible !== "boolean") throw new Error("Invalid visibility");
                 await setUasZonesVisible(command.visible, command.geojson ?? null,
                     command.downloadedAtUtc ?? null, command.type === "replace-uas-zones", signal);
-                return {};
+                return layerState();
             case "set-uas-opacity":
                 setUasFillOpacity(command.opacity);
                 sendUasStatus({ visible: uasDataSource?.show === true });
                 return {};
             case "query-terrain-elevation": return queryTerrainElevation(command, signal);
-            case "set-spot-markers": setSpotMarkers(command); return {};
+            case "set-spot-markers": await setSpotMarkers(command, signal); return layerState();
+            case "set-spots-visible": setSpotsVisible(command.visible); return layerState();
+            case "set-overlay-order": setOverlayOrder(command.order); return layerState();
                 case "focus-spot": {
                     const latitude = command.latitude;
                     const longitude = command.longitude;
@@ -647,6 +696,7 @@ function postToFlutter(message) {
 
                 const isSavedSpot =
                     spotsDataSource !== null &&
+                    spotsDataSource.show &&
                     entity instanceof Cesium.Entity &&
                     spotsDataSource.entities.contains(entity);
 

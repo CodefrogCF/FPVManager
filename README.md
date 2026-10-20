@@ -9,6 +9,7 @@ spot library stored with Drift/SQLite.
 
 - Switzerland-centered globe, camera navigation and satellite/topographic/relief styles.
 - UAS overlay with visibility, fill opacity, raw zone attributes and download metadata.
+- Saved map preferences, separate spot visibility and configurable overlay order.
 - Terrain elevation queries with explicit WGS84 ellipsoidal heights, optional
   Swiss LN02 conversion and a local AGL height calculator.
 - WGS84/LV95 coordinate services with documented reference systems.
@@ -34,6 +35,10 @@ See [spot search and classification](docs/spot_search.md) for filter semantics,
 pagination and large-collection validation.
 See [drone profiles](docs/drone_profiles.md) for units, provenance, migration and
 the distinction between recording parameters and calculating flight performance.
+See [map preferences](docs/map_preferences.md) and the
+[foundation issue audit](docs/foundation_issue_audit.md) for the remaining #2/#4/#5/#7/#8 work.
+The [privacy and permission policy](docs/privacy_and_permissions.md) records
+location consent, personal storage and current external request data flows.
 
 ## Development setup
 
@@ -66,10 +71,12 @@ with an offline grid/ellipsoid when online map resources are unavailable. See
 ```sh
 dart run tool/check_format.dart
 python tool/vendor_cesium.py --check
+python -m unittest discover -s test/tool -p 'test_*.py'
 node --test test/js/globe_bridge.test.cjs
 flutter analyze --no-pub
 flutter test --no-pub
 flutter build web --release --no-pub --no-web-resources-cdn
+python tool/prepare_sqlite_android.py
 flutter build apk --debug --no-pub
 ```
 
@@ -87,6 +94,8 @@ Formatting, analysis and tests gate the separate Web and Android build jobs.
 Build success does not verify interactive WebGL/WebView behavior or device
 performance. The Android job creates a debug APK; production signing and release
 validation are separate work.
+Android CI prepares hash-verified SQLite libraries with bounded download retries;
+see [the reported failure and verification procedure](docs/android_sqlite_downloads.md).
 
 ## Project structure
 
@@ -123,4 +132,4 @@ sources and limitations. Do not treat this prototype as flight authorization or 
 verified obstacle-clearance calculation.
 
 Map credits are displayed in the renderer. A complete source/license inventory
-and privacy policy remain tracked under #5, #8 and #44.
+remains tracked under #8 and #44; current privacy/permission behavior is documented above.

@@ -66,7 +66,17 @@ async function settings() {
     catch (error) { if (!String(error).includes('Invalid spot marker')) throw error; }
     log('PASS: oversized marker snapshot rejected without replacing valid markers');
   }
-  await command('set-uas-zones', { visible: true, geojson: zone, downloadedAtUtc: '2026-10-19T00:00:00Z' });
+  await command('set-overlay-order', { order: ['savedSpots','uasZones'] });
+  const layers = await command('set-uas-zones', { visible: true, geojson: zone, downloadedAtUtc: '2026-10-19T00:00:00Z' });
+  if (JSON.stringify(layers.overlayOrder) !== '["savedSpots","uasZones"]') throw new Error('Overlay order lost during UAS import');
+  const hidden = await command('set-spots-visible', { visible: false });
+  if (hidden.spotsVisible !== false) throw new Error('Saved spots were not hidden');
+  await command('set-spot-markers', { revision: 3, spots });
+  const shown = await command('set-spots-visible', { visible: true });
+  if (!shown.spotsVisible || JSON.stringify(shown.overlayOrder) !== '["savedSpots","uasZones"]') throw new Error('Spot update lost layer settings');
+  const refreshed = await command('replace-uas-zones', { visible: true, geojson: zone, downloadedAtUtc: '2026-10-20T00:00:00Z' });
+  if (JSON.stringify(refreshed.overlayOrder) !== '["savedSpots","uasZones"]') throw new Error('Overlay order lost during UAS replacement');
+  log('PASS: actual Cesium source order and spot visibility survive imports and replacements');
   if (!lastStatus?.visible || lastStatus.featureCount !== 1 || lastStatus.fillOpacity !== 0.45) throw new Error('Incorrect UAS status');
 }
 async function checkWorker() {
