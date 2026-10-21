@@ -94,3 +94,42 @@ framing was also checked with the actual Cesium fixture. Web release and
 Android debug builds passed with packaged-source/vendor/SQLite verification.
 Android touch/keyboard, background/resume and app-restart behavior remain device
 acceptance checks.
+
+## Equipment follow-up: #15 (2026-10-21)
+
+The private [Radio & Video Equipment Profiles issue](https://github.com/CodefrogCF/FPVManager/issues/15)
+was read against its four current acceptance criteria:
+
+| Criterion | Implementation |
+|---|---|
+| Independent radio control and video configuration | Separate locally saved control/video/telemetry profiles with their own protocol, transmitter, receiver and antennas; changes to one profile do not overwrite another. |
+| Frequency, power, antennas and receiver specifications | Explicit MHz, mW, kHz, dBi, dB and dBm fields, separate antenna descriptions/polarization, receiver mode/specifications and source/context. Unknowns stay null; signed gain/sensitivity and explicit zero power/loss are supported. |
+| Assignment to drone profiles | Transactional many-to-many associations; one drone can use separate control and video profiles. Removal preserves unrelated drones/equipment. |
+| Model supports future RF propagation analysis | Structured numeric values with fixed units and separate transmitter/receiver fields, plus recorded context. Propagation calculations, operating-power selection and terrain obstruction remain future analysis work. |
+
+Schema v7 preserves legacy equipment categories, frequency, power (including
+zero), notes and unrelated records. List/editor/detail screens are reachable
+from the drawer before map readiness. See [radio equipment](radio_equipment.md)
+for validation, replacement, recovery and migration contracts. GitHub checkboxes
+and issue state remain unchanged pending acceptance review.
+
+Fatal-warning analysis, formatting (106 hand-written Dart files), locked
+dependency resolution and the complete Flutter suite (232 tests) passed.
+JavaScript (29), Python tooling (4) and all 395 bundled Cesium file/hash checks
+also passed. Repository and widget checks include atomic failure recovery,
+signed/nonfinite RF input, legacy categories, drone removal, 320-pixel keyboard
+layout and persisted RF/assignment data after a SQLite file reopen.
+
+The Web release build and packaged renderer/vendor checks passed. In the actual
+built Web app, synthetic demo records exercised drone creation, separate control
+and video profiles, RF values with decimal commas and signed gains/sensitivity,
+an edit to the control profile and a shared drone assignment. After closing and
+reopening the app, both profiles and the edited values/associations persisted.
+Saved screenshots show the profile list, control details and RF values. The
+local preview server was stopped after verification.
+
+The Android debug build passed as well. APK ZIP integrity, packaged renderer
+sources, vendor hashes, fixture exclusion and SQLite ELF libraries for
+armeabi-v7a, arm64-v8a and x86_64 were verified. Physical Android acceptance
+remains for the new forms with keyboard/rotation and persistence after an actual
+app restart. No additional issue is needed for the current #15 criteria.

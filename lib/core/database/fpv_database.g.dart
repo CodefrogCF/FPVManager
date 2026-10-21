@@ -4880,6 +4880,171 @@ class $RadioEquipmentTable extends RadioEquipment
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _protocolMeta = const VerificationMeta(
+    'protocol',
+  );
+  @override
+  late final GeneratedColumn<String> protocol = GeneratedColumn<String>(
+    'protocol',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _transmitterMeta = const VerificationMeta(
+    'transmitter',
+  );
+  @override
+  late final GeneratedColumn<String> transmitter = GeneratedColumn<String>(
+    'transmitter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiverMeta = const VerificationMeta(
+    'receiver',
+  );
+  @override
+  late final GeneratedColumn<String> receiver = GeneratedColumn<String>(
+    'receiver',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _txAntennaMeta = const VerificationMeta(
+    'txAntenna',
+  );
+  @override
+  late final GeneratedColumn<String> txAntenna = GeneratedColumn<String>(
+    'tx_antenna',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rxAntennaMeta = const VerificationMeta(
+    'rxAntenna',
+  );
+  @override
+  late final GeneratedColumn<String> rxAntenna = GeneratedColumn<String>(
+    'rx_antenna',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _txPolarizationMeta = const VerificationMeta(
+    'txPolarization',
+  );
+  @override
+  late final GeneratedColumn<String> txPolarization = GeneratedColumn<String>(
+    'tx_polarization',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rxPolarizationMeta = const VerificationMeta(
+    'rxPolarization',
+  );
+  @override
+  late final GeneratedColumn<String> rxPolarization = GeneratedColumn<String>(
+    'rx_polarization',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bandwidthKhzMeta = const VerificationMeta(
+    'bandwidthKhz',
+  );
+  @override
+  late final GeneratedColumn<double> bandwidthKhz = GeneratedColumn<double>(
+    'bandwidth_khz',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sensitivityDbmMeta = const VerificationMeta(
+    'sensitivityDbm',
+  );
+  @override
+  late final GeneratedColumn<double> sensitivityDbm = GeneratedColumn<double>(
+    'sensitivity_dbm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _txGainDbiMeta = const VerificationMeta(
+    'txGainDbi',
+  );
+  @override
+  late final GeneratedColumn<double> txGainDbi = GeneratedColumn<double>(
+    'tx_gain_dbi',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rxGainDbiMeta = const VerificationMeta(
+    'rxGainDbi',
+  );
+  @override
+  late final GeneratedColumn<double> rxGainDbi = GeneratedColumn<double>(
+    'rx_gain_dbi',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _txLossDbMeta = const VerificationMeta(
+    'txLossDb',
+  );
+  @override
+  late final GeneratedColumn<double> txLossDb = GeneratedColumn<double>(
+    'tx_loss_db',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rxLossDbMeta = const VerificationMeta(
+    'rxLossDb',
+  );
+  @override
+  late final GeneratedColumn<double> rxLossDb = GeneratedColumn<double>(
+    'rx_loss_db',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiverSpecificationsMeta =
+      const VerificationMeta('receiverSpecifications');
+  @override
+  late final GeneratedColumn<String> receiverSpecifications =
+      GeneratedColumn<String>(
+        'receiver_specifications',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _specificationSourceMeta =
+      const VerificationMeta('specificationSource');
+  @override
+  late final GeneratedColumn<String> specificationSource =
+      GeneratedColumn<String>(
+        'specification_source',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -4896,6 +5061,21 @@ class $RadioEquipmentTable extends RadioEquipment
     category,
     frequencyMhz,
     maxPowerMw,
+    protocol,
+    transmitter,
+    receiver,
+    txAntenna,
+    rxAntenna,
+    txPolarization,
+    rxPolarization,
+    bandwidthKhz,
+    sensitivityDbm,
+    txGainDbi,
+    rxGainDbi,
+    txLossDb,
+    rxLossDb,
+    receiverSpecifications,
+    specificationSource,
     notes,
   ];
   @override
@@ -4947,6 +5127,117 @@ class $RadioEquipmentTable extends RadioEquipment
         ),
       );
     }
+    if (data.containsKey('protocol')) {
+      context.handle(
+        _protocolMeta,
+        protocol.isAcceptableOrUnknown(data['protocol']!, _protocolMeta),
+      );
+    }
+    if (data.containsKey('transmitter')) {
+      context.handle(
+        _transmitterMeta,
+        transmitter.isAcceptableOrUnknown(
+          data['transmitter']!,
+          _transmitterMeta,
+        ),
+      );
+    }
+    if (data.containsKey('receiver')) {
+      context.handle(
+        _receiverMeta,
+        receiver.isAcceptableOrUnknown(data['receiver']!, _receiverMeta),
+      );
+    }
+    if (data.containsKey('tx_antenna')) {
+      context.handle(
+        _txAntennaMeta,
+        txAntenna.isAcceptableOrUnknown(data['tx_antenna']!, _txAntennaMeta),
+      );
+    }
+    if (data.containsKey('rx_antenna')) {
+      context.handle(
+        _rxAntennaMeta,
+        rxAntenna.isAcceptableOrUnknown(data['rx_antenna']!, _rxAntennaMeta),
+      );
+    }
+    if (data.containsKey('tx_polarization')) {
+      context.handle(
+        _txPolarizationMeta,
+        txPolarization.isAcceptableOrUnknown(
+          data['tx_polarization']!,
+          _txPolarizationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rx_polarization')) {
+      context.handle(
+        _rxPolarizationMeta,
+        rxPolarization.isAcceptableOrUnknown(
+          data['rx_polarization']!,
+          _rxPolarizationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bandwidth_khz')) {
+      context.handle(
+        _bandwidthKhzMeta,
+        bandwidthKhz.isAcceptableOrUnknown(
+          data['bandwidth_khz']!,
+          _bandwidthKhzMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sensitivity_dbm')) {
+      context.handle(
+        _sensitivityDbmMeta,
+        sensitivityDbm.isAcceptableOrUnknown(
+          data['sensitivity_dbm']!,
+          _sensitivityDbmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tx_gain_dbi')) {
+      context.handle(
+        _txGainDbiMeta,
+        txGainDbi.isAcceptableOrUnknown(data['tx_gain_dbi']!, _txGainDbiMeta),
+      );
+    }
+    if (data.containsKey('rx_gain_dbi')) {
+      context.handle(
+        _rxGainDbiMeta,
+        rxGainDbi.isAcceptableOrUnknown(data['rx_gain_dbi']!, _rxGainDbiMeta),
+      );
+    }
+    if (data.containsKey('tx_loss_db')) {
+      context.handle(
+        _txLossDbMeta,
+        txLossDb.isAcceptableOrUnknown(data['tx_loss_db']!, _txLossDbMeta),
+      );
+    }
+    if (data.containsKey('rx_loss_db')) {
+      context.handle(
+        _rxLossDbMeta,
+        rxLossDb.isAcceptableOrUnknown(data['rx_loss_db']!, _rxLossDbMeta),
+      );
+    }
+    if (data.containsKey('receiver_specifications')) {
+      context.handle(
+        _receiverSpecificationsMeta,
+        receiverSpecifications.isAcceptableOrUnknown(
+          data['receiver_specifications']!,
+          _receiverSpecificationsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('specification_source')) {
+      context.handle(
+        _specificationSourceMeta,
+        specificationSource.isAcceptableOrUnknown(
+          data['specification_source']!,
+          _specificationSourceMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -4982,6 +5273,66 @@ class $RadioEquipmentTable extends RadioEquipment
         DriftSqlType.double,
         data['${effectivePrefix}max_power_mw'],
       ),
+      protocol: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}protocol'],
+      ),
+      transmitter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transmitter'],
+      ),
+      receiver: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receiver'],
+      ),
+      txAntenna: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tx_antenna'],
+      ),
+      rxAntenna: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rx_antenna'],
+      ),
+      txPolarization: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tx_polarization'],
+      ),
+      rxPolarization: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rx_polarization'],
+      ),
+      bandwidthKhz: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}bandwidth_khz'],
+      ),
+      sensitivityDbm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sensitivity_dbm'],
+      ),
+      txGainDbi: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tx_gain_dbi'],
+      ),
+      rxGainDbi: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}rx_gain_dbi'],
+      ),
+      txLossDb: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tx_loss_db'],
+      ),
+      rxLossDb: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}rx_loss_db'],
+      ),
+      receiverSpecifications: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receiver_specifications'],
+      ),
+      specificationSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}specification_source'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -5002,6 +5353,21 @@ class RadioEquipmentData extends DataClass
   final String category;
   final double? frequencyMhz;
   final double? maxPowerMw;
+  final String? protocol;
+  final String? transmitter;
+  final String? receiver;
+  final String? txAntenna;
+  final String? rxAntenna;
+  final String? txPolarization;
+  final String? rxPolarization;
+  final double? bandwidthKhz;
+  final double? sensitivityDbm;
+  final double? txGainDbi;
+  final double? rxGainDbi;
+  final double? txLossDb;
+  final double? rxLossDb;
+  final String? receiverSpecifications;
+  final String? specificationSource;
   final String? notes;
   const RadioEquipmentData({
     required this.id,
@@ -5009,6 +5375,21 @@ class RadioEquipmentData extends DataClass
     required this.category,
     this.frequencyMhz,
     this.maxPowerMw,
+    this.protocol,
+    this.transmitter,
+    this.receiver,
+    this.txAntenna,
+    this.rxAntenna,
+    this.txPolarization,
+    this.rxPolarization,
+    this.bandwidthKhz,
+    this.sensitivityDbm,
+    this.txGainDbi,
+    this.rxGainDbi,
+    this.txLossDb,
+    this.rxLossDb,
+    this.receiverSpecifications,
+    this.specificationSource,
     this.notes,
   });
   @override
@@ -5022,6 +5403,51 @@ class RadioEquipmentData extends DataClass
     }
     if (!nullToAbsent || maxPowerMw != null) {
       map['max_power_mw'] = Variable<double>(maxPowerMw);
+    }
+    if (!nullToAbsent || protocol != null) {
+      map['protocol'] = Variable<String>(protocol);
+    }
+    if (!nullToAbsent || transmitter != null) {
+      map['transmitter'] = Variable<String>(transmitter);
+    }
+    if (!nullToAbsent || receiver != null) {
+      map['receiver'] = Variable<String>(receiver);
+    }
+    if (!nullToAbsent || txAntenna != null) {
+      map['tx_antenna'] = Variable<String>(txAntenna);
+    }
+    if (!nullToAbsent || rxAntenna != null) {
+      map['rx_antenna'] = Variable<String>(rxAntenna);
+    }
+    if (!nullToAbsent || txPolarization != null) {
+      map['tx_polarization'] = Variable<String>(txPolarization);
+    }
+    if (!nullToAbsent || rxPolarization != null) {
+      map['rx_polarization'] = Variable<String>(rxPolarization);
+    }
+    if (!nullToAbsent || bandwidthKhz != null) {
+      map['bandwidth_khz'] = Variable<double>(bandwidthKhz);
+    }
+    if (!nullToAbsent || sensitivityDbm != null) {
+      map['sensitivity_dbm'] = Variable<double>(sensitivityDbm);
+    }
+    if (!nullToAbsent || txGainDbi != null) {
+      map['tx_gain_dbi'] = Variable<double>(txGainDbi);
+    }
+    if (!nullToAbsent || rxGainDbi != null) {
+      map['rx_gain_dbi'] = Variable<double>(rxGainDbi);
+    }
+    if (!nullToAbsent || txLossDb != null) {
+      map['tx_loss_db'] = Variable<double>(txLossDb);
+    }
+    if (!nullToAbsent || rxLossDb != null) {
+      map['rx_loss_db'] = Variable<double>(rxLossDb);
+    }
+    if (!nullToAbsent || receiverSpecifications != null) {
+      map['receiver_specifications'] = Variable<String>(receiverSpecifications);
+    }
+    if (!nullToAbsent || specificationSource != null) {
+      map['specification_source'] = Variable<String>(specificationSource);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -5040,6 +5466,51 @@ class RadioEquipmentData extends DataClass
       maxPowerMw: maxPowerMw == null && nullToAbsent
           ? const Value.absent()
           : Value(maxPowerMw),
+      protocol: protocol == null && nullToAbsent
+          ? const Value.absent()
+          : Value(protocol),
+      transmitter: transmitter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transmitter),
+      receiver: receiver == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiver),
+      txAntenna: txAntenna == null && nullToAbsent
+          ? const Value.absent()
+          : Value(txAntenna),
+      rxAntenna: rxAntenna == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rxAntenna),
+      txPolarization: txPolarization == null && nullToAbsent
+          ? const Value.absent()
+          : Value(txPolarization),
+      rxPolarization: rxPolarization == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rxPolarization),
+      bandwidthKhz: bandwidthKhz == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bandwidthKhz),
+      sensitivityDbm: sensitivityDbm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sensitivityDbm),
+      txGainDbi: txGainDbi == null && nullToAbsent
+          ? const Value.absent()
+          : Value(txGainDbi),
+      rxGainDbi: rxGainDbi == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rxGainDbi),
+      txLossDb: txLossDb == null && nullToAbsent
+          ? const Value.absent()
+          : Value(txLossDb),
+      rxLossDb: rxLossDb == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rxLossDb),
+      receiverSpecifications: receiverSpecifications == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiverSpecifications),
+      specificationSource: specificationSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specificationSource),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -5057,6 +5528,25 @@ class RadioEquipmentData extends DataClass
       category: serializer.fromJson<String>(json['category']),
       frequencyMhz: serializer.fromJson<double?>(json['frequencyMhz']),
       maxPowerMw: serializer.fromJson<double?>(json['maxPowerMw']),
+      protocol: serializer.fromJson<String?>(json['protocol']),
+      transmitter: serializer.fromJson<String?>(json['transmitter']),
+      receiver: serializer.fromJson<String?>(json['receiver']),
+      txAntenna: serializer.fromJson<String?>(json['txAntenna']),
+      rxAntenna: serializer.fromJson<String?>(json['rxAntenna']),
+      txPolarization: serializer.fromJson<String?>(json['txPolarization']),
+      rxPolarization: serializer.fromJson<String?>(json['rxPolarization']),
+      bandwidthKhz: serializer.fromJson<double?>(json['bandwidthKhz']),
+      sensitivityDbm: serializer.fromJson<double?>(json['sensitivityDbm']),
+      txGainDbi: serializer.fromJson<double?>(json['txGainDbi']),
+      rxGainDbi: serializer.fromJson<double?>(json['rxGainDbi']),
+      txLossDb: serializer.fromJson<double?>(json['txLossDb']),
+      rxLossDb: serializer.fromJson<double?>(json['rxLossDb']),
+      receiverSpecifications: serializer.fromJson<String?>(
+        json['receiverSpecifications'],
+      ),
+      specificationSource: serializer.fromJson<String?>(
+        json['specificationSource'],
+      ),
       notes: serializer.fromJson<String?>(json['notes']),
     );
   }
@@ -5069,6 +5559,23 @@ class RadioEquipmentData extends DataClass
       'category': serializer.toJson<String>(category),
       'frequencyMhz': serializer.toJson<double?>(frequencyMhz),
       'maxPowerMw': serializer.toJson<double?>(maxPowerMw),
+      'protocol': serializer.toJson<String?>(protocol),
+      'transmitter': serializer.toJson<String?>(transmitter),
+      'receiver': serializer.toJson<String?>(receiver),
+      'txAntenna': serializer.toJson<String?>(txAntenna),
+      'rxAntenna': serializer.toJson<String?>(rxAntenna),
+      'txPolarization': serializer.toJson<String?>(txPolarization),
+      'rxPolarization': serializer.toJson<String?>(rxPolarization),
+      'bandwidthKhz': serializer.toJson<double?>(bandwidthKhz),
+      'sensitivityDbm': serializer.toJson<double?>(sensitivityDbm),
+      'txGainDbi': serializer.toJson<double?>(txGainDbi),
+      'rxGainDbi': serializer.toJson<double?>(rxGainDbi),
+      'txLossDb': serializer.toJson<double?>(txLossDb),
+      'rxLossDb': serializer.toJson<double?>(rxLossDb),
+      'receiverSpecifications': serializer.toJson<String?>(
+        receiverSpecifications,
+      ),
+      'specificationSource': serializer.toJson<String?>(specificationSource),
       'notes': serializer.toJson<String?>(notes),
     };
   }
@@ -5079,6 +5586,21 @@ class RadioEquipmentData extends DataClass
     String? category,
     Value<double?> frequencyMhz = const Value.absent(),
     Value<double?> maxPowerMw = const Value.absent(),
+    Value<String?> protocol = const Value.absent(),
+    Value<String?> transmitter = const Value.absent(),
+    Value<String?> receiver = const Value.absent(),
+    Value<String?> txAntenna = const Value.absent(),
+    Value<String?> rxAntenna = const Value.absent(),
+    Value<String?> txPolarization = const Value.absent(),
+    Value<String?> rxPolarization = const Value.absent(),
+    Value<double?> bandwidthKhz = const Value.absent(),
+    Value<double?> sensitivityDbm = const Value.absent(),
+    Value<double?> txGainDbi = const Value.absent(),
+    Value<double?> rxGainDbi = const Value.absent(),
+    Value<double?> txLossDb = const Value.absent(),
+    Value<double?> rxLossDb = const Value.absent(),
+    Value<String?> receiverSpecifications = const Value.absent(),
+    Value<String?> specificationSource = const Value.absent(),
     Value<String?> notes = const Value.absent(),
   }) => RadioEquipmentData(
     id: id ?? this.id,
@@ -5086,6 +5608,31 @@ class RadioEquipmentData extends DataClass
     category: category ?? this.category,
     frequencyMhz: frequencyMhz.present ? frequencyMhz.value : this.frequencyMhz,
     maxPowerMw: maxPowerMw.present ? maxPowerMw.value : this.maxPowerMw,
+    protocol: protocol.present ? protocol.value : this.protocol,
+    transmitter: transmitter.present ? transmitter.value : this.transmitter,
+    receiver: receiver.present ? receiver.value : this.receiver,
+    txAntenna: txAntenna.present ? txAntenna.value : this.txAntenna,
+    rxAntenna: rxAntenna.present ? rxAntenna.value : this.rxAntenna,
+    txPolarization: txPolarization.present
+        ? txPolarization.value
+        : this.txPolarization,
+    rxPolarization: rxPolarization.present
+        ? rxPolarization.value
+        : this.rxPolarization,
+    bandwidthKhz: bandwidthKhz.present ? bandwidthKhz.value : this.bandwidthKhz,
+    sensitivityDbm: sensitivityDbm.present
+        ? sensitivityDbm.value
+        : this.sensitivityDbm,
+    txGainDbi: txGainDbi.present ? txGainDbi.value : this.txGainDbi,
+    rxGainDbi: rxGainDbi.present ? rxGainDbi.value : this.rxGainDbi,
+    txLossDb: txLossDb.present ? txLossDb.value : this.txLossDb,
+    rxLossDb: rxLossDb.present ? rxLossDb.value : this.rxLossDb,
+    receiverSpecifications: receiverSpecifications.present
+        ? receiverSpecifications.value
+        : this.receiverSpecifications,
+    specificationSource: specificationSource.present
+        ? specificationSource.value
+        : this.specificationSource,
     notes: notes.present ? notes.value : this.notes,
   );
   RadioEquipmentData copyWithCompanion(RadioEquipmentCompanion data) {
@@ -5099,6 +5646,35 @@ class RadioEquipmentData extends DataClass
       maxPowerMw: data.maxPowerMw.present
           ? data.maxPowerMw.value
           : this.maxPowerMw,
+      protocol: data.protocol.present ? data.protocol.value : this.protocol,
+      transmitter: data.transmitter.present
+          ? data.transmitter.value
+          : this.transmitter,
+      receiver: data.receiver.present ? data.receiver.value : this.receiver,
+      txAntenna: data.txAntenna.present ? data.txAntenna.value : this.txAntenna,
+      rxAntenna: data.rxAntenna.present ? data.rxAntenna.value : this.rxAntenna,
+      txPolarization: data.txPolarization.present
+          ? data.txPolarization.value
+          : this.txPolarization,
+      rxPolarization: data.rxPolarization.present
+          ? data.rxPolarization.value
+          : this.rxPolarization,
+      bandwidthKhz: data.bandwidthKhz.present
+          ? data.bandwidthKhz.value
+          : this.bandwidthKhz,
+      sensitivityDbm: data.sensitivityDbm.present
+          ? data.sensitivityDbm.value
+          : this.sensitivityDbm,
+      txGainDbi: data.txGainDbi.present ? data.txGainDbi.value : this.txGainDbi,
+      rxGainDbi: data.rxGainDbi.present ? data.rxGainDbi.value : this.rxGainDbi,
+      txLossDb: data.txLossDb.present ? data.txLossDb.value : this.txLossDb,
+      rxLossDb: data.rxLossDb.present ? data.rxLossDb.value : this.rxLossDb,
+      receiverSpecifications: data.receiverSpecifications.present
+          ? data.receiverSpecifications.value
+          : this.receiverSpecifications,
+      specificationSource: data.specificationSource.present
+          ? data.specificationSource.value
+          : this.specificationSource,
       notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
@@ -5111,14 +5687,50 @@ class RadioEquipmentData extends DataClass
           ..write('category: $category, ')
           ..write('frequencyMhz: $frequencyMhz, ')
           ..write('maxPowerMw: $maxPowerMw, ')
+          ..write('protocol: $protocol, ')
+          ..write('transmitter: $transmitter, ')
+          ..write('receiver: $receiver, ')
+          ..write('txAntenna: $txAntenna, ')
+          ..write('rxAntenna: $rxAntenna, ')
+          ..write('txPolarization: $txPolarization, ')
+          ..write('rxPolarization: $rxPolarization, ')
+          ..write('bandwidthKhz: $bandwidthKhz, ')
+          ..write('sensitivityDbm: $sensitivityDbm, ')
+          ..write('txGainDbi: $txGainDbi, ')
+          ..write('rxGainDbi: $rxGainDbi, ')
+          ..write('txLossDb: $txLossDb, ')
+          ..write('rxLossDb: $rxLossDb, ')
+          ..write('receiverSpecifications: $receiverSpecifications, ')
+          ..write('specificationSource: $specificationSource, ')
           ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, category, frequencyMhz, maxPowerMw, notes);
+  int get hashCode => Object.hashAll([
+    id,
+    name,
+    category,
+    frequencyMhz,
+    maxPowerMw,
+    protocol,
+    transmitter,
+    receiver,
+    txAntenna,
+    rxAntenna,
+    txPolarization,
+    rxPolarization,
+    bandwidthKhz,
+    sensitivityDbm,
+    txGainDbi,
+    rxGainDbi,
+    txLossDb,
+    rxLossDb,
+    receiverSpecifications,
+    specificationSource,
+    notes,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5128,6 +5740,21 @@ class RadioEquipmentData extends DataClass
           other.category == this.category &&
           other.frequencyMhz == this.frequencyMhz &&
           other.maxPowerMw == this.maxPowerMw &&
+          other.protocol == this.protocol &&
+          other.transmitter == this.transmitter &&
+          other.receiver == this.receiver &&
+          other.txAntenna == this.txAntenna &&
+          other.rxAntenna == this.rxAntenna &&
+          other.txPolarization == this.txPolarization &&
+          other.rxPolarization == this.rxPolarization &&
+          other.bandwidthKhz == this.bandwidthKhz &&
+          other.sensitivityDbm == this.sensitivityDbm &&
+          other.txGainDbi == this.txGainDbi &&
+          other.rxGainDbi == this.rxGainDbi &&
+          other.txLossDb == this.txLossDb &&
+          other.rxLossDb == this.rxLossDb &&
+          other.receiverSpecifications == this.receiverSpecifications &&
+          other.specificationSource == this.specificationSource &&
           other.notes == this.notes);
 }
 
@@ -5137,6 +5764,21 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
   final Value<String> category;
   final Value<double?> frequencyMhz;
   final Value<double?> maxPowerMw;
+  final Value<String?> protocol;
+  final Value<String?> transmitter;
+  final Value<String?> receiver;
+  final Value<String?> txAntenna;
+  final Value<String?> rxAntenna;
+  final Value<String?> txPolarization;
+  final Value<String?> rxPolarization;
+  final Value<double?> bandwidthKhz;
+  final Value<double?> sensitivityDbm;
+  final Value<double?> txGainDbi;
+  final Value<double?> rxGainDbi;
+  final Value<double?> txLossDb;
+  final Value<double?> rxLossDb;
+  final Value<String?> receiverSpecifications;
+  final Value<String?> specificationSource;
   final Value<String?> notes;
   const RadioEquipmentCompanion({
     this.id = const Value.absent(),
@@ -5144,6 +5786,21 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
     this.category = const Value.absent(),
     this.frequencyMhz = const Value.absent(),
     this.maxPowerMw = const Value.absent(),
+    this.protocol = const Value.absent(),
+    this.transmitter = const Value.absent(),
+    this.receiver = const Value.absent(),
+    this.txAntenna = const Value.absent(),
+    this.rxAntenna = const Value.absent(),
+    this.txPolarization = const Value.absent(),
+    this.rxPolarization = const Value.absent(),
+    this.bandwidthKhz = const Value.absent(),
+    this.sensitivityDbm = const Value.absent(),
+    this.txGainDbi = const Value.absent(),
+    this.rxGainDbi = const Value.absent(),
+    this.txLossDb = const Value.absent(),
+    this.rxLossDb = const Value.absent(),
+    this.receiverSpecifications = const Value.absent(),
+    this.specificationSource = const Value.absent(),
     this.notes = const Value.absent(),
   });
   RadioEquipmentCompanion.insert({
@@ -5152,6 +5809,21 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
     required String category,
     this.frequencyMhz = const Value.absent(),
     this.maxPowerMw = const Value.absent(),
+    this.protocol = const Value.absent(),
+    this.transmitter = const Value.absent(),
+    this.receiver = const Value.absent(),
+    this.txAntenna = const Value.absent(),
+    this.rxAntenna = const Value.absent(),
+    this.txPolarization = const Value.absent(),
+    this.rxPolarization = const Value.absent(),
+    this.bandwidthKhz = const Value.absent(),
+    this.sensitivityDbm = const Value.absent(),
+    this.txGainDbi = const Value.absent(),
+    this.rxGainDbi = const Value.absent(),
+    this.txLossDb = const Value.absent(),
+    this.rxLossDb = const Value.absent(),
+    this.receiverSpecifications = const Value.absent(),
+    this.specificationSource = const Value.absent(),
     this.notes = const Value.absent(),
   }) : name = Value(name),
        category = Value(category);
@@ -5161,6 +5833,21 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
     Expression<String>? category,
     Expression<double>? frequencyMhz,
     Expression<double>? maxPowerMw,
+    Expression<String>? protocol,
+    Expression<String>? transmitter,
+    Expression<String>? receiver,
+    Expression<String>? txAntenna,
+    Expression<String>? rxAntenna,
+    Expression<String>? txPolarization,
+    Expression<String>? rxPolarization,
+    Expression<double>? bandwidthKhz,
+    Expression<double>? sensitivityDbm,
+    Expression<double>? txGainDbi,
+    Expression<double>? rxGainDbi,
+    Expression<double>? txLossDb,
+    Expression<double>? rxLossDb,
+    Expression<String>? receiverSpecifications,
+    Expression<String>? specificationSource,
     Expression<String>? notes,
   }) {
     return RawValuesInsertable({
@@ -5169,6 +5856,23 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
       if (category != null) 'category': category,
       if (frequencyMhz != null) 'frequency_mhz': frequencyMhz,
       if (maxPowerMw != null) 'max_power_mw': maxPowerMw,
+      if (protocol != null) 'protocol': protocol,
+      if (transmitter != null) 'transmitter': transmitter,
+      if (receiver != null) 'receiver': receiver,
+      if (txAntenna != null) 'tx_antenna': txAntenna,
+      if (rxAntenna != null) 'rx_antenna': rxAntenna,
+      if (txPolarization != null) 'tx_polarization': txPolarization,
+      if (rxPolarization != null) 'rx_polarization': rxPolarization,
+      if (bandwidthKhz != null) 'bandwidth_khz': bandwidthKhz,
+      if (sensitivityDbm != null) 'sensitivity_dbm': sensitivityDbm,
+      if (txGainDbi != null) 'tx_gain_dbi': txGainDbi,
+      if (rxGainDbi != null) 'rx_gain_dbi': rxGainDbi,
+      if (txLossDb != null) 'tx_loss_db': txLossDb,
+      if (rxLossDb != null) 'rx_loss_db': rxLossDb,
+      if (receiverSpecifications != null)
+        'receiver_specifications': receiverSpecifications,
+      if (specificationSource != null)
+        'specification_source': specificationSource,
       if (notes != null) 'notes': notes,
     });
   }
@@ -5179,6 +5883,21 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
     Value<String>? category,
     Value<double?>? frequencyMhz,
     Value<double?>? maxPowerMw,
+    Value<String?>? protocol,
+    Value<String?>? transmitter,
+    Value<String?>? receiver,
+    Value<String?>? txAntenna,
+    Value<String?>? rxAntenna,
+    Value<String?>? txPolarization,
+    Value<String?>? rxPolarization,
+    Value<double?>? bandwidthKhz,
+    Value<double?>? sensitivityDbm,
+    Value<double?>? txGainDbi,
+    Value<double?>? rxGainDbi,
+    Value<double?>? txLossDb,
+    Value<double?>? rxLossDb,
+    Value<String?>? receiverSpecifications,
+    Value<String?>? specificationSource,
     Value<String?>? notes,
   }) {
     return RadioEquipmentCompanion(
@@ -5187,6 +5906,22 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
       category: category ?? this.category,
       frequencyMhz: frequencyMhz ?? this.frequencyMhz,
       maxPowerMw: maxPowerMw ?? this.maxPowerMw,
+      protocol: protocol ?? this.protocol,
+      transmitter: transmitter ?? this.transmitter,
+      receiver: receiver ?? this.receiver,
+      txAntenna: txAntenna ?? this.txAntenna,
+      rxAntenna: rxAntenna ?? this.rxAntenna,
+      txPolarization: txPolarization ?? this.txPolarization,
+      rxPolarization: rxPolarization ?? this.rxPolarization,
+      bandwidthKhz: bandwidthKhz ?? this.bandwidthKhz,
+      sensitivityDbm: sensitivityDbm ?? this.sensitivityDbm,
+      txGainDbi: txGainDbi ?? this.txGainDbi,
+      rxGainDbi: rxGainDbi ?? this.rxGainDbi,
+      txLossDb: txLossDb ?? this.txLossDb,
+      rxLossDb: rxLossDb ?? this.rxLossDb,
+      receiverSpecifications:
+          receiverSpecifications ?? this.receiverSpecifications,
+      specificationSource: specificationSource ?? this.specificationSource,
       notes: notes ?? this.notes,
     );
   }
@@ -5209,6 +5944,53 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
     if (maxPowerMw.present) {
       map['max_power_mw'] = Variable<double>(maxPowerMw.value);
     }
+    if (protocol.present) {
+      map['protocol'] = Variable<String>(protocol.value);
+    }
+    if (transmitter.present) {
+      map['transmitter'] = Variable<String>(transmitter.value);
+    }
+    if (receiver.present) {
+      map['receiver'] = Variable<String>(receiver.value);
+    }
+    if (txAntenna.present) {
+      map['tx_antenna'] = Variable<String>(txAntenna.value);
+    }
+    if (rxAntenna.present) {
+      map['rx_antenna'] = Variable<String>(rxAntenna.value);
+    }
+    if (txPolarization.present) {
+      map['tx_polarization'] = Variable<String>(txPolarization.value);
+    }
+    if (rxPolarization.present) {
+      map['rx_polarization'] = Variable<String>(rxPolarization.value);
+    }
+    if (bandwidthKhz.present) {
+      map['bandwidth_khz'] = Variable<double>(bandwidthKhz.value);
+    }
+    if (sensitivityDbm.present) {
+      map['sensitivity_dbm'] = Variable<double>(sensitivityDbm.value);
+    }
+    if (txGainDbi.present) {
+      map['tx_gain_dbi'] = Variable<double>(txGainDbi.value);
+    }
+    if (rxGainDbi.present) {
+      map['rx_gain_dbi'] = Variable<double>(rxGainDbi.value);
+    }
+    if (txLossDb.present) {
+      map['tx_loss_db'] = Variable<double>(txLossDb.value);
+    }
+    if (rxLossDb.present) {
+      map['rx_loss_db'] = Variable<double>(rxLossDb.value);
+    }
+    if (receiverSpecifications.present) {
+      map['receiver_specifications'] = Variable<String>(
+        receiverSpecifications.value,
+      );
+    }
+    if (specificationSource.present) {
+      map['specification_source'] = Variable<String>(specificationSource.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -5223,7 +6005,253 @@ class RadioEquipmentCompanion extends UpdateCompanion<RadioEquipmentData> {
           ..write('category: $category, ')
           ..write('frequencyMhz: $frequencyMhz, ')
           ..write('maxPowerMw: $maxPowerMw, ')
+          ..write('protocol: $protocol, ')
+          ..write('transmitter: $transmitter, ')
+          ..write('receiver: $receiver, ')
+          ..write('txAntenna: $txAntenna, ')
+          ..write('rxAntenna: $rxAntenna, ')
+          ..write('txPolarization: $txPolarization, ')
+          ..write('rxPolarization: $rxPolarization, ')
+          ..write('bandwidthKhz: $bandwidthKhz, ')
+          ..write('sensitivityDbm: $sensitivityDbm, ')
+          ..write('txGainDbi: $txGainDbi, ')
+          ..write('rxGainDbi: $rxGainDbi, ')
+          ..write('txLossDb: $txLossDb, ')
+          ..write('rxLossDb: $rxLossDb, ')
+          ..write('receiverSpecifications: $receiverSpecifications, ')
+          ..write('specificationSource: $specificationSource, ')
           ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RadioEquipmentDronesTable extends RadioEquipmentDrones
+    with TableInfo<$RadioEquipmentDronesTable, RadioEquipmentDrone> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RadioEquipmentDronesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _equipmentIdMeta = const VerificationMeta(
+    'equipmentId',
+  );
+  @override
+  late final GeneratedColumn<int> equipmentId = GeneratedColumn<int>(
+    'equipment_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES radio_equipment (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _droneIdMeta = const VerificationMeta(
+    'droneId',
+  );
+  @override
+  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
+    'drone_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES drones (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [equipmentId, droneId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'radio_equipment_drones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RadioEquipmentDrone> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('equipment_id')) {
+      context.handle(
+        _equipmentIdMeta,
+        equipmentId.isAcceptableOrUnknown(
+          data['equipment_id']!,
+          _equipmentIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_equipmentIdMeta);
+    }
+    if (data.containsKey('drone_id')) {
+      context.handle(
+        _droneIdMeta,
+        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_droneIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {equipmentId, droneId};
+  @override
+  RadioEquipmentDrone map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RadioEquipmentDrone(
+      equipmentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}equipment_id'],
+      )!,
+      droneId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}drone_id'],
+      )!,
+    );
+  }
+
+  @override
+  $RadioEquipmentDronesTable createAlias(String alias) {
+    return $RadioEquipmentDronesTable(attachedDatabase, alias);
+  }
+}
+
+class RadioEquipmentDrone extends DataClass
+    implements Insertable<RadioEquipmentDrone> {
+  final int equipmentId;
+  final int droneId;
+  const RadioEquipmentDrone({required this.equipmentId, required this.droneId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['equipment_id'] = Variable<int>(equipmentId);
+    map['drone_id'] = Variable<int>(droneId);
+    return map;
+  }
+
+  RadioEquipmentDronesCompanion toCompanion(bool nullToAbsent) {
+    return RadioEquipmentDronesCompanion(
+      equipmentId: Value(equipmentId),
+      droneId: Value(droneId),
+    );
+  }
+
+  factory RadioEquipmentDrone.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RadioEquipmentDrone(
+      equipmentId: serializer.fromJson<int>(json['equipmentId']),
+      droneId: serializer.fromJson<int>(json['droneId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'equipmentId': serializer.toJson<int>(equipmentId),
+      'droneId': serializer.toJson<int>(droneId),
+    };
+  }
+
+  RadioEquipmentDrone copyWith({int? equipmentId, int? droneId}) =>
+      RadioEquipmentDrone(
+        equipmentId: equipmentId ?? this.equipmentId,
+        droneId: droneId ?? this.droneId,
+      );
+  RadioEquipmentDrone copyWithCompanion(RadioEquipmentDronesCompanion data) {
+    return RadioEquipmentDrone(
+      equipmentId: data.equipmentId.present
+          ? data.equipmentId.value
+          : this.equipmentId,
+      droneId: data.droneId.present ? data.droneId.value : this.droneId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RadioEquipmentDrone(')
+          ..write('equipmentId: $equipmentId, ')
+          ..write('droneId: $droneId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(equipmentId, droneId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RadioEquipmentDrone &&
+          other.equipmentId == this.equipmentId &&
+          other.droneId == this.droneId);
+}
+
+class RadioEquipmentDronesCompanion
+    extends UpdateCompanion<RadioEquipmentDrone> {
+  final Value<int> equipmentId;
+  final Value<int> droneId;
+  final Value<int> rowid;
+  const RadioEquipmentDronesCompanion({
+    this.equipmentId = const Value.absent(),
+    this.droneId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RadioEquipmentDronesCompanion.insert({
+    required int equipmentId,
+    required int droneId,
+    this.rowid = const Value.absent(),
+  }) : equipmentId = Value(equipmentId),
+       droneId = Value(droneId);
+  static Insertable<RadioEquipmentDrone> custom({
+    Expression<int>? equipmentId,
+    Expression<int>? droneId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (equipmentId != null) 'equipment_id': equipmentId,
+      if (droneId != null) 'drone_id': droneId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RadioEquipmentDronesCompanion copyWith({
+    Value<int>? equipmentId,
+    Value<int>? droneId,
+    Value<int>? rowid,
+  }) {
+    return RadioEquipmentDronesCompanion(
+      equipmentId: equipmentId ?? this.equipmentId,
+      droneId: droneId ?? this.droneId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (equipmentId.present) {
+      map['equipment_id'] = Variable<int>(equipmentId.value);
+    }
+    if (droneId.present) {
+      map['drone_id'] = Variable<int>(droneId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RadioEquipmentDronesCompanion(')
+          ..write('equipmentId: $equipmentId, ')
+          ..write('droneId: $droneId, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -6029,6 +7057,8 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   late final $BatteryFlightPlansTable batteryFlightPlans =
       $BatteryFlightPlansTable(this);
   late final $RadioEquipmentTable radioEquipment = $RadioEquipmentTable(this);
+  late final $RadioEquipmentDronesTable radioEquipmentDrones =
+      $RadioEquipmentDronesTable(this);
   late final $FlightWaypointsTable flightWaypoints = $FlightWaypointsTable(
     this,
   );
@@ -6064,6 +7094,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     flightPlans,
     batteryFlightPlans,
     radioEquipment,
+    radioEquipmentDrones,
     flightWaypoints,
     appSettings,
     spotsCategoryId,
@@ -6142,6 +7173,20 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('battery_flight_plans', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'radio_equipment',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('radio_equipment_drones', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'drones',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('radio_equipment_drones', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -7439,6 +8484,31 @@ final class $$DronesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $RadioEquipmentDronesTable,
+    List<RadioEquipmentDrone>
+  >
+  _radioEquipmentDronesRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.radioEquipmentDrones,
+        aliasName: 'drones__id__radio_equipment_drones__drone_id',
+      );
+
+  $$RadioEquipmentDronesTableProcessedTableManager
+  get radioEquipmentDronesRefs {
+    final manager = $$RadioEquipmentDronesTableTableManager(
+      $_db,
+      $_db.radioEquipmentDrones,
+    ).filter((f) => f.droneId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _radioEquipmentDronesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$DronesTableFilterComposer
@@ -7647,6 +8717,31 @@ class $$DronesTableFilterComposer
           }) => $$FlightPlansTableFilterComposer(
             $db: $db,
             $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> radioEquipmentDronesRefs(
+    Expression<bool> Function($$RadioEquipmentDronesTableFilterComposer f) f,
+  ) {
+    final $$RadioEquipmentDronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.radioEquipmentDrones,
+      getReferencedColumn: (t) => t.droneId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RadioEquipmentDronesTableFilterComposer(
+            $db: $db,
+            $table: $db.radioEquipmentDrones,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7993,6 +9088,32 @@ class $$DronesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> radioEquipmentDronesRefs<T extends Object>(
+    Expression<T> Function($$RadioEquipmentDronesTableAnnotationComposer a) f,
+  ) {
+    final $$RadioEquipmentDronesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.radioEquipmentDrones,
+          getReferencedColumn: (t) => t.droneId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RadioEquipmentDronesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.radioEquipmentDrones,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$DronesTableTableManager
@@ -8012,6 +9133,7 @@ class $$DronesTableTableManager
             bool droneParameterSourcesRefs,
             bool batteryDronesRefs,
             bool flightPlansRefs,
+            bool radioEquipmentDronesRefs,
           })
         > {
   $$DronesTableTableManager(_$FpvDatabase db, $DronesTable table)
@@ -8154,6 +9276,7 @@ class $$DronesTableTableManager
                 droneParameterSourcesRefs = false,
                 batteryDronesRefs = false,
                 flightPlansRefs = false,
+                radioEquipmentDronesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -8161,6 +9284,7 @@ class $$DronesTableTableManager
                     if (droneParameterSourcesRefs) db.droneParameterSources,
                     if (batteryDronesRefs) db.batteryDrones,
                     if (flightPlansRefs) db.flightPlans,
+                    if (radioEquipmentDronesRefs) db.radioEquipmentDrones,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -8228,6 +9352,27 @@ class $$DronesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (radioEquipmentDronesRefs)
+                        await $_getPrefetchedData<
+                          Drone,
+                          $DronesTable,
+                          RadioEquipmentDrone
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DronesTableReferences
+                              ._radioEquipmentDronesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DronesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).radioEquipmentDronesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.droneId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -8252,6 +9397,7 @@ typedef $$DronesTableProcessedTableManager =
         bool droneParameterSourcesRefs,
         bool batteryDronesRefs,
         bool flightPlansRefs,
+        bool radioEquipmentDronesRefs,
       })
     >;
 typedef $$DroneParameterSourcesTableCreateCompanionBuilder =
@@ -10593,6 +11739,21 @@ typedef $$RadioEquipmentTableCreateCompanionBuilder =
       required String category,
       Value<double?> frequencyMhz,
       Value<double?> maxPowerMw,
+      Value<String?> protocol,
+      Value<String?> transmitter,
+      Value<String?> receiver,
+      Value<String?> txAntenna,
+      Value<String?> rxAntenna,
+      Value<String?> txPolarization,
+      Value<String?> rxPolarization,
+      Value<double?> bandwidthKhz,
+      Value<double?> sensitivityDbm,
+      Value<double?> txGainDbi,
+      Value<double?> rxGainDbi,
+      Value<double?> txLossDb,
+      Value<double?> rxLossDb,
+      Value<String?> receiverSpecifications,
+      Value<String?> specificationSource,
       Value<String?> notes,
     });
 typedef $$RadioEquipmentTableUpdateCompanionBuilder =
@@ -10602,8 +11763,62 @@ typedef $$RadioEquipmentTableUpdateCompanionBuilder =
       Value<String> category,
       Value<double?> frequencyMhz,
       Value<double?> maxPowerMw,
+      Value<String?> protocol,
+      Value<String?> transmitter,
+      Value<String?> receiver,
+      Value<String?> txAntenna,
+      Value<String?> rxAntenna,
+      Value<String?> txPolarization,
+      Value<String?> rxPolarization,
+      Value<double?> bandwidthKhz,
+      Value<double?> sensitivityDbm,
+      Value<double?> txGainDbi,
+      Value<double?> rxGainDbi,
+      Value<double?> txLossDb,
+      Value<double?> rxLossDb,
+      Value<String?> receiverSpecifications,
+      Value<String?> specificationSource,
       Value<String?> notes,
     });
+
+final class $$RadioEquipmentTableReferences
+    extends
+        BaseReferences<
+          _$FpvDatabase,
+          $RadioEquipmentTable,
+          RadioEquipmentData
+        > {
+  $$RadioEquipmentTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $RadioEquipmentDronesTable,
+    List<RadioEquipmentDrone>
+  >
+  _radioEquipmentDronesRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.radioEquipmentDrones,
+        aliasName: 'radio_equipment__id__radio_equipment_drones__equipment_id',
+      );
+
+  $$RadioEquipmentDronesTableProcessedTableManager
+  get radioEquipmentDronesRefs {
+    final manager = $$RadioEquipmentDronesTableTableManager(
+      $_db,
+      $_db.radioEquipmentDrones,
+    ).filter((f) => f.equipmentId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _radioEquipmentDronesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$RadioEquipmentTableFilterComposer
     extends Composer<_$FpvDatabase, $RadioEquipmentTable> {
@@ -10639,10 +11854,110 @@ class $$RadioEquipmentTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get protocol => $composableBuilder(
+    column: $table.protocol,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transmitter => $composableBuilder(
+    column: $table.transmitter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiver => $composableBuilder(
+    column: $table.receiver,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get txAntenna => $composableBuilder(
+    column: $table.txAntenna,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rxAntenna => $composableBuilder(
+    column: $table.rxAntenna,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get txPolarization => $composableBuilder(
+    column: $table.txPolarization,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rxPolarization => $composableBuilder(
+    column: $table.rxPolarization,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bandwidthKhz => $composableBuilder(
+    column: $table.bandwidthKhz,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get sensitivityDbm => $composableBuilder(
+    column: $table.sensitivityDbm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get txGainDbi => $composableBuilder(
+    column: $table.txGainDbi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get rxGainDbi => $composableBuilder(
+    column: $table.rxGainDbi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get txLossDb => $composableBuilder(
+    column: $table.txLossDb,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get rxLossDb => $composableBuilder(
+    column: $table.rxLossDb,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiverSpecifications => $composableBuilder(
+    column: $table.receiverSpecifications,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get specificationSource => $composableBuilder(
+    column: $table.specificationSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> radioEquipmentDronesRefs(
+    Expression<bool> Function($$RadioEquipmentDronesTableFilterComposer f) f,
+  ) {
+    final $$RadioEquipmentDronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.radioEquipmentDrones,
+      getReferencedColumn: (t) => t.equipmentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RadioEquipmentDronesTableFilterComposer(
+            $db: $db,
+            $table: $db.radioEquipmentDrones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$RadioEquipmentTableOrderingComposer
@@ -10676,6 +11991,81 @@ class $$RadioEquipmentTableOrderingComposer
 
   ColumnOrderings<double> get maxPowerMw => $composableBuilder(
     column: $table.maxPowerMw,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get protocol => $composableBuilder(
+    column: $table.protocol,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transmitter => $composableBuilder(
+    column: $table.transmitter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiver => $composableBuilder(
+    column: $table.receiver,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get txAntenna => $composableBuilder(
+    column: $table.txAntenna,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rxAntenna => $composableBuilder(
+    column: $table.rxAntenna,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get txPolarization => $composableBuilder(
+    column: $table.txPolarization,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rxPolarization => $composableBuilder(
+    column: $table.rxPolarization,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get bandwidthKhz => $composableBuilder(
+    column: $table.bandwidthKhz,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get sensitivityDbm => $composableBuilder(
+    column: $table.sensitivityDbm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get txGainDbi => $composableBuilder(
+    column: $table.txGainDbi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get rxGainDbi => $composableBuilder(
+    column: $table.rxGainDbi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get txLossDb => $composableBuilder(
+    column: $table.txLossDb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get rxLossDb => $composableBuilder(
+    column: $table.rxLossDb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiverSpecifications => $composableBuilder(
+    column: $table.receiverSpecifications,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get specificationSource => $composableBuilder(
+    column: $table.specificationSource,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -10713,8 +12103,93 @@ class $$RadioEquipmentTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get protocol =>
+      $composableBuilder(column: $table.protocol, builder: (column) => column);
+
+  GeneratedColumn<String> get transmitter => $composableBuilder(
+    column: $table.transmitter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receiver =>
+      $composableBuilder(column: $table.receiver, builder: (column) => column);
+
+  GeneratedColumn<String> get txAntenna =>
+      $composableBuilder(column: $table.txAntenna, builder: (column) => column);
+
+  GeneratedColumn<String> get rxAntenna =>
+      $composableBuilder(column: $table.rxAntenna, builder: (column) => column);
+
+  GeneratedColumn<String> get txPolarization => $composableBuilder(
+    column: $table.txPolarization,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rxPolarization => $composableBuilder(
+    column: $table.rxPolarization,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get bandwidthKhz => $composableBuilder(
+    column: $table.bandwidthKhz,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get sensitivityDbm => $composableBuilder(
+    column: $table.sensitivityDbm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get txGainDbi =>
+      $composableBuilder(column: $table.txGainDbi, builder: (column) => column);
+
+  GeneratedColumn<double> get rxGainDbi =>
+      $composableBuilder(column: $table.rxGainDbi, builder: (column) => column);
+
+  GeneratedColumn<double> get txLossDb =>
+      $composableBuilder(column: $table.txLossDb, builder: (column) => column);
+
+  GeneratedColumn<double> get rxLossDb =>
+      $composableBuilder(column: $table.rxLossDb, builder: (column) => column);
+
+  GeneratedColumn<String> get receiverSpecifications => $composableBuilder(
+    column: $table.receiverSpecifications,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get specificationSource => $composableBuilder(
+    column: $table.specificationSource,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  Expression<T> radioEquipmentDronesRefs<T extends Object>(
+    Expression<T> Function($$RadioEquipmentDronesTableAnnotationComposer a) f,
+  ) {
+    final $$RadioEquipmentDronesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.radioEquipmentDrones,
+          getReferencedColumn: (t) => t.equipmentId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$RadioEquipmentDronesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.radioEquipmentDrones,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$RadioEquipmentTableTableManager
@@ -10728,16 +12203,9 @@ class $$RadioEquipmentTableTableManager
           $$RadioEquipmentTableAnnotationComposer,
           $$RadioEquipmentTableCreateCompanionBuilder,
           $$RadioEquipmentTableUpdateCompanionBuilder,
-          (
-            RadioEquipmentData,
-            BaseReferences<
-              _$FpvDatabase,
-              $RadioEquipmentTable,
-              RadioEquipmentData
-            >,
-          ),
+          (RadioEquipmentData, $$RadioEquipmentTableReferences),
           RadioEquipmentData,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool radioEquipmentDronesRefs})
         > {
   $$RadioEquipmentTableTableManager(
     _$FpvDatabase db,
@@ -10759,6 +12227,21 @@ class $$RadioEquipmentTableTableManager
                 Value<String> category = const Value.absent(),
                 Value<double?> frequencyMhz = const Value.absent(),
                 Value<double?> maxPowerMw = const Value.absent(),
+                Value<String?> protocol = const Value.absent(),
+                Value<String?> transmitter = const Value.absent(),
+                Value<String?> receiver = const Value.absent(),
+                Value<String?> txAntenna = const Value.absent(),
+                Value<String?> rxAntenna = const Value.absent(),
+                Value<String?> txPolarization = const Value.absent(),
+                Value<String?> rxPolarization = const Value.absent(),
+                Value<double?> bandwidthKhz = const Value.absent(),
+                Value<double?> sensitivityDbm = const Value.absent(),
+                Value<double?> txGainDbi = const Value.absent(),
+                Value<double?> rxGainDbi = const Value.absent(),
+                Value<double?> txLossDb = const Value.absent(),
+                Value<double?> rxLossDb = const Value.absent(),
+                Value<String?> receiverSpecifications = const Value.absent(),
+                Value<String?> specificationSource = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
               }) => RadioEquipmentCompanion(
                 id: id,
@@ -10766,6 +12249,21 @@ class $$RadioEquipmentTableTableManager
                 category: category,
                 frequencyMhz: frequencyMhz,
                 maxPowerMw: maxPowerMw,
+                protocol: protocol,
+                transmitter: transmitter,
+                receiver: receiver,
+                txAntenna: txAntenna,
+                rxAntenna: rxAntenna,
+                txPolarization: txPolarization,
+                rxPolarization: rxPolarization,
+                bandwidthKhz: bandwidthKhz,
+                sensitivityDbm: sensitivityDbm,
+                txGainDbi: txGainDbi,
+                rxGainDbi: rxGainDbi,
+                txLossDb: txLossDb,
+                rxLossDb: rxLossDb,
+                receiverSpecifications: receiverSpecifications,
+                specificationSource: specificationSource,
                 notes: notes,
               ),
           createCompanionCallback:
@@ -10775,6 +12273,21 @@ class $$RadioEquipmentTableTableManager
                 required String category,
                 Value<double?> frequencyMhz = const Value.absent(),
                 Value<double?> maxPowerMw = const Value.absent(),
+                Value<String?> protocol = const Value.absent(),
+                Value<String?> transmitter = const Value.absent(),
+                Value<String?> receiver = const Value.absent(),
+                Value<String?> txAntenna = const Value.absent(),
+                Value<String?> rxAntenna = const Value.absent(),
+                Value<String?> txPolarization = const Value.absent(),
+                Value<String?> rxPolarization = const Value.absent(),
+                Value<double?> bandwidthKhz = const Value.absent(),
+                Value<double?> sensitivityDbm = const Value.absent(),
+                Value<double?> txGainDbi = const Value.absent(),
+                Value<double?> rxGainDbi = const Value.absent(),
+                Value<double?> txLossDb = const Value.absent(),
+                Value<double?> rxLossDb = const Value.absent(),
+                Value<String?> receiverSpecifications = const Value.absent(),
+                Value<String?> specificationSource = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
               }) => RadioEquipmentCompanion.insert(
                 id: id,
@@ -10782,21 +12295,65 @@ class $$RadioEquipmentTableTableManager
                 category: category,
                 frequencyMhz: frequencyMhz,
                 maxPowerMw: maxPowerMw,
+                protocol: protocol,
+                transmitter: transmitter,
+                receiver: receiver,
+                txAntenna: txAntenna,
+                rxAntenna: rxAntenna,
+                txPolarization: txPolarization,
+                rxPolarization: rxPolarization,
+                bandwidthKhz: bandwidthKhz,
+                sensitivityDbm: sensitivityDbm,
+                txGainDbi: txGainDbi,
+                rxGainDbi: rxGainDbi,
+                txLossDb: txLossDb,
+                rxLossDb: rxLossDb,
+                receiverSpecifications: receiverSpecifications,
+                specificationSource: specificationSource,
                 notes: notes,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
                   e.readTable<$RadioEquipmentTable, RadioEquipmentData>(table),
-                  BaseReferences<
-                    _$FpvDatabase,
-                    $RadioEquipmentTable,
-                    RadioEquipmentData
-                  >(db, table, e),
+                  $$RadioEquipmentTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({radioEquipmentDronesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (radioEquipmentDronesRefs) db.radioEquipmentDrones,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (radioEquipmentDronesRefs)
+                    await $_getPrefetchedData<
+                      RadioEquipmentData,
+                      $RadioEquipmentTable,
+                      RadioEquipmentDrone
+                    >(
+                      currentTable: table,
+                      referencedTable: $$RadioEquipmentTableReferences
+                          ._radioEquipmentDronesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$RadioEquipmentTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).radioEquipmentDronesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.equipmentId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -10811,12 +12368,371 @@ typedef $$RadioEquipmentTableProcessedTableManager =
       $$RadioEquipmentTableAnnotationComposer,
       $$RadioEquipmentTableCreateCompanionBuilder,
       $$RadioEquipmentTableUpdateCompanionBuilder,
-      (
-        RadioEquipmentData,
-        BaseReferences<_$FpvDatabase, $RadioEquipmentTable, RadioEquipmentData>,
-      ),
+      (RadioEquipmentData, $$RadioEquipmentTableReferences),
       RadioEquipmentData,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool radioEquipmentDronesRefs})
+    >;
+typedef $$RadioEquipmentDronesTableCreateCompanionBuilder =
+    RadioEquipmentDronesCompanion Function({
+      required int equipmentId,
+      required int droneId,
+      Value<int> rowid,
+    });
+typedef $$RadioEquipmentDronesTableUpdateCompanionBuilder =
+    RadioEquipmentDronesCompanion Function({
+      Value<int> equipmentId,
+      Value<int> droneId,
+      Value<int> rowid,
+    });
+
+final class $$RadioEquipmentDronesTableReferences
+    extends
+        BaseReferences<
+          _$FpvDatabase,
+          $RadioEquipmentDronesTable,
+          RadioEquipmentDrone
+        > {
+  $$RadioEquipmentDronesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $RadioEquipmentTable _equipmentIdTable(_$FpvDatabase db) => db
+      .radioEquipment
+      .createAlias('radio_equipment_drones__equipment_id__radio_equipment__id');
+
+  $$RadioEquipmentTableProcessedTableManager get equipmentId {
+    final $_column = $_itemColumn<int>('equipment_id')!;
+
+    final manager = $$RadioEquipmentTableTableManager(
+      $_db,
+      $_db.radioEquipment,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_equipmentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
+      db.drones.createAlias('radio_equipment_drones__drone_id__drones__id');
+
+  $$DronesTableProcessedTableManager get droneId {
+    final $_column = $_itemColumn<int>('drone_id')!;
+
+    final manager = $$DronesTableTableManager(
+      $_db,
+      $_db.drones,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RadioEquipmentDronesTableFilterComposer
+    extends Composer<_$FpvDatabase, $RadioEquipmentDronesTable> {
+  $$RadioEquipmentDronesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$RadioEquipmentTableFilterComposer get equipmentId {
+    final $$RadioEquipmentTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.equipmentId,
+      referencedTable: $db.radioEquipment,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RadioEquipmentTableFilterComposer(
+            $db: $db,
+            $table: $db.radioEquipment,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DronesTableFilterComposer get droneId {
+    final $$DronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableFilterComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RadioEquipmentDronesTableOrderingComposer
+    extends Composer<_$FpvDatabase, $RadioEquipmentDronesTable> {
+  $$RadioEquipmentDronesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$RadioEquipmentTableOrderingComposer get equipmentId {
+    final $$RadioEquipmentTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.equipmentId,
+      referencedTable: $db.radioEquipment,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RadioEquipmentTableOrderingComposer(
+            $db: $db,
+            $table: $db.radioEquipment,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DronesTableOrderingComposer get droneId {
+    final $$DronesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableOrderingComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RadioEquipmentDronesTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $RadioEquipmentDronesTable> {
+  $$RadioEquipmentDronesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$RadioEquipmentTableAnnotationComposer get equipmentId {
+    final $$RadioEquipmentTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.equipmentId,
+      referencedTable: $db.radioEquipment,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RadioEquipmentTableAnnotationComposer(
+            $db: $db,
+            $table: $db.radioEquipment,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DronesTableAnnotationComposer get droneId {
+    final $$DronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RadioEquipmentDronesTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $RadioEquipmentDronesTable,
+          RadioEquipmentDrone,
+          $$RadioEquipmentDronesTableFilterComposer,
+          $$RadioEquipmentDronesTableOrderingComposer,
+          $$RadioEquipmentDronesTableAnnotationComposer,
+          $$RadioEquipmentDronesTableCreateCompanionBuilder,
+          $$RadioEquipmentDronesTableUpdateCompanionBuilder,
+          (RadioEquipmentDrone, $$RadioEquipmentDronesTableReferences),
+          RadioEquipmentDrone,
+          PrefetchHooks Function({bool equipmentId, bool droneId})
+        > {
+  $$RadioEquipmentDronesTableTableManager(
+    _$FpvDatabase db,
+    $RadioEquipmentDronesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RadioEquipmentDronesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RadioEquipmentDronesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$RadioEquipmentDronesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> equipmentId = const Value.absent(),
+                Value<int> droneId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RadioEquipmentDronesCompanion(
+                equipmentId: equipmentId,
+                droneId: droneId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int equipmentId,
+                required int droneId,
+                Value<int> rowid = const Value.absent(),
+              }) => RadioEquipmentDronesCompanion.insert(
+                equipmentId: equipmentId,
+                droneId: droneId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RadioEquipmentDronesTable, RadioEquipmentDrone>(
+                    table,
+                  ),
+                  $$RadioEquipmentDronesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({equipmentId = false, droneId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (equipmentId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.equipmentId,
+                        referencedTable: $$RadioEquipmentDronesTableReferences
+                            ._equipmentIdTable(db),
+                        referencedColumn: $$RadioEquipmentDronesTableReferences
+                            ._equipmentIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (droneId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.droneId,
+                        referencedTable: $$RadioEquipmentDronesTableReferences
+                            ._droneIdTable(db),
+                        referencedColumn: $$RadioEquipmentDronesTableReferences
+                            ._droneIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RadioEquipmentDronesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $RadioEquipmentDronesTable,
+      RadioEquipmentDrone,
+      $$RadioEquipmentDronesTableFilterComposer,
+      $$RadioEquipmentDronesTableOrderingComposer,
+      $$RadioEquipmentDronesTableAnnotationComposer,
+      $$RadioEquipmentDronesTableCreateCompanionBuilder,
+      $$RadioEquipmentDronesTableUpdateCompanionBuilder,
+      (RadioEquipmentDrone, $$RadioEquipmentDronesTableReferences),
+      RadioEquipmentDrone,
+      PrefetchHooks Function({bool equipmentId, bool droneId})
     >;
 typedef $$FlightWaypointsTableCreateCompanionBuilder =
     FlightWaypointsCompanion Function({
@@ -11394,6 +13310,8 @@ class $FpvDatabaseManager {
       $$BatteryFlightPlansTableTableManager(_db, _db.batteryFlightPlans);
   $$RadioEquipmentTableTableManager get radioEquipment =>
       $$RadioEquipmentTableTableManager(_db, _db.radioEquipment);
+  $$RadioEquipmentDronesTableTableManager get radioEquipmentDrones =>
+      $$RadioEquipmentDronesTableTableManager(_db, _db.radioEquipmentDrones);
   $$FlightWaypointsTableTableManager get flightWaypoints =>
       $$FlightWaypointsTableTableManager(_db, _db.flightWaypoints);
   $$AppSettingsTableTableManager get appSettings =>

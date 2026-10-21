@@ -157,7 +157,33 @@ class RadioEquipment extends Table {
 
   RealColumn get maxPowerMw => real().nullable()();
 
+  TextColumn get protocol => text().nullable()();
+  TextColumn get transmitter => text().nullable()();
+  TextColumn get receiver => text().nullable()();
+  TextColumn get txAntenna => text().nullable()();
+  TextColumn get rxAntenna => text().nullable()();
+  TextColumn get txPolarization => text().nullable()();
+  TextColumn get rxPolarization => text().nullable()();
+  RealColumn get bandwidthKhz => real().nullable()();
+  RealColumn get sensitivityDbm => real().nullable()();
+  RealColumn get txGainDbi => real().nullable()();
+  RealColumn get rxGainDbi => real().nullable()();
+  RealColumn get txLossDb => real().nullable()();
+  RealColumn get rxLossDb => real().nullable()();
+  TextColumn get receiverSpecifications => text().nullable()();
+  TextColumn get specificationSource => text().nullable()();
+
   TextColumn get notes => text().nullable()();
+}
+
+/// A drone can use independent control, video and telemetry configurations.
+class RadioEquipmentDrones extends Table {
+  IntColumn get equipmentId =>
+      integer().references(RadioEquipment, #id, onDelete: KeyAction.cascade)();
+  IntColumn get droneId =>
+      integer().references(Drones, #id, onDelete: KeyAction.cascade)();
+  @override
+  Set<Column> get primaryKey => {equipmentId, droneId};
 }
 
 /// Saved flight planning projects.
@@ -231,6 +257,7 @@ class AppSettings extends Table {
     BatteryDrones,
     BatteryFlightPlans,
     RadioEquipment,
+    RadioEquipmentDrones,
     FlightPlans,
     FlightWaypoints,
     AppSettings,
@@ -253,7 +280,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -365,6 +392,32 @@ class FpvDatabase extends _$FpvDatabase {
         }
         await m.createTable(batteryDrones);
         await m.createTable(batteryFlightPlans);
+      }
+      if (from < 7) {
+        // v1 creates the current radio table above. v2-v6 retain all legacy
+        // categories and values; new RF details remain unknown until recorded.
+        if (from >= 2) {
+          for (final column in [
+            radioEquipment.protocol,
+            radioEquipment.transmitter,
+            radioEquipment.receiver,
+            radioEquipment.txAntenna,
+            radioEquipment.rxAntenna,
+            radioEquipment.txPolarization,
+            radioEquipment.rxPolarization,
+            radioEquipment.bandwidthKhz,
+            radioEquipment.sensitivityDbm,
+            radioEquipment.txGainDbi,
+            radioEquipment.rxGainDbi,
+            radioEquipment.txLossDb,
+            radioEquipment.rxLossDb,
+            radioEquipment.receiverSpecifications,
+            radioEquipment.specificationSource,
+          ]) {
+            await m.addColumn(radioEquipment, column);
+          }
+        }
+        await m.createTable(radioEquipmentDrones);
       }
     },
     beforeOpen: (details) async {

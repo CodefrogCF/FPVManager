@@ -11,6 +11,7 @@ import 'package:fpvmanager/core/database/repositories/radio_equipment_repository
 import 'package:fpvmanager/core/database/repositories/user_preferences_repository.dart';
 import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
 import 'package:fpvmanager/core/models/flight_route.dart';
+import 'package:fpvmanager/core/models/radio_profile.dart';
 import 'package:fpvmanager/core/models/user_preferences.dart';
 import 'package:fpvmanager/core/models/spot_classification.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
@@ -53,10 +54,22 @@ void main() {
           capacityMah: 1500,
           cycleCount: 23,
         );
-        final radioId = await RadioEquipmentRepository(first).createEquipment(
-          name: 'My radio',
-          category: 'control',
-          frequencyMhz: 868,
+        final radioId = await RadioEquipmentRepository(first).saveProfile(
+          RadioProfileInput(
+            name: 'My radio',
+            category: 'control',
+            parameters: {
+              RadioParameter.frequencyMhz: 868,
+              RadioParameter.sensitivityDbm: -110,
+              RadioParameter.rxGainDbi: -1.5,
+            },
+            descriptions: {
+              RadioTextField.protocol: 'Private system',
+              RadioTextField.txAntenna: 'Dipole',
+              RadioTextField.specificationSource: 'Recorded source',
+            },
+            droneIds: {droneId},
+          ),
         );
         final planId = await FlightPlanRepository(first).createFlightPlan(
           name: 'My route',
@@ -117,6 +130,14 @@ void main() {
               .frequencyMhz,
           868,
         );
+        final radio = (await RadioEquipmentRepository(reopened)
+            .getProfile(radioId))!;
+        expect(radio.drones.single.id, droneId);
+        expect(radio.equipment.sensitivityDbm, -110);
+        expect(radio.equipment.rxGainDbi, -1.5);
+        expect(radio.equipment.protocol, 'Private system');
+        expect(radio.equipment.txAntenna, 'Dipole');
+        expect(radio.equipment.specificationSource, 'Recorded source');
         final route = (await FlightPlanRepository(reopened).getRoute(planId))!;
         expect(route.plan.droneId, droneId);
         expect(route.plan.startSpotId, spotId);

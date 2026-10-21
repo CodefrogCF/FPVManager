@@ -11,6 +11,7 @@ import '../../generated_migrations/schema_v2.dart' as v2;
 import '../../generated_migrations/schema_v3.dart' as v3;
 import '../../generated_migrations/schema_v4.dart' as v4;
 import '../../generated_migrations/schema_v5.dart' as v5;
+import '../../generated_migrations/schema_v6.dart' as v6;
 
 import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
 import 'package:fpvmanager/core/models/drone_profile.dart';
@@ -27,7 +28,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates v1 to v6 without losing spots', () async {
+  test('migrates v1 to v7 without losing spots', () async {
     final schema = await verifier.schemaAt(1);
 
     // Create a database with the original v1 schema.
@@ -48,7 +49,7 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 6);
+    await verifier.migrateAndValidate(database, 7);
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -81,7 +82,7 @@ void main() {
   });
 
   test(
-    'migrates v2 to v6 preserving personal records and references',
+    'migrates v2 to v7 preserving personal records and references',
     () async {
       final schema = await verifier.schemaAt(2);
       final old = v2.DatabaseAtV2(schema.newConnection());
@@ -145,7 +146,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 6);
+      await verifier.migrateAndValidate(database, 7);
       expect(
         (await database.select(database.spots).get()).single.name,
         'Private spot',
@@ -180,7 +181,7 @@ void main() {
     },
   );
 
-  test('v3 to v6 preserves photos and favorites and backfills Unicode search in batches', () async {
+  test('v3 to v7 preserves photos and favorites and backfills Unicode search in batches', () async {
     final schema = await verifier.schemaAt(3);
     final old = v3.DatabaseAtV3(schema.newConnection());
     for (var i = 0; i < 405; i++) {
@@ -211,7 +212,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 6);
+    await verifier.migrateAndValidate(database, 7);
     final repository = SpotRepository(database);
     final page = await repository.getSpotPage(
       filter: SpotFilter(query: 'älpler 404 über', favoritesOnly: true),
@@ -229,7 +230,7 @@ void main() {
     expect(await repository.getPhotos(405), isEmpty);
   });
 
-  test('v4 to v6 preserves classified spots and drones without inventing provenance', () async {
+  test('v4 to v7 preserves classified spots and drones without inventing provenance', () async {
     final schema = await verifier.schemaAt(4);
     final old = v4.DatabaseAtV4(schema.newConnection());
     final spotId = await old
@@ -282,7 +283,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 6);
+    await verifier.migrateAndValidate(database, 7);
     final profile = (await DroneRepository(database).getProfile(droneId))!;
     expect(profile.drone.name, 'Existing drone');
     expect(profile.drone.type, 'fixed-wing');
@@ -317,7 +318,7 @@ void main() {
   });
 
   test(
-    'v5 to v6 preserves battery records without inventing state or type',
+    'v5 to v7 preserves battery records without inventing state or type',
     () async {
       final schema = await verifier.schemaAt(5);
       final old = v5.DatabaseAtV5(schema.newConnection());
@@ -357,7 +358,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 6);
+      await verifier.migrateAndValidate(database, 7);
       final battery = await (database.select(
         database.batteries,
       )..where((t) => t.id.equals(batteryId))).getSingle();
@@ -403,7 +404,86 @@ void main() {
     },
   );
 
-  test('new v6 database creates all tables', () async {
+  test(
+    'v6 to v7 preserves legacy RF values, categories and battery links',
+    () async {
+      final schema = await verifier.schemaAt(6);
+      final old = v6.DatabaseAtV6(schema.newConnection());
+      final drone = await old
+          .into(old.drones)
+          .insert(v6.DronesCompanion.insert(name: 'Existing drone'));
+      final pack = await old
+          .into(old.batteries)
+          .insert(
+            v6.BatteriesCompanion.insert(
+              name: 'Existing pack',
+              cellCount: 4,
+              capacityMah: 1500,
+              chargePercent: const Value(75),
+            ),
+          );
+      await old
+          .into(old.batteryDrones)
+          .insert(
+            v6.BatteryDronesCompanion.insert(batteryId: pack, droneId: drone),
+          );
+      final id = await old
+          .into(old.radioEquipment)
+          .insert(
+            v6.RadioEquipmentCompanion.insert(
+              name: 'Old RX',
+              category: 'custom receiver',
+              frequencyMhz: const Value(5800),
+              maxPowerMw: const Value(0),
+              notes: const Value('Keep original notes'),
+            ),
+          );
+      await old.close();
+      final database = FpvDatabase(schema.newConnection());
+      addTearDown(database.close);
+      await verifier.migrateAndValidate(database, 7);
+      final row = await database.select(database.radioEquipment).getSingle();
+      expect(row.id, id);
+      expect(row.name, 'Old RX');
+      expect(row.category, 'custom receiver');
+      expect(row.frequencyMhz, 5800);
+      expect(row.maxPowerMw, 0);
+      expect(row.notes, 'Keep original notes');
+      expect(row.protocol, isNull);
+      expect(row.transmitter, isNull);
+      expect(row.receiver, isNull);
+      expect(row.sensitivityDbm, isNull);
+      expect(row.txGainDbi, isNull);
+      expect(row.rxGainDbi, isNull);
+      expect(row.txLossDb, isNull);
+      expect(row.rxLossDb, isNull);
+      expect(row.bandwidthKhz, isNull);
+      expect(row.txAntenna, isNull);
+      expect(row.rxAntenna, isNull);
+      expect(row.txPolarization, isNull);
+      expect(row.rxPolarization, isNull);
+      expect(row.receiverSpecifications, isNull);
+      expect(row.specificationSource, isNull);
+      expect(
+        await database.select(database.radioEquipmentDrones).get(),
+        isEmpty,
+      );
+      expect(
+        (await database.select(database.batteryDrones).getSingle()).droneId,
+        drone,
+      );
+      expect(
+        (await database.select(database.batteries).getSingle()).chargePercent,
+        75,
+      );
+      expect(
+        await database.customSelect('PRAGMA foreign_key_check').get(),
+        isEmpty,
+      );
+    },
+  );
+
+  test('new v7 database creates all tables', () async {
     final database = FpvDatabase(NativeDatabase.memory());
 
     // Trigger database initialization.
@@ -427,6 +507,7 @@ void main() {
     expect(names, contains('battery_drones'));
     expect(names, contains('battery_flight_plans'));
     expect(names, contains('radio_equipment'));
+    expect(names, contains('radio_equipment_drones'));
     expect(names, contains('flight_plans'));
     expect(names, contains('flight_waypoints'));
     expect(names, contains('app_settings'));

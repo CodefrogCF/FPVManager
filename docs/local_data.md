@@ -19,7 +19,7 @@ table representation alone cannot express the application contract.
 | `SpotRepository` | `lib/features/spots/data/` | CRUD, watch, favorite toggle, photo drafts/previews |
 | `DroneRepository` | `lib/core/database/repositories/` | CRUD/watch, complete profile snapshots and transactional provenance |
 | `BatteryRepository` | `lib/core/database/repositories/` | Pack/type CRUD/watch, atomic condition/specification snapshots and drone/plan assignments |
-| `RadioEquipmentRepository` | `lib/core/database/repositories/` | CRUD, watch |
+| `RadioEquipmentRepository` | `lib/core/database/repositories/` | CRUD/watch, RF specification snapshots and transactional drone assignments |
 | `FlightPlanRepository` | `lib/core/database/repositories/` | Metadata CRUD/watch, route snapshots, waypoint replacement |
 | `UserPreferencesRepository` | `lib/core/database/repositories/` | Read/watch, save, reset |
 
@@ -40,6 +40,8 @@ An `update…` operation replaces all editable fields; omitted nullable fields
 are cleared and omitted fields with defaults take those defaults. It is not a
 partial patch. Creation timestamps are preserved. `setFavorite` changes only
 the favorite flag, and a full spot edit preserves that flag.
+The legacy `updateEquipment` API replaces its original fields while preserving
+new RF fields and assignments; `saveProfile` replaces the entire RF profile.
 
 ## Routes, heights and transactions
 
@@ -97,10 +99,11 @@ ordering and renderer recovery.
 
 ## Schema and scope
 
-Schema version is **6**. The indexed `spot_photos` table adds normalized photos
+Schema version is **7**. The indexed `spot_photos` table adds normalized photos
 and thumbnails with cascading spot ownership. Spot category/search columns and
 the indexed `spot_tags` table support classification and filtering. Migration
-tests validate v1/v2/v3/v4/v5 → v6 while preserving existing records. Drone fields
+tests validate v1/v2/v3/v4/v5/v6 → v7 while preserving existing records. Nullable RF
+columns and `radio_equipment_drones` add independent configurations and links. Drone fields
 and `drone_parameter_sources` preserve per-value provenance. Repository tests cover CRUD,
 validation, watchers, relationship deletion, rollback, height references and
 preferences. A file-backed test closes and reopens SQLite and verifies records
@@ -113,7 +116,8 @@ Battery inventory has pack/type editors, optional manual condition records and
 transactional drone/flight-plan links; see [battery inventory](battery_inventory.md).
 Flight routes now have a local library and a map-based waypoint draft editor;
 see [ground view and route editing](ground_view_and_routes.md). Radio equipment
-profiles (#15) and the remaining altitude/speed/profile workflow in #25 are
-separate feature work. A saved route is a local planning
+has list/editor/detail screens with independent control/video configurations;
+see [RF specifications and assignments](radio_equipment.md). The remaining
+altitude/speed/profile workflow in #25 is separate feature work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.
 See [spot search and classification](spot_search.md) for the spot list contract.

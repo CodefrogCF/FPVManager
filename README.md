@@ -20,15 +20,17 @@ spot library stored with Drift/SQLite.
 - Search, categories, tags, favorites and spot details with paged list queries.
 - Drone profiles with dimensions, propellers, propulsion and power/performance
   parameters, with measured/estimated/unspecified provenance per value.
-- Database schema snapshots and tested v1/v2/v3/v4/v5-to-v6 migrations.
+- Database schema snapshots and tested v1/v2/v3/v4/v5/v6-to-v7 migrations.
 - Typed local repositories for spots, drones, batteries, radio equipment,
   flight plans/waypoints and map preferences, with transactional route storage.
 - Battery pack/type inventory with manual condition records and assignments.
+- Independent radio-control/video/telemetry profiles with RF specifications,
+  transmitter/receiver antennas and drone assignments; see [equipment profiles](docs/radio_equipment.md).
 - Terrain-relative ground inspection with arrow-key/touch movement and drag look.
 - A local flight-route library with direct map waypoint placement, moving and deletion.
 
 The [local data layer](docs/local_data.md) provides the storage foundation for future
-features. Radio equipment screens, weather, advanced route configuration, simulation,
+features. Weather, advanced route configuration, simulation,
 backups and offline map downloads are not implemented yet. See the
 [issue backlog](https://github.com/CodefrogCF/FPVManager/issues).
 
@@ -158,6 +160,11 @@ reusable type templates, explicit V/mAh/Wh/g specifications, optional manual
 condition/availability records and assignments to saved drones/flight plans.
 See [battery inventory](docs/battery_inventory.md) for template semantics,
 schema-v6 migration and validation (#14).
+
+**Radio & video equipment** manages independent control/video/telemetry
+configurations, RF values in explicit units, transmitter/receiver antenna
+characteristics and assignments to drone profiles. See
+[radio equipment](docs/radio_equipment.md) for schema v7 and validation (#15).
 
 Select a map point and use **Spawn here** for terrain-relative first-person
 inspection at approximately two metres eye height. The navigation drawer's

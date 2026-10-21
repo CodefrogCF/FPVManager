@@ -5,6 +5,8 @@ import 'dart:async';
 import 'core/database/fpv_database.dart';
 import 'core/database/repositories/drone_repository.dart';
 import 'core/database/repositories/battery_repository.dart';
+import 'core/database/repositories/radio_equipment_repository.dart';
+import 'features/radio/radio_equipment_screen.dart';
 import 'core/database/repositories/flight_plan_repository.dart';
 import 'features/routes/flight_routes_screen.dart';
 import 'features/globe/ground_view_bar.dart';
@@ -56,6 +58,7 @@ class FPVHomeScreen extends StatefulWidget {
     this.spotRepository,
     this.droneRepository,
     this.batteryRepository,
+    this.radioEquipmentRepository,
     this.flightPlanRepository,
     this.preferencesRepository,
   });
@@ -64,6 +67,7 @@ class FPVHomeScreen extends StatefulWidget {
   final SpotRepository? spotRepository;
   final DroneRepository? droneRepository;
   final BatteryRepository? batteryRepository;
+  final RadioEquipmentRepository? radioEquipmentRepository;
   final FlightPlanRepository? flightPlanRepository;
   final UserPreferencesRepository? preferencesRepository;
 
@@ -79,6 +83,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   SpotRepository? _spotRepository;
   DroneRepository? _droneRepository;
   BatteryRepository? _batteryRepository;
+  RadioEquipmentRepository? _radioEquipmentRepository;
   FlightPlanRepository? _flightPlanRepository;
   bool _preferencesStarted = false;
 
@@ -163,6 +168,19 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => BatteriesScreen(repository: repository),
+      ),
+    );
+  }
+
+  Future<void> _openRadioEquipment() async {
+    await _leaveGroundView();
+    if (!mounted) return;
+    final repository = _radioEquipmentRepository ??=
+        widget.radioEquipmentRepository ??
+        RadioEquipmentRepository(_database ??= FpvDatabase.open());
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => RadioEquipmentScreen(repository: repository),
       ),
     );
   }
@@ -369,6 +387,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   unawaited(_openBatteries());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_input_antenna),
+                title: const Text('Radio & video equipment'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openRadioEquipment());
                 },
               ),
               ListTile(
