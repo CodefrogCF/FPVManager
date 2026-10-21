@@ -50,6 +50,7 @@ Open these paths at `http://127.0.0.1:8765`:
 | `/smoke?spots=10000` | Marker-limit and large-transfer scenarios |
 | `/terrain-smoke` | Synthetic terrain with HTTP failure/delay and recovery cases |
 | `/interaction-smoke` | Ground camera and waypoint interaction with synthetic terrain |
+| `/obstacle-smoke` | Actual Cesium obstacle geometry, selection, live official WMS and opacity controls |
 | `/smoke?online=1&narrow=1` | Live swisstopo terrain/imagery and credits in a 320 px viewport |
 
 Use `--port 0` for a free port, `--build` to serve `build/web`, and

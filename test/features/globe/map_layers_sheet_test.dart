@@ -135,7 +135,12 @@ void main() {
     await openSheet(tester);
     status(visible: true);
     await tester.pump();
-    expect(tester.widget<Slider>(find.byType(Slider)).value, 0.4);
+    expect(
+      tester
+          .widget<Slider>(find.byKey(const ValueKey('uas-fill-opacity')))
+          .value,
+      0.4,
+    );
     expect(find.text('Polygon fill opacity: 40%'), findsOneWidget);
   });
 

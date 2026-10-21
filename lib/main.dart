@@ -28,6 +28,8 @@ import 'features/globe/globe_controller.dart';
 import 'features/globe/terrain_status_banner.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
+import 'features/obstacles/obstacle_layers_section.dart';
+import 'features/obstacles/obstacle_details_panel.dart';
 import 'features/globe/terrain_information_dialog.dart';
 
 void main() {
@@ -236,9 +238,16 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         FlightPlanRepository(_database ??= FpvDatabase.open());
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (context) => FlightRoutesScreen(repository: repository),
+        builder: (context) => FlightRoutesScreen(
+          repository: repository,
+          obstacleProvider: _globeController.obstacles.provider,
+          preferencesRepository:
+              widget.preferencesRepository ??
+              UserPreferencesRepository(_database ??= FpvDatabase.open()),
+        ),
       ),
     );
+    if (mounted) await _globeController.retryLoadingPreferences();
   }
 
   Future<void> _openSpotDetails(int id) async {
@@ -546,6 +555,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       body: Column(
         children: [
           TerrainStatusBanner(controller: _globeController),
+          ObstacleStatusBanner(
+            controller: _globeController.obstacles,
+            onDetails: _openMapLayers,
+          ),
           UasDataQualityBanner(
             controller: _globeController,
             onDetails: _openMapLayers,
@@ -556,6 +569,15 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       bottomNavigationBar: ListenableBuilder(
         listenable: _globeController,
         builder: (context, child) {
+          final obstacle = _globeController.obstacles.selected;
+          if (obstacle != null) {
+            return ObstacleDetailsPanel(
+              feature: obstacle,
+              snapshot:
+                  _globeController.obstacles.provider.status.dataset?.data,
+              onClose: _globeController.obstacles.clearSelection,
+            );
+          }
           if (_globeController.groundViewActive ||
               _globeController.groundViewPending) {
             return const SizedBox.shrink();

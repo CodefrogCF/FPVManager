@@ -42,7 +42,11 @@ void main() {
       );
       expect(html, contains('src="terrain_service.js"'));
       expect(html, contains('src="map_providers.js"'));
-      for (final module in ['ground_navigation.js', 'route_editor.js']) {
+      for (final module in [
+        'ground_navigation.js',
+        'route_editor.js',
+        'obstacle_layers.js',
+      ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);
       }

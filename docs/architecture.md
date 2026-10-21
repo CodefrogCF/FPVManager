@@ -57,11 +57,11 @@ are position-only (`null`), absolute with an explicit reference, or AGL offsets.
 Unknown stored references/modes raise `FormatException`; no datum is inferred.
 The map's fixed 30 m AGL preview is independent of stored heights.
 
-Map preferences own five keys: `map.style`, `map.uas.visible`,
-`map.uas.fillOpacity`, `map.spots.visible` and `map.overlayOrder`. Defaults are
-Satellite, false, 0.20, true and `["uasZones","savedSpots"]` (back to front).
-Reads do not write defaults. Saves are serialized atomic snapshots; reset
-deletes only these keys. Only successful user commands persist changes.
+Map preferences store base style, UAS/spot visibility, overlay order and obstacle
+WMS visibility/opacity plus vector visibility/categories. Defaults keep both
+obstacle options disabled. Reads do not write defaults; serialized atomic saves
+and reset preserve unrelated settings. Obstacle settings retain the requested
+state through network failures so an explicit retry or renderer reload can recover.
 
 ## External providers
 
@@ -82,8 +82,19 @@ the latest download. UAS structural checks identify unusable geometry, partial
 counts and missing details; unusable features are counted and excluded. Entirely
 unusable nonempty replacements fail while retaining displayed data/provenance.
 Explicit retry bypasses rejected snapshots. These checks do not prove coverage,
-topology, currency or legal applicability. Caches are memory-only; tile services
-do not acquire a fabricated whole-dataset retrieval time.
+topology, currency or legal applicability. The UAS cache is memory-only; tile
+services do not acquire a fabricated whole-dataset retrieval time.
+
+`SwissObstacleProvider` discovers the full KMZ through STAC and stages normalized
+records in the separate `fpvmanager_osint_cache` SQLite database. A transaction
+publishes a complete generation and removes superseded rows. Failed imports keep
+the active generation; orphaned staging rows are cleared on reopen. Import uses
+bounded ZIP inflation and XML events, rejects unsafe paths/DTDs and never follows
+external KML resources. Viewport/category queries send at most 1,200 objects,
+4,000 parts and 40,000 vertices; the renderer builds batches of 80 objects with
+revision-based cancellation. WMS imagery has its own non-fatal status/retry and
+does not share UAS or vector visibility. For offline KMZ validation use
+`dart run tool/check_obstacle_kmz.dart <full.kmz>`.
 
 `PolygonIntersectionIndex` checks horizontal Polygon/MultiPolygon geometry,
 including holes, boundary contact and all overlapping features, with bounding-box

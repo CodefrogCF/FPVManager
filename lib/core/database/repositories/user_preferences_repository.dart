@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/user_preferences.dart';
+import '../../../features/obstacles/obstacle_models.dart';
 import '../fpv_database.dart';
 
 abstract interface class UserPreferencesRepository {
@@ -26,7 +27,21 @@ final class DriftUserPreferencesRepository
   static const _opacity = 'map.uas.fillOpacity';
   static const _spotsVisible = 'map.spots.visible';
   static const _order = 'map.overlayOrder';
-  static const _keys = [_style, _visible, _opacity, _spotsVisible, _order];
+  static const _wmsVisible = 'map.obstacles.wms.visible';
+  static const _wmsOpacity = 'map.obstacles.wms.opacity';
+  static const _vectorsVisible = 'map.obstacles.vectors.visible';
+  static const _categories = 'map.obstacles.vectors.categories';
+  static const _keys = [
+    _style,
+    _visible,
+    _opacity,
+    _spotsVisible,
+    _order,
+    _wmsVisible,
+    _wmsOpacity,
+    _vectorsVisible,
+    _categories,
+  ];
 
   SimpleSelectStatement<$AppSettingsTable, AppSetting> _query() =>
       _database.select(_database.appSettings)
@@ -68,6 +83,36 @@ final class DriftUserPreferencesRepository
           ? defaults.uasZonesFillOpacity
           : double.parse(opacity);
       _validateOpacity(parsedOpacity);
+      bool readBool(String key, bool fallback) {
+        final value = values[key];
+        if (value == null) return fallback;
+        if (value != 'true' && value != 'false') {
+          throw FormatException('Invalid $key');
+        }
+        return value == 'true';
+      }
+
+      final wmsOpacity = values[_wmsOpacity] == null
+          ? defaults.obstacleWmsOpacity
+          : double.parse(values[_wmsOpacity]!);
+      _validateOpacity(wmsOpacity);
+      final rawCategories = values[_categories] == null
+          ? null
+          : jsonDecode(values[_categories]!);
+      if (rawCategories != null &&
+          (rawCategories is! List ||
+              rawCategories.any((c) => c is! String) ||
+              rawCategories.toSet().length != rawCategories.length)) {
+        throw const FormatException('Invalid obstacle category setting');
+      }
+      if (values[_categories] != null && rawCategories == null) {
+        throw const FormatException('Invalid obstacle category setting');
+      }
+      final categories = rawCategories == null
+          ? defaults.obstacleCategories
+          : (rawCategories as List)
+                .map((c) => ObstacleCategory.values.byName(c as String))
+                .toSet();
       return UserPreferences(
         mapStyle: style == null
             ? defaults.mapStyle
@@ -79,6 +124,13 @@ final class DriftUserPreferencesRepository
         savedSpotsVisible: spotsVisible == null
             ? defaults.savedSpotsVisible
             : spotsVisible == 'true',
+        obstacleWmsVisible: readBool(_wmsVisible, defaults.obstacleWmsVisible),
+        obstacleWmsOpacity: wmsOpacity,
+        obstacleVectorsVisible: readBool(
+          _vectorsVisible,
+          defaults.obstacleVectorsVisible,
+        ),
+        obstacleCategories: Set.unmodifiable(categories),
         overlayOrder: List.unmodifiable(order),
       );
     } on ArgumentError catch (error) {
@@ -102,6 +154,7 @@ final class DriftUserPreferencesRepository
   Future<void> savePreferences(UserPreferences preferences) {
     final snapshot = preferences.copyWith();
     _validateOpacity(snapshot.uasZonesFillOpacity);
+    _validateOpacity(snapshot.obstacleWmsOpacity);
     UserPreferences.validateOverlayOrder(snapshot.overlayOrder);
     final updatedAt = DateTime.now().toUtc();
     return _database.transaction(() async {
@@ -112,6 +165,12 @@ final class DriftUserPreferencesRepository
             _visible: snapshot.uasZonesVisible.toString(),
             _opacity: snapshot.uasZonesFillOpacity.toString(),
             _spotsVisible: snapshot.savedSpotsVisible.toString(),
+            _wmsVisible: snapshot.obstacleWmsVisible.toString(),
+            _wmsOpacity: snapshot.obstacleWmsOpacity.toString(),
+            _vectorsVisible: snapshot.obstacleVectorsVisible.toString(),
+            _categories: jsonEncode(
+              snapshot.obstacleCategories.map((c) => c.name).toList()..sort(),
+            ),
             _order: jsonEncode(
               snapshot.overlayOrder.map((item) => item.name).toList(),
             ),

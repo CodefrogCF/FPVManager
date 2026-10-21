@@ -18,6 +18,27 @@ queries and ground inspection. **Retry terrain** reconnects while preserving
 the camera and layers. Select a fresh point after recovery. A flat map does not
 provide a measured ground height.
 
+## Aviation obstacles
+
+Under **Map layers → Swiss aviation obstacles**, enable the transparent **WMS**
+overlay, adjust its opacity or open the official legend. The separate **3D vector**
+option imports the full official KMZ; its first download/import can take several
+minutes. Zoom into a local area, choose categories and select an object for
+source details. Both options are also available in the route editor. Visibility,
+opacity and category choices persist locally. **Check source for updates** checks
+metadata and downloads only a changed dataset; failed updates retain the last
+valid snapshot. Cached vectors reopen offline, while terrain/imagery still need
+network access. Publication, retrieval, cache age and source validity are shown
+separately. Rendering is limited to a local viewport; zoom in when the display
+limit is reached.
+
+The data covers published obstacles only and cannot establish absence of hazards
+or permission to fly. WMS provides combined symbols without category selection
+or precise heights. Vector LN02 elevations are converted locally with CHGeo2004;
+unknown heights/modes use ground markers at the first source vertex. Straight
+lines and polygon outlines are approximations; cable sag and clearance are not
+calculated.
+
 ## Ground view
 
 Select a terrain point or saved spot, then use the walking icon beside the

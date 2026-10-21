@@ -3,10 +3,19 @@ import 'package:flutter/material.dart';
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/flight_plan_repository.dart';
 import 'route_editor_screen.dart';
+import '../../core/database/repositories/user_preferences_repository.dart';
+import '../obstacles/swiss_obstacle_provider.dart';
 
 class FlightRoutesScreen extends StatefulWidget {
-  const FlightRoutesScreen({super.key, required this.repository});
+  const FlightRoutesScreen({
+    super.key,
+    required this.repository,
+    this.obstacleProvider,
+    this.preferencesRepository,
+  });
   final FlightPlanRepository repository;
+  final SwissObstacleProvider? obstacleProvider;
+  final UserPreferencesRepository? preferencesRepository;
   @override
   State<FlightRoutesScreen> createState() => _FlightRoutesScreenState();
 }
@@ -15,8 +24,12 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
   late Stream<List<FlightPlan>> _routes = widget.repository.watchFlightPlans();
   Future<void> _open([int? id]) => Navigator.of(context).push<void>(
     MaterialPageRoute(
-      builder: (context) =>
-          RouteEditorScreen(repository: widget.repository, routeId: id),
+      builder: (context) => RouteEditorScreen(
+        repository: widget.repository,
+        routeId: id,
+        obstacleProvider: widget.obstacleProvider,
+        preferencesRepository: widget.preferencesRepository,
+      ),
     ),
   );
   @override

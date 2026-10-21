@@ -13,6 +13,8 @@ import '../airspace/data/swiss_uas_provider.dart';
 import '../airspace/uas_dataset_assessment.dart';
 import '../airspace/uas_zone_details.dart';
 import '../airspace/uas_airspace_checker.dart';
+import '../obstacles/obstacle_map_controller.dart';
+import '../obstacles/swiss_obstacle_provider.dart';
 import 'globe_bridge.dart';
 import 'route_map_state.dart';
 
@@ -80,12 +82,29 @@ enum GlobeTerrainState { loading, ready, unavailable, offline }
 class GlobeController extends ChangeNotifier {
   GlobeController({
     OsintProvider<Map<String, dynamic>>? uasProvider,
+    SwissObstacleProvider? obstacleProvider,
     GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
   }) : _uasProvider = uasProvider ?? SwissUasProvider(),
        _ownsUasProvider = uasProvider == null,
        _bridge = GlobeBridge(options: bridgeOptions) {
     _uasProvider.addListener(_handleProviderChanged);
+    obstacles = ObstacleMapController(
+      provider: obstacleProvider,
+      send: (command) async {
+        await _bridge.send(command, timeout: _bridge.options.datasetTimeout);
+      },
+      preferences: () => _preferences,
+      savePreferences: _savePreferences,
+      canEdit: () => canEditPreferences && _ready,
+      onSelected: () {
+        _selectedPoint = null;
+        _selectedSpotId = null;
+        _selectedUasZone = null;
+      },
+    )..addListener(_handleProviderChanged);
   }
+
+  late final ObstacleMapController obstacles;
 
   void _handleProviderChanged() {
     if (!_disposed) notifyListeners();
@@ -555,6 +574,7 @@ class GlobeController extends ChangeNotifier {
   }
 
   void _resetConnection() {
+    obstacles.rendererLost();
     _groundViewActive = _groundViewPending = false;
     _groundViewMessage = null;
     _connectionGeneration++;
@@ -846,6 +866,7 @@ class GlobeController extends ChangeNotifier {
       return;
     }
 
+    if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
       case 'ground-view-state':
         if (data['active'] is! bool || data['pending'] is! bool) return;
@@ -871,6 +892,7 @@ class GlobeController extends ChangeNotifier {
 
       case 'globe-ready':
         if (_ready && previousSession == _bridge.session) return;
+        obstacles.rendererLost();
         _groundViewActive = _groundViewPending = false;
         _groundViewMessage = null;
         _connectionGeneration++;
@@ -907,6 +929,7 @@ class GlobeController extends ChangeNotifier {
         }
 
         _selectedSpotId = id;
+        obstacles.clearSelection();
         _selectedPoint = null;
         _selectedUasZone = null;
         notifyListeners();
@@ -931,6 +954,7 @@ class GlobeController extends ChangeNotifier {
             longitude <= 180) {
           _selectedSpotId = null;
           _selectedUasZone = null;
+          obstacles.clearSelection();
           _selectedPoint = GlobePoint(
             latitude: latitude.toDouble(),
             longitude: longitude.toDouble(),
@@ -1041,6 +1065,8 @@ class GlobeController extends ChangeNotifier {
           truncatedAttributes: List<String>.unmodifiable(shortened),
         );
 
+        obstacles.clearSelection();
+
         notifyListeners();
 
       case 'uas-zone-cleared':
@@ -1056,6 +1082,7 @@ class GlobeController extends ChangeNotifier {
   }) async {
     bool current() =>
         !_disposed && _ready && generation == _connectionGeneration;
+    unawaited(obstacles.rendererReady(force: forceSettings));
     try {
       if (forceSettings || _requestedMapStyle != GlobeMapStyle.satellite) {
         await _send({
@@ -1165,6 +1192,8 @@ class GlobeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    obstacles.removeListener(_handleProviderChanged);
+    obstacles.dispose();
     unawaited(_routeActions.close());
     _uasProvider.removeListener(_handleProviderChanged);
     if (_ownsUasProvider) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/osint/osint_provider_state.dart';
 import '../../core/osint/osint_source.dart';
 import 'globe_controller.dart';
+import '../obstacles/obstacle_layers_section.dart';
 
 class MapLayersSheet extends StatefulWidget {
   const MapLayersSheet({
@@ -323,6 +324,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                   ),
 
                   Slider(
+                    key: const ValueKey('uas-fill-opacity'),
                     min: 0,
                     max: 1,
                     divisions: 20,
@@ -504,6 +506,12 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                     'Always verify current flight '
                     'restrictions using official sources.',
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const Divider(height: 32),
+                  ObstacleLayersSection(
+                    controller: controller.obstacles,
+                    enabled:
+                        controller.isReady && controller.canEditPreferences,
                   ),
                 ],
               ),

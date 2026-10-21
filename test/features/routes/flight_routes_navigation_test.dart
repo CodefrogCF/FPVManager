@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/core/database/repositories/flight_plan_repository.dart';
+import 'package:fpvmanager/core/database/repositories/user_preferences_repository.dart';
 import 'package:fpvmanager/main.dart';
 
 void main() {
@@ -15,7 +16,12 @@ void main() {
       final first = await repository.createFlightPlan(name: 'Ridge');
       await repository.createFlightPlan(name: 'Valley');
       await tester.pumpWidget(
-        MaterialApp(home: FPVHomeScreen(flightPlanRepository: repository)),
+        MaterialApp(
+          home: FPVHomeScreen(
+            flightPlanRepository: repository,
+            preferencesRepository: UserPreferencesRepository(db),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));

@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Obstacle renderer check</title>
+<script>window.CESIUM_BASE_URL='/cesium/';</script><script src="/cesium/Cesium.js"></script>
+<script src="/obstacle_layers.js"></script><link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:#fff;font:14px system-ui}#map{height:65vh}#controls,pre,h1{padding:8px;margin:0}button,input{margin:4px}pre{white-space:pre-wrap}h1{font-size:18px}</style>
+<h1 id="status">Running actual Cesium obstacle checks…</h1><div id="map"></div>
+<div id="controls"><button id="wms">Toggle official WMS</button><label>Opacity <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+<button id="retry">Retry official WMS</button><button id="vectors">Toggle synthetic 3D obstacles</button></div>
+<pre id="log"></pre><script>
+const params=new URLSearchParams(location.search);
+const log=document.getElementById('log'), status=document.getElementById('status');
+const report=t => log.textContent += t+'\n';let fatal=false,shown=true,vectorShown=true,opacity=.8,revision=0;
+const viewer=new Cesium.Viewer('map',{baseLayer:new Cesium.ImageryLayer(new Cesium.GridImageryProvider()),
+  terrainProvider:new Cesium.EllipsoidTerrainProvider(),baseLayerPicker:false,animation:false,timeline:false,
+  geocoder:false,homeButton:false,fullscreenButton:false,sceneModePicker:false,navigationHelpButton:false,infoBox:false,
+  requestRenderMode:true,maximumRenderTimeChange:Infinity});
+viewer.scene.renderError.addEventListener((_,e) => {fatal=true;status.textContent='FAIL: '+e;report(String(e));});
+viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(8.65,47.067,5000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-65),roll:0}});
+const wms=FPVObstacles.createWms(Cesium,viewer,(_,s) => report('Official WMS: '+s.state+(s.error ? ' · '+s.error : '')));
+const vectors=FPVObstacles.createVectors(Cesium,viewer);
+const features=[{id:'synthetic-cable',category:'powerLines',parts:[{kind:'LineString',elevated:true,
+  coordinates:[[8.64,47.061,1200],[8.66,47.075,1400]]}]},
+  {id:'synthetic-mast',category:'masts',parts:[{kind:'Point',elevated:true,baseHeight:1150,coordinates:[[8.645,47.065,1300]]}]},
+  {id:'synthetic-unknown',category:'unknown',parts:[{kind:'LineString',elevated:false,coordinates:[[8.64,47.06,null],[8.66,47.06,null]]}]}];
+const replace=() => vectors.replace({revision:++revision,features:vectorShown && params.get('vectors')!=='0' ? features.filter(f => params.get('unknown')!=='0' || f.id!=='synthetic-unknown') : []});
+document.getElementById('wms').onclick=() => {shown=!shown;wms.set({visible:shown,opacity});};
+document.getElementById('opacity').oninput=e => {opacity=Number(e.target.value);wms.set({visible:shown,opacity});};
+document.getElementById('retry').onclick=() => wms.set({visible:shown,opacity,retry:true});
+document.getElementById('vectors').onclick=async () => {vectorShown=!vectorShown;await replace();report('Synthetic vectors '+(vectorShown?'shown':'hidden'));};
+viewer.screenSpaceEventHandler.setInputAction(e => {
+  const picked=viewer.scene.pick(e.position), selected=vectors.pick(picked?.id);
+  if(selected) report('Selected: '+selected.id+' (synthetic fixture)');
+},Cesium.ScreenSpaceEventType.LEFT_CLICK);
+(async () => {
+ await replace();report('PASS: elevated cable, mast and unknown-height ground projection accepted by actual Cesium');
+ vectorShown=false;await replace();vectorShown=true;await replace();
+ report('PASS: vector replacement/cleanup does not replace camera or base layer');
+ if(params.get('wms')!=='0') wms.set({visible:true,opacity});
+ await new Promise(r => setTimeout(r,2500));
+ if(!fatal) status.textContent='PASS: actual Cesium vector rendering; official WMS status below';
+ report('Synthetic heights are test geometry, not measured obstacle positions. Click a colored feature to verify selection.');
+})().catch(e => {status.textContent='FAIL: '+e;report(String(e));});
+window.addEventListener('pagehide',() => {wms.dispose();vectors.dispose();viewer.destroy();});
+</script></html>

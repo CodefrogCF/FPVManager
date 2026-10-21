@@ -41,9 +41,10 @@ function postToFlutter(message) {
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
         walker?.stop();
-        if (!event.persisted) { disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
+    let obstacleWms = null, obstacleVectors = null;
     let terrainManager = null;
     let walker = null, routeEditor = null, routeOverlays = null, disposeGroundControls = null;
     let uasImportRevision = 0;
@@ -519,6 +520,8 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case "set-obstacle-wms": obstacleWms.set(command); return {};
+            case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
             case "enter-ground-view": return walker.start(command, signal);
             case "exit-ground-view": walker.stop(); return {};
             case "set-route-editor": walker.stop(); return routeEditor.set(command, signal);
@@ -611,6 +614,7 @@ function postToFlutter(message) {
                 terrainManager.networkChanged();
                 sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable() });
                 sendToFlutter("terrain-status", terrainManager.status());
+                publishObstacleViewport();
             }
         }
     };
@@ -681,6 +685,9 @@ function postToFlutter(message) {
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
         activeViewer = viewer;
+        obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
+        obstacleVectors = FPVObstacles.createVectors(Cesium,viewer);
+        viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
         const groundPanel = document.getElementById("ground-controls");
         walker = FPVGroundNavigation.createWalker({
             isTerrainReady: terrainAvailable,
@@ -768,13 +775,19 @@ function postToFlutter(message) {
         // Display coordinates and elevation on click.
         viewer.screenSpaceEventHandler.setInputAction(
             function (event) {
-                if (walker.status().active || routeEditor.click(event.position)) return;
-
                 const picked = viewer.scene.pick(event.position);
 
                 const entity = picked?.id instanceof Cesium.Entity
                     ? picked.id
                     : picked?.primitive?.id;
+
+                const obstacle = obstacleVectors.pick(entity);
+                if (obstacle) {
+                    selectedPointInfo = null; terrainInfo(terrainManager.status());
+                    sendToFlutter('obstacle-selected',obstacle); return;
+                }
+                sendToFlutter('obstacle-cleared');
+                if (walker.status().active || routeEditor.click(event.position)) return;
 
                 const isUasZone =
                     uasDataSource !== null &&
@@ -865,6 +878,21 @@ function postToFlutter(message) {
             },
             Cesium.ScreenSpaceEventType.LEFT_CLICK
         );
+    }
+
+    function publishObstacleViewport() {
+        if (!rendererReady || !activeViewer) return;
+        const camera = activeViewer.camera;
+        let rect;
+        if (walker?.status().active) {
+            const p = camera.positionCartographic;
+            // The ellipsoid horizon below mountain terrain can otherwise look
+            // like a country-wide viewport from a two-metre ground camera.
+            rect = new Cesium.Rectangle(p.longitude-0.0005,p.latitude-0.0005,p.longitude+0.0005,p.latitude+0.0005);
+        } else rect = camera.computeViewRectangle(activeViewer.scene.globe.ellipsoid);
+        if (rect) sendToFlutter('obstacle-viewport',{
+            west:Cesium.Math.toDegrees(rect.west),south:Cesium.Math.toDegrees(rect.south),
+            east:Cesium.Math.toDegrees(rect.east),north:Cesium.Math.toDegrees(rect.north)});
     }
 
     initializeGlobe().catch((error) => {

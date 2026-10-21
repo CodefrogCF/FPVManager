@@ -8,6 +8,11 @@ import '../globe/globe_view.dart';
 import '../globe/terrain_status_banner.dart';
 import '../airspace/airspace_check_sheet.dart';
 import 'route_editor_controller.dart';
+import '../../core/database/repositories/user_preferences_repository.dart';
+import '../globe/map_layers_sheet.dart';
+import '../obstacles/swiss_obstacle_provider.dart';
+import '../obstacles/obstacle_details_panel.dart';
+import '../obstacles/obstacle_layers_section.dart';
 
 class RouteEditorScreen extends StatefulWidget {
   const RouteEditorScreen({
@@ -16,18 +21,23 @@ class RouteEditorScreen extends StatefulWidget {
     this.routeId,
     this.globeController,
     this.mapBuilder,
+    this.obstacleProvider,
+    this.preferencesRepository,
   });
   final FlightPlanRepository repository;
   final int? routeId;
   final GlobeController? globeController;
   final Widget Function(GlobeController)? mapBuilder;
+  final SwissObstacleProvider? obstacleProvider;
+  final UserPreferencesRepository? preferencesRepository;
   @override
   State<RouteEditorScreen> createState() => _RouteEditorScreenState();
 }
 
 class _RouteEditorScreenState extends State<RouteEditorScreen> {
   late final GlobeController _globe =
-      widget.globeController ?? GlobeController();
+      widget.globeController ??
+      GlobeController(obstacleProvider: widget.obstacleProvider);
   late final RouteEditorController _editor = RouteEditorController(
     repository: widget.repository,
     globe: _globe,
@@ -40,6 +50,9 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
   void initState() {
     super.initState();
     _globe.addListener(_ready);
+    if (widget.preferencesRepository case final repository?) {
+      unawaited(_globe.initializePreferences(repository));
+    }
     unawaited(_load());
   }
 
@@ -133,6 +146,11 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
             icon: const Icon(Icons.arrow_back),
           ),
           actions: [
+            IconButton(
+              tooltip: 'Map layers',
+              onPressed: _globe.isReady ? _layers : null,
+              icon: const Icon(Icons.layers_outlined),
+            ),
             TextButton.icon(
               onPressed: _editor.canSave
                   ? () async {
@@ -172,6 +190,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     ),
                   ),
                   TerrainStatusBanner(controller: _globe),
+                  ObstacleStatusBanner(
+                    controller: _globe.obstacles,
+                    onDetails: _layers,
+                  ),
                   Expanded(
                     child:
                         widget.mapBuilder?.call(_globe) ??
@@ -204,7 +226,15 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                       child: Text(_editor.mapError!),
                     ),
                   if (MediaQuery.viewInsetsOf(context).bottom == 0)
-                    _tools(context),
+                    if (_globe.obstacles.selected case final feature?)
+                      ObstacleDetailsPanel(
+                        feature: feature,
+                        snapshot:
+                            _globe.obstacles.provider.status.dataset?.data,
+                        onClose: _globe.obstacles.clearSelection,
+                      )
+                    else
+                      _tools(context),
                 ],
               ),
       ),
@@ -302,4 +332,13 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
       ),
     );
   }
+
+  Future<void> _layers() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) => FractionallySizedBox(
+      heightFactor: 0.9,
+      child: MapLayersSheet(controller: _globe),
+    ),
+  );
 }

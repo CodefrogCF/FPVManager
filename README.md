@@ -7,6 +7,7 @@ locations on a CesiumJS globe. Android and Web are supported.
 
 - Swiss terrain, satellite/topographic/relief maps and official UAS zone data.
 - Horizontal UAS-zone intersection checks for saved spots and route segments.
+- Independent Swiss obstacle imagery and selectable, locally cached 3D obstacles.
 - Local spots with photos, search, tags and favorites.
 - Drone profiles, battery inventory and radio/video equipment profiles.
 - First-person terrain inspection and map-based editing of multiple local routes.

@@ -5,11 +5,12 @@ const vm = require('node:vm');
 const { createBridge } = require('../../web/globe_bridge.js');
 const FPVTerrain = require('../../web/terrain_service.js');
 const FPVMapProviders = require('../../web/map_providers.js');
+const FPVObstacles = require('../../web/obstacle_layers.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
-async function renderer({ offline = false, terrainFails = false, configuration } = {}) {
+async function renderer({ offline = false, terrainFails = false, configuration, groundView = false } = {}) {
     const imagery = [], terrain = [], events = [];
     const info = {};
     const window = {
@@ -20,11 +21,11 @@ async function renderer({ offline = false, terrainFails = false, configuration }
     };
     window.parent = window;
     const context = vm.createContext({
-        window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders,
+        window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders, FPVObstacles,
         document: { getElementById: () => info },
         console: { error() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
-        FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: false}) }), bindControls() {} },
+        FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
         FPVRouteEditor: {
             createEditor: () => ({ click: () => false, terrainChanged() {} }),
             createOverlays: () => ({ terrainChanged() {}, dispose() {} })
@@ -49,10 +50,12 @@ async function renderer({ offline = false, terrainFails = false, configuration }
                 let current = options.baseLayer;
                 this.imageryLayers = { get: () => current, add: layer => { current = layer; }, remove() {} };
                 this.scene = { globe: {}, renderError: { addEventListener() {} }, preRender: { addEventListener() {} } };
-                this.camera = { setView() {} };
+                this.camera = { setView() {}, moveEnd:{addEventListener() {}}, computeViewRectangle() {},
+                    positionCartographic:{longitude:.15,latitude:.82} };
                 this.screenSpaceEventHandler = { setInputAction() {} };
             } },
-            Cartesian3: { fromDegrees() {} }, Math: { toRadians() {} },
+            Cartesian3: { fromDegrees() {} }, Math: { toRadians() {}, toDegrees:r => r*180/Math.PI },
+            Rectangle:class { constructor(west,south,east,north) {Object.assign(this,{west,south,east,north});} },
             ScreenSpaceEventType: { LEFT_CLICK: 1 }
         }
     });
@@ -70,6 +73,13 @@ function assertSatelliteCredit(provider) {
     }
     assert.equal(provider.credit.showOnScreen, true);
 }
+
+test('ground camera uses a local obstacle viewport independent of the ellipsoid horizon',async () => {
+    const page=await renderer({groundView:true});
+    const viewport=page.events.find(e => e.type==='obstacle-viewport');
+    assert.ok(viewport);assert.ok(viewport.east-viewport.west < .1);
+    assert.ok(viewport.north-viewport.south < .1);
+});
 
 test('zone inspection preserves source values and marks every display limit within the frame budget', async () => {
     const page = await renderer();

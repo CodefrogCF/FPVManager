@@ -31,8 +31,10 @@ including when focusing a private spot or displaying a route.
 | Destination | Trigger and data |
 |---|---|
 | `wmts.geo.admin.ch` | Map startup/navigation/style changes or imagery refresh after terrain retry; layer, zoom and tile coordinates. |
+| `wms.geo.admin.ch` | Enabling/restoring obstacle imagery and navigating while enabled; viewed area, projection and image dimensions. |
+| `api3.geo.admin.ch` | Opening the official obstacle legend; public legend URL. |
 | `3d.geo.admin.ch` | Terrain startup/probe, navigation, height queries, ground view, route framing/previews and explicit retry; terrain tile identifiers revealing sampled areas. |
-| `data.geo.admin.ch` | Enabling/refreshing UAS data, re-enabling expired data, restoring enabled preferences or explicitly checking a spot/route; public national dataset URL, without a user-position query. |
+| `data.geo.admin.ch` | UAS checks/refresh and obstacle STAC metadata/full KMZ download; public national dataset URLs, without a user-position query. Restoring obstacle vectors reads a local snapshot first. |
 | `geodesy.geo.admin.ch` | Only explicit LN02 conversion; selected longitude/latitude/elevation, then LV95 coordinates/Bessel height, in GET query parameters. |
 | App origin (Web) / app-owned loopback origin (Android) | Application, Cesium, Workers, Wasm and Flutter renderer resources. The documented Web build bundles renderer assets locally. |
 

@@ -42,6 +42,9 @@ dependencies:
   file_selector: 1.1.0
   geolocator: 14.1.2
   image: 4.12.0
+  archive: 4.5.2
+  crypto: 3.0.7
+  xml: 7.0.1
 
 dev_dependencies:
   integration_test:
@@ -133,6 +136,9 @@ flutter:
     - web/map_providers.js
     - web/ground_navigation.js
     - web/route_editor.js
+    - web/obstacle_layers.js
+    - assets/geo/chgeo2004_ln02.bin
+    - assets/geo/chgeo2004_ln02.NOTICE.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -54,7 +54,7 @@ void main() {
       expect(queue.current.savedSpotsVisible, isFalse);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      expect(rows, hasLength(6));
+      expect(rows, hasLength(10));
       expect(
         rows
             .where((row) => row.key != 'unrelated')
@@ -72,7 +72,7 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(6));
+      expect(await database.select(database.appSettings).get(), hasLength(10));
       await repository.resetPreferences();
       expect(
         (await repository.getPreferences()).mapStyle,
