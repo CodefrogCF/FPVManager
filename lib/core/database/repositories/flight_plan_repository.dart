@@ -35,11 +35,54 @@ abstract interface class FlightPlanRepository {
     required List<RouteWaypointInput> waypoints,
   });
   Future<int> deleteFlightPlan(int id);
+  Future<int> saveRoute({
+    int? id,
+    required String name,
+    int? droneId,
+    int? startSpotId,
+    String? notes,
+    required List<RouteWaypointInput> waypoints,
+  });
 }
 
 final class DriftFlightPlanRepository implements FlightPlanRepository {
   const DriftFlightPlanRepository(this._database);
   final FpvDatabase _database;
+
+  @override
+  Future<int> saveRoute({
+    int? id,
+    required String name,
+    int? droneId,
+    int? startSpotId,
+    String? notes,
+    required List<RouteWaypointInput> waypoints,
+  }) {
+    _validatePlan(name, droneId, startSpotId);
+    RepositoryValidation.optionalId(id);
+    final points = _validatedPoints(waypoints);
+    return _database.transaction(() async {
+      if (id == null) {
+        return createFlightPlan(
+          name: name,
+          droneId: droneId,
+          startSpotId: startSpotId,
+          notes: notes,
+          waypoints: points,
+        );
+      }
+      final exists = await updateFlightPlan(
+        id: id,
+        name: name,
+        droneId: droneId,
+        startSpotId: startSpotId,
+        notes: notes,
+      );
+      if (!exists) throw StateError('Flight route no longer exists');
+      await replaceWaypoints(planId: id, waypoints: points);
+      return id;
+    });
+  }
 
   void _validatePlan(String name, int? droneId, int? startSpotId) {
     RepositoryValidation.text(name, 'name');

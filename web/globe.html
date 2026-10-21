@@ -42,6 +42,15 @@
         max-width: 350px;
     }
 
+    #ground-controls { position: absolute; right: 12px; bottom: 56px; z-index: 20;
+        max-width: 280px; padding: 10px; border-radius: 8px; background: #101820ee;
+        color: white; font-size: 12px; text-align: center; }
+    #ground-controls[hidden] { display: none; }
+    #ground-controls button { color: white; background: #244657; border: 1px solid #5ca7ca;
+        border-radius: 6px; min-width: 44px; min-height: 44px; margin: 3px; touch-action: none; }
+    #ground-controls [data-exit] { display: block; width: 100%; }
+    #ground-position { margin: 4px 0; }
+
     /* Keep source notices readable over imagery and allow narrow screens to wrap. */
     #globe .cesium-widget-credits {
         box-sizing: border-box;
@@ -57,10 +66,21 @@
 <body>
     <div id="globe"></div>
     <div id="info">FPVManager – Loading 3D terrain...</div>
+    <div id="ground-controls" hidden aria-label="Ground view controls">
+        <div>Eye height ≈ 2 m · Drag to look</div>
+        <div id="ground-position"></div>
+        <div><button data-walk="ArrowUp" aria-label="Walk forward">↑</button></div>
+        <div><button data-walk="ArrowLeft" aria-label="Walk left">←</button>
+            <button data-walk="ArrowDown" aria-label="Walk backward">↓</button>
+            <button data-walk="ArrowRight" aria-label="Walk right">→</button></div>
+        <button data-exit>Return to globe (Esc)</button>
+    </div>
 
     <script src="globe_bridge.js"></script>
     <script src="terrain_service.js"></script>
     <script src="map_providers.js"></script>
+    <script src="ground_navigation.js"></script>
+    <script src="route_editor.js"></script>
     <script src="globe.js"></script>
 </body>
 </html>

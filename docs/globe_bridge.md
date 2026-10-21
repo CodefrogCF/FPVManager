@@ -77,6 +77,16 @@ blocked. Disposed native views ignore subsequent JavaScript events.
 Replacing a view's controller reloads its page, giving the new controller fresh
 request and marker IDs in a new renderer session.
 
+## Inspection and route commands
+
+Ground inspection adds `enter-ground-view` / `exit-ground-view` commands and
+`ground-view-state` events. Entry uses the bounded terrain-sampling deadline.
+Route drafts use `set-route-editor` and `frame-route`; `route-map-action` events
+carry editor identity, revision, action and the relevant draft waypoint key or
+position. The Dart controller rejects stale/invalid edits and restores the
+desired draft overlay after a renderer reload. Ground mode is deliberately not
+restored across renderer sessions. See [ground view and local routes](ground_view_and_routes.md).
+
 ## Tests
 
 `flutter test` covers correlated requests, timeouts, lifecycle cancellation,

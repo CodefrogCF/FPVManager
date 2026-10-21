@@ -66,3 +66,31 @@ editor does not provide a flight-plan creation workflow.
 Next in the agreed equipment order is #15. No additional issue is needed for
 the current #14 criteria, and its GitHub checklist remains unchanged pending
 acceptance review.
+
+## Inserted work: ground view and selected #25 criteria (2026-10-21)
+
+Before continuing with #15, the requested terrain-relative inspection camera
+and the map-editing/local-storage part of
+[#25 Interactive 3D Waypoint Route Editor](https://github.com/CodefrogCF/FPVManager/issues/25)
+were implemented. The current four criteria were read in the private issue.
+This work covers placing, moving and deleting waypoints directly on the map,
+and saving multiple flight routes locally. Heights/speeds and the full
+drone/battery assignment workflow remain outside this inserted scope. No GitHub
+checkboxes or issue state were changed.
+
+The actual Cesium/WebGL fixture check passed for terrain +2 m camera placement,
+arrow-key movement, focus loss, Escape/restored camera, terrain-picked route
+points, waypoint drag/delete and an offline exit. The fixture uses local
+synthetic terrain, with no claim about real-world terrain accuracy or Android
+device interaction. See [ground view and route editing](ground_view_and_routes.md)
+for controls, persistence/draft semantics and acceptance evidence.
+
+Fatal-warning analysis, formatting (99 hand-written Dart files), the complete
+Flutter run (216 tests) and the subsequent affected-test run (20, including an
+additional load-recovery case) passed. JavaScript (29), Python tooling (4) and
+vendor checks passed. The final Web release was exercised with live terrain,
+ground movement/look and saved routes after reopening; terrain-aware route
+framing was also checked with the actual Cesium fixture. Web release and
+Android debug builds passed with packaged-source/vendor/SQLite verification.
+Android touch/keyboard, background/resume and app-restart behavior remain device
+acceptance checks.

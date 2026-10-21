@@ -43,7 +43,7 @@ flutter pub get --enforce-lockfile
 dart run tool/check_format.dart
 python tool/vendor_cesium.py --check
 python -m unittest discover -s test/tool -p 'test_*.py'
-node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs test/js/terrain_service.test.cjs
+node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs test/js/terrain_service.test.cjs test/js/ground_navigation.test.cjs test/js/route_editor.test.cjs
 flutter analyze --no-pub
 flutter test --no-pub
 ```

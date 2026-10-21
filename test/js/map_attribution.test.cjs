@@ -24,6 +24,9 @@ async function renderer({ offline = false, terrainFails = false, configuration }
         document: { getElementById: () => info },
         console: { error() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
+        FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: false}) }), bindControls() {} },
+        FPVRouteEditor: { createEditor: () => ({ click: () => false }) },
+        performance: { now: () => 0 },
         Cesium: {
             Credit: class { constructor(html, showOnScreen) { Object.assign(this, { html, showOnScreen }); } },
             GridImageryProvider: class {},
@@ -42,7 +45,7 @@ async function renderer({ offline = false, terrainFails = false, configuration }
             Viewer: class { constructor(_id, options) {
                 let current = options.baseLayer;
                 this.imageryLayers = { get: () => current, add: layer => { current = layer; }, remove() {} };
-                this.scene = { globe: {}, renderError: { addEventListener() {} } };
+                this.scene = { globe: {}, renderError: { addEventListener() {} }, preRender: { addEventListener() {} } };
                 this.camera = { setView() {} };
                 this.screenSpaceEventHandler = { setInputAction() {} };
             } },

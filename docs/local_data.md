@@ -111,7 +111,9 @@ see [photo and location contracts](spot_photos_and_location.md). Drone profiles
 have list/editor/detail screens; see [drone profile contracts](drone_profiles.md).
 Battery inventory has pack/type editors, optional manual condition records and
 transactional drone/flight-plan links; see [battery inventory](battery_inventory.md).
-Radio equipment profiles (#15) and route editing (#25) remain separate feature
-work. A saved route is a local planning
+Flight routes now have a local library and a map-based waypoint draft editor;
+see [ground view and route editing](ground_view_and_routes.md). Radio equipment
+profiles (#15) and the remaining altitude/speed/profile workflow in #25 are
+separate feature work. A saved route is a local planning
 record, not a completed route planner or flight-safety assessment.
 See [spot search and classification](spot_search.md) for the spot list contract.

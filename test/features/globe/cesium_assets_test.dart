@@ -42,6 +42,10 @@ void main() {
       );
       expect(html, contains('src="terrain_service.js"'));
       expect(html, contains('src="map_providers.js"'));
+      for (final module in ['ground_navigation.js', 'route_editor.js']) {
+        expect(html, contains('src="$module"'));
+        expect(await rootBundle.loadString('web/$module'), isNotEmpty);
+      }
       expect(
         await rootBundle.loadString('web/map_providers.js'),
         contains('createAdapters'),

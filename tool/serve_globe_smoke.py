@@ -71,6 +71,8 @@ class Handler(SimpleHTTPRequestHandler):
         if path in {'/smoke', '/terrain-smoke'}:
             name = 'globe_smoke.html' if path == '/smoke' else 'terrain_smoke.html'
             self.reply((ROOT / 'test/web' / name).read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/interaction-smoke':
+            self.reply((ROOT / 'test/web/interaction_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/terrain-fixture.js':
             self.reply((ROOT / 'test/web/terrain_fixture.js').read_bytes(), 'application/javascript')
         elif path == '/terrain-globe.html' or (FIXTURE_APP and path == '/globe.html'):

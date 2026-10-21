@@ -10,7 +10,12 @@
     const FixtureViewer = class extends Viewer {
         constructor(...args) { super(...args); window.fixtureViewer = this; }
     };
+    const ScreenSpaceEventHandler = Cesium.ScreenSpaceEventHandler;
+    class FixtureScreenSpaceEventHandler extends ScreenSpaceEventHandler {
+        constructor(...args) { super(...args); window.fixtureRouteHandler = this; }
+    }
     window.Cesium = { ...Cesium, Viewer: FixtureViewer,
+        ScreenSpaceEventHandler: FixtureScreenSpaceEventHandler,
         UrlTemplateImageryProvider: Cesium.GridImageryProvider };
     let online = true;
     Object.defineProperty(navigator, 'onLine', { get: () => online });

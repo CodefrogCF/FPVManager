@@ -13,6 +13,11 @@ local `FpvDatabase` lazily and watches `SpotRepository` to synchronize saved
 markers. Tests may inject a repository; the home screen closes only a database
 that it created itself.
 
+The local route library opens a separate map/editor controller. Flutter owns
+the unsaved waypoint draft and atomic persistence; the renderer owns its
+numbered markers, terrain picking and drag gestures. Ground inspection is a
+separate cancellable camera mode. See [ground view and routes](ground_view_and_routes.md).
+
 ## Renderer communication
 
 - Web embeds `web/globe.html` in an iframe. Flutter sends JSON using `postMessage`;

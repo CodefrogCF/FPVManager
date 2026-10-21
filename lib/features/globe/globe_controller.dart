@@ -11,6 +11,7 @@ import '../../core/models/user_preferences.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import 'globe_bridge.dart';
+import 'route_map_state.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../../core/models/user_preferences.dart'
@@ -111,6 +112,116 @@ class GlobeController extends ChangeNotifier {
   OsintDataset<Map<String, dynamic>>? _uasDisplayedDataset;
   bool _uasRequestedVisible = false;
   bool _ready = false;
+  bool _groundViewActive = false, _groundViewPending = false;
+  String? _groundViewMessage;
+  Map<String, dynamic>? _routeEditorState;
+  int _routeEditorRevision = 0;
+  final _routeActions = StreamController<RouteMapAction>.broadcast(sync: true);
+  Stream<RouteMapAction> get routeActions => _routeActions.stream;
+  bool get groundViewActive => _groundViewActive;
+  bool get groundViewPending => _groundViewPending;
+  String? get groundViewMessage => _groundViewMessage;
+
+  Future<void> enterGroundView({
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (!_ready || !_terrainAvailable || _groundViewPending) {
+      throw StateError('Detailed terrain is required');
+    }
+    if (!latitude.isFinite ||
+        !longitude.isFinite ||
+        latitude.abs() >= 89.9 ||
+        longitude.abs() > 180) {
+      throw ArgumentError('Invalid ground-view position');
+    }
+    await _bridge.send({
+      'type': 'enter-ground-view',
+      'latitude': latitude,
+      'longitude': longitude,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> exitGroundView() => _send({'type': 'exit-ground-view'});
+
+  Future<void> setRouteEditor({
+    required String editorId,
+    required List<RouteMapPoint> points,
+    int? selectedId,
+    int? moveId,
+    bool interactive = true,
+  }) async {
+    final ids = points.map((p) => p.id).toSet();
+    if (editorId.isEmpty ||
+        editorId.length > 120 ||
+        points.length > 1000 ||
+        ids.length != points.length ||
+        points.any(
+          (p) =>
+              p.id <= 0 ||
+              !p.position.latitude.isFinite ||
+              !p.position.longitude.isFinite ||
+              p.position.latitude.abs() > 90 ||
+              p.position.longitude.abs() > 180,
+        ) ||
+        (selectedId != null && !ids.contains(selectedId)) ||
+        (moveId != null && !ids.contains(moveId))) {
+      throw ArgumentError('Invalid route map state');
+    }
+    final state = _routeEditorState = {
+      'type': 'set-route-editor',
+      'editorId': editorId,
+      'revision': ++_routeEditorRevision,
+      'enabled': true,
+      'interactive': interactive,
+      'selectedId': selectedId,
+      'moveId': moveId,
+      'waypoints': points.map((p) => p.toJson()).toList(),
+    };
+    if (_ready) await _send(state);
+  }
+
+  Future<void> frameRoute() => _send({'type': 'frame-route'});
+
+  void _handleRouteAction(Map<String, dynamic> data) {
+    final state = _routeEditorState;
+    if (state == null ||
+        state['interactive'] != true ||
+        data['editorId'] != state['editorId'] ||
+        data['revision'] != state['revision']) {
+      return;
+    }
+    final kind = RouteMapActionKind.values
+        .where((kind) => kind.name == data['action'])
+        .firstOrNull;
+    if (kind == null) return;
+    final id = data['id'];
+    if (kind != RouteMapActionKind.add &&
+        (id is! int ||
+            !(state['waypoints'] as List).any((p) => p['id'] == id))) {
+      return;
+    }
+    Wgs84Coordinate? position;
+    if (kind == RouteMapActionKind.add || kind == RouteMapActionKind.move) {
+      final lat = data['latitude'], lon = data['longitude'];
+      if (lat is! num ||
+          lon is! num ||
+          !lat.isFinite ||
+          !lon.isFinite ||
+          lat.abs() > 90 ||
+          lon.abs() > 180) {
+        return;
+      }
+      position = Wgs84Coordinate(
+        latitude: lat.toDouble(),
+        longitude: lon.toDouble(),
+      );
+    }
+    _routeActions.add(
+      RouteMapAction(kind, id: id is int ? id : null, position: position),
+    );
+  }
+
   bool _terrainAvailable = false;
   GlobeTerrainState _terrainState = GlobeTerrainState.loading;
   String? _terrainReason;
@@ -383,6 +494,8 @@ class GlobeController extends ChangeNotifier {
   }
 
   void _resetConnection() {
+    _groundViewActive = _groundViewPending = false;
+    _groundViewMessage = null;
     _connectionGeneration++;
     _uasOperation++;
     _spotFocusSequence++;
@@ -657,11 +770,24 @@ class GlobeController extends ChangeNotifier {
     }
 
     switch (data['type']) {
+      case 'ground-view-state':
+        if (data['active'] is! bool || data['pending'] is! bool) return;
+        _groundViewActive = data['active'] as bool;
+        _groundViewPending = data['pending'] as bool;
+        final reason = data['reason'];
+        _groundViewMessage = reason is String
+            ? reason.substring(0, reason.length.clamp(0, 180))
+            : null;
+        notifyListeners();
+      case 'route-map-action':
+        _handleRouteAction(data);
       case 'renderer-loading':
         _resetConnection();
 
       case 'globe-ready':
         if (_ready && previousSession == _bridge.session) return;
+        _groundViewActive = _groundViewPending = false;
+        _groundViewMessage = null;
         _connectionGeneration++;
         _uasOperation++;
         _ready = true;
@@ -848,6 +974,8 @@ class GlobeController extends ChangeNotifier {
       if (!current()) return;
       if (_spotMarkers.isNotEmpty) await _pushSpotMarkers();
       if (!current()) return;
+      if (_routeEditorState != null) await _send(_routeEditorState!);
+      if (!current()) return;
       if (forceSettings || !_savedSpotsVisible) {
         await _send({
           'type': 'set-spots-visible',
@@ -926,6 +1054,7 @@ class GlobeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    unawaited(_routeActions.close());
     _uasProvider.removeListener(_handleProviderChanged);
     if (_ownsUasProvider) {
       _uasProvider.dispose();

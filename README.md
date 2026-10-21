@@ -23,9 +23,12 @@ spot library stored with Drift/SQLite.
 - Database schema snapshots and tested v1/v2/v3/v4/v5-to-v6 migrations.
 - Typed local repositories for spots, drones, batteries, radio equipment,
   flight plans/waypoints and map preferences, with transactional route storage.
+- Battery pack/type inventory with manual condition records and assignments.
+- Terrain-relative ground inspection with arrow-key/touch movement and drag look.
+- A local flight-route library with direct map waypoint placement, moving and deletion.
 
 The [local data layer](docs/local_data.md) provides the storage foundation for future
-features. Battery/radio screens, weather, route planning, simulation,
+features. Radio equipment screens, weather, advanced route configuration, simulation,
 backups and offline map downloads are not implemented yet. See the
 [issue backlog](https://github.com/CodefrogCF/FPVManager/issues).
 
@@ -72,7 +75,7 @@ with an offline grid/ellipsoid when online map resources are unavailable. See
 dart run tool/check_format.dart
 python tool/vendor_cesium.py --check
 python -m unittest discover -s test/tool -p 'test_*.py'
-node --test test/js/globe_bridge.test.cjs
+node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs test/js/terrain_service.test.cjs test/js/ground_navigation.test.cjs test/js/route_editor.test.cjs
 flutter analyze --no-pub
 flutter test --no-pub
 flutter build web --release --no-pub --no-web-resources-cdn
@@ -155,3 +158,10 @@ reusable type templates, explicit V/mAh/Wh/g specifications, optional manual
 condition/availability records and assignments to saved drones/flight plans.
 See [battery inventory](docs/battery_inventory.md) for template semantics,
 schema-v6 migration and validation (#14).
+
+Select a map point and use **Spawn here** for terrain-relative first-person
+inspection at approximately two metres eye height. The navigation drawer's
+**Flight routes** library provides map-based waypoint placement, moving,
+deletion and multiple local routes (a scoped part of #25). See
+[ground view and route editing](docs/ground_view_and_routes.md) for controls,
+draft/save behavior and remaining scope.

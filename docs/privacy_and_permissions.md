@@ -48,7 +48,7 @@ receives the connection IP address and request metadata. The current flows are:
 | Resource | Destination | Trigger and application data sent |
 |---|---|---|
 | Satellite, topographic and relief imagery | `wmts.geo.admin.ch` | Map startup/navigation/style changes and refresh of the selected style after an explicit terrain retry; layer, tile coordinates/zoom and format. These identify the viewed map area. |
-| Terrain | `3d.geo.admin.ch` | Map startup (including a bounded level-zero tile probe), navigation, height sampling and explicit **Retry terrain**; terrain layer and tile identifiers. A terrain query samples the renderer's provider, without uploading a spot record. Offline/online events do not start an automatic reconnection loop. |
+| Terrain | `3d.geo.admin.ch` | Map startup (including a bounded level-zero tile probe), navigation, height sampling, ground-view spawning, framing/opening a route and explicit **Retry terrain**; terrain layer and tile identifiers. Route framing samples its waypoint locations. These requests use the renderer's provider, without uploading record names, notes or a route JSON document. Offline/online events do not start an automatic reconnection loop. |
 | Official Swiss UAS GeoJSON | `data.geo.admin.ch` | Enabling/refreshing UAS zones, re-enabling expired data or restoring a previously enabled preference; the public national dataset URL, without personal spot/route fields or a user-position query. Cache-age display checks do not fetch data. |
 | Optional Swiss height conversion | `geodesy.geo.admin.ch` | Only the explicit LN02 conversion action in the terrain dialog; selected longitude/latitude and elevation, followed by the corresponding LV95 easting/northing and Bessel elevation. Position/elevation values appear in GET query parameters. |
 | Application, Cesium, workers, Wasm and Flutter renderer assets | App origin on Web; app-owned loopback origin on Android | Local/package asset loads. The documented Web release uses `--no-web-resources-cdn`; Cesium is vendored and pinned. |
@@ -58,6 +58,13 @@ area through imagery/terrain requests. This is distinct from uploading its name,
 notes, photo or complete route. Optional REFRAME conversion does transmit the
 selected position/elevation as described above; local coordinate conversions and
 the AGL calculator do not require that service.
+
+Ground-view entry samples its selected position; walking and looking can load
+further terrain/imagery tiles. Opening a saved route or choosing **Show entire
+route** samples terrain at its waypoints before framing. Providers can therefore
+infer the corresponding planned areas from requested tiles. Route records and
+drafts stay in the local database/application; no route name, note, drone or
+battery assignment is included in these tile requests.
 
 UAS enablement is a saved user preference. Disabling it prevents an automatic UAS
 dataset load at the next start; a retained in-memory dataset can be reused during

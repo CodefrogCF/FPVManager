@@ -5,6 +5,9 @@ import 'dart:async';
 import 'core/database/fpv_database.dart';
 import 'core/database/repositories/drone_repository.dart';
 import 'core/database/repositories/battery_repository.dart';
+import 'core/database/repositories/flight_plan_repository.dart';
+import 'features/routes/flight_routes_screen.dart';
+import 'features/globe/ground_view_bar.dart';
 import 'features/batteries/batteries_screen.dart';
 import 'core/database/repositories/user_preferences_repository.dart';
 import 'features/drones/drones_screen.dart';
@@ -53,6 +56,7 @@ class FPVHomeScreen extends StatefulWidget {
     this.spotRepository,
     this.droneRepository,
     this.batteryRepository,
+    this.flightPlanRepository,
     this.preferencesRepository,
   });
 
@@ -60,6 +64,7 @@ class FPVHomeScreen extends StatefulWidget {
   final SpotRepository? spotRepository;
   final DroneRepository? droneRepository;
   final BatteryRepository? batteryRepository;
+  final FlightPlanRepository? flightPlanRepository;
   final UserPreferencesRepository? preferencesRepository;
 
   @override
@@ -74,6 +79,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   SpotRepository? _spotRepository;
   DroneRepository? _droneRepository;
   BatteryRepository? _batteryRepository;
+  FlightPlanRepository? _flightPlanRepository;
   bool _preferencesStarted = false;
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
@@ -104,6 +110,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openSpots() async {
+    await _leaveGroundView();
+    if (!mounted) return;
     _startSpotSynchronization();
 
     final repository = _spotRepository!;
@@ -134,6 +142,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openDrones() async {
+    await _leaveGroundView();
+    if (!mounted) return;
     final repository = _droneRepository ??=
         widget.droneRepository ??
         DroneRepository(_database ??= FpvDatabase.open());
@@ -145,6 +155,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openBatteries() async {
+    await _leaveGroundView();
+    if (!mounted) return;
     final repository = _batteryRepository ??=
         widget.batteryRepository ??
         BatteryRepository(_database ??= FpvDatabase.open());
@@ -168,6 +180,26 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         latitude: point.latitude,
         longitude: point.longitude,
         altitude: 12000,
+      ),
+    );
+  }
+
+  Future<void> _leaveGroundView() async {
+    if (_globeController.groundViewActive ||
+        _globeController.groundViewPending) {
+      await _runCommand(_globeController.exitGroundView);
+    }
+  }
+
+  Future<void> _openRoutes() async {
+    await _leaveGroundView();
+    if (!mounted) return;
+    final repository = _flightPlanRepository ??=
+        widget.flightPlanRepository ??
+        FlightPlanRepository(_database ??= FpvDatabase.open());
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => FlightRoutesScreen(repository: repository),
       ),
     );
   }
@@ -339,6 +371,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                   unawaited(_openBatteries());
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.route_outlined),
+                title: const Text('Flight routes'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openRoutes());
+                },
+              ),
             ],
           ),
         ),
@@ -444,6 +484,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       body: Column(
         children: [
           TerrainStatusBanner(controller: _globeController),
+          GroundViewBar(controller: _globeController, onCommand: _runCommand),
           Expanded(child: GlobeView(controller: _globeController)),
         ],
       ),
@@ -485,6 +526,18 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
+                          OutlinedButton.icon(
+                            onPressed: _globeController.terrainAvailable
+                                ? () => _runCommand(
+                                    () => _globeController.enterGroundView(
+                                      latitude: selectedSpot.latitude,
+                                      longitude: selectedSpot.longitude,
+                                    ),
+                                  )
+                                : null,
+                            icon: const Icon(Icons.directions_walk),
+                            label: const Text('Spawn at spot'),
+                          ),
                           OutlinedButton.icon(
                             onPressed: () => _openSpotDetails(selectedSpot.id),
                             icon: const Icon(Icons.info_outline),

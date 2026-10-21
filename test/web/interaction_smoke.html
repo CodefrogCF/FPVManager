@@ -1,0 +1,92 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>FPVManager ground view and route interaction smoke</title>
+<style>body{margin:0;background:#101820;color:#fff;font:14px system-ui}h1{font-size:19px;margin:12px}iframe{width:100%;height:62vh;border:0}pre{white-space:pre-wrap;padding:12px}</style>
+<h1 id="status">Running ground view and route interaction smoke…</h1>
+<iframe id="map" title="Actual Cesium with synthetic terrain"></iframe><pre id="log"></pre>
+<script>
+const frame=document.getElementById('map'), output=document.getElementById('log');
+let session, next=0, ground, terrain;
+const pending=new Map(), actions=[], errors=[];
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function check(value,message) { if(!value) throw new Error(message); }
+function log(message) { output.textContent+='PASS: '+message+'\n'; }
+async function until(predicate,message,timeout=25000) {
+  const end=performance.now()+timeout;
+  while(!predicate()) { if(errors.length) throw new Error(errors.join('; ')); if(performance.now()>end) throw new Error(message+' timeout'); await pause(50); }
+}
+window.addEventListener('message',event=>{
+  if(event.source!==frame.contentWindow || event.origin!==location.origin) return;
+  let data; try {data=JSON.parse(event.data);} catch {return;}
+  if(data.type==='globe-ready') session=data.sessionId;
+  if(data.type==='terrain-status') terrain=data;
+  if(data.type==='ground-view-state') ground=data;
+  if(data.type==='route-map-action') actions.push(data);
+  if(data.type==='globe-error') errors.push(data.message);
+  if(data.type==='command-result') {
+    const item=pending.get(data.requestId); if(!item) return;
+    clearTimeout(item.timer); pending.delete(data.requestId);
+    data.ok?item.resolve(data.result):item.reject(new Error(data.error));
+  }
+});
+function command(type,fields={}) { return new Promise((resolve,reject)=>{
+  const requestId=String(++next),timer=setTimeout(()=>{pending.delete(requestId);reject(new Error(type+' timeout'));},25000);
+  pending.set(requestId,{resolve,reject,timer});
+  frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
+}); }
+(async()=>{
+  frame.src='/terrain-globe.html'; await until(()=>session && terrain?.state==='ready','terrain startup');
+  const win=frame.contentWindow, viewer=win.fixtureViewer, C=win.Cesium;
+  viewer.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.7,2000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
+  await until(()=>viewer.scene.globe.tilesLoaded,'initial terrain tiles'); await pause(500);
+  const original=viewer.camera.positionWC.clone(), near=viewer.camera.frustum.near;
+  await command('enter-ground-view',{latitude:46.7,longitude:8.4});
+  await until(()=>ground?.active,'ground entry'); await pause(500);
+  check(Math.abs(viewer.camera.positionCartographic.height-1002)<.5,'Camera is not two metres above synthetic ground');
+  check(!viewer.scene.screenSpaceCameraController.enableInputs,'Orbital controls remain enabled');
+  const before=viewer.camera.positionWC.clone();
+  viewer.canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true,cancelable:true}));
+  await pause(600);
+  viewer.canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'ArrowUp',bubbles:true,cancelable:true}));
+  check(C.Cartesian3.distance(before,viewer.camera.positionWC)>.2,'Arrow key did not move camera');
+  check(Math.abs(viewer.camera.positionCartographic.height-1002)<.5,'Walking lost terrain clearance');
+  const stopped=viewer.camera.positionWC.clone();
+  viewer.canvas.dispatchEvent(new win.Event('blur')); await pause(250);
+  check(C.Cartesian3.distance(stopped,viewer.camera.positionWC)<.01,'Movement continued after blur');
+  viewer.canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await until(()=>ground?.active===false,'ground exit');
+  check(C.Cartesian3.distance(original,viewer.camera.positionWC)<.01 && viewer.camera.frustum.near===near,'Camera snapshot was not restored');
+  log('Actual Cesium camera spawns at terrain +2m, arrow keys walk, blur stops motion and Esc restores camera/frustum');
+  const set=(revision,waypoints,more={})=>command('set-route-editor',{editorId:'smoke',revision,enabled:true,interactive:true,waypoints,selectedId:null,moveId:null,...more});
+  const pixel=(lon,lat)=>C.SceneTransforms.worldToWindowCoordinates(viewer.scene,C.Cartesian3.fromDegrees(lon,lat,1000));
+  await set(1,[]);
+  viewer.screenSpaceEventHandler.getInputAction(C.ScreenSpaceEventType.LEFT_CLICK)({position:pixel(8.4,46.7)});
+  await until(()=>actions.some(a=>a.action==='add'),'map add');
+  const points=[{id:1,latitude:46.7,longitude:8.4},{id:2,latitude:46.7007,longitude:8.401}];
+  await set(2,points,{selectedId:1}); await pause(700);
+  const source=viewer.dataSources.get(viewer.dataSources.length-1);
+  check(source.entities.values.length===3,'Missing numbered waypoint entities or route line');
+  viewer.screenSpaceEventHandler.getInputAction(C.ScreenSpaceEventType.LEFT_CLICK)({position:pixel(8.4,46.7)});
+  await until(()=>actions.some(a=>a.action==='select' && a.id===1),'waypoint selection');
+  const handler=win.fixtureRouteHandler, start=pixel(8.4,46.7), end=pixel(8.4003,46.7002);
+  handler.getInputAction(C.ScreenSpaceEventType.LEFT_DOWN)({position:start});
+  handler.getInputAction(C.ScreenSpaceEventType.MOUSE_MOVE)({startPosition:start,endPosition:end});
+  handler.getInputAction(C.ScreenSpaceEventType.LEFT_UP)({position:end});
+  await until(()=>actions.some(a=>a.action==='move' && a.id===1),'map drag');
+  check(viewer.scene.screenSpaceCameraController.enableInputs,'Drag left camera locked');
+  const moved=actions.findLast(a=>a.action==='move'); points[0]={id:1,latitude:moved.latitude,longitude:moved.longitude};
+  await set(3,points,{selectedId:1}); await pause(500);
+  handler.getInputAction(C.ScreenSpaceEventType.RIGHT_CLICK)({position:pixel(points[0].longitude,points[0].latitude)});
+  await until(()=>actions.some(a=>a.action==='delete' && a.id===1),'map right-click delete');
+  log('Actual terrain picking, numbered markers and ground-projected route line support map add/select/drag/delete without camera lock');
+  await set(4,[points[0]]);
+  await command('frame-route'); await pause(1400);
+  check(viewer.camera.positionCartographic.height>1100,'Single-waypoint framing entered the synthetic 1000m terrain');
+  log('A single-waypoint route frames above sampled terrain with a useful editing distance');
+  const beforeOffline=viewer.camera.positionWC.clone();
+  await command('enter-ground-view',{latitude:46.7,longitude:8.4});
+  win.postMessage({fixtureOffline:true},location.origin);
+  await until(()=>terrain?.state==='offline' && ground?.active===false,'offline ground exit');
+  check(C.Cartesian3.distance(beforeOffline,viewer.camera.positionWC)<.1,'Offline exit did not restore orbit camera');
+  log('Actual offline event exits ground mode and restores the normal camera');
+  document.getElementById('status').textContent='PASS — ground view and route interactions';
+})().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;output.textContent+=String(error.stack||error);});
+</script></html>
