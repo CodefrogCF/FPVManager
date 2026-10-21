@@ -71,6 +71,36 @@ function assertSatelliteCredit(provider) {
     assert.equal(provider.credit.showOnScreen, true);
 }
 
+test('zone inspection preserves source values and marks every display limit within the frame budget', async () => {
+    const page = await renderer();
+    const raw = { name:'Source provided zone name', restriction:'FUTURE_CODE', lowerLimit:0, active:false, unset:null,
+        nested:{source:'value'}, html:'<b>source text</b>', message:'x'.repeat(9000) };
+    const details = page.context.uasSelectionDetails(raw);
+    assert.equal(details.attributes.lowerLimit, '0');
+    assert.equal(details.attributes.active, 'false');
+    assert.equal(details.attributes.unset, 'null');
+    assert.equal(details.attributes.nested, '{"source":"value"}');
+    assert.equal(details.attributes.html, '<b>source text</b>');
+    assert.equal(details.attributes.restriction, 'FUTURE_CODE');
+    assert.equal(details.name, 'Source provided zone name');
+    assert.equal(details.attributes.message.length, 8000);
+    assert.equal(details.truncatedAttributes.includes('message'), true);
+    assert.equal(details.omittedAttributeCount, 0);
+    const large = Object.fromEntries(Array.from({length:200}, (_,i) => ['\\"'.repeat(50)+i, '\\"'.repeat(5000)]));
+    large.restriction = 'REQ_AUTHORISATION';
+    large.lowerLimit = 0;
+    const limited = page.context.uasSelectionDetails(large);
+    assert.equal(limited.attributes.restriction, 'REQ_AUTHORISATION');
+    assert.equal(limited.attributes.lowerLimit, '0');
+    assert.ok(limited.omittedAttributeCount > 0);
+    assert.equal(Object.keys(limited.attributes).length + limited.omittedAttributeCount, Object.keys(large).length);
+    assert.ok(JSON.stringify(limited).length < 128*1024 - 3000);
+    assert.equal(Object.hasOwn(page.context.uasSelectionDetails({name:'   '}), 'name'), false);
+    const named = page.context.uasSelectionDetails({name:'n'.repeat(200)});
+    assert.equal(named.name.length, 160);
+    assert.equal(named.attributes.name.length, 200);
+});
+
 test('startup and style changes retain complete visible source credits', async () => {
     const page = await renderer();
     assertSatelliteCredit(page.imagery[0]);

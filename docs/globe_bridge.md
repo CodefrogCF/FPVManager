@@ -71,6 +71,14 @@ renderer session.
 UAS dataset imports can include a plain-text `sourceAttribution`; the renderer
 escapes it for its source credit. The controller keeps imported dataset metadata
 separate from a newer downloaded snapshot until the import is acknowledged.
+`uas-zone-selected` carries plain-text `attributes`, `omittedAttributeCount`
+and `truncatedAttributes`. Restriction/height fields are prioritized; selection
+is bounded to 128 attributes, 120-character keys, 8,000-character values and an
+80 Ki-character escaped payload budget including limit metadata. Invalid limit
+metadata and oversized attributes are rejected before changing the selection.
+Content assessment is committed with the acknowledged dataset; locally unusable
+features are counted and excluded from the GeoJSON sent to the renderer.
+See [UAS inspection](uas_zone_inspection.md) for coverage and recovery semantics.
 Web accepts events only from the bound iframe and matching origin. Native pages
 are loaded from an app-owned loopback origin; navigation to other origins is
 blocked. Disposed native views ignore subsequent JavaScript events.

@@ -28,6 +28,9 @@ checklists were changed during this audit.
 5. Continue equipment work with #14 Battery Inventory & Battery Health, then #15.
    The #2 engine decision/iOS assessment remains a separate research deliverable;
    iOS execution requires its own runner/toolchain validation.
+6. Continue the airspace milestone with #16 UAS zone inspection/content gaps,
+   then #17 spatial intersection checks. The rule/classification work in #50
+   remains separate from displaying source attributes.
 
 The current gaps fit existing issues. This audit does not justify duplicate
 issues for the same criteria. New independently reproducible defects can be
@@ -133,3 +136,30 @@ sources, vendor hashes, fixture exclusion and SQLite ELF libraries for
 armeabi-v7a, arm64-v8a and x86_64 were verified. Physical Android acceptance
 remains for the new forms with keyboard/rotation and persistence after an actual
 app restart. No additional issue is needed for the current #15 criteria.
+
+## Airspace follow-up: #16 (2026-10-21)
+
+The private [Swiss UAS Geographical Zones Overlay issue](https://github.com/CodefrogCF/FPVManager/issues/16)
+was read against its four current criteria. The existing overlay, attribution
+and download/HTTP-modified metadata remain the foundation. The current change
+adds a compact zone card and structured source inspection, separate height
+units/references, source times and authority/contact fields, plus the raw
+attribute list with explicit display-limit notices.
+
+Empty/partial or locally unusable content and missing key details are labelled
+in the layer metadata and a compact map banner. Source counts/next-page hints
+are checked without following arbitrary URLs. Entirely unusable replacements
+retain the previous displayed snapshot and a later explicit attempt bypasses
+the rejected cache. Successful retrieval never establishes complete coverage
+or legal applicability. Classification/rule interpretation remains #50;
+intersection checks are #17 and DABS/NOTAM integration is #18.
+
+Formatting (118 hand-written Dart files), fatal-warning/info analysis, locked
+dependency resolution, 250 complete-suite Flutter tests, 35 JavaScript tests,
+4 Python tests and all 395 Cesium file/hash checks passed. Web release and
+Android debug builds passed with packaged-source/vendor/SQLite verification.
+The built Web app imported live official data and its inspection/metadata were
+checked with a 320-pixel layout against synthetic terrain. Android device
+acceptance remains for the new inspection sheet. See [UAS zone inspection](uas_zone_inspection.md)
+for evidence, recovery behavior and limits. GitHub issue state and checkboxes
+were not changed; no duplicate issue is needed for these criteria.

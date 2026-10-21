@@ -181,6 +181,39 @@ void main() {
       expect(controller.uasZonesVisible, isFalse);
     });
 
+    test('zone attributes preserve display-limit metadata and reject malformed envelopes', () {
+      renderer.ready();
+      final event = {
+        'type': 'uas-zone-selected',
+        'id': 'fixture',
+        'name': 'Fixture zone',
+        'attributes': {
+          'restriction': 'FUTURE_CODE',
+          'lowerLimit': '0',
+          'uomDimensions': 'FT',
+          'lowerVerticalReference': 'AGL',
+        },
+        'omittedAttributeCount': 2,
+        'truncatedAttributes': ['message'],
+      };
+      renderer.emit(event);
+      final zone = controller.selectedUasZone!;
+      expect(zone.omittedAttributeCount, 2);
+      expect(zone.truncatedAttributes, ['message']);
+      expect(zone.heightLimit(upper: false), '0 FT · AGL');
+      expect(zone.value('restriction'), 'FUTURE_CODE');
+      renderer.emit({
+        ...event,
+        'truncatedAttributes': [7],
+      });
+      expect(controller.selectedUasZone, same(zone));
+      renderer.emit({
+        ...event,
+        'attributes': {'message': 'x' * 8001},
+      });
+      expect(controller.selectedUasZone, same(zone));
+    });
+
     test('selects and clears UAS zone details', () {
       renderer.ready();
       controller.handleEvent(

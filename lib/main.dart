@@ -12,6 +12,8 @@ import 'features/routes/flight_routes_screen.dart';
 import 'features/routes/route_layers_controller.dart';
 import 'features/routes/route_layers_section.dart';
 import 'features/globe/ground_view_button.dart';
+import 'features/airspace/uas_zone_details_panel.dart';
+import 'features/airspace/uas_data_quality_banner.dart';
 import 'features/batteries/batteries_screen.dart';
 import 'core/database/repositories/user_preferences_repository.dart';
 import 'features/drones/drones_screen.dart';
@@ -539,6 +541,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       body: Column(
         children: [
           TerrainStatusBanner(controller: _globeController),
+          UasDataQualityBanner(
+            controller: _globeController,
+            onDetails: _openMapLayers,
+          ),
           Expanded(child: GlobeView(controller: _globeController)),
         ],
       ),
@@ -622,8 +628,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           }
           final selectedZone = _globeController.selectedUasZone;
           if (selectedZone != null) {
-            return _UasZoneDetailsPanel(
+            return UasZoneDetailsPanel(
               zone: selectedZone,
+              source: _globeController.uasSource,
+              downloadedAtUtc:
+                  _globeController.uasDisplayedDataset?.fetchedAtUtc,
               onClose: _globeController.clearSelectedUasZone,
             );
           }
@@ -771,88 +780,6 @@ class _CoordinatesDialogState extends State<_CoordinatesDialog> {
           child: const Text('Go'),
         ),
       ],
-    );
-  }
-}
-
-class _UasZoneDetailsPanel extends StatelessWidget {
-  const _UasZoneDetailsPanel({required this.zone, required this.onClose});
-
-  final UasZoneDetails zone;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final attributes = zone.attributes.entries.toList();
-
-    return SafeArea(
-      top: false,
-      child: Card(
-        margin: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(
-                Icons.shield_outlined,
-                color: Colors.orangeAccent,
-              ),
-              title: Text(
-                zone.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: const Text('UAS Geographical Zone · FOCA / BAZL'),
-              trailing: IconButton(
-                tooltip: 'Close details',
-                icon: const Icon(Icons.close),
-                onPressed: onClose,
-              ),
-            ),
-
-            const Divider(height: 1),
-
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 210),
-              child: attributes.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No additional attributes available.'),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: attributes.length,
-                      itemBuilder: (context, index) {
-                        final attribute = attributes[index];
-
-                        return ListTile(
-                          dense: true,
-                          title: Text(
-                            attribute.key,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: SelectableText(attribute.value),
-                        );
-                      },
-                    ),
-            ),
-
-            const Divider(height: 1),
-
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                'Source: Swiss Federal Office of Civil '
-                'Aviation (FOCA). Verify current '
-                'restrictions with official sources '
-                'before flying.',
-                style: TextStyle(fontSize: 11, color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

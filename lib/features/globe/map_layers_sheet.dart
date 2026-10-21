@@ -78,6 +78,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
           final source = controller.uasSource;
           final provider = controller.uasProviderStatus;
           final displayed = controller.uasDisplayedDataset;
+          final assessment = controller.uasDatasetAssessment;
           final updateFailed =
               controller.uasZonesError != null ||
               provider.update == OsintUpdateState.failed;
@@ -399,6 +400,37 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                   _InfoRow(
                     label: 'Loaded features',
                     value: controller.uasZonesFeatureCount?.toString() ?? '—',
+                  ),
+
+                  _InfoRow(
+                    label: 'Coverage',
+                    value: assessment == null
+                        ? 'Not assessed'
+                        : assessment.hasIssues
+                        ? 'Limited / incomplete data'
+                        : 'Not independently verified',
+                  ),
+                  if (assessment != null) ...[
+                    _InfoRow(
+                      label: 'Source features',
+                      value: assessment.sourceFeatureCount.toString(),
+                    ),
+                    if (assessment.skippedFeatureCount > 0)
+                      _InfoRow(
+                        label: 'Not displayed',
+                        value: assessment.skippedFeatureCount.toString(),
+                      ),
+                    for (final issue in assessment.issues)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(issue),
+                      ),
+                  ],
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'A successful download does not establish complete airspace coverage. Other restrictions may apply.',
+                    ),
                   ),
 
                   _InfoRow(

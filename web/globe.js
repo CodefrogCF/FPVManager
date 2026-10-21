@@ -4,6 +4,38 @@ function postToFlutter(message) {
             window.parent.postMessage(message, window.location.origin);
         }
     }
+    // Keep source values as plain text, with explicit bounds below the bridge's
+    // event-frame limit. Key restriction/height fields precede optional content.
+    function uasSelectionDetails(raw) {
+        const priority = ['identifier', 'name', 'type', 'reason', 'restriction',
+            'restrictionConditions', 'message', 'uomDimensions', 'lowerLimit',
+            'lowerVerticalReference', 'upperLimit', 'upperVerticalReference',
+            'permanent', 'startDateTime', 'endDateTime', 'startTime', 'endTime',
+            'authorityName', 'service', 'siteURL', 'email', 'phone'];
+        const keys = Object.keys(raw);
+        const ordered = [...priority.filter(key => Object.hasOwn(raw, key)),
+            ...keys.filter(key => !priority.includes(key))];
+        const attributes = Object.create(null), truncatedAttributes = [];
+        let size = 0;
+        for (const key of ordered) {
+            if (Object.keys(attributes).length >= 128) break;
+            if (key.length > 120) continue;
+            let value, limited = false;
+            try {
+                value = typeof raw[key] === 'object' ? JSON.stringify(raw[key]) : String(raw[key]);
+            } catch { value = '[Unsupported value]'; limited = true; }
+            if (typeof value !== 'string') { value = '[Unsupported value]'; limited = true; }
+            if (value.length > 8000) { value = value.slice(0, 8000); limited = true; }
+            const cost = JSON.stringify([key, value]).length +
+                (limited ? JSON.stringify(key).length + 1 : 0);
+            if (size + cost > 80 * 1024) continue;
+            attributes[key] = value; size += cost;
+            if (limited) truncatedAttributes.push(key);
+        }
+        const sourceName = typeof raw.name === 'string' ? raw.name.trim() : '';
+        return {...(sourceName ? {name:sourceName.slice(0,160)} : {}),
+            attributes, omittedAttributeCount: keys.length - Object.keys(attributes).length, truncatedAttributes};
+    }
     const bridge = FPVGlobeBridge.createBridge({ send: postToFlutter, execute: executeCommand });
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
@@ -781,35 +813,12 @@ function postToFlutter(message) {
                             viewer.clock.currentTime
                         ) ?? {};
 
-                    const attributes = {};
-
-                    for (const [key, value] of
-                        Object.entries(rawAttributes).slice(0, 50)) {
-
-                        if (value === null || value === undefined) {
-                            continue;
-                        }
-
-                        let formattedValue;
-
-                        try {
-                            formattedValue = typeof value === "object"
-                                ? JSON.stringify(value)
-                                : String(value);
-                        } catch {
-                            formattedValue = "[Unsupported value]";
-                        }
-
-                        attributes[String(key).slice(0, 120)] =
-                            formattedValue.slice(0, 1000);
-                    }
-
                     sendToFlutter("uas-zone-selected", {
                         id: String(entity.id).slice(0, 160),
                         name: String(
                             entity.name || "UAS Geographical Zone"
                         ).slice(0, 160),
-                        attributes
+                        ...uasSelectionDetails(rawAttributes)
                     });
 
                     return;

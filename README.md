@@ -8,7 +8,9 @@ spot library stored with Drift/SQLite.
 ## Current functionality
 
 - Switzerland-centered globe, camera navigation and satellite/topographic/relief styles.
-- UAS overlay with visibility, fill opacity, raw zone attributes and download metadata.
+- UAS overlay with visibility, fill opacity, structured zone inspection, raw source
+  attributes, download metadata and visible dataset limitations. See
+  [UAS zone inspection](docs/uas_zone_inspection.md).
 - Saved map preferences, separate spot visibility and configurable overlay order.
 - Terrain elevation queries with explicit WGS84 ellipsoidal heights, optional
   Swiss LN02 conversion and a local AGL height calculator.

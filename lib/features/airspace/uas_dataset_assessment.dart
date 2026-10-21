@@ -1,0 +1,163 @@
+import 'uas_zone_details.dart';
+
+/// Local checks of the downloaded content, not a certification of coverage or
+/// official validity. Only supported, structurally usable geometry is rendered.
+class UasDatasetAssessment {
+  const UasDatasetAssessment._({
+    required this.geoJson,
+    required this.sourceFeatureCount,
+    required this.skippedFeatureCount,
+    required this.featuresMissingDetails,
+    required this.declaredTotal,
+    required this.hasNextPage,
+    required this.countMismatch,
+  });
+
+  factory UasDatasetAssessment.inspect(Map<String, dynamic> source) {
+    final features = source['features'];
+    if (source['type'] != 'FeatureCollection' || features is! List) {
+      throw const FormatException('Invalid UAS feature collection');
+    }
+    final renderable = <Object?>[];
+    var missing = 0;
+    for (final feature in features) {
+      if (feature is! Map ||
+          feature['type'] != 'Feature' ||
+          !_geometry(feature['geometry'])) {
+        continue;
+      }
+      renderable.add(feature);
+      final properties = feature['properties'];
+      if (properties is! Map ||
+          UasZoneDetails.missingSourceFields(properties).isNotEmpty) {
+        missing++;
+      }
+    }
+    if (features.isNotEmpty && renderable.isEmpty) {
+      throw FormatException(
+        'None of the ${features.length} UAS features has usable geometry. '
+        'The incomplete dataset was not imported.',
+      );
+    }
+    final total =
+        _count(source['numberMatched']) ?? _count(source['totalFeatures']);
+    final returned = _count(source['numberReturned']);
+    final links = source['links'];
+    return UasDatasetAssessment._(
+      geoJson: Map.unmodifiable({
+        ...source,
+        'features': List.unmodifiable(renderable),
+      }),
+      sourceFeatureCount: features.length,
+      skippedFeatureCount: features.length - renderable.length,
+      featuresMissingDetails: missing,
+      declaredTotal: total,
+      hasNextPage:
+          links is List &&
+          links.any(
+            (link) =>
+                link is Map &&
+                link['rel'] == 'next' &&
+                link['href'] is String &&
+                (link['href'] as String).trim().isNotEmpty,
+          ),
+      countMismatch:
+          (total != null && total < features.length) ||
+          (returned != null && returned != features.length),
+    );
+  }
+
+  final Map<String, dynamic> geoJson;
+  final int sourceFeatureCount;
+  final int skippedFeatureCount;
+  final int featuresMissingDetails;
+  final int? declaredTotal;
+  final bool hasNextPage;
+  final bool countMismatch;
+  int get renderedFeatureCount => sourceFeatureCount - skippedFeatureCount;
+
+  List<String> get issues => [
+    if (sourceFeatureCount == 0) 'The source returned an empty dataset.',
+    if (skippedFeatureCount > 0)
+      '$skippedFeatureCount of $sourceFeatureCount source features could not be displayed.',
+    if (featuresMissingDetails > 0)
+      '$featuresMissingDetails displayed features lack key source details.',
+    if (declaredTotal != null && declaredTotal! > sourceFeatureCount)
+      'Only $sourceFeatureCount of $declaredTotal declared features were received.',
+    if (hasNextPage) 'The source declares another page of data.',
+    if (countMismatch)
+      'Source feature counts do not match the downloaded content.',
+  ];
+  bool get hasIssues => issues.isNotEmpty;
+
+  static int? _count(Object? value) {
+    final count = value is int
+        ? value
+        : value is String
+        ? int.tryParse(value)
+        : null;
+    return count != null && count >= 0 ? count : null;
+  }
+
+  static bool _position(Object? value) =>
+      value is List &&
+      value.length >= 2 &&
+      value[0] is num &&
+      value[1] is num &&
+      (value[0] as num).isFinite &&
+      (value[1] as num).isFinite &&
+      value
+          .skip(2)
+          .every((coordinate) => coordinate is num && coordinate.isFinite) &&
+      (value[0] as num).abs() <= 180 &&
+      (value[1] as num).abs() <= 90;
+
+  static bool _line(Object? value, {bool ring = false}) {
+    if (value is! List ||
+        value.length < (ring ? 4 : 2) ||
+        !value.every(_position)) {
+      return false;
+    }
+    if (!ring) return true;
+    final first = value.first as List;
+    final last = value.last as List;
+    return first[0] == last[0] &&
+        first[1] == last[1] &&
+        value
+                .map(
+                  (p) => ((p[0] as num).toDouble(), (p[1] as num).toDouble()),
+                )
+                .toSet()
+                .length >=
+            3;
+  }
+
+  static bool _polygon(Object? value) =>
+      value is List &&
+      value.isNotEmpty &&
+      value.every((ring) => _line(ring, ring: true));
+
+  static bool _geometry(Object? value, [int depth = 0]) {
+    if (value is! Map || depth > 4) return false;
+    final coordinates = value['coordinates'];
+    bool many(bool Function(Object?) check) =>
+        coordinates is List &&
+        coordinates.isNotEmpty &&
+        coordinates.every(check);
+    return switch (value['type']) {
+      'Point' => _position(coordinates),
+      'MultiPoint' => many(_position),
+      'LineString' => _line(coordinates),
+      'MultiLineString' => many(_line),
+      'Polygon' => _polygon(coordinates),
+      'MultiPolygon' => many(_polygon),
+      'GeometryCollection' =>
+        value['geometries'] is List &&
+            (value['geometries'] as List).isNotEmpty &&
+            (value['geometries'] as List).every(
+              (geometry) => _geometry(geometry, depth + 1),
+            ),
+      _ => false,
+    };
+  }
+}

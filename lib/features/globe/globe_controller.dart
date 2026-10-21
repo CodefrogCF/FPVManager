@@ -10,10 +10,13 @@ import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/user_preferences.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../airspace/data/swiss_uas_provider.dart';
+import '../airspace/uas_dataset_assessment.dart';
+import '../airspace/uas_zone_details.dart';
 import 'globe_bridge.dart';
 import 'route_map_state.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
+export '../airspace/uas_zone_details.dart' show UasZoneDetails;
 export '../../core/models/user_preferences.dart'
     show GlobeMapStyle, GlobeOverlay;
 
@@ -29,18 +32,6 @@ class GlobePoint {
   final double longitude;
   final double altitude;
   final VerticalReference heightReference;
-}
-
-class UasZoneDetails {
-  const UasZoneDetails({
-    required this.id,
-    required this.name,
-    required this.attributes,
-  });
-
-  final String id;
-  final String name;
-  final Map<String, String> attributes;
 }
 
 class TerrainElevation {
@@ -286,6 +277,8 @@ class GlobeController extends ChangeNotifier {
   bool _uasZonesLoading = false;
   String? _uasZonesError;
   UasZoneDetails? _selectedUasZone;
+  UasDatasetAssessment? _uasDatasetAssessment;
+  OsintDataset<Map<String, dynamic>>? _uasRejectedDataset;
   double _uasZonesFillOpacity = 0.20;
   DateTime? _uasZonesDownloadedAt;
   int? _uasZonesFeatureCount;
@@ -464,6 +457,7 @@ class GlobeController extends ChangeNotifier {
   GlobePoint? get selectedPoint => _selectedPoint;
   String? get error => _error;
   UasZoneDetails? get selectedUasZone => _selectedUasZone;
+  UasDatasetAssessment? get uasDatasetAssessment => _uasDatasetAssessment;
   double get uasZonesFillOpacity => _uasZonesFillOpacity;
   DateTime? get uasZonesDownloadedAt => _uasZonesDownloadedAt;
   int? get uasZonesFeatureCount => _uasZonesFeatureCount;
@@ -559,6 +553,7 @@ class GlobeController extends ChangeNotifier {
     _terrainRetryOperation++;
     _uasDatasetSentToRenderer = false;
     _uasDisplayedDataset = null;
+    _uasDatasetAssessment = null;
     _uasZonesVisible = false;
     _uasZonesLoading = false;
     _error = null;
@@ -764,18 +759,32 @@ class GlobeController extends ChangeNotifier {
     notifyListeners();
     try {
       if (_uasDatasetSentToRenderer &&
+          _uasRejectedDataset == null &&
           !forceRefresh &&
           uasDataFreshness == OsintFreshness.fresh) {
         await _send({'type': 'set-uas-zones', 'visible': true});
       } else {
-        final dataset = await _uasProvider.fetch(forceRefresh: forceRefresh);
+        final dataset = await _uasProvider.fetch(
+          forceRefresh:
+              forceRefresh ||
+              _uasRejectedDataset != null &&
+                  identical(_uasRejectedDataset, _uasProvider.status.dataset),
+        );
         if (!current()) return;
+        late UasDatasetAssessment assessment;
+        try {
+          assessment = UasDatasetAssessment.inspect(dataset.data);
+          _uasRejectedDataset = null;
+        } on FormatException {
+          _uasRejectedDataset = dataset;
+          rethrow;
+        }
         await _request({
           'type': forceRefresh || _uasDatasetSentToRenderer
               ? 'replace-uas-zones'
               : 'set-uas-zones',
           'visible': _uasRequestedVisible,
-          'geojson': dataset.data,
+          'geojson': assessment.geoJson,
           'downloadedAtUtc': dataset.fetchedAtUtc.toIso8601String(),
           'sourceAttribution':
               dataset.source.attribution ?? dataset.source.publisher,
@@ -783,6 +792,7 @@ class GlobeController extends ChangeNotifier {
         if (current()) {
           _uasDatasetSentToRenderer = true;
           _uasDisplayedDataset = dataset;
+          _uasDatasetAssessment = assessment;
         }
       }
     } catch (error) {
@@ -980,14 +990,26 @@ class GlobeController extends ChangeNotifier {
 
       case 'uas-zone-selected':
         final rawAttributes = data['attributes'];
+        final omitted = data['omittedAttributeCount'] ?? 0;
+        final shortened = data['truncatedAttributes'] ?? const <String>[];
 
-        if (rawAttributes is! Map<String, dynamic>) {
+        if (rawAttributes is! Map<String, dynamic> ||
+            rawAttributes.length > 128 ||
+            omitted is! int ||
+            omitted < 0 ||
+            shortened is! List ||
+            shortened.length > 128 ||
+            shortened.any((key) => key is! String || key.length > 120)) {
           return;
         }
 
         final attributes = <String, String>{};
 
         for (final entry in rawAttributes.entries) {
+          if (entry.key.length > 120 ||
+              entry.value is String && (entry.value as String).length > 8000) {
+            return;
+          }
           if (entry.value is String) {
             attributes[entry.key] = entry.value as String;
           }
@@ -998,7 +1020,9 @@ class GlobeController extends ChangeNotifier {
         _selectedUasZone = UasZoneDetails(
           id: data['id']?.toString() ?? '',
           name: data['name']?.toString() ?? 'UAS Zone',
-          attributes: attributes,
+          attributes: Map.unmodifiable(attributes),
+          omittedAttributeCount: omitted,
+          truncatedAttributes: List<String>.unmodifiable(shortened),
         );
 
         notifyListeners();
