@@ -1,42 +1,22 @@
 # Contributing
 
-## Branching and review
+Open a focused pull request against `main`. Describe the change, related issue
+and relevant checks. Use the Flutter/Dart versions in [README](README.md).
 
-- Keep `main` as the integration branch.
-- Start focused work from current `main`, using `feature/<short-topic>` or
-  `fix/<short-topic>` branches.
-- Keep one independently reviewable concern per branch/PR where practical.
-- Describe the user-visible change, related issue, validation and known limits.
-- Run the checks below before submitting a PR. CI must pass before merge;
-  branch protection must be configured separately by a repository administrator.
-- Do not close a broad issue merely because a subset of its criteria is complete.
+## Code
 
-Suggested commit subjects follow the existing history, for example
-`fix(globe): keep map selections consistent` or
-`chore(ci): add Flutter quality gates`.
+Use the Dart formatter and `analysis_options.yaml`. Feature code belongs in
+`lib/features/`; shared database, geospatial and provider contracts belong in
+`lib/core/`. Inject repositories and clients for testable I/O. Callers own
+injected resources; components dispose resources they create.
 
-## Coding conventions
+Treat renderer messages and downloaded data as external input. Preserve explicit
+units, coordinate/height references and the distinction between source data and
+interpreted restrictions. Add regression tests for meaningful behavior changes.
 
-Use the Dart formatter and the rules from `analysis_options.yaml`.
-Keep feature-specific UI and behavior in `lib/features/<feature>/`, and shared
-database, geospatial and provider contracts in `lib/core/`.
+## Checks and builds
 
-Inject repositories or provider clients where tests need to control I/O.
-Resources created internally are disposed internally; injected resources remain
-owned by their callers. Check `mounted` before updating widgets after an `await`.
-
-Treat renderer messages and downloaded data as external input. Apply a complete
-state update before notifying listeners. Keep raw source metadata distinct from
-interpreted restrictions and distinguish fetch timestamps from official validity.
-Preserve explicit units, coordinate systems and vertical references.
-
-Add regression tests for meaningful defects. Prefer observable behavior over
-duplicating implementation details. Controller tests do not replace widget tests
-for controls that must rebuild, and build success does not replace device checks.
-
-## Local validation
-
-Run from the repository root with the Flutter/Dart versions listed in README:
+Run from the repository root. Python 3.9+ and Node.js 20+ are needed for tooling.
 
 ```sh
 flutter pub get --enforce-lockfile
@@ -48,7 +28,8 @@ flutter analyze --no-pub
 flutter test --no-pub
 ```
 
-For changes affecting platform integration, also run:
+Format edited sources with `dart format <path>`. The format check excludes
+generated Dart and migration fixtures. CI runs these checks before both builds:
 
 ```sh
 flutter build web --release --no-pub --no-web-resources-cdn
@@ -56,47 +37,32 @@ python tool/prepare_sqlite_android.py
 flutter build apk --debug --no-pub
 ```
 
-The same commands are in `.github/workflows/ci.yml`. That workflow uses actions
-pinned to commit SHAs, read-only repository permissions and no deployment step.
-When upgrading Flutter, update its workflow pin and README together, intentionally
-refresh `pubspec.lock` if needed, and repeat both platform builds.
+The SQLite preparation helper downloads ARM/ARM64/x64 libraries using the
+resolved package's expected hashes, reuses verified cache entries and retries
+failed downloads up to three times. Use `--refresh` to request fresh downloads;
+never override a failed hash check.
 
-The real renderer/lifecycle test is
-`flutter test integration_test/globe_runtime_test.dart -d <android-device-id>`.
-Use [the local browser smoke harness](docs/cesium_assets.md) for WebGL verification.
+For map changes, run the [browser harnesses](docs/cesium_assets.md) and the native
+renderer test:
+
+```sh
+flutter test integration_test/globe_runtime_test.dart -d <android-device-id>
+```
+
+Check navigation, selection, layers, visible credits, terrain failure/retry and
+affected controls on Web and Android. Builds and synthetic fixtures do not verify
+device gestures, permission dialogs or real network recovery. When upgrading
+Flutter, update README and the CI pin together and repeat both builds.
 
 ## Database changes
 
-`fpv_database.g.dart` is generated and committed, so a clean checkout can build.
-After editing Drift tables, regenerate it:
+Generated database code is committed. After editing Drift tables, run:
 
 ```sh
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-For a schema change, preserve the previous schema snapshot, increment
-`schemaVersion`, implement the migration and update schema snapshots and
-generated migration fixtures using Drift tooling. Add tests that open the old
-schema, migrate it, preserve existing user records and verify affected relations.
-Do not replace an old fixture with a newly generated current schema.
-
-Do not hand-edit `.g.dart` or files in `test/generated_migrations/`. They are
-excluded from the hand-written formatting check but remain covered by analysis
-and tests.
-
-## Manual map regression checks
-
-Run these on Web and an Android device after map/bridge changes:
-
-1. Start the globe and check terrain, credits and camera navigation.
-2. Enable UAS zones, wait for loading, then disable and re-enable the cached layer.
-   The switch, loading indicator, metadata and error state must match the renderer.
-3. Change opacity and verify both polygon fill and the displayed percentage.
-4. Select map point A, then saved spot B. The raw-point terrain action must be
-   disabled, and Add Spot must not prefill A's coordinates.
-5. Select a fresh map point and verify terrain queries and Add Spot defaults.
-6. Select a UAS feature, close its panel and verify old point selections do not
-   reappear. Edit/delete a saved spot and check marker synchronization.
-
-Record the target/device, revision, scenario and result. Network loss, renderer
-reloads and large datasets need additional checks under #7, #43 and #48.
+For schema changes, increment `schemaVersion`, implement the migration, preserve
+old snapshots and generate the new snapshot/migration fixtures with Drift tooling.
+Test migration from supported old schemas, record preservation and affected
+relationships. Do not hand-edit `.g.dart` files or `test/generated_migrations/`.

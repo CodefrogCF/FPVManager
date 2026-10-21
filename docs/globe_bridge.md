@@ -1,128 +1,75 @@
 # Globe bridge protocol v1
 
-`GlobeBridge` in Dart and `web/globe_bridge.js` implement the same transport for
-the Web iframe and native WebView. Only the commands in `web/globe.js` are
-executable. No message is evaluated as JavaScript.
+`GlobeBridge` and `web/globe_bridge.js` share a JSON transport for the Web iframe
+and Android WebView. Only recognized commands in `web/globe.js` execute; messages
+are never evaluated as JavaScript.
 
-## Envelopes
+## Messages and lifecycle
 
-Commands contain `version: 1`, `sessionId`, a unique decimal `requestId`, `type`
-and typed command fields. Renderer events contain `source: fpvmanager-globe`,
-`version: 1`, `sessionId`, a strictly increasing `eventSequence` and `type`.
+Commands carry `version: 1`, `sessionId`, unique decimal `requestId`, `type` and
+typed fields. Events carry `source: fpvmanager-globe`, `version: 1`, `sessionId`,
+strictly increasing `eventSequence` and `type`. `command-result` correlates
+`requestId`/`commandType` with `ok` and a `result` object or `error` string.
+Acknowledgement confirms command processing, not completion of later tile loads.
 
-`renderer-loading` invalidates outstanding work and clears confirmed renderer
-state. `globe-ready` starts recovery once the new viewer exists. A session changes
-on page reload; replies/events from an old session are rejected. Duplicate ready
-messages in a running session do not start another recovery. App suspension
-cancels pending work; resuming asks the page to announce its current session.
+`renderer-loading` cancels pending work and clears confirmed state. `globe-ready`
+starts recovery. Old-session/out-of-order events are rejected; duplicate ready
+messages do not restart recovery. Suspension cancels work; resume asks the page
+to announce its session. Web checks the bound iframe and origin. Native navigation
+is restricted to the app-owned origin, and disposed views ignore late events.
 
-Every command finishes with `command-result`, including the original `requestId`
-and `commandType`, `ok` and either a `result` object or an `error` string. Dart
-waits for this result rather than considering a successful send an acknowledgement.
-Terrain coordinates, height and sampling method are returned in `result` and
-checked against the requested coordinates. Terrain results must also carry
-`heightReference: "wgs84Ellipsoid"`; unknown or missing references are rejected.
-An acknowledgement confirms processing,
-not successful retrieval of every future imagery/terrain tile or camera animation
-completion.
+Reload restores requested map preferences, spots, visible routes and an open
+route draft. Camera, selection and ground mode reset. Replacing a view's controller
+reloads the page to create a fresh session. `reloadRenderer()` reloads the page;
+`retry-terrain` replaces terrain inside the current viewer.
 
-## Timeouts and bounds
+## Bounds and cancellation
 
-Defaults are configurable through `GlobeBridgeOptions`:
+Defaults in `GlobeBridgeOptions`:
 
-| Operation | Default |
+| Limit | Default |
 |---|---|
-| Ordinary command | 15 seconds |
-| Terrain sampling | 30 seconds |
-| Dataset import, including transfer | 2 minutes |
-| Individual transport send | 10 seconds |
-| Frame | 128 Ki UTF-16 code units |
-| Chunk | 32 Ki UTF-16 code units |
-| Encoded command / total reserved JS transfer buffers | 64 Mi UTF-16 code units |
-| Concurrent JS transfers | 2 |
-| Pending commands | 32 |
-| Incomplete JS transfer idle timeout | 30 seconds |
+| Ordinary command / terrain query / dataset import | 15 s / 30 s / 2 min |
+| Individual transport send | 10 s |
+| Frame / chunk | 128 Ki / 32 Ki UTF-16 code units |
+| Encoded command / total reserved JS buffers | 64 Mi UTF-16 code units |
+| Concurrent JS transfers / pending commands | 2 / 32 |
+| Incomplete transfer idle timeout | 30 s |
 
-Large commands use `transfer-start` with command type and declared length,
-consecutive `transfer-chunk` frames with zero-based indices, then
-`transfer-complete`. The renderer checks lengths, ordering, IDs and total buffer
-reservations before execution. Broken transfers are rejected and released.
-Command timeout, connection disposal and `cancel-command` cancel pending work.
-Async rendering paths check their abort signal before applying results; an older
-UAS import cannot replace a newer one. Cancellation cannot interrupt work already
-running inside a third-party promise, but its late result is discarded.
+Large commands use `transfer-start` (type/length), consecutive zero-based
+`transfer-chunk` frames, then `transfer-complete`. Validate lengths, ordering,
+IDs and aggregate reservations before execution. Invalid transfers release their
+buffers. Timeout, disposal and `cancel-command` invalidate work. Async paths
+check cancellation before committing; third-party promises may finish later,
+but their obsolete results are ignored.
 
-## Recovery
+## Terrain, zones and routes
 
-The controller retains the requested base style, UAS opacity/visibility and saved
-spot markers. It reapplies nondefault settings and reimports requested UAS data
-into a new renderer. Provider caching remains separate (#51). Point/spot/UAS
-selection is cleared on reload; the camera returns to its initial Swiss view.
+`terrain-status` reports `loading`, `ready`, `unavailable` or `offline` with a
+compatible reason. Height results must match requested coordinates and contain
+finite height, sampling method and `heightReference: "wgs84Ellipsoid"`. Terrain
+generations reject stale results independently of renderer sessions.
 
-The public `reloadRenderer()` command requests a page reload after acknowledgement.
-`retry-terrain` instead replaces only the terrain provider in the current viewer.
-`terrain-status` events report `state` (`loading`, `ready`, `unavailable`, `offline`)
-and a reason checked against that state. The current status follows each
-`globe-ready` announcement; duplicate hello messages do not start a retry.
-See [terrain failures and recovery](terrain_recovery.md) for the deadlines,
-late-response rules and conservative flat fallback. Height-query command
-results from a previous terrain generation are rejected independently of the
-renderer session.
-UAS dataset imports can include a plain-text `sourceAttribution`; the renderer
-escapes it for its source credit. The controller keeps imported dataset metadata
-separate from a newer downloaded snapshot until the import is acknowledged.
-`uas-zone-selected` carries plain-text `attributes`, `omittedAttributeCount`
-and `truncatedAttributes`. Restriction/height fields are prioritized; selection
-is bounded to 128 attributes, 120-character keys, 8,000-character values and an
-80 Ki-character escaped payload budget including limit metadata. Invalid limit
-metadata and oversized attributes are rejected before changing the selection.
-Content assessment is committed with the acknowledged dataset; locally unusable
-features are counted and excluded from the GeoJSON sent to the renderer.
-See [UAS inspection](uas_zone_inspection.md) for coverage and recovery semantics.
-Web accepts events only from the bound iframe and matching origin. Native pages
-are loaded from an app-owned loopback origin; navigation to other origins is
-blocked. Disposed native views ignore subsequent JavaScript events.
-Replacing a view's controller reloads its page, giving the new controller fresh
-request and marker IDs in a new renderer session.
+UAS imports accept plain-text `sourceAttribution`. Dataset provenance/assessment
+is committed only after import acknowledgement. `uas-zone-selected` carries
+plain-text `attributes`, `omittedAttributeCount` and `truncatedAttributes`.
+Limits are 128 attributes, 120-character keys, 8,000-character values and an
+80 Ki-character escaped payload budget including limit metadata. Key restriction
+and height fields take priority. Null/empty/zero/false remain text; oversized
+keys are omitted and shortening/omission is reported. Source text is not HTML.
 
-## Inspection and route commands
+Ground inspection uses `enter-ground-view`, `exit-ground-view` and
+`ground-view-state`. Entry uses bounded terrain sampling. Draft editing uses
+`set-route-editor`, `frame-route` and `route-map-action`; editor identity,
+revision and stable draft waypoint keys reject stale edits.
 
-Ground inspection adds `enter-ground-view` / `exit-ground-view` commands and
-`ground-view-state` events. Entry uses the bounded terrain-sampling deadline.
-Route drafts use `set-route-editor` and `frame-route`; `route-map-action` events
-carry editor identity, revision, action and the relevant draft waypoint key or
-position. The Dart controller rejects stale/invalid edits and restores the
-desired draft overlay after a renderer reload. Ground mode is deliberately not
-restored across renderer sessions. See [ground view and local routes](ground_view_and_routes.md).
+`set-visible-routes` carries a revision and up to 20 routes with ID/name and up
+to 1,000 waypoint IDs/positions each. `frame-visible-routes` takes a positive
+route ID. Visibility preserves the walking camera; framing exits ground view.
+Both draft and saved-route previews sample terrain and add 30 m at each waypoint.
+Cancellation/revision checks prevent obsolete geometry from reappearing;
+`route-preview-error` reports asynchronous rebuild failures for explicit retry.
 
-Saved home-map routes use `set-visible-routes` (revision and up to 20 routes,
-each with ID/name and at most 1,000 waypoint IDs/positions) and
-`frame-visible-routes` (positive route ID). Visibility commands preserve the
-walking camera; framing exits ground view. Display geometry samples terrain and
-adds the fixed 30 m AGL preview offset. Both editor and saved-route sampling use
-the terrain deadline. Cancellation/revision checks prevent late geometry from
-restoring an older selection. `route-preview-error` reports asynchronous rebuild
-failure; the layer selection can retry. The desired visible routes are restored
-after renderer reload, with ground mode remaining off.
-
-## Tests
-
-`flutter test` covers correlated requests, timeouts, lifecycle cancellation,
-recovery, invalid envelopes and Dart transfer framing. Run the actual JavaScript
-receiver tests separately:
-
-```sh
-node --test test/js/globe_bridge.test.cjs
-```
-
-The real offline renderer/lifecycle test uses the Flutter integration test runner:
-
-```sh
-flutter test integration_test/globe_runtime_test.dart -d <android-device-id>
-```
-
-It uses an ellipsoid/grid and local GeoJSON fixtures, without opening the personal
-database. It checks real JS acknowledgements, UAS import, reload restoration and
-pause/resume, followed by replacement of the controller on the existing view.
-Live swisstopo/FOCA availability and device performance remain
-separate validation tasks.
+See [architecture](architecture.md) for provider/terrain recovery,
+[Contributing](../CONTRIBUTING.md) for tests, and the [user guide](user_guide.md)
+for controls and display limitations.

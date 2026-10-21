@@ -1,92 +1,45 @@
-# Privacy-first architecture and permission policy
+# Privacy and permissions
 
-This policy describes the current Android/Web prototype and its application
-code. Personal data works without an account. The app has no analytics/tracker
-integration, server-side user profile, automatic sharing or publication feature.
-Adding accounts, sharing, telemetry or another external data service requires an
-explicit review of this contract.
+FPVManager works without an account and has no analytics/tracker integration,
+automatic sharing or server-side user profile.
 
-## Personal records
+## Local records and permissions
 
-Spots, coordinates, notes, normalized photos, equipment, flight plans/waypoints
-and map preferences are stored in local Drift/SQLite storage. The application
-does not upload these records or publish a private location/route when it is
-created, edited, selected or deleted. Spot names/notes/photos and route snapshots
-are not included in map-service requests.
+Spots, notes, photos, equipment, routes and map preferences are stored in local
+Drift/SQLite storage. The app does not upload or publish these records. There
+is no backup/export/sync interface; OS backups and file providers follow their
+own settings.
 
-Local storage is device/browser storage, not a guarantee about operating-system
-backup behavior or a user-selected file provider. Those are controlled by the
-platform and its settings. The app currently has no backup/export/sync UI.
+Photos are imported only through the file picker. Persisted JPEGs/thumbnails
+omit source EXIF/GPS metadata; originals remain unchanged. The native picker
+may keep an original copy in its temporary cache.
 
-Photos are imported only after a file-selection action. Persisted JPEGs and
-thumbnails omit source EXIF/GPS metadata; original files remain unchanged, and
-the system picker may keep its own temporary cache. See
-[photo processing and storage](spot_photos_and_location.md).
-
-## Device location
-
-Opening the app or spot editor does not request location. Only **Use current
-location** starts a one-time lookup and, when needed, a system/browser permission
-request. Android declares foreground coarse/fine location, with approximate
-location supported; it declares no background-location permission and the app
-does not subscribe to a continuous position stream.
-
-Only latitude/longitude enter the editable draft; Save is still required to
-persist it. A late result cannot overwrite a newer manual coordinate edit or
-update a closed editor. Denied/blocked permission, disabled services and lookup
-errors leave manual coordinates available. OS/browser location providers may
-use GPS or other mechanisms under their own settings. Details, timeouts and
-tests are documented in [location behavior](spot_photos_and_location.md).
+Only **Use current location** requests a one-time position and, if needed,
+permission. Android declares foreground coarse/fine location, supports approximate
+location and requests no background access. There is no continuous position
+stream. Lookup times out after 20 seconds once permission is resolved. Only
+latitude/longitude enter the editable draft; Save is required. Manual edits
+and closed editors are protected from late results. Web needs a secure context;
+OS/browser location providers operate under their own settings.
 
 ## External requests
 
-The online globe requests map resources when opened. Viewing an area can reveal
-that area to the corresponding provider through tile identifiers, even when no
-personal record is uploaded. As with normal HTTP requests, the remote endpoint
-receives the connection IP address and request metadata. The current flows are:
+Opening/navigating the online map contacts providers. Requests expose connection
+IP/request metadata and can reveal the viewed area through tile identifiers,
+including when focusing a private spot or displaying a route.
 
-| Resource | Destination | Trigger and application data sent |
-|---|---|---|
-| Satellite, topographic and relief imagery | `wmts.geo.admin.ch` | Map startup/navigation/style changes and refresh of the selected style after an explicit terrain retry; layer, tile coordinates/zoom and format. These identify the viewed map area. |
-| Terrain | `3d.geo.admin.ch` | Map startup (including a bounded level-zero tile probe), navigation, height sampling, ground-view spawning, framing/opening a route and explicit **Retry terrain**; terrain layer and tile identifiers. Route framing samples its waypoint locations. These requests use the renderer's provider, without uploading record names, notes or a route JSON document. Offline/online events do not start an automatic reconnection loop. |
-| Official Swiss UAS GeoJSON | `data.geo.admin.ch` | Enabling/refreshing UAS zones, re-enabling expired data or restoring a previously enabled preference; the public national dataset URL, without personal spot/route fields or a user-position query. Cache-age display checks do not fetch data. |
-| Optional Swiss height conversion | `geodesy.geo.admin.ch` | Only the explicit LN02 conversion action in the terrain dialog; selected longitude/latitude and elevation, followed by the corresponding LV95 easting/northing and Bessel elevation. Position/elevation values appear in GET query parameters. |
-| Application, Cesium, workers, Wasm and Flutter renderer assets | App origin on Web; app-owned loopback origin on Android | Local/package asset loads. The documented Web release uses `--no-web-resources-cdn`; Cesium is vendored and pinned. |
+| Destination | Trigger and data |
+|---|---|
+| `wmts.geo.admin.ch` | Map startup/navigation/style changes or imagery refresh after terrain retry; layer, zoom and tile coordinates. |
+| `3d.geo.admin.ch` | Terrain startup/probe, navigation, height queries, ground view, route framing/previews and explicit retry; terrain tile identifiers revealing sampled areas. |
+| `data.geo.admin.ch` | Enabling/refreshing UAS data, re-enabling expired data or restoring enabled preferences; public national dataset URL, without a user-position query. |
+| `geodesy.geo.admin.ch` | Only explicit LN02 conversion; selected longitude/latitude/elevation, then LV95 coordinates/Bessel height, in GET query parameters. |
+| App origin (Web) / app-owned loopback origin (Android) | Application, Cesium, Workers, Wasm and Flutter renderer resources. The documented Web build bundles renderer assets locally. |
 
-Selecting a private spot and focusing the map can therefore reveal its viewed
-area through imagery/terrain requests. This is distinct from uploading its name,
-notes, photo or complete route. Optional REFRAME conversion does transmit the
-selected position/elevation as described above; local coordinate conversions and
-the AGL calculator do not require that service.
+Map requests contain no spot names, notes, photos, equipment assignments or
+route JSON. Tile requests can still reveal planned/viewed locations. Local
+coordinate conversion and AGL arithmetic require no external service. Disabling
+UAS stores that choice for the next start; cache-age display makes no requests.
 
-Ground-view entry samples its selected position; walking and looking can load
-further terrain/imagery tiles. Opening a saved route or choosing **Show entire
-route** samples terrain at its waypoints before framing. Providers can therefore
-infer the corresponding planned areas from requested tiles. Displaying selected
-saved routes in Map layers also samples waypoint terrain for the 30 m AGL
-preview, including after edits or terrain recovery. Route records and
-drafts stay in the local database/application; no route name, note, drone or
-battery assignment is included in these tile requests.
-
-UAS enablement is a saved user preference. Disabling it prevents an automatic UAS
-dataset load at the next start; a retained in-memory dataset can be reused during
-the session. Download time is not official validity, and persistent cache/offline
-downloads remain separate work. Maps use a flat fallback if detailed terrain
-cannot initialize; runtime tile interruption handling remains #7.
-
-## Acceptance evidence for #5
-
-- No required account/tracker/analytics integration: current app composition and
-  locked dependencies, local repositories and bundled renderer setup.
-- Explicit, necessary location access: `DeviceSpotLocationService`, the editor's
-  location button, foreground Android manifest and injected location/editor tests.
-- External request/privacy documentation: the inventory above,
-  [architecture](architecture.md), and [coordinates and heights](coordinates_and_heights.md).
-- No automatic personal-data publishing: local repository writes and marker/route
-  contracts; external request construction contains no automatic personal-record
-  upload. Future sharing must retain an explicit user action.
-
-The current imagery/terrain source and service terms are recorded separately in
-[map sources and attribution](map_sources_and_attribution.md) (#8).
-The complete source/dependency release inventory remains #44. This privacy
-policy does not substitute for those dataset and dependency conditions.
+See [map sources and attribution](map_sources_and_attribution.md) for source
+conditions and [the user guide](user_guide.md) for controls.

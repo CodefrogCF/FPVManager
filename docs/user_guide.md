@@ -1,0 +1,113 @@
+# Using FPVManager
+
+## Map and terrain
+
+Use **Map layers** to choose Satellite, Topographic or Relief, show UAS zones
+and saved spots, adjust zone opacity and change spot/zone overlay order. These
+preferences are saved locally. Overlay order does not make objects visible
+through terrain. Failed preference loads offer Retry or Reset; failed saves
+retain the current choice and offer Retry.
+
+Select a map point to see coordinates and height information. Terrain heights
+use the WGS84 ellipsoid; **Convert to Swiss height (LN02)** is an optional online
+conversion. The AGL calculator adds a local vertical offset. See
+[coordinates and heights](coordinates_and_heights.md) for the reference systems.
+
+If terrain fails, the map shows a labelled flat fallback and disables terrain
+queries and ground inspection. **Retry terrain** reconnects while preserving
+the camera and layers. Select a fresh point after recovery. A flat map does not
+provide a measured ground height.
+
+## Ground view
+
+Select a terrain point or saved spot, then use the walking icon beside the
+right-hand map menu to spawn approximately two metres above terrain. Move with
+the arrow keys or transparent stick at the lower left; drag to look around.
+Click the map to restore keyboard focus after using another control.
+
+Use the globe icon or Escape to return to the previous camera. Home, coordinate
+navigation, spot/route framing and opening another library also leave ground
+view. Terrain loss ends it. Movement pauses where no rendered height is available.
+This camera follows terrain detail; it does not model buildings, vegetation or
+collisions.
+
+## Flight routes
+
+Open **Flight routes** in the navigation drawer and create or open a route.
+
+- Click terrain to append a waypoint; select a point to move or delete it.
+- Drag a point, or choose **Move point** and click the new position.
+- Use **Delete point**, right-click or Delete with the map focused to remove it.
+- **Undo waypoint change** reverses up to 50 edits; **Show entire route** frames it.
+- **Save** stores the name and ordered waypoints together. Empty routes are allowed.
+
+Changes remain a draft until Save. Leaving asks whether to discard edits, and a
+failed save retains them for retry. Drafts survive renderer reloads while the
+editor stays open, but not app termination or browser reload.
+
+Under **Map layers → Flight routes**, select up to 20 saved routes to display,
+including in ground view. This selection lasts for the home-map session, not
+across app restarts. The framing button returns to globe view.
+
+Route previews place waypoints 30 m above sampled terrain and connect them with
+3D segments. The offset applies at the waypoints; intervening terrain may cross
+the line. Terrain loss hides the preview. This display does not change stored
+heights: new points store positions only, and existing height metadata is retained.
+Custom height/speed editing and flight-safety assessment are not available.
+
+## Spots and photos
+
+Open **FPV Spots → Add Spot**, or edit an existing spot. A selected raw map point
+prefills new coordinates. **Use current location** requests a one-time position;
+manual entry remains available if permission or lookup fails. Web location needs
+HTTPS or trusted localhost. Save is required to store the result.
+
+Spots support notes, favorites, one category and up to ten comma-separated tags.
+Search matches name, notes, category and tags without case sensitivity; every
+search term and selected filter must match. List pages contain up to 50 spots.
+List filters do not hide map markers; the complete map supports up to 10,000 spots.
+
+Add up to six JPEG, PNG or WebP still photos per spot, each no larger than 12 MiB
+and 16 megapixels (maximum source edge: 16,384 px). GIF/animation and HEIC are
+unsupported. Imported images are orientation-corrected, resized to at most
+1,600 px and stored as JPEGs with thumbnails and no source EXIF/GPS metadata.
+Original files remain unchanged. Open the gallery to zoom; additions/removals
+are saved with the spot, and Cancel discards the draft.
+
+## Equipment
+
+The navigation drawer provides independent local equipment libraries:
+
+| Library | Main behavior |
+|---|---|
+| Drone profiles | Record dimensions, propulsion and performance values with explicit units and a Measured/Estimated/unspecified source per number. Editing a number resets its source. |
+| Battery inventory | **Types** are templates; **Packs** are physical batteries. Creating a pack from a type copies specifications. Later template edits do not update packs; **Copy type specifications** copies them explicitly. |
+| Radio & video equipment | Record separate control/video/telemetry configurations, transmitter/receiver and antenna details, with assignments to multiple drones. |
+
+Empty optional fields mean unknown. Battery voltage is entered explicitly;
+calculated nominal Wh is separate from recorded Wh. Pack charge, cycle count,
+condition and availability are manual records. Packs can be linked to drones and
+saved flight plans; deleting a template preserves packs and their specifications.
+Equipment profiles do not calculate endurance, RF range, compatibility or
+permitted transmit power.
+
+## UAS zones
+
+Enable UAS zones in **Map layers**, select a zone and choose **Inspect restrictions**.
+The sheet shows source codes/text, separate lower/upper limits, time information,
+authority/contact details and provenance. Expand **All source attributes** for
+additional values. Missing, shortened or omitted details are indicated.
+
+Codes, units, AGL/AMSL references and time offsets remain as supplied. The app
+does not resolve overlapping zones, calculate activation or determine permission
+to fly. Download time is retrieval time, not official validity.
+
+Layer details show downloaded/loaded counts and **Not independently verified**
+or **Limited / incomplete data** coverage. Empty, partial or unusable data produces
+a limitation notice; an empty map does not establish unrestricted airspace.
+Failed replacements retain the last displayed snapshot. Explicit refresh retries
+rejected data. DABS/NOTAM information is not integrated.
+
+Personal records are local; there is no backup/export/sync interface. Map viewing
+still contacts external providers. See [privacy and permissions](privacy_and_permissions.md)
+and [map sources](map_sources_and_attribution.md).
