@@ -25,7 +25,10 @@ async function renderer({ offline = false, terrainFails = false, configuration }
         console: { error() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: false}) }), bindControls() {} },
-        FPVRouteEditor: { createEditor: () => ({ click: () => false }) },
+        FPVRouteEditor: {
+            createEditor: () => ({ click: () => false, terrainChanged() {} }),
+            createOverlays: () => ({ terrainChanged() {}, dispose() {} })
+        },
         performance: { now: () => 0 },
         Cesium: {
             Credit: class { constructor(html, showOnScreen) { Object.assign(this, { html, showOnScreen }); } },

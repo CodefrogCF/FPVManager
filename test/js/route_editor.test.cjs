@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createEditor } = require('../../web/route_editor.js');
+const { createEditor, createOverlays } = require('../../web/route_editor.js');
 
 function setup({sampleHeights} = {}) {
     const actions = {}, emitted = [], sources = [], flights = [];
@@ -32,13 +32,13 @@ function setup({sampleHeights} = {}) {
         Cartesian2: class {static distance(a,b) {return Math.hypot(a.x-b.x,a.y-b.y);}},
         Color: {}, HeightReference: {}, LabelStyle: {}};
     const editor = createEditor(Cesium, viewer, (type, event) => emitted.push({type,...event}), {addEventListener() {}, removeEventListener() {}}, sampleHeights);
-    return {editor, actions, emitted, controls, sources, flights, pick(index) {picked = index == null ? null : sources.at(-1).entities.values[index];}};
+    return {editor, Cesium, viewer, actions, emitted, controls, sources, flights, pick(index) {picked = index == null ? null : sources.at(-1).entities.values[index];}};
 }
 const state = {editorId:'test', revision:1, enabled:true, interactive:true, selectedId:1, moveId:null,
     waypoints:[{id:1, latitude:46, longitude:8}]};
 
-test('map add/select/move/delete events carry the current draft identity and revision', () => {
-    const page = setup(); page.editor.set(state);
+test('map add/select/move/delete events carry the current draft identity and revision', async () => {
+    const page = setup(); await page.editor.set(state);
     page.editor.click({x:800,y:4600});
     assert.equal(page.emitted.at(-1).action, 'add');
     page.pick(0); page.editor.click({x:800,y:4600});
@@ -54,36 +54,77 @@ test('map add/select/move/delete events carry the current draft identity and rev
     assert.equal(page.sources.length, 0);
 });
 
-test('invalid replacement leaves the route intact; saving and stale revisions reject interaction', () => {
-    const page = setup(); page.editor.set(state);
-    assert.throws(() => page.editor.set({...state, revision:2, waypoints:[{id:1,latitude:NaN,longitude:8}]}));
+test('invalid replacement leaves the route intact; saving and stale revisions reject interaction', async () => {
+    const page = setup(); await page.editor.set(state);
+    await assert.rejects(page.editor.set({...state, revision:2, waypoints:[{id:1,latitude:NaN,longitude:8}]}));
     assert.equal(page.sources.length, 1);
-    page.editor.set({...state,revision:2,interactive:false});
-    page.editor.set({...state,revision:1});
+    await page.editor.set({...state,revision:2,interactive:false});
+    await page.editor.set({...state,revision:1});
     page.editor.click({x:800,y:4600});
     assert.equal(page.emitted.length, 0);
     page.editor.dispose();
 });
 
 test('framing an isolated waypoint keeps an editing distance instead of zooming into the ground', async () => {
-    const page = setup(); page.editor.set(state); await page.editor.frame();
+    const page = setup(); await page.editor.set(state); await page.editor.frame();
     assert.equal(page.flights.length,1);
     assert.equal(page.flights[0].options.offset.range,300);
-    assert.equal(page.flights[0].sphere.positions[0].height,1000);
+    assert.equal(page.flights[0].sphere.positions[0].height,1030);
     assert.ok(page.flights[0].options.offset.pitch < 0);
     page.editor.dispose();
 });
 
-test('late framing samples cannot override newer drafts or aborted requests', async () => {
-    let release;
-    const page = setup({sampleHeights: () => new Promise(resolve => {release=resolve;})});
-    page.editor.set(state);
+test('framing cannot override newer drafts or aborted requests', async () => {
+    const page = setup();
+    await page.editor.set(state);
     const framing = page.editor.frame();
-    page.editor.set({...state,revision:2,waypoints:[],selectedId:null}); release([1000]); await framing;
+    await page.editor.set({...state,revision:2,waypoints:[],selectedId:null}); await framing;
     assert.equal(page.flights.length,0);
-    page.editor.set({...state,revision:3});
+    await page.editor.set({...state,revision:3});
     const abort = new AbortController();
-    const cancelled = page.editor.frame(abort.signal); abort.abort(); release([1000]);
+    const cancelled = page.editor.frame(abort.signal); abort.abort();
     await assert.rejects(cancelled); assert.equal(page.flights.length,0);
     page.editor.dispose();
+});
+
+test('3D preview uses terrain plus 30 metres for points and an unclamped line; stored heights are not inputs', async () => {
+    const page = setup({sampleHeights: async points => points.map((_,i) => 1000 + i * 100)});
+    await page.editor.set({...state,waypoints:[...state.waypoints,{id:2,latitude:46.01,longitude:8.01}]});
+    const entities = page.sources[0].entities.values;
+    assert.equal(entities.find(e => e.id==='route-waypoint-1').position.height,1030);
+    assert.equal(entities.find(e => e.id==='route-waypoint-2').position.height,1130);
+    const line = entities.find(e => e.id.startsWith('route-line'));
+    assert.equal(line.polyline.clampToGround,false);
+    assert.deepEqual(line.polyline.positions.map(p=>p.height),[1030,1130]);
+    assert.equal(entities.find(e => e.id==='route-waypoint-1-height').polyline.positions[0].height,1000);
+    page.editor.dispose();
+});
+
+test('late terrain results cannot restore deselected or disposed route geometry', async () => {
+    let release;
+    const page = setup({sampleHeights: () => new Promise(resolve => {release=resolve;})});
+    const pending = page.editor.set(state);
+    await page.editor.set({...state,revision:2,waypoints:[],selectedId:null});
+    release([1000]); await pending;
+    assert.equal(page.sources.length,0);
+    const next = page.editor.set({...state,revision:3});
+    page.editor.dispose(); release([1000]); await next;
+    assert.equal(page.sources.length,0);
+});
+
+test('saved route overlays stay independent, frame above terrain and hide/rebuild across terrain loss', async () => {
+    const page = setup(); let terrain = true;
+    const overlays = createOverlays(page.Cesium,page.viewer,async points => points.map(()=>1200),()=>terrain);
+    const command = {revision:1,routes:[{id:5,name:'Saved route',waypoints:state.waypoints}]};
+    await overlays.set(command);
+    assert.equal(page.sources[0].entities.values[0].position.height,1230);
+    await overlays.frame(5,new AbortController().signal);
+    assert.equal(page.flights[0].sphere.positions[0].height,1230);
+    assert.equal(page.controls.enableInputs,true,'display-only overlay must not lock walking/camera');
+    terrain = false; await overlays.terrainChanged(); assert.equal(page.sources.length,0);
+    terrain = true; await overlays.terrainChanged(); assert.equal(page.sources.length,1);
+    await overlays.set({revision:2,routes:[]}); assert.equal(page.sources.length,0);
+    await overlays.set(command); assert.equal(page.sources.length,0,'stale selection cannot reappear');
+    await assert.rejects(overlays.set({revision:3,routes:[{id:5,name:'Bad',waypoints:[{id:1,latitude:NaN,longitude:0}]}]}));
+    overlays.dispose(); page.editor.dispose();
 });

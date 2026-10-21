@@ -9,7 +9,9 @@ import 'core/database/repositories/radio_equipment_repository.dart';
 import 'features/radio/radio_equipment_screen.dart';
 import 'core/database/repositories/flight_plan_repository.dart';
 import 'features/routes/flight_routes_screen.dart';
-import 'features/globe/ground_view_bar.dart';
+import 'features/routes/route_layers_controller.dart';
+import 'features/routes/route_layers_section.dart';
+import 'features/globe/ground_view_button.dart';
 import 'features/batteries/batteries_screen.dart';
 import 'core/database/repositories/user_preferences_repository.dart';
 import 'features/drones/drones_screen.dart';
@@ -23,7 +25,6 @@ import 'features/globe/terrain_status_banner.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
 import 'features/globe/terrain_information_dialog.dart';
-import 'core/geo/geo_coordinate_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,7 +86,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   BatteryRepository? _batteryRepository;
   RadioEquipmentRepository? _radioEquipmentRepository;
   FlightPlanRepository? _flightPlanRepository;
+  RouteLayersController? _routeLayers;
   bool _preferencesStarted = false;
+  String? _lastGroundReason;
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
   Map<int, SpotMapEntry> _spotsById = const {};
@@ -102,6 +105,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openMapLayers() {
+    final routes = _routeLayers ??= RouteLayersController(
+      repository: _flightPlanRepository ??=
+          widget.flightPlanRepository ??
+          FlightPlanRepository(_database ??= FpvDatabase.open()),
+      globe: _globeController,
+    );
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -110,7 +119,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         maxWidth: 560,
         maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
-      builder: (context) => MapLayersSheet(controller: _globeController),
+      builder: (context) => MapLayersSheet(
+        controller: _globeController,
+        routeControls: RouteLayersSection(controller: routes),
+      ),
     );
   }
 
@@ -264,6 +276,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   void dispose() {
     _globeController.removeListener(_onGlobeStateChanged);
 
+    _routeLayers?.dispose();
     unawaited(_closeSpotResources(_spotsSubscription, _database));
 
     _globeController.dispose();
@@ -321,6 +334,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     StreamSubscription<List<SpotMapEntry>>? subscription,
     FpvDatabase? database,
   ) async {
+    await _routeLayers?.settled;
     if (subscription != null) {
       await subscription.cancel();
     }
@@ -338,6 +352,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    final reason = _globeController.groundViewMessage;
+    if (reason != null && reason != _lastGroundReason && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reason)));
+    }
+    _lastGroundReason = reason;
     if (_globeController.isReady && !_preferencesStarted) {
       _preferencesStarted = true;
       unawaited(
@@ -431,40 +451,48 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     _globeController.terrainAvailable &&
                     _globeController.selectedPoint != null &&
                     _globeController.selectedUasZone == null;
-                return PopupMenuButton<_MapAction>(
-                  tooltip: 'Map actions',
-                  onSelected: (action) {
-                    switch (action) {
-                      case _MapAction.home:
-                        unawaited(_runCommand(_globeController.resetCamera));
-                      case _MapAction.coordinates:
-                        unawaited(_openCoordinatesDialog());
-                      case _MapAction.terrain:
-                        unawaited(_showTerrainElevation());
-                      case _MapAction.layers:
-                        unawaited(_openMapLayers());
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: _MapAction.home,
-                      enabled: ready,
-                      child: const Text('Home'),
-                    ),
-                    PopupMenuItem(
-                      value: _MapAction.coordinates,
-                      enabled: ready,
-                      child: const Text('Go to coordinates'),
-                    ),
-                    PopupMenuItem(
-                      value: _MapAction.terrain,
-                      enabled: terrain,
-                      child: const Text('Query terrain elevation'),
-                    ),
-                    PopupMenuItem(
-                      value: _MapAction.layers,
-                      enabled: ready,
-                      child: const Text('Map layers'),
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _groundButton(),
+                    PopupMenuButton<_MapAction>(
+                      tooltip: 'Map actions',
+                      onSelected: (action) {
+                        switch (action) {
+                          case _MapAction.home:
+                            unawaited(
+                              _runCommand(_globeController.resetCamera),
+                            );
+                          case _MapAction.coordinates:
+                            unawaited(_openCoordinatesDialog());
+                          case _MapAction.terrain:
+                            unawaited(_showTerrainElevation());
+                          case _MapAction.layers:
+                            unawaited(_openMapLayers());
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: _MapAction.home,
+                          enabled: ready,
+                          child: const Text('Home'),
+                        ),
+                        PopupMenuItem(
+                          value: _MapAction.coordinates,
+                          enabled: ready,
+                          child: const Text('Go to coordinates'),
+                        ),
+                        PopupMenuItem(
+                          value: _MapAction.terrain,
+                          enabled: terrain,
+                          child: const Text('Query terrain elevation'),
+                        ),
+                        PopupMenuItem(
+                          value: _MapAction.layers,
+                          enabled: ready,
+                          child: const Text('Map layers'),
+                        ),
+                      ],
                     ),
                   ],
                 );
@@ -496,6 +524,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         : null,
                     icon: const Icon(Icons.terrain_outlined),
                   ),
+                  _groundButton(),
                   IconButton(
                     tooltip: 'Map layers',
                     onPressed: ready ? _openMapLayers : null,
@@ -510,13 +539,16 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       body: Column(
         children: [
           TerrainStatusBanner(controller: _globeController),
-          GroundViewBar(controller: _globeController, onCommand: _runCommand),
           Expanded(child: GlobeView(controller: _globeController)),
         ],
       ),
       bottomNavigationBar: ListenableBuilder(
         listenable: _globeController,
         builder: (context, child) {
+          if (_globeController.groundViewActive ||
+              _globeController.groundViewPending) {
+            return const SizedBox.shrink();
+          }
           final spotId = _globeController.selectedSpotId;
 
           final selectedSpot = spotId == null ? null : _spotsById[spotId];
@@ -552,18 +584,6 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          OutlinedButton.icon(
-                            onPressed: _globeController.terrainAvailable
-                                ? () => _runCommand(
-                                    () => _globeController.enterGroundView(
-                                      latitude: selectedSpot.latitude,
-                                      longitude: selectedSpot.longitude,
-                                    ),
-                                  )
-                                : null,
-                            icon: const Icon(Icons.directions_walk),
-                            label: const Text('Spawn at spot'),
-                          ),
                           OutlinedButton.icon(
                             onPressed: () => _openSpotDetails(selectedSpot.id),
                             icon: const Icon(Icons.info_outline),
@@ -608,6 +628,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             );
           }
           final point = _globeController.selectedPoint;
+          if (point != null && _globeController.error == null) {
+            return const SizedBox.shrink();
+          }
           final error = _globeController.error;
 
           String status;
@@ -624,12 +647,6 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             status = 'Loading Swiss UAS zones...';
           } else if (_globeController.uasZonesVisible) {
             status = 'Swiss UAS zones active | Source: FOCA';
-          } else if (point != null) {
-            status =
-                '${point.latitude.toStringAsFixed(5)}, '
-                '${point.longitude.toStringAsFixed(5)} | '
-                '${point.altitude.toStringAsFixed(1)} m '
-                '(${point.heightReference.label})';
           } else {
             status = '3D globe ready';
           }
@@ -649,6 +666,16 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _groundButton() {
+    final spot = _spotsById[_globeController.selectedSpotId];
+    return GroundViewButton(
+      controller: _globeController,
+      onCommand: _runCommand,
+      latitude: spot?.latitude,
+      longitude: spot?.longitude,
     );
   }
 }

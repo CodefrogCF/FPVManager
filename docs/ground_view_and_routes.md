@@ -2,19 +2,23 @@
 
 ## Ground view
 
-Select a terrain point in the normal globe and choose **Spawn here**, or select
-a saved spot and choose **Spawn at spot**. The camera enters a first-person view
+Select a terrain point or saved spot in the normal globe and use the walking
+icon beside the right-hand map menu/layer control (**Spawn here**). The camera enters a first-person view
 approximately two metres above the displayed terrain. Use the arrow keys to
 walk forward/backward and sideways; drag the map to look around, including up a
-slope. The on-map arrow buttons provide the same movement on touch screens.
-Walking speed is about 3 m/s, with normalised diagonal movement. Looking is
+slope. A transparent virtual stick in the lower-left map area provides analog
+forward/backward and sideways movement, including simultaneous touch looking.
+Releasing/cancelling the pointer, losing focus or leaving ground view clears the
+stick. Maximum walking speed is about 3 m/s, with normalised diagonal movement. Looking is
 limited to 85 degrees above/below the horizon.
 
 Click the map to return keyboard focus after using other controls. **Return to
-globe** or Escape restores the camera position, orientation, near plane and
+globe** (the same icon, now showing a globe) or Escape restores the camera position, orientation, near plane and
 orbital controls from before entry. Home, coordinate navigation and spot focus
 also exit the mode before their camera action. Opening another library exits
 ground view. Losing focus clears held movement; hiding the renderer exits it.
+Coordinates and ground/eye-height information appear at the top of the renderer;
+a selected raw map point has no duplicate coordinate/height bar below the map.
 
 Entry requires available terrain and a bounded terrain-height sample at the
 spawn point. Movement follows loaded rendered terrain and pauses translation
@@ -40,7 +44,7 @@ open an existing local route. Enter a route name and edit directly on the map:
 - **Show entire route** frames the current draft with an editing distance of at
   least 300 metres, including routes consisting of a single point. Available
   terrain is sampled before framing, so a newly opened route is not focused
-  below its terrain while its clamped markers are still loading.
+  below its terrain while its elevated markers are still loading.
 - **Save** writes the route name and ordered waypoints together. Multiple routes
   have independent IDs and appear in the local library. Empty routes can be
   saved, including after deleting their final waypoint.
@@ -51,7 +55,15 @@ retry. Saving temporarily disables map edits. The unsaved draft survives a
 renderer reload while the editor remains open; it is not an autosave across app
 termination or a browser reload.
 
-The visible line is a **ground projection** of the waypoint order. New points
+The editor and saved-route overlays use a **3D preview at 30 m AGL at each
+waypoint**, sampled from available detailed terrain. Points and connecting
+segments use sampled-terrain +30 m positions, with subtle vertical guides to
+ground. The line is not clamped to terrain, so intervening terrain can occlude a
+segment. The 30 m offset applies at the waypoints; it is not a guaranteed
+clearance along the segment. Terrain loss hides this preview, and explicit
+terrain recovery rebuilds it without inventing zero-height ground.
+
+This is a display policy, not a rewrite of flight-plan heights. New points
 are stored as position-only coordinates. Existing absolute-height references or
 AGL offsets, plan drone/start-spot links and notes are retained when their points
 are moved or the route is saved. The editor does not infer an altitude from a
@@ -59,9 +71,51 @@ clicked terrain point. Heights, planned speeds and a dedicated drone/battery
 assignment workflow remain separate parts of #25. This change covers its direct
 map editing and multiple local routes criteria, not the full issue.
 
+### Saved route visibility
+
+In the home map, open **Map layers → Flight routes** to select saved routes.
+Each checkbox controls one route; its framing icon brings it into view. Up to 20
+routes can be displayed together. Selection lasts for the current home-map
+session, including library navigation and renderer reload; it does not persist
+across an app restart. Selected routes stay visible when entering, moving
+through and leaving ground view. Visibility changes preserve the ego camera.
+Framing a route is an explicit camera action and returns to globe view.
+
+Selected routes observe saved metadata/waypoint changes; deletion removes their
+overlay. Load/render failures offer Retry route preview. Cancelled or superseded
+height samples cannot restore hidden/older geometry. Sampling results are cached
+for unchanged coordinates within the current terrain generation.
+
+### Compact-control acceptance (2026-10-21)
+
+The user confirmed the updated functionality and appearance with `flutter run`
+on Android. Automated JavaScript checks cover analog movement, cancellation and
+simultaneous looking, 30 m AGL geometry, independent saved-route visibility and
+terrain-loss/recovery state. The extended actual-Cesium browser harness was not
+rerun successfully in this update because integrated browser automation timed
+out; the earlier harness results below refer to the previous ground controls.
+
+Fatal-warning/info analysis and formatting for all **110** hand-written Dart
+files passed. The complete Flutter suite passed all **237** tests, including
+compact home-map controls, saved-route updates in ego mode, renderer reload,
+stalled-render cancellation and load/render retry. All **34** JavaScript tests
+and **4** Python tooling tests passed; the pinned Cesium verification covered
+all **395** files.
+
+The JavaScript Web release passed with `flutter build web --release --no-pub
+--no-web-resources-cdn --no-wasm-dry-run`. The build's root and Flutter-asset
+copies of all seven renderer modules matched the current sources. All pinned
+vendor hashes, local CanvasKit and terrain-fixture exclusion checks passed.
+
+The Android debug build passed with `flutter build apk --debug --no-pub`.
+The resulting `build/app/outputs/flutter-apk/app-debug.apk` (219,733,868 bytes)
+passed ZIP integrity, current renderer-module and pinned-vendor checks,
+terrain-fixture exclusion, and SQLite ELF verification for armeabi-v7a,
+arm64-v8a and x86_64.
+
 ## Implementation and checks
 
-No database schema change is required: schema v6 already contains flight plans
+No additional database migration is required: schema v7 already contains flight plans
 and ordered waypoints. `FlightPlanRepository.saveRoute` commits metadata and
 waypoint replacement atomically. Battery-to-plan links retain their existing
 plan IDs. Route map commands use editor identity, revision and stable draft
@@ -80,6 +134,9 @@ offline recovery against synthetic terrain. Start it with
 `http://127.0.0.1:8765/interaction-smoke`. Fixture scripts and terrain are test
 resources, excluded from production assets. Real Android touch/keyboard,
 background/resume and terrain quality checks remain device acceptance work.
+
+The following records describe the original ground-view and route-editor
+implementation, before the compact-control update above.
 
 Recorded on **2026-10-21**: fatal-warning/info analysis passed; formatting passed
 for **99** hand-written Dart files; the complete Flutter suite passed **216**

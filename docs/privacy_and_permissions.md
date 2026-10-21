@@ -62,7 +62,9 @@ the AGL calculator do not require that service.
 Ground-view entry samples its selected position; walking and looking can load
 further terrain/imagery tiles. Opening a saved route or choosing **Show entire
 route** samples terrain at its waypoints before framing. Providers can therefore
-infer the corresponding planned areas from requested tiles. Route records and
+infer the corresponding planned areas from requested tiles. Displaying selected
+saved routes in Map layers also samples waypoint terrain for the 30 m AGL
+preview, including after edits or terrain recovery. Route records and
 drafts stay in the local database/application; no route name, note, drone or
 battery assignment is included in these tile requests.
 

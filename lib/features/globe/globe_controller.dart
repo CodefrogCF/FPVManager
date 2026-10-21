@@ -115,6 +115,10 @@ class GlobeController extends ChangeNotifier {
   bool _groundViewActive = false, _groundViewPending = false;
   String? _groundViewMessage;
   Map<String, dynamic>? _routeEditorState;
+  Map<String, dynamic>? _visibleRoutesState;
+  int _visibleRoutesRevision = 0;
+  String? _routePreviewError;
+  String? get routePreviewError => _routePreviewError;
   int _routeEditorRevision = 0;
   final _routeActions = StreamController<RouteMapAction>.broadcast(sync: true);
   Stream<RouteMapAction> get routeActions => _routeActions.stream;
@@ -178,10 +182,57 @@ class GlobeController extends ChangeNotifier {
       'moveId': moveId,
       'waypoints': points.map((p) => p.toJson()).toList(),
     };
-    if (_ready) await _send(state);
+    if (_ready) {
+      await _bridge.send(state, timeout: _bridge.options.terrainTimeout);
+    }
   }
 
-  Future<void> frameRoute() => _send({'type': 'frame-route'});
+  Future<void> frameRoute() async {
+    await _bridge.send({
+      'type': 'frame-route',
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> setVisibleRoutes(List<VisibleMapRoute> routes) async {
+    if (routes.length > 20 ||
+        routes.map((r) => r.id).toSet().length != routes.length ||
+        routes.any(
+          (route) =>
+              route.id <= 0 ||
+              route.name.length > 120 ||
+              route.points.length > 1000 ||
+              route.points.map((p) => p.id).toSet().length !=
+                  route.points.length ||
+              route.points.any(
+                (point) =>
+                    point.id <= 0 ||
+                    !point.position.latitude.isFinite ||
+                    !point.position.longitude.isFinite ||
+                    point.position.latitude.abs() > 90 ||
+                    point.position.longitude.abs() > 180,
+              ),
+        )) {
+      throw ArgumentError('Invalid visible routes');
+    }
+    final state = _visibleRoutesState = {
+      'type': 'set-visible-routes',
+      'revision': ++_visibleRoutesRevision,
+      'routes': routes.map((route) => route.toJson()).toList(),
+    };
+    _routePreviewError = null;
+    if (_ready) {
+      await _bridge.send(state, timeout: _bridge.options.terrainTimeout);
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> frameVisibleRoute(int id) async {
+    if (id <= 0) throw ArgumentError('Invalid route ID');
+    await _bridge.send({
+      'type': 'frame-visible-routes',
+      'routeId': id,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
 
   void _handleRouteAction(Map<String, dynamic> data) {
     final state = _routeEditorState;
@@ -781,6 +832,14 @@ class GlobeController extends ChangeNotifier {
         notifyListeners();
       case 'route-map-action':
         _handleRouteAction(data);
+      case 'route-preview-error':
+        _routePreviewError = data['message'] is String
+            ? (data['message'] as String).substring(
+                0,
+                (data['message'] as String).length.clamp(0, 300),
+              )
+            : 'Route preview unavailable';
+        notifyListeners();
       case 'renderer-loading':
         _resetConnection();
 
@@ -974,7 +1033,19 @@ class GlobeController extends ChangeNotifier {
       if (!current()) return;
       if (_spotMarkers.isNotEmpty) await _pushSpotMarkers();
       if (!current()) return;
-      if (_routeEditorState != null) await _send(_routeEditorState!);
+      if (_routeEditorState != null) {
+        await _bridge.send(
+          _routeEditorState!,
+          timeout: _bridge.options.terrainTimeout,
+        );
+      }
+      if (!current()) return;
+      if (_visibleRoutesState != null) {
+        await _bridge.send(
+          _visibleRoutesState!,
+          timeout: _bridge.options.terrainTimeout,
+        );
+      }
       if (!current()) return;
       if (forceSettings || !_savedSpotsVisible) {
         await _send({

@@ -27,6 +27,7 @@
         restoreCamera, isTerrainReady, onState }) {
         let active = false, pending = false, operation = 0, abort = null, saved = null;
         let position = null, heading = 0, pitch = 0, height = null;
+        let stickForward = 0, stickRight = 0;
         const keys = new Set();
         const status = () => ({ active, pending, position: position && { ...position }, heading, pitch, height });
         function stop(reason = null) {
@@ -34,6 +35,7 @@
             operation++;
             abort?.abort(); abort = null;
             keys.clear();
+            stickForward = stickRight = 0;
             active = pending = false;
             if (saved) restoreCamera(saved);
             saved = null;
@@ -73,8 +75,8 @@
         function tick(seconds) {
             if (!active) return;
             if (!isTerrainReady()) { stop("Terrain unavailable; returned to globe view"); return; }
-            const forward = Number(keys.has("ArrowUp")) - Number(keys.has("ArrowDown"));
-            const right = Number(keys.has("ArrowRight")) - Number(keys.has("ArrowLeft"));
+            const forward = Number(keys.has("ArrowUp")) - Number(keys.has("ArrowDown")) + stickForward;
+            const right = Number(keys.has("ArrowRight")) - Number(keys.has("ArrowLeft")) + stickRight;
             const next = step(position, heading, forward, right, seconds);
             if (!validPosition(next)) return;
             const ground = renderedHeight(next);
@@ -89,12 +91,25 @@
         }
         return { start, stop, tick, look, status,
             key(key, down) { if (down && active) keys.add(key); else keys.delete(key); },
-            clearKeys() { keys.clear(); } };
+            stick(forward, right) {
+                if (!active || !Number.isFinite(forward) || !Number.isFinite(right)) return;
+                const length = Math.max(1, Math.hypot(forward, right));
+                stickForward = forward / length; stickRight = right / length;
+            },
+            clearKeys() { keys.clear(); stickForward = stickRight = 0; } };
     }
 
     function bindControls(walker, canvas, panel, host = window, doc = document) {
         const cleanups = [];
-        let drag = null;
+        let drag = null, stickPointer = null;
+        const stick = panel.querySelector("[data-stick]");
+        const thumb = panel.querySelector("[data-stick-thumb]");
+        function resetStick() {
+            stickPointer = null;
+            walker.stick(0, 0);
+            if (thumb) thumb.style.transform = "translate(0px, 0px)";
+        }
+        function clear() { walker.clearKeys(); drag = null; resetStick(); }
         function listen(target, event, handler, options) {
             target.addEventListener(event, handler, options);
             cleanups.push(() => target.removeEventListener(event, handler, options));
@@ -109,12 +124,12 @@
             if (event.key.startsWith("Arrow") && walker.status().active) event.preventDefault();
             walker.key(event.key, false);
         });
-        listen(canvas, "blur", () => { walker.clearKeys(); drag = null; });
-        listen(host, "blur", () => { walker.clearKeys(); drag = null; });
-        listen(doc, "visibilitychange", () => { if (doc.hidden) walker.stop("Ground view paused"); });
+        listen(canvas, "blur", clear);
+        listen(host, "blur", clear);
+        listen(doc, "visibilitychange", () => { if (doc.hidden) { clear(); walker.stop("Ground view paused"); } });
         listen(host, "pagehide", () => walker.stop());
         listen(canvas, "pointerdown", event => {
-            if (!walker.status().active || event.button !== 0) return;
+            if (!walker.status().active || event.button !== 0 || drag) return;
             canvas.focus(); canvas.setPointerCapture(event.pointerId);
             drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
         });
@@ -126,18 +141,33 @@
         for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
             listen(canvas, event, () => { drag = null; });
         }
-        for (const button of panel.querySelectorAll("[data-walk]")) {
-            const key = button.dataset.walk;
-            listen(button, "pointerdown", event => {
-                event.preventDefault(); button.setPointerCapture(event.pointerId);
-                walker.key(key, true);
-            });
-            for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
-                listen(button, event, () => walker.key(key, false));
-            }
+        function moveStick(event) {
+            if (event.pointerId !== stickPointer) return;
+            event.preventDefault();
+            const rect = stick.getBoundingClientRect(), radius = rect.width * 0.35;
+            let x = (event.clientX - rect.left - rect.width / 2) / radius;
+            let y = (event.clientY - rect.top - rect.height / 2) / radius;
+            const length = Math.hypot(x, y);
+            if (length < 0.12) { x = y = 0; }
+            else { const scale = Math.min(1, length) / length; x *= scale; y *= scale; }
+            walker.stick(-y, x);
+            thumb.style.transform = `translate(${x * radius}px, ${y * radius}px)`;
         }
-        listen(panel.querySelector("[data-exit]"), "click", () => walker.stop());
-        return () => { walker.stop(); for (const cleanup of cleanups) cleanup(); };
+        listen(stick, "pointerdown", event => {
+            if (!walker.status().active || event.button !== 0 || stickPointer != null) return;
+            event.preventDefault();
+            canvas.focus(); // Focus the view before assigning the stick pointer.
+            stickPointer = event.pointerId;
+            stick.setPointerCapture(event.pointerId);
+            moveStick(event);
+        });
+        listen(stick, "pointermove", moveStick);
+        for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
+            listen(stick, event, event => { if (event.pointerId === stickPointer) resetStick(); });
+        }
+        const dispose = () => { clear(); walker.stop(); for (const cleanup of cleanups) cleanup(); };
+        dispose.reset = clear;
+        return dispose;
     }
     return { createWalker, bindControls, step };
 });

@@ -9,11 +9,11 @@ function postToFlutter(message) {
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
         walker?.stop();
-        if (!event.persisted) { disposeGroundControls?.(); routeEditor?.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
     let terrainManager = null;
-    let walker = null, routeEditor = null, disposeGroundControls = null;
+    let walker = null, routeEditor = null, routeOverlays = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
     let currentMapStyle = "satellite";
@@ -489,7 +489,9 @@ function postToFlutter(message) {
         switch (command.type) {
             case "enter-ground-view": return walker.start(command, signal);
             case "exit-ground-view": walker.stop(); return {};
-            case "set-route-editor": walker.stop(); return routeEditor.set(command);
+            case "set-route-editor": walker.stop(); return routeEditor.set(command, signal);
+            case "set-visible-routes": return routeOverlays.set(command, signal);
+            case "frame-visible-routes": walker.stop(); await routeOverlays.frame(command.routeId, signal); return {};
             case "frame-route": walker.stop(); await routeEditor.frame(signal); return {};
             case "reset-camera": resetCamera(); return {};
             case "reload-renderer": setTimeout(() => window.location.reload(), 0); return {};
@@ -589,12 +591,13 @@ function postToFlutter(message) {
 
     async function initializeGlobe() {
         const info = document.getElementById("info");
+        let selectedPointInfo = null;
 
         const imageryProvider = createMapProvider("satellite");
 
         function terrainInfo(status) {
             info.textContent = status.state === "ready"
-                ? "FPVManager | 3D terrain loaded"
+                ? selectedPointInfo ?? "FPVManager | 3D terrain loaded"
                 : status.state === "loading"
                     ? "Connecting to 3D terrain | Flat map shown"
                     : "3D terrain unavailable | Flat map shown — terrain heights disabled";
@@ -619,7 +622,10 @@ function postToFlutter(message) {
                 if (!tile) throw new Error("Terrain probe returned no tile");
             },
             onStatus: status => {
+                if (status.state !== "ready") selectedPointInfo = null;
                 if (status.state !== "ready") walker?.stop("Terrain unavailable; returned to globe view");
+                routeEditor?.terrainChanged();
+                routeOverlays?.terrainChanged();
                 terrainInfo(status);
                 if (rendererReady) sendToFlutter("terrain-status", status);
             }
@@ -663,8 +669,9 @@ function postToFlutter(message) {
             applyPose: point => {
                 viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, point.height),
                     orientation: { heading: point.heading, pitch: point.pitch, roll: 0 } });
-                document.getElementById("ground-position").textContent =
-                    `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} | ↑ ${(point.pitch * 180 / Math.PI).toFixed(0)}°`;
+                info.textContent = `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} | ` +
+                    `Ground: ${(point.height - 2).toFixed(1)} m WGS84 | Eye: ≈ 2 m AGL | ` +
+                    `Look: ${(point.pitch * 180 / Math.PI).toFixed(0)}°`;
             },
             restoreCamera: saved => {
                 viewer.scene.screenSpaceCameraController.enableInputs = saved.inputs;
@@ -674,6 +681,11 @@ function postToFlutter(message) {
             },
             onState: state => {
                 groundPanel.hidden = !state.active;
+                if (!state.active) {
+                    disposeGroundControls?.reset();
+                    groundPanel.querySelector("[data-stick-thumb]").style.transform = "translate(0px, 0px)";
+                    terrainInfo(terrainManager.status());
+                }
                 if (state.active) viewer.canvas.focus();
                 sendToFlutter("ground-view-state", state);
             }
@@ -684,14 +696,17 @@ function postToFlutter(message) {
             const now = performance.now();
             walker.tick((now - lastWalkTime) / 1000); lastWalkTime = now;
         });
-        routeEditor = FPVRouteEditor.createEditor(Cesium, viewer, sendToFlutter, window, async (points, signal) => {
-            if (!terrainAvailable()) return points.map(() => 0); // The displayed flat fallback.
+        const sampleRouteHeights = async (points, signal) => {
+            if (!terrainAvailable()) throw new Error("Detailed terrain is required for the route preview");
             const positions = points.map(point => Cesium.Cartographic.fromDegrees(point.longitude, point.latitude));
             const sampled = await terrainManager.sample(provider => provider.availability
                 ? Cesium.sampleTerrainMostDetailed(provider, positions, true)
                 : Cesium.sampleTerrain(provider, 12, positions, true), signal);
             return sampled.map(point => point.height);
-        });
+        };
+        routeEditor = FPVRouteEditor.createEditor(Cesium, viewer, sendToFlutter, window, sampleRouteHeights, terrainAvailable);
+        routeOverlays = FPVRouteEditor.createOverlays(Cesium, viewer, sampleRouteHeights, terrainAvailable,
+            () => sendToFlutter("route-preview-error", {message:"Unable to rebuild saved routes. Retry the route preview in Map layers."}));
         viewer.scene.renderError.addEventListener((_scene, error) => {
             walker?.stop("Renderer unavailable; returned to globe view");
             sendToFlutter("globe-error", { message: String(error.message || error) });
@@ -742,6 +757,7 @@ function postToFlutter(message) {
                     spotsDataSource.entities.contains(entity);
 
                 if (isSavedSpot) {
+                    selectedPointInfo = null; terrainInfo(terrainManager.status());
                     const spotId = Number(
                         entity.id.replace("fpv-spot-", "")
                     );
@@ -759,6 +775,7 @@ function postToFlutter(message) {
                 sendToFlutter("spot-cleared");
 
                 if (isUasZone) {
+                    selectedPointInfo = null; terrainInfo(terrainManager.status());
                     const rawAttributes =
                         entity.properties?.getValue(
                             viewer.clock.currentTime
@@ -823,7 +840,7 @@ function postToFlutter(message) {
 
                 const altitude = coordinates.height;
 
-                info.textContent =
+                selectedPointInfo = info.textContent =
                     `Lat: ${latitude.toFixed(6)} | ` +
                     `Lon: ${longitude.toFixed(6)} | ` +
                     (terrainAvailable()

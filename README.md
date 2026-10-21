@@ -26,8 +26,11 @@ spot library stored with Drift/SQLite.
 - Battery pack/type inventory with manual condition records and assignments.
 - Independent radio-control/video/telemetry profiles with RF specifications,
   transmitter/receiver antennas and drone assignments; see [equipment profiles](docs/radio_equipment.md).
-- Terrain-relative ground inspection with arrow-key/touch movement and drag look.
+- Terrain-relative ground inspection with a compact spawn icon, transparent analog
+  stick, arrow-key movement and drag look.
 - A local flight-route library with direct map waypoint placement, moving and deletion.
+- Optional saved-route map overlays, including in ground view, with a 3D preview
+  at 30 m AGL at waypoints.
 
 The [local data layer](docs/local_data.md) provides the storage foundation for future
 features. Weather, advanced route configuration, simulation,

@@ -7,9 +7,14 @@ import '../../core/osint/osint_source.dart';
 import 'globe_controller.dart';
 
 class MapLayersSheet extends StatefulWidget {
-  const MapLayersSheet({super.key, required this.controller});
+  const MapLayersSheet({
+    super.key,
+    required this.controller,
+    this.routeControls,
+  });
 
   final GlobeController controller;
+  final Widget? routeControls;
 
   @override
   State<MapLayersSheet> createState() => _MapLayersSheetState();
@@ -115,6 +120,11 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                   ),
 
                   const SizedBox(height: 20),
+
+                  if (widget.routeControls != null) ...[
+                    widget.routeControls!,
+                    const Divider(height: 32),
+                  ],
 
                   if (controller.preferencesLoading) ...[
                     const LinearProgressIndicator(),

@@ -87,6 +87,16 @@ position. The Dart controller rejects stale/invalid edits and restores the
 desired draft overlay after a renderer reload. Ground mode is deliberately not
 restored across renderer sessions. See [ground view and local routes](ground_view_and_routes.md).
 
+Saved home-map routes use `set-visible-routes` (revision and up to 20 routes,
+each with ID/name and at most 1,000 waypoint IDs/positions) and
+`frame-visible-routes` (positive route ID). Visibility commands preserve the
+walking camera; framing exits ground view. Display geometry samples terrain and
+adds the fixed 30 m AGL preview offset. Both editor and saved-route sampling use
+the terrain deadline. Cancellation/revision checks prevent late geometry from
+restoring an older selection. `route-preview-error` reports asynchronous rebuild
+failure; the layer selection can retry. The desired visible routes are restored
+after renderer reload, with ground mode remaining off.
+
 ## Tests
 
 `flutter test` covers correlated requests, timeouts, lifecycle cancellation,

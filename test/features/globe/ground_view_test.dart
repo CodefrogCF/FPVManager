@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
-import 'package:fpvmanager/features/globe/ground_view_bar.dart';
+import 'package:fpvmanager/features/globe/ground_view_button.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
 
@@ -16,7 +16,7 @@ void main() {
         ..ready();
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: GroundViewBar(controller: globe)),
+          home: Scaffold(body: GroundViewButton(controller: globe)),
         ),
       );
       peer.emit({
@@ -27,7 +27,7 @@ void main() {
         'heightReference': 'wgs84Ellipsoid',
       });
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Spawn here'));
+      await tester.tap(find.byTooltip('Spawn here'));
       await tester.pumpAndSettle();
       expect(peer.commands.last['type'], 'enter-ground-view');
       peer.emit({
@@ -36,8 +36,8 @@ void main() {
         'pending': false,
       });
       await tester.pumpAndSettle();
-      expect(find.text('Return to globe'), findsOneWidget);
-      await tester.tap(find.text('Return to globe'));
+      expect(find.byTooltip('Return to globe'), findsOneWidget);
+      await tester.tap(find.byTooltip('Return to globe'));
       await tester.pumpAndSettle();
       expect(peer.commands.last['type'], 'exit-ground-view');
       peer.emit({

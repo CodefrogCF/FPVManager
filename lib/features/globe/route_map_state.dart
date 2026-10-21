@@ -11,6 +11,23 @@ class RouteMapPoint {
   };
 }
 
+/// Display-only terrain-relative geometry; stored route heights stay separate.
+class VisibleMapRoute {
+  VisibleMapRoute({
+    required this.id,
+    required this.name,
+    required List<RouteMapPoint> points,
+  }) : points = List.unmodifiable(points);
+  final int id;
+  final String name;
+  final List<RouteMapPoint> points;
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'waypoints': points.map((p) => p.toJson()).toList(),
+  };
+}
+
 enum RouteMapActionKind { add, select, move, delete }
 
 class RouteMapAction {

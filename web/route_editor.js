@@ -4,6 +4,98 @@
     else root.FPVRouteEditor = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
     "use strict";
+    const previewAgl = 30;
+    function createLayer(Cesium, viewer, sampleHeights, isTerrainReady = () => true, onError = () => {}) {
+        let source = null, revision = 0, request = null, records = [], cache = new Map();
+        const key = p => `${p.latitude}|${p.longitude}`;
+        async function heights(points, signal) {
+            const missing = points.filter(p => !cache.has(key(p)));
+            if (missing.length) {
+                const sampled = await sampleHeights(missing, signal);
+                signal.throwIfAborted();
+                if (!Array.isArray(sampled) || sampled.length !== missing.length || sampled.some(h => !Number.isFinite(h))) {
+                    throw new Error("Route terrain heights unavailable");
+                }
+                if (cache.size > 20000) cache.clear();
+                missing.forEach((point, index) => cache.set(key(point), sampled[index]));
+            }
+            return points.map(p => cache.get(key(p)));
+        }
+        function remove() {
+            if (source) viewer.dataSources.remove(source, true);
+            source = null;
+        }
+        async function set(next, signal = new AbortController().signal) {
+            records = structuredClone(next);
+            const token = ++revision;
+            request?.abort();
+            const operation = request = new AbortController();
+            const cancel = () => operation.abort();
+            signal.addEventListener("abort", cancel, {once:true});
+            try {
+                signal.throwIfAborted();
+                if (!isTerrainReady() || !next.some(route => route.waypoints.length)) { remove(); return {}; }
+                const points = next.flatMap(route => route.waypoints);
+                const sampled = await heights(points, operation.signal);
+                signal.throwIfAborted(); operation.signal.throwIfAborted();
+                if (token !== revision || !isTerrainReady()) return {};
+                const replacement = new Cesium.CustomDataSource(next[0]?.draft ? "Route draft" : "Saved flight routes");
+                let offset = 0;
+                for (const route of next) {
+                    const colors = [Cesium.Color.CYAN, Cesium.Color.ORANGE, Cesium.Color.LIME, Cesium.Color.CORNFLOWERBLUE];
+                    const color = colors[(route.id || 0) % colors.length];
+                    const positions = route.waypoints.map((point,index) =>
+                        Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, sampled[offset + index] + previewAgl));
+                    route.waypoints.forEach((point, index) => {
+                        const id = route.draft ? `route-waypoint-${point.id}` : `saved-route-${route.id}-waypoint-${point.id}`;
+                        replacement.entities.add({id, name: route.name,
+                            position: positions[index], properties: {waypointId: point.id},
+                            point: {pixelSize: point.id === route.selectedId ? 16 : 12,
+                                color: point.id === route.selectedId ? Cesium.Color.YELLOW : color,
+                                outlineColor: Cesium.Color.BLACK, outlineWidth: 2},
+                            label: {text: `${index + 1}`, font: "bold 16px sans-serif", pixelOffset: new Cesium.Cartesian2(0,-24),
+                                fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK,
+                                outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE}
+                        });
+                        replacement.entities.add({id: `${id}-height`, polyline: {
+                            positions: [Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, sampled[offset + index]), positions[index]],
+                            width: 1, material: color?.withAlpha?.(0.35) ?? color, clampToGround: false, arcType: Cesium.ArcType?.NONE
+                        }});
+                    });
+                    if (positions.length > 1) replacement.entities.add({id: `route-line-${route.id || 'draft'}`,
+                        polyline: {positions, width: 4, material: color, clampToGround: false}});
+                    offset += route.waypoints.length;
+                }
+                viewer.dataSources.add(replacement);
+                remove(); source = replacement;
+                return {};
+            } catch (error) {
+                if (token !== revision) return {};
+                if (operation.signal.aborted) { remove(); return {}; }
+                remove(); throw error;
+            } finally { signal.removeEventListener("abort", cancel); }
+        }
+        return {set, heights, get source() {return source;},
+            async frame(id, signal) {
+                const current = revision;
+                const points = records.filter(route => id == null || route.id === id).flatMap(route => route.waypoints);
+                if (!points.length) return;
+                if (!isTerrainReady()) throw new Error("Detailed terrain is required for the route preview");
+                const sampled = await heights(points, signal);
+                signal.throwIfAborted();
+                if (current !== revision || !isTerrainReady()) return;
+                const sphere = Cesium.BoundingSphere.fromPoints(points.map((point,index) =>
+                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, sampled[index] + previewAgl)));
+                viewer.camera.flyToBoundingSphere(sphere, {duration:1,
+                    offset:new Cesium.HeadingPitchRange(0, -Math.PI / 4, Math.max(300, sphere.radius * 3))});
+            },
+            terrainChanged() {
+                ++revision; request?.abort(); cache.clear(); remove();
+                if (isTerrainReady()) return set(records).catch(onError);
+            },
+            dispose() {++revision; request?.abort(); records = []; cache.clear(); remove();}
+        };
+    }
     function validate(command) {
         if (typeof command.editorId !== "string" || !command.editorId || command.editorId.length > 120 ||
             !Number.isSafeInteger(command.revision) || command.revision < 1 ||
@@ -21,8 +113,11 @@
         }
     }
     function createEditor(Cesium, viewer, emit, host = window, sampleHeights = async points =>
-        points.map(point => viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude)) ?? 0)) {
-        let state = null, source = null, drag = null;
+        points.map(point => viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude))),
+        isTerrainReady = () => true) {
+        let state = null, drag = null, building = false;
+        const layer = createLayer(Cesium, viewer, sampleHeights, isTerrainReady,
+            () => emit("route-preview-error", {message:"Unable to rebuild the route preview. Retry map sync."}));
         const controls = viewer.scene.screenSpaceCameraController;
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
         function release() {
@@ -39,48 +134,26 @@
         function idAt(pixel) {
             const picked = viewer.scene.pick(pixel);
             const entity = picked?.id;
-            return entity instanceof Cesium.Entity && source?.entities.contains(entity) && entity.properties?.waypointId?.getValue();
+            return entity instanceof Cesium.Entity && layer.source?.entities.contains(entity) && entity.properties?.waypointId?.getValue();
         }
         function action(action, id, position) {
-            if (!state?.enabled || !state.interactive) return;
+            if (!state?.enabled || !state.interactive || building) return;
             emit("route-map-action", { editorId: state.editorId, revision: state.revision,
                 action, ...(id ? { id } : {}), ...(position || {}) });
         }
-        function set(command) {
+        async function set(command, signal) {
             validate(command);
             if (state?.editorId === command.editorId && state.revision >= command.revision) return {};
             release();
-            const replacement = new Cesium.CustomDataSource("Route draft");
-            command.waypoints.forEach((point, index) => replacement.entities.add({
-                id: `route-waypoint-${point.id}`,
-                position: Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude),
-                properties: { waypointId: point.id },
-                point: { pixelSize: point.id === command.selectedId ? 16 : 12,
-                    color: point.id === command.selectedId ? Cesium.Color.YELLOW : Cesium.Color.CYAN,
-                    outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
-                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY },
-                label: { text: String(index + 1), font: "bold 16px sans-serif",
-                    pixelOffset: new Cesium.Cartesian2(0, -24),
-                    fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK,
-                    outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY }
-            }));
-            if (command.waypoints.length > 1) replacement.entities.add({
-                id: "route-line",
-                polyline: { positions: command.waypoints.map(p => Cesium.Cartesian3.fromDegrees(p.longitude, p.latitude)),
-                    width: 4, material: Cesium.Color.CYAN, clampToGround: true }
-            });
-            replacement.show = command.enabled;
-            viewer.dataSources.add(replacement);
-            if (source) viewer.dataSources.remove(source, true);
-            source = replacement; state = structuredClone(command);
-            return {};
+            const current = state = structuredClone(command);
+            building = true;
+            try {
+                return await layer.set(command.enabled ? [{...command, draft:true}] : [], signal);
+            } finally { if (state === current) building = false; }
         }
         function click(pixel) {
             if (!state?.enabled) return false;
-            if (!state.interactive) return true;
+            if (!state.interactive || building) return true;
             if (drag?.moved) return true;
             const id = idAt(pixel);
             if (id) action("select", id);
@@ -92,7 +165,7 @@
             return true;
         }
         handler.setInputAction(event => {
-            if (!state?.enabled || !state.interactive) return;
+            if (!state?.enabled || !state.interactive || building) return;
             const id = idAt(event.position);
             if (!id) return;
             drag = { id, inputs: controls.enableInputs, start: event.position, moved: false };
@@ -104,8 +177,10 @@
             const point = pointAt(event.endPosition);
             if (!point) return;
             drag.moved = true; drag.point = point;
-            source.entities.getById(`route-waypoint-${drag.id}`).position =
-                Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude);
+            const height = viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude));
+            const entity = layer.source?.entities.getById(`route-waypoint-${drag.id}`);
+            if (entity && Number.isFinite(height)) entity.position =
+                Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, height + previewAgl);
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
         // LEFT_UP arrives before LEFT_CLICK; suppress the click generated by a drag.
         let suppressClick = false;
@@ -133,16 +208,16 @@
         host.addEventListener("blur", release);
         return { set, click(pixel) { if (suppressClick) { suppressClick = false; return true; } return click(pixel); },
             async frame(signal = new AbortController().signal) {
-                if (!source?.entities.values.length || !state?.waypoints.length) return;
+                if (!state?.waypoints.length) return;
                 const framedState = state;
-                const heights = await sampleHeights(framedState.waypoints, signal);
+                const heights = await layer.heights(framedState.waypoints, signal);
                 signal.throwIfAborted();
                 if (state !== framedState) return;
                 if (!Array.isArray(heights) || heights.length !== state.waypoints.length || heights.some(h => !Number.isFinite(h))) {
                     throw new Error("Route terrain heights unavailable");
                 }
                 const positions = state.waypoints.map((point,index) =>
-                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, heights[index]));
+                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, heights[index] + previewAgl));
                 const sphere = Cesium.BoundingSphere.fromPoints(positions);
                 viewer.camera.flyToBoundingSphere(sphere, { duration: 1,
                     offset: new Cesium.HeadingPitchRange(0, -Math.PI / 4, Math.max(300, sphere.radius * 3)) });
@@ -154,9 +229,36 @@
                 viewer.canvas.removeEventListener("pointercancel", release);
                 viewer.canvas.removeEventListener("blur", release);
                 host.removeEventListener("blur", release);
-                if (source) viewer.dataSources.remove(source, true);
+                layer.dispose();
             }
+            ,terrainChanged() {release(); layer.terrainChanged();}
         };
     }
-    return { createEditor, validate };
+    function createOverlays(Cesium, viewer, sampleHeights, isTerrainReady, onError) {
+        const layer = createLayer(Cesium, viewer, sampleHeights, isTerrainReady, onError);
+        let revision = 0;
+        return {
+            async set(command, signal) {
+                if (!Number.isSafeInteger(command.revision) || command.revision < 1 ||
+                    !Array.isArray(command.routes) || command.routes.length > 20) throw new Error("Invalid saved route state");
+                const ids = new Set();
+                for (const route of command.routes) {
+                    if (!Number.isSafeInteger(route.id) || route.id < 1 || ids.has(route.id) ||
+                        typeof route.name !== "string" || route.name.length > 120) throw new Error("Invalid saved route");
+                    ids.add(route.id);
+                    validate({editorId:String(route.id), revision:1, enabled:true, interactive:false, waypoints:route.waypoints});
+                }
+                if (command.revision <= revision) return {};
+                revision = command.revision;
+                return layer.set(command.routes, signal);
+            },
+            terrainChanged: layer.terrainChanged,
+            frame(id, signal) {
+                if (!Number.isSafeInteger(id) || id < 1) throw new Error("Invalid route ID");
+                return layer.frame(id, signal);
+            },
+            dispose: layer.dispose
+        };
+    }
+    return { createEditor, createOverlays, validate, previewAgl };
 });

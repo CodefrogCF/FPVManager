@@ -227,7 +227,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const Text(
-                'Route line shows ground projection; flight altitude is not configured here.',
+                '3D preview · 30 m AGL at waypoints',
                 style: TextStyle(fontSize: 11),
               ),
               const SizedBox(height: 6),
