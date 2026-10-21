@@ -98,9 +98,16 @@ The sheet shows source codes/text, separate lower/upper limits, time information
 authority/contact details and provenance. Expand **All source attributes** for
 additional values. Missing, shortened or omitted details are indicated.
 
-Codes, units, AGL/AMSL references and time offsets remain as supplied. The app
-does not resolve overlapping zones, calculate activation or determine permission
-to fly. Download time is retrieval time, not official validity.
+For a selected saved spot, choose **Check airspace**. In the route editor, use
+the shield button (**Check route airspace**) to check the current draft, including
+segments between waypoints. All intersecting zones are listed with restrictions
+and links to their details. Holes are excluded; touching any polygon boundary
+counts as an intersection. Checking does not change overlay visibility or save edits.
+
+Checks use horizontal, straight WGS84 segments. Codes, height references and time
+offsets remain as supplied; height limits, activation and legal applicability
+are not evaluated. A match or an empty result is not flight authorization.
+Download time is retrieval time, not official validity.
 
 Layer details show downloaded/loaded counts and **Not independently verified**
 or **Limited / incomplete data** coverage. Empty, partial or unusable data produces

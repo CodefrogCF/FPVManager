@@ -6,6 +6,7 @@ import '../../core/database/repositories/flight_plan_repository.dart';
 import '../globe/globe_controller.dart';
 import '../globe/globe_view.dart';
 import '../globe/terrain_status_banner.dart';
+import '../airspace/airspace_check_sheet.dart';
 import 'route_editor_controller.dart';
 
 class RouteEditorScreen extends StatefulWidget {
@@ -237,6 +238,24 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     child: Text(
                       '${_editor.points.length} waypoints${point == null ? '' : ' · Selected ${_editor.points.indexOf(point) + 1}'}',
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Check route airspace',
+                    onPressed:
+                        !_editor.saving &&
+                            !_editor.loadFailed &&
+                            _editor.points.isNotEmpty
+                        ? () => showAirspaceCheck(
+                            context,
+                            controller: _globe,
+                            name: _editor.name,
+                            positions: [
+                              for (final p in _editor.points) p.position,
+                            ],
+                            route: true,
+                          )
+                        : null,
+                    icon: const Icon(Icons.shield_outlined),
                   ),
                   IconButton(
                     tooltip: 'Undo waypoint change',

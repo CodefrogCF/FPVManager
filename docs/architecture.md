@@ -85,6 +85,14 @@ Explicit retry bypasses rejected snapshots. These checks do not prove coverage,
 topology, currency or legal applicability. Caches are memory-only; tile services
 do not acquire a fabricated whole-dataset retrieval time.
 
+`PolygonIntersectionIndex` checks horizontal Polygon/MultiPolygon geometry,
+including holes, boundary contact and all overlapping features, with bounding-box
+filtering. `UasAirspaceChecker` uses the shared provider independently of renderer
+visibility and reports the snapshot checked. Route segments are straight in WGS84
+coordinates; antimeridian-crossing geometry must be split. Unsupported geometry
+and source gaps remain explicit. Native checks run in an isolate; Web uses the
+browser thread. Height/time applicability is outside the intersection check.
+
 `web/terrain_service.js` bounds initialization/probe to 8 seconds and tile/sample
 requests to 12 seconds. Tile failures/offline events install a labelled ellipsoid
 fallback. Explicit retry replaces the provider within the viewer and refreshes

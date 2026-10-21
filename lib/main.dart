@@ -14,6 +14,8 @@ import 'features/routes/route_layers_section.dart';
 import 'features/globe/ground_view_button.dart';
 import 'features/airspace/uas_zone_details_panel.dart';
 import 'features/airspace/uas_data_quality_banner.dart';
+import 'features/airspace/airspace_check_sheet.dart';
+import 'core/geo/geo_coordinate_service.dart';
 import 'features/batteries/batteries_screen.dart';
 import 'core/database/repositories/user_preferences_repository.dart';
 import 'features/drones/drones_screen.dart';
@@ -64,6 +66,7 @@ class FPVHomeScreen extends StatefulWidget {
     this.radioEquipmentRepository,
     this.flightPlanRepository,
     this.preferencesRepository,
+    this.globeController,
   });
 
   /// An injected repository remains owned by its caller.
@@ -73,6 +76,7 @@ class FPVHomeScreen extends StatefulWidget {
   final RadioEquipmentRepository? radioEquipmentRepository;
   final FlightPlanRepository? flightPlanRepository;
   final UserPreferencesRepository? preferencesRepository;
+  final GlobeController? globeController;
 
   @override
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
@@ -81,7 +85,8 @@ class FPVHomeScreen extends StatefulWidget {
 enum _MapAction { home, coordinates, terrain, layers }
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
-  final GlobeController _globeController = GlobeController();
+  late final GlobeController _globeController =
+      widget.globeController ?? GlobeController();
   FpvDatabase? _database;
   SpotRepository? _spotRepository;
   DroneRepository? _droneRepository;
@@ -281,7 +286,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     _routeLayers?.dispose();
     unawaited(_closeSpotResources(_spotsSubscription, _database));
 
-    _globeController.dispose();
+    if (widget.globeController == null) _globeController.dispose();
     super.dispose();
   }
 
@@ -594,6 +599,21 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                             onPressed: () => _openSpotDetails(selectedSpot.id),
                             icon: const Icon(Icons.info_outline),
                             label: const Text('Details'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => showAirspaceCheck(
+                              context,
+                              controller: _globeController,
+                              name: selectedSpot.name,
+                              positions: [
+                                Wgs84Coordinate(
+                                  latitude: selectedSpot.latitude,
+                                  longitude: selectedSpot.longitude,
+                                ),
+                              ],
+                            ),
+                            icon: const Icon(Icons.shield_outlined),
+                            label: const Text('Check airspace'),
                           ),
                           OutlinedButton.icon(
                             onPressed: () => showDialog<void>(

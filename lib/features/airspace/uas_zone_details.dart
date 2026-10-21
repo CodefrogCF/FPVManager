@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Source attributes for one selected zone. Codes and vertical references stay
 /// as supplied; this model does not determine applicability or permission to fly.
 class UasZoneDetails {
@@ -8,6 +10,47 @@ class UasZoneDetails {
     this.omittedAttributeCount = 0,
     this.truncatedAttributes = const [],
   });
+
+  factory UasZoneDetails.fromFeature(
+    Map feature, {
+    required String fallbackId,
+  }) {
+    final properties = feature['properties'];
+    final source = properties is Map ? properties : const {};
+    final keys = {...keyFields.keys, ...source.keys};
+    final attributes = <String, String>{};
+    final shortened = <String>[];
+    var omitted = 0, remaining = 80 * 1024;
+    for (final key in keys) {
+      if (!source.containsKey(key)) continue;
+      if (key is! String || key.length > 120 || attributes.length >= 128) {
+        omitted++;
+        continue;
+      }
+      final value = source[key];
+      var text = value is String ? value : jsonEncode(value);
+      final limit = remaining < 8000 ? remaining : 8000;
+      if (limit <= 0) {
+        omitted++;
+        continue;
+      }
+      if (text.length > limit) {
+        text = text.substring(0, limit);
+        shortened.add(key);
+      }
+      attributes[key] = text;
+      remaining -= text.length;
+    }
+    String label(Object? value, String fallback) =>
+        hasSourceValue(value) ? value.toString().trim() : fallback;
+    return UasZoneDetails(
+      id: label(source['identifier'], label(feature['id'], fallbackId)),
+      name: label(attributes['name'], 'Unnamed UAS zone'),
+      attributes: Map.unmodifiable(attributes),
+      omittedAttributeCount: omitted,
+      truncatedAttributes: List.unmodifiable(shortened),
+    );
+  }
 
   final String id;
   final String name;

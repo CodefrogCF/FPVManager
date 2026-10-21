@@ -12,6 +12,7 @@ import '../../core/database/repositories/user_preferences_repository.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import '../airspace/uas_dataset_assessment.dart';
 import '../airspace/uas_zone_details.dart';
+import '../airspace/uas_airspace_checker.dart';
 import 'globe_bridge.dart';
 import 'route_map_state.dart';
 
@@ -92,6 +93,21 @@ class GlobeController extends ChangeNotifier {
 
   final OsintProvider<Map<String, dynamic>> _uasProvider;
   final bool _ownsUasProvider;
+  late final _airspaceChecker = UasAirspaceChecker(_uasProvider);
+
+  Future<UasAirspaceCheck> checkAirspace(
+    List<Wgs84Coordinate> positions, {
+    bool forceRefresh = false,
+  }) async {
+    if (_disposed) throw StateError('Globe controller is disposed');
+    final result = await _airspaceChecker.check(
+      positions,
+      forceRefresh: forceRefresh,
+    );
+    if (_disposed) throw StateError('Globe controller is disposed');
+    return result;
+  }
+
   final GlobeBridge _bridge;
   bool _disposed = false;
   int _connectionGeneration = 0;
