@@ -10,6 +10,10 @@ Drift/SQLite storage. The app does not upload or publish these records. There
 is no backup/export/sync interface; OS backups and file providers follow their
 own settings.
 
+Downloaded public UAS and obstacle datasets use a separate local cache. UAS cache
+retention is 30 days; **Map layers → Clear UAS dataset cache** removes it without
+deleting personal records. This cache does not include imagery or terrain tiles.
+
 Photos are imported only through the file picker. Persisted JPEGs/thumbnails
 omit source EXIF/GPS metadata; originals remain unchanged. The native picker
 may keep an original copy in its temporary cache.

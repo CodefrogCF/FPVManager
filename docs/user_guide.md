@@ -130,6 +130,13 @@ offsets remain as supplied; height limits, activation and legal applicability
 are not evaluated. A match or an empty result is not flight authorization.
 Download time is retrieval time, not official validity.
 
+UAS data is cached locally across restarts (one-hour local lifetime, up to 30 days
+on disk). **Refresh UAS data** checks the source even within that lifetime;
+**Clear UAS dataset cache** removes the snapshot and hides the layer. Source-check,
+retrieval and available publication times remain separate. Stale data, expired
+validity and failed refreshes are shown explicitly; cached data is not verified
+current airspace information. Official preflight checks remain necessary.
+
 Layer details show downloaded/loaded counts and **Not independently verified**
 or **Limited / incomplete data** coverage. Empty, partial or unusable data produces
 a limitation notice; an empty map does not establish unrestricted airspace.

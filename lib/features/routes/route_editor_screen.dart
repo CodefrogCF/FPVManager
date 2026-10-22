@@ -7,12 +7,14 @@ import '../globe/globe_controller.dart';
 import '../globe/globe_view.dart';
 import '../globe/terrain_status_banner.dart';
 import '../airspace/airspace_check_sheet.dart';
+import '../airspace/uas_data_quality_banner.dart';
 import 'route_editor_controller.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../globe/map_layers_sheet.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import '../obstacles/obstacle_details_panel.dart';
 import '../obstacles/obstacle_layers_section.dart';
+import '../../core/osint/osint_provider.dart';
 
 class RouteEditorScreen extends StatefulWidget {
   const RouteEditorScreen({
@@ -22,6 +24,7 @@ class RouteEditorScreen extends StatefulWidget {
     this.globeController,
     this.mapBuilder,
     this.obstacleProvider,
+    this.uasProvider,
     this.preferencesRepository,
   });
   final FlightPlanRepository repository;
@@ -29,6 +32,7 @@ class RouteEditorScreen extends StatefulWidget {
   final GlobeController? globeController;
   final Widget Function(GlobeController)? mapBuilder;
   final SwissObstacleProvider? obstacleProvider;
+  final OsintProvider<Map<String, dynamic>>? uasProvider;
   final UserPreferencesRepository? preferencesRepository;
   @override
   State<RouteEditorScreen> createState() => _RouteEditorScreenState();
@@ -37,7 +41,10 @@ class RouteEditorScreen extends StatefulWidget {
 class _RouteEditorScreenState extends State<RouteEditorScreen> {
   late final GlobeController _globe =
       widget.globeController ??
-      GlobeController(obstacleProvider: widget.obstacleProvider);
+      GlobeController(
+        obstacleProvider: widget.obstacleProvider,
+        uasProvider: widget.uasProvider,
+      );
   late final RouteEditorController _editor = RouteEditorController(
     repository: widget.repository,
     globe: _globe,
@@ -190,6 +197,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     ),
                   ),
                   TerrainStatusBanner(controller: _globe),
+                  UasDataQualityBanner(controller: _globe, onDetails: _layers),
                   ObstacleStatusBanner(
                     controller: _globe.obstacles,
                     onDetails: _layers,

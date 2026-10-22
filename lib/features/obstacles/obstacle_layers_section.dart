@@ -146,6 +146,7 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
         ),
         if (busy) const LinearProgressIndicator(),
         Text(controller.provider.progress),
+        Text('Data status: ${state.dataState.label}'),
         if (controller.vectorsVisible) ...[
           Text(controller.vectorStatus),
           Wrap(

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:fpvmanager/features/airspace/data/swiss_uas_provider.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
+import 'package:fpvmanager/core/osint/osint_provider_state.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
 import '../../helpers/uas_zone_fixture.dart';
@@ -64,15 +65,23 @@ void main() {
     data = uasFixtureCollection([
       {'type': 'Feature', 'geometry': null},
     ]);
-    await expectLater(controller.refreshUasZones(), throwsFormatException);
+    await expectLater(
+      controller.refreshUasZones(),
+      throwsA(
+        isA<OsintProviderException>().having(
+          (e) => e.kind,
+          'kind',
+          OsintFailureKind.invalidData,
+        ),
+      ),
+    );
     expect(controller.uasDatasetAssessment, same(first));
     expect(controller.uasDisplayedDataset, same(originalDataset));
     expect(controller.uasZonesError, contains('incomplete dataset'));
     data = uasFixtureCollection([
       uasFixtureFeature(overrides: {'name': 'Recovered source zone'}),
     ]);
-    await controller.setUasZonesVisible(false);
-    await controller.setUasZonesVisible(true);
+    await controller.refreshUasZones();
     expect(downloads, 3);
     expect(controller.uasDatasetAssessment, isNot(same(first)));
     expect(controller.uasZonesError, isNull);

@@ -10,6 +10,11 @@ class OsintDataset<T> {
     required this.cacheExpiresAtUtc,
     this.validity,
     this.httpLastModified,
+    this.httpEtag,
+    this.lastCheckedAtUtc,
+    this.publishedAtUtc,
+    this.persistable = true,
+    this.requiresRevalidation = false,
   });
 
   final OsintSource source;
@@ -25,9 +30,20 @@ class OsintDataset<T> {
 
   final OsintValidityPeriod? validity;
 
+  /// Successful HTTP retrieval/revalidation, not an official publication date.
+  final DateTime? lastCheckedAtUtc;
+  final DateTime? publishedAtUtc;
+  final String? httpEtag;
+
+  /// A source response can prohibit disk storage even for an eligible adapter.
+  final bool persistable;
+  final bool requiresRevalidation;
+
   OsintFreshness freshnessAt(DateTime time) {
     final utc = time.toUtc();
-    if (utc.isBefore(fetchedAtUtc)) return OsintFreshness.clockSkew;
+    if (utc.isBefore(lastCheckedAtUtc ?? fetchedAtUtc)) {
+      return OsintFreshness.clockSkew;
+    }
     return utc.isBefore(cacheExpiresAtUtc)
         ? OsintFreshness.fresh
         : OsintFreshness.stale;

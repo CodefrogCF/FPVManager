@@ -53,7 +53,7 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
 
   String _formatDownloadTime(DateTime? date) {
     if (date == null) {
-      return 'Not downloaded in this session';
+      return 'Not available';
     }
 
     final utc = date.toUtc();
@@ -397,6 +397,33 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                   _InfoRow(
                     label: 'Downloaded',
                     value: _formatDownloadTime(controller.uasZonesDownloadedAt),
+                  ),
+                  _InfoRow(
+                    label: 'Data status',
+                    value: controller.uasDisplayedStatus.dataState.label,
+                  ),
+                  _InfoRow(
+                    label: 'Source checked',
+                    value: displayed?.lastCheckedAtUtc == null
+                        ? 'Not checked by this adapter'
+                        : _formatDownloadTime(displayed!.lastCheckedAtUtc),
+                  ),
+                  _InfoRow(
+                    label: 'Published',
+                    value: displayed?.publishedAtUtc == null
+                        ? 'Not supplied by this dataset'
+                        : _formatDownloadTime(displayed!.publishedAtUtc),
+                  ),
+                  const Text(
+                    'Cached data is not verified current airspace information. Check official sources before flight.',
+                  ),
+                  if (provider.cacheError != null) Text(provider.cacheError!),
+                  TextButton.icon(
+                    onPressed: controller.isReady && controller.canClearUasCache
+                        ? () => _execute(controller.clearUasCache)
+                        : null,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Clear UAS dataset cache'),
                   ),
 
                   _InfoRow(

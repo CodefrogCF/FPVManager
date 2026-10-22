@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/models/user_preferences.dart';
+import '../../core/osint/osint_cache_database.dart';
 import 'obstacle_models.dart';
 import 'swiss_obstacle_heights.dart';
 import 'swiss_obstacle_provider.dart';
@@ -15,7 +16,8 @@ class ObstacleMapController extends ChangeNotifier {
     required this.canEdit,
     required this.onSelected,
     SwissObstacleProvider? provider,
-  }) : provider = provider ?? SwissObstacleProvider(),
+    OsintCacheDatabase Function()? cacheFactory,
+  }) : provider = provider ?? SwissObstacleProvider(cacheFactory: cacheFactory),
        _ownsProvider = provider == null {
     this.provider.addListener(_providerChanged);
   }

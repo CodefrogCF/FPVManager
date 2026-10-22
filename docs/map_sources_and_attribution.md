@@ -50,9 +50,10 @@ also apply. Observe fair use; use official download services for bulk data rathe
 than high-rate tile scraping. Offline downloads or additional products require
 review of their own download, redistribution and attribution conditions.
 
-Do not infer a FOCA licence from swisstopo's terms or public accessibility. The
-adapter records the licence as unknown and links to the
-[official catalogue](https://opendata.swiss/en/dataset/geografische-uas-gebiete-der-schweiz).
+The [official UAS STAC collection](https://data.geo.admin.ch/api/stac/v1/collections/ch.bazl.einschraenkungen-drohnen)
+links `rel=license` to [Open use. Must provide the source](https://opendata.swiss/en/terms-of-use/#terms_by).
+The adapter retains FOCA attribution and permits local caching under those terms;
+this is not a Creative Commons declaration. The older CKAN entry has no licence.
 Download time, `current` service paths and HTTP modification dates do not prove
 official validity or geographic completeness. Check current provider terms
 before distributing data or adding services.

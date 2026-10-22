@@ -82,8 +82,16 @@ the latest download. UAS structural checks identify unusable geometry, partial
 counts and missing details; unusable features are counted and excluded. Entirely
 unusable nonempty replacements fail while retaining displayed data/provenance.
 Explicit retry bypasses rejected snapshots. These checks do not prove coverage,
-topology, currency or legal applicability. The UAS cache is memory-only; tile
-services do not acquire a fabricated whole-dataset retrieval time.
+topology, currency or legal applicability. `OsintDatasetStore<T>` adds optional
+persistence in `fpvmanager_osint_cache`; adapters supply storage terms explicitly.
+UAS uses a one-hour local lifetime and 30-day disk retention. ETag/Last-Modified
+revalidation preserves retrieval time and records a separate source-check time;
+HTTP dates never become publication/validity dates. Invalid envelopes are removed,
+failed updates retain prior data, and disk-write failures leave downloaded data
+usable in memory. Map layers can clear the UAS cache. Public-data cache migration
+preserves obstacle generations and does not touch personal records or map tiles.
+The UAS endpoint currently rejects CORS preflights for conditional headers. Its
+Web adapter therefore uses ordinary GET refreshes; native clients use validators.
 
 `SwissObstacleProvider` discovers the full KMZ through STAC and stages normalized
 records in the separate `fpvmanager_osint_cache` SQLite database. A transaction

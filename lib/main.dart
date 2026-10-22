@@ -241,6 +241,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         builder: (context) => FlightRoutesScreen(
           repository: repository,
           obstacleProvider: _globeController.obstacles.provider,
+          uasProvider: _globeController.uasProvider,
           preferencesRepository:
               widget.preferencesRepository ??
               UserPreferencesRepository(_database ??= FpvDatabase.open()),

@@ -1,4 +1,5 @@
 import 'osint_dataset.dart';
+import 'osint_source.dart';
 
 export 'osint_dataset.dart' show OsintFreshness;
 
@@ -23,6 +24,28 @@ class OsintProviderException implements Exception {
 
 enum OsintUpdateState { idle, loading, ready, failed, disposed }
 
+/// Dataset availability and last update outcome. `fresh` only describes the
+/// local cache policy; it never certifies coverage or permission to fly.
+enum OsintDataState {
+  fresh,
+  stale,
+  expired,
+  unavailable,
+  refreshFailed,
+  clockSkew,
+}
+
+extension OsintDataStateLabel on OsintDataState {
+  String get label => switch (this) {
+    OsintDataState.fresh => 'Cached · within local lifetime',
+    OsintDataState.stale => 'Stale cached data · refresh required',
+    OsintDataState.expired => 'Declared validity expired',
+    OsintDataState.unavailable => 'Data unavailable',
+    OsintDataState.refreshFailed => 'Latest refresh failed',
+    OsintDataState.clockSkew => 'Device clock precedes last source check',
+  };
+}
+
 class OsintProviderState<T> {
   const OsintProviderState({
     required this.update,
@@ -32,6 +55,7 @@ class OsintProviderState<T> {
     this.lastAttemptAtUtc,
     this.error,
     this.servedFromCache = false,
+    this.cacheError,
   });
 
   final OsintUpdateState update;
@@ -41,4 +65,17 @@ class OsintProviderState<T> {
   final DateTime? lastAttemptAtUtc;
   final OsintProviderException? error;
   final bool servedFromCache;
+  final String? cacheError;
+
+  OsintDataState get dataState {
+    if (error != null) return OsintDataState.refreshFailed;
+    if (dataset == null) return OsintDataState.unavailable;
+    if (freshness == OsintFreshness.clockSkew) return OsintDataState.clockSkew;
+    if (dataset!.validity?.at(checkedAtUtc) == OsintValidity.expired) {
+      return OsintDataState.expired;
+    }
+    return freshness == OsintFreshness.fresh
+        ? OsintDataState.fresh
+        : OsintDataState.stale;
+  }
 }

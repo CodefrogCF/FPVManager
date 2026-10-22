@@ -19,7 +19,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
     ),
   );
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -38,7 +38,50 @@ class OsintCacheDatabase extends GeneratedDatabase {
       await customStatement(
         'CREATE INDEX obstacles_view ON obstacles(snapshot, category, west, east, south, north)',
       );
+      await _createSnapshots();
     },
+    onUpgrade: (_, from, to) async {
+      if (from < 2) await _createSnapshots();
+    },
+  );
+
+  Future<void> _createSnapshots() => customStatement(
+    'CREATE TABLE osint_snapshots (provider TEXT PRIMARY KEY, '
+    'envelope TEXT NOT NULL, checksum TEXT NOT NULL, retained_until INTEGER NOT NULL)',
+  );
+
+  Future<(String, String)?> readSnapshot(String provider, int maxBytes) async {
+    final row = await customSelect(
+      'SELECT CASE WHEN length(CAST(envelope AS BLOB))<=? THEN envelope END AS payload, '
+      'checksum FROM osint_snapshots WHERE provider=?',
+      variables: [Variable(maxBytes), Variable(provider)],
+    ).getSingleOrNull();
+    if (row == null) return null;
+    final payload = row.readNullable<String>('payload');
+    if (payload == null) {
+      throw const FormatException('Cached dataset is too large');
+    }
+    return (payload, row.read<String>('checksum'));
+  }
+
+  Future<void> writeSnapshot(
+    String provider,
+    String payload,
+    String checksum,
+    DateTime retainedUntil,
+  ) => customStatement(
+    'INSERT OR REPLACE INTO osint_snapshots VALUES (?,?,?,?)',
+    [provider, payload, checksum, retainedUntil.millisecondsSinceEpoch],
+  );
+
+  Future<void> removeSnapshot(String provider) => customStatement(
+    'DELETE FROM osint_snapshots WHERE provider=?',
+    [provider],
+  );
+
+  Future<void> cleanSnapshots(DateTime now) => customStatement(
+    'DELETE FROM osint_snapshots WHERE retained_until<=?',
+    [now.millisecondsSinceEpoch],
   );
 
   Future<ObstacleSnapshot?> obstacleSnapshot() async {

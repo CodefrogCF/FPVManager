@@ -7,6 +7,7 @@ import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
 import 'package:fpvmanager/features/airspace/data/swiss_uas_provider.dart';
 import 'package:fpvmanager/features/airspace/uas_airspace_checker.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
+import 'package:fpvmanager/core/osint/osint_provider_state.dart';
 
 import '../../helpers/uas_zone_fixture.dart';
 
@@ -149,7 +150,16 @@ void main() {
     data = uasFixtureCollection([
       {'type': 'Feature', 'geometry': null},
     ]);
-    await expectLater(checker.check([point]), throwsFormatException);
+    await expectLater(
+      checker.check([point]),
+      throwsA(
+        isA<OsintProviderException>().having(
+          (e) => e.kind,
+          'kind',
+          OsintFailureKind.invalidData,
+        ),
+      ),
+    );
   });
 
   test('source detail conversion bounds raw fields and retains zero, false and null text', () {

@@ -184,7 +184,18 @@ void main() {
       expect(find.text('Alternative airspace'), findsOneWidget);
       expect(find.text('Fixture terms'), findsOneWidget);
       expect(find.text('example.invalid'), findsOneWidget);
-      expect(find.text('Not supplied by this dataset'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find
+              .ancestor(
+                of: find.text('Official validity'),
+                matching: find.byType(Row),
+              )
+              .first,
+          matching: find.text('Not supplied by this dataset'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Within local cache lifetime'), findsOneWidget);
       final displayed = controller.uasDisplayedDataset;
       now = now.add(const Duration(hours: 2));
@@ -202,7 +213,15 @@ void main() {
         find.text('Update failed — previous map data retained'),
         findsOneWidget,
       );
-      expect(find.text('2026-10-19 08:00 UTC'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find
+              .ancestor(of: find.text('Downloaded'), matching: find.byType(Row))
+              .first,
+          matching: find.text('2026-10-19 08:00 UTC'),
+        ),
+        findsOneWidget,
+      );
       expect(controller.isReady, isTrue);
       await tester.pumpWidget(const SizedBox.shrink());
     },

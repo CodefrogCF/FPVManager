@@ -19,12 +19,14 @@ class SwissObstacleProvider extends ChangeNotifier
   SwissObstacleProvider({
     http.Client? client,
     OsintCacheDatabase? cache,
+    OsintCacheDatabase Function()? cacheFactory,
     this.importer = const KmzObstacleImporter(),
     DateTime Function()? clock,
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null,
        _cache = cache,
-       _ownsCache = cache == null,
+       _cacheFactory = cacheFactory,
+       _ownsCache = cache == null && cacheFactory == null,
        _clock = clock ?? DateTime.now;
   static final stacUri = Uri.parse(
     'https://data.geo.admin.ch/api/stac/v1/collections/ch.bazl.luftfahrthindernis/items?limit=10',
@@ -44,6 +46,7 @@ class SwissObstacleProvider extends ChangeNotifier
   final http.Client _client;
   final bool _ownsClient, _ownsCache;
   OsintCacheDatabase? _cache;
+  final OsintCacheDatabase Function()? _cacheFactory;
   final KmzObstacleImporter importer;
   final DateTime Function() _clock;
   Future<void>? _loadingCache;
@@ -56,7 +59,21 @@ class SwissObstacleProvider extends ChangeNotifier
   DateTime? _attempt;
   String _progress = 'Not downloaded';
   String get progress => _progress;
-  OsintCacheDatabase get cache => _cache ??= OsintCacheDatabase.open();
+  OsintCacheDatabase get cache =>
+      _cache ??= _cacheFactory?.call() ?? OsintCacheDatabase.open();
+  Future<void> get settled async {
+    try {
+      await _refresh;
+    } catch (_) {
+      /* Last valid snapshot remains available. */
+    }
+    try {
+      await _loadingCache;
+    } catch (_) {
+      /* Disposal still closes owned storage. */
+    }
+  }
+
   @override
   OsintSource get source => obstacleSource;
   @override
@@ -122,6 +139,8 @@ class SwissObstacleProvider extends ChangeNotifier
       data: s,
       fetchedAtUtc: s.fetchedAt,
       cacheExpiresAtUtc: s.checkedAt.add(const Duration(days: 1)),
+      lastCheckedAtUtc: s.checkedAt,
+      publishedAtUtc: sourceDate(s.metadata['datasetPublishedAt']),
       validity: from == null && until == null
           ? null
           : OsintValidityPeriod(from: from, until: until),

@@ -6,6 +6,9 @@ import '../../core/osint/osint_provider.dart';
 import '../../core/osint/osint_dataset.dart';
 import '../../core/osint/osint_provider_state.dart';
 import '../../core/osint/osint_source.dart';
+import '../../core/osint/osint_cache_database.dart';
+import '../../core/osint/osint_dataset_store.dart';
+import '../../core/osint/cached_osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/user_preferences.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
@@ -84,12 +87,20 @@ class GlobeController extends ChangeNotifier {
     OsintProvider<Map<String, dynamic>>? uasProvider,
     SwissObstacleProvider? obstacleProvider,
     GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
-  }) : _uasProvider = uasProvider ?? SwissUasProvider(),
-       _ownsUasProvider = uasProvider == null,
+  }) : _ownsUasProvider = uasProvider == null,
        _bridge = GlobeBridge(options: bridgeOptions) {
+    _uasProvider =
+        uasProvider ??
+        SwissUasProvider(
+          persistentCache: JsonOsintDatasetStore(
+            database: _sharedCache,
+            storageTerms: SwissUasProvider.defaultSource.licenseUri!,
+          ),
+        );
     _uasProvider.addListener(_handleProviderChanged);
     obstacles = ObstacleMapController(
       provider: obstacleProvider,
+      cacheFactory: _sharedCache,
       send: (command) async {
         await _bridge.send(command, timeout: _bridge.options.datasetTimeout);
       },
@@ -110,7 +121,10 @@ class GlobeController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  final OsintProvider<Map<String, dynamic>> _uasProvider;
+  late final OsintProvider<Map<String, dynamic>> _uasProvider;
+  OsintCacheDatabase? _cache;
+  OsintCacheDatabase _sharedCache() => _cache ??= OsintCacheDatabase.open();
+  OsintProvider<Map<String, dynamic>> get uasProvider => _uasProvider;
   final bool _ownsUasProvider;
   late final _airspaceChecker = UasAirspaceChecker(_uasProvider);
 
@@ -463,6 +477,33 @@ class GlobeController extends ChangeNotifier {
   }
 
   bool get uasZonesVisible => _uasZonesVisible;
+  bool get uasRequestedVisible => _uasRequestedVisible;
+  bool get canClearUasCache {
+    final provider = _uasProvider;
+    return provider is CachedOsintProvider<Map<String, dynamic>> &&
+        !provider.isClearing &&
+        !_uasZonesLoading &&
+        uasProviderStatus.update != OsintUpdateState.loading;
+  }
+
+  OsintProviderState<Map<String, dynamic>> get uasDisplayedStatus =>
+      OsintProviderState(
+        update: uasProviderStatus.update,
+        freshness: uasDataFreshness,
+        checkedAtUtc: uasProviderStatus.checkedAtUtc,
+        dataset: _uasDisplayedDataset,
+        error:
+            uasProviderStatus.error ??
+            (_uasZonesError == null
+                ? null
+                : OsintProviderException(
+                    providerId: _uasProvider.id,
+                    kind: OsintFailureKind.unknown,
+                    message: _uasZonesError!,
+                  )),
+        servedFromCache: uasProviderStatus.servedFromCache,
+        cacheError: uasProviderStatus.cacheError,
+      );
   bool get uasZonesLoading => _uasZonesLoading;
   String? get uasZonesError => _uasZonesError;
   bool get isReady => _ready;
@@ -777,6 +818,30 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> refreshUasZones() => _updateUas(forceRefresh: true);
+
+  Future<void> clearUasCache() async {
+    final provider = _uasProvider;
+    if (provider is! CachedOsintProvider<Map<String, dynamic>> ||
+        !canClearUasCache) {
+      return;
+    }
+    _uasOperation++;
+    if (_ready) await _send({'type': 'set-uas-zones', 'visible': false});
+    await provider.clearCache();
+    if (_disposed) return;
+    _uasRequestedVisible = false;
+    _uasZonesVisible = false;
+    _uasDatasetSentToRenderer = false;
+    _uasDisplayedDataset = null;
+    _uasDatasetAssessment = null;
+    _uasRejectedDataset = null;
+    _uasZonesDownloadedAt = null;
+    _uasZonesFeatureCount = null;
+    _uasZonesError = null;
+    clearSelectedUasZone();
+    await _savePreferences(_preferences.copyWith(uasZonesVisible: false));
+    notifyListeners();
+  }
 
   Future<void> _updateUas({required bool forceRefresh}) async {
     if (!_ready) throw StateError('Globe is not ready');
@@ -1192,6 +1257,11 @@ class GlobeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    final uas = _uasProvider;
+    final pending = [
+      if (uas is CachedOsintProvider<Map<String, dynamic>>) uas.settled,
+      obstacles.provider.settled,
+    ];
     obstacles.removeListener(_handleProviderChanged);
     obstacles.dispose();
     unawaited(_routeActions.close());
@@ -1203,6 +1273,9 @@ class GlobeController extends ChangeNotifier {
     _connectionGeneration++;
     _uasOperation++;
     _bridge.detach();
+    if (_cache case final cache?) {
+      unawaited(Future.wait(pending).then((_) => cache.close()));
+    }
     super.dispose();
   }
 }
