@@ -7,6 +7,7 @@ import '../../core/osint/osint_dataset.dart';
 import '../globe/globe_controller.dart';
 import 'uas_airspace_checker.dart';
 import 'uas_zone_details_panel.dart';
+import 'airspace_safety_panel.dart';
 
 Future<void> showAirspaceCheck(
   BuildContext context, {
@@ -133,6 +134,12 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
               'This check is not flight authorization.',
             ),
           ),
+          TextButton.icon(
+            onPressed: () =>
+                showAirspaceSafetyPanel(context, widget.controller),
+            icon: const Icon(Icons.shield_outlined),
+            label: const Text('Flight safety & current official publications'),
+          ),
           if (result == null && _error == null) ...[
             const LinearProgressIndicator(),
             const Text('Loading UAS data and checking geometry…'),
@@ -188,6 +195,7 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      Text(hit.zone.restriction.category.label),
                       Text(
                         hit.zone.value('restriction') ??
                             'Restriction not provided',

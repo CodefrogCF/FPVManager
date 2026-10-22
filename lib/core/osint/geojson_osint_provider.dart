@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show compute;
+
+import 'geojson_performance.dart';
 
 import 'cached_osint_provider.dart';
 import 'osint_dataset.dart';
@@ -35,6 +38,8 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
   final bool conditionalRequests;
   Completer<void>? _abort;
 
+  GeoJsonDownloadMetrics? lastDownloadMetrics;
+
   @override
   Future<OsintDataset<Map<String, dynamic>>> download() async {
     final abort = _abort = Completer<void>();
@@ -62,6 +67,8 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
   Future<OsintDataset<Map<String, dynamic>>> _download(
     Future<void> abort,
   ) async {
+    final overallTimer = Stopwatch()..start();
+    final networkTimer = Stopwatch()..start();
     final previous = cached;
     final request = http.AbortableRequest(
       'GET',
@@ -130,7 +137,23 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
       }
       bytes.add(chunk);
     }
-    final decoded = jsonDecode(utf8.decode(bytes.takeBytes()));
+    networkTimer.stop();
+    final size = bytes.length;
+    final parseTimer = Stopwatch()..start();
+    // compute runs on a worker isolate on native Flutter targets. Flutter Web
+    // executes synchronously; the benchmark exposes its remaining parse cost.
+    final payload = bytes.takeBytes();
+    final decoded = size >= 256 * 1024
+        ? await compute(_parseGeoJsonBytes, payload)
+        : _parseGeoJsonBytes(payload);
+    parseTimer.stop();
+    overallTimer.stop();
+    lastDownloadMetrics = GeoJsonDownloadMetrics(
+      responseBytes: size,
+      downloadTime: networkTimer.elapsed,
+      parseTime: parseTimer.elapsed,
+      totalTime: overallTimer.elapsed,
+    );
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Expected a GeoJSON FeatureCollection');
     }
@@ -177,3 +200,5 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
     super.dispose();
   }
 }
+
+Object? _parseGeoJsonBytes(Uint8List bytes) => jsonDecode(utf8.decode(bytes));

@@ -105,6 +105,41 @@ function postToFlutter(message) {
     let uasFillOpacity = 0.20;
     let uasDownloadedAtUtc = null;
     let uasFeatureCount = null;
+    let uasRenderMetrics = null;
+    let cancelUasFrameMeasurement = null;
+
+    // Only records observed renderer work; does not imply current NOTAMs or
+    // adequate spatial coverage. A stale import must not replace later metrics.
+    function publishUasImportMetrics(revision, featureCount, loadMs, attachMs) {
+        if (revision !== uasImportRevision) return;
+        const metrics = { featureCount,
+            loadMs: Math.round(loadMs * 100) / 100,
+            attachMs: Math.round(attachMs * 100) / 100,
+            firstFrameMs: null };
+        uasRenderMetrics = metrics;
+        sendToFlutter('uas-render-metrics', metrics);
+        const scene = activeViewer?.scene;
+        // First real Cesium postRender following data-source attachment.
+        // Never block acknowledgement, interaction or page disposal.
+        if (!scene?.postRender?.addEventListener || !scene?.requestRender) return;
+        if (cancelUasFrameMeasurement) cancelUasFrameMeasurement();
+        let done = false;
+        const start = performance.now();
+        let unsubscribe = null;
+        const handler = () => {
+            if (done) return;
+            done = true;
+            unsubscribe?.();
+            cancelUasFrameMeasurement = null;
+            if (revision !== uasImportRevision) return;
+            metrics.firstFrameMs = Math.round((performance.now() - start) * 100) / 100;
+            uasRenderMetrics = metrics;
+            sendToFlutter('uas-render-metrics', metrics);
+        };
+        unsubscribe = scene.postRender.addEventListener(handler);
+        cancelUasFrameMeasurement = () => { done = true; unsubscribe?.(); };
+        scene.requestRender();
+    }
 
     function createMapProvider(style) {
         return mapProviders.imagery(style, Boolean(offlineReason()));
@@ -212,20 +247,14 @@ function postToFlutter(message) {
         }
 
         const entities = uasDataSource.entities;
-
         entities.suspendEvents();
-
         try {
-            for (const entity of entities.values) {
-                if (entity.polygon) {
-                    entity.polygon.material =
-                        new Cesium.ColorMaterialProperty(
-                            Cesium.Color.RED.withAlpha(
-                                uasFillOpacity
-                            )
-                        );
-                }
-            }
+            // Draw source types separately, including overlapping entities.
+            // Unknown codes remain grey and never imply flight clearance.
+            FPVUasZoneStyles.applyToDataSource(
+                uasDataSource, Cesium, uasFillOpacity,
+                activeViewer?.clock?.currentTime
+            );
         } finally {
             entities.resumeEvents();
         }
@@ -240,6 +269,10 @@ function postToFlutter(message) {
         sourceAttribution = 'Airspace data'
     ) {
         const revision = ++uasImportRevision;
+        if (cancelUasFrameMeasurement) {
+            cancelUasFrameMeasurement();
+            cancelUasFrameMeasurement = null;
+        }
         uasRequestedVisible = visible;
 
         // Hide without deleting the currently loaded data.
@@ -287,6 +320,7 @@ function postToFlutter(message) {
         });
 
         try {
+            const loadStarted = performance.now();
             const replacement =
                 await Cesium.GeoJsonDataSource.load(
                     geojson,
@@ -307,9 +341,12 @@ function postToFlutter(message) {
                     }
                 );
 
+            const loadMs = performance.now() - loadStarted;
             signal.throwIfAborted();
             if (revision !== uasImportRevision) throw new Error("UAS import superseded");
+            const attachStarted = performance.now();
             await activeViewer.dataSources.add(replacement);
+            const attachMs = performance.now() - attachStarted;
             if (signal.aborted || revision !== uasImportRevision) {
                 activeViewer.dataSources.remove(replacement, true);
                 throw new Error("UAS import superseded");
@@ -332,6 +369,7 @@ function postToFlutter(message) {
             uasFeatureCount = geojson.features.length;
 
             setUasFillOpacity(uasFillOpacity);
+            publishUasImportMetrics(revision, geojson.features.length, loadMs, attachMs);
 
             sendToFlutter("uas-zone-cleared");
 
@@ -662,6 +700,9 @@ function postToFlutter(message) {
                 if (status.state !== "ready") walker?.stop("Terrain unavailable; returned to globe view");
                 routeEditor?.terrainChanged();
                 routeOverlays?.terrainChanged();
+                // Dynamic obstacle stems follow the actual rendered terrain;
+                // invalidate the frame on provider transitions as well.
+                activeViewer?.scene?.requestRender?.();
                 terrainInfo(status);
                 if (rendererReady) sendToFlutter("terrain-status", status);
             }
@@ -686,7 +727,8 @@ function postToFlutter(message) {
         viewer.scene.globe.depthTestAgainstTerrain = true;
         activeViewer = viewer;
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
-        obstacleVectors = FPVObstacles.createVectors(Cesium,viewer);
+        obstacleVectors = FPVObstacles.createVectors(Cesium,viewer,
+            {isTerrainReady:terrainAvailable});
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
         const groundPanel = document.getElementById("ground-controls");
         walker = FPVGroundNavigation.createWalker({

@@ -296,23 +296,24 @@ class ObstacleMapController extends ChangeNotifier {
               )
               .toList();
           final elevated = positions.every((p) => p[2] != null);
-          if (!elevated) projected++;
+          // For an isolated Point, the published maxHeightAGL describes
+          // the actual object height at the same position. For a line or
+          // polygon it may apply anywhere on the feature, not each vertex.
           final agl = double.tryParse(f.attributes['maxHeightAGL'] ?? '');
-          final base =
-              elevated &&
-                  p.kind == 'Point' &&
+          final heightAgl = p.kind == 'Point' &&
                   f.parts.length == 1 &&
                   agl != null &&
                   agl.isFinite &&
                   agl > 0 &&
                   agl < 1500
-              ? positions[0][2]! - agl
+              ? agl
               : null;
+          if (!elevated && heightAgl == null) projected++;
           converted.add({
             'kind': p.kind,
             'elevated': elevated,
             'coordinates': positions,
-            if (base != null && base >= -1500) 'baseHeight': base,
+            if (heightAgl != null) 'heightAgl': heightAgl,
           });
         }
         payload.add({

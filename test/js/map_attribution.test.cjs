@@ -7,11 +7,14 @@ const FPVTerrain = require('../../web/terrain_service.js');
 const FPVMapProviders = require('../../web/map_providers.js');
 const FPVObstacles = require('../../web/obstacle_layers.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
+const FPVUasZoneStyles = require('../../web/uas_zone_styles.js');
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
 async function renderer({ offline = false, terrainFails = false, configuration, groundView = false } = {}) {
-    const imagery = [], terrain = [], events = [];
+    const imagery = [], terrain = [], events = [], sources = [];
+    let geojsonLoads = 0;
+    const colors = value => ({ value, withAlpha: a => ({value, alpha:a}) });
     const info = {};
     const window = {
         FPVMapProviderConfig: configuration,
@@ -23,15 +26,27 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     const context = vm.createContext({
         window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders, FPVObstacles,
         document: { getElementById: () => info },
-        console: { error() {} }, setTimeout, clearTimeout,
+        console: { error() {}, log() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
         FPVRouteEditor: {
             createEditor: () => ({ click: () => false, terrainChanged() {} }),
             createOverlays: () => ({ terrainChanged() {}, dispose() {} })
         },
-        performance: { now: () => 0 },
+        performance: { now: () => 42 }, FPVUasZoneStyles,
         Cesium: {
+            Color: {RED:colors('red'), fromCssColorString:colors},
+            GeoJsonDataSource: { async load(data, options) {
+                geojsonLoads++;
+                const values = data.features.map((feature, i) => ({
+                    id:'zone-'+i, polygon:{},
+                    properties:{type:{getValue:() => feature.properties.type},
+                        restriction:{getValue:() => feature.properties.restriction},
+                        identifier:feature.properties.identifier},
+                }));
+                return {entities:{values, suspendEvents() {}, resumeEvents() {}},
+                    show:true, credit:options.credit};
+            } },
             Credit: class { constructor(html, showOnScreen) { Object.assign(this, { html, showOnScreen }); } },
             GridImageryProvider: class {},
             UrlTemplateImageryProvider: class { constructor(options) { Object.assign(this, options); imagery.push(this); } },
@@ -49,7 +64,18 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
             Viewer: class { constructor(_id, options) {
                 let current = options.baseLayer;
                 this.imageryLayers = { get: () => current, add: layer => { current = layer; }, remove() {} };
-                this.scene = { globe: {}, renderError: { addEventListener() {} }, preRender: { addEventListener() {} } };
+                const listeners = new Set();
+                this.scene = { globe: {}, renderError: { addEventListener() {} },
+                    preRender: { addEventListener() {} },
+                    postRender:{addEventListener(f) {listeners.add(f);return () => listeners.delete(f);}},
+                    requestRender:() => setImmediate(() => {for(const f of [...listeners]) f();}) };
+                this.dataSources = {
+                    contains:d=>sources.includes(d), indexOf:d=>sources.indexOf(d),
+                    add: async d=> {sources.push(d);return d;},
+                    remove: d=> {const index=sources.indexOf(d); if(index>=0)sources.splice(index,1);},
+                    raiseToTop:d=> {const index=sources.indexOf(d);if(index>=0) {sources.splice(index,1);sources.push(d);}}
+                };
+                this.clock = {currentTime:0};
                 this.camera = { setView() {}, moveEnd:{addEventListener() {}}, computeViewRectangle() {},
                     positionCartographic:{longitude:.15,latitude:.82} };
                 this.screenSpaceEventHandler = { setInputAction() {} };
@@ -63,7 +89,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(events.some(e => e.type === 'globe-error'), false, info.textContent);
     assert.equal(events.some(e => e.type === 'globe-ready'), true);
-    return { imagery, terrain, context, events };
+    return { imagery, terrain, context, events, sources, get geojsonLoads() {return geojsonLoads;} };
 }
 
 function assertSatelliteCredit(provider) {
@@ -162,4 +188,37 @@ test('replacing imagery and terrain adapters needs no renderer or map UI edits',
     assert.equal(page.terrain[0].url, 'https://example.invalid/terrain/');
     assert.equal(page.terrain[0].credit.html, page.imagery[0].credit.html);
     assert.throws(() => page.context.setMapStyle('toString'), /Unknown map style/);
+});
+
+
+test('renderer applies source classification, preserves overlaps, and measures rendering', async () => {
+    const page = await renderer();
+    const geojson = {type:'FeatureCollection',features:[
+        {type:'Feature',geometry:{type:'Polygon',coordinates:[]},properties:{type:'COMMON',restriction:'REQ_AUTHORISATION.MTOM_ALL',identifier:'p'}},
+        {type:'Feature',geometry:{type:'Polygon',coordinates:[]},properties:{type:'COMMON',restriction:'REQ_AUTHORISATION.CTR',identifier:'c'}},
+        {type:'Feature',geometry:{type:'Polygon',coordinates:[]},properties:{type:'COMMON',restriction:'UNRECOGNISED',identifier:'u'}},
+    ]};
+    const signal = new AbortController().signal;
+    await page.context.setUasZonesVisible(true, geojson, '2026-10-22T09:00:00Z', false, signal,'© FOCA / BAZL');
+    assert.equal(page.geojsonLoads,1);
+    assert.equal(page.sources.length,1);
+    const items = page.sources[0].entities.values;
+    assert.deepEqual(items.map(e=>e.polygon.material.value),['#ef6c00','#7b1fa2','#757575']);
+    assert.deepEqual(items.map(e=>e.properties.identifier),['p','c','u']);
+    assert.equal(page.sources[0].credit.html,'© FOCA / BAZL');
+    assert.equal(page.events.some(e=>e.type==='uas-render-metrics'),true);
+    await new Promise(resolve=>setImmediate(resolve));
+    const measured = page.events.filter(e=>e.type==='uas-render-metrics').at(-1);
+    assert.equal(measured.featureCount,3);
+    assert.equal(typeof measured.loadMs,'number');
+    assert.equal(typeof measured.attachMs,'number');
+    assert.equal(typeof measured.firstFrameMs,'number');
+    page.context.setUasFillOpacity(.4);
+    assert.equal(items[0].polygon.material.alpha,.4);
+    assert.equal(items[1].polygon.material.value,'#7b1fa2');
+    await page.context.setUasZonesVisible(false,null,null,false,signal);
+    assert.equal(page.sources[0].show,false);
+    await page.context.setUasZonesVisible(true,null,null,false,signal);
+    assert.equal(page.geojsonLoads,1,'visibility changes must not trigger import');
+    assert.equal(page.sources[0].show,true);
 });

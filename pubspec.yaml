@@ -37,6 +37,8 @@ dependencies:
   web: ^1.1.1
   webview_flutter: ^4.14.1
   http: ^1.6.0
+  url_launcher: ^6.3.3
+  flutter_secure_storage: ^11.2.0
   drift: ^2.35.2
   drift_flutter: ^0.3.1
   file_selector: 1.1.0
@@ -137,6 +139,7 @@ flutter:
     - web/ground_navigation.js
     - web/route_editor.js
     - web/obstacle_layers.js
+    - web/uas_zone_styles.js
     - assets/geo/chgeo2004_ln02.bin
     - assets/geo/chgeo2004_ln02.NOTICE.txt
 

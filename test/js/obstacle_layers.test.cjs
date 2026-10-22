@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {WMS,createWms,createVectors} = require('../../web/obstacle_layers.js');
 
-function setup({image = () => Promise.resolve({}), yieldBatch} = {}) {
+function setup({image = () => Promise.resolve({}), yieldBatch,
+    terrainReady = () => true, groundHeight = () => undefined} = {}) {
     const layers = [],sources = [],events = [],providers = [];
     let entityId = 0;
     const C = {
@@ -17,13 +18,16 @@ function setup({image = () => Promise.resolve({}), yieldBatch} = {}) {
         CustomDataSource:class {constructor(name) {this.name=name;const values=[];
             this.entities={values,add:options => {const entity={id:`e${++entityId}`,...options};values.push(entity);return entity;}};}},
         Cartesian3:{fromDegrees:(lon,lat,height) => [lon,lat,height]},
+        CallbackProperty:class {constructor(callback,isConstant) {
+            this.getValue=callback;this.isConstant=isConstant;
+        }},
         Color:{fromCssColorString:s => s,BLACK:'black'},HeightReference:{NONE:'none',CLAMP_TO_GROUND:'ground'},ArcType:{NONE:'straight'}
     };
     const viewer = {imageryLayers:{add:l => layers.push(l),remove:l => {const i=layers.indexOf(l);if(i>=0)layers.splice(i,1);}},
         dataSources:{add:async s => sources.push(s),remove:s => {const i=sources.indexOf(s);if(i>=0)sources.splice(i,1);}},
-        scene:{requestRender() {}}};
+        scene:{globe:{getHeight:groundHeight},requestRender() {}}};
     const wms = createWms(C,viewer,(type,payload) => events.push({type,...payload}),{timeoutMs:20});
-    const vectors = createVectors(C,viewer,{yieldBatch});
+    const vectors = createVectors(C,viewer,{yieldBatch,isTerrainReady:terrainReady});
     return {C,viewer,layers,sources,events,providers,wms,vectors};
 }
 const tick = () => new Promise(r => setImmediate(r));
@@ -106,4 +110,98 @@ test('bounded batches can be superseded and disposed without leaking staging ent
     const pending2=p.vectors.replace({revision:4,features:batch});await tick();p.vectors.dispose();release();await pending2;
     assert.equal(p.sources.length,0);
     await assert.rejects(setup().vectors.replace({revision:1,features:Array(1201).fill(line)}));
+});
+
+// For point obstacles the Skyguide/BAZL schema applies maxHeightAGL at
+// the same horizontal coordinate. Both endpoints MUST derive from the same
+// terrain sample or a 50-m mast will not be rendered as 50 metres tall.
+test('isolated Point: a 50 m crane is EXACTLY 50 m above the rendered terrain, not the unrelated AMSL top',async () => {
+    let ground=529.25, ready=true;
+    const p=setup({groundHeight:position => {
+        assert.deepEqual(position,{lon:8.1,lat:46.2});
+        return ground;
+    },terrainReady:() => ready});
+    await p.vectors.replace({revision:1,features:[
+        {id:'crane',category:'masts',parts:[{kind:'Point',elevated:true,
+            coordinates:[[8.1,46.2,690.5]],heightAgl:50}]},
+        line
+    ]});
+    const [point,stem,cable]=p.sources[0].entities.values;
+    assert.equal(point.position.isConstant,false);
+    assert.equal(stem.polyline.positions.isConstant,false);
+    assert.equal(point.show.getValue(),true);
+    assert.deepEqual(point.position.getValue(),[8.1,46.2,579.25]);
+    assert.equal(stem.polyline.show.getValue(),true);
+    assert.deepEqual(stem.polyline.positions.getValue(),[[8.1,46.2,529.25],[8.1,46.2,579.25]]);
+    assert.equal(stem.polyline.positions.getValue()[1][2]-stem.polyline.positions.getValue()[0][2],50);
+    assert.equal(point.point.heightReference,'none');
+    // Terrain LOD/refinement adjusts BOTH endpoints by the same delta.
+    ground=531.75;
+    assert.deepEqual(point.position.getValue(),[8.1,46.2,581.75]);
+    assert.deepEqual(stem.polyline.positions.getValue(),[[8.1,46.2,531.75],[8.1,46.2,581.75]]);
+    assert.equal(stem.polyline.positions.getValue()[1][2]-stem.polyline.positions.getValue()[0][2],50);
+    // Source geometry for elevated cables is untouched.
+    assert.deepEqual(cable.polyline.positions,[[8,46,550],[8.01,46.01,560]]);
+    assert.equal(cable.polyline.clampToGround,false);
+    assert.deepEqual(p.vectors.pick(stem),{id:'crane',revision:1});
+    assert.deepEqual(p.vectors.pick(point),{id:'crane',revision:1});
+    ready=false;
+    assert.equal(point.show.getValue(),false);
+    assert.equal(stem.polyline.show.getValue(),false);
+    ready=true;
+    for (const invalidHeight of [undefined,NaN,Infinity,-2000]) {
+        ground=invalidHeight;
+        assert.equal(point.show.getValue(),false);
+        assert.equal(stem.polyline.show.getValue(),false);
+    }
+    ground=530;
+    assert.equal(point.show.getValue(),true);
+    assert.deepEqual(point.position.getValue(),[8.1,46.2,580]);
+    assert.deepEqual(stem.polyline.positions.getValue(),[[8.1,46.2,530],[8.1,46.2,580]]);
+    p.vectors.dispose();
+});
+
+test('point without trusted AGL retains source absolute top without a fabricated stem',async () => {
+    const p=setup({groundHeight:()=>532});
+    await p.vectors.replace({revision:1,features:[{id:'unknown-agl',category:'other',parts:[
+        {kind:'Point',elevated:true,coordinates:[[8.1,46.2,740]]}]}]});
+    const [point]=p.sources[0].entities.values;
+    assert.deepEqual(point.position,[8.1,46.2,740]);
+    assert.equal(p.sources[0].entities.values.length,1);
+    p.vectors.dispose();
+});
+
+test('extra KML label Point on line is not a free-floating obstacle marker',async () => {
+    const p=setup();
+    await p.vectors.replace({revision:2,features:[{id:'cable-and-label',category:'cableways',parts:[
+        {kind:'LineString',elevated:true,coordinates:[[8.1,46.2,600],[8.2,46.3,610]]},
+        {kind:'Point',elevated:true,coordinates:[[8.1,46.2,790]]}]}]});
+    const [cable]=p.sources[0].entities.values;
+    assert.equal(p.sources[0].entities.values.length,1);
+    assert.deepEqual(cable.polyline.positions,[[8.1,46.2,600],[8.2,46.3,610]]);
+    assert.deepEqual(p.vectors.pick(cable),{id:'cable-and-label',revision:2});
+    p.vectors.dispose();
+});
+
+test('untrusted AGL cannot be sent to nonpoint parts or as NaN, negative, or huge',async () => {
+    for (const part of [
+        {kind:'LineString',elevated:true,coordinates:[[8,46,500],[8.1,46,510]],heightAgl:50},
+        ...[NaN,Infinity,-1,0,2000].map(heightAgl =>
+            ({kind:'Point',elevated:true,coordinates:[[8,46,500]],heightAgl}))
+    ]) {
+        const p=setup();
+        await assert.rejects(p.vectors.replace({revision:1,features:[
+            {id:'malformed',category:'masts',parts:[part]}]}),/Invalid obstacle AGL/);
+    }
+});
+
+test('isolated point with AGL remains accurately drawable even if the absolute datum is unavailable',async () => {
+    const p=setup({groundHeight:()=>402.5});
+    await p.vectors.replace({revision:1,features:[{id:'height-only',category:'masts',parts:[
+        {kind:'Point',elevated:false,coordinates:[[8,46,null]],heightAgl:50}]}]});
+    const [point,stem]=p.sources[0].entities.values;
+    assert.deepEqual(point.position.getValue(),[8,46,452.5]);
+    assert.deepEqual(stem.polyline.positions.getValue(),[[8,46,402.5],[8,46,452.5]]);
+    assert.equal(p.sources[0].entities.values.length,2);
+    p.vectors.dispose();
 });

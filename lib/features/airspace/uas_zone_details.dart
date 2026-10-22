@@ -1,3 +1,5 @@
+import 'uas_restriction.dart';
+
 import 'dart:convert';
 
 /// Source attributes for one selected zone. Codes and vertical references stay
@@ -51,6 +53,8 @@ class UasZoneDetails {
       truncatedAttributes: List.unmodifiable(shortened),
     );
   }
+
+  UasRestriction get restriction => UasRestriction.fromAttributes(attributes);
 
   final String id;
   final String name;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/osint/osint_source.dart';
 import 'uas_zone_details.dart';
+import 'uas_restriction.dart';
 
 class UasZoneDetailsPanel extends StatelessWidget {
   const UasZoneDetailsPanel({
@@ -49,6 +50,11 @@ class UasZoneDetailsPanel extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+          ),
+          Text(zone.restriction.category.label),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(zone.restriction.restrictionMeaning),
           ),
           TextButton.icon(
             icon: const Icon(Icons.info_outline),
@@ -117,6 +123,17 @@ class UasZoneDetailsSheet extends StatelessWidget {
               'Limited attribute display. ${zone.omittedAttributeCount} attributes omitted. '
               '${zone.truncatedAttributes.isEmpty ? '' : 'Shortened or unavailable values: ${zone.truncatedAttributes.join(', ')}.'}',
             ),
+          _heading(context, 'Interpreted restriction rule'),
+          _DetailRow('Classification', zone.restriction.category.label),
+          _DetailRow('Rule applicability', zone.restriction.restrictionMeaning),
+          _DetailRow('Authority', zone.restriction.authority.name ?? 'Not provided'),
+          _DetailRow('Authorisation contact', zone.restriction.authority.role ?? 'Not provided'),
+          if (zone.restriction.category == UasRestrictionCategory.unknown)
+            const _Notice('Unknown or unsupported restriction code: no permission can be inferred.'),
+          if (zone.restriction.hasUnverifiedTimeRules)
+            const _Notice('Potential time-dependent restriction: activation is NOT calculated. Consult original validity and daily time rules.'),
+          for (final issue in zone.restriction.unrecognisedValues)
+            _Notice(issue),
           _heading(context, 'Source classification'),
           ..._fields({
             'identifier': 'Identifier',

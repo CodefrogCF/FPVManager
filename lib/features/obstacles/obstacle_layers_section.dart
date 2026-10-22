@@ -213,8 +213,10 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
         ),
         const Text(
           'Absolute source heights: LN02. Elevated display: CHGeo2004 + HTRANS to the '
-          'ETRS89 ellipsoid, used as a WGS84 approximation. Unknown heights/modes use a ground marker at the first source vertex. '
-          'Lines and polygon outlines are source approximations; cable sag is not reconstructed.',
+          'ETRS89 ellipsoid, used as a WGS84 approximation. Unknown line/area elevations are shown only as a ground marker at their first source vertex. '
+          'Isolated point obstacles with an official AGL height are displayed at that exact height above the currently rendered terrain; their visualized absolute top may differ from the surveyed LN02 top. '
+          'Extra KML label points on lines/polygons are not drawn as obstacles. '
+          'Lines and polygon outlines retain source absolute 3D elevations; cable sag is not reconstructed.',
         ),
         SelectableText(
           SwissObstacleProvider.obstacleSource.metadataUri.toString(),

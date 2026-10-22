@@ -1,4 +1,5 @@
 import 'uas_zone_details.dart';
+import 'uas_restriction.dart';
 
 /// Local checks of the downloaded content, not a certification of coverage or
 /// official validity. Only supported, structurally usable geometry is rendered.
@@ -11,6 +12,8 @@ class UasDatasetAssessment {
     required this.declaredTotal,
     required this.hasNextPage,
     required this.countMismatch,
+    required this.categoryCounts,
+    required this.timeDependentFeatureCount,
   });
 
   factory UasDatasetAssessment.inspect(Map<String, dynamic> source) {
@@ -20,6 +23,8 @@ class UasDatasetAssessment {
     }
     final renderable = <Object?>[];
     var missing = 0;
+    var timed = 0;
+    final categories = <UasRestrictionCategory, int>{};
     for (final feature in features) {
       if (feature is! Map ||
           feature['type'] != 'Feature' ||
@@ -28,6 +33,42 @@ class UasDatasetAssessment {
       }
       renderable.add(feature);
       final properties = feature['properties'];
+      // Avoid stringifying/copying every GeoJSON property just to count types.
+      // Zone selection still retains the original source attributes.
+      const relevant = [
+        'type',
+        'restriction',
+        'reason',
+        'identifier',
+        'permanent',
+        'startDateTime',
+        'endDateTime',
+        'startTime',
+        'endTime',
+        'authorityName',
+        'purpose',
+        'restrictionConditions',
+        'uomDimensions',
+        'lowerLimit',
+        'upperLimit',
+        'lowerVerticalReference',
+        'upperVerticalReference',
+      ];
+      final typedAttributes = <String, String>{};
+      if (properties is Map) {
+        for (final key in relevant) {
+          final value = properties[key];
+          if (value is String) typedAttributes[key] = value;
+          if (value is num || value is bool) typedAttributes[key] = '$value';
+        }
+      }
+      final restriction = UasRestriction.fromAttributes(typedAttributes);
+      categories.update(
+        restriction.category,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+      if (restriction.hasSchedule) timed++;
       if (properties is! Map ||
           UasZoneDetails.missingSourceFields(properties).isNotEmpty) {
         missing++;
@@ -61,6 +102,8 @@ class UasDatasetAssessment {
                 link['href'] is String &&
                 (link['href'] as String).trim().isNotEmpty,
           ),
+      categoryCounts: Map.unmodifiable(categories),
+      timeDependentFeatureCount: timed,
       countMismatch:
           (total != null && total < features.length) ||
           (returned != null && returned != features.length),
@@ -74,6 +117,8 @@ class UasDatasetAssessment {
   final int? declaredTotal;
   final bool hasNextPage;
   final bool countMismatch;
+  final Map<UasRestrictionCategory, int> categoryCounts;
+  final int timeDependentFeatureCount;
   int get renderedFeatureCount => sourceFeatureCount - skippedFeatureCount;
 
   List<String> get issues => [

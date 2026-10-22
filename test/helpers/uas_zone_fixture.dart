@@ -3,7 +3,7 @@ const uasFixtureAttributes = <String, String>{
   'name': 'Fixture zone',
   'type': 'COMMON',
   'reason': 'NATURE',
-  'restriction': 'REQ_AUTHORISATION',
+  'restriction': 'REQ_AUTHORISATION.MTOM_ALL',
   'restrictionConditions': 'Synthetic restriction supplied by the fixture.',
   'message': 'Synthetic authority information.',
   'permanent': 'YES',

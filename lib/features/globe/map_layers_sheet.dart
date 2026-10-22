@@ -6,6 +6,7 @@ import '../../core/osint/osint_provider_state.dart';
 import '../../core/osint/osint_source.dart';
 import 'globe_controller.dart';
 import '../obstacles/obstacle_layers_section.dart';
+import '../airspace/airspace_safety_panel.dart';
 
 class MapLayersSheet extends StatefulWidget {
   const MapLayersSheet({
@@ -371,6 +372,12 @@ class _MapLayersSheetState extends State<MapLayersSheet> {
                     ],
                   ),
 
+                  TextButton.icon(
+                    onPressed: () =>
+                        showAirspaceSafetyPanel(context, controller),
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: const Text('Airspace safety & official sources'),
+                  ),
                   const SizedBox(height: 8),
 
                   _InfoRow(label: 'Provider', value: source.publisher),

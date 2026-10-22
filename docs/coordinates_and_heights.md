@@ -42,9 +42,53 @@ the **same known reference**. Entered AGL must be finite and nonnegative; the
 inverse can be negative. Mixed datums, unknown references and overflow are rejected.
 The result does not establish obstacle clearance or improve terrain accuracy.
 
+### 3D Swiss aviation obstacles — AGL-accurate point heights
+
+The BAZL/Skyguide Swiss Obstacle Data Set KML specification (DPS 1.0.1,
+section 15.2.7) states that `maxHeightAGL` and `topElevationAMSL` both apply
+**at the same location for a point obstacle**. For linear/polygon obstacles,
+the maximum AGL height may be located **anywhere** along/across the shape.
+It must **not** be applied to each line vertex or polygon marker.
+
+For an isolated KML `Point` with a finite, plausible `maxHeightAGL`, Cesium
+computes **both** the foot and the rendered tip from the **same visible
+terrain tile**:
+
+```
+footEllipsoid = globe.getHeight(longitude, latitude)
+renderedTipEllipsoid = footEllipsoid + maxHeightAGL
+renderedStemLength = maxHeightAGL
+```
+
+The marker and stem use dynamic Cesium properties. Whenever the terrain
+mesh is refined or the camera changes the loaded LOD, **both endpoints
+move together**, so a published 50 m crane is drawn 50 m tall rather than
+an arbitrary distance from the terrain. If terrain is not available, both
+the AGL-derived point marker and its stem are hidden instead of displaying
+an uncertain height. This is display geometry, not a resurvey of the site.
+
+The original LN02 top elevation remains untouched in the source attributes;
+this 3D marker may therefore differ from the converted absolute elevation.
+Its vertical *extent* is based on the published AGL and the currently
+rendered terrain, whose accuracy varies with the terrain tiles and source.
+An isolated Point **without** a valid AGL remains at its published absolute
+3D elevation if available, but no fabricated vertical stem is drawn.
+
+The KML schema may also supply an additional `Point` to label each line or
+polygon (DPS section 15.2.9). Those synthetic label coordinates are no
+longer rendered as separate flying obstacle markers; the corresponding
+line/polygon remains pickable. **Cables and power lines retain their
+source-provided 3D vertex elevations without terrain clamping**; cable sag
+is not reconstructed and `maxHeightAGL` is not misapplied to vertices.
+
+The KML dataset is a visualization source and the BAZL/Skyguide product
+specification explicitly limits use in real-world operation/testing.
+Neither geometry nor terrain sampling guarantees obstacle clearance.
+
 ## Technical sources
 
 - [swisstopo coordinate formulas](https://www.swisstopo.admin.ch/dam/en/sd-web/KLRCX9XIdXDu/ch1903wgs84-EN.pdf)
 - [REFRAME overview](https://www.swisstopo.admin.ch/en/rest-api-geoservices-reframe-web) and [API manual](https://www.swisstopo.admin.ch/dam/en/sd-web/3xmcWvfxgG6X/Report16-03.pdf)
 - [Terrain service](https://docs.geo.admin.ch/visualize-data/terrain-service.html) and [Cesium terrain-sampling contract](https://cesium.com/learn/cesiumjs/ref-doc/global.html#sampleTerrain)
 - [swisstopo geoid and heights](https://www.swisstopo.admin.ch/en/geoid-en)
+- [BAZL/Skyguide Swiss Obstacle Data Set product specification, sections 15.2.6–15.2.9](https://www.bazl.admin.ch/dam/de/sd-web/CpfHnV604RSJ/dps_obstacle_datenset_aixm.pdf)

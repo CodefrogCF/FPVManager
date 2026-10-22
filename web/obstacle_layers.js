@@ -89,7 +89,8 @@
         return {set, status, dispose() { if (disposed) return; disposed = true; revision++; clear(); }};
     }
 
-    function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0))} = {}) {
+    function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0)),
+        isTerrainReady = () => true} = {}) {
         let source = null, staged = null, revision = -1, disposed = false;
         let selection = new Map();
         const credit = new C.Credit('BAZL / FOCA · Skyguide · geo.admin.ch · CHGeo2004 © swisstopo', true);
@@ -101,6 +102,44 @@
         }
         const colors = {powerLines:'#ff6b50', cableways:'#f6c445', masts:'#55d5ff', other:'#dc9aff', unknown:'#eeeeee'};
         function remove(s) { if (s) viewer.dataSources.remove(s, true); }
+        // The source provides two distinct vertical values for point obstacles:
+        // an absolute LN02 top elevation and a height above local ground (AGL).
+        // Cesium renders a separate terrain mesh, which may differ from the
+        // source's elevation datum and from the geometry's survey terrain.
+        // To DRAW an exact AGL-height stem, compute BOTH endpoints from the same
+        // rendered terrain sample. Never keep the original absolute top while
+        // moving only the bottom: doing so changes the displayed object height.
+        // Original source elevations remain in Flutter's obstacle attributes.
+        function pointAboveTerrain(coordinate, agl, color) {
+            const [lon,lat,sourceElevation] = coordinate;
+            const sourceTop = Number.isFinite(sourceElevation) ? sourceElevation : 0;
+            const location = C.Cartographic.fromDegrees(lon,lat);
+            const fallbackTop = C.Cartesian3.fromDegrees(lon,lat,sourceTop);
+            const hiddenPositions = [fallbackTop,fallbackTop];
+            let previousGround, cachedTop, cachedStem;
+            function sample() {
+                if (!isTerrainReady()) return null;
+                const ground = viewer.scene?.globe?.getHeight?.(location);
+                // A missing/non-finite tile height is not the ellipsoid zero;
+                // never invent a ground position or a guaranteed obstacle top.
+                if (!Number.isFinite(ground) || ground < -1500 ||
+                    ground + agl > 16000) return null;
+                if (ground !== previousGround) {
+                    cachedTop = C.Cartesian3.fromDegrees(lon,lat,ground + agl);
+                    cachedStem = [C.Cartesian3.fromDegrees(lon,lat,ground),cachedTop];
+                    previousGround = ground;
+                }
+                return {top:cachedTop,stem:cachedStem};
+            }
+            const show = new C.CallbackProperty(() => sample() !== null, false);
+            return {
+                marker:{position:new C.CallbackProperty(() => sample()?.top ?? fallbackTop,false),
+                    show,point:{pixelSize:7,color,outlineColor:C.Color.BLACK,outlineWidth:1,
+                        heightReference:C.HeightReference.NONE}},
+                stem:{polyline:{positions:new C.CallbackProperty(() => sample()?.stem ?? hiddenPositions,false),
+                    show,width:2,material:color,arcType:C.ArcType.NONE}}
+            };
+        }
         function validate(command) {
             if (!Number.isSafeInteger(command.revision) || !Array.isArray(command.features) ||
                 command.features.length > 1200) throw new Error('Invalid obstacle batch');
@@ -125,8 +164,10 @@
                         }
                         vertices++;
                     }
-                    if (p.baseHeight != null && (!p.elevated || !Number.isFinite(p.baseHeight) ||
-                        p.baseHeight > p.coordinates[0][2] || p.baseHeight < -1500)) throw new Error('Invalid obstacle base');
+                    if (p.heightAgl != null && (p.kind !== 'Point' ||
+                        !Number.isFinite(p.heightAgl) || p.heightAgl <= 0 || p.heightAgl >= 1500)) {
+                        throw new Error('Invalid obstacle AGL');
+                    }
                 }
             }
             if (parts > 4000 || vertices > 40000) throw new Error('Obstacle rendering limit exceeded');
@@ -147,10 +188,24 @@
                 for (const f of command.features) {
                     if (!current()) return;
                     const color = C.Color.fromCssColorString(colors[f.category]);
+                    // Swiss obstacle KML can include an extra Point merely to
+                    // label a line/polygon. It is not a separate 3D obstacle.
+                    const hasLineOrArea = f.parts.some(p => p.kind !== 'Point');
                     for (const p of f.parts) {
+                        if (p.kind === 'Point' && hasLineOrArea) continue;
+                        const colorPoint = p.kind === 'Point' && p.heightAgl != null;
+                        if (colorPoint) {
+                            const objects = pointAboveTerrain(p.coordinates[0],p.heightAgl,color);
+                            const marker = next.entities.add(objects.marker);
+                            const stem = next.entities.add(objects.stem);
+                            ids.set(marker.id,{id:f.id,revision:command.revision});
+                            ids.set(stem.id,{id:f.id,revision:command.revision});
+                            continue;
+                        }
                         const points = p.coordinates.map(a => C.Cartesian3.fromDegrees(a[0],a[1],p.elevated ? a[2] : 0));
-                        // Unusable heights get a ground marker at the first
-                        // source vertex, without inventing a cable's 3D shape.
+                        // Unknown AGL for a genuine point: preserve absolute
+                        // source top without pretending to know its local height.
+                        // For unknown line altitudes, retain a projected marker.
                         const entity = next.entities.add(p.kind === 'Point' || !p.elevated ? {
                             position:points[0], point:{pixelSize:p.elevated ? 7 : 5, color,
                                 outlineColor:C.Color.BLACK, outlineWidth:1,
@@ -158,12 +213,6 @@
                         } : {polyline:{positions:points, width:p.elevated ? 3 : 2, material:color,
                             clampToGround:!p.elevated, arcType:p.elevated ? C.ArcType.NONE : C.ArcType.GEODESIC}});
                         ids.set(entity.id, {id:f.id, revision:command.revision});
-                        if (p.kind === 'Point' && p.baseHeight != null) {
-                            const a = p.coordinates[0];
-                            const stem = next.entities.add({polyline:{positions:[C.Cartesian3.fromDegrees(a[0],a[1],p.baseHeight),points[0]],
-                                width:2, material:color, arcType:C.ArcType.NONE}});
-                            ids.set(stem.id,{id:f.id,revision:command.revision});
-                        }
                     }
                     if (++index % 80 === 0) await yieldBatch();
                 }

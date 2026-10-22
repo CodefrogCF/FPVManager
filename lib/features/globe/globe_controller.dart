@@ -16,6 +16,8 @@ import '../airspace/data/swiss_uas_provider.dart';
 import '../airspace/uas_dataset_assessment.dart';
 import '../airspace/uas_zone_details.dart';
 import '../airspace/uas_airspace_checker.dart';
+import '../../core/osint/geojson_performance.dart';
+import '../../core/osint/geojson_osint_provider.dart';
 import '../obstacles/obstacle_map_controller.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import 'globe_bridge.dart';
@@ -331,6 +333,8 @@ class GlobeController extends ChangeNotifier {
   double _uasZonesFillOpacity = 0.20;
   DateTime? _uasZonesDownloadedAt;
   int? _uasZonesFeatureCount;
+  UasRenderMetrics? _uasRenderMetrics;
+  UasRenderMetrics? get uasRenderMetrics => _uasRenderMetrics;
   List<SpotMapMarker> _spotMarkers = const [];
   int? _selectedSpotId;
   int _spotMarkerRevision = 0;
@@ -512,6 +516,15 @@ class GlobeController extends ChangeNotifier {
       _uasDisplayedDataset?.source ?? _uasProvider.source;
   OsintDataset<Map<String, dynamic>>? get uasDisplayedDataset =>
       _uasDisplayedDataset;
+  GeoJsonDownloadMetrics? get uasNetworkMetrics =>
+      _uasProvider is GeoJsonOsintProvider
+      ? (_uasProvider as GeoJsonOsintProvider).lastDownloadMetrics
+      : null;
+  GlobeTransferMetrics? get uasTransferMetrics =>
+      _bridge.lastTransferMetrics?.type == 'set-uas-zones' ||
+          _bridge.lastTransferMetrics?.type == 'replace-uas-zones'
+      ? _bridge.lastTransferMetrics
+      : null;
   OsintProviderState<Map<String, dynamic>> get uasProviderStatus =>
       _uasProvider.status;
   OsintFreshness get uasDataFreshness =>
@@ -974,6 +987,7 @@ class GlobeController extends ChangeNotifier {
         _uasDisplayedDataset = null;
         _uasZonesVisible = false;
         _uasZonesLoading = false;
+        _uasRenderMetrics = null;
         _selectedPoint = null;
         _selectedSpotId = null;
         _selectedUasZone = null;
@@ -1050,6 +1064,36 @@ class GlobeController extends ChangeNotifier {
         _error = data['message']?.toString() ?? 'Unknown globe error';
         _uasZonesLoading = false;
         notifyListeners();
+
+      case 'uas-render-metrics':
+        final loadMs = data['loadMs'];
+        final attachMs = data['attachMs'];
+        final firstFrameMs = data['firstFrameMs'];
+        final count = data['featureCount'];
+        if (loadMs is num &&
+            attachMs is num &&
+            count is int &&
+            loadMs.isFinite &&
+            attachMs.isFinite &&
+            loadMs >= 0 &&
+            loadMs < 600000 &&
+            attachMs >= 0 &&
+            attachMs < 600000 &&
+            count >= 0 &&
+            count <= 1000000 &&
+            (firstFrameMs == null ||
+                (firstFrameMs is num &&
+                    firstFrameMs.isFinite &&
+                    firstFrameMs >= 0 &&
+                    firstFrameMs < 600000))) {
+          _uasRenderMetrics = UasRenderMetrics(
+            featureCount: count,
+            loadMs: loadMs.toDouble(),
+            attachMs: attachMs.toDouble(),
+            firstFrameMs: (firstFrameMs as num?)?.toDouble(),
+          );
+          notifyListeners();
+        }
 
       case 'uas-zones-status':
         final visible = data['visible'];
@@ -1278,4 +1322,19 @@ class GlobeController extends ChangeNotifier {
     }
     super.dispose();
   }
+}
+
+/// Cesium-side measured durations. First-frame time begins after data source
+/// attachment; it is distinct from the Flutter bridge acknowledgement time.
+class UasRenderMetrics {
+  const UasRenderMetrics({
+    required this.featureCount,
+    required this.loadMs,
+    required this.attachMs,
+    this.firstFrameMs,
+  });
+  final int featureCount;
+  final double loadMs;
+  final double attachMs;
+  final double? firstFrameMs;
 }

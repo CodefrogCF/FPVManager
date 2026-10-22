@@ -82,7 +82,9 @@ class ObstacleDetailsPanel extends StatelessWidget {
                   ),
                 const Text(
                   'Height conversion: CHGeo2004 + HTRANS → ETRS89 ellipsoid (WGS84 approximation). '
-                  'Source AGL is never used to invent missing cable elevations.',
+                  'For single Point obstacles with valid AGL, the rendered marker and height stem use local Cesium terrain + source AGL; '
+                  'the source top AMSL remains listed above and may differ. '
+                  'Source AGL is never used to invent cable elevations.',
                 ),
                 Text(
                   'Effective date: ${feature.attributes['effectiveDate'] ?? 'unknown'} UTC',

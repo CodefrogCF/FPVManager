@@ -25,6 +25,22 @@ class GlobeBridgeOptions {
   final int maxPendingRequests;
 }
 
+class GlobeTransferMetrics {
+  const GlobeTransferMetrics({
+    required this.type,
+    required this.characters,
+    required this.encodeTime,
+    required this.acknowledgementTime,
+  });
+  final String type;
+  final int characters;
+  final Duration encodeTime;
+
+  /// Includes send/chunk transfer + JavaScript handling + reply, not pure
+  /// Cesium render time. Only a renderer-side measurement can separate them.
+  final Duration acknowledgementTime;
+}
+
 class _PendingCommand {
   _PendingCommand(this.type, this.session);
 
@@ -61,6 +77,7 @@ class GlobeBridge {
   int _lastEventSequence = 0;
 
   String? get session => _session;
+  GlobeTransferMetrics? lastTransferMetrics;
 
   void attach(GlobeCommandSender sender) {
     endSession();
@@ -170,12 +187,14 @@ class GlobeBridge {
       return Future.error(StateError('Globe command queue is full or invalid'));
     }
     final id = (++_nextRequest).toString();
+    final encoding = Stopwatch()..start();
     final encoded = jsonEncode({
       ...command,
       'version': version,
       'sessionId': session,
       'requestId': id,
     });
+    encoding.stop();
     if (encoded.length > options.maxCommandCharacters) {
       return Future.error(
         ArgumentError('Globe command exceeds transfer limit'),
@@ -187,8 +206,18 @@ class GlobeBridge {
       _fail(id, TimeoutException('Globe command timed out: $type'));
       unawaited(_control(sender, session, 'cancel-command', id));
     });
+    final acknowledgement = Stopwatch()..start();
     unawaited(_dispatch(sender, session, id, type, encoded));
-    return pending.completer.future;
+    return pending.completer.future.then((result) {
+      acknowledgement.stop();
+      lastTransferMetrics = GlobeTransferMetrics(
+        type: type,
+        characters: encoded.length,
+        encodeTime: encoding.elapsed,
+        acknowledgementTime: acknowledgement.elapsed,
+      );
+      return result;
+    });
   }
 
   Future<void> _control(
