@@ -178,12 +178,13 @@ void main() {
       var calls = 0;
       final client = MockClient((request) async {
         calls++;
-        if (calls == 1)
+        if (calls == 1) {
           return http.Response(
             content,
             200,
             headers: {'last-modified': 'Thu, 22 Oct 2026 06:00:00 GMT'},
           );
+        }
         expect(request.headers['If-None-Match'], isNull);
         expect(
           request.headers['If-Modified-Since'],
@@ -295,12 +296,13 @@ void main() {
       var calls = 0;
       final client = MockClient((request) async {
         calls++;
-        if (calls == 1)
+        if (calls == 1) {
           return http.Response(
             content,
             200,
             headers: {'etag': '"v1"', 'cache-control': 'no-cache'},
           );
+        }
         expect(request.headers['If-None-Match'], '"v1"');
         return http.Response('', 304);
       });
