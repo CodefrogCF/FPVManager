@@ -4249,6 +4249,18 @@ class $FlightPlansTable extends FlightPlans
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _planningJsonMeta = const VerificationMeta(
+    'planningJson',
+  );
+  @override
+  late final GeneratedColumn<String> planningJson = GeneratedColumn<String>(
+    'planning_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4268,6 +4280,7 @@ class $FlightPlansTable extends FlightPlans
     droneId,
     startSpotId,
     notes,
+    planningJson,
     createdAt,
   ];
   @override
@@ -4314,6 +4327,15 @@ class $FlightPlansTable extends FlightPlans
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('planning_json')) {
+      context.handle(
+        _planningJsonMeta,
+        planningJson.isAcceptableOrUnknown(
+          data['planning_json']!,
+          _planningJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4349,6 +4371,10 @@ class $FlightPlansTable extends FlightPlans
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      planningJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}planning_json'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4368,6 +4394,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
   final int? droneId;
   final int? startSpotId;
   final String? notes;
+  final String planningJson;
   final DateTime createdAt;
   const FlightPlan({
     required this.id,
@@ -4375,6 +4402,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
     this.droneId,
     this.startSpotId,
     this.notes,
+    required this.planningJson,
     required this.createdAt,
   });
   @override
@@ -4391,6 +4419,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    map['planning_json'] = Variable<String>(planningJson);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4408,6 +4437,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      planningJson: Value(planningJson),
       createdAt: Value(createdAt),
     );
   }
@@ -4423,6 +4453,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
       droneId: serializer.fromJson<int?>(json['droneId']),
       startSpotId: serializer.fromJson<int?>(json['startSpotId']),
       notes: serializer.fromJson<String?>(json['notes']),
+      planningJson: serializer.fromJson<String>(json['planningJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4435,6 +4466,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
       'droneId': serializer.toJson<int?>(droneId),
       'startSpotId': serializer.toJson<int?>(startSpotId),
       'notes': serializer.toJson<String?>(notes),
+      'planningJson': serializer.toJson<String>(planningJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4445,6 +4477,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
     Value<int?> droneId = const Value.absent(),
     Value<int?> startSpotId = const Value.absent(),
     Value<String?> notes = const Value.absent(),
+    String? planningJson,
     DateTime? createdAt,
   }) => FlightPlan(
     id: id ?? this.id,
@@ -4452,6 +4485,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
     droneId: droneId.present ? droneId.value : this.droneId,
     startSpotId: startSpotId.present ? startSpotId.value : this.startSpotId,
     notes: notes.present ? notes.value : this.notes,
+    planningJson: planningJson ?? this.planningJson,
     createdAt: createdAt ?? this.createdAt,
   );
   FlightPlan copyWithCompanion(FlightPlansCompanion data) {
@@ -4463,6 +4497,9 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
           ? data.startSpotId.value
           : this.startSpotId,
       notes: data.notes.present ? data.notes.value : this.notes,
+      planningJson: data.planningJson.present
+          ? data.planningJson.value
+          : this.planningJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4475,14 +4512,22 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
           ..write('droneId: $droneId, ')
           ..write('startSpotId: $startSpotId, ')
           ..write('notes: $notes, ')
+          ..write('planningJson: $planningJson, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, droneId, startSpotId, notes, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    droneId,
+    startSpotId,
+    notes,
+    planningJson,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4492,6 +4537,7 @@ class FlightPlan extends DataClass implements Insertable<FlightPlan> {
           other.droneId == this.droneId &&
           other.startSpotId == this.startSpotId &&
           other.notes == this.notes &&
+          other.planningJson == this.planningJson &&
           other.createdAt == this.createdAt);
 }
 
@@ -4501,6 +4547,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
   final Value<int?> droneId;
   final Value<int?> startSpotId;
   final Value<String?> notes;
+  final Value<String> planningJson;
   final Value<DateTime> createdAt;
   const FlightPlansCompanion({
     this.id = const Value.absent(),
@@ -4508,6 +4555,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
     this.droneId = const Value.absent(),
     this.startSpotId = const Value.absent(),
     this.notes = const Value.absent(),
+    this.planningJson = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   FlightPlansCompanion.insert({
@@ -4516,6 +4564,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
     this.droneId = const Value.absent(),
     this.startSpotId = const Value.absent(),
     this.notes = const Value.absent(),
+    this.planningJson = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : name = Value(name);
   static Insertable<FlightPlan> custom({
@@ -4524,6 +4573,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
     Expression<int>? droneId,
     Expression<int>? startSpotId,
     Expression<String>? notes,
+    Expression<String>? planningJson,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -4532,6 +4582,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
       if (droneId != null) 'drone_id': droneId,
       if (startSpotId != null) 'start_spot_id': startSpotId,
       if (notes != null) 'notes': notes,
+      if (planningJson != null) 'planning_json': planningJson,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -4542,6 +4593,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
     Value<int?>? droneId,
     Value<int?>? startSpotId,
     Value<String?>? notes,
+    Value<String>? planningJson,
     Value<DateTime>? createdAt,
   }) {
     return FlightPlansCompanion(
@@ -4550,6 +4602,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
       droneId: droneId ?? this.droneId,
       startSpotId: startSpotId ?? this.startSpotId,
       notes: notes ?? this.notes,
+      planningJson: planningJson ?? this.planningJson,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -4572,6 +4625,9 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (planningJson.present) {
+      map['planning_json'] = Variable<String>(planningJson.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4586,6 +4642,7 @@ class FlightPlansCompanion extends UpdateCompanion<FlightPlan> {
           ..write('droneId: $droneId, ')
           ..write('startSpotId: $startSpotId, ')
           ..write('notes: $notes, ')
+          ..write('planningJson: $planningJson, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -6332,6 +6389,17 @@ class $FlightWaypointsTable extends FlightWaypoints
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _speedMetersPerSecondMeta =
+      const VerificationMeta('speedMetersPerSecond');
+  @override
+  late final GeneratedColumn<double> speedMetersPerSecond =
+      GeneratedColumn<double>(
+        'speed_meters_per_second',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _heightReferenceMeta = const VerificationMeta(
     'heightReference',
   );
@@ -6364,6 +6432,7 @@ class $FlightWaypointsTable extends FlightWaypoints
     latitude,
     longitude,
     heightMeters,
+    speedMetersPerSecond,
     heightReference,
     altitudeMode,
   ];
@@ -6426,6 +6495,15 @@ class $FlightWaypointsTable extends FlightWaypoints
         ),
       );
     }
+    if (data.containsKey('speed_meters_per_second')) {
+      context.handle(
+        _speedMetersPerSecondMeta,
+        speedMetersPerSecond.isAcceptableOrUnknown(
+          data['speed_meters_per_second']!,
+          _speedMetersPerSecondMeta,
+        ),
+      );
+    }
     if (data.containsKey('height_reference')) {
       context.handle(
         _heightReferenceMeta,
@@ -6477,6 +6555,10 @@ class $FlightWaypointsTable extends FlightWaypoints
         DriftSqlType.double,
         data['${effectivePrefix}height_meters'],
       ),
+      speedMetersPerSecond: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}speed_meters_per_second'],
+      ),
       heightReference: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}height_reference'],
@@ -6506,6 +6588,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
   /// Must not be used for safety calculations
   /// without a verified height reference.
   final double? heightMeters;
+  final double? speedMetersPerSecond;
   final String heightReference;
   final String altitudeMode;
   const FlightWaypoint({
@@ -6515,6 +6598,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
     required this.latitude,
     required this.longitude,
     this.heightMeters,
+    this.speedMetersPerSecond,
     required this.heightReference,
     required this.altitudeMode,
   });
@@ -6528,6 +6612,9 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
     map['longitude'] = Variable<double>(longitude);
     if (!nullToAbsent || heightMeters != null) {
       map['height_meters'] = Variable<double>(heightMeters);
+    }
+    if (!nullToAbsent || speedMetersPerSecond != null) {
+      map['speed_meters_per_second'] = Variable<double>(speedMetersPerSecond);
     }
     map['height_reference'] = Variable<String>(heightReference);
     map['altitude_mode'] = Variable<String>(altitudeMode);
@@ -6544,6 +6631,9 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
       heightMeters: heightMeters == null && nullToAbsent
           ? const Value.absent()
           : Value(heightMeters),
+      speedMetersPerSecond: speedMetersPerSecond == null && nullToAbsent
+          ? const Value.absent()
+          : Value(speedMetersPerSecond),
       heightReference: Value(heightReference),
       altitudeMode: Value(altitudeMode),
     );
@@ -6561,6 +6651,9 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
       latitude: serializer.fromJson<double>(json['latitude']),
       longitude: serializer.fromJson<double>(json['longitude']),
       heightMeters: serializer.fromJson<double?>(json['heightMeters']),
+      speedMetersPerSecond: serializer.fromJson<double?>(
+        json['speedMetersPerSecond'],
+      ),
       heightReference: serializer.fromJson<String>(json['heightReference']),
       altitudeMode: serializer.fromJson<String>(json['altitudeMode']),
     );
@@ -6575,6 +6668,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
       'latitude': serializer.toJson<double>(latitude),
       'longitude': serializer.toJson<double>(longitude),
       'heightMeters': serializer.toJson<double?>(heightMeters),
+      'speedMetersPerSecond': serializer.toJson<double?>(speedMetersPerSecond),
       'heightReference': serializer.toJson<String>(heightReference),
       'altitudeMode': serializer.toJson<String>(altitudeMode),
     };
@@ -6587,6 +6681,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
     double? latitude,
     double? longitude,
     Value<double?> heightMeters = const Value.absent(),
+    Value<double?> speedMetersPerSecond = const Value.absent(),
     String? heightReference,
     String? altitudeMode,
   }) => FlightWaypoint(
@@ -6596,6 +6691,9 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
     heightMeters: heightMeters.present ? heightMeters.value : this.heightMeters,
+    speedMetersPerSecond: speedMetersPerSecond.present
+        ? speedMetersPerSecond.value
+        : this.speedMetersPerSecond,
     heightReference: heightReference ?? this.heightReference,
     altitudeMode: altitudeMode ?? this.altitudeMode,
   );
@@ -6611,6 +6709,9 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
       heightMeters: data.heightMeters.present
           ? data.heightMeters.value
           : this.heightMeters,
+      speedMetersPerSecond: data.speedMetersPerSecond.present
+          ? data.speedMetersPerSecond.value
+          : this.speedMetersPerSecond,
       heightReference: data.heightReference.present
           ? data.heightReference.value
           : this.heightReference,
@@ -6629,6 +6730,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('heightMeters: $heightMeters, ')
+          ..write('speedMetersPerSecond: $speedMetersPerSecond, ')
           ..write('heightReference: $heightReference, ')
           ..write('altitudeMode: $altitudeMode')
           ..write(')'))
@@ -6643,6 +6745,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
     latitude,
     longitude,
     heightMeters,
+    speedMetersPerSecond,
     heightReference,
     altitudeMode,
   );
@@ -6656,6 +6759,7 @@ class FlightWaypoint extends DataClass implements Insertable<FlightWaypoint> {
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.heightMeters == this.heightMeters &&
+          other.speedMetersPerSecond == this.speedMetersPerSecond &&
           other.heightReference == this.heightReference &&
           other.altitudeMode == this.altitudeMode);
 }
@@ -6667,6 +6771,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
   final Value<double> latitude;
   final Value<double> longitude;
   final Value<double?> heightMeters;
+  final Value<double?> speedMetersPerSecond;
   final Value<String> heightReference;
   final Value<String> altitudeMode;
   const FlightWaypointsCompanion({
@@ -6676,6 +6781,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.heightMeters = const Value.absent(),
+    this.speedMetersPerSecond = const Value.absent(),
     this.heightReference = const Value.absent(),
     this.altitudeMode = const Value.absent(),
   });
@@ -6686,6 +6792,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
     required double latitude,
     required double longitude,
     this.heightMeters = const Value.absent(),
+    this.speedMetersPerSecond = const Value.absent(),
     this.heightReference = const Value.absent(),
     this.altitudeMode = const Value.absent(),
   }) : planId = Value(planId),
@@ -6699,6 +6806,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<double>? heightMeters,
+    Expression<double>? speedMetersPerSecond,
     Expression<String>? heightReference,
     Expression<String>? altitudeMode,
   }) {
@@ -6709,6 +6817,8 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (heightMeters != null) 'height_meters': heightMeters,
+      if (speedMetersPerSecond != null)
+        'speed_meters_per_second': speedMetersPerSecond,
       if (heightReference != null) 'height_reference': heightReference,
       if (altitudeMode != null) 'altitude_mode': altitudeMode,
     });
@@ -6721,6 +6831,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
     Value<double>? latitude,
     Value<double>? longitude,
     Value<double?>? heightMeters,
+    Value<double?>? speedMetersPerSecond,
     Value<String>? heightReference,
     Value<String>? altitudeMode,
   }) {
@@ -6731,6 +6842,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       heightMeters: heightMeters ?? this.heightMeters,
+      speedMetersPerSecond: speedMetersPerSecond ?? this.speedMetersPerSecond,
       heightReference: heightReference ?? this.heightReference,
       altitudeMode: altitudeMode ?? this.altitudeMode,
     );
@@ -6757,6 +6869,11 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
     if (heightMeters.present) {
       map['height_meters'] = Variable<double>(heightMeters.value);
     }
+    if (speedMetersPerSecond.present) {
+      map['speed_meters_per_second'] = Variable<double>(
+        speedMetersPerSecond.value,
+      );
+    }
     if (heightReference.present) {
       map['height_reference'] = Variable<String>(heightReference.value);
     }
@@ -6775,6 +6892,7 @@ class FlightWaypointsCompanion extends UpdateCompanion<FlightWaypoint> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('heightMeters: $heightMeters, ')
+          ..write('speedMetersPerSecond: $speedMetersPerSecond, ')
           ..write('heightReference: $heightReference, ')
           ..write('altitudeMode: $altitudeMode')
           ..write(')'))
@@ -10765,6 +10883,7 @@ typedef $$FlightPlansTableCreateCompanionBuilder =
       Value<int?> droneId,
       Value<int?> startSpotId,
       Value<String?> notes,
+      Value<String> planningJson,
       Value<DateTime> createdAt,
     });
 typedef $$FlightPlansTableUpdateCompanionBuilder =
@@ -10774,6 +10893,7 @@ typedef $$FlightPlansTableUpdateCompanionBuilder =
       Value<int?> droneId,
       Value<int?> startSpotId,
       Value<String?> notes,
+      Value<String> planningJson,
       Value<DateTime> createdAt,
     });
 
@@ -10878,6 +10998,11 @@ class $$FlightPlansTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planningJson => $composableBuilder(
+    column: $table.planningJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11007,6 +11132,11 @@ class $$FlightPlansTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get planningJson => $composableBuilder(
+    column: $table.planningJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -11076,6 +11206,11 @@ class $$FlightPlansTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get planningJson => $composableBuilder(
+    column: $table.planningJson,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11216,6 +11351,7 @@ class $$FlightPlansTableTableManager
                 Value<int?> droneId = const Value.absent(),
                 Value<int?> startSpotId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String> planningJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => FlightPlansCompanion(
                 id: id,
@@ -11223,6 +11359,7 @@ class $$FlightPlansTableTableManager
                 droneId: droneId,
                 startSpotId: startSpotId,
                 notes: notes,
+                planningJson: planningJson,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -11232,6 +11369,7 @@ class $$FlightPlansTableTableManager
                 Value<int?> droneId = const Value.absent(),
                 Value<int?> startSpotId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String> planningJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => FlightPlansCompanion.insert(
                 id: id,
@@ -11239,6 +11377,7 @@ class $$FlightPlansTableTableManager
                 droneId: droneId,
                 startSpotId: startSpotId,
                 notes: notes,
+                planningJson: planningJson,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
@@ -12742,6 +12881,7 @@ typedef $$FlightWaypointsTableCreateCompanionBuilder =
       required double latitude,
       required double longitude,
       Value<double?> heightMeters,
+      Value<double?> speedMetersPerSecond,
       Value<String> heightReference,
       Value<String> altitudeMode,
     });
@@ -12753,6 +12893,7 @@ typedef $$FlightWaypointsTableUpdateCompanionBuilder =
       Value<double> latitude,
       Value<double> longitude,
       Value<double?> heightMeters,
+      Value<double?> speedMetersPerSecond,
       Value<String> heightReference,
       Value<String> altitudeMode,
     });
@@ -12815,6 +12956,11 @@ class $$FlightWaypointsTableFilterComposer
 
   ColumnFilters<double> get heightMeters => $composableBuilder(
     column: $table.heightMeters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get speedMetersPerSecond => $composableBuilder(
+    column: $table.speedMetersPerSecond,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12886,6 +13032,11 @@ class $$FlightWaypointsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get speedMetersPerSecond => $composableBuilder(
+    column: $table.speedMetersPerSecond,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get heightReference => $composableBuilder(
     column: $table.heightReference,
     builder: (column) => ColumnOrderings(column),
@@ -12945,6 +13096,11 @@ class $$FlightWaypointsTableAnnotationComposer
 
   GeneratedColumn<double> get heightMeters => $composableBuilder(
     column: $table.heightMeters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get speedMetersPerSecond => $composableBuilder(
+    column: $table.speedMetersPerSecond,
     builder: (column) => column,
   );
 
@@ -13018,6 +13174,7 @@ class $$FlightWaypointsTableTableManager
                 Value<double> latitude = const Value.absent(),
                 Value<double> longitude = const Value.absent(),
                 Value<double?> heightMeters = const Value.absent(),
+                Value<double?> speedMetersPerSecond = const Value.absent(),
                 Value<String> heightReference = const Value.absent(),
                 Value<String> altitudeMode = const Value.absent(),
               }) => FlightWaypointsCompanion(
@@ -13027,6 +13184,7 @@ class $$FlightWaypointsTableTableManager
                 latitude: latitude,
                 longitude: longitude,
                 heightMeters: heightMeters,
+                speedMetersPerSecond: speedMetersPerSecond,
                 heightReference: heightReference,
                 altitudeMode: altitudeMode,
               ),
@@ -13038,6 +13196,7 @@ class $$FlightWaypointsTableTableManager
                 required double latitude,
                 required double longitude,
                 Value<double?> heightMeters = const Value.absent(),
+                Value<double?> speedMetersPerSecond = const Value.absent(),
                 Value<String> heightReference = const Value.absent(),
                 Value<String> altitudeMode = const Value.absent(),
               }) => FlightWaypointsCompanion.insert(
@@ -13047,6 +13206,7 @@ class $$FlightWaypointsTableTableManager
                 latitude: latitude,
                 longitude: longitude,
                 heightMeters: heightMeters,
+                speedMetersPerSecond: speedMetersPerSecond,
                 heightReference: heightReference,
                 altitudeMode: altitudeMode,
               ),

@@ -11,7 +11,8 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Local spots with photos, search, tags and favorites.
 - Drone profiles, battery inventory and radio/video equipment profiles.
 - First-person terrain inspection and map-based editing of multiple local routes.
-- Optional 3D route previews at 30 m above terrain at each waypoint.
+- Configurable waypoint heights/airspeeds, drone and battery assignments.
+- Sampled terrain profiles, distance/duration analysis and configurable energy/reserve estimates.
 - MeteoSwiss/Open-Meteo forecasts, configurable weather comparisons and sampled wind/rain overlays.
 
 Personal records stay in local storage. Online maps and data services require

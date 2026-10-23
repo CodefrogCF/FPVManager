@@ -536,6 +536,9 @@ class GlobeController extends ChangeNotifier {
   String? get uasZonesError => _uasZonesError;
   bool get isReady => _ready;
   bool get terrainAvailable => _terrainAvailable;
+
+  /// Invalidates calculations when terrain or renderer state changes.
+  (int, int) get terrainRevision => (_connectionGeneration, _terrainEpoch);
   OsintSource get uasSource =>
       _uasDisplayedDataset?.source ?? _uasProvider.source;
   OsintDataset<Map<String, dynamic>>? get uasDisplayedDataset =>
@@ -730,6 +733,56 @@ class GlobeController extends ChangeNotifier {
     _selectedSpotId = null;
     _resetUasSelection();
     if (!_disposed) notifyListeners();
+  }
+
+  Future<({List<double> heights, String samplingMethod})> queryRouteTerrain(
+    List<Wgs84Coordinate> positions,
+  ) async {
+    if (positions.isEmpty ||
+        positions.length > 256 ||
+        positions.any(
+          (p) =>
+              !p.latitude.isFinite ||
+              !p.longitude.isFinite ||
+              p.latitude.abs() > 90 ||
+              p.longitude.abs() > 180,
+        )) {
+      throw ArgumentError('Invalid terrain sample batch');
+    }
+    if (!_ready || !_terrainAvailable) {
+      throw StateError('Detailed terrain unavailable');
+    }
+    final revision = terrainRevision;
+    final result = await _request({
+      'type': 'query-route-terrain',
+      'positions': [
+        for (final p in positions)
+          {'latitude': p.latitude, 'longitude': p.longitude},
+      ],
+    }, timeout: _bridge.options.terrainTimeout);
+    if (_disposed ||
+        !_ready ||
+        !_terrainAvailable ||
+        revision != terrainRevision) {
+      throw StateError('Terrain changed during profile calculation');
+    }
+    final heights = result['heights'];
+    if (result['heightReference'] != 'wgs84Ellipsoid' ||
+        !const [
+          'most-detailed',
+          'level-12',
+        ].contains(result['samplingMethod']) ||
+        heights is! List ||
+        heights.length != positions.length ||
+        heights.any((h) => h is! num || !h.isFinite || h.abs() > 100000)) {
+      throw const FormatException('Incomplete terrain profile');
+    }
+    return (
+      heights: List<double>.unmodifiable(
+        heights.map((h) => (h as num).toDouble()),
+      ),
+      samplingMethod: result['samplingMethod'] as String,
+    );
   }
 
   Future<TerrainElevation> queryTerrainElevation({

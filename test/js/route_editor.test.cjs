@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createEditor, createOverlays } = require('../../web/route_editor.js');
+const { sampleProfile } = require('../../web/route_editor.js');
 
 function setup({sampleHeights} = {}) {
     const actions = {}, emitted = [], sources = [], flights = [];
@@ -36,6 +37,27 @@ function setup({sampleHeights} = {}) {
 }
 const state = {editorId:'test', revision:1, enabled:true, interactive:true, selectedId:1, moveId:null,
     waypoints:[{id:1, latitude:46, longitude:8}]};
+
+test('terrain profile batches are bounded, reject missing elevations and honour cancellation', async () => {
+    const command = {positions:[{latitude:46,longitude:8}]};
+    const sampler = async () => ({heights:[1200], samplingMethod:'most-detailed'});
+    assert.equal((await sampleProfile(command,sampler,new AbortController().signal)).heightReference,'wgs84Ellipsoid');
+    await assert.rejects(sampleProfile({positions:Array(257).fill(command.positions[0])},sampler,new AbortController().signal));
+    await assert.rejects(sampleProfile(command,async()=>({heights:[NaN]}),new AbortController().signal));
+    let release;
+    const abort = new AbortController();
+    const pending = sampleProfile(command,()=>new Promise(resolve=>{release=resolve;}),abort.signal);
+    abort.abort(); release({heights:[1200]}); await assert.rejects(pending);
+});
+
+test('critical segments get a separate red map highlight', async () => {
+    const page = setup();
+    await page.editor.set({...state,waypoints:[{...state.waypoints[0],critical:true},{id:2,latitude:46.01,longitude:8.01}]});
+    const warning = page.sources[0].entities.values.find(e=>e.id.startsWith('route-warning'));
+    assert.equal(warning.polyline.width,7);
+    assert.equal(warning.polyline.positions.length,2);
+    page.editor.dispose();
+});
 
 test('map add/select/move/delete events carry the current draft identity and revision', async () => {
     const page = setup(); await page.editor.set(state);
@@ -87,16 +109,34 @@ test('framing cannot override newer drafts or aborted requests', async () => {
     page.editor.dispose();
 });
 
-test('3D preview uses terrain plus 30 metres for points and an unclamped line; stored heights are not inputs', async () => {
+test('unspecified heights use an explicitly marked 30 m AGL preview', async () => {
     const page = setup({sampleHeights: async points => points.map((_,i) => 1000 + i * 100)});
     await page.editor.set({...state,waypoints:[...state.waypoints,{id:2,latitude:46.01,longitude:8.01}]});
     const entities = page.sources[0].entities.values;
     assert.equal(entities.find(e => e.id==='route-waypoint-1').position.height,1030);
     assert.equal(entities.find(e => e.id==='route-waypoint-2').position.height,1130);
+    assert.equal(entities.find(e => e.id==='route-waypoint-1').label.text,'1*');
     const line = entities.find(e => e.id.startsWith('route-line'));
     assert.equal(line.polyline.clampToGround,false);
     assert.deepEqual(line.polyline.positions.map(p=>p.height),[1030,1130]);
     assert.equal(entities.find(e => e.id==='route-waypoint-1-height').polyline.positions[0].height,1000);
+    page.editor.dispose();
+});
+
+test('configured AGL and ellipsoid heights drive points, lines and framing; incompatible datums stay previews', async () => {
+    const page = setup({sampleHeights: async points => points.map(() => 1000)});
+    await page.editor.set({...state,waypoints:[
+        {id:1,latitude:46,longitude:8,height:{meters:70,reference:'aboveGroundLevel'}},
+        {id:2,latitude:46.01,longitude:8.01,height:{meters:1200,reference:'wgs84Ellipsoid'}},
+        {id:3,latitude:46.02,longitude:8.02,height:{meters:700,reference:'ln02'}}]});
+    const entities = page.sources[0].entities.values;
+    assert.deepEqual([1,2,3].map(i=>entities.find(e=>e.id===`route-waypoint-${i}`).position.height),[1070,1200,1030]);
+    assert.equal(entities.find(e=>e.id==='route-waypoint-1').label.text,'1');
+    assert.equal(entities.find(e=>e.id==='route-waypoint-3').label.text,'3*');
+    await page.editor.frame();
+    assert.deepEqual(page.flights[0].sphere.positions.map(p=>p.height),[1070,1200,1030]);
+    await assert.rejects(page.editor.set({...state,revision:2,waypoints:[
+        {id:1,latitude:46,longitude:8,height:{meters:-1,reference:'aboveGroundLevel'}}]}));
     page.editor.dispose();
 });
 

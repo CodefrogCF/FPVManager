@@ -2,7 +2,8 @@
 
 ## Map and terrain
 
-Use **Map layers** to choose Satellite, Topographic or Relief, show UAS zones
+Open **Map layers** in the map menu. Its **Map**, **Airspace** and **Obstacles**
+tabs separate display settings and data sources. Choose Satellite, Topographic or Relief, show UAS zones
 and saved spots, adjust zone opacity and change spot/zone overlay order. These
 preferences are saved locally. Overlay order does not make objects visible
 through terrain. Failed preference loads offer Retry or Reset; failed saves
@@ -20,7 +21,7 @@ provide a measured ground height.
 
 ## Aviation obstacles
 
-Under **Map layers → Swiss aviation obstacles**, enable the transparent **WMS**
+Under **Map layers → Obstacles**, enable the transparent **WMS**
 overlay, adjust its opacity or open the official legend. The separate **3D vector**
 option imports the full official KMZ; its first download/import can take several
 minutes. Zoom into a local area, choose categories and select an object for
@@ -57,8 +58,9 @@ collisions.
 Open **Flight routes** in the navigation drawer and create or open a route.
 
 - Click terrain to append a waypoint; select a point to move or delete it.
-- Drag a point, or choose **Move point** and click the new position.
-- Use **Delete point**, right-click or Delete with the map focused to remove it.
+- Use the selected waypoint's menu for **Height & speed**, **Move point** or **Delete point**.
+- Drag to move, or right-click / Delete with the map focused to remove a point.
+- The waypoint count opens a list; height/speed settings can also be applied to all points.
 - **Undo waypoint change** reverses up to 50 edits; **Show entire route** frames it.
 - **Save** stores the name and ordered waypoints together. Empty routes are allowed.
 
@@ -66,15 +68,34 @@ Changes remain a draft until Save. Leaving asks whether to discard edits, and a
 failed save retains them for retry. Drafts survive renderer reloads while the
 editor stays open, but not app termination or browser reload.
 
-Under **Map layers → Flight routes**, select up to 20 saved routes to display,
+Under **Map layers → Map → Flight routes**, select up to 20 saved routes to display,
 including in ground view. This selection lasts for the home-map session, not
 across app restarts. The framing button returns to globe view.
 
-Route previews place waypoints 30 m above sampled terrain and connect them with
-3D segments. The offset applies at the waypoints; intervening terrain may cross
-the line. Terrain loss hides the preview. This display does not change stored
-heights: new points store positions only, and existing height metadata is retained.
-Custom height/speed editing and flight-safety assessment are not available.
+Set AGL or an explicit absolute height and outgoing airspeed in **Height & speed**.
+AGL applies at each waypoint; connecting lines do not follow terrain. WGS84
+ellipsoid heights render directly. Missing heights and incompatible absolute
+references retain a **30 m AGL preview** with a star marker; they do not supply clearance.
+Use **Route options → Route equipment** to assign a drone and alternative battery
+packs. Save also stores assignments and planning assumptions.
+
+**Route analysis** separates Profile, Flight and Energy. Terrain is sampled at
+most 50 m apart, up to 4,096 samples; split longer routes. The profile shows ground,
+absolute WGS84 altitude and AGL, including intervening terrain. Distances are
+approximate great-circle/3D estimates. Duration uses outgoing airspeed, optionally
+with a manually entered steady wind. Unknown heights or impossible wind tracks
+remain unknown. Recalculate after editing or terrain recovery.
+
+In **Planning assumptions**, enter a level-flight speed/power curve, its source
+and reference mass, total takeoff mass including battery, and reserve/scenario
+assumptions. Available drone values can be copied for review. The model
+interpolates without extrapolation, scales power by mass^1.5 and adds climb work;
+descent does not recover energy. Wh and approximate mAh require known inputs.
+Each battery is assessed individually using recorded charge and capacity.
+Optional return flight retraces the planned path to takeoff with reverse wind.
+Red segments indicate low sampled clearance or insufficient conservative reserve
+for the inspected pack. These estimates do not guarantee flight feasibility or
+detect cables, obstacles between samples, terrain errors, gusts or battery ageing.
 
 ## Spots and photos
 

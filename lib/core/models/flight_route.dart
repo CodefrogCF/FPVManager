@@ -1,4 +1,5 @@
-import '../database/fpv_database.dart' show FlightPlan;
+import '../database/fpv_database.dart' show FlightPlan, Battery;
+import 'drone_profile.dart';
 import '../geo/altitude_service.dart';
 import '../geo/geo_coordinate_service.dart';
 
@@ -29,10 +30,17 @@ final class AglWaypointHeight extends WaypointHeight {
 
 /// A point without height remains position-only; no datum or zero is inferred.
 class RouteWaypointInput {
-  const RouteWaypointInput({required this.position, this.height});
+  const RouteWaypointInput({
+    required this.position,
+    this.height,
+    this.speedMetersPerSecond,
+  });
 
   final Wgs84Coordinate position;
   final WaypointHeight? height;
+
+  /// Planned airspeed for the segment leaving this waypoint. Null is unknown.
+  final double? speedMetersPerSecond;
 }
 
 class RouteWaypoint {
@@ -42,6 +50,7 @@ class RouteWaypoint {
     required this.sequenceNumber,
     required this.position,
     required this.height,
+    this.speedMetersPerSecond,
   });
 
   final int id;
@@ -49,13 +58,27 @@ class RouteWaypoint {
   final int sequenceNumber;
   final Wgs84Coordinate position;
   final WaypointHeight? height;
+  final double? speedMetersPerSecond;
 }
 
 /// One immutable snapshot of route metadata and its ordered waypoints.
 class FlightRoute {
-  FlightRoute({required this.plan, required List<RouteWaypoint> waypoints})
-    : waypoints = List.unmodifiable(waypoints);
+  FlightRoute({
+    required this.plan,
+    required List<RouteWaypoint> waypoints,
+    Set<int> batteryIds = const {},
+  }) : waypoints = List.unmodifiable(waypoints),
+       batteryIds = Set.unmodifiable(batteryIds);
 
   final FlightPlan plan;
   final List<RouteWaypoint> waypoints;
+
+  /// Alternative packs for this flight; capacities must not be added together.
+  final Set<int> batteryIds;
+}
+
+class RouteEquipmentOptions {
+  const RouteEquipmentOptions({required this.drones, required this.batteries});
+  final List<DroneProfile> drones;
+  final List<Battery> batteries;
 }

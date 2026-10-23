@@ -23,7 +23,7 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
         Text('Flight routes', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
         const Text(
-          '3D preview · 30 m AGL at waypoints. Selected routes stay visible in ground view for this map session.',
+          'Configured heights are shown in 3D. Points marked * use a 30 m AGL preview because their height is missing or uses an unsupported datum. Selected routes stay visible in ground view.',
         ),
         if (!widget.controller.globe.terrainAvailable)
           const Text(

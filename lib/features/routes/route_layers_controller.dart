@@ -84,7 +84,8 @@ class RouteLayersController extends ChangeNotifier {
           id: route.plan.id,
           name: route.plan.name,
           points: [
-            for (final p in route.waypoints) RouteMapPoint(p.id, p.position),
+            for (final p in route.waypoints)
+              RouteMapPoint(p.id, p.position, height: p.height),
           ],
         ),
     ];

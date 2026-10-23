@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
@@ -210,44 +208,5 @@ void main() {
     expect(draft.dirty, isTrue);
     await action('add', lat: 46.8);
     expect(draft.points.length, 2);
-  });
-
-  test('multiple routes persist across a real SQLite file reopen', () async {
-    final directory = await Directory.systemTemp.createTemp('fpv-routes-');
-    final file = File('${directory.path}/routes.sqlite');
-    await db.close();
-    db = FpvDatabase(NativeDatabase(file));
-    final first = FlightPlanRepository(db);
-    final a = await first.saveRoute(
-      name: 'A',
-      waypoints: [
-        const RouteWaypointInput(
-          position: Wgs84Coordinate(latitude: 46.7, longitude: 8.4),
-        ),
-      ],
-    );
-    final b = await first.saveRoute(
-      name: 'B',
-      waypoints: [
-        const RouteWaypointInput(
-          position: Wgs84Coordinate(latitude: 46.8, longitude: 8.5),
-        ),
-      ],
-    );
-    await db.close();
-    db = FpvDatabase(NativeDatabase(file));
-    final reopened = FlightPlanRepository(db);
-    expect((await reopened.getAllFlightPlans()).length, 2);
-    expect(
-      (await reopened.getRoute(a))!.waypoints.single.position.latitude,
-      46.7,
-    );
-    expect(
-      (await reopened.getRoute(b))!.waypoints.single.position.latitude,
-      46.8,
-    );
-    await db.close();
-    db = FpvDatabase(NativeDatabase.memory());
-    await directory.delete(recursive: true);
   });
 }

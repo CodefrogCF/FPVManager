@@ -66,7 +66,12 @@ revision and stable draft waypoint keys reject stale edits.
 `set-visible-routes` carries a revision and up to 20 routes with ID/name and up
 to 1,000 waypoint IDs/positions each. `frame-visible-routes` takes a positive
 route ID. Visibility preserves the walking camera; framing exits ground view.
-Both draft and saved-route previews sample terrain and add 30 m at each waypoint.
+Waypoints optionally carry `height: {meters, reference}`. AGL and WGS84 ellipsoid
+heights drive geometry; missing/incompatible references use marked 30 m previews.
+The draft's `critical` flag highlights the outgoing segment. `query-route-terrain`
+accepts up to 256 positions and returns finite ellipsoid `heights` in input order
+and a `samplingMethod` (`most-detailed` or `level-12`). Failed or changed terrain
+invalidates the batch; partial profiles are not used as complete clearance data.
 Cancellation/revision checks prevent obsolete geometry from reappearing;
 `route-preview-error` reports asynchronous rebuild failures for explicit retry.
 

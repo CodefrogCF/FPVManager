@@ -206,6 +206,8 @@ class FlightPlans extends Table {
 
   TextColumn get notes => text().nullable()();
 
+  TextColumn get planningJson => text().withDefault(const Constant('{}'))();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -226,6 +228,8 @@ class FlightWaypoints extends Table {
   /// Must not be used for safety calculations
   /// without a verified height reference.
   RealColumn get heightMeters => real().nullable()();
+
+  RealColumn get speedMetersPerSecond => real().nullable()();
 
   TextColumn get heightReference =>
       text().withDefault(const Constant('unverified'))();
@@ -280,7 +284,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -418,6 +422,13 @@ class FpvDatabase extends _$FpvDatabase {
           }
         }
         await m.createTable(radioEquipmentDrones);
+      }
+      if (from >= 2 && from < 8) {
+        await m.addColumn(flightPlans, flightPlans.planningJson);
+        await m.addColumn(
+          flightWaypoints,
+          flightWaypoints.speedMetersPerSecond,
+        );
       }
     },
     beforeOpen: (details) async {

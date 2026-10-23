@@ -95,10 +95,16 @@ void main() {
         'id': 1,
       });
       await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Waypoint actions'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Move point'));
       await tester.pumpAndSettle();
       expect(find.text('Click the new position on the map.'), findsOneWidget);
+      await tester.tap(find.byTooltip('Waypoint actions'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel move'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Waypoint actions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete point'));
       await tester.pumpAndSettle();
@@ -159,7 +165,8 @@ void main() {
     expect(find.text('Discard route changes?'), findsOneWidget);
     await tester.tap(find.text('Keep editing'));
     await tester.pumpAndSettle();
-    expect(find.text('1 waypoints · Selected 1'), findsOneWidget);
+    expect(find.text('1 waypoints'), findsOneWidget);
+    expect(find.textContaining('Waypoint 1 ·'), findsOneWidget);
     expect((await FlightPlanRepository(db).getAllFlightPlans()), isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();

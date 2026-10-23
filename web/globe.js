@@ -591,6 +591,16 @@ function postToFlutter(message) {
                 setUasFillOpacity(command.opacity);
                 sendUasStatus({ visible: uasDataSource?.show === true });
                 return {};
+            case "query-route-terrain": return FPVRouteEditor.sampleProfile(command, async points => {
+                let detailed;
+                const positions = points.map(p => Cesium.Cartographic.fromDegrees(p.longitude, p.latitude));
+                const sampled = await terrainManager.sample(provider => {
+                    detailed = Boolean(provider.availability);
+                    return detailed ? Cesium.sampleTerrainMostDetailed(provider, positions, true)
+                        : Cesium.sampleTerrain(provider, 12, positions, true);
+                }, signal);
+                return {heights: sampled.map(p => p.height), samplingMethod: detailed ? "most-detailed" : "level-12"};
+            }, signal);
             case "query-terrain-elevation": return queryTerrainElevation(command, signal);
             case "set-spot-markers": await setSpotMarkers(command, signal); return layerState();
             case "set-spots-visible": setSpotsVisible(command.visible); return layerState();

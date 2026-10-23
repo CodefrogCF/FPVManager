@@ -6,15 +6,21 @@ import '../../core/database/repositories/flight_plan_repository.dart';
 import '../globe/globe_controller.dart';
 import '../globe/globe_view.dart';
 import '../globe/terrain_status_banner.dart';
-import '../airspace/airspace_check_sheet.dart';
 import '../airspace/uas_data_quality_banner.dart';
 import 'route_editor_controller.dart';
+import 'route_equipment_sheet.dart';
+import 'route_editor_toolbar.dart';
+import 'analysis/route_planning_settings_sheet.dart';
+import 'analysis/route_analysis_controller.dart';
+import 'analysis/route_analysis_sheet.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../globe/map_layers_sheet.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import '../obstacles/obstacle_details_panel.dart';
 import '../obstacles/obstacle_layers_section.dart';
 import '../../core/osint/osint_provider.dart';
+
+enum _RouteAction { equipment, planning, layers }
 
 class RouteEditorScreen extends StatefulWidget {
   const RouteEditorScreen({
@@ -51,6 +57,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
     routeId: widget.routeId,
   );
   final _name = TextEditingController();
+  late final _analysis = RouteAnalysisController(_editor);
   bool _allowPop = false, _framed = false;
 
   @override
@@ -130,6 +137,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
   @override
   void dispose() {
     _globe.removeListener(_ready);
+    _analysis.dispose();
     _editor.dispose();
     _name.dispose();
     if (widget.globeController == null) _globe.dispose();
@@ -153,10 +161,35 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
             icon: const Icon(Icons.arrow_back),
           ),
           actions: [
-            IconButton(
-              tooltip: 'Map layers',
-              onPressed: _globe.isReady ? _layers : null,
-              icon: const Icon(Icons.layers_outlined),
+            PopupMenuButton<_RouteAction>(
+              tooltip: 'Route options',
+              enabled:
+                  !_editor.loading && !_editor.saving && !_editor.loadFailed,
+              onSelected: (action) {
+                switch (action) {
+                  case _RouteAction.equipment:
+                    showRouteEquipment(context, _editor);
+                  case _RouteAction.planning:
+                    showRoutePlanningSettings(context, _editor);
+                  case _RouteAction.layers:
+                    _layers();
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: _RouteAction.equipment,
+                  child: Text('Route equipment'),
+                ),
+                const PopupMenuItem(
+                  value: _RouteAction.planning,
+                  child: Text('Planning assumptions'),
+                ),
+                PopupMenuItem(
+                  value: _RouteAction.layers,
+                  enabled: _globe.isReady,
+                  child: const Text('Map layers'),
+                ),
+              ],
             ),
             TextButton.icon(
               onPressed: _editor.canSave
@@ -197,10 +230,13 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     ),
                   ),
                   TerrainStatusBanner(controller: _globe),
-                  UasDataQualityBanner(controller: _globe, onDetails: _layers),
+                  UasDataQualityBanner(
+                    controller: _globe,
+                    onDetails: () => _layers(initialTab: MapLayerTab.airspace),
+                  ),
                   ObstacleStatusBanner(
                     controller: _globe.obstacles,
-                    onDetails: _layers,
+                    onDetails: () => _layers(initialTab: MapLayerTab.obstacles),
                   ),
                   Expanded(
                     child:
@@ -249,104 +285,24 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
     ),
   );
 
-  Widget _tools(BuildContext context) {
-    final point = _editor.selected;
-    return SafeArea(
-      top: false,
-      child: Material(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _editor.moveId != null ? 'Click the new position on the map.' : 'Click map to add · Drag a point to move · Right-click / Delete to remove',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const Text(
-                '3D preview · 30 m AGL at waypoints',
-                style: TextStyle(fontSize: 11),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${_editor.points.length} waypoints${point == null ? '' : ' · Selected ${_editor.points.indexOf(point) + 1}'}',
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Check route airspace',
-                    onPressed:
-                        !_editor.saving &&
-                            !_editor.loadFailed &&
-                            _editor.points.isNotEmpty
-                        ? () => showAirspaceCheck(
-                            context,
-                            controller: _globe,
-                            name: _editor.name,
-                            positions: [
-                              for (final p in _editor.points) p.position,
-                            ],
-                            route: true,
-                          )
-                        : null,
-                    icon: const Icon(Icons.shield_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Undo waypoint change',
-                    onPressed: _editor.canUndo ? _editor.undo : null,
-                    icon: const Icon(Icons.undo),
-                  ),
-                  IconButton(
-                    tooltip: 'Show entire route',
-                    onPressed: _globe.isReady && _editor.points.isNotEmpty
-                        ? () => _command(_globe.frameRoute)
-                        : null,
-                    icon: const Icon(Icons.fit_screen),
-                  ),
-                ],
-              ),
-              if (point != null) ...[
-                Text(
-                  '${point.position.latitude.toStringAsFixed(6)}, ${point.position.longitude.toStringAsFixed(6)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: !_editor.saving ? _editor.toggleMove : null,
-                      icon: const Icon(Icons.open_with),
-                      label: Text(
-                        _editor.moveId == null ? 'Move point' : 'Cancel move',
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: !_editor.saving
-                          ? () => _editor.deletePoint(point.key)
-                          : null,
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Delete point'),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _layers() => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (context) => FractionallySizedBox(
-      heightFactor: 0.9,
-      child: MapLayersSheet(controller: _globe),
-    ),
+  Widget _tools(BuildContext context) => RouteEditorToolbar(
+    editor: _editor,
+    onAnalysis:
+        !_editor.saving && !_editor.loadFailed && _editor.points.length >= 2
+        ? () => showRouteAnalysis(context, _analysis)
+        : null,
+    onFrame: _globe.isReady && _editor.points.isNotEmpty
+        ? () => _command(_globe.frameRoute)
+        : null,
   );
+
+  Future<void> _layers({MapLayerTab initialTab = MapLayerTab.map}) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => FractionallySizedBox(
+          heightFactor: 0.9,
+          child: MapLayersSheet(controller: _globe, initialTab: initialTab),
+        ),
+      );
 }

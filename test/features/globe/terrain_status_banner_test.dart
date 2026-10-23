@@ -9,6 +9,7 @@ import 'package:fpvmanager/main.dart';
 import 'package:drift/native.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
+import '../../helpers/map_action_menu.dart';
 
 void main() {
   testWidgets(
@@ -39,18 +40,15 @@ void main() {
         'heightReference': 'wgs84Ellipsoid',
       });
       await tester.pump();
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (widget) =>
-                    widget is IconButton &&
-                    widget.tooltip == 'Query terrain elevation',
-              ),
-            )
-            .onPressed,
-        isNotNull,
+      var terrainAction = await openMapActionMenu(
+        tester,
+        'Query terrain elevation',
       );
+      expect(
+        tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
+        isTrue,
+      );
+      await closeMapActionMenu(tester);
       renderer.emit({
         'type': 'terrain-status',
         'state': 'unavailable',
@@ -58,18 +56,15 @@ void main() {
       });
       await tester.pump();
       expect(find.textContaining('3D terrain unavailable.'), findsOneWidget);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.byWidgetPredicate(
-                (widget) =>
-                    widget is IconButton &&
-                    widget.tooltip == 'Query terrain elevation',
-              ),
-            )
-            .onPressed,
-        isNull,
+      terrainAction = await openMapActionMenu(
+        tester,
+        'Query terrain elevation',
       );
+      expect(
+        tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
+        isFalse,
+      );
+      await closeMapActionMenu(tester);
       expect(tester.element(find.byType(GlobeView)), same(map));
       renderer.autoAcknowledge = false;
       await tester.tap(find.text('Retry terrain'));

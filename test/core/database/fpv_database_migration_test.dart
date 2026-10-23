@@ -12,6 +12,7 @@ import '../../generated_migrations/schema_v3.dart' as v3;
 import '../../generated_migrations/schema_v4.dart' as v4;
 import '../../generated_migrations/schema_v5.dart' as v5;
 import '../../generated_migrations/schema_v6.dart' as v6;
+import '../../generated_migrations/schema_v7.dart' as v7;
 
 import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
 import 'package:fpvmanager/core/models/drone_profile.dart';
@@ -28,7 +29,42 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates v1 to v7 without losing spots', () async {
+  test(
+    'v7 routes retain height references and start with unknown speed',
+    () async {
+      final schema = await verifier.schemaAt(7);
+      final old = v7.DatabaseAtV7(schema.newConnection());
+      final id = await old
+          .into(old.flightPlans)
+          .insert(v7.FlightPlansCompanion.insert(name: 'Existing route'));
+      await old
+          .into(old.flightWaypoints)
+          .insert(
+            v7.FlightWaypointsCompanion.insert(
+              planId: id,
+              sequenceNumber: 0,
+              latitude: 47,
+              longitude: 8,
+              heightMeters: const Value(500),
+              heightReference: const Value('ln02'),
+            ),
+          );
+      await old.close();
+      final database = FpvDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(database, 8);
+      final point = await database.select(database.flightWaypoints).getSingle();
+      expect(point.heightMeters, 500);
+      expect(point.heightReference, 'ln02');
+      expect(point.speedMetersPerSecond, isNull);
+      expect(
+        (await database.select(database.flightPlans).getSingle()).planningJson,
+        '{}',
+      );
+      await database.close();
+    },
+  );
+
+  test('migrates v1 to v8 without losing spots', () async {
     final schema = await verifier.schemaAt(1);
 
     // Create a database with the original v1 schema.
@@ -49,7 +85,7 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 7);
+    await verifier.migrateAndValidate(database, 8);
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -82,7 +118,7 @@ void main() {
   });
 
   test(
-    'migrates v2 to v7 preserving personal records and references',
+    'migrates v2 to v8 preserving personal records and references',
     () async {
       final schema = await verifier.schemaAt(2);
       final old = v2.DatabaseAtV2(schema.newConnection());
@@ -146,7 +182,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 7);
+      await verifier.migrateAndValidate(database, 8);
       expect(
         (await database.select(database.spots).get()).single.name,
         'Private spot',
@@ -181,7 +217,7 @@ void main() {
     },
   );
 
-  test('v3 to v7 preserves photos and favorites and backfills Unicode search in batches', () async {
+  test('v3 to v8 preserves photos and favorites and backfills Unicode search in batches', () async {
     final schema = await verifier.schemaAt(3);
     final old = v3.DatabaseAtV3(schema.newConnection());
     for (var i = 0; i < 405; i++) {
@@ -212,7 +248,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 7);
+    await verifier.migrateAndValidate(database, 8);
     final repository = SpotRepository(database);
     final page = await repository.getSpotPage(
       filter: SpotFilter(query: 'älpler 404 über', favoritesOnly: true),
@@ -230,7 +266,7 @@ void main() {
     expect(await repository.getPhotos(405), isEmpty);
   });
 
-  test('v4 to v7 preserves classified spots and drones without inventing provenance', () async {
+  test('v4 to v8 preserves classified spots and drones without inventing provenance', () async {
     final schema = await verifier.schemaAt(4);
     final old = v4.DatabaseAtV4(schema.newConnection());
     final spotId = await old
@@ -283,7 +319,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 7);
+    await verifier.migrateAndValidate(database, 8);
     final profile = (await DroneRepository(database).getProfile(droneId))!;
     expect(profile.drone.name, 'Existing drone');
     expect(profile.drone.type, 'fixed-wing');
@@ -318,7 +354,7 @@ void main() {
   });
 
   test(
-    'v5 to v7 preserves battery records without inventing state or type',
+    'v5 to v8 preserves battery records without inventing state or type',
     () async {
       final schema = await verifier.schemaAt(5);
       final old = v5.DatabaseAtV5(schema.newConnection());
@@ -358,7 +394,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 7);
+      await verifier.migrateAndValidate(database, 8);
       final battery = await (database.select(
         database.batteries,
       )..where((t) => t.id.equals(batteryId))).getSingle();
@@ -405,7 +441,7 @@ void main() {
   );
 
   test(
-    'v6 to v7 preserves legacy RF values, categories and battery links',
+    'v6 to v8 preserves legacy RF values, categories and battery links',
     () async {
       final schema = await verifier.schemaAt(6);
       final old = v6.DatabaseAtV6(schema.newConnection());
@@ -441,7 +477,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 7);
+      await verifier.migrateAndValidate(database, 8);
       final row = await database.select(database.radioEquipment).getSingle();
       expect(row.id, id);
       expect(row.name, 'Old RX');

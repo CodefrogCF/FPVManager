@@ -160,7 +160,12 @@ void main() {
                   controller: controller,
                   onDetails: () => details = true,
                 ),
-                Expanded(child: MapLayersSheet(controller: controller)),
+                Expanded(
+                  child: MapLayersSheet(
+                    controller: controller,
+                    initialTab: MapLayerTab.airspace,
+                  ),
+                ),
               ],
             ),
           ),

@@ -7,7 +7,9 @@ owns imagery/terrain rendering, picking and camera interaction.
 
 | Path | Responsibility |
 |---|---|
-| `lib/main.dart` | Home composition, navigation and spot synchronization |
+| `lib/main.dart` | App startup and theme |
+| `lib/features/home/` | Navigation, map actions, selections and spot synchronization |
+| `lib/features/routes/analysis/` | Bounded sampling, profile, flight and energy models; analysis UI |
 | `lib/features/` | Globe, airspace, spots and equipment UI/controllers |
 | `lib/core/database/` | Drift tables, repositories and migrations |
 | `lib/core/models/`, `lib/core/geo/` | Typed routes, preferences, coordinates and heights |
@@ -31,7 +33,7 @@ The home screen opens it lazily and closes only resources it created. Injected
 repositories/databases remain caller-owned. Tests use isolated databases.
 Web uses bundled `sqlite3.wasm` and `drift_worker.js`.
 
-Schema version is **7**. Tables cover spots/photos/tags, drones/parameter sources,
+Schema version is **8**. Tables cover spots/photos/tags, drones/parameter sources,
 battery packs/types and assignments, radio equipment/drone assignments, flight
 plans/waypoints and settings. Foreign keys are enabled. Historical schemas are
 in `drift_schemas/`; migration fixtures are in `test/generated_migrations/`.
@@ -50,12 +52,17 @@ null assignment; plan deletion cascades to waypoints. Battery type deletion
 clears template links while preserving packs. Association deletion preserves
 the equipment and other linked records.
 
-`FlightPlanRepository.saveRoute` saves metadata and ordered points atomically.
+`FlightPlanRepository.saveRoute` saves metadata, ordered points, battery assignments
+and versioned planning assumptions atomically.
 Waypoint replacement assigns new IDs and contiguous sequence numbers; use the
 returned route snapshot rather than retaining old waypoint IDs. Typed heights
 are position-only (`null`), absolute with an explicit reference, or AGL offsets.
 Unknown stored references/modes raise `FormatException`; no datum is inferred.
-The map's fixed 30 m AGL preview is independent of stored heights.
+Waypoint speed is outgoing airspeed in m/s; null remains unknown. AGL and WGS84
+ellipsoid heights drive the map. Missing/incompatible heights use marked 30 m AGL
+previews and are excluded from clearance calculations. Profile sampling uses
+sequential batches of at most 256 positions and 4,096 positions per route;
+draft/terrain/renderer changes invalidate pending results and warning highlights.
 
 Map preferences store base style, UAS/spot visibility, overlay order and obstacle
 WMS visibility/opacity plus vector visibility/categories. Defaults keep both

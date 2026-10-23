@@ -1,4 +1,5 @@
 import '../../helpers/fake_globe_renderer.dart';
+import '../../helpers/map_action_menu.dart';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -106,14 +107,14 @@ void main() {
       );
       point(46.7);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Query terrain elevation'));
+      await selectMapAction(tester, 'Query terrain elevation');
       answer();
       await tester.pumpAndSettle();
       expect(find.byType(TerrainInformationDialog), findsOneWidget);
       expect(find.text('550.0 m · WGS84 ellipsoid'), findsOneWidget);
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Query terrain elevation'));
+      await selectMapAction(tester, 'Query terrain elevation');
       point(47);
       answer();
       await tester.pumpAndSettle();
@@ -158,11 +159,15 @@ void main() {
         }),
       );
       await tester.pump();
-      final terrainButton = find.widgetWithIcon(
-        IconButton,
-        Icons.terrain_outlined,
+      var terrainAction = await openMapActionMenu(
+        tester,
+        'Query terrain elevation',
       );
-      expect(tester.widget<IconButton>(terrainButton).onPressed, isNotNull);
+      expect(
+        tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
+        isTrue,
+      );
+      await closeMapActionMenu(tester);
 
       controller.handleEvent(
         renderer.encode({
@@ -173,9 +178,19 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Saved Spot B'), findsOneWidget);
-      expect(tester.widget<IconButton>(terrainButton).onPressed, isNull);
+      terrainAction = await openMapActionMenu(
+        tester,
+        'Query terrain elevation',
+      );
+      expect(
+        tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
+        isFalse,
+      );
+      await closeMapActionMenu(tester);
 
-      await tester.tap(find.byTooltip('FPV Spots'));
+      await tester.tap(find.byTooltip('Open navigation menu'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FPV Spots'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add Spot'));
       await tester.pumpAndSettle();

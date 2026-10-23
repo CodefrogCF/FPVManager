@@ -3,8 +3,10 @@ import 'package:drift/drift.dart';
 import '../../geo/altitude_service.dart';
 import '../../geo/geo_coordinate_service.dart';
 import '../../models/flight_route.dart';
+import '../../models/route_planning_settings.dart';
 import '../fpv_database.dart';
 import '../repository_validation.dart';
+import 'drone_repository.dart';
 
 /// Local flight projects. The caller owns the injected database.
 abstract interface class FlightPlanRepository {
@@ -35,12 +37,15 @@ abstract interface class FlightPlanRepository {
     required List<RouteWaypointInput> waypoints,
   });
   Future<int> deleteFlightPlan(int id);
+  Future<RouteEquipmentOptions> getEquipmentOptions();
   Future<int> saveRoute({
     int? id,
     required String name,
     int? droneId,
     int? startSpotId,
     String? notes,
+    Set<int>? batteryIds,
+    RoutePlanningSettings? planning,
     required List<RouteWaypointInput> waypoints,
   });
 }
@@ -56,31 +61,67 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
     int? droneId,
     int? startSpotId,
     String? notes,
+    Set<int>? batteryIds,
+    RoutePlanningSettings? planning,
     required List<RouteWaypointInput> waypoints,
   }) {
     _validatePlan(name, droneId, startSpotId);
+    final planningJson = planning?.encode();
     RepositoryValidation.optionalId(id);
     final points = _validatedPoints(waypoints);
+    final assignedPacks = batteryIds == null
+        ? null
+        : Set<int>.unmodifiable(batteryIds);
     return _database.transaction(() async {
-      if (id == null) {
-        return createFlightPlan(
+      final planId =
+          id ??
+          await createFlightPlan(
+            name: name,
+            droneId: droneId,
+            startSpotId: startSpotId,
+            notes: notes,
+            waypoints: points,
+          );
+      if (id != null) {
+        final exists = await updateFlightPlan(
+          id: id,
           name: name,
           droneId: droneId,
           startSpotId: startSpotId,
           notes: notes,
-          waypoints: points,
+        );
+        if (!exists) throw StateError('Flight route no longer exists');
+        await replaceWaypoints(planId: id, waypoints: points);
+      }
+      if (planningJson != null) {
+        await (_database.update(_database.flightPlans)
+              ..where((t) => t.id.equals(planId)))
+            .write(FlightPlansCompanion(planningJson: Value(planningJson)));
+      }
+      if (assignedPacks != null) {
+        for (final batteryId in assignedPacks) {
+          RepositoryValidation.id(batteryId);
+          final pack = await (_database.select(
+            _database.batteries,
+          )..where((t) => t.id.equals(batteryId))).getSingleOrNull();
+          if (pack == null || pack.isType) {
+            throw ArgumentError('Select an existing individual battery');
+          }
+        }
+        await (_database.delete(
+          _database.batteryFlightPlans,
+        )..where((t) => t.planId.equals(planId))).go();
+        await _database.batch(
+          (batch) => batch.insertAll(_database.batteryFlightPlans, [
+            for (final batteryId in assignedPacks)
+              BatteryFlightPlansCompanion.insert(
+                batteryId: batteryId,
+                planId: planId,
+              ),
+          ]),
         );
       }
-      final exists = await updateFlightPlan(
-        id: id,
-        name: name,
-        droneId: droneId,
-        startSpotId: startSpotId,
-        notes: notes,
-      );
-      if (!exists) throw StateError('Flight route no longer exists');
-      await replaceWaypoints(planId: id, waypoints: points);
-      return id;
+      return planId;
     });
   }
 
@@ -97,8 +138,15 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
         point.position.latitude,
         point.position.longitude,
       );
+      final speed = point.speedMetersPerSecond;
+      if (speed != null && (!speed.isFinite || speed <= 0 || speed > 200)) {
+        throw ArgumentError(
+          'Airspeed must be greater than 0 and at most 200 m/s',
+        );
+      }
       final height = point.height;
-      if (height != null && !height.meters.isFinite) {
+      if (height != null &&
+          (!height.meters.isFinite || height.meters.abs() > 100000)) {
         throw ArgumentError('Waypoint height must be finite');
       }
       if (height is AglWaypointHeight && height.meters < 0) {
@@ -118,6 +166,7 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
             latitude: points[i].position.latitude,
             longitude: points[i].position.longitude,
             heightMeters: Value(points[i].height?.meters),
+            speedMetersPerSecond: Value(points[i].speedMetersPerSecond),
             heightReference: Value(switch (points[i].height) {
               AbsoluteWaypointHeight(:final elevation) =>
                 elevation.reference.name,
@@ -214,10 +263,19 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
       ]);
   }
 
-  FlightRoute? _readRoute(List<TypedResult> rows) {
+  Future<FlightRoute?> _readRoute(List<TypedResult> rows) async {
     if (rows.isEmpty) return null;
     return FlightRoute(
       plan: rows.first.readTable(_database.flightPlans),
+      batteryIds:
+          (await (_database.select(_database.batteryFlightPlans)..where(
+                    (t) => t.planId.equals(
+                      rows.first.readTable(_database.flightPlans).id,
+                    ),
+                  ))
+                  .get())
+              .map((r) => r.batteryId)
+              .toSet(),
       waypoints: [
         for (final row in rows)
           if (row.readTableOrNull(_database.flightWaypoints) case final point?)
@@ -244,7 +302,7 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
           );
         }
       } else {
-        if (!meters.isFinite) {
+        if (!meters.isFinite || meters.abs() > 100000) {
           throw const FormatException('Nonfinite waypoint height');
         }
         if (mode == FlightAltitudeMode.aboveGroundLevel) {
@@ -258,6 +316,10 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
           );
         }
       }
+      final speed = point.speedMetersPerSecond;
+      if (speed != null && (!speed.isFinite || speed <= 0 || speed > 200)) {
+        throw const FormatException('Invalid stored airspeed');
+      }
       return RouteWaypoint(
         id: point.id,
         planId: point.planId,
@@ -267,6 +329,7 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
           longitude: point.longitude,
         ),
         height: height,
+        speedMetersPerSecond: speed,
       );
     } on ArgumentError catch (error) {
       throw FormatException('Invalid stored waypoint ${point.id}: $error');
@@ -274,12 +337,23 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
   }
 
   @override
-  Future<FlightRoute?> getRoute(int id) async =>
-      _readRoute(await _routeQuery(id).get());
+  Future<FlightRoute?> getRoute(int id) async => _database.transaction(
+    () async => _readRoute(await _routeQuery(id).get()),
+  );
 
   @override
-  Stream<FlightRoute?> watchRoute(int id) =>
-      _routeQuery(id).watch().map(_readRoute);
+  Stream<FlightRoute?> watchRoute(int id) => _database
+      .customSelect(
+        'SELECT id FROM flight_plans WHERE id = ?',
+        variables: [Variable.withInt(id)],
+        readsFrom: {
+          _database.flightPlans,
+          _database.flightWaypoints,
+          _database.batteryFlightPlans,
+        },
+      )
+      .watch()
+      .asyncMap((_) => getRoute(id));
 
   @override
   Future<bool> replaceWaypoints({
@@ -297,6 +371,26 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
       return true;
     });
   }
+
+  @override
+  Future<RouteEquipmentOptions> getEquipmentOptions() =>
+      _database.transaction(() async {
+        final drones = await (_database.select(
+          _database.drones,
+        )..orderBy([(t) => OrderingTerm.asc(t.name)])).get();
+        final profiles = await Future.wait(
+          drones.map((d) => DroneRepository(_database).getProfile(d.id)),
+        );
+        final batteries =
+            await (_database.select(_database.batteries)
+                  ..where((t) => t.isType.equals(false))
+                  ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+                .get();
+        return RouteEquipmentOptions(
+          drones: profiles.nonNulls.toList(),
+          batteries: batteries,
+        );
+      });
 
   @override
   Future<int> deleteFlightPlan(int id) {

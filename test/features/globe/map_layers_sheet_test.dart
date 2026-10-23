@@ -59,7 +59,12 @@ void main() {
 
   Future<void> openSheet(WidgetTester tester) => tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: MapLayersSheet(controller: controller)),
+      home: Scaffold(
+        body: MapLayersSheet(
+          controller: controller,
+          initialTab: MapLayerTab.airspace,
+        ),
+      ),
     ),
   );
 

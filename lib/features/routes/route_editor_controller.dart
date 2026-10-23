@@ -4,17 +4,27 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/database/repositories/flight_plan_repository.dart';
 import '../../core/models/flight_route.dart';
+import '../../core/models/route_planning_settings.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../globe/globe_controller.dart';
 import '../globe/route_map_state.dart';
 
 class EditableWaypoint {
-  const EditableWaypoint(this.key, this.position, this.height);
+  const EditableWaypoint(
+    this.key,
+    this.position,
+    this.height, [
+    this.speedMetersPerSecond,
+  ]);
   final int key;
   final Wgs84Coordinate position;
   final WaypointHeight? height;
-  RouteWaypointInput get input =>
-      RouteWaypointInput(position: position, height: height);
+  final double? speedMetersPerSecond;
+  RouteWaypointInput get input => RouteWaypointInput(
+    position: position,
+    height: height,
+    speedMetersPerSecond: speedMetersPerSecond,
+  );
 }
 
 class RouteEditorController extends ChangeNotifier {
@@ -35,6 +45,25 @@ class RouteEditorController extends ChangeNotifier {
   List<EditableWaypoint> get points => _points;
   final List<List<EditableWaypoint>> _undo = [];
   String name = 'New route';
+  RoutePlanningSettings planning = const RoutePlanningSettings();
+  int? droneId;
+  Set<int> batteryIds = {};
+  RouteEquipmentOptions? equipment;
+  String? equipmentError;
+  Set<int> _criticalIds = {};
+  bool get hasRouteWarnings => _criticalIds.isNotEmpty;
+
+  void highlightSegments(Set<int> indices) {
+    final ids = {
+      for (final i in indices)
+        if (i >= 0 && i < _points.length) _points[i].key,
+    };
+    if (setEquals(ids, _criticalIds) || _disposed) return;
+    _criticalIds = ids;
+    notifyListeners();
+    unawaited(syncMap());
+  }
+
   int? selectedId, moveId;
   int _nextKey = 0;
   bool loading = true, saving = false, dirty = false, _disposed = false;
@@ -43,7 +72,8 @@ class RouteEditorController extends ChangeNotifier {
   String? error, mapError;
   EditableWaypoint? get selected =>
       _points.where((p) => p.key == selectedId).firstOrNull;
-  bool get canUndo => _undo.isNotEmpty && !saving;
+  bool get canUndo =>
+      _undo.isNotEmpty && !saving && !loading && _loadedSuccessfully;
   bool get canSave =>
       !loading &&
       !saving &&
@@ -64,11 +94,19 @@ class RouteEditorController extends ChangeNotifier {
       if (routeId != null && route == null) {
         throw StateError('Route no longer exists');
       }
+      planning = RoutePlanningSettings.decode(route?.plan.planningJson ?? '{}');
       _original = route;
       name = route?.plan.name ?? 'New route';
+      droneId = route?.plan.droneId;
+      batteryIds = Set.of(route?.batteryIds ?? <int>{});
       _points = List.unmodifiable([
         for (final point in route?.waypoints ?? <RouteWaypoint>[])
-          EditableWaypoint(++_nextKey, point.position, point.height),
+          EditableWaypoint(
+            ++_nextKey,
+            point.position,
+            point.height,
+            point.speedMetersPerSecond,
+          ),
       ]);
       selectedId = null;
       moveId = null;
@@ -94,6 +132,89 @@ class RouteEditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void configurePlanning(RoutePlanningSettings value) {
+    if (saving || loading || !_loadedSuccessfully) return;
+    value.validate();
+    planning = RoutePlanningSettings.decode(value.encode());
+    dirty = true;
+    notifyListeners();
+  }
+
+  Future<void> loadEquipment() async {
+    try {
+      final next = await repository.getEquipmentOptions();
+      if (_disposed) return;
+      equipment = next;
+      equipmentError = null;
+    } catch (_) {
+      if (_disposed) return;
+      equipmentError = 'Unable to load equipment. Please retry.';
+    }
+    notifyListeners();
+  }
+
+  void assignEquipment(int? drone, Set<int> batteries) {
+    if (saving || loading || !_loadedSuccessfully) return;
+    droneId = drone;
+    batteryIds = Set.unmodifiable(batteries);
+    dirty = true;
+    notifyListeners();
+  }
+
+  void configurePoint(
+    int id, {
+    WaypointHeight? height,
+    double? speedMetersPerSecond,
+  }) {
+    if (saving ||
+        loading ||
+        !_loadedSuccessfully ||
+        !_points.any((p) => p.key == id)) {
+      return;
+    }
+    if (height != null &&
+        (!height.meters.isFinite ||
+            height.meters.abs() > 100000 ||
+            (height is AglWaypointHeight && height.meters < 0))) {
+      throw ArgumentError('Invalid height');
+    }
+    if (speedMetersPerSecond != null &&
+        (!speedMetersPerSecond.isFinite ||
+            speedMetersPerSecond <= 0 ||
+            speedMetersPerSecond > 200)) {
+      throw ArgumentError('Invalid airspeed');
+    }
+    _change([
+      for (final p in _points)
+        p.key == id
+            ? EditableWaypoint(p.key, p.position, height, speedMetersPerSecond)
+            : p,
+    ], selected: id);
+  }
+
+  void configureAllWaypoints({
+    WaypointHeight? height,
+    double? speedMetersPerSecond,
+  }) {
+    if (saving || loading || !_loadedSuccessfully || _points.isEmpty) return;
+    if (height != null &&
+        (!height.meters.isFinite ||
+            height.meters.abs() > 100000 ||
+            (height is AglWaypointHeight && height.meters < 0))) {
+      throw ArgumentError('Invalid height');
+    }
+    if (speedMetersPerSecond != null &&
+        (!speedMetersPerSecond.isFinite ||
+            speedMetersPerSecond <= 0 ||
+            speedMetersPerSecond > 200)) {
+      throw ArgumentError('Invalid airspeed');
+    }
+    _change([
+      for (final p in _points)
+        EditableWaypoint(p.key, p.position, height, speedMetersPerSecond),
+    ], selected: selectedId);
+  }
+
   void _mapAction(RouteMapAction action) {
     if (loading || saving || _disposed || !_loadedSuccessfully) {
       return;
@@ -115,7 +236,12 @@ class RouteEditorController extends ChangeNotifier {
         _change([
           for (final point in _points)
             point.key == action.id
-                ? EditableWaypoint(point.key, action.position!, point.height)
+                ? EditableWaypoint(
+                    point.key,
+                    action.position!,
+                    point.height,
+                    point.speedMetersPerSecond,
+                  )
                 : point,
         ], selected: action.id);
       case RouteMapActionKind.delete:
@@ -124,7 +250,12 @@ class RouteEditorController extends ChangeNotifier {
   }
 
   void select(int id) {
-    if (saving || !_points.any((p) => p.key == id)) return;
+    if (saving ||
+        loading ||
+        !_loadedSuccessfully ||
+        !_points.any((p) => p.key == id)) {
+      return;
+    }
     selectedId = id;
     moveId = null;
     notifyListeners();
@@ -132,14 +263,19 @@ class RouteEditorController extends ChangeNotifier {
   }
 
   void toggleMove() {
-    if (selected == null || saving) return;
+    if (selected == null || saving || loading || !_loadedSuccessfully) return;
     moveId = moveId == null ? selectedId : null;
     notifyListeners();
     unawaited(syncMap());
   }
 
   void deletePoint(int id) {
-    if (saving || !_points.any((p) => p.key == id)) return;
+    if (saving ||
+        loading ||
+        !_loadedSuccessfully ||
+        !_points.any((p) => p.key == id)) {
+      return;
+    }
     _change(_points.where((p) => p.key != id).toList());
   }
 
@@ -172,7 +308,13 @@ class RouteEditorController extends ChangeNotifier {
       await globe.setRouteEditor(
         editorId: editorId,
         points: [
-          for (final point in _points) RouteMapPoint(point.key, point.position),
+          for (final point in _points)
+            RouteMapPoint(
+              point.key,
+              point.position,
+              height: point.height,
+              critical: _criticalIds.contains(point.key),
+            ),
         ],
         selectedId: selectedId,
         moveId: moveId,
@@ -200,7 +342,9 @@ class RouteEditorController extends ChangeNotifier {
       final id = await repository.saveRoute(
         id: routeId,
         name: name,
-        droneId: _original?.plan.droneId,
+        droneId: droneId,
+        batteryIds: Set.of(batteryIds),
+        planning: planning,
         startSpotId: _original?.plan.startSpotId,
         notes: _original?.plan.notes,
         waypoints: [for (final point in _points) point.input],
@@ -209,7 +353,7 @@ class RouteEditorController extends ChangeNotifier {
       routeId = id;
       dirty = false;
       _undo.clear();
-      // Retain original drone/spot/notes metadata without another fallible read
+      // Retain original spot/notes metadata without another fallible read
       // after the committed save. Newly created routes have no such metadata.
       return true;
     } catch (_) {

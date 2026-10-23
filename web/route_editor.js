@@ -5,6 +5,14 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
     "use strict";
     const previewAgl = 30;
+    function altitude(point, ground) {
+        if (point.height?.reference === "aboveGroundLevel") return ground + point.height.meters;
+        if (point.height?.reference === "wgs84Ellipsoid") return point.height.meters;
+        return ground + previewAgl;
+    }
+    function isPreview(point) {
+        return !["aboveGroundLevel", "wgs84Ellipsoid"].includes(point.height?.reference);
+    }
     function createLayer(Cesium, viewer, sampleHeights, isTerrainReady = () => true, onError = () => {}) {
         let source = null, revision = 0, request = null, records = [], cache = new Map();
         const key = p => `${p.latitude}|${p.longitude}`;
@@ -45,7 +53,7 @@
                     const colors = [Cesium.Color.CYAN, Cesium.Color.ORANGE, Cesium.Color.LIME, Cesium.Color.CORNFLOWERBLUE];
                     const color = colors[(route.id || 0) % colors.length];
                     const positions = route.waypoints.map((point,index) =>
-                        Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, sampled[offset + index] + previewAgl));
+                        Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, altitude(point, sampled[offset + index])));
                     route.waypoints.forEach((point, index) => {
                         const id = route.draft ? `route-waypoint-${point.id}` : `saved-route-${route.id}-waypoint-${point.id}`;
                         replacement.entities.add({id, name: route.name,
@@ -53,7 +61,7 @@
                             point: {pixelSize: point.id === route.selectedId ? 16 : 12,
                                 color: point.id === route.selectedId ? Cesium.Color.YELLOW : color,
                                 outlineColor: Cesium.Color.BLACK, outlineWidth: 2},
-                            label: {text: `${index + 1}`, font: "bold 16px sans-serif", pixelOffset: new Cesium.Cartesian2(0,-24),
+                            label: {text: `${index + 1}${isPreview(point) ? "*" : ""}`, font: "bold 16px sans-serif", pixelOffset: new Cesium.Cartesian2(0,-24),
                                 fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK,
                                 outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE}
                         });
@@ -64,6 +72,13 @@
                     });
                     if (positions.length > 1) replacement.entities.add({id: `route-line-${route.id || 'draft'}`,
                         polyline: {positions, width: 4, material: color, clampToGround: false}});
+                    route.waypoints.forEach((point, index) => {
+                        if (point.critical && index < positions.length - 1) replacement.entities.add({
+                            id: `route-warning-${route.id || 'draft'}-${index}`,
+                            polyline: {positions: positions.slice(index, index + 2), width: 7,
+                                material: Cesium.Color.RED, clampToGround: false}
+                        });
+                    });
                     offset += route.waypoints.length;
                 }
                 viewer.dataSources.add(replacement);
@@ -85,7 +100,7 @@
                 signal.throwIfAborted();
                 if (current !== revision || !isTerrainReady()) return;
                 const sphere = Cesium.BoundingSphere.fromPoints(points.map((point,index) =>
-                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, sampled[index] + previewAgl)));
+                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, altitude(point, sampled[index]))));
                 viewer.camera.flyToBoundingSphere(sphere, {duration:1,
                     offset:new Cesium.HeadingPitchRange(0, -Math.PI / 4, Math.max(300, sphere.radius * 3))});
             },
@@ -106,6 +121,9 @@
             if (!Number.isSafeInteger(point.id) || point.id <= 0 || ids.has(point.id) ||
                 !Number.isFinite(point.latitude) || Math.abs(point.latitude) > 90 ||
                 !Number.isFinite(point.longitude) || Math.abs(point.longitude) > 180) throw new Error("Invalid route waypoint");
+            if (point.height != null && (!Number.isFinite(point.height.meters) || Math.abs(point.height.meters) > 100000 ||
+                !["aboveGroundLevel", "wgs84Ellipsoid", "besselEllipsoid", "ln02", "lhn95", "unverified"].includes(point.height.reference) ||
+                (point.height.reference === "aboveGroundLevel" && point.height.meters < 0))) throw new Error("Invalid waypoint height");
             ids.add(point.id);
         }
         for (const id of [command.selectedId, command.moveId]) {
@@ -180,7 +198,7 @@
             const height = viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude));
             const entity = layer.source?.entities.getById(`route-waypoint-${drag.id}`);
             if (entity && Number.isFinite(height)) entity.position =
-                Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, height + previewAgl);
+                Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, altitude(state.waypoints.find(p => p.id === drag.id) ?? {}, height));
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
         // LEFT_UP arrives before LEFT_CLICK; suppress the click generated by a drag.
         let suppressClick = false;
@@ -217,7 +235,7 @@
                     throw new Error("Route terrain heights unavailable");
                 }
                 const positions = state.waypoints.map((point,index) =>
-                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, heights[index] + previewAgl));
+                    Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, altitude(point, heights[index])));
                 const sphere = Cesium.BoundingSphere.fromPoints(positions);
                 viewer.camera.flyToBoundingSphere(sphere, { duration: 1,
                     offset: new Cesium.HeadingPitchRange(0, -Math.PI / 4, Math.max(300, sphere.radius * 3)) });
@@ -260,5 +278,17 @@
             dispose: layer.dispose
         };
     }
-    return { createEditor, createOverlays, validate, previewAgl };
+    async function sampleProfile(command, sampler, signal) {
+        const points = command.positions;
+        if (!Array.isArray(points) || !points.length || points.length > 256 || points.some(p =>
+            !Number.isFinite(p.latitude) || Math.abs(p.latitude) > 90 ||
+            !Number.isFinite(p.longitude) || Math.abs(p.longitude) > 180)) throw new Error("Invalid terrain profile batch");
+        signal.throwIfAborted();
+        const sampled = await sampler(points, signal);
+        signal.throwIfAborted();
+        if (!Array.isArray(sampled.heights) || sampled.heights.length !== points.length ||
+            sampled.heights.some(h => !Number.isFinite(h) || Math.abs(h) > 100000)) throw new Error("Incomplete terrain profile");
+        return {...sampled, heightReference: "wgs84Ellipsoid"};
+    }
+    return { createEditor, createOverlays, validate, previewAgl, sampleProfile };
 });

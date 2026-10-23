@@ -13,6 +13,7 @@ class FakeGlobeRenderer {
   String sessionId = 'renderer-1';
   int sequence = 0;
   bool autoAcknowledge = true;
+  void Function(Map<String, dynamic>)? onCommand;
 
   void attach() => controller.attach(receive);
 
@@ -58,7 +59,10 @@ class FakeGlobeRenderer {
         return;
     }
     commands.add(data);
-    if (autoAcknowledge && data['type'] != 'query-terrain-elevation') {
+    onCommand?.call(data);
+    if (autoAcknowledge &&
+        data['type'] != 'query-terrain-elevation' &&
+        data['type'] != 'query-route-terrain') {
       acknowledge(data);
     }
   }
