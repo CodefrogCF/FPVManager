@@ -11,7 +11,7 @@ void main() {
       name: 'Zone',
       attributes: uasFixtureAttributes,
     );
-    expect(zone.value('restriction'), 'REQ_AUTHORISATION');
+    expect(zone.value('restriction'), 'REQ_AUTHORISATION.MTOM_ALL');
     expect(zone.heightLimit(upper: false), '0 M · AGL');
     expect(zone.heightLimit(upper: true), '900 M · AMSL');
     expect(zone.value('startTime'), '00:00:00.00+02:00');

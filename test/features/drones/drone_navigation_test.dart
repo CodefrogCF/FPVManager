@@ -30,13 +30,14 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byTooltip('Map actions'));
       await tester.pumpAndSettle();
-      // Menu items are disabled until the renderer is ready; equipment stays available.
+      // Globe-dependent actions are disabled until ready; weather works independently.
       expect(find.text('Map layers'), findsOneWidget);
       final menuItems = tester.widgetList<PopupMenuItem<dynamic>>(
         find.byWidgetPredicate((widget) => widget is PopupMenuItem),
       );
-      expect(menuItems, hasLength(4));
-      expect(menuItems.every((item) => !item.enabled), isTrue);
+      expect(menuItems, hasLength(5));
+      expect(find.text('Weather intelligence'), findsOneWidget);
+      expect(menuItems.where((item) => item.enabled), hasLength(1));
       await tester.tapAt(const Offset(20, 200));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));

@@ -173,5 +173,9 @@ void main() {
         }
       }
     },
+    // File-backed SQLite open/close and Windows filesystem scanning can exceed
+    // the 30-second unit-test default under parallel Flutter test execution.
+    // This test asserts persistence, not a latency service-level objective.
+    timeout: const Timeout(Duration(minutes: 2)),
   );
 }

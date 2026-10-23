@@ -36,12 +36,13 @@ function postToFlutter(message) {
         return {...(sourceName ? {name:sourceName.slice(0,160)} : {}),
             attributes, omittedAttributeCount: keys.length - Object.keys(attributes).length, truncatedAttributes};
     }
+    const weatherOverlay = FPVWeatherOverlay.create(Cesium, () => activeViewer);
     const bridge = FPVGlobeBridge.createBridge({ send: postToFlutter, execute: executeCommand });
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
         walker?.stop();
-        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null;
@@ -558,6 +559,8 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case "set-weather-overlay": return weatherOverlay.replace(command);
+            case "clear-weather-overlay": return weatherOverlay.clear();
             case "set-obstacle-wms": obstacleWms.set(command); return {};
             case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
             case "enter-ground-view": return walker.start(command, signal);

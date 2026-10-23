@@ -178,7 +178,14 @@ void main() {
       renderer = FakeGlobeRenderer(controller)..attach();
       renderer.ready();
       await openSheet(tester);
-      await controller.setUasZonesVisible(true);
+      // Network and bridge futures must be allowed to run outside the widget
+      // test's fake clock; directly awaiting them can hang until the 10-minute
+      // testWidgets watchdog fires instead of revealing the pending step.
+      await tester.runAsync(
+        () => controller
+            .setUasZonesVisible(true)
+            .timeout(const Duration(seconds: 20)),
+      );
       status(visible: true);
       await tester.pump();
       expect(find.text('Alternative airspace'), findsOneWidget);
@@ -203,9 +210,11 @@ void main() {
       expect(find.text('Cache expired — refresh recommended'), findsOneWidget);
       expect(attempts, 1); // Visible ageing performs no network update.
       fail = true;
-      await expectLater(
-        controller.refreshUasZones(),
-        throwsA(isA<OsintProviderException>()),
+      await tester.runAsync(
+        () => expectLater(
+          controller.refreshUasZones().timeout(const Duration(seconds: 20)),
+          throwsA(isA<OsintProviderException>()),
+        ),
       );
       await tester.pump();
       expect(controller.uasDisplayedDataset, same(displayed));

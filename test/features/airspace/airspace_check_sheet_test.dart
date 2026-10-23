@@ -75,6 +75,31 @@ Widget _sheet(
   ),
 );
 
+// Scroll to a control until it can actually receive a tap. A finder may
+// locate a lazily built child or one just beyond the test viewport even when
+// ensureVisible() alone leaves its centre outside the hit-test region.
+Future<void> _tapInAirspaceList(
+  WidgetTester tester,
+  Finder target, {
+  required bool towardEnd,
+}) async {
+  for (var attempt = 0; attempt < 12; attempt++) {
+    final tappable = target.hitTestable();
+    if (tappable.evaluate().isNotEmpty) {
+      await tester.tap(tappable);
+      return;
+    }
+    await tester.drag(
+      find.byType(ListView).last,
+      Offset(0, towardEnd ? -160 : 160),
+    );
+    await tester.pumpAndSettle();
+  }
+  // A missing or obstructed button must still fail the test, not be ignored.
+  expect(target.hitTestable(), findsOneWidget);
+  await tester.tap(target.hitTestable());
+}
+
 void main() {
   testWidgets(
     'loading retains the authorization boundary and completed restrictions open details',
@@ -88,11 +113,19 @@ void main() {
       pending.complete(_report());
       await tester.pumpAndSettle();
       expect(find.text('Intersecting zones: 1'), findsOneWidget);
-      expect(find.text('REQ_AUTHORISATION'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('REQ_AUTHORISATION.MTOM_ALL'),
+        180,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(find.text('REQ_AUTHORISATION.MTOM_ALL'), findsOneWidget);
       expect(find.text('Lower: 0 M · AGL'), findsOneWidget);
       expect(find.text('Upper: 900 M · AMSL'), findsOneWidget);
-      await tester.ensureVisible(find.text('Inspect restrictions'));
-      await tester.tap(find.text('Inspect restrictions'));
+      await _tapInAirspaceList(
+        tester,
+        find.text('Inspect restrictions'),
+        towardEnd: true,
+      );
       await tester.pumpAndSettle();
       expect(find.text('Restrictions as supplied'), findsOneWidget);
       expect(find.text('Source classification'), findsOneWidget);
@@ -240,7 +273,12 @@ void main() {
     expect(globe.calls.single.$1.single.latitude, _point.latitude);
     expect(globe.calls.single.$1.single.longitude, _point.longitude);
     expect(find.text('Saved check spot'), findsNWidgets(2));
-    expect(find.text('REQ_AUTHORISATION'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('REQ_AUTHORISATION.MTOM_ALL'),
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('REQ_AUTHORISATION.MTOM_ALL'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
     // The home screen must not dispose an injected controller.
@@ -283,8 +321,17 @@ void main() {
       await tester.tap(find.byTooltip('Check route airspace'));
       await tester.pumpAndSettle();
       expect(globe.calls.single.$1, hasLength(2));
+      await tester.scrollUntilVisible(
+        find.text('Waypoints: none · Segments: 1–2'),
+        180,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text('Waypoints: none · Segments: 1–2'), findsOneWidget);
-      await tester.tap(find.byTooltip('Close airspace check'));
+      await _tapInAirspaceList(
+        tester,
+        find.byTooltip('Close airspace check'),
+        towardEnd: false,
+      );
       await tester.pumpAndSettle();
       final state = peer.commands.lastWhere(
         (c) => c['type'] == 'set-route-editor',

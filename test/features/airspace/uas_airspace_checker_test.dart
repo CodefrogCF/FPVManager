@@ -38,7 +38,7 @@ void main() {
     final report = await globe.checkAirspace([point]);
     expect(
       report.intersections.single.zone.value('restriction'),
-      'REQ_AUTHORISATION',
+      'REQ_AUTHORISATION.MTOM_ALL',
     );
     expect(
       report.intersections.single.zone.heightLimit(upper: true),
@@ -184,6 +184,6 @@ void main() {
     expect(zone.truncatedAttributes, contains('extra'));
     expect(zone.attributes.length, 128);
     expect(zone.omittedAttributeCount, greaterThan(0));
-    expect(zone.value('restriction'), 'REQ_AUTHORISATION');
+    expect(zone.value('restriction'), 'REQ_AUTHORISATION.MTOM_ALL');
   });
 }

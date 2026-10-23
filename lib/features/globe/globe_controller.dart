@@ -150,6 +150,26 @@ class GlobeController extends ChangeNotifier {
   GlobeMapStyle _requestedMapStyle = GlobeMapStyle.satellite;
   double _requestedUasOpacity = 0.20;
 
+  Map<String, dynamic>? _weatherOverlayCommand;
+
+  /// Weather presentation is independent of Swiss airspace restrictions.
+  Future<void> showWeatherOverlay(Map<String, dynamic> command) async {
+    if (command['type'] != 'set-weather-overlay') {
+      throw ArgumentError('Invalid weather overlay');
+    }
+    _weatherOverlayCommand = command;
+    if (_ready) await _send(command);
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> clearWeatherOverlay() async {
+    _weatherOverlayCommand = null;
+    if (_ready) await _send({'type': 'clear-weather-overlay'});
+    if (!_disposed) notifyListeners();
+  }
+
+  bool get weatherOverlayVisible => _weatherOverlayCommand != null;
+
   bool _uasDatasetSentToRenderer = false;
   OsintDataset<Map<String, dynamic>>? _uasDisplayedDataset;
   bool _uasRequestedVisible = false;
@@ -518,7 +538,7 @@ class GlobeController extends ChangeNotifier {
       _uasDisplayedDataset;
   GeoJsonDownloadMetrics? get uasNetworkMetrics =>
       _uasProvider is GeoJsonOsintProvider
-      ? (_uasProvider).lastDownloadMetrics
+      ? _uasProvider.lastDownloadMetrics
       : null;
   GlobeTransferMetrics? get uasTransferMetrics =>
       _bridge.lastTransferMetrics?.type == 'set-uas-zones' ||
@@ -1235,6 +1255,10 @@ class GlobeController extends ChangeNotifier {
           'type': 'set-overlay-order',
           'order': _overlayOrder.map((item) => item.name).toList(),
         });
+      }
+      if (!current()) return;
+      if (_weatherOverlayCommand != null && current()) {
+        await _send(_weatherOverlayCommand!);
       }
       if (!current()) return;
       if (_uasRequestedVisible) await _updateUas(forceRefresh: false);

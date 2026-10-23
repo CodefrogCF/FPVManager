@@ -25,6 +25,8 @@ import 'features/spots/spot_details_screen.dart';
 import 'features/spots/spots_screen.dart';
 import 'features/spots/spot_photo_viewer.dart';
 import 'features/globe/globe_controller.dart';
+import 'features/weather/weather_screen.dart';
+import 'features/weather/weather_preferences.dart';
 import 'features/globe/terrain_status_banner.dart';
 import 'features/globe/globe_view.dart';
 import 'features/globe/map_layers_sheet.dart';
@@ -84,7 +86,7 @@ class FPVHomeScreen extends StatefulWidget {
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
 }
 
-enum _MapAction { home, coordinates, terrain, layers }
+enum _MapAction { home, coordinates, terrain, layers, weather }
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
   late final GlobeController _globeController =
@@ -163,6 +165,29 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         latitude: spot.latitude,
         longitude: spot.longitude,
         rangeMeters: 300,
+      ),
+    );
+  }
+
+  Future<void> _openWeather() async {
+    await _leaveGroundView();
+    if (!mounted) return;
+    final database = _database ??= FpvDatabase.open();
+    final spotRepository = _spotRepository ??=
+        widget.spotRepository ?? SpotRepository(database);
+    final droneRepository = _droneRepository ??=
+        widget.droneRepository ?? DroneRepository(database);
+    final point = _globeController.selectedPoint;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => WeatherScreen(
+          spots: spotRepository,
+          drones: droneRepository,
+          globe: _globeController,
+          preferences: WeatherPreferencesRepository(database),
+          initialLatitude: point?.latitude,
+          initialLongitude: point?.longitude,
+        ),
       ),
     );
   }
@@ -411,6 +436,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.cloud_outlined),
+                title: const Text('Weather & spot suitability'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openWeather());
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.flight_outlined),
                 title: const Text('Drone profiles'),
                 onTap: () {
@@ -486,6 +519,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                             unawaited(_showTerrainElevation());
                           case _MapAction.layers:
                             unawaited(_openMapLayers());
+                          case _MapAction.weather:
+                            unawaited(_openWeather());
                         }
                       },
                       itemBuilder: (context) => [
@@ -503,6 +538,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                           value: _MapAction.terrain,
                           enabled: terrain,
                           child: const Text('Query terrain elevation'),
+                        ),
+                        PopupMenuItem(
+                          value: _MapAction.weather,
+                          child: const Text('Weather intelligence'),
                         ),
                         PopupMenuItem(
                           value: _MapAction.layers,

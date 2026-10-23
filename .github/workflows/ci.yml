@@ -41,7 +41,7 @@ jobs:
       - name: Test verified SQLite download preparation
         run: python3 -m unittest discover -s test/tool -p 'test_*.py'
       - name: Test renderer protocol, terrain and map interactions
-        run: node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs test/js/terrain_service.test.cjs test/js/ground_navigation.test.cjs test/js/route_editor.test.cjs test/js/obstacle_layers.test.cjs
+        run: node --test test/js/*.test.cjs
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Test

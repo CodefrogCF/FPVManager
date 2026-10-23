@@ -8,6 +8,8 @@ const FPVMapProviders = require('../../web/map_providers.js');
 const FPVObstacles = require('../../web/obstacle_layers.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
 const FPVUasZoneStyles = require('../../web/uas_zone_styles.js');
+require('../../web/weather_overlay.js');
+const FPVWeatherOverlay = globalThis.FPVWeatherOverlay;
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
@@ -33,7 +35,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
             createEditor: () => ({ click: () => false, terrainChanged() {} }),
             createOverlays: () => ({ terrainChanged() {}, dispose() {} })
         },
-        performance: { now: () => 42 }, FPVUasZoneStyles,
+        performance: { now: () => 42 }, FPVUasZoneStyles, FPVWeatherOverlay,
         Cesium: {
             Color: {RED:colors('red'), fromCssColorString:colors},
             GeoJsonDataSource: { async load(data, options) {

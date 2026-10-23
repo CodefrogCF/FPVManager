@@ -140,6 +140,7 @@ flutter:
     - web/route_editor.js
     - web/obstacle_layers.js
     - web/uas_zone_styles.js
+    - web/weather_overlay.js
     - assets/geo/chgeo2004_ln02.bin
     - assets/geo/chgeo2004_ln02.NOTICE.txt
 
