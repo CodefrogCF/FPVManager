@@ -31,23 +31,34 @@ void main() {
   });
 
   test('unknown and missing codes never imply flight permission', () {
-    expect(UasRestriction.fromAttributes({}).category,
-        UasRestrictionCategory.unknown);
-    expect(UasRestriction.fromAttributes({'restriction': 'NO_RESTRICTION'}).category,
-        UasRestrictionCategory.informational);
-    expect(UasRestriction.fromAttributes({'type': 'PROHIBITED', 'restriction': 'UNKNOWN'}).category,
-        UasRestrictionCategory.unknown);
+    expect(
+      UasRestriction.fromAttributes({}).category,
+      UasRestrictionCategory.unknown,
+    );
+    expect(
+      UasRestriction.fromAttributes({'restriction': 'NO_RESTRICTION'}).category,
+      UasRestrictionCategory.informational,
+    );
+    expect(
+      UasRestriction.fromAttributes({
+        'type': 'PROHIBITED',
+        'restriction': 'UNKNOWN',
+      }).category,
+      UasRestrictionCategory.unknown,
+    );
   });
 
   test('validity, authority, vertical references and source properties remain separate', () {
     final details = UasZoneDetails.fromFeature(
-      uasFixtureFeature(overrides: {
-        'type': 'COMMON',
-        'permanent': 'NO',
-        'startDateTime': '2026-10-22T14:00:00+02:00',
-        'endDateTime': '2026-10-23T14:00:00+02:00',
-        'restriction': 'REQ_AUTHORISATION.MTOM_FROM',
-      }),
+      uasFixtureFeature(
+        overrides: {
+          'type': 'COMMON',
+          'permanent': 'NO',
+          'startDateTime': '2026-10-22T14:00:00+02:00',
+          'endDateTime': '2026-10-23T14:00:00+02:00',
+          'restriction': 'REQ_AUTHORISATION.MTOM_FROM',
+        },
+      ),
       fallbackId: 'fallback',
     );
     final model = details.restriction;
@@ -57,7 +68,10 @@ void main() {
     expect(model.lower.reference, 'AGL');
     expect(model.upper.reference, 'AMSL');
     expect(model.authority.name, 'Fixture authority');
-    expect(model.authority.website.toString(), 'https://example.invalid/authority');
+    expect(
+      model.authority.website.toString(),
+      'https://example.invalid/authority',
+    );
     expect(details.value('restriction'), 'REQ_AUTHORISATION.MTOM_FROM');
     expect(model.category, UasRestrictionCategory.authorisation);
     expect(model.mapHexColor, '#b8860b');
@@ -66,7 +80,8 @@ void main() {
 
   test('CTR subtype has its own color and conditional explanation', () {
     final ctr = UasRestriction.fromAttributes({
-      'type': 'COMMON', 'restriction': 'REQ_AUTHORISATION.CTR',
+      'type': 'COMMON',
+      'restriction': 'REQ_AUTHORISATION.CTR',
     });
     expect(ctr.category, UasRestrictionCategory.authorisation);
     expect(ctr.mapHexColor, '#7b1fa2');
@@ -90,11 +105,13 @@ void main() {
   });
 
   test('overlapping features are counted individually without collapsing restrictions', () {
-    final assessment = UasDatasetAssessment.inspect(uasFixtureCollection([
-      uasFixtureFeature(overrides: {'restriction': 'PROHIBITED'}),
-      uasFixtureFeature(overrides: {'restriction': 'CONDITIONAL'}),
-      uasFixtureFeature(overrides: {'restriction': 'UNSUPPORTED'}),
-    ]));
+    final assessment = UasDatasetAssessment.inspect(
+      uasFixtureCollection([
+        uasFixtureFeature(overrides: {'restriction': 'PROHIBITED'}),
+        uasFixtureFeature(overrides: {'restriction': 'CONDITIONAL'}),
+        uasFixtureFeature(overrides: {'restriction': 'UNSUPPORTED'}),
+      ]),
+    );
     expect(assessment.renderedFeatureCount, 3);
     expect(assessment.categoryCounts[UasRestrictionCategory.prohibited], 1);
     expect(assessment.categoryCounts[UasRestrictionCategory.conditional], 1);

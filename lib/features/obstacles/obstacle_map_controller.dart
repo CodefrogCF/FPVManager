@@ -300,7 +300,8 @@ class ObstacleMapController extends ChangeNotifier {
           // the actual object height at the same position. For a line or
           // polygon it may apply anywhere on the feature, not each vertex.
           final agl = double.tryParse(f.attributes['maxHeightAGL'] ?? '');
-          final heightAgl = p.kind == 'Point' &&
+          final heightAgl =
+              p.kind == 'Point' &&
                   f.parts.length == 1 &&
                   agl != null &&
                   agl.isFinite &&

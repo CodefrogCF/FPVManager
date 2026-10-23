@@ -126,12 +126,22 @@ class UasZoneDetailsSheet extends StatelessWidget {
           _heading(context, 'Interpreted restriction rule'),
           _DetailRow('Classification', zone.restriction.category.label),
           _DetailRow('Rule applicability', zone.restriction.restrictionMeaning),
-          _DetailRow('Authority', zone.restriction.authority.name ?? 'Not provided'),
-          _DetailRow('Authorisation contact', zone.restriction.authority.role ?? 'Not provided'),
+          _DetailRow(
+            'Authority',
+            zone.restriction.authority.name ?? 'Not provided',
+          ),
+          _DetailRow(
+            'Authorisation contact',
+            zone.restriction.authority.role ?? 'Not provided',
+          ),
           if (zone.restriction.category == UasRestrictionCategory.unknown)
-            const _Notice('Unknown or unsupported restriction code: no permission can be inferred.'),
+            const _Notice(
+              'Unknown or unsupported restriction code: no permission can be inferred.',
+            ),
           if (zone.restriction.hasUnverifiedTimeRules)
-            const _Notice('Potential time-dependent restriction: activation is NOT calculated. Consult original validity and daily time rules.'),
+            const _Notice(
+              'Potential time-dependent restriction: activation is NOT calculated. Consult original validity and daily time rules.',
+            ),
           for (final issue in zone.restriction.unrecognisedValues)
             _Notice(issue),
           _heading(context, 'Source classification'),

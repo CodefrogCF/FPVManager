@@ -10,9 +10,11 @@ enum UasRestrictionCategory {
 
   String get label => switch (this) {
     UasRestrictionCategory.prohibited => 'Prohibited (source classification)',
-    UasRestrictionCategory.authorisation => 'Authorisation rule — check applicability',
+    UasRestrictionCategory.authorisation =>
+      'Authorisation rule — check applicability',
     UasRestrictionCategory.conditional => 'Conditional operation',
-    UasRestrictionCategory.informational => 'Informational / no zone restriction stated',
+    UasRestrictionCategory.informational =>
+      'Informational / no zone restriction stated',
     UasRestrictionCategory.unknown => 'Unknown — verify with authorities',
   };
 
@@ -29,7 +31,13 @@ enum UasRestrictionCategory {
 }
 
 class UasAuthority {
-  const UasAuthority({this.name, this.role, this.website, this.email, this.phone});
+  const UasAuthority({
+    this.name,
+    this.role,
+    this.website,
+    this.email,
+    this.phone,
+  });
   final String? name;
   final String? role;
   final Uri? website;
@@ -69,17 +77,22 @@ class UasRestriction {
     String? get(String key) {
       final value = values[key]?.trim();
       return value == null || value.isEmpty || value.toLowerCase() == 'null'
-          ? null : value;
+          ? null
+          : value;
     }
+
     final rawType = get('type'); // CodeZoneType, commonly COMMON.
     final sourceRestriction = get('restriction'); // CodeRestrictionType.
-    final normalized = sourceRestriction?.toUpperCase()
-        .replaceAll('-', '_').replaceFirst('REQ_AUTHORIZATION', 'REQ_AUTHORISATION');
+    final normalized = sourceRestriction
+        ?.toUpperCase()
+        .replaceAll('-', '_')
+        .replaceFirst('REQ_AUTHORIZATION', 'REQ_AUTHORISATION');
     final category = switch (normalized) {
       'PROHIBITED' => UasRestrictionCategory.prohibited,
-      'REQ_AUTHORISATION' || 'REQ_AUTHORISATION.MTOM_ALL' ||
-      'REQ_AUTHORISATION.MTOM_FROM' || 'REQ_AUTHORISATION.CTR' =>
-        UasRestrictionCategory.authorisation,
+      'REQ_AUTHORISATION' ||
+      'REQ_AUTHORISATION.MTOM_ALL' ||
+      'REQ_AUTHORISATION.MTOM_FROM' ||
+      'REQ_AUTHORISATION.CTR' => UasRestrictionCategory.authorisation,
       'CONDITIONAL' => UasRestrictionCategory.conditional,
       'NO_RESTRICTION' => UasRestrictionCategory.informational,
       _ => UasRestrictionCategory.unknown,
@@ -88,16 +101,23 @@ class UasRestriction {
     final fromRaw = get('startDateTime');
     final untilRaw = get('endDateTime');
     DateTime? parseDate(String? raw) {
-      if (raw == null || !RegExp(r'(Z|[+-]\d{2}:\d{2})$', caseSensitive: false).hasMatch(raw)) {
+      if (raw == null ||
+          !RegExp(
+            r'(Z|[+-]\d{2}:\d{2})$',
+            caseSensitive: false,
+          ).hasMatch(raw)) {
         return null; // No timezone: cannot safely infer UTC applicability.
       }
       return DateTime.tryParse(raw)?.toUtc();
     }
+
     Uri? website;
     final site = get('siteURL');
     if (site != null) {
       final candidate = Uri.tryParse(site);
-      if (candidate != null && candidate.scheme == 'https' && candidate.hasAuthority) {
+      if (candidate != null &&
+          candidate.scheme == 'https' &&
+          candidate.hasAuthority) {
         website = candidate;
       }
     }
@@ -126,7 +146,11 @@ class UasRestriction {
       reason: get('reason'),
       restrictionCode: sourceRestriction,
       conditions: get('restrictionConditions'),
-      permanent: permanence == 'YES' ? true : permanence == 'NO' ? false : null,
+      permanent: permanence == 'YES'
+          ? true
+          : permanence == 'NO'
+          ? false
+          : null,
       validFromUtc: parseDate(fromRaw),
       validUntilUtc: parseDate(untilRaw),
       lower: limit('lower'),
@@ -145,27 +169,30 @@ class UasRestriction {
 
   /// A map color for the actual Swiss CodeRestrictionType (not CodeZoneType).
   /// Distinct shades represent different authorisation conditions, not safety.
-  String get mapHexColor => switch (restrictionCode?.trim().toUpperCase()
-      .replaceAll('-', '_').replaceFirst('REQ_AUTHORIZATION', 'REQ_AUTHORISATION')) {
+  String get mapHexColor => switch (restrictionCode
+      ?.trim()
+      .toUpperCase()
+      .replaceAll('-', '_')
+      .replaceFirst('REQ_AUTHORIZATION', 'REQ_AUTHORISATION')) {
     'REQ_AUTHORISATION.MTOM_ALL' => '#ef6c00',
     'REQ_AUTHORISATION.MTOM_FROM' => '#b8860b',
     'REQ_AUTHORISATION.CTR' => '#7b1fa2',
     _ => category.hexColor,
   };
 
-  String get restrictionMeaning => switch (restrictionCode?.trim().toUpperCase()
-      .replaceAll('-', '_').replaceFirst('REQ_AUTHORIZATION', 'REQ_AUTHORISATION')) {
-    'REQ_AUTHORISATION.MTOM_ALL' =>
-      'Prior authorisation is required regardless of UAS weight when this rule applies.',
-    'REQ_AUTHORISATION.MTOM_FROM' =>
-      'Prior authorisation is required starting at the source-defined take-off mass. Verify the applicable threshold.',
-    'REQ_AUTHORISATION.CTR' =>
-      'CTR authorisation rule (above 120 m AGL according to the BAZL model). Other local rules may apply below this height.',
-    'NO_RESTRICTION' =>
-      'No additional restriction indicated by this particular zone. Other overlapping and temporary rules may apply.',
+  String get restrictionMeaning => switch (restrictionCode
+      ?.trim()
+      .toUpperCase()
+      .replaceAll('-', '_')
+      .replaceFirst('REQ_AUTHORIZATION', 'REQ_AUTHORISATION')) {
+    'REQ_AUTHORISATION.MTOM_ALL' => 'Prior authorisation is required regardless of UAS weight when this rule applies.',
+    'REQ_AUTHORISATION.MTOM_FROM' => 'Prior authorisation is required starting at the source-defined take-off mass. Verify the applicable threshold.',
+    'REQ_AUTHORISATION.CTR' => 'CTR authorisation rule (above 120 m AGL according to the BAZL model). Other local rules may apply below this height.',
+    'NO_RESTRICTION' => 'No additional restriction indicated by this particular zone. Other overlapping and temporary rules may apply.',
     'PROHIBITED' => 'Explicit prohibition indicated by the source; consult official rules and applicability.',
     'CONDITIONAL' => 'Conditional operation; read all source conditions and official guidance.',
-    'REQ_AUTHORISATION' => 'Authorisation rule; verify affected aircraft, altitude and validity.',
+    'REQ_AUTHORISATION' =>
+      'Authorisation rule; verify affected aircraft, altitude and validity.',
     _ => 'Unknown restriction code; official manual verification required.',
   };
 
@@ -173,6 +200,7 @@ class UasRestriction {
   final String? rawType;
   final String? identifier;
   final String? reason;
+
   /// CodeRestrictionType (e.g. REQ_AUTHORISATION.CTR); source value retained.
   final String? restrictionCode;
   final String? conditions;
@@ -186,10 +214,15 @@ class UasRestriction {
   final bool hasDailyWindow;
 
   bool get hasSchedule =>
-      permanent == false || validFromUtc != null || validUntilUtc != null ||
+      permanent == false ||
+      validFromUtc != null ||
+      validUntilUtc != null ||
       hasDailyWindow ||
-      unrecognisedValues.any((entry) => entry.startsWith('Invalid startDateTime') ||
-          entry.startsWith('Invalid endDateTime'));
+      unrecognisedValues.any(
+        (entry) =>
+            entry.startsWith('Invalid startDateTime') ||
+            entry.startsWith('Invalid endDateTime'),
+      );
   bool get hasUnverifiedTimeRules => hasSchedule;
   // The app intentionally does not evaluate activation, daily time windows,
   // altitude datum conversion or licence / aircraft class exemptions.
