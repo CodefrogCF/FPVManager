@@ -71,18 +71,20 @@ class _CredentialEditorState extends State<_CredentialEditor> {
   Future<void> _refresh() async {
     try {
       final saved = await widget.vault.contains(widget.policy);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _saved = saved;
           _loading = false;
           _error = null;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = 'Secure storage is unavailable';
         });
+      }
     }
   }
 
@@ -99,18 +101,20 @@ class _CredentialEditorState extends State<_CredentialEditor> {
         await widget.vault.save(widget.policy, _key.text);
       }
       _key.clear();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _saved = !remove;
           _loading = false;
         });
+      }
     } catch (_) {
       // Avoid displaying error.toString(): platform failures can contain keys.
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = 'Could not update this API key';
         });
+      }
     }
   }
 

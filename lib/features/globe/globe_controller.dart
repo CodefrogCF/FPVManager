@@ -518,7 +518,7 @@ class GlobeController extends ChangeNotifier {
       _uasDisplayedDataset;
   GeoJsonDownloadMetrics? get uasNetworkMetrics =>
       _uasProvider is GeoJsonOsintProvider
-      ? (_uasProvider as GeoJsonOsintProvider).lastDownloadMetrics
+      ? (_uasProvider).lastDownloadMetrics
       : null;
   GlobeTransferMetrics? get uasTransferMetrics =>
       _bridge.lastTransferMetrics?.type == 'set-uas-zones' ||

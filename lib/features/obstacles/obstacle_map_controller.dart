@@ -314,7 +314,7 @@ class ObstacleMapController extends ChangeNotifier {
             'kind': p.kind,
             'elevated': elevated,
             'coordinates': positions,
-            if (heightAgl != null) 'heightAgl': heightAgl,
+            'heightAgl': ?heightAgl,
           });
         }
         payload.add({
