@@ -866,6 +866,9 @@ function postToFlutter(message) {
 
                 if (isUasZone) {
                     selectedPointInfo = null; terrainInfo(terrainManager.status());
+                    const ray = viewer.camera.getPickRay(event.position);
+                    const position = ray && viewer.scene.globe.pick(ray, viewer.scene);
+                    const coordinates = position && Cesium.Cartographic.fromCartesian(position);
                     const rawAttributes =
                         entity.properties?.getValue(
                             viewer.clock.currentTime
@@ -876,6 +879,10 @@ function postToFlutter(message) {
                         name: String(
                             entity.name || "UAS Geographical Zone"
                         ).slice(0, 160),
+                        ...(coordinates ? {
+                            latitude: Cesium.Math.toDegrees(coordinates.latitude),
+                            longitude: Cesium.Math.toDegrees(coordinates.longitude)
+                        } : {}),
                         ...uasSelectionDetails(rawAttributes)
                     });
 

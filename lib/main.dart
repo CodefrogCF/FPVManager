@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/theme/app_theme.dart';
+
 import 'dart:async';
 
 import 'core/database/fpv_database.dart';
@@ -47,15 +49,9 @@ class FPVManagerApp extends StatelessWidget {
     return MaterialApp(
       title: 'FPVManager',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF38BDF8),
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF101820),
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       home: const FPVHomeScreen(),
     );
   }
@@ -481,7 +477,6 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ),
       appBar: AppBar(
         title: const Text('FPVManager'),
-        backgroundColor: const Color(0xFF101820),
         actions: [
           if (MediaQuery.sizeOf(context).width >= 720)
             IconButton(
@@ -635,9 +630,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.place,
-                        color: Colors.cyanAccent,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       title: Text(selectedSpot.name),
                       subtitle: Text(
@@ -712,6 +707,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           if (selectedZone != null) {
             return UasZoneDetailsPanel(
               zone: selectedZone,
+              zones: _globeController.selectedUasZones,
+              selectedIndex: _globeController.selectedUasZoneIndex,
+              onZoneSelected: _globeController.selectUasZone,
+              selectionError: _globeController.uasSelectionError,
               source: _globeController.uasSource,
               downloadedAtUtc:
                   _globeController.uasDisplayedDataset?.fetchedAtUtc,

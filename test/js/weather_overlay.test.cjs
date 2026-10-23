@@ -31,3 +31,50 @@ test('Weather layer is added and cleared without modifying other layers', async 
   assert.equal(inserted.length,1);
   assert.equal(deleted.length,0);
 });
+
+function deferredRenderer() {
+  let finish;
+  const attached = [], removed = [];
+  const ready = new Promise(resolve => { finish = resolve; });
+  const Cesium = {CustomDataSource: class {
+    constructor() { this.show = true; this.entities = {values:[], removeAll(){this.values=[];},add(entity){this.values.push(entity);}}; }
+  },Color:{fromBytes:(...a)=>a},Cartesian3:{fromDegreesArray:a=>a},
+    ClassificationType:{TERRAIN:1},HeightReference:{CLAMP_TO_GROUND:1}};
+  const viewer = {dataSources:{async add(source){await ready;attached.push(source);return source;},
+    remove(source){removed.push(source);const i=attached.indexOf(source);if(i>=0)attached.splice(i,1);}},scene:{requestRender(){}}};
+  const overlay = weather.create(Cesium,()=>viewer);
+  const command = {kind:'wind',timestampUtc:'2026-10-23T12:00:00Z',source:'Open-Meteo',gridSpacingMeters:1000,
+    cells:[{west:8,south:46,east:8.1,north:46.1,value:4}]};
+  return {overlay, command, attached, removed, finish};
+}
+
+test('clear and disposal invalidate a weather layer whose renderer attachment is still pending', async () => {
+  for (const action of ['clear','dispose']) {
+    const r = deferredRenderer();
+    const pending = r.overlay.replace(r.command);
+    r.overlay[action]();
+    r.finish();
+    assert.equal((await pending).superseded,true);
+    assert.equal(r.overlay.current,null);
+    if (action === 'clear') {
+      assert.equal(r.attached.length,1);
+      assert.equal(r.attached[0].show,false);
+      assert.equal(r.attached[0].entities.values.length,0);
+    } else {
+      assert.equal(r.attached.length,0);
+    }
+  }
+});
+
+test('the newest weather overlay wins when multiple replacements await the same renderer attachment', async () => {
+  const r = deferredRenderer();
+  const first = r.overlay.replace(r.command);
+  const latest = {...r.command, timestampUtc:'2026-10-23T13:00:00Z', cells:[{...r.command.cells[0],value:9}]};
+  const second = r.overlay.replace(latest);
+  r.finish();
+  assert.equal((await first).superseded,true);
+  await second;
+  assert.equal(r.attached.length,1);
+  assert.equal(r.attached[0].entities.values[0].properties.sampledValue,9);
+  assert.equal(r.overlay.current.timestampUtc,latest.timestampUtc);
+});

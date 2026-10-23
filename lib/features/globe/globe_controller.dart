@@ -112,7 +112,7 @@ class GlobeController extends ChangeNotifier {
       onSelected: () {
         _selectedPoint = null;
         _selectedSpotId = null;
-        _selectedUasZone = null;
+        _resetUasSelection();
       },
     )..addListener(_handleProviderChanged);
   }
@@ -348,6 +348,10 @@ class GlobeController extends ChangeNotifier {
   bool _uasZonesLoading = false;
   String? _uasZonesError;
   UasZoneDetails? _selectedUasZone;
+  List<UasZoneDetails> _selectedUasZones = const [];
+  int _selectedUasZoneIndex = 0;
+  int _uasSelectionOperation = 0;
+  String? _uasSelectionError;
   UasDatasetAssessment? _uasDatasetAssessment;
   OsintDataset<Map<String, dynamic>>? _uasRejectedDataset;
   double _uasZonesFillOpacity = 0.20;
@@ -566,6 +570,9 @@ class GlobeController extends ChangeNotifier {
   GlobePoint? get selectedPoint => _selectedPoint;
   String? get error => _error;
   UasZoneDetails? get selectedUasZone => _selectedUasZone;
+  List<UasZoneDetails> get selectedUasZones => _selectedUasZones;
+  int get selectedUasZoneIndex => _selectedUasZoneIndex;
+  String? get uasSelectionError => _uasSelectionError;
   UasDatasetAssessment? get uasDatasetAssessment => _uasDatasetAssessment;
   double get uasZonesFillOpacity => _uasZonesFillOpacity;
   DateTime? get uasZonesDownloadedAt => _uasZonesDownloadedAt;
@@ -622,8 +629,59 @@ class GlobeController extends ChangeNotifier {
   void clearSelectedUasZone() {
     if (_selectedUasZone == null) return;
 
-    _selectedUasZone = null;
+    _resetUasSelection();
     notifyListeners();
+  }
+
+  void _resetUasSelection() {
+    _uasSelectionOperation++;
+    _selectedUasZone = null;
+    _selectedUasZones = const [];
+    _selectedUasZoneIndex = 0;
+    _uasSelectionError = null;
+  }
+
+  void selectUasZone(int index) {
+    if (index < 0 || index >= _selectedUasZones.length) return;
+    _selectedUasZoneIndex = index;
+    _selectedUasZone = _selectedUasZones[index];
+    notifyListeners();
+  }
+
+  Future<void> _inspectOverlappingZones(
+    double latitude,
+    double longitude,
+  ) async {
+    final dataset = _uasDisplayedDataset;
+    if (dataset == null) return;
+    final operation = _uasSelectionOperation;
+    final generation = _connectionGeneration;
+    bool current() =>
+        !_disposed &&
+        operation == _uasSelectionOperation &&
+        generation == _connectionGeneration &&
+        identical(dataset, _uasDisplayedDataset);
+    try {
+      final zones = await UasAirspaceChecker.zonesAt(
+        dataset,
+        Wgs84Coordinate(latitude: latitude, longitude: longitude),
+      );
+      if (!current()) return;
+      if (zones.isEmpty) {
+        _uasSelectionError =
+            'Other overlapping zones could not be verified at this position.';
+      } else {
+        _selectedUasZones = zones;
+        _selectedUasZoneIndex = 0;
+        _selectedUasZone = zones.first;
+      }
+      notifyListeners();
+    } catch (_) {
+      if (!current()) return;
+      _uasSelectionError =
+          'Unable to inspect overlapping zones. Select the position again.';
+      notifyListeners();
+    }
   }
 
   void attach(GlobeCommandSender sender) {
@@ -670,7 +728,7 @@ class GlobeController extends ChangeNotifier {
     _uasZonesError = null;
     _selectedPoint = null;
     _selectedSpotId = null;
-    _selectedUasZone = null;
+    _resetUasSelection();
     if (!_disposed) notifyListeners();
   }
 
@@ -925,6 +983,7 @@ class GlobeController extends ChangeNotifier {
         }, timeout: _bridge.options.datasetTimeout);
         if (current()) {
           _uasDatasetSentToRenderer = true;
+          _resetUasSelection();
           _uasDisplayedDataset = dataset;
           _uasDatasetAssessment = assessment;
         }
@@ -1010,7 +1069,7 @@ class GlobeController extends ChangeNotifier {
         _uasRenderMetrics = null;
         _selectedPoint = null;
         _selectedSpotId = null;
-        _selectedUasZone = null;
+        _resetUasSelection();
         final generation = _connectionGeneration;
         unawaited(_restoreRendererState(generation));
         notifyListeners();
@@ -1030,7 +1089,7 @@ class GlobeController extends ChangeNotifier {
         _selectedSpotId = id;
         obstacles.clearSelection();
         _selectedPoint = null;
-        _selectedUasZone = null;
+        _resetUasSelection();
         notifyListeners();
 
       case 'spot-cleared':
@@ -1052,7 +1111,7 @@ class GlobeController extends ChangeNotifier {
             longitude >= -180 &&
             longitude <= 180) {
           _selectedSpotId = null;
-          _selectedUasZone = null;
+          _resetUasSelection();
           obstacles.clearSelection();
           _selectedPoint = GlobePoint(
             latitude: latitude.toDouble(),
@@ -1186,6 +1245,7 @@ class GlobeController extends ChangeNotifier {
 
         _selectedPoint = null;
         _selectedSpotId = null;
+        _resetUasSelection();
         _selectedUasZone = UasZoneDetails(
           id: data['id']?.toString() ?? '',
           name: data['name']?.toString() ?? 'UAS Zone',
@@ -1193,6 +1253,22 @@ class GlobeController extends ChangeNotifier {
           omittedAttributeCount: omitted,
           truncatedAttributes: List<String>.unmodifiable(shortened),
         );
+        _selectedUasZones = List.unmodifiable([_selectedUasZone!]);
+
+        final latitude = data['latitude'];
+        final longitude = data['longitude'];
+        if (latitude is num &&
+            longitude is num &&
+            latitude.isFinite &&
+            longitude.isFinite &&
+            latitude >= -90 &&
+            latitude <= 90 &&
+            longitude >= -180 &&
+            longitude <= 180) {
+          unawaited(
+            _inspectOverlappingZones(latitude.toDouble(), longitude.toDouble()),
+          );
+        }
 
         obstacles.clearSelection();
 

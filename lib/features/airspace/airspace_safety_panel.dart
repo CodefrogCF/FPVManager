@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/osint/osint_provider_state.dart';
 import '../../core/osint/api_access_policy.dart';
+import '../../core/osint/osint_source.dart';
 import 'api_credentials_section.dart';
 import '../globe/globe_controller.dart';
 import 'uas_restriction.dart';
@@ -40,9 +43,31 @@ Future<void> showAirspaceSafetyPanel(
   builder: (_) => AirspaceSafetyPanel(controller: controller),
 );
 
-class AirspaceSafetyPanel extends StatelessWidget {
+class AirspaceSafetyPanel extends StatefulWidget {
   const AirspaceSafetyPanel({super.key, required this.controller});
   final GlobeController controller;
+
+  @override
+  State<AirspaceSafetyPanel> createState() => _AirspaceSafetyPanelState();
+}
+
+class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
+  Timer? _ageTimer;
+  GlobeController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _ageTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ageTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -94,9 +119,7 @@ class AirspaceSafetyPanel extends StatelessWidget {
             _SafetyDetail('Last HTTP check (UTC)', checked),
             _SafetyDetail(
               'Official validity period',
-              dataset?.validity == null
-                  ? 'Not supplied / not verified'
-                  : 'Source validity metadata available; review official data',
+              officialValidityLabel(dataset?.validity),
             ),
             if (controller.uasNetworkMetrics case final metrics?)
               _SafetyDetail('Last GeoJSON HTTP/parse metrics', metrics.summary),
@@ -254,6 +277,15 @@ class AirspaceSafetyPanel extends StatelessWidget {
 
   Color _categoryColor(UasRestrictionCategory category) =>
       Color(int.parse('ff${category.hexColor.substring(1)}', radix: 16));
+}
+
+String officialValidityLabel(OsintValidityPeriod? validity) {
+  if (validity == null ||
+      validity.fromUtc == null && validity.untilUtc == null) {
+    return 'Not supplied / not verified';
+  }
+  return '${validity.fromUtc?.toIso8601String() ?? 'Start not supplied'} '
+      'to ${validity.untilUtc?.toIso8601String() ?? 'End not supplied'} (UTC)';
 }
 
 class _SafetyDetail extends StatelessWidget {

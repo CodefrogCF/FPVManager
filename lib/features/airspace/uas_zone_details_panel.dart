@@ -11,11 +11,19 @@ class UasZoneDetailsPanel extends StatelessWidget {
     required this.source,
     required this.downloadedAtUtc,
     required this.onClose,
+    this.zones = const [],
+    this.selectedIndex = 0,
+    this.onZoneSelected,
+    this.selectionError,
   });
   final UasZoneDetails zone;
   final OsintSource source;
   final DateTime? downloadedAtUtc;
   final VoidCallback onClose;
+  final List<UasZoneDetails> zones;
+  final int selectedIndex;
+  final ValueChanged<int>? onZoneSelected;
+  final String? selectionError;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -25,6 +33,39 @@ class UasZoneDetailsPanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (zones.length > 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Previous zone',
+                    onPressed: selectedIndex > 0
+                        ? () => onZoneSelected?.call(selectedIndex - 1)
+                        : null,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Zone ${selectedIndex + 1} of ${zones.length} at this position',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Next zone',
+                    onPressed: selectedIndex + 1 < zones.length
+                        ? () => onZoneSelected?.call(selectedIndex + 1)
+                        : null,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+            ),
+          if (selectionError != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(selectionError!),
+            ),
           ListTile(
             leading: const Icon(Icons.shield_outlined),
             title: Text(

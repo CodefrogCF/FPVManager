@@ -42,14 +42,35 @@
     function create(Cesium, viewerFn) {
         let source = null;
         let previous = null;
+        let sourceReady = null;
+        let sourceViewer = null;
+        let revision = 0;
+        let disposed = false;
         async function replace(command) {
             validate(command);
+            if (disposed) throw new Error('Weather overlay is disposed');
+            const operation = ++revision;
             const viewer = viewerFn();
             if (!viewer) throw new Error('Globe is not ready');
             if (!source) {
                 source = new Cesium.CustomDataSource('Weather samples – Open-Meteo');
-                await viewer.dataSources.add(source);
+                source.show = false;
+                sourceViewer = viewer;
+                sourceReady = viewer.dataSources.add(source);
             }
+            const pendingSource = source;
+            try {
+                await sourceReady;
+            } catch (error) {
+                viewer.dataSources.remove(pendingSource, true);
+                if (source === pendingSource) { source = null; sourceReady = null; }
+                throw error;
+            }
+            if (disposed || source !== pendingSource || sourceViewer !== viewer || viewer !== viewerFn()) {
+                viewer.dataSources.remove(pendingSource, true);
+                return {superseded: true};
+            }
+            if (operation !== revision) return {superseded: true};
             source.entities.removeAll();
             for (let index = 0; index < command.cells.length; index++) {
                 const cell = command.cells[index];
@@ -84,12 +105,18 @@
             return {sampleCount: source.entities.values.length};
         }
         function clear() {
+            revision++;
             if (source) { source.entities.removeAll(); source.show = false; viewerFn()?.scene.requestRender(); }
             previous = null;
             showLegend(null);
             return {};
         }
-        function dispose() { clear(); if (source) viewerFn()?.dataSources.remove(source, true); source = null; }
+        function dispose() {
+            disposed = true;
+            clear();
+            if (source) sourceViewer?.dataSources.remove(source, true);
+            source = null; sourceReady = null; sourceViewer = null;
+        }
         return {replace, clear, dispose, get current() { return previous; }};
     }
     root.FPVWeatherOverlay = {create, validate, rgb};

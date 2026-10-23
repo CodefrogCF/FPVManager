@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'globe_controller.dart';
 import 'globe_asset_server.dart';
 import '../../core/geo/geo_coordinate_service.dart';
+import '../../core/theme/app_theme.dart';
 
 /// Native implementation of the FPVManager 3D globe.
 ///
@@ -70,7 +71,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
 
-      await controller.setBackgroundColor(const Color(0xFF101820));
+      await controller.setBackgroundColor(AppTheme.dark.colorScheme.surface);
 
       // Communication from CesiumJS to Flutter.
       await controller.addJavaScriptChannel(

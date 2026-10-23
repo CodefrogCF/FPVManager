@@ -40,6 +40,15 @@ class UasAirspaceChecker {
   UasAirspaceChecker(this.provider);
   final OsintProvider<Map<String, dynamic>> provider;
 
+  /// Inspect the snapshot already displayed by the renderer, without a fetch.
+  static Future<List<UasZoneDetails>> zonesAt(
+    OsintDataset<Map<String, dynamic>> dataset,
+    Wgs84Coordinate position,
+  ) async {
+    final result = await compute(_check, (dataset.data, [position]));
+    return List.unmodifiable(result.$1.map((hit) => hit.zone));
+  }
+
   Future<UasAirspaceCheck> check(
     List<Wgs84Coordinate> positions, {
     bool forceRefresh = false,

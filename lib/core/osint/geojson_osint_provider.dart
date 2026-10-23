@@ -157,12 +157,15 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Expected a GeoJSON FeatureCollection');
     }
+    final received = nowUtc;
     return OsintDataset(
       source: source,
       data: decoded,
-      fetchedAtUtc: nowUtc,
-      lastCheckedAtUtc: nowUtc,
-      cacheExpiresAtUtc: nowUtc.add(mustCheck ? Duration.zero : cacheDuration),
+      fetchedAtUtc: received,
+      lastCheckedAtUtc: received,
+      cacheExpiresAtUtc: received.add(
+        mustCheck ? Duration.zero : cacheDuration,
+      ),
       httpLastModified: _validator(response.headers['last-modified']),
       httpEtag: _validator(response.headers['etag']),
       persistable: !noStore,

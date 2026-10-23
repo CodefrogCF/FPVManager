@@ -12,10 +12,11 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Drone profiles, battery inventory and radio/video equipment profiles.
 - First-person terrain inspection and map-based editing of multiple local routes.
 - Optional 3D route previews at 30 m above terrain at each waypoint.
+- MeteoSwiss/Open-Meteo forecasts, configurable weather comparisons and sampled wind/rain overlays.
 
 Personal records stay in local storage. Online maps and data services require
 network access. This prototype does not determine permission to fly or verify
-obstacle clearance. Weather, simulation, backups and offline map downloads are
+obstacle clearance. Flight simulation, backups and offline map downloads are
 not implemented.
 
 ## Run from source
@@ -42,6 +43,7 @@ An iOS runner is not included.
 | Users and developers | [Coordinates and heights](docs/coordinates_and_heights.md) |
 | Users and developers | [Privacy and permissions](docs/privacy_and_permissions.md) |
 | Users and developers | [Map sources and attribution](docs/map_sources_and_attribution.md) |
+| Users and developers | [Weather sources, controls and limits](docs/weather.md) |
 | Developers | [Contributing, checks and builds](CONTRIBUTING.md) |
 | Developers | [Architecture and storage](docs/architecture.md) |
 | Developers | [Globe bridge](docs/globe_bridge.md) |

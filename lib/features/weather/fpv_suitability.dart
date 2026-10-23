@@ -66,7 +66,13 @@ FpvWeatherResult evaluateFpvWeather(
     value,
     limit,
     unit,
-    value == null ? null : value <= limit,
+    value == null ||
+            !value.isFinite ||
+            value < 0 ||
+            !limit.isFinite ||
+            limit < 0
+        ? null
+        : value <= limit,
   );
   final factors = <FpvWeatherFactor>[
     maximum('Mean wind', sample?.windMs, criteria.maximumWindMs, 'm/s'),
@@ -83,22 +89,32 @@ FpvWeatherResult evaluateFpvWeather(
         sample?.visibilityMeters,
         criteria.minimumVisibilityMeters,
         'm',
-        sample?.visibilityMeters == null
+        sample?.visibilityMeters == null ||
+                !sample!.visibilityMeters!.isFinite ||
+                sample.visibilityMeters! < 0 ||
+                !criteria.minimumVisibilityMeters!.isFinite ||
+                criteria.minimumVisibilityMeters! < 0
             ? null
-            : sample!.visibilityMeters! >= criteria.minimumVisibilityMeters!,
+            : sample.visibilityMeters! >= criteria.minimumVisibilityMeters!,
       ),
   ];
   final now = nowUtc?.toUtc() ?? DateTime.now().toUtc();
-  final stale = forecast.retrievedUtc.isBefore(
-    now.subtract(const Duration(hours: 24)),
-  );
+  final oldestAllowed = now.subtract(const Duration(hours: 24));
+  final latestAllowed = now.add(const Duration(minutes: 5));
+  final issued = forecast.sourceIssuedUtc;
+  final stale =
+      forecast.retrievedUtc.isBefore(oldestAllowed) ||
+      issued != null && issued.isBefore(oldestAllowed);
+  final clockSkew =
+      forecast.retrievedUtc.isAfter(latestAllowed) ||
+      issued != null && issued.isAfter(latestAllowed);
   final missing =
       factors.any((factor) => factor.passes == null) || sample == null;
   final failed = factors.any((factor) => factor.passes == false);
   final outOfRange = target.toUtc().isBefore(
     now.subtract(const Duration(minutes: 90)),
   );
-  final assessment = stale || outOfRange || missing
+  final assessment = stale || clockSkew || outOfRange || missing
       ? FpvWeatherAssessment.insufficient
       : failed
       ? FpvWeatherAssessment.unsuitable
@@ -107,11 +123,13 @@ FpvWeatherResult evaluateFpvWeather(
     assessment: assessment,
     factors: factors,
     explanation: stale
-        ? 'Forecast download is outdated; refresh required.'
+        ? 'Forecast download or source run is outdated; refresh required.'
+        : clockSkew
+        ? 'Forecast timestamps are in the future; check the device clock and source.'
         : outOfRange
         ? 'Selected flight time is in the past.'
         : missing
-        ? 'Required parameters or a nearby forecast hour are missing. No positive assessment.'
+        ? 'Required parameters are missing or invalid, or no nearby forecast hour is available. No positive assessment.'
         : failed
         ? 'At least one configured weather threshold is exceeded.'
         : 'Forecast values are within your selected limits; this is NOT a flight safety clearance.',

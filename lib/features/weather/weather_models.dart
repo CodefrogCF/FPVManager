@@ -64,6 +64,18 @@ class WeatherForecast {
   final double? distanceToSourceKm;
   final List<WeatherSample> samples;
 
+  WeatherForecast withDistanceToSource(double? kilometers) => WeatherForecast(
+    provider: provider,
+    source: source,
+    sourceUrl: sourceUrl,
+    retrievedUtc: retrievedUtc,
+    samples: samples,
+    modelResolution: modelResolution,
+    locationDescription: locationDescription,
+    sourceIssuedUtc: sourceIssuedUtc,
+    distanceToSourceKm: kilometers,
+  );
+
   /// Never extrapolate beyond a nearby documented forecast time-step.
   WeatherSample? at(
     DateTime time, {
@@ -99,7 +111,12 @@ abstract interface class WeatherProvider {
   String get title;
   String get termsUrl;
   WeatherCapabilities get capabilities;
-  Future<WeatherForecast> forecast(double latitude, double longitude);
+  Future<WeatherForecast> forecast(
+    double latitude,
+    double longitude, {
+    bool forceRefresh = false,
+  });
+  void dispose();
 }
 
 bool validWeatherPosition(double lat, double lon) =>
@@ -130,4 +147,9 @@ double? finiteWeatherNumber(Object? raw) {
       ? raw.toDouble()
       : double.tryParse(raw.toString().replaceAll(',', '.'));
   return n != null && n.isFinite ? n : null;
+}
+
+double? nonnegativeWeatherNumber(Object? raw) {
+  final value = finiteWeatherNumber(raw);
+  return value != null && value >= 0 ? value : null;
 }

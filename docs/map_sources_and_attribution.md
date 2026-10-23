@@ -1,5 +1,8 @@
 # Map sources and attribution
 
+Weather providers, attribution and the sampled overlay's resolution limits are
+documented in the [weather guide](weather.md).
+
 ## Sources
 
 Imagery uses EPSG:3857 raster WMTS tiles:

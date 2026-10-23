@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -56,8 +57,22 @@ class WeatherMapOverlay {
 /// claim of native-model resolution; each drawn cell reports its sample extent.
 class WeatherOverlayService {
   WeatherOverlayService({http.Client? client})
-    : _client = client ?? http.Client();
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
   final http.Client _client;
+  final bool _ownsClient;
+  Completer<void>? _abort;
+  void cancel() {
+    final abort = _abort;
+    _abort = null;
+    if (abort != null && !abort.isCompleted) abort.complete();
+  }
+
+  void dispose() {
+    cancel();
+    if (_ownsClient) _client.close();
+  }
+
   Future<WeatherMapOverlay> load({
     required double latitude,
     required double longitude,
@@ -112,9 +127,20 @@ class WeatherOverlayService {
       'forecast_days': '8',
     });
     http.Response response;
+    cancel();
+    final abort = _abort = Completer<void>();
     try {
-      response = await _client.get(uri).timeout(const Duration(seconds: 35));
+      final stream = await _client
+          .send(http.AbortableRequest('GET', uri, abortTrigger: abort.future))
+          .timeout(const Duration(seconds: 35));
+      response = await http.Response.fromStream(stream)
+          .timeout(const Duration(seconds: 35));
+      if (abort.isCompleted) {
+        throw const WeatherException('Weather grid request cancelled');
+      }
     } catch (_) {
+      if (!abort.isCompleted) abort.complete();
+      if (identical(_abort, abort)) _abort = null;
       throw const WeatherException('Weather grid network request failed');
     }
     if (response.statusCode != 200) {
@@ -162,7 +188,9 @@ class WeatherOverlayService {
       if (value == null || value < 0) {
         continue;
       }
-      actualTime ??= parseWeatherUtc('${dates[best]}');
+      final cellTime = parseWeatherUtc('${dates[best]}');
+      actualTime ??= cellTime;
+      if (cellTime != actualTime) continue;
       final b = bounds[index];
       cells.add(
         WeatherOverlayCell(
@@ -177,6 +205,8 @@ class WeatherOverlayService {
     if (cells.isEmpty || actualTime == null) {
       throw const WeatherException('No data at this forecast time');
     }
+    if (identical(_abort, abort)) _abort = null;
+    if (!abort.isCompleted) abort.complete();
     return WeatherMapOverlay(
       kind: kind,
       atUtc: actualTime,

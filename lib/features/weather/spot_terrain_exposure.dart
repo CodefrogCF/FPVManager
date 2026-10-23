@@ -24,6 +24,7 @@ Future<SpotTerrainExposure> inspectSpotTerrain(
   double latitude,
   double longitude, {
   double radiusMeters = 300,
+  bool Function()? isCancelled,
 }) async {
   final latDelta = radiusMeters / 111320;
   final lonDelta = radiusMeters / (111320 * math.cos(latitude * math.pi / 180));
@@ -36,6 +37,9 @@ Future<SpotTerrainExposure> inspectSpotTerrain(
   ];
   final heights = <double>[];
   for (final point in points) {
+    if (isCancelled?.call() ?? false) {
+      throw StateError('Terrain inspection cancelled');
+    }
     final elevation = await globe.queryTerrainElevation(
       latitude: point.$1,
       longitude: point.$2,

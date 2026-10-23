@@ -26,6 +26,7 @@ class WeatherScreen extends StatefulWidget {
     this.initialLatitude,
     this.initialLongitude,
     this.availableProviders,
+    this.overlayService,
   });
   final SpotRepository spots;
   final DroneRepository drones;
@@ -33,6 +34,7 @@ class WeatherScreen extends StatefulWidget {
   final WeatherPreferencesRepository preferences;
   final double? initialLatitude, initialLongitude;
   final Map<WeatherProviderId, WeatherProvider>? availableProviders;
+  final WeatherOverlayService? overlayService;
 
   @override
   State<WeatherScreen> createState() => _WeatherScreenState();
@@ -49,7 +51,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
           OpenMeteoWeatherProvider(),
         ),
       };
-  final WeatherOverlayService _overlays = WeatherOverlayService();
+  late final WeatherOverlayService _overlays =
+      widget.overlayService ?? WeatherOverlayService();
   List<Spot> _spots = [];
   List<Drone> _drones = [];
   int? _spotId, _droneId;
@@ -66,6 +69,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
   String? _error, _comparisonError;
   List<({Spot spot, FpvWeatherResult? result, String? error})> _comparison = [];
   int _requestToken = 0;
+  int _terrainOperation = 0, _comparisonOperation = 0, _overlayOperation = 0;
   SpotTerrainExposure? _terrain;
   bool _terrainLoading = false;
   String? _terrainError;
@@ -141,12 +145,50 @@ class _WeatherScreenState extends State<WeatherScreen> {
     }
   }
 
-  Future<void> _load() async {
+  void _invalidateComparison() {
+    _comparisonOperation++;
+    _comparison = [];
+    _comparisonError = null;
+    _comparisonLoading = false;
+  }
+
+  void _invalidateOverlay() {
+    _overlayOperation++;
+    _overlayLoading = false;
+    _overlays.cancel();
+    unawaited(widget.globe.clearWeatherOverlay().catchError((Object _) {}));
+  }
+
+  @override
+  void dispose() {
+    _requestToken++;
+    _terrainOperation++;
+    _comparisonOperation++;
+    _overlayOperation++;
+    if (widget.availableProviders == null) {
+      for (final provider in _providers.values) {
+        provider.dispose();
+      }
+    }
+    if (widget.overlayService == null) {
+      _overlays.dispose();
+    } else {
+      _overlays.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load({bool forceRefresh = false}) async {
     final lat = _latitude, lon = _longitude;
     final token = ++_requestToken;
     setState(() {
+      _terrainOperation++;
+      _terrainLoading = false;
       _terrain = null;
       _terrainError = null;
+      _invalidateComparison();
+      _invalidateOverlay();
+      _selectedTime = null;
       _loading = lat != null && lon != null;
       _forecast = null;
       _error = lat == null || lon == null
@@ -158,7 +200,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
       return;
     }
     try {
-      final result = await _provider.forecast(lat, lon);
+      final result = await _provider.forecast(
+        lat,
+        lon,
+        forceRefresh: forceRefresh,
+      );
       if (!mounted || token != _requestToken) {
         return;
       }
@@ -185,6 +231,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
     if (latitude == null || longitude == null) {
       return;
     }
+    final operation = ++_terrainOperation;
+    bool current() => mounted && operation == _terrainOperation;
     setState(() {
       _terrainLoading = true;
       _terrain = null;
@@ -195,16 +243,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
         widget.globe,
         latitude,
         longitude,
+        isCancelled: () => !current(),
       );
-      if (mounted) {
+      if (current()) {
         setState(() => _terrain = terrain);
       }
     } catch (error) {
-      if (mounted) {
+      if (current()) {
         setState(() => _terrainError = 'Terrain analysis unavailable: $error');
       }
     } finally {
-      if (mounted) {
+      if (current()) {
         setState(() => _terrainLoading = false);
       }
     }
@@ -215,6 +264,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
     if (lat == null || lon == null || !widget.globe.isReady) {
       return;
     }
+    final operation = ++_overlayOperation;
+    bool current() => mounted && operation == _overlayOperation;
     setState(() => _overlayLoading = true);
     try {
       final overlay = await _overlays.load(
@@ -224,11 +275,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
         kind: _overlayKind,
         spacingMeters: _gridSpacingMeters,
       );
-      if (!mounted) {
+      if (!current()) {
         return;
       }
       await widget.globe.showWeatherOverlay(overlay.toGlobeCommand());
-      if (!mounted) {
+      if (!mounted || !current()) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -239,13 +290,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
         ),
       );
     } catch (error) {
-      if (mounted) {
+      if (mounted && current()) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Weather overlay unavailable: $error')),
         );
       }
     } finally {
-      if (mounted) {
+      if (current()) {
         setState(() => _overlayLoading = false);
       }
     }
@@ -255,6 +306,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
     if (_selectedTime == null || _spots.isEmpty) {
       return;
     }
+    final operation = ++_comparisonOperation;
+    bool current() => mounted && operation == _comparisonOperation;
     setState(() {
       _comparisonLoading = true;
       _comparison = [];
@@ -269,6 +322,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
     final results = <({Spot spot, FpvWeatherResult? result, String? error})>[];
     // Sequential requests avoid hammering public weather services.
     for (final spot in selectedSpots) {
+      if (!current()) return;
       try {
         final forecast = await source.forecast(spot.latitude, spot.longitude);
         results.add((
@@ -279,7 +333,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
       } catch (error) {
         results.add((spot: spot, result: null, error: '$error'));
       }
-      if (!mounted) {
+      if (!current()) {
         return;
       }
     }
@@ -290,7 +344,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
       _ => 3,
     };
     results.sort((a, b) => priority(a.result).compareTo(priority(b.result)));
-    if (mounted) {
+    if (current()) {
       setState(() {
         _comparison = results;
         _comparisonLoading = false;
@@ -332,6 +386,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
         divisions: divisions,
         label: value.toStringAsFixed(1),
         onChanged: (v) {
+          setState(_invalidateComparison);
           changed(v);
         },
         onChangeEnd: (_) => unawaited(_save()),
@@ -442,7 +497,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
-                          onPressed: _loading ? null : _load,
+                          onPressed: _loading
+                              ? null
+                              : () => _load(forceRefresh: true),
                           icon: const Icon(Icons.refresh),
                           label: const Text('Refresh forecast'),
                         ),
@@ -462,7 +519,14 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       if (forecast.sourceIssuedUtc != null)
                         Text(
                           'Forecast issued: ${forecast.sourceIssuedUtc!.toIso8601String()}',
+                        )
+                      else
+                        const Text(
+                          'Forecast issue time: not supplied by provider',
                         ),
+                      const Text(
+                        'Hourly precipitation refers to the preceding hour ending at the forecast timestamp.',
+                      ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<DateTime>(
                         initialValue: _selectedTime,
@@ -490,7 +554,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
                             .toList(),
                         onChanged: (value) => setState(() {
                           _selectedTime = value;
-                          _comparison = [];
+                          _invalidateComparison();
+                          _invalidateOverlay();
                         }),
                       ),
                       const SizedBox(height: 12),
@@ -585,7 +650,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                             .toList(),
                         onChanged: (value) => setState(() {
                           _droneId = value;
-                          _comparison = [];
+                          _invalidateComparison();
                         }),
                       )
                     else
@@ -653,6 +718,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       value: _criteria.minimumVisibilityMeters != null,
                       onChanged: (v) {
                         setState(() {
+                          _invalidateComparison();
                           _criteriaByDrone[_droneId ?? 0] = FpvWeatherCriteria(
                             maximumWindMs: _criteria.maximumWindMs,
                             maximumGustMs: _criteria.maximumGustMs,
@@ -728,6 +794,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     const Text(
                       '49 sampled model points around the selected spot. Display spacing does NOT indicate actual meteorological model accuracy; no spatial interpolation. This is NOT a MeteoSwiss layer, even if MeteoSwiss is selected above.',
                     ),
+                    const Text(
+                      'Native model resolution: not supplied by this API response. The selected spacing only sets the display sample grid.',
+                    ),
                     SegmentedButton<double>(
                       segments: const [
                         ButtonSegment(value: 1000.0, label: Text('1 km local')),
@@ -737,8 +806,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         ),
                       ],
                       selected: {_gridSpacingMeters},
-                      onSelectionChanged: (s) =>
-                          setState(() => _gridSpacingMeters = s.first),
+                      onSelectionChanged: (s) => setState(() {
+                        _gridSpacingMeters = s.first;
+                        _invalidateOverlay();
+                      }),
                     ),
                     SegmentedButton<WeatherOverlayKind>(
                       segments: const [
@@ -752,8 +823,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         ),
                       ],
                       selected: {_overlayKind},
-                      onSelectionChanged: (s) =>
-                          setState(() => _overlayKind = s.first),
+                      onSelectionChanged: (s) => setState(() {
+                        _overlayKind = s.first;
+                        _invalidateOverlay();
+                      }),
                     ),
                     const Text(
                       'Wind legend (m/s): green <3, yellow 3–7, orange 7–12, red ≥12.',
@@ -777,6 +850,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         OutlinedButton(
                           onPressed: widget.globe.weatherOverlayVisible
                               ? () async {
+                                  _invalidateOverlay();
                                   await widget.globe.clearWeatherOverlay();
                                   if (mounted) {
                                     setState(() {});

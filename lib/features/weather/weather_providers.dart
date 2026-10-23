@@ -10,7 +10,14 @@ import 'weather_models.dart';
 /// Free, non-commercial API. Never use the paid customer endpoint or a paid key.
 class OpenMeteoWeatherProvider implements WeatherProvider {
   OpenMeteoWeatherProvider({http.Client? client})
-    : _client = client ?? http.Client();
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
+  final bool _ownsClient;
+  @override
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
+
   final http.Client _client;
   @override
   WeatherProviderId get id => WeatherProviderId.openMeteo;
@@ -57,7 +64,11 @@ class OpenMeteoWeatherProvider implements WeatherProvider {
       });
 
   @override
-  Future<WeatherForecast> forecast(double latitude, double longitude) async {
+  Future<WeatherForecast> forecast(
+    double latitude,
+    double longitude, {
+    bool forceRefresh = false,
+  }) async {
     if (!validWeatherPosition(latitude, longitude)) {
       throw const WeatherException('Invalid coordinates');
     }
@@ -99,9 +110,13 @@ WeatherForecast parseOpenMeteoForecast(
   final timestamps = hourly['time'] as List;
   double? at(String key, int index) {
     final values = hourly[key];
-    return values is List && index < values.length
-        ? finiteWeatherNumber(values[index])
-        : null;
+    final raw = values is List && index < values.length ? values[index] : null;
+    final value = key == 'temperature_2m'
+        ? finiteWeatherNumber(raw)
+        : nonnegativeWeatherNumber(raw);
+    return key == 'wind_direction_10m' && value != null && value > 360
+        ? null
+        : value;
   }
 
   final samples = <WeatherSample>[];
@@ -143,8 +158,17 @@ WeatherForecast parseOpenMeteoForecast(
 /// parameter, ~6,000 points per file: downloading is bandwidth intensive.
 /// We fetch only the minimum variables and filter rows by unique (type,id).
 class MeteoSwissWeatherProvider implements WeatherProvider {
-  MeteoSwissWeatherProvider({http.Client? client})
-    : _client = client ?? http.Client();
+  MeteoSwissWeatherProvider({http.Client? client, DateTime Function()? now})
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null,
+      _now = now ?? DateTime.now;
+  final bool _ownsClient;
+  final DateTime Function() _now;
+  @override
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
+
   final http.Client _client;
   static const base = 'https://data.geo.admin.ch';
   static const collection = 'ch.meteoschweiz.ogd-local-forecasting';
@@ -178,8 +202,10 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
 
   String? _pointsCsv;
   DateTime? _pointsFetched;
-  DateTime? _sourceIssuedUtc;
-  Map<String, dynamic>? _assetCatalog;
+  MeteoSwissForecastRun? _assetCatalog;
+  Future<MeteoSwissForecastRun>? _catalogPending;
+  final Map<String, WeatherForecast> _pointForecasts = {};
+  final Map<String, Future<WeatherForecast>> _pointPending = {};
   DateTime? _catalogFetched;
 
   Future<String> _getText(Uri url, {int maxBytes = 36 * 1024 * 1024}) async {
@@ -198,48 +224,49 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
     if (response.bodyBytes.length > maxBytes) {
       throw const WeatherException('MeteoSwiss file exceeds safety size limit');
     }
-    return latin1.decode(response.bodyBytes);
+    try {
+      return utf8.decode(response.bodyBytes);
+    } on FormatException {
+      return latin1.decode(response.bodyBytes);
+    }
   }
 
-  Future<Map<String, dynamic>> _catalog() async {
-    if (_assetCatalog != null &&
-        _catalogFetched != null &&
-        DateTime.now().difference(_catalogFetched!) <
-            const Duration(minutes: 45)) {
+  Future<MeteoSwissForecastRun> _catalog({bool forceRefresh = false}) async {
+    if (_catalogPending != null) return _catalogPending!;
+    final age = _catalogFetched == null
+        ? null
+        : _now().difference(_catalogFetched!);
+    if (!forceRefresh &&
+        _assetCatalog != null &&
+        age != null &&
+        !age.isNegative &&
+        age < const Duration(minutes: 45)) {
       return _assetCatalog!;
     }
-    final listing = jsonDecode(
-      await _getText(
-        Uri.parse('$base/api/stac/v1/collections/$collection/items?limit=12'),
-        maxBytes: 3 * 1024 * 1024,
-      ),
-    );
-    if (listing is! Map || listing['features'] is! List) {
-      throw const WeatherException('MeteoSwiss STAC listing unavailable');
+    final pending = _loadCatalog();
+    _catalogPending = pending;
+    try {
+      return await pending;
+    } finally {
+      _catalogPending = null;
     }
-    final items =
-        (listing['features'] as List).whereType<Map<String, dynamic>>().toList()
-          ..sort((a, b) => '${b['id']}'.compareTo('${a['id']}'));
-    for (final item in items) {
-      final assets = item['assets'];
-      if (assets is! Map<String, dynamic>) {
-        continue;
-      }
-      if (codes.keys.every(
-        (key) => assets.keys.any((name) => name.contains(key)),
-      )) {
-        _assetCatalog = assets;
-        final properties = item['properties'];
-        _sourceIssuedUtc = properties is Map
-            ? parseWeatherUtc('${properties['datetime'] ?? ''}')
-            : null;
-        _catalogFetched = DateTime.now();
-        return assets;
-      }
-    }
-    throw const WeatherException(
-      'MeteoSwiss forecast run is incomplete; retry later',
+  }
+
+  Future<MeteoSwissForecastRun> _loadCatalog() async {
+    final text = await _getText(
+      Uri.parse('$base/api/stac/v1/collections/$collection/items?limit=12'),
+      maxBytes: 3 * 1024 * 1024,
     );
+    Object? listing;
+    try {
+      listing = jsonDecode(text);
+    } catch (_) {
+      throw const WeatherException('Invalid MeteoSwiss STAC response');
+    }
+    final run = selectMeteoSwissForecastRun(listing, nowUtc: _now().toUtc());
+    _assetCatalog = run;
+    _catalogFetched = _now();
+    return run;
   }
 
   /// Stream ~33 MB E4 CSVs one line at a time. Do not retain full parameter
@@ -316,10 +343,12 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
     return rows;
   }
 
-  Future<String> _points() async {
-    if (_pointsCsv != null &&
+  Future<String> _points({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _pointsCsv != null &&
         _pointsFetched != null &&
-        DateTime.now().difference(_pointsFetched!) < const Duration(days: 7)) {
+        !_now().difference(_pointsFetched!).isNegative &&
+        _now().difference(_pointsFetched!) < const Duration(days: 7)) {
       return _pointsCsv!;
     }
     final csv = await _getText(
@@ -327,12 +356,16 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
       maxBytes: 2 * 1024 * 1024,
     );
     _pointsCsv = csv;
-    _pointsFetched = DateTime.now();
+    _pointsFetched = _now();
     return csv;
   }
 
   @override
-  Future<WeatherForecast> forecast(double latitude, double longitude) async {
+  Future<WeatherForecast> forecast(
+    double latitude,
+    double longitude, {
+    bool forceRefresh = false,
+  }) async {
     if (!validWeatherPosition(latitude, longitude)) {
       throw const WeatherException('Invalid coordinates');
     }
@@ -345,32 +378,61 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
       );
     }
     final point = await compute(nearestMeteoSwissPoint, <String, dynamic>{
-      'csv': await _points(),
+      'csv': await _points(forceRefresh: forceRefresh),
       'lat': latitude,
       'lon': longitude,
     });
     if (point == null) {
       throw const WeatherException('No nearby MeteoSwiss forecast point');
     }
-    final assets = await _catalog();
+    final run = await _catalog(forceRefresh: forceRefresh);
+    final key =
+        '${run.issuedUtc.toIso8601String()}|${point['type']}|${point['id']}';
+    final distance = point['distance'] as double?;
+    if (_pointPending[key] case final pending?) {
+      return (await pending).withDistanceToSource(distance);
+    }
+    final cached = _pointForecasts[key];
+    if (!forceRefresh && cached != null) {
+      return cached.withDistanceToSource(distance);
+    }
+    final pending = _forecastPoint(point, run);
+    _pointPending[key] = pending;
+    try {
+      final value = await pending;
+      _pointForecasts.remove(key);
+      _pointForecasts[key] = value;
+      while (_pointForecasts.length > 8) {
+        _pointForecasts.remove(_pointForecasts.keys.first);
+      }
+      return value.withDistanceToSource(distance);
+    } finally {
+      _pointPending.remove(key);
+    }
+  }
+
+  Future<WeatherForecast> _forecastPoint(
+    Map<String, dynamic> point,
+    MeteoSwissForecastRun run,
+  ) async {
     final byTime = <DateTime, Map<String, double>>{};
     for (final code in codes.keys) {
-      final name = assets.keys.where((key) => key.contains(code)).first;
-      final asset = assets[name];
-      final url = asset is Map ? asset['href'] : null;
-      if (url is! String) {
-        continue;
-      }
+      final uri = run.assets[code]!;
       final rows = await _streamRows(
-        Uri.parse(url),
+        uri,
         point['id'] as String,
         point['type'] as String,
         code,
       );
       for (final row in rows) {
         final time = parseWeatherUtc(row['time']!);
-        final value = finiteWeatherNumber(row['value']);
-        if (time != null && value != null) {
+        final raw = row['value'];
+        final value = code == 'tre200h0'
+            ? finiteWeatherNumber(raw)
+            : nonnegativeWeatherNumber(raw);
+        if (time != null &&
+            value != null &&
+            (code != 'dkl010h0' || value <= 360)) {
           byTime.putIfAbsent(time, () => {})[code] = value;
         }
       }
@@ -395,8 +457,8 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
       provider: id,
       source: 'Source: MeteoSwiss (local forecast E4)',
       sourceUrl: termsUrl,
-      retrievedUtc: DateTime.now().toUtc(),
-      sourceIssuedUtc: _sourceIssuedUtc,
+      retrievedUtc: _now().toUtc(),
+      sourceIssuedUtc: run.issuedUtc,
       modelResolution: 'Nearest official forecast point (not a measured spot; hourly intervals)',
       locationDescription:
           '${point['name']} (MeteoSwiss point ${point['id']}, type ${point['type']})',
@@ -404,6 +466,66 @@ class MeteoSwissWeatherProvider implements WeatherProvider {
       samples: samples,
     );
   }
+}
+
+class MeteoSwissForecastRun {
+  MeteoSwissForecastRun(this.issuedUtc, Map<String, Uri> assets)
+    : assets = Map.unmodifiable(assets);
+  final DateTime issuedUtc;
+  final Map<String, Uri> assets;
+}
+
+/// A catalog item can contain many hourly runs. Never combine parameters from
+/// different runs or use the item's catalog timestamp as forecast issue time.
+MeteoSwissForecastRun selectMeteoSwissForecastRun(
+  Object? listing, {
+  required DateTime nowUtc,
+}) {
+  if (listing is! Map || listing['features'] is! List) {
+    throw const WeatherException('MeteoSwiss STAC listing unavailable');
+  }
+  final runs = <DateTime, Map<String, Uri>>{};
+  final pattern = RegExp(r'(?:^|\.)(\d{12})\.([a-z0-9]+)\.csv$');
+  for (final item in listing['features'] as List) {
+    if (item is! Map || item['assets'] is! Map) continue;
+    for (final entry in (item['assets'] as Map).entries) {
+      final match = pattern.firstMatch('${entry.key}');
+      if (match == null ||
+          !MeteoSwissWeatherProvider.codes.containsKey(match[2])) {
+        continue;
+      }
+      final issued = parseWeatherUtc(match[1]!);
+      final asset = entry.value;
+      final uri = asset is Map && asset['href'] is String
+          ? Uri.tryParse(asset['href'] as String)
+          : null;
+      if (issued == null ||
+          issued.isAfter(nowUtc.add(const Duration(minutes: 5))) ||
+          uri == null ||
+          uri.scheme != 'https' ||
+          uri.host != 'data.geo.admin.ch' ||
+          uri.userInfo.isNotEmpty ||
+          uri.port != 443) {
+        continue;
+      }
+      runs.putIfAbsent(issued, () => {})[match[2]!] = uri;
+    }
+  }
+  final complete =
+      runs.entries
+          .where(
+            (run) => MeteoSwissWeatherProvider.codes.keys.every(
+              run.value.containsKey,
+            ),
+          )
+          .toList()
+        ..sort((a, b) => b.key.compareTo(a.key));
+  if (complete.isEmpty) {
+    throw const WeatherException(
+      'MeteoSwiss has no complete supported forecast run; retry later',
+    );
+  }
+  return MeteoSwissForecastRun(complete.first.key, complete.first.value);
 }
 
 /// CSV metadata contains WGS84 decimal coordinates, keyed by (point_type_id, point_id).
@@ -494,6 +616,12 @@ class CachedWeatherProvider implements WeatherProvider {
     this.delegate, {
     this.ttl = const Duration(minutes: 45),
   });
+  @override
+  void dispose() {
+    _cache.clear();
+    delegate.dispose();
+  }
+
   final WeatherProvider delegate;
   final Duration ttl;
   final Map<String, ({DateTime at, WeatherForecast data})> _cache = {};
@@ -507,23 +635,50 @@ class CachedWeatherProvider implements WeatherProvider {
   @override
   WeatherCapabilities get capabilities => delegate.capabilities;
   @override
-  Future<WeatherForecast> forecast(double latitude, double longitude) {
+  Future<WeatherForecast> forecast(
+    double latitude,
+    double longitude, {
+    bool forceRefresh = false,
+  }) {
     final key =
         '${latitude.toStringAsFixed(3)}|${longitude.toStringAsFixed(3)}';
     final cached = _cache[key];
-    if (cached != null && DateTime.now().difference(cached.at) < ttl) {
+    final age = cached == null ? null : DateTime.now().difference(cached.at);
+    if (!forceRefresh &&
+        cached != null &&
+        age != null &&
+        !age.isNegative &&
+        age < ttl) {
       return Future.value(cached.data);
     }
     if (_pending.containsKey(key)) {
       return _pending[key]!;
     }
-    final call = delegate.forecast(latitude, longitude);
+    final call = _fetch(key, latitude, longitude, forceRefresh);
     _pending[key] = call;
-    call
-        .then((value) {
-          _cache[key] = (at: DateTime.now(), data: value);
-        }, onError: (Object _) {})
-        .whenComplete(() => _pending.remove(key));
     return call;
+  }
+
+  Future<WeatherForecast> _fetch(
+    String key,
+    double latitude,
+    double longitude,
+    bool forceRefresh,
+  ) async {
+    try {
+      final value = await delegate.forecast(
+        latitude,
+        longitude,
+        forceRefresh: forceRefresh,
+      );
+      _cache.remove(key);
+      _cache[key] = (at: DateTime.now(), data: value);
+      while (_cache.length > 64) {
+        _cache.remove(_cache.keys.first);
+      }
+      return value;
+    } finally {
+      _pending.remove(key);
+    }
   }
 }

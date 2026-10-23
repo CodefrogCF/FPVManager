@@ -18,14 +18,30 @@
         href="cesium/Widgets/widgets.css">
 
     <style>
+    :root {
+        --map-surface: rgba(16, 20, 15, .92);
+        --map-text: #e0e4db;
+        --map-accent: #a0d39a;
+        --map-outline: #424940;
+        --stick-fill: rgba(160, 211, 154, .10);
+        --stick-thumb: rgba(160, 211, 154, .32);
+    }
+    @media (prefers-color-scheme: light) {
+        :root {
+            --map-surface: rgba(247, 251, 241, .94);
+            --map-text: #181d17;
+            --map-accent: #3b693a;
+            --map-outline: #c2c9bd;
+        }
+    }
     html, body, #globe {
         width: 100%;
         height: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #101820;
-        font-family: Arial, sans-serif;
+        background: #10140f;
+        font-family: Roboto, Arial, sans-serif;
     }
 
     #info {
@@ -34,9 +50,10 @@
         left: 16px;
         z-index: 10;
         padding: 12px 16px;
-        background: rgba(12, 20, 28, 0.88);
-        color: white;
-        border-radius: 8px;
+        background: var(--map-surface);
+        color: var(--map-text);
+        border: 1px solid var(--map-outline);
+        border-radius: 12px;
         font-size: 13px;
         pointer-events: none;
         max-width: 350px;
@@ -46,8 +63,8 @@
         position: absolute; bottom: max(12px, env(safe-area-inset-bottom));
         right: max(10px, env(safe-area-inset-right)); z-index: 18;
         max-width: min(400px, 76vw); padding: 7px 10px;
-        background: rgba(12, 20, 28, .92); color: #f1f5f9;
-        border: 1px solid #64748b; border-radius: 6px;
+        background: var(--map-surface); color: var(--map-text);
+        border: 1px solid var(--map-outline); border-radius: 12px;
         font-size: 12px; line-height: 1.45; pointer-events: none;
     }
     #weather-legend[hidden] { display: none; }
@@ -55,10 +72,10 @@
         bottom: max(74px, calc(env(safe-area-inset-bottom) + 58px)); z-index: 20; }
     #ground-controls[hidden] { display: none; }
     [data-stick] { width: clamp(92px, 20vw, 116px); aspect-ratio: 1; border-radius: 50%;
-        border: 1px solid #ffffff66; background: #d6edff16; touch-action: none;
-        user-select: none; position: relative; box-shadow: 0 0 0 1px #10182055; }
+        border: 1px solid #ffffff66; background: var(--stick-fill); touch-action: none;
+        user-select: none; position: relative; box-shadow: 0 0 0 1px #10140f55; }
     [data-stick-thumb] { position: absolute; width: 34%; height: 34%; left: 33%; top: 33%;
-        border-radius: 50%; background: #d6edff55; border: 1px solid #ffffff88;
+        border-radius: 50%; background: var(--stick-thumb); border: 1px solid #ffffff88;
         box-sizing: border-box; pointer-events: none; }
     #ground-controls::after { content: 'Move'; display: block; text-align: center;
         color: #ffffffb3; font-size: 11px; margin-top: 4px; pointer-events: none; }
@@ -70,10 +87,12 @@
         box-sizing: border-box;
         max-width: 100%;
         padding: 4px 6px;
-        background: rgba(12, 20, 28, 0.88);
+        background: var(--map-surface);
+        color: var(--map-text);
         font-size: 12px;
         line-height: 1.4;
     }
+    #globe .cesium-widget-credits a { color: var(--map-accent); }
     </style>
 </head>
 
