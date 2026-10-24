@@ -22,6 +22,7 @@ import '../obstacles/obstacle_map_controller.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import 'globe_bridge.dart';
 import 'route_map_state.dart';
+import '../simulation/simulation_settings.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../airspace/uas_zone_details.dart' show UasZoneDetails;
@@ -175,6 +176,49 @@ class GlobeController extends ChangeNotifier {
   bool _uasRequestedVisible = false;
   bool _ready = false;
   bool _groundViewActive = false, _groundViewPending = false;
+  bool _simulationActive = false,
+      _simulationPending = false,
+      _navigationFocused = false;
+  String? _simulationMessage;
+  bool get simulationActive => _simulationActive;
+  bool get simulationPending => _simulationPending;
+  bool get navigationFocused => _navigationFocused;
+  String? get simulationMessage => _simulationMessage;
+  bool get navigationActive => _simulationActive || _groundViewActive;
+
+  Future<void> enterSimulation(
+    SimulationSettings settings, {
+    double? latitude,
+    double? longitude,
+  }) async {
+    if (!_ready || !_terrainAvailable || _simulationPending) {
+      throw StateError('Detailed terrain is required');
+    }
+    settings.validate();
+    if ((latitude == null) != (longitude == null) ||
+        latitude != null && (!latitude.isFinite || latitude.abs() >= 89.9) ||
+        longitude != null && (!longitude.isFinite || longitude.abs() > 180)) {
+      throw ArgumentError('Invalid simulation spawn position');
+    }
+    await _bridge.send({
+      'type': 'enter-simulation',
+      ...settings.toCommand(),
+      'latitude': ?latitude,
+      'longitude': ?longitude,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> exitSimulation() => _send({'type': 'exit-simulation'});
+  Future<void> exitNavigation() async {
+    if (_groundViewActive || _groundViewPending) await exitGroundView();
+    if (_simulationActive || _simulationPending) await exitSimulation();
+  }
+
+  Future<void> sendNavigationInput(Map<String, dynamic> frame) async {
+    if (!_ready || !navigationActive || !_navigationFocused) return;
+    await _send({...frame, 'type': 'navigation-input'});
+  }
+
   String? _groundViewMessage;
   Map<String, dynamic>? _routeEditorState;
   Map<String, dynamic>? _visibleRoutesState;
@@ -711,6 +755,8 @@ class GlobeController extends ChangeNotifier {
   void _resetConnection() {
     obstacles.rendererLost();
     _groundViewActive = _groundViewPending = false;
+    _simulationActive = _simulationPending = _navigationFocused = false;
+    _simulationMessage = null;
     _groundViewMessage = null;
     _connectionGeneration++;
     _uasOperation++;
@@ -1078,6 +1124,19 @@ class GlobeController extends ChangeNotifier {
 
     if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
+      case 'navigation-focus':
+        if (data['focused'] is! bool) return;
+        _navigationFocused = data['focused'] as bool;
+        notifyListeners();
+      case 'simulation-state':
+        if (data['active'] is! bool || data['pending'] is! bool) return;
+        _simulationActive = data['active'] as bool;
+        _simulationPending = data['pending'] as bool;
+        final reason = data['reason'];
+        _simulationMessage = reason is String
+            ? reason.substring(0, reason.length.clamp(0, 180))
+            : null;
+        notifyListeners();
       case 'ground-view-state':
         if (data['active'] is! bool || data['pending'] is! bool) return;
         _groundViewActive = data['active'] as bool;
@@ -1104,6 +1163,8 @@ class GlobeController extends ChangeNotifier {
         if (_ready && previousSession == _bridge.session) return;
         obstacles.rendererLost();
         _groundViewActive = _groundViewPending = false;
+        _simulationActive = _simulationPending = _navigationFocused = false;
+        _simulationMessage = null;
         _groundViewMessage = null;
         _connectionGeneration++;
         _uasOperation++;

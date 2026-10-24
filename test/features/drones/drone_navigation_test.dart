@@ -35,7 +35,13 @@ void main() {
       final menuItems = tester.widgetList<PopupMenuItem<dynamic>>(
         find.byWidgetPredicate((widget) => widget is PopupMenuItem),
       );
-      expect(menuItems, hasLength(5));
+      final simulationItem = tester.widget<PopupMenuItem<dynamic>>(
+        find.ancestor(
+          of: find.text('Spawn in map · simulated flight'),
+          matching: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+        ),
+      );
+      expect(simulationItem.enabled, isFalse);
       expect(find.text('Weather intelligence'), findsOneWidget);
       expect(menuItems.where((item) => item.enabled), hasLength(1));
       await tester.tapAt(const Offset(20, 200));

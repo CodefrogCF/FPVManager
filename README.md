@@ -11,6 +11,7 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Local spots with photos, search, tags and favorites.
 - Drone profiles, battery inventory and radio/video equipment profiles.
 - First-person terrain inspection and map-based editing of multiple local routes.
+- Local GPS, Angle and Acro flight exploration with shared touch, keyboard and controller input.
 - Configurable waypoint heights/airspeeds, drone and battery assignments.
 - Sampled terrain profiles, distance/duration analysis and configurable energy/reserve estimates.
 - Advisory obstacle buffers, route constraint checks and local GeoJSON/GPX route import/export.
@@ -18,8 +19,8 @@ locations on a CesiumJS globe. Android and Web are supported.
 
 Personal records stay in local storage. Online maps and data services require
 network access. This prototype does not determine permission to fly or verify
-obstacle clearance. Flight simulation, backups and offline map downloads are
-not implemented.
+obstacle clearance. The flight simulation uses approximate movement
+and terrain contact only. Backups and offline map downloads are not implemented.
 
 ## Run from source
 

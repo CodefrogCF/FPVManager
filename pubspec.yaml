@@ -137,6 +137,8 @@ flutter:
     - web/terrain_service.js
     - web/map_providers.js
     - web/ground_navigation.js
+    - web/navigation_controls.js
+    - web/free_flight.js
     - web/route_editor.js
     - web/obstacle_layers.js
     - web/uas_zone_styles.js

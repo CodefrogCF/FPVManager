@@ -11,11 +11,12 @@ owns imagery/terrain rendering, picking and camera interaction.
 | `lib/features/home/` | Navigation, map actions, selections and spot synchronization |
 | `lib/features/routes/analysis/` | Bounded sampling, profile/flight/energy models and constraint/proximity checks |
 | `lib/features/routes/transfer/` | Bounded GeoJSON/GPX codecs and explicit local file selection/export |
+| `lib/features/simulation/` | Flight settings/profile defaults and coalesced Android input transport |
 | `lib/features/` | Globe, airspace, spots and equipment UI/controllers |
 | `lib/core/database/` | Drift tables, repositories and migrations |
 | `lib/core/models/`, `lib/core/geo/` | Typed routes, preferences, coordinates and heights |
 | `lib/core/osint/` | External dataset contracts, provenance and cache lifecycle |
-| `web/` | Renderer, bridge, providers, terrain, ground navigation and route editing |
+| `web/` | Renderer, bridge, providers, terrain, shared navigation input, flight/ground controllers and route editing |
 | `test/`, `integration_test/` | Unit/widget/tooling tests and native renderer integration |
 
 Web embeds `globe.html` in a same-origin iframe. Android uses `webview_flutter`

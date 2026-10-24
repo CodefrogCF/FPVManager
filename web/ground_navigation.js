@@ -1,8 +1,10 @@
 (function (root, factory) {
-    const api = factory();
+    const controls = typeof module === "object" && module.exports
+        ? require("./navigation_controls.js") : root.FPVNavigationControls;
+    const api = factory(controls);
     if (typeof module === "object" && module.exports) module.exports = api;
     else root.FPVGroundNavigation = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (controls) {
     "use strict";
     const radians = Math.PI / 180;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -75,8 +77,8 @@
         function tick(seconds) {
             if (!active) return;
             if (!isTerrainReady()) { stop("Terrain unavailable; returned to globe view"); return; }
-            const forward = Number(keys.has("ArrowUp")) - Number(keys.has("ArrowDown")) + stickForward;
-            const right = Number(keys.has("ArrowRight")) - Number(keys.has("ArrowLeft")) + stickRight;
+            const forward = Number(keys.has("ArrowUp") || keys.has("w")) - Number(keys.has("ArrowDown") || keys.has("s")) + stickForward;
+            const right = Number(keys.has("ArrowRight") || keys.has("d")) - Number(keys.has("ArrowLeft") || keys.has("a")) + stickRight;
             const next = step(position, heading, forward, right, seconds);
             if (!validPosition(next)) return;
             const ground = renderedHeight(next);
@@ -99,75 +101,5 @@
             clearKeys() { keys.clear(); stickForward = stickRight = 0; } };
     }
 
-    function bindControls(walker, canvas, panel, host = window, doc = document) {
-        const cleanups = [];
-        let drag = null, stickPointer = null;
-        const stick = panel.querySelector("[data-stick]");
-        const thumb = panel.querySelector("[data-stick-thumb]");
-        function resetStick() {
-            stickPointer = null;
-            walker.stick(0, 0);
-            if (thumb) thumb.style.transform = "translate(0px, 0px)";
-        }
-        function clear() { walker.clearKeys(); drag = null; resetStick(); }
-        function listen(target, event, handler, options) {
-            target.addEventListener(event, handler, options);
-            cleanups.push(() => target.removeEventListener(event, handler, options));
-        }
-        canvas.tabIndex = 0;
-        listen(canvas, "keydown", event => {
-            if (!walker.status().active) return;
-            if (event.key.startsWith("Arrow")) { event.preventDefault(); walker.key(event.key, true); }
-            if (event.key === "Escape") { event.preventDefault(); walker.stop(); }
-        });
-        listen(canvas, "keyup", event => {
-            if (event.key.startsWith("Arrow") && walker.status().active) event.preventDefault();
-            walker.key(event.key, false);
-        });
-        listen(canvas, "blur", clear);
-        listen(host, "blur", clear);
-        listen(doc, "visibilitychange", () => { if (doc.hidden) { clear(); walker.stop("Ground view paused"); } });
-        listen(host, "pagehide", () => walker.stop());
-        listen(canvas, "pointerdown", event => {
-            if (!walker.status().active || event.button !== 0 || drag) return;
-            canvas.focus(); canvas.setPointerCapture(event.pointerId);
-            drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
-        });
-        listen(canvas, "pointermove", event => {
-            if (!drag || drag.id !== event.pointerId) return;
-            walker.look(event.clientX - drag.x, event.clientY - drag.y);
-            drag.x = event.clientX; drag.y = event.clientY;
-        });
-        for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
-            listen(canvas, event, () => { drag = null; });
-        }
-        function moveStick(event) {
-            if (event.pointerId !== stickPointer) return;
-            event.preventDefault();
-            const rect = stick.getBoundingClientRect(), radius = rect.width * 0.35;
-            let x = (event.clientX - rect.left - rect.width / 2) / radius;
-            let y = (event.clientY - rect.top - rect.height / 2) / radius;
-            const length = Math.hypot(x, y);
-            if (length < 0.12) { x = y = 0; }
-            else { const scale = Math.min(1, length) / length; x *= scale; y *= scale; }
-            walker.stick(-y, x);
-            thumb.style.transform = `translate(${x * radius}px, ${y * radius}px)`;
-        }
-        listen(stick, "pointerdown", event => {
-            if (!walker.status().active || event.button !== 0 || stickPointer != null) return;
-            event.preventDefault();
-            canvas.focus(); // Focus the view before assigning the stick pointer.
-            stickPointer = event.pointerId;
-            stick.setPointerCapture(event.pointerId);
-            moveStick(event);
-        });
-        listen(stick, "pointermove", moveStick);
-        for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
-            listen(stick, event, event => { if (event.pointerId === stickPointer) resetStick(); });
-        }
-        const dispose = () => { clear(); walker.stop(); for (const cleanup of cleanups) cleanup(); };
-        dispose.reset = clear;
-        return dispose;
-    }
-    return { createWalker, bindControls, step };
+    return { createWalker, bindControls: controls.bindControls, step };
 });

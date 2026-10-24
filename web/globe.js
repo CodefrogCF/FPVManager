@@ -41,12 +41,13 @@ function postToFlutter(message) {
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
-        walker?.stop();
+        stopNavigation();
         if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let terrainManager = null;
+    let flyer = null;
     let walker = null, routeEditor = null, routeOverlays = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
@@ -146,8 +147,20 @@ function postToFlutter(message) {
         return mapProviders.imagery(style, Boolean(offlineReason()));
     }
 
+    function stopNavigation(reason = null) { walker?.stop(reason); flyer?.stop(reason); }
+    function navigationActive() { return walker?.status().active || flyer?.status().active; }
+    function simulationSpawn(command) {
+        if (command.latitude != null || command.longitude != null) return {latitude:command.latitude,longitude:command.longitude};
+        const canvas=activeViewer.canvas;
+        const ray=activeViewer.camera.getPickRay(new Cesium.Cartesian2(canvas.clientWidth/2,canvas.clientHeight/2));
+        const target=ray && activeViewer.scene.globe.pick(ray,activeViewer.scene);
+        if(!target)throw new Error('Point the camera at terrain or select a map point before spawning');
+        const position=Cesium.Cartographic.fromCartesian(target);
+        return {latitude:Cesium.Math.toDegrees(position.latitude),longitude:Cesium.Math.toDegrees(position.longitude)};
+    }
+
     function resetCamera() {
-        walker?.stop();
+        stopNavigation();
         activeViewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(
                 8.4,
@@ -179,7 +192,7 @@ function postToFlutter(message) {
             throw new Error("Invalid camera coordinates");
         }
 
-        walker?.stop();
+        stopNavigation();
         activeViewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(
                 longitude,
@@ -564,12 +577,20 @@ function postToFlutter(message) {
             case "set-obstacle-wms": obstacleWms.set(command); return {};
             case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
             case "set-hazard-areas": await hazardAreas.replace(command,signal); return {};
-            case "enter-ground-view": return walker.start(command, signal);
-            case "exit-ground-view": walker.stop(); return {};
-            case "set-route-editor": walker.stop(); return routeEditor.set(command, signal);
+            case "enter-ground-view": flyer?.stop(); return walker.start(command, signal);
+            case "enter-simulation": {
+                if(flyer.status().active)return flyer.reconfigure(command,signal);
+                const point = simulationSpawn(command); stopNavigation();
+                return flyer.start({...command,...point},signal);
+            }
+            case "exit-simulation": flyer?.stop(); return {};
+            case "reset-simulation": return flyer.reset(signal);
+            case "navigation-input": disposeGroundControls?.native(command); return {};
+            case "exit-ground-view": stopNavigation(); return {};
+            case "set-route-editor": stopNavigation(); return routeEditor.set(command, signal);
             case "set-visible-routes": return routeOverlays.set(command, signal);
-            case "frame-visible-routes": walker.stop(); await routeOverlays.frame(command.routeId, signal); return {};
-            case "frame-route": walker.stop(); await routeEditor.frame(signal); return {};
+            case "frame-visible-routes": stopNavigation(); await routeOverlays.frame(command.routeId, signal); return {};
+            case "frame-route": stopNavigation(); await routeEditor.frame(signal); return {};
             case "reset-camera": resetCamera(); return {};
             case "reload-renderer": setTimeout(() => window.location.reload(), 0); return {};
             case "retry-terrain": {
@@ -607,7 +628,7 @@ function postToFlutter(message) {
             case "set-spots-visible": setSpotsVisible(command.visible); return layerState();
             case "set-overlay-order": setOverlayOrder(command.order); return layerState();
                 case "focus-spot": {
-                    walker?.stop();
+                    stopNavigation();
                     const latitude = command.latitude;
                     const longitude = command.longitude;
                     const terrainHeight = command.terrainHeightMeters;
@@ -661,7 +682,7 @@ function postToFlutter(message) {
     window.FPVManager = {
         receive: bridge.receive,
         hello: () => {
-            walker?.stop();
+            stopNavigation();
             if (rendererReady) {
                 terrainManager.networkChanged();
                 sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable() });
@@ -711,7 +732,7 @@ function postToFlutter(message) {
             },
             onStatus: status => {
                 if (status.state !== "ready") selectedPointInfo = null;
-                if (status.state !== "ready") walker?.stop("Terrain unavailable; returned to globe view");
+                if (status.state !== "ready") stopNavigation("Terrain unavailable; returned to globe view");
                 routeEditor?.terrainChanged();
                 routeOverlays?.terrainChanged();
                 // Dynamic obstacle stems follow the actual rendered terrain;
@@ -746,7 +767,11 @@ function postToFlutter(message) {
             {isTerrainReady:terrainAvailable});
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
         const groundPanel = document.getElementById("ground-controls");
-        walker = FPVGroundNavigation.createWalker({
+        const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
+        const readout=document.getElementById('flight-readout'),device=document.getElementById('navigation-device');
+        let deviceMessage='', lastHud=0,lastReason=null;
+        const lastModes={ground:false,flight:false};
+        const cameraAdapter={
             isTerrainReady: terrainAvailable,
             sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal)).heightMeters,
             renderedHeight: point => viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude)),
@@ -762,35 +787,74 @@ function postToFlutter(message) {
                 viewer.camera.frustum.near = 0.1;
                 return saved;
             },
-            applyPose: point => {
-                viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(point.longitude, point.latitude, point.height),
-                    orientation: { heading: point.heading, pitch: point.pitch, roll: 0 } });
-                info.textContent = `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} | ` +
-                    `Ground: ${(point.height - 2).toFixed(1)} m WGS84 | Eye: ≈ 2 m AGL | ` +
-                    `Look: ${(point.pitch * 180 / Math.PI).toFixed(0)}°`;
-            },
             restoreCamera: saved => {
                 viewer.scene.screenSpaceCameraController.enableInputs = saved.inputs;
                 viewer.scene.screenSpaceCameraController.enableCollisionDetection = saved.collision;
                 viewer.camera.frustum.near = saved.near;
-                viewer.camera.setView({ destination: saved.destination, orientation: { direction: saved.direction, up: saved.up } });
-            },
-            onState: state => {
-                groundPanel.hidden = !state.active;
-                if (!state.active) {
-                    disposeGroundControls?.reset();
-                    groundPanel.querySelector("[data-stick-thumb]").style.transform = "translate(0px, 0px)";
-                    terrainInfo(terrainManager.status());
-                }
-                if (state.active) viewer.canvas.focus();
-                sendToFlutter("ground-view-state", state);
+                viewer.camera.setView({destination:saved.destination,orientation:{direction:saved.direction,up:saved.up}});
             }
-        });
-        disposeGroundControls = FPVGroundNavigation.bindControls(walker, viewer.canvas, groundPanel);
-        let lastWalkTime = performance.now();
-        viewer.scene.preRender.addEventListener(() => {
-            const now = performance.now();
-            walker.tick((now - lastWalkTime) / 1000); lastWalkTime = now;
+        };
+        function applyCamera(point){
+            const destination=Cesium.Cartesian3.fromDegrees(point.longitude,point.latitude,point.height);
+            let orientation={heading:point.heading,pitch:point.pitch,roll:point.roll??0};
+            if(point.direction&&point.up){
+                const transform=Cesium.Transforms.eastNorthUpToFixedFrame(destination);
+                const world=v=>Cesium.Matrix4.multiplyByPointAsVector(transform,new Cesium.Cartesian3(v.east,v.north,v.up),new Cesium.Cartesian3());
+                orientation={direction:world(point.direction),up:world(point.up)};
+            }
+            viewer.camera.setView({destination,orientation});
+        }
+        function modeState(mode,state){
+            const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
+            groundPanel.hidden=!state.active; flightButtons.hidden=mode!=='flight'||!state.active;
+            groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
+            hud.hidden=mode!=='flight'||!state.active; info.hidden=mode==='flight'&&state.active;
+            if(!state.active){disposeGroundControls?.reset();terrainInfo(terrainManager.status());}
+            if(entering)viewer.canvas.focus();
+            sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
+                active:state.active,pending:state.pending,reason:state.active?null:state.reason??null});
+        }
+        walker=FPVGroundNavigation.createWalker({...cameraAdapter,
+            applyPose:point=>{
+                applyCamera(point);
+                info.textContent=`${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} | `+
+                    `Ground: ${(point.height-2).toFixed(1)} m WGS84 | Eye: ≈ 2 m AGL | `+
+                    `Look: ${(point.pitch*180/Math.PI).toFixed(0)}°`+(deviceMessage?` | ${deviceMessage}`:'');
+            },onState:state=>modeState('ground',state)});
+        flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
+            terrainCollision:(from,to)=>{
+                const a=Cesium.Cartesian3.fromDegrees(from.longitude,from.latitude,from.height);
+                const b=Cesium.Cartesian3.fromDegrees(to.longitude,to.latitude,to.height);
+                const length=Cesium.Cartesian3.distance(a,b);if(length<.001)return false;
+                const direction=Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(b,a,new Cesium.Cartesian3()),new Cesium.Cartesian3());
+                const hit=viewer.scene.globe.pick(new Cesium.Ray(a,direction),viewer.scene);
+                return !!hit&&Cesium.Cartesian3.distance(a,hit)<=length+.001;
+            },
+            applyPose:point=>{
+                applyCamera(point);
+                const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
+                readout.textContent=`SIMULATION · ${point.mode.toUpperCase()}${point.mode==='angle'?' / SELF-LEVEL':''} · ${point.speed.toFixed(1)} m/s · `+
+                    `${point.mode==='acro'?`V ${point.verticalSpeed.toFixed(1)} m/s · `:''}`+
+                    `${point.agl==null?'unknown':point.agl.toFixed(1)} m AGL · ${point.distance.toFixed(0)} m from spawn\n`+
+                    `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}${point.mode==='gps'?'':` · Gas ${(point.throttle*100).toFixed(0)}%`} · `+
+                    `Pitch ${(point.pitch*180/Math.PI).toFixed(0)}° / Roll ${(point.roll*180/Math.PI).toFixed(0)}°`+(point.reason?` · ${point.reason}`:'');
+            },onState:state=>modeState('flight',state)});
+        const currentAgent=()=>flyer.status().active?flyer:walker;
+        const navigation={status:()=>({active:!!navigationActive(),mode:flyer.status().active?flyer.status().mode:'ground'}),stop:stopNavigation,
+            key:(...args)=>currentAgent().key(...args),stick:(...args)=>currentAgent().stick(...args),
+            look:(...args)=>currentAgent().look(...args),flightInput:frame=>flyer.flightInput(frame),
+            vertical:v=>{if(flyer.status().active)flyer.vertical(v);},
+            pause:value=>flyer.pause(value),clearKeys:()=>{walker.clearKeys();flyer.clearKeys();},
+            reset:()=>{if(flyer.status().active)flyer.reset().catch(()=>{});}};
+        disposeGroundControls=FPVNavigationControls.bindControls(navigation,viewer.canvas,groundPanel,window,document,{
+            onFocus:focused=>sendToFlutter('navigation-focus',{focused}),
+            onDevice:message=>{deviceMessage=message;device.textContent=message;}});
+        document.getElementById('reset-flight').addEventListener('click',()=>flyer.reset().catch(()=>{}));
+        document.getElementById('exit-flight').addEventListener('click',()=>flyer.stop());
+        let lastWalkTime=performance.now();
+        viewer.scene.preRender.addEventListener(()=>{
+            const now=performance.now(),seconds=(now-lastWalkTime)/1000;lastWalkTime=now;
+            disposeGroundControls.tick(seconds);walker.tick(seconds);flyer.tick(seconds);
         });
         const sampleRouteHeights = async (points, signal) => {
             if (!terrainAvailable()) throw new Error("Detailed terrain is required for the route preview");
@@ -804,7 +868,7 @@ function postToFlutter(message) {
         routeOverlays = FPVRouteEditor.createOverlays(Cesium, viewer, sampleRouteHeights, terrainAvailable,
             () => sendToFlutter("route-preview-error", {message:"Unable to rebuild saved routes. Retry the route preview in Map layers."}));
         viewer.scene.renderError.addEventListener((_scene, error) => {
-            walker?.stop("Renderer unavailable; returned to globe view");
+            stopNavigation("Renderer unavailable; returned to globe view");
             sendToFlutter("globe-error", { message: String(error.message || error) });
         });
         activeBaseLayer = viewer.imageryLayers.get(0);
@@ -844,7 +908,7 @@ function postToFlutter(message) {
                     sendToFlutter('obstacle-selected',obstacle); return;
                 }
                 sendToFlutter('obstacle-cleared');
-                if (walker.status().active || routeEditor.click(event.position)) return;
+                if (navigationActive() || routeEditor.click(event.position)) return;
 
                 const isUasZone =
                     uasDataSource !== null &&
@@ -948,7 +1012,7 @@ function postToFlutter(message) {
         if (!rendererReady || !activeViewer) return;
         const camera = activeViewer.camera;
         let rect;
-        if (walker?.status().active) {
+        if (navigationActive()) {
             const p = camera.positionCartographic;
             // The ellipsoid horizon below mountain terrain can otherwise look
             // like a country-wide viewport from a two-metre ground camera.

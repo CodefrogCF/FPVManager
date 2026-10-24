@@ -44,6 +44,8 @@ void main() {
       expect(html, contains('src="map_providers.js"'));
       for (final module in [
         'ground_navigation.js',
+        'navigation_controls.js',
+        'free_flight.js',
         'route_editor.js',
         'obstacle_layers.js',
       ]) {

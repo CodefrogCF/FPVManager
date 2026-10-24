@@ -5,14 +5,28 @@ import android.app.Activity
 import android.content.Intent
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.view.KeyEvent
+import android.view.MotionEvent
 
 class MainActivity : FlutterActivity() {
+    private var navigationInput: NavigationInputHandler? = null
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+        if (navigationInput?.motion(event) == true) true else super.dispatchGenericMotionEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        if (navigationInput?.key(event) == true) true else super.dispatchKeyEvent(event)
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        navigationInput?.focusChanged(hasFocus)
+    }
+    override fun onPause() { navigationInput?.pause(); super.onPause() }
     private var pendingExport: MethodChannel.Result? = null
     private var exportBytes: ByteArray? = null
     private val exportRequest = 58031
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        navigationInput?.dispose()
+        navigationInput = NavigationInputHandler(this,flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.codefrog.fpvmanager/route_files").setMethodCallHandler { call, result ->
             if (call.method != "saveRoute") {
@@ -87,6 +101,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        navigationInput?.dispose()
+        navigationInput = null
         pendingExport?.error("cancelled", "Route export interrupted", null)
         pendingExport = null
         exportBytes = null

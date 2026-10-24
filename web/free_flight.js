@@ -1,0 +1,210 @@
+(function(root,factory){
+    const api=factory();
+    if(typeof module==='object'&&module.exports)module.exports=api;
+    else root.FPVFreeFlight=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+    'use strict';
+    const R=6378137,rad=Math.PI/180,g=9.80665;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const valid=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<89.9&&Math.abs(p.longitude)<=180;
+    const wrap=a=>((a%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+    function move(p,north,east){return {latitude:p.latitude+north/R/rad,
+        longitude:((p.longitude+east/(R*Math.cos(p.latitude*rad))/rad+540)%360)-180};}
+    function distance(a,b){
+        const x=(a.latitude-b.latitude)*rad,y=(a.longitude-b.longitude)*rad;
+        const h=Math.sin(x/2)**2+Math.cos(a.latitude*rad)*Math.cos(b.latitude*rad)*Math.sin(y/2)**2;
+        return 2*R*Math.asin(Math.sqrt(clamp(h,0,1)));
+    }
+    function parameters(c){
+        const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',
+            acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
+            acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??35};
+        for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
+            ['acceleration',.2,50],['deceleration',.2,50],['acroThrustToWeight',1.1,12],
+            ['acroThrustCurve',0,1],['acroMotorTimeConstant',0,.5],['acroTerminalVelocity',5,120]]){
+            if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`Invalid flight ${key}`);
+        }
+        if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
+        return p;
+    }
+    // Body forward/right/down -> local north/east/down, a right-handed frame.
+    // Quaternions keep Acro attitude continuous through inverted flight/loops.
+    const multiply=(a,b)=>({w:a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z,
+        x:a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y,y:a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,
+        z:a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w});
+    function normalized(q){const n=Math.hypot(q.w,q.x,q.y,q.z);return {w:q.w/n,x:q.x/n,y:q.y/n,z:q.z/n};}
+    function rotate(q,v){const p=multiply(multiply(q,{w:0,...v}),{w:q.w,x:-q.x,y:-q.y,z:-q.z});return {x:p.x,y:p.y,z:p.z};}
+    function euler(yaw,pitch,roll){
+        const axis=(angle,x,y,z)=>({w:Math.cos(angle/2),x:x*Math.sin(angle/2),y:y*Math.sin(angle/2),z:z*Math.sin(angle/2)});
+        return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
+    }
+    function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,isTerrainReady,onState}){
+        let active=false,pending=false,paused=false,operation=0,abort=null,saved=null,spawn=null,position=null;
+        let height=0,heading=0,pitch=0,roll=0,ground=null,reason=null,config=parameters({}),q=euler(0,0,0);
+        let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
+        let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
+        const keys=new Set();
+        function clearKeys(){keys.clear();input={throttle:0,yaw:0,pitch:0,roll:0};forward=right=vertical=throttle=0;}
+        function brake(){velocity={north:0,east:0,up:0};rates={x:0,y:0,z:0};}
+        function orientation(){
+            const f=rotate(q,{x:1,y:0,z:0}),u=rotate(q,{x:0,y:0,z:-1});
+            return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
+        }
+        function status(){return {active,pending,paused,mode:config.flightMode,position:position&&{...position},height,heading,pitch,roll,
+            throttle:(throttle+1)/2,thrustAcceleration:motorThrust,verticalSpeed:velocity.up,
+            attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
+            speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
+            distance:spawn&&position?distance(spawn,position):0,reason};}
+        function publish(){onState(status());}
+        function pose(){applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
+        function stop(message=null){
+            const running=active||pending;
+            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;active=pending=paused=false;reason=message;
+            if(saved)restoreCamera(saved);saved=null;
+            if(running)publish();
+        }
+        async function start(command,signal){
+            if(!valid(command))throw new Error('Invalid simulation spawn position');
+            const next=parameters(command);
+            if(!isTerrainReady())throw new Error('Detailed terrain is required for simulated flight');
+            stop();const token=++operation;abort=new AbortController();const request=abort;
+            const cancel=()=>{if(token===operation)stop();};
+            signal.addEventListener('abort',cancel,{once:true});pending=true;reason=null;publish();
+            try{
+                signal.throwIfAborted();const sampled=await sampleHeight(command,request.signal);
+                signal.throwIfAborted();request.signal.throwIfAborted();
+                if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
+                if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
+                config=next;saved=captureCamera();spawn={latitude:command.latitude,longitude:command.longitude};
+                position={...spawn};height=sampled+config.agl;ground=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
+                motorThrust=acroThrust(.5);
+                active=true;pending=false;pose();publish();return {};
+            }catch(error){if(token!==operation)return {cancelled:true};stop('Unable to start simulated flight');throw error;}
+            finally{signal.removeEventListener('abort',cancel);}
+        }
+        function gpsStep(seconds){
+            let f=forward+Number(keys.has('ArrowUp')||keys.has('w'))-Number(keys.has('ArrowDown')||keys.has('s'));
+            let r=right+Number(keys.has('ArrowRight')||keys.has('d'))-Number(keys.has('ArrowLeft')||keys.has('a'));
+            const length=Math.max(1,Math.hypot(f,r));f/=length;r/=length;
+            const up=clamp(vertical+Number(keys.has('e'))-Number(keys.has('q')),-1,1);
+            function response(v,target){
+                const rate=(target===0?config.deceleration:config.acceleration)/Math.max(config.maxSpeed,config.climbSpeed);
+                const decay=Math.exp(-rate*seconds);
+                return {v:target+(v-target)*decay,d:target*seconds+(v-target)*(1-decay)/rate};
+            }
+            const n=response(velocity.north,(Math.cos(heading)*f-Math.sin(heading)*r)*config.maxSpeed);
+            const e=response(velocity.east,(Math.sin(heading)*f+Math.cos(heading)*r)*config.maxSpeed);
+            const z=response(velocity.up,up*config.climbSpeed);
+            velocity={north:n.v,east:e.v,up:z.v};return {north:n.d,east:e.d,up:z.d};
+        }
+        // Angle: 50° tilt limit/self-level. Acro: 180°/s body rates, no leveling.
+        // Angle retains its centred hover aid. Acro throttle is a motor command
+        // over 0..1; its hover point depends on thrust/weight and the thrust curve.
+        function acroThrust(command){
+            const curve=config.acroThrustCurve;
+            return g*config.acroThrustToWeight*((1-curve)*command+curve*command*command);
+        }
+        function acroTranslation(u,dt){
+            const target=acroThrust((throttle+1)/2),tau=config.acroMotorTimeConstant;
+            const decay=tau>0?Math.exp(-dt/tau):0,previous=motorThrust;
+            motorThrust=target+(previous-target)*decay;
+            const thrust=tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
+            const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
+            // Kick / exact quadratic-drag drift / kick (Strang splitting).
+            // Drag opposes the full world velocity; attitude does not rotate
+            // momentum. No GPS-style speed clamp or altitude/braking controller.
+            const middle={};
+            for(const axis of ['north','east','up'])middle[axis]=velocity[axis]+acceleration[axis]*dt*.5;
+            const speed=Math.hypot(middle.north,middle.east,middle.up);
+            const drag=g/(config.acroTerminalVelocity*config.acroTerminalVelocity),loss=drag*speed*dt;
+            const drift=loss>1e-10?Math.log1p(loss)/loss:1;
+            const travel={};
+            for(const axis of ['north','east','up']){
+                travel[axis]=middle[axis]*dt*drift;
+                velocity[axis]=middle[axis]/(1+loss)+acceleration[axis]*dt*.5;
+            }
+            return travel;
+        }
+        function fpvStep(seconds){
+            throttle=clamp(input.throttle+vertical+Number(keys.has('e'))-Number(keys.has('q')),-1,1);
+            const yaw=clamp(input.yaw+Number(keys.has('d'))-Number(keys.has('a')),-1,1);
+            const nose=clamp(input.pitch+Number(keys.has('w')||keys.has('ArrowUp')||keys.has('i'))-Number(keys.has('s')||keys.has('ArrowDown')||keys.has('k')),-1,1);
+            const bank=clamp(input.roll+Number(keys.has('ArrowRight')||keys.has('l'))-Number(keys.has('ArrowLeft')||keys.has('j')),-1,1);
+            const steps=Math.max(1,Math.ceil(seconds*240-1e-8)),dt=seconds/steps;
+            let north=0,east=0,up=0;
+            for(let i=0;i<steps;i++){
+                const response=1-Math.exp(-8*dt);
+                if(config.flightMode==='angle'){
+                    pitch+=(-nose*50*rad-pitch)*response;roll+=(bank*50*rad-roll)*response;
+                    heading=wrap(heading+yaw*1.8*dt);q=euler(heading,pitch,roll);
+                }else{
+                    rates.x+=(bank*Math.PI-rates.x)*response;rates.y+=(-nose*Math.PI-rates.y)*response;rates.z+=(yaw*Math.PI-rates.z)*response;
+                    const speed=Math.hypot(rates.x,rates.y,rates.z),angle=speed*dt,scale=speed>1e-12?Math.sin(angle/2)/speed:0;
+                    q=normalized(multiply(q,{w:Math.cos(angle/2),x:rates.x*scale,y:rates.y*scale,z:rates.z*scale}));
+                    const f=rotate(q,{x:1,y:0,z:0}),r=rotate(q,{x:0,y:1,z:0});
+                    heading=wrap(Math.atan2(f.y,f.x));pitch=Math.asin(clamp(-f.z,-1,1));roll=Math.atan2(r.z,1-2*(q.x*q.x+q.y*q.y));
+                }
+                const u=rotate(q,{x:0,y:0,z:-1});
+                if(config.flightMode==='acro'){
+                    const travel=acroTranslation(u,dt);north+=travel.north;east+=travel.east;up+=travel.up;continue;
+                }
+                const thrust=g+throttle*(throttle>=0?config.acceleration:g);
+                const drag=config.deceleration/config.maxSpeed,decay=Math.exp(-drag*dt),old={...velocity};
+                velocity.north=old.north*decay+u.x*thrust*(1-decay)/drag;
+                velocity.east=old.east*decay+u.y*thrust*(1-decay)/drag;
+                const speed=Math.hypot(velocity.north,velocity.east);
+                if(speed>config.maxSpeed){velocity.north*=config.maxSpeed/speed;velocity.east*=config.maxSpeed/speed;}
+                velocity.up=clamp(old.up+(-u.z*thrust-g)*dt,-config.climbSpeed,config.climbSpeed);
+                north+=(old.north+velocity.north)*.5*dt;east+=(old.east+velocity.east)*.5*dt;up+=(old.up+velocity.up)*.5*dt;
+            }
+            return {north,east,up};
+        }
+        function tick(seconds){
+            if(!active)return;
+            if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
+            const floor=renderedHeight(position);ground=Number.isFinite(floor)?floor:null;
+            if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
+            if(paused){pose();return;}
+            if(!Number.isFinite(seconds)||seconds<=0)return;
+            const dt=Math.min(seconds,.1),travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
+            const endpoint=move(position,travel.north,travel.east);
+            if(terrainCollision?.({...position,height},{...endpoint,height:height+travel.up})){
+                brake();reason='Terrain contact: movement stopped';pose();return;
+            }
+            const steps=Math.max(1,Math.ceil(Math.hypot(travel.north,travel.east)/.5));
+            let next=null,nextHeight=height,nextGround=null,contact=false;
+            for(let i=1;i<=steps;i++){
+                const fraction=i/steps,p=move(position,travel.north*fraction,travel.east*fraction);
+                if(!valid(p)){brake();reason='Supported latitude limit reached';pose();return;}
+                const h=renderedHeight(p);
+                if(!Number.isFinite(h)){brake();ground=null;reason='Movement paused: terrain tiles not loaded';pose();return;}
+                const z=height+travel.up*fraction;
+                if(z<h+.5){
+                    if(Math.hypot(travel.north,travel.east)<.001){next=p;nextHeight=h+.5;nextGround=h;}
+                    contact=true;break;
+                }
+                next=p;nextHeight=z;nextGround=h;
+            }
+            if(next){position=next;height=nextHeight;ground=nextGround;}
+            if(contact){brake();reason='Terrain contact: movement stopped';}else reason=null;
+            pose();
+        }
+        async function reset(signal){
+            if(!active||!spawn)return {};
+            return start({...spawn,...config},signal??new AbortController().signal);
+        }
+        return {start,stop,reset,tick,status,
+            reconfigure(command,signal){if(!active||!spawn)throw new Error('No active simulation');return start({...command,...spawn},signal);},
+            look(dx,dy){if(active&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
+                heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},
+            key(key,down){if(down&&active)keys.add(key);else keys.delete(key);},
+            stick(f,r){if(Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
+            flightInput(frame){if(active&&['throttle','yaw','pitch','roll'].every(k=>Number.isFinite(frame[k]))){
+                input=Object.fromEntries(['throttle','yaw','pitch','roll'].map(k=>[k,clamp(frame[k],-1,1)]));}},
+            vertical(v){if(Number.isFinite(v))vertical=clamp(v,-1,1);},
+            pause(value){if(paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
+            clearKeys};
+    }
+    return {createSimulator,parameters,distance};
+});

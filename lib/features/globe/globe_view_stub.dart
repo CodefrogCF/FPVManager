@@ -9,6 +9,7 @@ import 'globe_controller.dart';
 import 'globe_asset_server.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../simulation/navigation_device_input.dart';
 
 /// Native implementation of the FPVManager 3D globe.
 ///
@@ -27,6 +28,7 @@ class GlobeView extends StatefulWidget {
 class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   WebViewController? _controller;
   GlobeAssetServer? _assetServer;
+  NavigationDeviceInput? _deviceInput;
 
   bool _loading = true;
   String? _error;
@@ -41,6 +43,11 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     widget.controller.attach(_sendCommand);
     widget.controller.addListener(_onControllerChanged);
     WidgetsBinding.instance.addObserver(this);
+    if (Platform.isAndroid) {
+      _deviceInput = NavigationDeviceInput(
+        (frame) => widget.controller.sendNavigationInput(frame),
+      );
+    }
 
     if (_supported) {
       _initializeGlobe();
@@ -148,6 +155,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.controller != widget.controller) {
+      _deviceInput?.setEnabled(false);
       oldWidget.controller.removeListener(_onControllerChanged);
       oldWidget.controller.detach();
       widget.controller.attach(_sendCommand);
@@ -158,6 +166,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _deviceInput?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_onControllerChanged);
     widget.controller.detach();
@@ -172,6 +181,11 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
   void _onControllerChanged() {
     if (!mounted) return;
+    _deviceInput?.setEnabled(
+      widget.controller.navigationActive &&
+          widget.controller.navigationFocused &&
+          widget.controller.isReady,
+    );
     final point = widget.controller.selectedPoint;
     setState(() {
       _coordinates = point == null
@@ -187,6 +201,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_supported) return;
+    if (state != AppLifecycleState.resumed) _deviceInput?.setEnabled(false);
     if (state == AppLifecycleState.paused) widget.controller.suspend();
     if (state == AppLifecycleState.resumed) {
       unawaited(_resumeRenderer());

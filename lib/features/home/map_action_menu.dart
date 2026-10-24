@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../globe/globe_controller.dart';
 
-enum _MapAction { home, coordinates, terrain, layers, weather }
+enum _MapAction { home, coordinates, terrain, layers, weather, simulation }
 
 class MapActionMenu extends StatelessWidget {
   const MapActionMenu({
@@ -16,6 +16,7 @@ class MapActionMenu extends StatelessWidget {
     required this.onTerrain,
     required this.onLayers,
     required this.onWeather,
+    required this.onSimulation,
   });
   final GlobeController controller;
   final Widget Function() groundButtonBuilder;
@@ -24,6 +25,7 @@ class MapActionMenu extends StatelessWidget {
       onTerrain,
       onLayers,
       onWeather;
+  final Future<void> Function() onSimulation;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
@@ -40,9 +42,22 @@ class MapActionMenu extends StatelessWidget {
               _MapAction.terrain => onTerrain(),
               _MapAction.layers => onLayers(),
               _MapAction.weather => onWeather(),
+              _MapAction.simulation => onSimulation(),
             });
           },
           itemBuilder: (_) => [
+            PopupMenuItem(
+              value: _MapAction.simulation,
+              enabled:
+                  controller.isReady &&
+                  controller.terrainAvailable &&
+                  !controller.simulationPending,
+              child: Text(
+                controller.simulationActive
+                    ? 'Flight simulation settings'
+                    : 'Spawn in map · simulated flight',
+              ),
+            ),
             PopupMenuItem(
               value: _MapAction.layers,
               enabled: controller.isReady,

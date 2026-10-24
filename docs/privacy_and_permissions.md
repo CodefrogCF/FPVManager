@@ -38,7 +38,7 @@ including when focusing a private spot or displaying a route.
 | `wmts.geo.admin.ch` | Map startup/navigation/style changes or imagery refresh after terrain retry; layer, zoom and tile coordinates. |
 | `wms.geo.admin.ch` | Enabling/restoring obstacle imagery and navigating while enabled; viewed area, projection and image dimensions. |
 | `api3.geo.admin.ch` | Opening the official obstacle legend; public legend URL. |
-| `3d.geo.admin.ch` | Terrain startup/probe, navigation, height queries, ground view, route framing/previews and explicit retry; terrain tile identifiers revealing sampled areas. |
+| `3d.geo.admin.ch` | Terrain startup/probe, navigation, height queries, ground/flight view, route framing/previews and explicit retry; terrain tile identifiers revealing sampled areas. |
 | `data.geo.admin.ch` | UAS checks/refresh and obstacle STAC metadata/full KMZ download; public national dataset URLs, without a user-position query. Restoring obstacle vectors reads a local snapshot first. |
 | `data.geo.admin.ch` (weather) | Selecting MeteoSwiss or refreshing/comparing forecasts; public point metadata and national forecast CSV files. Coordinates are matched locally and are not part of these requests. |
 | `api.open-meteo.com` | Open-Meteo forecasts, spot comparisons and weather overlays; selected coordinates, requested parameters and forecast range. |

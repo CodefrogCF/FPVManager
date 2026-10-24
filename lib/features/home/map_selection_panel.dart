@@ -35,7 +35,9 @@ class MapSelectionPanel extends StatelessWidget {
           onClose: controller.obstacles.clearSelection,
         );
       }
-      if (controller.groundViewActive || controller.groundViewPending) {
+      if (controller.navigationActive ||
+          controller.groundViewPending ||
+          controller.simulationPending) {
         return const SizedBox.shrink();
       }
       final spotId = controller.selectedSpotId;

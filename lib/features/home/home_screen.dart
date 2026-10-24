@@ -33,6 +33,8 @@ import 'coordinates_dialog.dart';
 import 'home_navigation_drawer.dart';
 import 'map_action_menu.dart';
 import 'map_selection_panel.dart';
+import '../simulation/simulation_settings.dart';
+import '../simulation/simulation_settings_sheet.dart';
 
 class FPVHomeScreen extends StatefulWidget {
   const FPVHomeScreen({
@@ -71,6 +73,29 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   RouteLayersController? _routeLayers;
   bool _preferencesStarted = false;
   String? _lastGroundReason;
+  String? _lastSimulationReason;
+  SimulationSettings _simulationSettings = const SimulationSettings();
+  Future<void> _openSimulation() async {
+    final spot = _spotsById[_globeController.selectedSpotId],
+        point = _globeController.selectedPoint;
+    final settings = await showSimulationSettings(
+      context,
+      repository: _droneRepository ??=
+          widget.droneRepository ??
+          DroneRepository(_database ??= FpvDatabase.open()),
+      initial: _simulationSettings,
+      hasSelection: spot != null || point != null,
+    );
+    if (settings == null || !mounted) return;
+    _simulationSettings = settings;
+    await _runCommand(
+      () => _globeController.enterSimulation(
+        settings,
+        latitude: spot?.latitude ?? point?.latitude,
+        longitude: spot?.longitude ?? point?.longitude,
+      ),
+    );
+  }
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
   Map<int, SpotMapEntry> _spotsById = const {};
@@ -222,8 +247,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   Future<void> _leaveGroundView() async {
     if (_globeController.groundViewActive ||
-        _globeController.groundViewPending) {
-      await _runCommand(_globeController.exitGroundView);
+        _globeController.groundViewPending ||
+        _globeController.simulationActive ||
+        _globeController.simulationPending) {
+      await _runCommand(_globeController.exitNavigation);
     }
   }
 
@@ -372,6 +399,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           .showSnackBar(SnackBar(content: Text(reason)));
     }
     _lastGroundReason = reason;
+    final simulationReason = _globeController.simulationMessage;
+    if (simulationReason != null &&
+        simulationReason != _lastSimulationReason &&
+        mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(simulationReason)));
+    }
+    _lastSimulationReason = simulationReason;
     if (_globeController.isReady && !_preferencesStarted) {
       _preferencesStarted = true;
       unawaited(
@@ -408,6 +443,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             onTerrain: _showTerrainElevation,
             onLayers: _openMapLayers,
             onWeather: _openWeather,
+            onSimulation: _openSimulation,
           ),
         ],
       ),

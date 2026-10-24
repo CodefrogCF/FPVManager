@@ -52,7 +52,9 @@ the details and are used for route checks.
 
 Select a terrain point or saved spot, then use the walking icon beside the
 right-hand map menu to spawn approximately two metres above terrain. Move with
-the arrow keys or transparent stick at the lower left; drag to look around.
+WASD, arrow keys or the transparent stick at the lower left. Drag to look around,
+or touch and hold the right half for a floating look stick. A controller uses its
+left stick to move and right stick to look; B exits.
 Click the map to restore keyboard focus after using another control.
 
 Use the globe icon or Escape to return to the previous camera. Home, coordinate
@@ -60,6 +62,56 @@ navigation, spot/route framing and opening another library also leave ground
 view. Terrain loss ends it. Movement pauses where no rendered height is available.
 This camera follows terrain detail; it does not model buildings, vegetation or
 collisions.
+
+## Free flight simulation
+
+Choose **Map menu → Spawn in map · simulated flight**. Set the spawn height AGL.
+Angle/GPS use speed, climb and response limits, optionally copied from a drone
+profile; missing values use defaults. Spawn uses the selected map point/spot, or terrain under the camera
+target when no point is selected. Detailed terrain is required.
+
+Choose **Angle** (default), **Acro** or **GPS** in the flight settings. Reopening
+settings and spawning switches mode at the original spawn point, level and stationary.
+
+- **Angle:** Mode 2 — left stick vertical is throttle, horizontal is yaw; right
+  stick vertical controls pitch and horizontal controls roll. Tilt is limited to
+  50° and levels when released. Tilting directs thrust and requires more gas to hold height.
+- **Acro:** The same Mode 2 layout commands body rotation rates up to 180°/s.
+  Releasing pitch/roll stops rotation after a short response, retaining attitude.
+  Rotor thrust follows the drone's body: inverted full throttle accelerates
+  downward, zero throttle allows gravity/drag free fall and existing momentum
+  continues. There is no assisted speed/climb limit, leveling or altitude hold.
+  **Acro physics** adjusts estimated thrust/weight, thrust curve, motor response
+  and terminal free-fall speed (air drag). Defaults are 4:1, quadratic, 0.04 s and
+  35 m/s; these are uncalibrated assumptions, independent of profile speed limits.
+- **GPS:** The previous assisted mode — left stick translates, right stick looks,
+  neutral input brakes and maintains height. Its controls match ground view.
+
+FPV keyboard: E/Q throttle, A/D yaw, W/S (or up/down arrows) pitch, left/right
+arrows roll; IJKL also controls pitch/roll. In GPS, WASD/arrows move, drag/IJKL
+looks and E/Q climbs/descends. Touch the right half to show the second stick.
+↑/↓, right/left triggers and R1/L1 provide additional gas/height controls.
+Angle retains its centred hover aid. Acro maps the full stick range to 0–100%
+motor command: fully down cuts thrust; centre is 50%. The estimated hover point
+depends on the physical settings (50% with defaults) and applies only while level.
+The Acro HUD shows signed vertical speed: negative is descent toward terrain.
+
+**Reset**, R or controller A returns to spawn; **Exit**, Escape, controller B or
+the globe icon restores the map camera. The HUD shows mode, speed, AGL, distance,
+coordinates and attitude; FPV modes also show throttle. Saved routes/obstacles remain visible.
+
+Release controller sticks/buttons to neutral after connecting or resuming. Web
+requires a secure context and a browser-supported standard-mapped controller;
+Android also handles native gamepad axes/buttons. Input stops on focus loss and
+disconnect. Tap the view to resume; terrain loss returns to the globe. Movement
+waits for terrain tiles and stops at terrain contact. Terrain refinement can
+adjust the camera floor. Buildings, vegetation and cables have no collision model.
+
+These simplified models do not predict real aircraft performance or verify
+clearance. GPS assistance, rate control, motor response and isotropic drag are
+approximations; individual motor/PID dynamics, propwash and battery sag are not modeled. State stays in memory;
+there is no automatic flight recording/export. Online tile requests still reveal
+the viewed area to map providers.
 
 ## Flight routes
 

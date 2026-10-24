@@ -17,7 +17,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     const imagery = [], terrain = [], events = [], sources = [];
     let geojsonLoads = 0;
     const colors = value => ({ value, withAlpha: a => ({value, alpha:a}) });
-    const info = {};
+    const info = {addEventListener() {}};
     const window = {
         FPVMapProviderConfig: configuration,
         location: { search: offline ? '?offline=1' : '', origin: 'http://localhost' },
@@ -31,6 +31,8 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
         console: { error() {}, log() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
+        FPVFreeFlight: {createSimulator:()=>({stop(){},tick(){},status:()=>({active:false})})},
+        FPVNavigationControls: {bindControls:()=>Object.assign(()=>{},{tick(){},reset(){}})},
         FPVRouteEditor: {
             createEditor: () => ({ click: () => false, terrainChanged() {} }),
             createOverlays: () => ({ terrainChanged() {}, dispose() {} })

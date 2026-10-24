@@ -78,6 +78,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(peer.commands.last['latitude'], 47);
       expect(peer.commands.last['longitude'], 8.5);
+      peer.emit({'type': 'simulation-state', 'active': false, 'pending': true});
+      await tester.pump();
+      expect(tester.getRect(find.byType(GlobeView)).bottom, 568);
+      expect(find.text('Inspection spot'), findsNothing);
+      peer.emit({'type': 'simulation-state', 'active': true, 'pending': false});
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byType(GlobeView)).bottom, 568);
+      await tester.tap(find.byTooltip('Return to globe'));
+      await tester.pumpAndSettle();
+      expect(peer.commands.last['type'], 'exit-simulation');
+      peer.emit({
+        'type': 'simulation-state',
+        'active': false,
+        'pending': false,
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Inspection spot'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();

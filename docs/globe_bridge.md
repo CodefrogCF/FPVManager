@@ -19,7 +19,7 @@ to announce its session. Web checks the bound iframe and origin. Native navigati
 is restricted to the app-owned origin, and disposed views ignore late events.
 
 Reload restores requested map preferences, spots, visible routes and an open
-route draft. Camera, selection and ground mode reset. Replacing a view's controller
+route draft. Camera, selection and ground/flight mode reset. Replacing a view's controller
 reloads the page to create a fresh session. `reloadRenderer()` reloads the page;
 `retry-terrain` replaces terrain inside the current viewer.
 
@@ -62,6 +62,24 @@ Ground inspection uses `enter-ground-view`, `exit-ground-view` and
 `ground-view-state`. Entry uses bounded terrain sampling. Draft editing uses
 `set-route-editor`, `frame-route` and `route-map-action`; editor identity,
 revision and stable draft waypoint keys reject stale edits.
+
+Free flight uses `enter-simulation` (optional paired latitude/longitude, `agl`,
+`maxSpeed`, `climbSpeed`, `acceleration`, `deceleration`, `flightMode` = gps/angle/acro), `reset-simulation` and
+`exit-simulation`. Missing coordinates select the camera target. `simulation-state`
+reports active/pending/reason; `navigation-focus` gates device input. Android sends
+coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
+reset/exit/connected booleans). Frames retain physical axes: forward/right are
+left-stick up/right; yaw/pitch are right-stick right/down. Angle/Acro map these
+to throttle/yaw and roll/pitch; GPS/ground map them to movement/look. The renderer requires neutral controller input
+before activation and expires native frames after 250 ms. Flight state/telemetry
+remain in the renderer; keyboard/touch and Web gamepads require no bridge stream.
+
+Acro optionally accepts `acroThrustToWeight`, `acroThrustCurve`,
+`acroMotorTimeConstant` (s) and `acroTerminalVelocity` (m/s). Its translation uses
+body-directed thrust, gravity, motor lag and quadratic drag; assisted speed/climb
+and response fields do not clamp Acro. The thrust curve interpolates linear and
+quadratic motor command, following the model described in the
+[PX4 thrust-curve guide](https://docs.px4.io/main/en/config_mc/pid_tuning_guide_multicopter#thrust-curve).
 
 `set-visible-routes` carries a revision and up to 20 routes with ID/name and up
 to 1,000 waypoint IDs/positions each. `frame-visible-routes` takes a positive
