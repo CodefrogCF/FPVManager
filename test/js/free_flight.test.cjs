@@ -14,6 +14,25 @@ async function start(page,config={}){await page.model.start({...spawn,...config}
 function advance(model,seconds=1,fps=60){for(let i=0;i<seconds*fps;i++)model.tick(1/fps);}
 function input(model,frame={}){model.flightInput({throttle:0,yaw:0,pitch:0,roll:0,...frame});}
 const dot=(a,b)=>a.north*b.north+a.east*b.east+a.up*b.up;
+
+test('FPV camera tilt looks up relative to the body and never changes flight physics',async()=>{
+    for(const flightMode of ['angle','acro']){
+        const level=setup(),tilted=setup();
+        await start(level,{flightMode,agl:500});await start(tilted,{flightMode,agl:500,cameraTiltDegrees:35});
+        assert.ok(Math.abs(tilted.poses.at(-1).direction.up-Math.sin(35*Math.PI/180))<1e-12);
+        for(const p of [level,tilted]){input(p.model,{throttle:.7,pitch:.4,roll:.8,yaw:.2});advance(p.model,1);}
+        assert.deepEqual(tilted.model.status().attitude,level.model.status().attitude);
+        assert.deepEqual(tilted.model.status().position,level.model.status().position);
+        assert.equal(tilted.model.status().height,level.model.status().height);
+        const before=tilted.model.status();tilted.model.cameraTilt(60);const after=tilted.model.status();
+        assert.equal(after.speed,before.speed);assert.equal(after.height,before.height);assert.deepEqual(after.attitude,before.attitude);
+        for(const pose of tilted.poses){assert.ok(Math.abs(dot(pose.direction,pose.up))<1e-10);assert.ok(Math.abs(dot(pose.up,pose.up)-1)<1e-10);}
+        await tilted.model.reset();assert.equal(tilted.model.status().cameraTiltDegrees,60);
+        for(const bad of [-1,81,NaN,Infinity,'30'])assert.throws(()=>tilted.model.cameraTilt(bad));
+    }
+    assert.throws(()=>parameters({cameraTiltDegrees:81}));
+    const gps=setup();await start(gps,{flightMode:'gps',cameraTiltDegrees:60});assert.equal(gps.poses.at(-1).direction,undefined);
+});
 test('Mode 2 throttle, yaw and pitch/roll control thrust and attitude rather than direct translation',async()=>{
     const p=setup();await start(p,{agl:25,maxSpeed:20,climbSpeed:4});
     assert.equal(p.poses.at(-1).height,1025);advance(p.model);assert.equal(p.model.status().height,1025);
@@ -65,6 +84,41 @@ async function inverted(config={}){
     assert.ok(p.poses.at(-1).up.up<-.999999);
     return p;
 }
+test('Acro spawns, resets and releases at zero throttle with no initial motor thrust',async()=>{
+    const p=setup();await start(p,{flightMode:'acro',agl:500});
+    assert.equal(p.model.status().throttle,0);assert.equal(p.model.status().thrustAcceleration,0);
+    advance(p.model,.5);assert.ok(p.model.status().height<1500&&p.model.status().verticalSpeed<0);
+    input(p.model,{throttle:1});advance(p.model,.5);assert.equal(p.model.status().throttle,1);
+    input(p.model);advance(p.model,1);
+    assert.equal(p.poses.at(-1).throttle,0);assert.ok(p.model.status().thrustAcceleration<.001);
+    await p.model.reset();assert.equal(p.model.status().throttle,0);assert.equal(p.model.status().thrustAcceleration,0);
+    assert.equal(p.model.status().height,1500);
+});
+
+test('Acro centre and lower stick half produce identical zero-thrust falls',async()=>{
+    const results=[];
+    for(const throttle of [0,-.5,-1]){
+        const p=setup();await start(p,{flightMode:'acro',agl:500});
+        input(p.model,{throttle});advance(p.model,1);
+        assert.equal(p.model.status().throttle,0);assert.equal(p.model.status().thrustAcceleration,0);
+        assert.ok(p.model.status().height<1496);results.push(p.model.status());
+    }
+    for(const result of results.slice(1)){
+        assert.equal(result.height,results[0].height);assert.equal(result.verticalSpeed,results[0].verticalSpeed);
+    }
+});
+
+test('Acro upper half controls motor command and HUD from zero to full, retaining the physical hover point',async()=>{
+    const results=[];
+    for(const throttle of [.25,.5,1]){
+        const p=setup();await start(p,{flightMode:'acro',agl:500,acroMotorTimeConstant:0});
+        input(p.model,{throttle});advance(p.model,1);
+        assert.equal(p.model.status().throttle,throttle);assert.equal(p.poses.at(-1).throttle,throttle);
+        results.push(p.model.status());
+    }
+    assert.ok(results[0].height<1500);assert.equal(results[1].height,1500);assert.ok(results[2].height>1500);
+});
+
 test('Acro inverted full throttle adds downward thrust and is faster than a zero-throttle fall',async()=>{
     const coast=await inverted(),full=await inverted();
     const before=full.model.status().height;
@@ -78,7 +132,7 @@ test('Acro inverted full throttle adds downward thrust and is faster than a zero
 test('Acro throttle cut follows analytic gravity/drag free fall instead of the assisted descent-speed limit',async()=>{
     const p=setup(),terminal=120,seconds=2,gravity=9.80665;
     await start(p,{flightMode:'acro',agl:500,maxSpeed:.5,climbSpeed:.2,acroMotorTimeConstant:0,acroTerminalVelocity:terminal});
-    const height=p.model.status().height;input(p.model,{throttle:-1});advance(p.model,seconds,240);
+    const height=p.model.status().height;input(p.model);advance(p.model,seconds,240);
     const expectedSpeed=-terminal*Math.tanh(gravity*seconds/terminal);
     const expectedDrop=terminal*terminal/gravity*Math.log(Math.cosh(gravity*seconds/terminal));
     assert.ok(Math.abs(p.model.status().verticalSpeed-expectedSpeed)<.001);
@@ -126,7 +180,7 @@ test('Acro thrust curve and motor response have bounded nonnegative spool-up and
     input(slow.model,{throttle:-1});advance(slow.model,1);
     assert.ok(slow.model.status().thrustAcceleration>=0&&slow.model.status().thrustAcceleration<.01);
     const linear=setup();await start(linear,{flightMode:'acro',acroThrustCurve:0,acroMotorTimeConstant:0});
-    input(linear.model,{throttle:-.5});advance(linear.model,1);
+    input(linear.model,{throttle:.25});advance(linear.model,1);
     assert.ok(Math.abs(linear.model.status().verticalSpeed)<1e-10,'25% of linear 4:1 thrust balances weight');
 });
 test('Acro free fall approaches aerodynamic terminal velocity smoothly, including after high-speed terrain contact',async()=>{

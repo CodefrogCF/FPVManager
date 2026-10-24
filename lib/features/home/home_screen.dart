@@ -25,6 +25,11 @@ import '../weather/weather_screen.dart';
 import '../weather/weather_preferences.dart';
 import '../globe/terrain_status_banner.dart';
 import '../globe/globe_view.dart';
+import '../globe/globe_input_scope.dart';
+import '../mobility/mobility_screen.dart';
+import '../mobility/mobility_preferences.dart';
+import '../mobility/road_routing.dart';
+import '../mobility/situational_layers_section.dart';
 import '../globe/map_layers_sheet.dart';
 import '../obstacles/obstacle_layers_section.dart';
 import '../globe/terrain_information_dialog.dart';
@@ -63,6 +68,7 @@ class FPVHomeScreen extends StatefulWidget {
 }
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
+  bool _drawerOpen = false;
   Future<void> _openPreflight() async {
     await _leaveGroundView();
     if (!mounted) return;
@@ -86,6 +92,29 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   String? _lastGroundReason;
   String? _lastSimulationReason;
   SimulationSettings _simulationSettings = const SimulationSettings();
+  int _lastSituationalRevision = 0;
+  Future<void> _openMobility({int? initialSpotId}) async {
+    await _leaveGroundView();
+    if (!mounted) return;
+    final database = _database ??= FpvDatabase.open();
+    final point = _globeController.selectedPoint;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MobilityScreen(
+          spots: _spotRepository ??=
+              widget.spotRepository ?? SpotRepository(database),
+          preferences: MobilityPreferences(database),
+          globe: _globeController,
+          initialSpotId: initialSpotId ?? _globeController.selectedSpotId,
+          initialCenter: point == null
+              ? null
+              : MobilityPoint(point.latitude, point.longitude),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openSimulation() async {
     final spot = _spotsById[_globeController.selectedSpotId],
         point = _globeController.selectedPoint;
@@ -94,7 +123,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       repository: _droneRepository ??=
           widget.droneRepository ??
           DroneRepository(_database ??= FpvDatabase.open()),
-      initial: _simulationSettings,
+      initial: _simulationSettings.withCameraTilt(
+        _globeController.simulationCameraTiltDegrees ??
+            _simulationSettings.cameraTiltDegrees,
+      ),
       hasSelection: spot != null || point != null,
     );
     if (settings == null || !mounted) return;
@@ -141,6 +173,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         initialTab: initialTab,
         controller: _globeController,
         routeControls: RouteLayersSection(controller: routes),
+        situationalControls: SituationalLayersSection(
+          globe: _globeController,
+          onOpen: () {
+            Navigator.pop(context);
+            unawaited(_openMobility());
+          },
+        ),
       ),
     );
   }
@@ -162,6 +201,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           repository: repository,
           initialLatitude: point?.latitude,
           initialLongitude: point?.longitude,
+          onRoadRoute: (id) => _openMobility(initialSpotId: id),
         ),
       ),
     );
@@ -289,8 +329,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   Future<void> _openSpotDetails(int id) async {
     final spot = await Navigator.of(context).push<Spot>(
       MaterialPageRoute(
-        builder: (context) =>
-            SpotDetailsScreen(repository: _spotRepository!, spotId: id),
+        builder: (context) => SpotDetailsScreen(
+          repository: _spotRepository!,
+          spotId: id,
+          onRoadRoute: () => _openMobility(initialSpotId: id),
+        ),
       ),
     );
     if (spot == null || !mounted) return;
@@ -404,6 +447,32 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    final selection = _globeController.situationalSelection;
+    if (selection != null &&
+        _lastSituationalRevision !=
+            _globeController.situationalSelectionRevision) {
+      _lastSituationalRevision = _globeController.situationalSelectionRevision;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(
+          showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(selection.name),
+              content: SingleChildScrollView(
+                child: SelectableText(selection.detail),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+    }
     final reason = _globeController.groundViewMessage;
     if (reason != null && reason != _lastGroundReason && mounted) {
       ScaffoldMessenger.of(context)
@@ -435,9 +504,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      onDrawerChanged: (open) => setState(() => _drawerOpen = open),
       drawer: HomeNavigationDrawer(
         onSpots: _openSpots,
         onRoutes: _openRoutes,
+        onMobility: _openMobility,
         onPreflight: _openPreflight,
         onWeather: _openWeather,
         onDrones: _openDrones,
@@ -459,19 +530,23 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          TerrainStatusBanner(controller: _globeController),
-          ObstacleStatusBanner(
-            controller: _globeController.obstacles,
-            onDetails: () => _openMapLayers(initialTab: MapLayerTab.obstacles),
-          ),
-          UasDataQualityBanner(
-            controller: _globeController,
-            onDetails: () => _openMapLayers(initialTab: MapLayerTab.airspace),
-          ),
-          Expanded(child: GlobeView(controller: _globeController)),
-        ],
+      body: GlobeInputScope(
+        enabled: !_drawerOpen,
+        child: Column(
+          children: [
+            TerrainStatusBanner(controller: _globeController),
+            ObstacleStatusBanner(
+              controller: _globeController.obstacles,
+              onDetails: () =>
+                  _openMapLayers(initialTab: MapLayerTab.obstacles),
+            ),
+            UasDataQualityBanner(
+              controller: _globeController,
+              onDetails: () => _openMapLayers(initialTab: MapLayerTab.airspace),
+            ),
+            Expanded(child: GlobeView(controller: _globeController)),
+          ],
+        ),
       ),
       bottomNavigationBar: MapSelectionPanel(
         controller: _globeController,

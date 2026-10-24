@@ -152,6 +152,39 @@ class GlobeController extends ChangeNotifier {
   double _requestedUasOpacity = 0.20;
 
   Map<String, dynamic>? _weatherOverlayCommand;
+  final Map<String, Map<String, dynamic>> _situationalCommands = {};
+  final Map<String, String> _situationalStatus = {};
+  String? situationalStatus(String id) => _situationalStatus[id];
+  bool situationalVisible(String id) => _situationalCommands.containsKey(id);
+  double situationalOpacity(String id) =>
+      (_situationalCommands[id]?['opacity'] as num?)?.toDouble() ?? .75;
+  ({String name, String detail})? _situationalSelection;
+  ({String name, String detail})? get situationalSelection =>
+      _situationalSelection;
+  int _situationalSelectionRevision = 0;
+  int get situationalSelectionRevision => _situationalSelectionRevision;
+  Future<void> showSituationalOverlay(Map<String, dynamic> value) async {
+    final id = value['id'];
+    if (!{
+          'road',
+          'traffic',
+          'aircraft',
+          'heliports',
+          'wildfire',
+        }.contains(id) ||
+        value['visible'] is! bool) {
+      throw ArgumentError('Invalid situational overlay');
+    }
+    final command = {...value, 'type': 'set-situational-overlay'};
+    if (value['visible'] == true) {
+      _situationalCommands[id as String] = command;
+    } else {
+      _situationalCommands.remove(id);
+      _situationalStatus.remove(id);
+    }
+    if (!_disposed) notifyListeners();
+    if (_ready) await _send(command);
+  }
 
   /// Weather presentation is independent of Swiss airspace restrictions.
   Future<void> showWeatherOverlay(Map<String, dynamic> command) async {
@@ -184,6 +217,8 @@ class GlobeController extends ChangeNotifier {
   bool get simulationPending => _simulationPending;
   bool get navigationFocused => _navigationFocused;
   String? get simulationMessage => _simulationMessage;
+  double? _simulationCameraTiltDegrees;
+  double? get simulationCameraTiltDegrees => _simulationCameraTiltDegrees;
   bool get navigationActive => _simulationActive || _groundViewActive;
 
   Future<void> enterSimulation(
@@ -754,6 +789,13 @@ class GlobeController extends ChangeNotifier {
 
   void _resetConnection() {
     obstacles.rendererLost();
+    _situationalSelection = null;
+    _situationalStatus.clear();
+    for (final id in ['heliports', 'wildfire']) {
+      if (_situationalCommands.containsKey(id)) {
+        _situationalStatus[id] = 'loading';
+      }
+    }
     _groundViewActive = _groundViewPending = false;
     _simulationActive = _simulationPending = _navigationFocused = false;
     _simulationMessage = null;
@@ -1134,6 +1176,28 @@ class GlobeController extends ChangeNotifier {
 
     if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
+      case 'situational-status':
+        final id = data['id'], state = data['state'];
+        if (id is String &&
+            {'heliports', 'wildfire'}.contains(id) &&
+            state is String &&
+            {'off', 'loading', 'ready', 'failed'}.contains(state)) {
+          _situationalStatus[id] = state;
+          notifyListeners();
+        }
+      case 'situational-selected':
+        final name = data['name'], detail = data['detail'];
+        if (name is String &&
+            detail is String &&
+            name.length <= 200 &&
+            detail.length <= 1200) {
+          _situationalSelection = (name: name, detail: detail);
+          _situationalSelectionRevision++;
+          _selectedPoint = null;
+          _selectedSpotId = null;
+          _resetUasSelection();
+          notifyListeners();
+        }
       case 'navigation-focus':
         if (data['focused'] is! bool) return;
         _navigationFocused = data['focused'] as bool;
@@ -1142,6 +1206,10 @@ class GlobeController extends ChangeNotifier {
         if (data['active'] is! bool || data['pending'] is! bool) return;
         _simulationActive = data['active'] as bool;
         _simulationPending = data['pending'] as bool;
+        final tilt = data['cameraTiltDegrees'];
+        if (tilt is num && tilt.isFinite && tilt >= 0 && tilt <= 80) {
+          _simulationCameraTiltDegrees = tilt.toDouble();
+        }
         final reason = data['reason'];
         _simulationMessage = reason is String
             ? reason.substring(0, reason.length.clamp(0, 180))
@@ -1459,6 +1527,14 @@ class GlobeController extends ChangeNotifier {
       if (!current()) return;
       if (_weatherOverlayCommand != null && current()) {
         await _send(_weatherOverlayCommand!);
+      }
+      for (final entry in _situationalCommands.entries.toList()) {
+        if (!current()) return;
+        try {
+          await _send(entry.value);
+        } catch (_) {
+          _situationalStatus[entry.key] = 'failed';
+        }
       }
       if (!current()) return;
       if (_uasRequestedVisible) await _updateUas(forceRefresh: false);

@@ -12,6 +12,7 @@ class HomeNavigationDrawer extends StatelessWidget {
     required this.onBatteries,
     required this.onRadio,
     this.onPreflight,
+    this.onMobility,
   });
   final Future<void> Function() onSpots,
       onRoutes,
@@ -20,6 +21,7 @@ class HomeNavigationDrawer extends StatelessWidget {
       onBatteries,
       onRadio;
   final Future<void> Function()? onPreflight;
+  final Future<void> Function()? onMobility;
   Widget _item(
     BuildContext context,
     IconData icon,
@@ -50,6 +52,13 @@ class HomeNavigationDrawer extends StatelessWidget {
           ),
           _item(context, Icons.bookmark_outline, 'FPV Spots', onSpots),
           _item(context, Icons.route_outlined, 'Flight routes', onRoutes),
+          if (onMobility != null)
+            _item(
+              context,
+              Icons.travel_explore,
+              'Mobility & OSINT',
+              onMobility!,
+            ),
           if (onPreflight != null)
             _item(
               context,

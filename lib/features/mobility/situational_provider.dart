@@ -1,0 +1,388 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:xml/xml.dart';
+
+import '../../core/osint/api_access_policy.dart';
+import '../../core/osint/cached_osint_provider.dart';
+import '../../core/osint/osint_dataset.dart';
+import '../../core/osint/osint_provider_state.dart';
+import '../../core/osint/osint_source.dart';
+import 'road_routing.dart';
+
+enum SituationalKind { traffic, aircraft }
+
+final astraTrafficAccess = ApiAccessPolicy(
+  id: 'astra-traffic',
+  name: 'ASTRA traffic situations',
+  access: ApiAccessClass.verifiedFreeKey,
+  registrationUri: Uri.parse('https://api-manager.opentransportdata.swiss/'),
+);
+
+String _text(Object? value, [int max = 800]) {
+  final text = value?.toString() ?? '';
+  return text.substring(0, text.length.clamp(0, max));
+}
+
+DateTime? _utc(String? value) {
+  if (value == null || !RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(value)) {
+    return null;
+  }
+  return DateTime.tryParse(value)?.toUtc();
+}
+
+Iterable<XmlElement> _elements(XmlNode node, String name) =>
+    node.descendants.whereType<XmlElement>().where((e) => e.name.local == name);
+String? _value(XmlNode node, String name) =>
+    _elements(node, name).firstOrNull?.innerText;
+
+/// Accepts explicit DATEX WGS84 coordinates only. TMC references are counted,
+/// never geocoded by guessing from road names or interpreted as clear roads.
+Map<String, dynamic> parseTrafficSnapshot(String input) {
+  if (input.length > 4 * 1024 * 1024 ||
+      RegExp(r'<!\s*(DOCTYPE|ENTITY)', caseSensitive: false).hasMatch(input)) {
+    throw const FormatException('Unsupported DATEX XML');
+  }
+  final xml = XmlDocument.parse(input);
+  final records = _elements(xml, 'situationRecord').take(2001).toList();
+  if (records.length > 2000 ||
+      _elements(xml, 'Fault').isNotEmpty ||
+      (_elements(xml, 'd2LogicalModel').isEmpty &&
+          _elements(xml, 'payloadPublication').isEmpty)) {
+    throw const FormatException('Not a supported DATEX situation snapshot');
+  }
+  final features = <String, Map<String, dynamic>>{};
+  final unlocatedRecords = <String, Map<String, dynamic>>{};
+  var omitted = 0;
+  records.sort(
+    (a, b) =>
+        (_utc(_value(a, 'situationRecordVersionTime'))
+                    ?.millisecondsSinceEpoch ??
+                0)
+            .compareTo(
+              _utc(_value(b, 'situationRecordVersionTime'))
+                      ?.millisecondsSinceEpoch ??
+                  0,
+            ),
+  );
+  for (final record in records) {
+    final id = record.getAttribute('id');
+    if (id == null || id.isEmpty || id.length > 160) {
+      omitted++;
+      continue;
+    }
+    // A newer unlocated/revoked update must not leave an old positioned marker.
+    features.remove(id);
+    unlocatedRecords.remove(id);
+    final publicValues = _elements(record, 'generalPublicComment')
+        .expand((e) => _elements(e, 'value'))
+        .map((e) => e.innerText.trim())
+        .toList();
+    final revoked =
+        publicValues.any(
+          (v) => RegExp(
+            r'^(Aufgehoben|Révoqué|Revocato|Revoked):',
+            caseSensitive: false,
+          ).hasMatch(v),
+        ) ||
+        _elements(
+          record,
+          'validityStatus',
+        ).any((e) => e.innerText.toLowerCase().contains('revoked')) ||
+        _elements(record, 'lifeCycleManagement').any(
+          (e) => _elements(e, 'cancel').any(
+            (flag) =>
+                {'true', '1'}.contains(flag.innerText.trim().toLowerCase()),
+          ),
+        );
+    if (revoked) {
+      features.remove(id);
+      continue;
+    }
+    final from = _utc(_value(record, 'overallStartTime')),
+        until = _utc(_value(record, 'overallEndTime'));
+    final time = _utc(_value(record, 'situationRecordVersionTime'));
+    final coordinates = <List<double>>[];
+    for (final point in _elements(record, 'pointCoordinates').take(33)) {
+      final lat = double.tryParse(_value(point, 'latitude') ?? ''),
+          lon = double.tryParse(_value(point, 'longitude') ?? '');
+      if (lat == null || lon == null) continue;
+      try {
+        coordinates.add(MobilityPoint(lat, lon).toJson());
+      } on FormatException {
+        /* Unsupported coordinate. */
+      }
+    }
+    if (coordinates.isEmpty) {
+      unlocatedRecords[id] = {
+        'name': _text(id, 160),
+        'detail': _text(
+          '${_text(publicValues.take(3).join(" · "), 250)}\nSource: ASTRA / VMZ-CH\nUpdated: ${time?.toIso8601String() ?? "unknown"}\nValid from: ${from?.toIso8601String() ?? "unknown"}\nValid until: ${until?.toIso8601String() ?? "unknown"}\nLocation: TMC/unsupported. Table version: ${_text(_value(record, "alertCLocationTableVersion") ?? "unknown", 30)}; code: ${_text(_value(record, "specificLocation") ?? "unknown", 30)}. No position inferred.',
+        ),
+      };
+      continue;
+    }
+    if (coordinates.length > 32 || features.length >= 1000) {
+      omitted++;
+      continue;
+    }
+    final type =
+        record.attributes
+            .where((a) => a.name.local == 'type')
+            .firstOrNull
+            ?.value
+            .split(':')
+            .last ??
+        'Traffic situation';
+    final comments = _elements(record, 'generalPublicComment')
+        .map((e) => e.innerText.trim())
+        .where((s) => s.isNotEmpty)
+        .take(3)
+        .join(' · ');
+    features[id] = {
+      'id': _text(id, 160),
+      'name': _text(type, 160),
+      'detail': _text(
+        '${_text(comments, 250)}\nSource: ASTRA / VMZ-CH\nSource ID: $id\nUpdated: ${time?.toIso8601String() ?? "unknown"}\nValid from: ${from?.toIso8601String() ?? "unknown"}\nValid until: ${until?.toIso8601String() ?? "unknown"}${coordinates.length > 1 ? "\nStraight connections between source positions; approximate extent." : ""}',
+      ),
+      'timestampUtc': time?.toIso8601String(),
+      'validFromUtc': from?.toIso8601String(),
+      'validUntilUtc': until?.toIso8601String(),
+      'geometry': {
+        'type': coordinates.length == 1 ? 'Point' : 'LineString',
+        'coordinates': coordinates.length == 1
+            ? coordinates.first
+            : coordinates,
+      },
+    };
+  }
+  return {
+    'features': features.values.toList(),
+    'publishedAtUtc': _utc(_value(xml, 'publicationTime'))?.toIso8601String(),
+    'unlocated': unlocatedRecords.length,
+    'unlocatedRecords': unlocatedRecords.values.take(100).toList(),
+    'omitted': omitted,
+    'coverage': 'Swiss road network as reported by ASTRA/VMZ-CH; TMC-only locations require the separate official topology. No complete network coverage claim.',
+  };
+}
+
+/// Positions are displayed as ground-projected awareness markers. Barometric
+/// altitudes are not silently converted into Cesium ellipsoid/terrain heights.
+Map<String, dynamic> parseAircraftSnapshot(String input) {
+  if (input.length > 4 * 1024 * 1024) {
+    throw const FormatException('Aircraft snapshot too large');
+  }
+  final json = jsonDecode(input) as Map<String, dynamic>;
+  final records = json['ac'], epoch = json['now'];
+  if (records is! List ||
+      records.length > 5000 ||
+      epoch is! num ||
+      !epoch.isFinite ||
+      epoch < 1e12 ||
+      epoch > 1e14) {
+    throw const FormatException('Unsupported readsb/adsb.lol response');
+  }
+  final published = DateTime.fromMillisecondsSinceEpoch(
+    epoch.round(),
+    isUtc: true,
+  );
+  final features = <Map<String, dynamic>>[], ids = <String>{};
+  var unlocated = 0, omitted = 0;
+  for (final raw in records) {
+    if (raw is! Map) {
+      omitted++;
+      continue;
+    }
+    final lat = raw['lat'],
+        lon = raw['lon'],
+        seen = raw['seen_pos'],
+        hex = raw['hex'];
+    if (lat is! num ||
+        lon is! num ||
+        seen is! num ||
+        !seen.isFinite ||
+        seen < 0 ||
+        hex is! String ||
+        !RegExp(r'^~?[a-fA-F0-9]{6}$').hasMatch(hex)) {
+      unlocated++;
+      continue;
+    }
+    MobilityPoint point;
+    try {
+      point = MobilityPoint(lat.toDouble(), lon.toDouble());
+    } on FormatException {
+      unlocated++;
+      continue;
+    }
+    if (features.length >= 1000 || !ids.add(hex)) {
+      omitted++;
+      continue;
+    }
+    if (seen > 86400) {
+      omitted++;
+      continue;
+    }
+    final timestamp = published.subtract(
+      Duration(milliseconds: (seen * 1000).round()),
+    );
+    final baro = raw['alt_baro'], geom = raw['alt_geom'];
+    String altitude(Object? value) => value is num && value.isFinite
+        ? '${(value * .3048).toStringAsFixed(0)} m / $value ft'
+        : _text(value ?? 'unknown', 40);
+    features.add({
+      'id': hex,
+      'name': _text((raw['flight'] ?? hex).toString().trim(), 160),
+      'timestampUtc': timestamp.toIso8601String(),
+      'detail': _text(
+        'Source: adsb.lol · ODbL 1.0\nICAO: $hex\nPosition: ${point.latitude}, ${point.longitude}\nPosition time: ${timestamp.toIso8601String()}\nBarometric altitude (not terrain AGL): ${altitude(baro)}\nReported geometric altitude: ${altitude(geom)}; source reference not independently verified.\n${_text(raw["type"], 40)} position; displayed on terrain, not at aircraft altitude.',
+      ),
+      'geometry': {'type': 'Point', 'coordinates': point.toJson()},
+    });
+  }
+  return {
+    'features': features,
+    'publishedAtUtc': published.toIso8601String(),
+    'unlocated': unlocated,
+    'omitted': omitted,
+    'coverage': 'Community ADS-B/MLAT reception within the requested radius; low-flying, non-transmitting and unreceived aircraft may be absent. No extrapolation.',
+  };
+}
+
+class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
+  SituationalProvider({
+    required this.kind,
+    required this.center,
+    this.readTrafficKey,
+    http.Client? client,
+    super.now,
+  }) : transport = MobilityHttp(client: client),
+       super(
+         cacheDuration: kind == SituationalKind.aircraft
+             ? const Duration(seconds: 30)
+             : const Duration(minutes: 5),
+       );
+  final SituationalKind kind;
+  final MobilityPoint center;
+  final Future<String?> Function()? readTrafficKey;
+  final MobilityHttp transport;
+  String? _import;
+  DateTime? _lastNetworkAttempt;
+  void _rateLimit(Duration minimum) {
+    final now = nowUtc;
+    if (_lastNetworkAttempt != null &&
+        now.difference(_lastNetworkAttempt!) < minimum) {
+      throw FormatException(
+        'Please wait at least ${minimum.inSeconds} seconds between source requests.',
+      );
+    }
+    _lastNetworkAttempt = now;
+  }
+
+  static const trafficUrl =
+      'https://api.opentransportdata.swiss/TDP/Soap_Datex2/TrafficSituations/Pull';
+  @override
+  OsintSource get source => kind == SituationalKind.traffic
+      ? OsintSource(
+          id: 'astra-traffic',
+          name: 'Swiss traffic situations',
+          publisher: 'ASTRA / VMZ-CH',
+          dataUri: Uri.parse(trafficUrl),
+          metadataUri: Uri.parse(
+            'https://opentransportdata.swiss/en/cookbook/road-traffic-cookbook/traffic-situations/',
+          ),
+          licenseName: 'ASTRA VDP terms; own registered access, no raw API redistribution',
+          licenseUri: Uri.parse(
+            'https://opentransportdata.swiss/de/tac-fedro/',
+          ),
+          attribution: 'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA',
+          coordinateReference: 'EPSG:4326',
+        )
+      : OsintSource(
+          id: 'adsb-lol-aircraft',
+          name: 'Aircraft reception snapshot',
+          publisher: 'adsb.lol community',
+          dataUri: Uri.https(
+            'api.adsb.lol',
+            '/v2/lat/${center.latitude.toStringAsFixed(3)}/lon/${center.longitude.toStringAsFixed(3)}/dist/25',
+          ),
+          metadataUri: Uri.parse('https://api.adsb.lol/docs'),
+          licenseName: 'ODbL 1.0',
+          licenseUri: Uri.parse(
+            'https://opendatacommons.org/licenses/odbl/1-0/',
+          ),
+          attribution: 'adsb.lol · ODbL 1.0',
+          coordinateReference: 'EPSG:4326',
+        );
+  Future<OsintDataset<Map<String, dynamic>>> importText(String text) async {
+    if (status.update == OsintUpdateState.loading) {
+      throw StateError('An update is already running');
+    }
+    _import = text;
+    try {
+      return await fetch(forceRefresh: true);
+    } finally {
+      _import = null;
+    }
+  }
+
+  @override
+  Future<OsintDataset<Map<String, dynamic>>> download() async {
+    final imported = _import != null;
+    String body;
+    if (imported) {
+      body = _import!;
+    } else if (kind == SituationalKind.aircraft) {
+      if (kIsWeb) {
+        throw const FormatException(
+          'adsb.lol does not allow direct browser requests (CORS). Import a source JSON snapshot, use Android, or open the provider map. No third-party proxy is used.',
+        );
+      }
+      _rateLimit(const Duration(seconds: 15));
+      body = await transport.text(sourceUri);
+    } else {
+      final key = await readTrafficKey?.call();
+      if (key == null ||
+          key.trim().isEmpty ||
+          key.length > 4096 ||
+          key.contains(RegExp(r'[\r\n]'))) {
+        throw const FormatException(
+          'Add your registered ASTRA API key, or import a DATEX snapshot.',
+        );
+      }
+      _rateLimit(const Duration(seconds: 5));
+      body = await transport.text(
+        sourceUri,
+        headers: {
+          'Authorization': key.startsWith('Bearer ') ? key : 'Bearer $key',
+          'Content-Type': 'text/xml; charset=utf-8',
+          'SOAPAction': 'http://opentransportdata.swiss/TDP/Soap_Datex2/Pull/v1/pullTrafficMessages',
+        },
+        body:
+            '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><d2LogicalModel modelBaseVersion="2" xmlns="http://datex2.eu/schema/2/2_0"><exchange><supplierIdentification><country>ch</country><nationalIdentifier>FEDRO</nationalIdentifier></supplierIdentification><subscription><operatingMode>operatingMode1</operatingMode><subscriptionStartTime>${nowUtc.toIso8601String()}</subscriptionStartTime><subscriptionState>active</subscriptionState><updateMethod>singleElementUpdate</updateMethod><target><address></address><protocol>http</protocol></target></subscription></exchange></d2LogicalModel></soap:Body></soap:Envelope>',
+      );
+    }
+    final data = kind == SituationalKind.traffic
+        ? await compute(parseTrafficSnapshot, body)
+        : await compute(parseAircraftSnapshot, body);
+    data['transport'] = imported
+        ? 'Imported local snapshot; not revalidated online'
+        : 'Direct provider request';
+    final time = nowUtc;
+    return OsintDataset(
+      source: source,
+      data: data,
+      fetchedAtUtc: time,
+      cacheExpiresAtUtc: imported ? time : time.add(cacheDuration),
+      publishedAtUtc: _utc(data['publishedAtUtc'] as String?),
+      persistable: false,
+      requiresRevalidation: imported,
+    );
+  }
+
+  @override
+  void dispose() {
+    transport.dispose();
+    super.dispose();
+  }
+}

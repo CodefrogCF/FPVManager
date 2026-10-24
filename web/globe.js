@@ -42,10 +42,11 @@ function postToFlutter(message) {
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
         stopNavigation();
-        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
+    let situationalLayers = null;
     let terrainManager = null;
     let flyer = null;
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
@@ -572,6 +573,7 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case "set-situational-overlay": return situationalLayers.set(command);
             case "set-weather-overlay": return weatherOverlay.replace(command);
             case "clear-weather-overlay": return weatherOverlay.clear();
             case "set-obstacle-wms": obstacleWms.set(command); return {};
@@ -763,6 +765,7 @@ function postToFlutter(message) {
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
         activeViewer = viewer;
+        situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
         hazardAreas = FPVObstacles.createHazards(Cesium,viewer);
         obstacleVectors = FPVObstacles.createVectors(Cesium,viewer,
@@ -771,6 +774,8 @@ function postToFlutter(message) {
         const groundPanel = document.getElementById("ground-controls");
         const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
         const readout=document.getElementById('flight-readout'),device=document.getElementById('navigation-device');
+        const cameraButton=document.getElementById('camera-flight'),cameraPanel=document.getElementById('flight-camera');
+        const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
         let deviceMessage='', lastHud=0,lastReason=null;
         const lastModes={ground:false,flight:false};
         const cameraAdapter={
@@ -811,10 +816,15 @@ function postToFlutter(message) {
             groundPanel.hidden=!state.active; flightButtons.hidden=mode!=='flight'||!state.active;
             groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
             hud.hidden=mode!=='flight'||!state.active; info.hidden=mode==='flight'&&state.active;
+            const fpv=mode==='flight'&&state.active&&state.mode!=='gps';
+            cameraButton.hidden=!fpv;
+            if(!fpv){cameraPanel.hidden=true;cameraButton.setAttribute?.('aria-expanded','false');}
+            if(fpv){cameraSlider.value=String(state.cameraTiltDegrees);cameraValue.textContent=`${state.cameraTiltDegrees}°`;}
             if(!state.active){disposeGroundControls?.reset();terrainInfo(terrainManager.status());}
             if(entering)viewer.canvas.focus();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
-                active:state.active,pending:state.pending,reason:state.active?null:state.reason??null});
+                active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
+                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
             applyPose:point=>{
@@ -853,6 +863,10 @@ function postToFlutter(message) {
             onDevice:message=>{deviceMessage=message;device.textContent=message;}});
         document.getElementById('reset-flight').addEventListener('click',()=>flyer.reset().catch(()=>{}));
         document.getElementById('exit-flight').addEventListener('click',()=>flyer.stop());
+        cameraButton.addEventListener('click',()=>{
+            cameraPanel.hidden=!cameraPanel.hidden;cameraButton.setAttribute('aria-expanded',String(!cameraPanel.hidden));
+        });
+        cameraSlider.addEventListener('input',()=>flyer.cameraTilt(Number(cameraSlider.value)));
         let lastWalkTime=performance.now();
         viewer.scene.preRender.addEventListener(()=>{
             const now=performance.now(),seconds=(now-lastWalkTime)/1000;lastWalkTime=now;
@@ -912,6 +926,7 @@ function postToFlutter(message) {
                 }
                 sendToFlutter('obstacle-cleared');
                 if (navigationActive() || routeEditor.click(event.position)) return;
+                if (situationalLayers.pick(entity)) return;
 
                 const isUasZone =
                     uasDataSource !== null &&

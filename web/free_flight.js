@@ -17,11 +17,11 @@
     }
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
-            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??35};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
-            ['acceleration',.2,50],['deceleration',.2,50],['acroThrustToWeight',1.1,12],
+            ['acceleration',.2,50],['deceleration',.2,50],['cameraTiltDegrees',0,80],['acroThrustToWeight',1.1,12],
             ['acroThrustCurve',0,1],['acroMotorTimeConstant',0,.5],['acroTerminalVelocity',5,120]]){
             if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`Invalid flight ${key}`);
         }
@@ -45,14 +45,17 @@
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         const keys=new Set();
+        // Self-centring sticks: Acro uses only the upper half for motor command.
+        function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
         function clearKeys(){keys.clear();input={throttle:0,yaw:0,pitch:0,roll:0};forward=right=vertical=throttle=0;}
         function brake(){velocity={north:0,east:0,up:0};rates={x:0,y:0,z:0};}
         function orientation(){
-            const f=rotate(q,{x:1,y:0,z:0}),u=rotate(q,{x:0,y:0,z:-1});
+            const tilt=config.cameraTiltDegrees*rad,c=Math.cos(tilt),s=Math.sin(tilt);
+            const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,mode:config.flightMode,position:position&&{...position},height,heading,pitch,roll,
-            throttle:(throttle+1)/2,thrustAcceleration:motorThrust,verticalSpeed:velocity.up,
+        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,position:position&&{...position},height,heading,pitch,roll,
+            throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
             distance:spawn&&position?distance(spawn,position):0,reason};}
@@ -78,7 +81,7 @@
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
                 config=next;saved=captureCamera();spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
-                motorThrust=acroThrust(.5);
+                motorThrust=acroThrust(motorCommand());
                 active=true;pending=false;pose();publish();return {};
             }catch(error){if(token!==operation)return {cancelled:true};stop('Unable to start simulated flight');throw error;}
             finally{signal.removeEventListener('abort',cancel);}
@@ -106,7 +109,7 @@
             return g*config.acroThrustToWeight*((1-curve)*command+curve*command*command);
         }
         function acroTranslation(u,dt){
-            const target=acroThrust((throttle+1)/2),tau=config.acroMotorTimeConstant;
+            const target=acroThrust(motorCommand()),tau=config.acroMotorTimeConstant;
             const decay=tau>0?Math.exp(-dt/tau):0,previous=motorThrust;
             motorThrust=target+(previous-target)*decay;
             const thrust=tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
@@ -195,6 +198,11 @@
             return start({...spawn,...config},signal??new AbortController().signal);
         }
         return {start,stop,reset,tick,status,
+            cameraTilt(degrees){
+                if(!Number.isFinite(degrees)||degrees<0||degrees>80)throw new Error('Invalid camera tilt');
+                config={...config,cameraTiltDegrees:degrees};
+                if(active){pose();publish();}
+            },
             reconfigure(command,signal){if(!active||!spawn)throw new Error('No active simulation');return start({...command,...spawn},signal);},
             look(dx,dy){if(active&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
                 heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},

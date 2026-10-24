@@ -48,6 +48,7 @@ void main() {
         'free_flight.js',
         'route_editor.js',
         'obstacle_layers.js',
+        'situational_layers.js',
       ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);

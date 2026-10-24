@@ -84,6 +84,14 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   await command('enter-simulation',{agl:5});await until(()=>flight?.active,'camera-target entry');
   check(Math.abs(v.camera.positionCartographic.height-1005)<.5,'Camera target spawn failed');
   await command('enter-simulation',{agl:400,flightMode:'acro'});await pause(100);
+  const cameraButton=doc.getElementById('camera-flight'),cameraSlider=doc.getElementById('flight-camera-angle');
+  cameraButton.click();check(!doc.getElementById('flight-camera').hidden,'Camera adjustment did not open');
+  cameraSlider.value='30';cameraSlider.dispatchEvent(new win.Event('input',{bubbles:true}));
+  const tiltUp=v.scene.globe.ellipsoid.geodeticSurfaceNormal(v.camera.positionWC);
+  check(C.Cartesian3.dot(v.camera.directionWC,tiltUp)>.49,'Camera did not tilt upward relative to the drone');
+  check(doc.getElementById('flight-camera-value').textContent==='30°','Camera angle label not updated');
+  cameraSlider.value='0';cameraSlider.dispatchEvent(new win.Event('input',{bubbles:true}));
+  log('FPV camera tilt changes the actual Cesium view in flight without respawning');
   canvas.focus();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await pause(1100);
   canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'ArrowRight',bubbles:true}));
   const localUp=v.scene.globe.ellipsoid.geodeticSurfaceNormal(v.camera.positionWC);

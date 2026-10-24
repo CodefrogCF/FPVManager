@@ -19,7 +19,7 @@ Photos are imported only through the file picker. Persisted JPEGs/thumbnails
 omit source EXIF/GPS metadata; originals remain unchanged. The native picker
 may keep an original copy in its temporary cache.
 
-Only **Use current location** requests a one-time position and, if needed,
+Only **Use current location** / **Use device location** requests a one-time position and, if needed,
 permission. Android declares foreground coarse/fine location, supports approximate
 location and requests no background access. There is no continuous position
 stream. Lookup times out after 20 seconds once permission is resolved. Only
@@ -36,12 +36,15 @@ including when focusing a private spot or displaying a route.
 | Destination | Trigger and data |
 |---|---|
 | `wmts.geo.admin.ch` | Map startup/navigation/style changes or imagery refresh after terrain retry; layer, zoom and tile coordinates. |
-| `wms.geo.admin.ch` | Enabling/restoring obstacle imagery and navigating while enabled; viewed area, projection and image dimensions. |
-| `api3.geo.admin.ch` | Opening the official obstacle legend; public legend URL. |
+| `wms.geo.admin.ch` | Enabling/restoring obstacle, aerodrome/heliport or wildfire imagery and navigating while enabled; viewed area, projection and image dimensions. |
+| `api3.geo.admin.ch` | Opening official obstacle, aerodrome/heliport or wildfire legends; public legend URL. |
 | `3d.geo.admin.ch` | Terrain startup/probe, navigation, height queries, ground/flight view, route framing/previews and explicit retry; terrain tile identifiers revealing sampled areas. |
 | `data.geo.admin.ch` | UAS checks/refresh and obstacle STAC metadata/full KMZ download; public national dataset URLs, without a user-position query. Restoring obstacle vectors reads a local snapshot first. |
 | `data.geo.admin.ch` (weather) | Selecting MeteoSwiss or refreshing/comparing forecasts; public point metadata and national forecast CSV files. Coordinates are matched locally and are not part of these requests. |
 | `api.open-meteo.com` | Open-Meteo forecasts, spot comparisons and weather overlays; selected coordinates, requested parameters and forecast range. |
+| `routing.openstreetmap.de` | Explicit driving-route calculation after consent; start/destination coordinates, without spot names or access notes. |
+| `api.opentransportdata.swiss` | Explicit ASTRA traffic refresh; own API key in the authorization header and a national DATEX request, without the user's position. |
+| `api.adsb.lol` | Explicit Android aircraft refresh after consent; rounded area centre and a 25 NM radius. Web supports local snapshot import because the source blocks direct CORS requests. |
 | `geodesy.geo.admin.ch` | Only explicit LN02 conversion; selected longitude/latitude/elevation, then LV95 coordinates/Bessel height, in GET query parameters. |
 | App origin (Web) / app-owned loopback origin (Android) | Application, Cesium, Workers, Wasm and Flutter renderer resources. The documented Web build bundles renderer assets locally. |
 
@@ -52,3 +55,5 @@ UAS stores that choice for the next start; cache-age display makes no requests.
 
 See [map sources and attribution](map_sources_and_attribution.md) for source
 conditions and [the user guide](user_guide.md) for controls.
+See [Mobility & OSINT](mobility_osint.md) for source terms, session-only snapshots
+and secure storage of user-provided credentials.

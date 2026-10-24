@@ -66,7 +66,8 @@ revision and stable draft waypoint keys reject stale edits.
 Free flight uses `enter-simulation` (optional paired latitude/longitude, `agl`,
 `maxSpeed`, `climbSpeed`, `acceleration`, `deceleration`, `flightMode` = gps/angle/acro), `reset-simulation` and
 `exit-simulation`. Missing coordinates select the camera target. `simulation-state`
-reports active/pending/reason; `navigation-focus` gates device input. Android sends
+reports active/pending/reason and `cameraTiltDegrees` (0–80° upward, also accepted
+at entry; body-relative FPV view only). `navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
 reset/exit/connected booleans). Frames retain physical axes: forward/right are
 left-stick up/right; yaw/pitch are right-stick right/down. Angle/Acro map these
@@ -92,6 +93,11 @@ and a `samplingMethod` (`most-detailed` or `level-12`). Failed or changed terrai
 invalidates the batch; partial profiles are not used as complete clearance data.
 Cancellation/revision checks prevent obsolete geometry from reappearing;
 `route-preview-error` reports asynchronous rebuild failures for explicit retry.
+
+`set-situational-overlay` controls independent road/traffic/aircraft snapshots
+and heliport/wildfire imagery. `situational-status` reports imagery loading or
+failure; `situational-selected` carries bounded plain-text details. See
+[Mobility & OSINT](mobility_osint.md) for sources and limits.
 
 See [architecture](architecture.md) for provider/terrain recovery,
 [Contributing](../CONTRIBUTING.md) for tests, and the [user guide](user_guide.md)

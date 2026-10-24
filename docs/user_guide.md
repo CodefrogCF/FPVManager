@@ -72,6 +72,9 @@ target when no point is selected. Detailed terrain is required.
 
 Choose **Angle** (default), **Acro** or **GPS** in the flight settings. Reopening
 settings and spawning switches mode at the original spawn point, level and stationary.
+**FPV camera tilt** sets 0–80° upward relative to the drone in Angle/Acro.
+The compact **Camera** control changes it during flight without respawning;
+camera tilt changes the view, not thrust or the drone's attitude.
 
 - **Angle:** Mode 2 — left stick vertical is throttle, horizontal is yaw; right
   stick vertical controls pitch and horizontal controls roll. Tilt is limited to
@@ -91,9 +94,10 @@ FPV keyboard: E/Q throttle, A/D yaw, W/S (or up/down arrows) pitch, left/right
 arrows roll; IJKL also controls pitch/roll. In GPS, WASD/arrows move, drag/IJKL
 looks and E/Q climbs/descends. Touch the right half to show the second stick.
 ↑/↓, right/left triggers and R1/L1 provide additional gas/height controls.
-Angle retains its centred hover aid. Acro maps the full stick range to 0–100%
-motor command: fully down cuts thrust; centre is 50%. The estimated hover point
-depends on the physical settings (50% with defaults) and applies only while level.
+Angle retains its centred hover aid. Acro uses the upper stick half for 0–100%
+motor command: centre and downward input cut thrust; fully up gives 100%.
+The estimated hover point depends on the physical settings (50% with defaults)
+and applies only while level.
 The Acro HUD shows signed vertical speed: negative is descent toward terrain.
 
 **Reset**, R or controller A returns to spawn; **Exit**, Escape, controller B or

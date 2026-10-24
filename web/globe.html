@@ -90,6 +90,10 @@
     #flight-actions { display:flex;gap:6px;margin-top:5px; }
     #flight-actions button { pointer-events:auto;padding:5px 10px;color:var(--map-text);background:var(--map-surface);
         border:1px solid var(--map-outline);border-radius:12px; }
+    #flight-camera { display:flex;align-items:center;gap:8px;pointer-events:auto;
+        width:max-content;max-width:100%;margin-top:5px;padding:6px 10px;background:var(--map-surface);border-radius:10px; }
+    #flight-camera[hidden], #camera-flight[hidden] { display:none; }
+    #flight-camera-angle { width:130px;max-width:40vw;accent-color:var(--map-accent); }
     [data-stick] { width: clamp(92px, 20vw, 116px); aspect-ratio: 1; border-radius: 50%;
         border: 1px solid #ffffff66; background: var(--stick-fill); touch-action: none;
         user-select: none; position: relative; box-shadow: 0 0 0 1px #10140f55; }
@@ -131,7 +135,8 @@
     <div id="look-region"><div id="look-stick" hidden aria-hidden="true"><div id="look-thumb"></div></div></div>
     <div id="navigation-hud" hidden>
         <output id="flight-readout"></output><span id="navigation-device"></span>
-        <div id="flight-actions"><button id="reset-flight">Reset</button><button id="exit-flight">Exit</button></div>
+        <div id="flight-actions"><button id="reset-flight">Reset</button><button id="camera-flight" aria-expanded="false" aria-controls="flight-camera">Camera</button><button id="exit-flight">Exit</button></div>
+        <label id="flight-camera" hidden>Camera ↑ <input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"><output id="flight-camera-value">0°</output></label>
     </div>
 
     <script src="globe_bridge.js"></script>
@@ -143,6 +148,7 @@
     <script src="route_editor.js"></script>
     <script src="signal_analysis.js"></script>
     <script src="obstacle_layers.js"></script>
+    <script src="situational_layers.js"></script>
     <script src="uas_zone_styles.js"></script>
     <script src="weather_overlay.js"></script>
     <script src="globe.js"></script>

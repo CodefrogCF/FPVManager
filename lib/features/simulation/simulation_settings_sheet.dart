@@ -36,6 +36,9 @@ class _SettingsState extends State<_Settings> {
   final _form = GlobalKey<FormState>();
   late final _fields = <String, TextEditingController>{
     'agl': TextEditingController(text: '${widget.initial.agl}'),
+    'cameraTilt': TextEditingController(
+      text: '${widget.initial.cameraTiltDegrees}',
+    ),
     'speed': TextEditingController(text: '${widget.initial.maxSpeed}'),
     'climb': TextEditingController(text: '${widget.initial.climbSpeed}'),
     'acceleration': TextEditingController(
@@ -221,7 +224,7 @@ class _SettingsState extends State<_Settings> {
                       ),
                     if (_mode == SimulationFlightMode.acro)
                       const Text(
-                        'Throttle commands rotor thrust from 0% (stick fully down) to 100% (fully up). Thrust follows the drone: inverted full throttle accelerates toward the ground. Low throttle allows free fall and existing momentum continues. No altitude hold or assisted speed limits. Switching modes respawns level.',
+                        'Throttle is 0% with the left stick centred or below centre; pushing upward increases it to 100% at the top. Releasing the stick cuts throttle. Thrust follows the drone: inverted full throttle accelerates toward the ground. Low throttle allows free fall and existing momentum continues. No altitude hold or assisted speed limits. Switching modes respawns level.',
                       ),
                     const SizedBox(height: 12),
                     if (_loading) const LinearProgressIndicator(),
@@ -265,6 +268,12 @@ class _SettingsState extends State<_Settings> {
                     ),
                     const SizedBox(height: 12),
                     number('agl', 'Spawn height (m AGL)', 1, 1000),
+                    if (_mode != SimulationFlightMode.gps) ...[
+                      number('cameraTilt', 'FPV camera tilt (° upward)', 0, 80),
+                      const Text(
+                        '0° looks along the drone. Positive angles tilt the camera upward relative to the frame. You can also adjust this during flight using Camera.',
+                      ),
+                    ],
                     if (_mode == SimulationFlightMode.acro)
                       ExpansionTile(
                         controller: _acroOptions,
@@ -357,6 +366,12 @@ class _SettingsState extends State<_Settings> {
                             deceleration: parameter('deceleration', .2, 50, 4),
                             droneId: _drone,
                             flightMode: _mode,
+                            cameraTiltDegrees: parameter(
+                              'cameraTilt',
+                              0,
+                              80,
+                              0,
+                            ),
                             acroThrustToWeight: parameter(
                               'acroThrustToWeight',
                               1.1,

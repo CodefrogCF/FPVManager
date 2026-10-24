@@ -32,6 +32,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Radio & video equipment'),
+        100,
+        scrollable: find.descendant(
+          of: find.byType(Drawer),
+          matching: find.byType(Scrollable),
+        ),
+      );
       await tester.tap(find.text('Radio & video equipment'));
       await tester.pumpAndSettle();
       expect(find.text('Stored radio'), findsOneWidget);

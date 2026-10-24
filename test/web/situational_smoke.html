@@ -1,0 +1,63 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>FPVManager mobility and OSINT smoke</title>
+<style>body{margin:0;background:#101820;color:#fff;font:14px system-ui}h1{font-size:19px;margin:12px}iframe{width:100%;height:62vh;border:0}pre{white-space:pre-wrap;padding:12px}</style>
+<h1 id="status">Running mobility and OSINT smoke…</h1>
+<iframe id="map" title="Actual Cesium with synthetic terrain"></iframe><pre id="log"></pre>
+<script>
+const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map(),errors=[],states={};
+let session,next=0,terrain;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const check=(v,m)=>{if(!v)throw new Error(m);};
+const log=m=>{output.textContent+='PASS: '+m+'\n';};
+async function until(p,m,timeout=25000){const end=performance.now()+timeout;while(!p()){
+  if(errors.length)throw new Error(errors.join('; '));if(performance.now()>end)throw new Error(m+' timeout');await pause(50);}}
+window.addEventListener('message',event=>{
+  if(event.source!==frame.contentWindow||event.origin!==location.origin)return;
+  let data;try{data=JSON.parse(event.data);}catch{return;}
+  if(data.type==='globe-ready')session=data.sessionId;
+  if(data.type==='terrain-status')terrain=data;
+  if(data.type==='situational-status')states[data.id]=data;
+  if(data.type==='globe-error')errors.push(data.message);
+  if(data.type==='command-result'){
+    const p=pending.get(data.requestId);if(!p)return;clearTimeout(p.timer);pending.delete(data.requestId);
+    data.ok?p.resolve(data.result):p.reject(new Error(data.error));
+  }
+});
+function command(type,fields={}){return new Promise((resolve,reject)=>{
+  const requestId=String(++next),timer=setTimeout(()=>reject(new Error(type+' timeout')),25000);
+  pending.set(requestId,{resolve,reject,timer});
+  frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
+});}
+(async()=>{
+  frame.src='/terrain-globe.html';await until(()=>session&&terrain?.state==='ready','startup');
+  const win=frame.contentWindow,v=win.fixtureViewer,C=win.Cesium;
+  v.camera.setView({destination:C.Cartesian3.fromDegrees(8.55,47.45,18000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
+  const point=(id,coordinates=[8.55,47.45])=>({id,name:'Fixture '+id,detail:'Synthetic source position; not operational information.',
+    timestampUtc:new Date().toISOString(),geometry:{type:'Point',coordinates}});
+  const road={...point('road'),geometry:{type:'LineString',coordinates:[[8.5,47.43],[8.55,47.45],[8.6,47.46]]}};
+  for(const [id,features] of [['road',[road]],['traffic',[point('traffic')]],['aircraft',[point('aircraft',[8.57,47.46])]]]){
+    await command('set-situational-overlay',{id,visible:true,features});
+  }
+  const source=id=>v.dataSources.getByName('FPVManager '+id)[0];
+  check(source('road')&&source('traffic')&&source('aircraft'),'Independent vector sources missing');
+  check(source('road').entities.values[0].polyline.clampToGround.getValue()===true,'Road route is not ground clamped');
+  check(source('aircraft').entities.values[0].point.heightReference.getValue()===C.HeightReference.CLAMP_TO_GROUND,'Aircraft marker silently elevated');
+  await command('set-situational-overlay',{id:'traffic',visible:false});
+  check(!source('traffic')&&source('road')&&source('aircraft'),'Removing traffic affected another overlay');
+  let rejected=false;
+  try{await command('set-situational-overlay',{id:'aircraft',visible:true,features:[point('bad',[8,147])]});}catch{rejected=true;}
+  check(rejected&&source('aircraft'),'Invalid replacement lost a valid snapshot');
+  log('Actual Cesium renders independent road and aircraft sources; removing traffic and rejecting invalid updates retains other data');
+  for(const id of ['heliports','wildfire'])await command('set-situational-overlay',{id,visible:true,opacity:.6});
+  await until(()=>['heliports','wildfire'].every(id=>['ready','failed'].includes(states[id]?.state)),'Official WMS response');
+  for(const id of ['heliports','wildfire']){
+    if(states[id].state==='ready')log(id+' official WMS tile loaded; this does not verify source freshness');
+    else log(id+' unavailable: non-blocking status is reported without a globe initialization error');
+  }
+  check(!errors.length,'Generic globe initialization error');
+  await command('enter-ground-view',{latitude:47.45,longitude:8.55});
+  await command('exit-ground-view');
+  check(source('road')&&source('aircraft'),'Ground view discarded awareness sources');
+  log('Ground view remains usable with the new layers enabled');
+  document.getElementById('status').textContent='PASS — mobility and OSINT smoke';
+})().catch(error=>{document.getElementById('status').textContent='FAIL — '+error.message;output.textContent+='\n'+error.stack;});
+</script></html>

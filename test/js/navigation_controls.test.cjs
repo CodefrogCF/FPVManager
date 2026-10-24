@@ -1,6 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {bindControls,axis,gamepadFrame}=require('../../web/navigation_controls.js');
+const {createSimulator}=require('../../web/free_flight.js');
 class Target{
     constructor(rect={left:0,top:0,width:400,height:600}){this.listeners=new Map();this.style={};this.rect=rect;this.hidden=true;}
     addEventListener(type,fn){if(!this.listeners.has(type))this.listeners.set(type,new Set());this.listeners.get(type).add(fn);}
@@ -8,7 +9,7 @@ class Target{
     fire(type,values={}){for(const fn of this.listeners.get(type)??[])fn({button:0,pointerId:1,clientX:250,clientY:300,preventDefault(){},...values});}
     focus(){this.onFocus?.();}setPointerCapture(){}getBoundingClientRect(){return this.rect;}
 }
-function setup(mode='ground'){
+function setup(mode='ground',flightAgent=null){
     let time=0,pads=[],active=true;const movements=[],looks=[],vertical=[],states=[];
     const canvas=new Target(),stick=new Target({left:0,top:450,width:100,height:100}),thumb=new Target(),look=new Target(),lookThumb=new Target();
     const panel=new Target(),host=new Target(),doc=new Target();
@@ -16,7 +17,7 @@ function setup(mode='ground'){
     canvas.onFocus=()=>{doc.activeElement=canvas;canvas.fire('focus');};
     panel.querySelector=s=>s==='[data-stick]'?stick:thumb;
     host.navigator={getGamepads:()=>pads};host.performance={now:()=>time};
-    const agent={status:()=>({active,mode}),flightInput:frame=>movements.push(frame),stick:(...v)=>movements.push(v),look:(...v)=>looks.push(v),
+    const agent=flightAgent??{status:()=>({active,mode}),flightInput:frame=>movements.push(frame),stick:(...v)=>movements.push(v),look:(...v)=>looks.push(v),
         key(){},clearKeys(){},vertical:v=>vertical.push(v),stop:()=>active=false,reset:()=>states.push('reset'),pause:v=>states.push(v)};
     const binding=bindControls(agent,canvas,panel,host,doc,{onDevice:v=>states.push(v)});
     binding.tick(.1);
@@ -56,6 +57,29 @@ test('two touch fingers independently control FPV throttle/yaw and attitude; rel
     p.stick.fire('pointercancel',{pointerId:1});p.binding.tick(.1);
     assert.deepEqual(p.movements.at(-1),{throttle:0,yaw:0,pitch:0,roll:0});p.binding();
 });
+test('Web gamepad, native controller and touch use Acro zero-centre throttle through the real flight model',async()=>{
+    for(const source of ['web','native','touch']){
+        const agent=createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,isTerrainReady:()=>true,
+            captureCamera:()=>({heading:0}),restoreCamera(){},applyPose(){},onState(){}});
+        await agent.start({latitude:47,longitude:8,flightMode:'acro',agl:500,acroMotorTimeConstant:0},new AbortController().signal);
+        const p=setup('acro',agent);
+        const native={forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false,connected:true};
+        if(source==='web')p.pads([pad()]);
+        else if(source==='native')p.binding.native(native);
+        else p.stick.fire('pointerdown',{clientX:50,clientY:500});
+        p.binding.tick(.1);
+        for(const [value,command] of [[0,0],[1,1],[0,0],[-1,0]]){
+            if(source==='web')p.pads([pad({y:-value})]);
+            else if(source==='native')p.binding.native({...native,forward:value});
+            else p.stick.fire('pointermove',{clientX:50,clientY:500-value*35});
+            p.binding.tick(.1);agent.tick(1/60);
+            assert.equal(agent.status().throttle,command,`${source} at ${value}`);
+            assert.equal(agent.status().thrustAcceleration>0,command>0,`${source} motor at ${value}`);
+        }
+        p.binding();
+    }
+});
+
 test('right touch stick floats at the touch and disappears on release without releasing the movement finger',()=>{
     const p=setup();p.stick.fire('pointerdown',{pointerId:1,clientX:50,clientY:450});
     p.canvas.fire('pointerdown',{pointerId:2,pointerType:'touch',clientX:300,clientY:300});

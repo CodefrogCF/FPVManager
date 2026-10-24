@@ -52,6 +52,7 @@ Open these paths at `http://127.0.0.1:8765`:
 | `/interaction-smoke` | Ground camera and waypoint interaction with synthetic terrain |
 | `/flight-smoke` | Flight spawn/HUD, terrain contact, shared touch/gamepad input fixtures, reset and exit |
 | `/signal-smoke` | Radio sight lines, Fresnel envelope, unknown heights, ground view and terrain invalidation |
+| `/situational-smoke` | Mobility vectors, independent OSINT sources, live official WMS and ground view |
 | `/obstacle-smoke` | Actual Cesium obstacle geometry, selection, live official WMS and opacity controls |
 | `/smoke?online=1&narrow=1` | Live swisstopo terrain/imagery and credits in a 320 px viewport |
 

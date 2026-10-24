@@ -7,12 +7,14 @@
         layer: 'ch.bazl.luftfahrthindernis', bounds: [3.329595,44.074747,14.278255,49.200438],
         legend: 'https://api3.geo.admin.ch/static/images/legends/ch.bazl.luftfahrthindernis_de.png'});
 
-    function createWms(C, viewer, emit, {timeoutMs = 12000, timers = globalThis} = {}) {
+    function createWms(C, viewer, emit, {timeoutMs = 12000, timers = globalThis,
+        definition = WMS, statusEvent = 'obstacle-wms-status', label = 'Obstacle',
+        attribution = 'BAZL / FOCA · geo.admin.ch'} = {}) {
         let layer = null, removeError = null, revision = 0, disposed = false;
         let visible = false, opacity = 0.8, state = 'off', error = null;
         const pending = new Set();
         function status() { return {visible, opacity, state, error}; }
-        function publish() { if (!disposed) emit('obstacle-wms-status', status()); }
+        function publish() { if (!disposed) emit(statusEvent, status()); }
         function clear() {
             removeError?.(); removeError = null;
             for (const cancel of [...pending]) cancel();
@@ -21,7 +23,7 @@
         }
         function fail(generation) {
             if (disposed || generation !== revision || !visible) return;
-            state = 'failed'; error = 'Obstacle tiles unavailable or timed out. Retry in Map layers.';
+            state = 'failed'; error = `${label} tiles unavailable or timed out. Retry in Map layers.`;
             // Invalidates outstanding requests so late completions cannot report ready.
             revision++; clear(); publish();
         }
@@ -51,11 +53,11 @@
             clear(); state = 'loading'; error = null; publish();
             try {
                 const scheme = new C.WebMercatorTilingScheme();
-                const provider = new C.WebMapServiceImageryProvider({url: WMS.url, layers: WMS.layer,
+                const provider = new C.WebMapServiceImageryProvider({url: definition.url, layers: definition.layer,
                     parameters: {service:'WMS', version:'1.3.0', transparent:true, format:'image/png', styles:'default'},
-                    crs:'EPSG:3857', tilingScheme:scheme, rectangle:C.Rectangle.fromDegrees(...WMS.bounds),
+                    crs:'EPSG:3857', tilingScheme:scheme, rectangle:C.Rectangle.fromDegrees(...definition.bounds),
                     enablePickFeatures:false, maximumLevel:19,
-                    credit:new C.Credit('BAZL / FOCA · geo.admin.ch', true)});
+                    credit:new C.Credit(attribution, true)});
                 const requestImage = provider.requestImage.bind(provider);
                 provider.requestImage = (x,y,level,request) => {
                     if (disposed || generation !== revision) return undefined;

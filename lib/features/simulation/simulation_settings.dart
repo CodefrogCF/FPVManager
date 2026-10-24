@@ -13,6 +13,7 @@ class SimulationSettings {
     this.deceleration = 4,
     this.droneId,
     this.flightMode = SimulationFlightMode.angle,
+    this.cameraTiltDegrees = 0,
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
     this.acroMotorTimeConstant = .04,
@@ -21,6 +22,21 @@ class SimulationSettings {
   final double agl, maxSpeed, climbSpeed, acceleration, deceleration;
   final int? droneId;
   final SimulationFlightMode flightMode;
+  final double cameraTiltDegrees;
+  SimulationSettings withCameraTilt(double degrees) => SimulationSettings(
+    agl: agl,
+    maxSpeed: maxSpeed,
+    climbSpeed: climbSpeed,
+    acceleration: acceleration,
+    deceleration: deceleration,
+    droneId: droneId,
+    flightMode: flightMode,
+    cameraTiltDegrees: degrees,
+    acroThrustToWeight: acroThrustToWeight,
+    acroThrustCurve: acroThrustCurve,
+    acroMotorTimeConstant: acroMotorTimeConstant,
+    acroTerminalVelocity: acroTerminalVelocity,
+  );
   final double acroThrustToWeight,
       acroThrustCurve,
       acroMotorTimeConstant,
@@ -41,6 +57,7 @@ class SimulationSettings {
       (climbSpeed, .2, 30.0),
       (acceleration, .2, 50.0),
       (deceleration, .2, 50.0),
+      (cameraTiltDegrees, 0.0, 80.0),
       (acroThrustToWeight, 1.1, 12.0),
       (acroThrustCurve, 0.0, 1.0),
       (acroMotorTimeConstant, 0.0, .5),
@@ -61,6 +78,7 @@ class SimulationSettings {
       'acceleration': acceleration,
       'deceleration': deceleration,
       'flightMode': flightMode.name,
+      'cameraTiltDegrees': cameraTiltDegrees,
       'acroThrustToWeight': acroThrustToWeight,
       'acroThrustCurve': acroThrustCurve,
       'acroMotorTimeConstant': acroMotorTimeConstant,

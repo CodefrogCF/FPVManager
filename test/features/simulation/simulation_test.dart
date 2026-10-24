@@ -65,6 +65,8 @@ void main() {
         100,
       );
       for (final invalid in [
+        const SimulationSettings(cameraTiltDegrees: -1),
+        const SimulationSettings(cameraTiltDegrees: 81),
         const SimulationSettings(agl: 0),
         const SimulationSettings(maxSpeed: double.nan),
         const SimulationSettings(climbSpeed: 31),
@@ -79,6 +81,19 @@ void main() {
       }
     },
   );
+
+  test('camera tilt serialization preserves flight parameters', () {
+    const original = SimulationSettings(
+      flightMode: SimulationFlightMode.acro,
+      acroThrustToWeight: 6,
+      agl: 45,
+    );
+    final tilted = original.withCameraTilt(35);
+    expect(tilted.toCommand()['cameraTiltDegrees'], 35);
+    expect(tilted.agl, 45);
+    expect(tilted.acroThrustToWeight, 6);
+    expect(tilted.flightMode, SimulationFlightMode.acro);
+  });
 
   test('Acro physics settings preserve independent parameters and compute level-hover throttle', () {
     const physics = SimulationSettings(
@@ -275,10 +290,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(chosen, isNull);
       fields.first.controller!.text = '35,5';
+      final camera = find.byKey(const ValueKey('simulation-cameraTilt'));
+      await tester.ensureVisible(camera);
+      await tester.enterText(camera, '30');
       await tester.ensureVisible(find.text('Spawn in map'));
       await tester.tap(find.text('Spawn in map'));
       await tester.pumpAndSettle();
       expect(chosen!.agl, 35.5);
+      expect(chosen!.cameraTiltDegrees, 30);
       expect(chosen!.droneId, 1);
       expect(chosen!.flightMode, SimulationFlightMode.acro);
       expect(chosen!.maxSpeed, 24);

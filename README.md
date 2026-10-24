@@ -12,6 +12,8 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Drone profiles, battery inventory and radio/video equipment profiles.
 - First-person terrain inspection and map-based editing of multiple local routes.
 - Local GPS, Angle and Acro flight exploration with shared touch, keyboard and controller input.
+- Adjustable FPV camera tilt, including an in-flight control.
+- Driving routes to spots/parking, optional traffic and aircraft snapshots, aerodrome/heliport and wildfire layers.
 - Configurable waypoint heights/airspeeds, drone and battery assignments.
 - Local preflight checklists/templates, terrain LOS/Fresnel screening and telemetry model calibration.
 - Sampled terrain profiles, distance/duration analysis and configurable energy/reserve estimates.
@@ -49,6 +51,7 @@ An iOS runner is not included.
 | Users and developers | [Map sources and attribution](docs/map_sources_and_attribution.md) |
 | Users and developers | [Weather sources, controls and limits](docs/weather.md) |
 | Users and developers | [Preflight, signal analysis and telemetry CSV](docs/preflight.md) |
+| Users and developers | [Mobility, OSINT sources and access limits](docs/mobility_osint.md) |
 | Developers | [Contributing, checks and builds](CONTRIBUTING.md) |
 | Developers | [Architecture and storage](docs/architecture.md) |
 | Developers | [Globe bridge](docs/globe_bridge.md) |

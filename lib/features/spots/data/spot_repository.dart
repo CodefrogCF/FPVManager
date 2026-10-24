@@ -226,9 +226,15 @@ final class DriftSpotRepository implements SpotRepository {
   @override
   Future<int> deleteSpot(int id) {
     RepositoryValidation.id(id);
-    return (_database.delete(
-      _database.spots,
-    )..where((table) => table.id.equals(id))).go();
+    return _database.transaction(() async {
+      // Spot-owned access notes must not survive deletion of their spot.
+      await (_database.delete(
+        _database.appSettings,
+      )..where((table) => table.key.equals('mobility.access.$id.v1'))).go();
+      return (_database.delete(
+        _database.spots,
+      )..where((table) => table.id.equals(id))).go();
+    });
   }
 
   @override

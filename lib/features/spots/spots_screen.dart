@@ -17,10 +17,12 @@ class SpotsScreen extends StatefulWidget {
     required this.repository,
     this.initialLatitude,
     this.initialLongitude,
+    this.onRoadRoute,
   });
   final SpotRepository repository;
   final double? initialLatitude;
   final double? initialLongitude;
+  final Future<void> Function(int)? onRoadRoute;
   @override
   State<SpotsScreen> createState() => _SpotsScreenState();
 }
@@ -99,8 +101,13 @@ class _SpotsScreenState extends State<SpotsScreen> {
   Future<void> _details(int id) async {
     final spot = await Navigator.of(context).push<Spot>(
       MaterialPageRoute(
-        builder: (context) =>
-            SpotDetailsScreen(repository: widget.repository, spotId: id),
+        builder: (context) => SpotDetailsScreen(
+          repository: widget.repository,
+          spotId: id,
+          onRoadRoute: widget.onRoadRoute == null
+              ? null
+              : () => widget.onRoadRoute!(id),
+        ),
       ),
     );
     if (spot != null && mounted) Navigator.pop(context, spot);

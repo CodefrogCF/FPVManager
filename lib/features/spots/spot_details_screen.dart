@@ -10,9 +10,11 @@ class SpotDetailsScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.spotId,
+    this.onRoadRoute,
   });
   final SpotRepository repository;
   final int spotId;
+  final Future<void> Function()? onRoadRoute;
   @override
   State<SpotDetailsScreen> createState() => _SpotDetailsScreenState();
 }
@@ -165,6 +167,12 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                       icon: const Icon(Icons.photo_library_outlined),
                       label: const Text('Photos'),
                     ),
+                    if (widget.onRoadRoute != null)
+                      OutlinedButton.icon(
+                        onPressed: _changing ? null : widget.onRoadRoute,
+                        icon: const Icon(Icons.directions_car_outlined),
+                        label: const Text('Driving route'),
+                      ),
                     OutlinedButton.icon(
                       onPressed: _changing
                           ? null

@@ -5,17 +5,19 @@ import 'map_display_section.dart';
 import 'uas_map_layers_section.dart';
 import '../obstacles/obstacle_layers_section.dart';
 
-enum MapLayerTab { map, airspace, obstacles }
+enum MapLayerTab { map, airspace, obstacles, situational }
 
 class MapLayersSheet extends StatelessWidget {
   const MapLayersSheet({
     super.key,
     required this.controller,
     this.routeControls,
+    this.situationalControls,
     this.initialTab = MapLayerTab.map,
   });
   final GlobeController controller;
   final Widget? routeControls;
+  final Widget? situationalControls;
   final MapLayerTab initialTab;
   @override
   Widget build(BuildContext context) {
@@ -41,7 +43,7 @@ class MapLayersSheet extends StatelessWidget {
     return SafeArea(
       top: false,
       child: DefaultTabController(
-        length: 3,
+        length: 4,
         initialIndex: initialTab.index,
         child: ListenableBuilder(
           listenable: controller,
@@ -93,10 +95,12 @@ class MapLayersSheet extends StatelessWidget {
               ],
 
               const TabBar(
+                isScrollable: true,
                 tabs: [
                   Tab(text: 'Map'),
                   Tab(text: 'Airspace'),
                   Tab(text: 'Obstacles'),
+                  Tab(text: 'OSINT'),
                 ],
               ),
               Expanded(
@@ -120,6 +124,13 @@ class MapLayersSheet extends StatelessWidget {
                         enabled:
                             controller.isReady && controller.canEditPreferences,
                       ),
+                    ),
+                    page(
+                      'map-situational',
+                      situationalControls ??
+                          const Text(
+                            'Open Mobility & OSINT to load independent information layers.',
+                          ),
                     ),
                   ],
                 ),
