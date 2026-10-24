@@ -40,6 +40,14 @@ unknown heights/modes use ground markers at the first source vertex. Straight
 lines and polygon outlines are approximations; cable sag and clearance are not
 calculated.
 
+**Highlight hazard areas** independently draws cyan horizontal buffers around
+published points and lines. Set 0–1000 m in **Map layers → Obstacles**; visibility
+and distance persist locally. Category filters apply. These calculated areas
+are advisory, including in ground view, and do not specify legal separation.
+Where a cable vertex matches a published mast, its display follows the mast's
+terrain-adjusted top. This correction is approximate; source heights remain in
+the details and are used for route checks.
+
 ## Ground view
 
 Select a terrain point or saved spot, then use the walking icon beside the
@@ -79,7 +87,7 @@ references retain a **30 m AGL preview** with a star marker; they do not supply 
 Use **Route options → Route equipment** to assign a drone and alternative battery
 packs. Save also stores assignments and planning assumptions.
 
-**Route analysis** separates Profile, Flight and Energy. Terrain is sampled at
+**Route analysis** separates Profile, Flight, Energy and Checks. Terrain is sampled at
 most 50 m apart, up to 4,096 samples; split longer routes. The profile shows ground,
 absolute WGS84 altitude and AGL, including intervening terrain. Distances are
 approximate great-circle/3D estimates. Duration uses outgoing airspeed, optionally
@@ -96,6 +104,30 @@ Optional return flight retraces the planned path to takeoff with reverse wind.
 Red segments indicate low sampled clearance or insufficient conservative reserve
 for the inspected pack. These estimates do not guarantee flight feasibility or
 detect cables, obstacles between samples, terrain errors, gusts or battery ageing.
+
+In **Checks**, choose **Check current route** for horizontal UAS intersections,
+configured height-limit exceedances and proximity to locally imported obstacles.
+Results identify affected segments and source records; edits, category changes,
+buffer changes and dataset replacements invalidate them. Red segments also mark
+these findings. Height checks use samples, and obstacle checks use approximate
+Swiss metric geometry; neither proves continuous clearance. Missing data and
+limits are shown explicitly. **Route constraints** configures legal/operational
+AGL ceilings and a planning radius from waypoint 1; a radius does not prove VLOS.
+The default 120 m is a Swiss open-category planning reference, not a determination
+of the rules for a particular flight. Verify current
+[FOCA rules](https://www.bazl.admin.ch/de/flugregeln-drohnen), observers, approvals,
+zone activation, people and local conditions manually.
+
+Use **Import routes** in the route library to preview GeoJSON/GPX, then confirm
+new local copies. Files support up to 4 MiB, 20 routes and 10,000 total points
+(2–1000 per route). GPX track segments remain separate. A route's export menu
+saves GeoJSON or GPX only on request; Android opens the system document picker,
+Web starts a download. Equipment assignments are excluded.
+GeoJSON uses longitude/latitude and optional WGS84 ellipsoid metres. GPX elevation
+without a declared datum stays unverified. AGL, named height datums and airspeed
+round-trip in FPVManager metadata/extensions, which other tools may ignore.
+KML was evaluated but is not imported: altitude modes and geoid references require
+explicit conversion to a supported format.
 
 ## Spots and photos
 
@@ -164,6 +196,7 @@ a limitation notice; an empty map does not establish unrestricted airspace.
 Failed replacements retain the last displayed snapshot. Explicit refresh retries
 rejected data. DABS/NOTAM information is not integrated.
 
-Personal records are local; there is no backup/export/sync interface. Map viewing
+Personal records are local; routes can be explicitly exported, but there is no
+complete backup or sync interface. Map viewing
 still contacts external providers. See [privacy and permissions](privacy_and_permissions.md)
 and [map sources](map_sources_and_attribution.md).

@@ -6,6 +6,9 @@ import 'route_editor_screen.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import '../../core/osint/osint_provider.dart';
+import '../../core/models/route_transfer.dart';
+import '../../core/models/flight_route.dart';
+import 'transfer/route_file_service.dart';
 
 class FlightRoutesScreen extends StatefulWidget {
   const FlightRoutesScreen({
@@ -14,16 +17,136 @@ class FlightRoutesScreen extends StatefulWidget {
     this.obstacleProvider,
     this.uasProvider,
     this.preferencesRepository,
+    this.routeFiles = const RouteFileService(),
   });
   final FlightPlanRepository repository;
   final SwissObstacleProvider? obstacleProvider;
   final OsintProvider<Map<String, dynamic>>? uasProvider;
   final UserPreferencesRepository? preferencesRepository;
+  final RouteFileService routeFiles;
   @override
   State<FlightRoutesScreen> createState() => _FlightRoutesScreenState();
 }
 
 class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
+  bool _transferring = false;
+  bool _working = false;
+
+  Future<void> _import() async {
+    if (_transferring) return;
+    setState(() {
+      _transferring = true;
+      _working = true;
+    });
+    try {
+      final preview = await widget.routeFiles.pickRoutes();
+      if (!mounted || preview == null) return;
+      setState(() => _working = false);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Import ${preview.routes.length} routes?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'New local copies are created. Existing routes and equipment assignments are preserved.',
+                ),
+                for (final route in preview.routes)
+                  Text('${route.name} · ${route.points.length} waypoints'),
+                for (final warning in preview.warnings)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(warning),
+                  ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Review coordinates and height references before planning a flight.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Import locally'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      setState(() => _working = true);
+      final ids = await widget.repository.importRoutes(preview.routes);
+      if (mounted) _message('${ids.length} routes imported locally');
+    } catch (error) {
+      if (mounted) {
+        _message(
+          error is FormatException
+              ? error.message
+              : 'Unable to import routes. No routes were replaced.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _transferring = false;
+          _working = false;
+        });
+      }
+    }
+  }
+
+  void _message(String message) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _export(int id, RouteFileFormat format) async {
+    if (_transferring) return;
+    setState(() {
+      _transferring = true;
+      _working = true;
+    });
+    try {
+      final route = await widget.repository.getRoute(id);
+      if (!mounted) return;
+      if (route == null) throw StateError('Route no longer exists');
+      final done = await widget.routeFiles.exportRoute(
+        ImportedRoute(route.plan.name, [
+          for (final p in route.waypoints)
+            RouteWaypointInput(
+              position: p.position,
+              height: p.height,
+              speedMetersPerSecond: p.speedMetersPerSecond,
+            ),
+        ]),
+        format,
+      );
+      if (mounted && done) {
+        _message('Route export handed to your selected destination');
+      }
+    } catch (error) {
+      if (mounted) {
+        _message(
+          error is FormatException
+              ? error.message
+              : 'Unable to export this route. Please retry.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _transferring = false;
+          _working = false;
+        });
+      }
+    }
+  }
+
   late Stream<List<FlightPlan>> _routes = widget.repository.watchFlightPlans();
   Future<void> _open([int? id]) => Navigator.of(context).push<void>(
     MaterialPageRoute(
@@ -38,7 +161,22 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
   );
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Flight routes')),
+    appBar: AppBar(
+      title: const Text('Flight routes'),
+      actions: [
+        IconButton(
+          tooltip: 'Import routes',
+          onPressed: _transferring ? null : _import,
+          icon: const Icon(Icons.file_upload_outlined),
+        ),
+      ],
+      bottom: _working
+          ? const PreferredSize(
+              preferredSize: Size.fromHeight(3),
+              child: LinearProgressIndicator(),
+            )
+          : null,
+    ),
     body: StreamBuilder<List<FlightPlan>>(
       stream: _routes,
       builder: (context, snapshot) {
@@ -80,7 +218,21 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
               leading: const Icon(Icons.route_outlined),
               title: Text(route.name),
               subtitle: const Text('Stored on this device'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: PopupMenuButton<RouteFileFormat>(
+                tooltip: 'Export ${route.name}',
+                enabled: !_transferring,
+                onSelected: (format) => _export(route.id, format),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: RouteFileFormat.geoJson,
+                    child: Text('Export GeoJSON'),
+                  ),
+                  PopupMenuItem(
+                    value: RouteFileFormat.gpx,
+                    child: Text('Export GPX'),
+                  ),
+                ],
+              ),
               onTap: () => _open(route.id),
             );
           },

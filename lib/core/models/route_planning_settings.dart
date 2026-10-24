@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'route_constraints.dart';
+
 class PowerCurvePoint {
   const PowerCurvePoint(this.speed, this.watts);
   final double speed, watts;
@@ -22,6 +24,7 @@ class RoutePlanningSettings {
     this.powerCurve = const [],
     this.curveSource = 'User estimate',
     this.minimumClearance = 20,
+    this.constraints = const RouteConstraints(),
   });
   final bool useWind, includeReturn;
   final double windSpeed, windFromDegrees, reservePercent;
@@ -32,8 +35,16 @@ class RoutePlanningSettings {
   final double? referenceMassGrams, flightMassGrams;
   final List<PowerCurvePoint> powerCurve;
   final String curveSource;
+  final RouteConstraints constraints;
+
+  RoutePlanningSettings withConstraints(RouteConstraints value) {
+    final j = jsonDecode(encode()) as Map<String, dynamic>;
+    j['constraints'] = value.toJson();
+    return RoutePlanningSettings.decode(jsonEncode(j));
+  }
 
   void validate() {
+    constraints.validate();
     void range(double n, double low, double high, String name) {
       if (!n.isFinite || n < low || n > high) {
         throw ArgumentError('Invalid $name');
@@ -83,6 +94,7 @@ class RoutePlanningSettings {
       'powerCurve': powerCurve.map((p) => p.toJson()).toList(),
       'curveSource': curveSource,
       'minimumClearance': minimumClearance,
+      'constraints': constraints.toJson(),
     });
   }
 
@@ -108,6 +120,11 @@ class RoutePlanningSettings {
         flightMassGrams: (j['flightMassGrams'] as num?)?.toDouble(),
         climbEfficiency: (j['climbEfficiency'] as num).toDouble(),
         minimumClearance: (j['minimumClearance'] as num).toDouble(),
+        constraints: j['constraints'] == null
+            ? const RouteConstraints()
+            : RouteConstraints.fromJson(
+                j['constraints'] as Map<String, dynamic>,
+              ),
         curveSource: j['curveSource'] as String,
         powerCurve: List.unmodifiable(
           (j['powerCurve'] as List).map(

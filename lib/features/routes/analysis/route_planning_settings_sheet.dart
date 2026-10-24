@@ -142,6 +142,7 @@ class _SettingsState extends State<_Settings> {
         conservativeFactor: _read('conservative')!,
         powerCurve: _curve(),
         curveSource: _fields['source']!.text.trim(),
+        constraints: widget.editor.planning.constraints,
       );
       settings.validate();
       widget.editor.configurePlanning(settings);

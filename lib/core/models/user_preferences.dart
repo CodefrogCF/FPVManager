@@ -14,6 +14,8 @@ class UserPreferences {
     this.obstacleWmsVisible = false,
     this.obstacleWmsOpacity = 0.8,
     this.obstacleVectorsVisible = false,
+    this.hazardAreasVisible = false,
+    this.obstacleBufferMeters = 30,
     this.obstacleCategories = const {...ObstacleCategory.values},
     this.overlayOrder = const [GlobeOverlay.uasZones, GlobeOverlay.savedSpots],
   });
@@ -24,6 +26,8 @@ class UserPreferences {
   final bool savedSpotsVisible;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
   final double obstacleWmsOpacity;
+  final bool hazardAreasVisible;
+  final double obstacleBufferMeters;
   final Set<ObstacleCategory> obstacleCategories;
 
   /// Back to front. Terrain and the selected base map stay below the overlays.
@@ -37,6 +41,8 @@ class UserPreferences {
     bool? obstacleWmsVisible,
     double? obstacleWmsOpacity,
     bool? obstacleVectorsVisible,
+    bool? hazardAreasVisible,
+    double? obstacleBufferMeters,
     Set<ObstacleCategory>? obstacleCategories,
     List<GlobeOverlay>? overlayOrder,
   }) => UserPreferences(
@@ -48,6 +54,8 @@ class UserPreferences {
     obstacleWmsOpacity: obstacleWmsOpacity ?? this.obstacleWmsOpacity,
     obstacleVectorsVisible:
         obstacleVectorsVisible ?? this.obstacleVectorsVisible,
+    hazardAreasVisible: hazardAreasVisible ?? this.hazardAreasVisible,
+    obstacleBufferMeters: obstacleBufferMeters ?? this.obstacleBufferMeters,
     obstacleCategories: Set.unmodifiable(
       obstacleCategories ?? this.obstacleCategories,
     ),
@@ -58,6 +66,12 @@ class UserPreferences {
     if (order.length != GlobeOverlay.values.length ||
         order.toSet().length != GlobeOverlay.values.length) {
       throw ArgumentError('Each supported overlay must occur exactly once');
+    }
+  }
+
+  static void validateObstacleBuffer(double meters) {
+    if (!meters.isFinite || meters < 0 || meters > 1000) {
+      throw ArgumentError('Obstacle buffer must be between 0 and 1000 m');
     }
   }
 }

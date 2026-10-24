@@ -4,6 +4,7 @@ import '../waypoint_settings_sheet.dart';
 import 'route_analysis_controller.dart';
 import 'route_profile_chart.dart';
 import 'route_planning_settings_sheet.dart';
+import 'route_safety_tab.dart';
 
 Future<void> showRouteAnalysis(
   BuildContext context,
@@ -40,7 +41,7 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
     child: FractionallySizedBox(
       heightFactor: .92,
       child: DefaultTabController(
-        length: 3,
+        length: 4,
         child: ListenableBuilder(
           listenable: c,
           builder: (context, _) => Column(
@@ -105,10 +106,12 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                   ),
                 ),
               const TabBar(
+                isScrollable: true,
                 tabs: [
                   Tab(text: 'Profile'),
                   Tab(text: 'Flight'),
                   Tab(text: 'Energy'),
+                  Tab(text: 'Checks'),
                 ],
               ),
               Expanded(
@@ -130,6 +133,7 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                           _profile(context),
                           _flight(context),
                           _energy(context),
+                          RouteSafetyTab(controller: c),
                         ],
                       ),
               ),
@@ -176,7 +180,7 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
           'Terrain samples do not prove continuous clearance. Small features between samples, elevation-model errors, cables, trees and other unknown obstacles can be missed. Verify the route on site and with current official information.',
         ),
         const Text(
-          'Red map segments indicate sampled terrain clearance below the configured minimum or insufficient conservative battery reserve for the selected pack.',
+          'Red map segments indicate sampled terrain clearance, battery reserve, or findings from the current route checks. Open Checks for the reason; a horizontal zone match does not establish legal applicability.',
         ),
       ],
     );

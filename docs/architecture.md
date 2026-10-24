@@ -9,7 +9,8 @@ owns imagery/terrain rendering, picking and camera interaction.
 |---|---|
 | `lib/main.dart` | App startup and theme |
 | `lib/features/home/` | Navigation, map actions, selections and spot synchronization |
-| `lib/features/routes/analysis/` | Bounded sampling, profile, flight and energy models; analysis UI |
+| `lib/features/routes/analysis/` | Bounded sampling, profile/flight/energy models and constraint/proximity checks |
+| `lib/features/routes/transfer/` | Bounded GeoJSON/GPX codecs and explicit local file selection/export |
 | `lib/features/` | Globe, airspace, spots and equipment UI/controllers |
 | `lib/core/database/` | Drift tables, repositories and migrations |
 | `lib/core/models/`, `lib/core/geo/` | Typed routes, preferences, coordinates and heights |
@@ -66,9 +67,16 @@ draft/terrain/renderer changes invalidate pending results and warning highlights
 
 Map preferences store base style, UAS/spot visibility, overlay order and obstacle
 WMS visibility/opacity plus vector visibility/categories. Defaults keep both
-obstacle options disabled. Reads do not write defaults; serialized atomic saves
+obstacle options and advisory hazard areas disabled; horizontal buffer distance
+and visibility are stored independently. Reads do not write defaults; serialized atomic saves
 and reset preserve unrelated settings. Obstacle settings retain the requested
 state through network failures so an explicit retry or renderer reload can recover.
+
+Route transfer follows [RFC 7946](https://www.rfc-editor.org/rfc/rfc7946.html)
+and [GPX 1.1](https://www.topografix.com/GPX/1/1/). Versioned `fpvmanager` GeoJSON
+properties / `https://codefrog.ch/fpvmanager/routes/1` GPX extensions retain AGL,
+named vertical references and airspeed; unspecified GPX elevation stays unverified.
+Imports are size/depth/count bounded and commit all new copies in one transaction.
 
 ## External providers
 

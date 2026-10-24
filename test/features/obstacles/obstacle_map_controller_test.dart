@@ -76,6 +76,109 @@ void main() {
     expect(globe.error, isNull);
     expect(provider.status.dataset, isNotNull);
   });
+  test('support query retains isolated transmission-line points and excludes KML label points', () async {
+    final key = provider.status.dataset!.data.key;
+    await cache.stageObstacles(key, [
+      ObstacleFeature(
+        id: 'power-line-support',
+        name: 'Published support',
+        attributes: {'obstacleType': 'TRANSMISSION_LINE', 'maxHeightAGL': '40'},
+        parts: [
+          const ObstaclePart('Point', 'absolute', [
+            [8.4, 46.7, 600],
+          ]),
+        ],
+      ),
+    ]);
+    final supports = await cache.queryObstacles(
+      key,
+      const ObstacleViewport(8.3, 46.6, 8.5, 46.8),
+      {ObstacleCategory.powerLines},
+      pointsOnly: true,
+    );
+    expect(supports.map((f) => f.id), ['power-line-support']);
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.3,
+      'south': 46.6,
+      'east': 8.5,
+      'north': 46.8,
+    });
+    await globe.obstacles.setVectorsVisible(true);
+    final command = renderer.commands.lastWhere(
+      (c) =>
+          c['type'] == 'set-obstacle-vectors' &&
+          (c['features'] as List).isNotEmpty,
+    );
+    final support = (command['features'] as List).cast<Map>().singleWhere(
+      (f) => f['id'] == 'power-line-support',
+    );
+    expect((support['parts'] as List).single['heightAgl'], 40);
+  });
+  test('hazard controls persist independently, restore after reload and select source obstacles', () async {
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.3,
+      'south': 46.6,
+      'east': 8.5,
+      'north': 46.8,
+    });
+    await globe.obstacles.setBufferMeters(75);
+    await globe.obstacles.setHazardsVisible(true);
+    final stored = await preferences.getPreferences();
+    expect(stored.hazardAreasVisible, isTrue);
+    expect(stored.obstacleBufferMeters, 75);
+    expect(stored.obstacleVectorsVisible, isFalse);
+    expect(stored.obstacleWmsVisible, isFalse);
+    expect(stored.uasZonesVisible, isFalse);
+    var command = renderer.commands.lastWhere(
+      (c) =>
+          c['type'] == 'set-hazard-areas' && (c['features'] as List).isNotEmpty,
+    );
+    expect(command['bufferMeters'], 75);
+    renderer.emit({
+      'type': 'obstacle-selected',
+      'id': 'source-1',
+      'layer': 'hazard',
+      'revision': command['revision'],
+    });
+    expect(globe.obstacles.selected?.id, 'source-1');
+    renderer.emit({'type': 'renderer-loading'});
+    renderer.sessionId = 'hazard-reload';
+    renderer.sequence = 0;
+    renderer.ready();
+    await pumpEventQueue(times: 20);
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.3,
+      'south': 46.6,
+      'east': 8.5,
+      'north': 46.8,
+    });
+    await globe.obstacles.updateViewport();
+    command = renderer.commands.lastWhere(
+      (c) =>
+          c['type'] == 'set-hazard-areas' && (c['features'] as List).isNotEmpty,
+    );
+    expect(command['bufferMeters'], 75);
+    await globe.obstacles.setCategory(ObstacleCategory.powerLines, false);
+    expect(
+      (renderer.commands.lastWhere(
+            (c) => c['type'] == 'set-hazard-areas',
+          )['features']
+          as List),
+      isEmpty,
+    );
+    expect(globe.obstacles.selected, isNull);
+    await globe.obstacles.setHazardsVisible(false);
+    expect((await preferences.getPreferences()).hazardAreasVisible, isFalse);
+    for (final meters in [-1.0, double.nan, double.infinity, 1001.0]) {
+      await expectLater(
+        globe.obstacles.setBufferMeters(meters),
+        throwsArgumentError,
+      );
+    }
+  });
   test('viewport queries, known height conversion, category filtering and selection use current revisions', () async {
     renderer.emit({
       'type': 'obstacle-viewport',

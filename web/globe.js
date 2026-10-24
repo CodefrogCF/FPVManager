@@ -42,10 +42,10 @@ function postToFlutter(message) {
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
         walker?.stop();
-        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
-    let obstacleWms = null, obstacleVectors = null;
+    let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let terrainManager = null;
     let walker = null, routeEditor = null, routeOverlays = null, disposeGroundControls = null;
     let uasImportRevision = 0;
@@ -563,6 +563,7 @@ function postToFlutter(message) {
             case "clear-weather-overlay": return weatherOverlay.clear();
             case "set-obstacle-wms": obstacleWms.set(command); return {};
             case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
+            case "set-hazard-areas": await hazardAreas.replace(command,signal); return {};
             case "enter-ground-view": return walker.start(command, signal);
             case "exit-ground-view": walker.stop(); return {};
             case "set-route-editor": walker.stop(); return routeEditor.set(command, signal);
@@ -740,6 +741,7 @@ function postToFlutter(message) {
         viewer.scene.globe.depthTestAgainstTerrain = true;
         activeViewer = viewer;
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
+        hazardAreas = FPVObstacles.createHazards(Cesium,viewer);
         obstacleVectors = FPVObstacles.createVectors(Cesium,viewer,
             {isTerrainReady:terrainAvailable});
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
@@ -836,7 +838,7 @@ function postToFlutter(message) {
                     ? picked.id
                     : picked?.primitive?.id;
 
-                const obstacle = obstacleVectors.pick(entity);
+                const obstacle = obstacleVectors.pick(entity) || hazardAreas.pick(entity);
                 if (obstacle) {
                     selectedPointInfo = null; terrainInfo(terrainManager.status());
                     sendToFlutter('obstacle-selected',obstacle); return;

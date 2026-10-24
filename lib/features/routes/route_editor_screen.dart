@@ -13,6 +13,7 @@ import 'route_editor_toolbar.dart';
 import 'analysis/route_planning_settings_sheet.dart';
 import 'analysis/route_analysis_controller.dart';
 import 'analysis/route_analysis_sheet.dart';
+import 'analysis/route_constraints_sheet.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../globe/map_layers_sheet.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
@@ -20,7 +21,7 @@ import '../obstacles/obstacle_details_panel.dart';
 import '../obstacles/obstacle_layers_section.dart';
 import '../../core/osint/osint_provider.dart';
 
-enum _RouteAction { equipment, planning, layers }
+enum _RouteAction { equipment, planning, constraints, layers }
 
 class RouteEditorScreen extends StatefulWidget {
   const RouteEditorScreen({
@@ -171,6 +172,8 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     showRouteEquipment(context, _editor);
                   case _RouteAction.planning:
                     showRoutePlanningSettings(context, _editor);
+                  case _RouteAction.constraints:
+                    showRouteConstraints(context, _editor);
                   case _RouteAction.layers:
                     _layers();
                 }
@@ -183,6 +186,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                 const PopupMenuItem(
                   value: _RouteAction.planning,
                   child: Text('Planning assumptions'),
+                ),
+                PopupMenuItem(
+                  value: _RouteAction.constraints,
+                  child: const Text('Route constraints'),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.layers,

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {WMS,createWms,createVectors} = require('../../web/obstacle_layers.js');
+const {WMS,createWms,createVectors,createHazards} = require('../../web/obstacle_layers.js');
 
 function setup({image = () => Promise.resolve({}), yieldBatch,
     terrainReady = () => true, groundHeight = () => undefined} = {}) {
@@ -203,5 +203,89 @@ test('isolated point with AGL remains accurately drawable even if the absolute d
     assert.deepEqual(point.position.getValue(),[8,46,452.5]);
     assert.deepEqual(stem.polyline.positions.getValue(),[[8,46,402.5],[8,46,452.5]]);
     assert.equal(p.sources[0].entities.values.length,2);
+    p.vectors.dispose();
+});
+
+test('cable attachment vertices follow the same terrain and AGL as published mast tops', async () => {
+    let ground=600;
+    const p=setup({groundHeight:()=>ground});
+    const mast=(id,lon,lat,top,agl,supportOnly=false)=>({id,category:'masts',supportOnly,
+        parts:[{kind:'Point',elevated:true,coordinates:[[lon,lat,top]],heightAgl:agl}]});
+    const cable={id:'cable',category:'powerLines',parts:[{kind:'LineString',elevated:true,
+        coordinates:[[8.1,46.2,740],[8.15,46.25,750],[8.2,46.3,760]]}]};
+    await p.vectors.replace({revision:1,features:[cable,mast('a',8.1,46.2,740,50),mast('b',8.2,46.3,760,70)]});
+    const [line,marker]=p.sources[0].entities.values;
+    let positions=line.polyline.positions.getValue();
+    assert.equal(positions[0][2],marker.position.getValue()[2]);
+    assert.equal(positions[0][2],650);assert.equal(positions[1][2],660);assert.equal(positions[2][2],670);
+    ground=620;positions=line.polyline.positions.getValue();
+    assert.equal(positions[0][2],670);assert.equal(marker.position.getValue()[2],670);
+    assert.equal(positions[2][2],690);
+    ground=undefined;assert.equal(line.polyline.show.getValue(),false);
+    assert.equal(marker.show.getValue(),false);
+    assert.deepEqual(p.vectors.pick(line),{id:'cable',revision:1});
+    // Support-only records keep the line anchored when mast markers are hidden.
+    ground=600;
+    await p.vectors.replace({revision:2,features:[cable,mast('a',8.1,46.2,740,50,true),mast('b',8.2,46.3,760,70,true)]});
+    assert.equal(p.sources[0].entities.values.length,1);
+    assert.equal(p.sources[0].entities.values[0].polyline.positions.getValue()[0][2],650);
+    p.vectors.dispose();
+});
+
+test('unrelated or ambiguous masts cannot replace cable source heights',async()=>{
+    const p=setup({groundHeight:()=>600});
+    const mast={id:'mast',category:'masts',parts:[{kind:'Point',elevated:true,coordinates:[[8,46,900]],heightAgl:50}]};
+    await p.vectors.replace({revision:1,features:[line,mast]});
+    assert.deepEqual(p.sources[0].entities.values[0].polyline.positions,line.parts[0].coordinates);
+    const matching={...mast,parts:[{...mast.parts[0],coordinates:[[8,46,550]]}]};
+    await p.vectors.replace({revision:2,features:[line,matching,{...matching,id:'another'}]});
+    assert.deepEqual(p.sources[0].entities.values[0].polyline.positions,line.parts[0].coordinates);
+    p.vectors.dispose();
+});
+
+function hazards(options={}) {
+    const p=setup();
+    const C={...p.C,CornerType:{ROUNDED:'rounded'},Color:{fromCssColorString:color=>({withAlpha:alpha=>({color,alpha})})}};
+    return {...p,hazards:createHazards(C,p.viewer,options)};
+}
+
+test('advisory radial areas and metric corridors remain independently selectable',async()=>{
+    const p=hazards();
+    const point={id:'p',category:'masts',parts:[{kind:'Point',coordinates:[[8,46,null]]}]};
+    await p.vectors.replace({revision:1,features:[line]});
+    await p.hazards.replace({revision:1,bufferMeters:30,features:[line,point]});
+    assert.equal(p.sources.length,2);
+    const [corridor,radial]=p.sources[1].entities.values;
+    assert.equal(corridor.corridor.width,60);assert.equal(corridor.corridor.cornerType,'rounded');
+    assert.equal(radial.ellipse.semiMajorAxis,30);assert.equal(radial.ellipse.heightReference,'ground');
+    assert.equal(radial.ellipse.material.alpha,.22);
+    assert.deepEqual(p.hazards.pick(corridor),{id:'source-id',revision:1,layer:'hazard'});
+    await p.hazards.replace({revision:2,bufferMeters:0,features:[line,point]});
+    assert.equal(p.sources[1].entities.values.length,0);assert.equal(p.sources[0].entities.values.length,1);
+    assert.equal(p.hazards.pick(corridor),undefined);
+    p.hazards.dispose();p.vectors.dispose();assert.equal(p.sources.length,0);
+});
+
+test('advisory areas reject invalid buffers and discard obsolete batches',async()=>{
+    let release;
+    const p=hazards({yieldBatch:()=>new Promise(r=>release=r)});
+    for(const bufferMeters of [-1,NaN,Infinity,1001])await assert.rejects(p.hazards.replace({revision:1,bufferMeters,features:[]}));
+    await p.hazards.replace({revision:1,bufferMeters:10,features:[line]});
+    const pending=p.hazards.replace({revision:2,bufferMeters:20,features:Array.from({length:81},(_,i)=>({...line,id:`f${i}`}))});
+    await tick();await p.hazards.replace({revision:3,bufferMeters:40,features:[line]});release();await pending;
+    assert.equal(p.sources.length,1);assert.equal(p.sources[0].entities.values[0].corridor.width,80);
+    const aborted=new AbortController();aborted.abort();
+    await p.hazards.replace({revision:4,bufferMeters:20,features:[]},aborted.signal);
+    assert.equal(p.sources.length,1);p.hazards.dispose();assert.equal(p.sources.length,0);
+});
+
+test('isolated TRANSMISSION_LINE support points also anchor published cable geometry',async()=>{
+    const p=setup({groundHeight:()=>600});
+    const support={id:'published-support',category:'powerLines',parts:[{
+        kind:'Point',elevated:true,coordinates:[[8,46,550]],heightAgl:35}]};
+    await p.vectors.replace({revision:1,features:[line,support]});
+    const [cable,marker]=p.sources[0].entities.values;
+    assert.equal(cable.polyline.positions.getValue()[0][2],635);
+    assert.equal(cable.polyline.positions.getValue()[0][2],marker.position.getValue()[2]);
     p.vectors.dispose();
 });

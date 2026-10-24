@@ -13,6 +13,7 @@ locations on a CesiumJS globe. Android and Web are supported.
 - First-person terrain inspection and map-based editing of multiple local routes.
 - Configurable waypoint heights/airspeeds, drone and battery assignments.
 - Sampled terrain profiles, distance/duration analysis and configurable energy/reserve estimates.
+- Advisory obstacle buffers, route constraint checks and local GeoJSON/GPX route import/export.
 - MeteoSwiss/Open-Meteo forecasts, configurable weather comparisons and sampled wind/rain overlays.
 
 Personal records stay in local storage. Online maps and data services require

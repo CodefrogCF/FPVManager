@@ -172,6 +172,64 @@
             }
             if (parts > 4000 || vertices > 40000) throw new Error('Obstacle rendering limit exceeded');
         }
+        function supportIndex(features) {
+            const grid = new Map(), cell = (x,y) => `${Math.floor(x*10000)},${Math.floor(y*10000)}`;
+            for (const f of features) {
+                // The full BAZL KMZ also classifies support points as
+                // TRANSMISSION_LINE / cableways, not only as POLE.
+                if (!['masts','powerLines','cableways'].includes(f.category) || f.parts.length !== 1) continue;
+                const p=f.parts[0];
+                if (p.kind!=='Point' || !p.elevated || p.heightAgl==null) continue;
+                const [lon,lat,top]=p.coordinates[0],key=cell(lon,lat);
+                if (!grid.has(key)) grid.set(key,[]);
+                grid.get(key).push({lon,lat,top,agl:p.heightAgl});
+            }
+            return coordinate => {
+                const [lon,lat,top]=coordinate, candidates=[];
+                for(let x=-1;x<=1;x++)for(let y=-1;y<=1;y++) {
+                    for(const p of grid.get(`${Math.floor(lon*10000)+x},${Math.floor(lat*10000)+y}`)??[]) {
+                        const dx=(p.lon-lon)*111195*Math.cos(lat*Math.PI/180),dy=(p.lat-lat)*111195;
+                        // Same horizontal support and compatible original top;
+                        // never attach to an unrelated nearby/crossing object.
+                        if(Math.hypot(dx,dy)<=2 && Math.abs(p.top-top)<=5)candidates.push(p);
+                    }
+                }
+                return candidates.length===1?candidates[0]:null;
+            };
+        }
+        function anchoredCable(p, findSupport, color) {
+            const anchors=p.coordinates.map((a,index)=>({index,support:findSupport(a)})).filter(a=>a.support);
+            if(!anchors.length)return null;
+            const source=p.coordinates.map(a=>C.Cartesian3.fromDegrees(...a));
+            const lengths=[0];
+            for(let i=1;i<p.coordinates.length;i++){
+                const a=p.coordinates[i-1],b=p.coordinates[i];
+                lengths.push(lengths[i-1]+Math.hypot((a[0]-b[0])*Math.cos(a[1]*Math.PI/180),a[1]-b[1]));
+            }
+            let previous='',cached=source;
+            function sample(){
+                if(!isTerrainReady())return null;
+                const grounds=anchors.map(a=>viewer.scene?.globe?.getHeight?.(C.Cartographic.fromDegrees(a.support.lon,a.support.lat)));
+                if(grounds.some(g=>!Number.isFinite(g)||g < -1500 || g > 16000))return null;
+                const key=grounds.join(',');
+                if(key!==previous){
+                    const deltas=anchors.map((a,i)=>grounds[i]+a.support.agl-p.coordinates[a.index][2]);
+                    cached=p.coordinates.map((a,i)=>{
+                        const exact=anchors.findIndex(v=>v.index===i);
+                        if(exact>=0)return C.Cartesian3.fromDegrees(a[0],a[1],a[2]+deltas[exact]);
+                        const right=anchors.findIndex(v=>v.index>i),left=right-1;
+                        if(left<0||right<0)return source[i];
+                        const length=lengths[anchors[right].index]-lengths[anchors[left].index];
+                        const t=length>0?(lengths[i]-lengths[anchors[left].index])/length:0;
+                        return C.Cartesian3.fromDegrees(a[0],a[1],a[2]+deltas[left]*(1-t)+deltas[right]*t);
+                    });previous=key;
+                }
+                return cached;
+            }
+            return {name:'Approximate cable display anchored to published support tops',polyline:{
+                positions:new C.CallbackProperty(()=>sample()??source,false),
+                show:new C.CallbackProperty(()=>sample()!==null,false),width:3,material:color,arcType:C.ArcType.NONE}};
+        }
         async function replace(command, signal) {
             validate(command);
             if (disposed || command.revision <= revision) return;
@@ -184,15 +242,22 @@
             try {
                 await viewer.dataSources.add(next);
                 next.show = false;
+                const findSupport=supportIndex(command.features);
                 let index = 0;
                 for (const f of command.features) {
                     if (!current()) return;
+                    if(f.supportOnly)continue;
                     const color = C.Color.fromCssColorString(colors[f.category]);
                     // Swiss obstacle KML can include an extra Point merely to
                     // label a line/polygon. It is not a separate 3D obstacle.
                     const hasLineOrArea = f.parts.some(p => p.kind !== 'Point');
                     for (const p of f.parts) {
                         if (p.kind === 'Point' && hasLineOrArea) continue;
+                        if(p.kind==='LineString' && p.elevated && ['powerLines','cableways'].includes(f.category)){
+                            const anchored=anchoredCable(p,findSupport,color);
+                            if(anchored){const entity=next.entities.add(anchored);
+                                ids.set(entity.id,{id:f.id,revision:command.revision});continue;}
+                        }
                         const colorPoint = p.kind === 'Point' && p.heightAgl != null;
                         if (colorPoint) {
                             const objects = pointAboveTerrain(p.coordinates[0],p.heightAgl,color);
@@ -227,5 +292,68 @@
         return {replace, pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
             dispose() { disposed = true; revision++; remove(source); remove(staged); source = staged = null; selection.clear(); setCredit(false); }};
     }
-    return {WMS, createWms, createVectors};
+    function createHazards(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0))} = {}) {
+        let source = null, staged = null, revision = -1, disposed = false, selection = new Map();
+        const credit = new C.Credit('Advisory areas from BAZL / FOCA · Skyguide · geo.admin.ch',true);
+        let credited=false;
+        function setCredit(visible) {
+            const display=viewer.cesiumWidget?.creditDisplay;
+            if(visible&&!credited){display?.addStaticCredit(credit);credited=true;}
+            if(!visible&&credited){display?.removeStaticCredit(credit);credited=false;}
+        }
+        const remove = s => { if (s) viewer.dataSources.remove(s,true); };
+        async function replace(command, signal) {
+            if (!Number.isSafeInteger(command.revision) || !Number.isFinite(command.bufferMeters) ||
+                command.bufferMeters < 0 || command.bufferMeters > 1000 ||
+                !Array.isArray(command.features) || command.features.length > 1200) throw new Error('Invalid advisory areas');
+            let vertices = 0, parts = 0;
+            for (const f of command.features) {
+                if (typeof f.id !== 'string' || f.id.length > 160 || !Array.isArray(f.parts)) throw new Error('Invalid advisory feature');
+                for (const p of f.parts) {
+                    if (!Array.isArray(p.coordinates)) throw new Error('Invalid advisory geometry');
+                    parts++;
+                    for (const a of p.coordinates) {
+                        vertices++;
+                        if (!Array.isArray(a) || !Number.isFinite(a[0]) || !Number.isFinite(a[1]) ||
+                            Math.abs(a[0]) > 180 || Math.abs(a[1]) > 90) throw new Error('Invalid advisory coordinate');
+                    }
+                }
+            }
+            if (vertices > 40000 || parts > 4000) throw new Error('Advisory rendering limit exceeded');
+            if (disposed || command.revision <= revision) return;
+            revision = command.revision; remove(staged);
+            const next = staged = new C.CustomDataSource('Advisory obstacle areas');
+            const ids = new Map(), current = () => !disposed && revision === command.revision && !signal?.aborted;
+            try {
+                await viewer.dataSources.add(next); next.show = false;
+                const color = C.Color.fromCssColorString('#00bcd4').withAlpha(0.22);
+                if (command.bufferMeters > 0) for (let i=0;i<command.features.length;i++) {
+                    if (!current()) return;
+                    const f = command.features[i], hasLine = f.parts.some(p => p.kind !== 'Point');
+                    if(f.supportOnly)continue;
+                    for (const p of f.parts) {
+                        if (p.kind === 'Point' && hasLine || !['Point','LineString'].includes(p.kind)) continue;
+                        const positions = p.coordinates.map(a => C.Cartesian3.fromDegrees(a[0],a[1]));
+                        if (!positions.length || p.kind === 'LineString' && positions.length < 2) continue;
+                        const entity = next.entities.add({name:'Advisory horizontal obstacle buffer',
+                            ...(p.kind === 'Point' ? {position:positions[0],ellipse:{
+                                semiMajorAxis:command.bufferMeters,semiMinorAxis:command.bufferMeters,
+                                material:color,heightReference:C.HeightReference.CLAMP_TO_GROUND
+                            }} : {corridor:{positions,width:2*command.bufferMeters,
+                                cornerType:C.CornerType.ROUNDED,material:color,
+                                heightReference:C.HeightReference.CLAMP_TO_GROUND}})});
+                        ids.set(entity.id,{id:f.id,revision:command.revision,layer:'hazard'});
+                    }
+                    if (i % 80 === 79) await yieldBatch();
+                }
+                if (!current()) return;
+                remove(source); source=next; staged=null; selection=ids; next.show=true;
+                setCredit(ids.size>0);
+                viewer.scene.requestRender?.();
+            } finally { if (source !== next) { remove(next); if (staged===next) staged=null; } }
+        }
+        return {replace,pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
+            dispose() { disposed=true; revision++; remove(source);remove(staged);source=staged=null;selection.clear();setCredit(false); }};
+    }
+    return {WMS, createWms, createVectors, createHazards};
 });

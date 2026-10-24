@@ -23,6 +23,7 @@ class UasAirspaceCheck {
     required this.checkedFeatureCount,
     required List<UasAirspaceIntersection> intersections,
     required List<String> limitations,
+    this.datasetIdentity,
   }) : intersections = List.unmodifiable(intersections),
        limitations = List.unmodifiable(limitations);
 
@@ -32,6 +33,7 @@ class UasAirspaceCheck {
   final int checkedFeatureCount;
   final List<UasAirspaceIntersection> intersections;
   final List<String> limitations;
+  final Object? datasetIdentity;
 }
 
 /// Uses the shared provider without changing map visibility or importing data
@@ -63,6 +65,7 @@ class UasAirspaceChecker {
       fetchedAtUtc: dataset.fetchedAtUtc,
       freshness: dataset.freshnessAt(status.checkedAtUtc),
       checkedFeatureCount: result.$3,
+      datasetIdentity: dataset,
       intersections: result.$1,
       limitations: [
         ...result.$2,

@@ -28,6 +28,7 @@ class ObstacleLayersSection extends StatefulWidget {
 
 class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
   double? _previewOpacity;
+  double? _previewBuffer;
   ObstacleMapController get controller => widget.controller;
   bool get enabled => widget.enabled;
   @override
@@ -144,10 +145,44 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
               ? (v) => unawaited(run(() => controller.setVectorsVisible(v)))
               : null,
         ),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Highlight hazard areas'),
+          subtitle: const Text(
+            'Advisory horizontal buffers · independent of UAS restrictions',
+          ),
+          value: controller.hazardsVisible,
+          onChanged: enabled
+              ? (v) => unawaited(run(() => controller.setHazardsVisible(v)))
+              : null,
+        ),
+        Text(
+          'Horizontal buffer: ${(_previewBuffer ?? controller.bufferMeters).toStringAsFixed(0)} m',
+        ),
+        Slider(
+          value: _previewBuffer ?? controller.bufferMeters,
+          max: 1000,
+          divisions: 200,
+          label: '${controller.bufferMeters.toStringAsFixed(0)} m',
+          onChanged: enabled ? (v) => setState(() => _previewBuffer = v) : null,
+          onChangeEnd: enabled
+              ? (v) => unawaited(
+                  run(() async {
+                    await controller.setBufferMeters(v);
+                    if (mounted) setState(() => _previewBuffer = null);
+                  }),
+                )
+              : null,
+        ),
+        const Text(
+          'Cyan areas are calculated planning aids around published points and lines. '
+          'They do not define legal separation or vertical clearance. A zero buffer draws no area. '
+          'Category filters also apply to advisory areas and route proximity checks.',
+        ),
         if (busy) const LinearProgressIndicator(),
         Text(controller.provider.progress),
         Text('Data status: ${state.dataState.label}'),
-        if (controller.vectorsVisible) ...[
+        if (controller.vectorsVisible || controller.hazardsVisible) ...[
           Text(controller.vectorStatus),
           Wrap(
             spacing: 6,
@@ -216,7 +251,8 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           'ETRS89 ellipsoid, used as a WGS84 approximation. Unknown line/area elevations are shown only as a ground marker at their first source vertex. '
           'Isolated point obstacles with an official AGL height are displayed at that exact height above the currently rendered terrain; their visualized absolute top may differ from the surveyed LN02 top. '
           'Extra KML label points on lines/polygons are not drawn as obstacles. '
-          'Lines and polygon outlines retain source absolute 3D elevations; cable sag is not reconstructed.',
+          'Cable vertices matching published masts follow the same terrain-adjusted mast tops, with interpolated display corrections between supports. '
+          'Other geometry retains source absolute elevations. Cable sag is not reconstructed; route checks use original source geometry.',
         ),
         SelectableText(
           SwissObstacleProvider.obstacleSource.metadataUri.toString(),

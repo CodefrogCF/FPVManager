@@ -4,14 +4,23 @@ import '../../../core/models/route_planning_settings.dart';
 import '../route_editor_controller.dart';
 import 'route_analysis.dart';
 import 'route_energy.dart';
+import 'route_safety_controller.dart';
 
 class RouteAnalysisController extends ChangeNotifier {
   RouteAnalysisController(this.editor) {
     _remember();
     editor.addListener(_changed);
     editor.globe.addListener(_changed);
+    safety.addListener(_safetyChanged);
   }
   final RouteEditorController editor;
+  late final safety = RouteSafetyController(editor);
+  void _safetyChanged() {
+    if (_disposed) return;
+    _highlight();
+    notifyListeners();
+  }
+
   late List<EditableWaypoint> _points;
   late RoutePlanningSettings _settings;
   late (int, int) _terrainRevision;
@@ -53,6 +62,7 @@ class RouteAnalysisController extends ChangeNotifier {
     result = null;
     energy = null;
     batteries = const [];
+    safety.cancel();
     editor.highlightSegments({});
     if (!_disposed) notifyListeners();
   }
@@ -70,6 +80,7 @@ class RouteAnalysisController extends ChangeNotifier {
       return;
     }
     final critical = <int>{
+      ...safety.highlighted,
       for (final s in r.segments)
         if (s.minimumClearance != null &&
             s.minimumClearance! < editor.planning.minimumClearance)
@@ -84,6 +95,7 @@ class RouteAnalysisController extends ChangeNotifier {
   Future<void> calculate() async {
     if (loading || _disposed) return;
     final token = ++_operation;
+    safety.cancel();
     final points = [for (final p in editor.points) p.input];
     final settings = editor.planning;
     loading = true;
@@ -181,6 +193,8 @@ class RouteAnalysisController extends ChangeNotifier {
     ++_operation;
     editor.removeListener(_changed);
     editor.globe.removeListener(_changed);
+    safety.removeListener(_safetyChanged);
+    safety.dispose();
     super.dispose();
   }
 }

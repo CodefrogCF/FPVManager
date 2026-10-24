@@ -134,12 +134,16 @@ class OsintCacheDatabase extends GeneratedDatabase {
     ObstacleViewport v,
     Set<ObstacleCategory> categories, {
     int limit = 1201,
+    bool localViewOnly = true,
+    bool pointsOnly = false,
   }) async {
-    if (categories.isEmpty || !v.isLocal) return [];
+    if (categories.isEmpty || (localViewOnly && !v.isLocal)) return [];
     final rows = await customSelect(
       'SELECT payload FROM obstacles WHERE snapshot=? AND '
       'west<=? AND east>=? AND south<=? AND north>=? AND category IN '
-      '(${List.filled(categories.length, '?').join(',')}) ORDER BY id LIMIT ?',
+      '(${List.filled(categories.length, '?').join(',')}) '
+      '${pointsOnly ? "AND json_array_length(payload, '\$.parts')=1 AND json_extract(payload, '\$.parts[0].kind')='Point' " : ""}'
+      'ORDER BY id LIMIT ?',
       variables: [
         Variable(key),
         Variable(v.east),

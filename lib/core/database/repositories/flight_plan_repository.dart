@@ -4,6 +4,7 @@ import '../../geo/altitude_service.dart';
 import '../../geo/geo_coordinate_service.dart';
 import '../../models/flight_route.dart';
 import '../../models/route_planning_settings.dart';
+import '../../models/route_transfer.dart';
 import '../fpv_database.dart';
 import '../repository_validation.dart';
 import 'drone_repository.dart';
@@ -37,6 +38,7 @@ abstract interface class FlightPlanRepository {
     required List<RouteWaypointInput> waypoints,
   });
   Future<int> deleteFlightPlan(int id);
+  Future<List<int>> importRoutes(List<ImportedRoute> routes);
   Future<RouteEquipmentOptions> getEquipmentOptions();
   Future<int> saveRoute({
     int? id,
@@ -53,6 +55,23 @@ abstract interface class FlightPlanRepository {
 final class DriftFlightPlanRepository implements FlightPlanRepository {
   const DriftFlightPlanRepository(this._database);
   final FpvDatabase _database;
+
+  @override
+  Future<List<int>> importRoutes(List<ImportedRoute> routes) {
+    if (routes.isEmpty ||
+        routes.length > 20 ||
+        routes.fold<int>(0, (n, r) => n + r.points.length) > 10000 ||
+        routes.any((r) => r.points.length < 2 || r.points.length > 1000)) {
+      throw ArgumentError('Invalid route import size');
+    }
+    final snapshot = [for (final r in routes) ImportedRoute(r.name, r.points)];
+    return _database.transaction(
+      () async => [
+        for (final r in snapshot)
+          await saveRoute(name: r.name, waypoints: r.points),
+      ],
+    );
+  }
 
   @override
   Future<int> saveRoute({

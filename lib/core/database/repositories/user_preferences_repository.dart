@@ -31,6 +31,8 @@ final class DriftUserPreferencesRepository
   static const _wmsOpacity = 'map.obstacles.wms.opacity';
   static const _vectorsVisible = 'map.obstacles.vectors.visible';
   static const _categories = 'map.obstacles.vectors.categories';
+  static const _hazards = 'map.obstacles.hazards.visible';
+  static const _buffer = 'map.obstacles.hazards.bufferMeters';
   static const _keys = [
     _style,
     _visible,
@@ -41,6 +43,8 @@ final class DriftUserPreferencesRepository
     _wmsOpacity,
     _vectorsVisible,
     _categories,
+    _hazards,
+    _buffer,
   ];
 
   SimpleSelectStatement<$AppSettingsTable, AppSetting> _query() =>
@@ -113,6 +117,10 @@ final class DriftUserPreferencesRepository
           : (rawCategories as List)
                 .map((c) => ObstacleCategory.values.byName(c as String))
                 .toSet();
+      final buffer = values[_buffer] == null
+          ? defaults.obstacleBufferMeters
+          : double.parse(values[_buffer]!);
+      UserPreferences.validateObstacleBuffer(buffer);
       return UserPreferences(
         mapStyle: style == null
             ? defaults.mapStyle
@@ -131,6 +139,8 @@ final class DriftUserPreferencesRepository
           defaults.obstacleVectorsVisible,
         ),
         obstacleCategories: Set.unmodifiable(categories),
+        hazardAreasVisible: readBool(_hazards, defaults.hazardAreasVisible),
+        obstacleBufferMeters: buffer,
         overlayOrder: List.unmodifiable(order),
       );
     } on ArgumentError catch (error) {
@@ -155,6 +165,7 @@ final class DriftUserPreferencesRepository
     final snapshot = preferences.copyWith();
     _validateOpacity(snapshot.uasZonesFillOpacity);
     _validateOpacity(snapshot.obstacleWmsOpacity);
+    UserPreferences.validateObstacleBuffer(snapshot.obstacleBufferMeters);
     UserPreferences.validateOverlayOrder(snapshot.overlayOrder);
     final updatedAt = DateTime.now().toUtc();
     return _database.transaction(() async {
@@ -168,6 +179,8 @@ final class DriftUserPreferencesRepository
             _wmsVisible: snapshot.obstacleWmsVisible.toString(),
             _wmsOpacity: snapshot.obstacleWmsOpacity.toString(),
             _vectorsVisible: snapshot.obstacleVectorsVisible.toString(),
+            _hazards: snapshot.hazardAreasVisible.toString(),
+            _buffer: snapshot.obstacleBufferMeters.toString(),
             _categories: jsonEncode(
               snapshot.obstacleCategories.map((c) => c.name).toList()..sort(),
             ),

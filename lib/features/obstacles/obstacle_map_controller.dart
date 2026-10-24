@@ -38,10 +38,15 @@ class ObstacleMapController extends ChangeNotifier {
   Timer? _debounce;
   int _revision = 0, _query = 0;
   Map<String, ObstacleFeature> _rendered = {};
+  Map<String, ObstacleFeature> _hazardsRendered = {};
+  int _hazardRevision = 0;
   Future<SwissObstacleHeights>? _heights;
   bool get wmsVisible => preferences().obstacleWmsVisible;
   double get wmsOpacity => preferences().obstacleWmsOpacity;
   bool get vectorsVisible => preferences().obstacleVectorsVisible;
+  bool get hazardsVisible => preferences().hazardAreasVisible;
+  double get bufferMeters => preferences().obstacleBufferMeters;
+  bool get _needsData => vectorsVisible || hazardsVisible;
   Set<ObstacleCategory> get categories => preferences().obstacleCategories;
 
   void _notify() {
@@ -92,11 +97,32 @@ class ObstacleMapController extends ChangeNotifier {
     );
     clearSelection();
     _query++;
+    if (!visible) await _clearVectors();
+    if (_needsData) {
+      await _loadVectors();
+    }
+    _notify();
+  }
+
+  Future<void> setHazardsVisible(bool visible) async {
+    _editable();
+    await savePreferences(preferences().copyWith(hazardAreasVisible: visible));
+    _query++;
+    clearSelection();
     if (visible) {
       await _loadVectors();
     } else {
-      await _clearVectors();
+      await _clearHazards();
+      if (vectorsVisible) await updateViewport();
     }
+    _notify();
+  }
+
+  Future<void> setBufferMeters(double meters) async {
+    _editable();
+    UserPreferences.validateObstacleBuffer(meters);
+    await savePreferences(preferences().copyWith(obstacleBufferMeters: meters));
+    await updateViewport();
     _notify();
   }
 
@@ -127,7 +153,7 @@ class ObstacleMapController extends ChangeNotifier {
   Future<void> _loadVectors() async {
     try {
       await provider.loadCached();
-      if (_disposed || !vectorsVisible) return;
+      if (_disposed || !_needsData) return;
       if (provider.status.dataset == null) await provider.fetch();
       if (!_disposed) {
         vectorError = null;
@@ -145,7 +171,7 @@ class ObstacleMapController extends ChangeNotifier {
     if (key != _snapshotKey) {
       _snapshotKey = key;
       clearSelection();
-      if (_ready && vectorsVisible) unawaited(updateViewport());
+      if (_ready && _needsData) unawaited(updateViewport());
     }
     _notify();
   }
@@ -156,6 +182,7 @@ class ObstacleMapController extends ChangeNotifier {
     _debounce?.cancel();
     _viewport = null;
     _rendered = {};
+    _hazardsRendered = {};
     selected = null;
     wmsState = 'off';
     wmsError = null;
@@ -164,10 +191,11 @@ class ObstacleMapController extends ChangeNotifier {
   Future<void> rendererReady({bool force = false}) async {
     _ready = true;
     if (wmsVisible || force) await restoreWms();
-    if (vectorsVisible) {
+    if (_needsData) {
       await _loadVectors();
     } else if (force) {
       await _clearVectors();
+      await _clearHazards();
     }
   }
 
@@ -212,8 +240,11 @@ class ObstacleMapController extends ChangeNotifier {
       return true;
     }
     if (event['type'] == 'obstacle-selected') {
-      final feature = _rendered[event['id']];
-      if (vectorsVisible && event['revision'] == _revision && feature != null) {
+      final hazard = event['layer'] == 'hazard';
+      final feature = (hazard ? _hazardsRendered : _rendered)[event['id']];
+      if ((hazard ? hazardsVisible : vectorsVisible) &&
+          event['revision'] == (hazard ? _hazardRevision : _revision) &&
+          feature != null) {
         selected = feature;
         onSelected();
         _notify();
@@ -248,32 +279,70 @@ class ObstacleMapController extends ChangeNotifier {
     }
   }
 
+  Future<void> _clearHazards() async {
+    if (!_ready || _disposed) return;
+    _hazardsRendered = {};
+    try {
+      await send({
+        'type': 'set-hazard-areas',
+        'revision': ++_hazardRevision,
+        'bufferMeters': bufferMeters,
+        'features': <Object>[],
+      });
+    } catch (e) {
+      vectorError = 'Unable to update advisory areas: $e';
+    }
+  }
+
   Future<void> updateViewport() async {
-    if (_disposed || !_ready || !vectorsVisible) return;
+    if (_disposed || !_ready || !_needsData) return;
     final operation = ++_query;
-    bool current() =>
-        !_disposed && _ready && vectorsVisible && operation == _query;
+    bool current() => !_disposed && _ready && _needsData && operation == _query;
     final snapshot = provider.status.dataset?.data;
     final viewport = _viewport;
     if (snapshot == null || viewport == null || !viewport.isLocal) {
       vectorStatus = snapshot == null ? 'No local vector dataset available' : 'Zoom in to inspect vector obstacles (local view up to about 60 km)';
       await _clearVectors();
+      await _clearHazards();
       _notify();
       return;
     }
     try {
       final features = await provider.cache.queryObstacles(
         snapshot.key,
-        viewport,
+        hazardsVisible
+            ? ObstacleViewport(
+                viewport.west - bufferMeters / 60000,
+                viewport.south - bufferMeters / 100000,
+                viewport.east + bufferMeters / 60000,
+                viewport.north + bufferMeters / 100000,
+              )
+            : viewport,
         categories,
+        localViewOnly: false,
       );
+      if (!current()) return;
+      // Hidden support masts still anchor cable display, so category visibility
+      // does not change an otherwise known attachment height.
+      final supports =
+          vectorsVisible &&
+              (categories.contains(ObstacleCategory.powerLines) ||
+                  categories.contains(ObstacleCategory.cableways))
+          ? await provider.cache.queryObstacles(snapshot.key, viewport, {
+              ObstacleCategory.masts,
+              ObstacleCategory.powerLines,
+              ObstacleCategory.cableways,
+            }, pointsOnly: true)
+          : <ObstacleFeature>[];
       if (!current()) return;
       final heights = await (_heights ??= SwissObstacleHeights.load());
       if (!current()) return;
       var vertices = 0, parts = 0, projected = 0;
       final payload = <Map<String, dynamic>>[];
       final rendered = <String, ObstacleFeature>{};
-      for (final f in features) {
+      for (final f in {
+        for (final f in [...features, ...supports]) f.id: f,
+      }.values) {
         final size = f.parts.fold<int>(0, (n, p) => n + p.coordinates.length);
         if (payload.length >= 1200 ||
             vertices + size > 40000 ||
@@ -320,22 +389,35 @@ class ObstacleMapController extends ChangeNotifier {
         payload.add({
           'id': f.id,
           'category': f.category.name,
+          if (!categories.contains(f.category)) 'supportOnly': true,
           'parts': converted,
         });
-        rendered[f.id] = f;
+        if (categories.contains(f.category)) rendered[f.id] = f;
       }
       if (!current()) return;
       final revision = ++_revision;
-      await send({
-        'type': 'set-obstacle-vectors',
-        'revision': revision,
-        'features': payload,
-      });
+      if (vectorsVisible) {
+        await send({
+          'type': 'set-obstacle-vectors',
+          'revision': revision,
+          'features': payload,
+        });
+      }
       if (!current()) return;
-      _rendered = rendered;
-      final limited = features.length > payload.length;
+      _rendered = vectorsVisible ? rendered : {};
+      if (hazardsVisible) {
+        await send({
+          'type': 'set-hazard-areas',
+          'revision': ++_hazardRevision,
+          'bufferMeters': bufferMeters,
+          'features': payload,
+        });
+        if (!current()) return;
+        _hazardsRendered = rendered;
+      }
+      final limited = features.length > rendered.length;
       vectorStatus =
-          '${payload.length} obstacles in view${limited ? ' · display limit reached; zoom in' : ''}'
+          '${rendered.length} obstacles in view${limited ? ' · display limit reached; zoom in' : ''}'
           '${projected > 0 ? ' · $projected ground markers (height unavailable/unsupported)' : ''}';
       vectorError = null;
       _notify();
