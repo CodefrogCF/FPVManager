@@ -33,6 +33,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
         FPVFreeFlight: {createSimulator:()=>({stop(){},tick(){},status:()=>({active:false})})},
         FPVNavigationControls: {bindControls:()=>Object.assign(()=>{},{tick(){},reset(){}})},
+        FPVSignalAnalysis: require('../../web/signal_analysis.js'),
         FPVRouteEditor: {
             createEditor: () => ({ click: () => false, terrainChanged() {} }),
             createOverlays: () => ({ terrainChanged() {}, dispose() {} })

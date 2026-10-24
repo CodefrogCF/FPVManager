@@ -42,13 +42,13 @@ function postToFlutter(message) {
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
         stopNavigation();
-        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let terrainManager = null;
     let flyer = null;
-    let walker = null, routeEditor = null, routeOverlays = null, disposeGroundControls = null;
+    let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
     let currentMapStyle = "satellite";
@@ -588,6 +588,7 @@ function postToFlutter(message) {
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case "exit-ground-view": stopNavigation(); return {};
             case "set-route-editor": stopNavigation(); return routeEditor.set(command, signal);
+            case "set-signal-analysis": return signalAnalysis.set(command);
             case "set-visible-routes": return routeOverlays.set(command, signal);
             case "frame-visible-routes": stopNavigation(); await routeOverlays.frame(command.routeId, signal); return {};
             case "frame-route": stopNavigation(); await routeEditor.frame(signal); return {};
@@ -735,6 +736,7 @@ function postToFlutter(message) {
                 if (status.state !== "ready") stopNavigation("Terrain unavailable; returned to globe view");
                 routeEditor?.terrainChanged();
                 routeOverlays?.terrainChanged();
+                signalAnalysis?.clear();
                 // Dynamic obstacle stems follow the actual rendered terrain;
                 // invalidate the frame on provider transitions as well.
                 activeViewer?.scene?.requestRender?.();
@@ -865,6 +867,7 @@ function postToFlutter(message) {
             return sampled.map(point => point.height);
         };
         routeEditor = FPVRouteEditor.createEditor(Cesium, viewer, sendToFlutter, window, sampleRouteHeights, terrainAvailable);
+        signalAnalysis = FPVSignalAnalysis.createLayer(Cesium, viewer);
         routeOverlays = FPVRouteEditor.createOverlays(Cesium, viewer, sampleRouteHeights, terrainAvailable,
             () => sendToFlutter("route-preview-error", {message:"Unable to rebuild saved routes. Retry the route preview in Map layers."}));
         viewer.scene.renderError.addEventListener((_scene, error) => {

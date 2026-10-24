@@ -7160,6 +7160,879 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $PreflightChecklistsTable extends PreflightChecklists
+    with TableInfo<$PreflightChecklistsTable, PreflightChecklist> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PreflightChecklistsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 120,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemsJsonMeta = const VerificationMeta(
+    'itemsJson',
+  );
+  @override
+  late final GeneratedColumn<String> itemsJson = GeneratedColumn<String>(
+    'items_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isTemplateMeta = const VerificationMeta(
+    'isTemplate',
+  );
+  @override
+  late final GeneratedColumn<bool> isTemplate = GeneratedColumn<bool>(
+    'is_template',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_template" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _droneIdMeta = const VerificationMeta(
+    'droneId',
+  );
+  @override
+  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
+    'drone_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES drones (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<int> planId = GeneratedColumn<int>(
+    'plan_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES flight_plans (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    itemsJson,
+    isTemplate,
+    droneId,
+    planId,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'preflight_checklists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PreflightChecklist> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('items_json')) {
+      context.handle(
+        _itemsJsonMeta,
+        itemsJson.isAcceptableOrUnknown(data['items_json']!, _itemsJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemsJsonMeta);
+    }
+    if (data.containsKey('is_template')) {
+      context.handle(
+        _isTemplateMeta,
+        isTemplate.isAcceptableOrUnknown(data['is_template']!, _isTemplateMeta),
+      );
+    }
+    if (data.containsKey('drone_id')) {
+      context.handle(
+        _droneIdMeta,
+        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
+      );
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(
+        _planIdMeta,
+        planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PreflightChecklist map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PreflightChecklist(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      itemsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}items_json'],
+      )!,
+      isTemplate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_template'],
+      )!,
+      droneId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}drone_id'],
+      ),
+      planId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}plan_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PreflightChecklistsTable createAlias(String alias) {
+    return $PreflightChecklistsTable(attachedDatabase, alias);
+  }
+}
+
+class PreflightChecklist extends DataClass
+    implements Insertable<PreflightChecklist> {
+  final int id;
+  final String name;
+  final String itemsJson;
+  final bool isTemplate;
+  final int? droneId;
+  final int? planId;
+  final DateTime updatedAt;
+  const PreflightChecklist({
+    required this.id,
+    required this.name,
+    required this.itemsJson,
+    required this.isTemplate,
+    this.droneId,
+    this.planId,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['items_json'] = Variable<String>(itemsJson);
+    map['is_template'] = Variable<bool>(isTemplate);
+    if (!nullToAbsent || droneId != null) {
+      map['drone_id'] = Variable<int>(droneId);
+    }
+    if (!nullToAbsent || planId != null) {
+      map['plan_id'] = Variable<int>(planId);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PreflightChecklistsCompanion toCompanion(bool nullToAbsent) {
+    return PreflightChecklistsCompanion(
+      id: Value(id),
+      name: Value(name),
+      itemsJson: Value(itemsJson),
+      isTemplate: Value(isTemplate),
+      droneId: droneId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(droneId),
+      planId: planId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planId),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PreflightChecklist.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PreflightChecklist(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      itemsJson: serializer.fromJson<String>(json['itemsJson']),
+      isTemplate: serializer.fromJson<bool>(json['isTemplate']),
+      droneId: serializer.fromJson<int?>(json['droneId']),
+      planId: serializer.fromJson<int?>(json['planId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'itemsJson': serializer.toJson<String>(itemsJson),
+      'isTemplate': serializer.toJson<bool>(isTemplate),
+      'droneId': serializer.toJson<int?>(droneId),
+      'planId': serializer.toJson<int?>(planId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  PreflightChecklist copyWith({
+    int? id,
+    String? name,
+    String? itemsJson,
+    bool? isTemplate,
+    Value<int?> droneId = const Value.absent(),
+    Value<int?> planId = const Value.absent(),
+    DateTime? updatedAt,
+  }) => PreflightChecklist(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    itemsJson: itemsJson ?? this.itemsJson,
+    isTemplate: isTemplate ?? this.isTemplate,
+    droneId: droneId.present ? droneId.value : this.droneId,
+    planId: planId.present ? planId.value : this.planId,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PreflightChecklist copyWithCompanion(PreflightChecklistsCompanion data) {
+    return PreflightChecklist(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      itemsJson: data.itemsJson.present ? data.itemsJson.value : this.itemsJson,
+      isTemplate: data.isTemplate.present
+          ? data.isTemplate.value
+          : this.isTemplate,
+      droneId: data.droneId.present ? data.droneId.value : this.droneId,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PreflightChecklist(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('itemsJson: $itemsJson, ')
+          ..write('isTemplate: $isTemplate, ')
+          ..write('droneId: $droneId, ')
+          ..write('planId: $planId, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, itemsJson, isTemplate, droneId, planId, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PreflightChecklist &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.itemsJson == this.itemsJson &&
+          other.isTemplate == this.isTemplate &&
+          other.droneId == this.droneId &&
+          other.planId == this.planId &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PreflightChecklistsCompanion extends UpdateCompanion<PreflightChecklist> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> itemsJson;
+  final Value<bool> isTemplate;
+  final Value<int?> droneId;
+  final Value<int?> planId;
+  final Value<DateTime> updatedAt;
+  const PreflightChecklistsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.itemsJson = const Value.absent(),
+    this.isTemplate = const Value.absent(),
+    this.droneId = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  PreflightChecklistsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required String itemsJson,
+    this.isTemplate = const Value.absent(),
+    this.droneId = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : name = Value(name),
+       itemsJson = Value(itemsJson);
+  static Insertable<PreflightChecklist> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? itemsJson,
+    Expression<bool>? isTemplate,
+    Expression<int>? droneId,
+    Expression<int>? planId,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (itemsJson != null) 'items_json': itemsJson,
+      if (isTemplate != null) 'is_template': isTemplate,
+      if (droneId != null) 'drone_id': droneId,
+      if (planId != null) 'plan_id': planId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  PreflightChecklistsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String>? itemsJson,
+    Value<bool>? isTemplate,
+    Value<int?>? droneId,
+    Value<int?>? planId,
+    Value<DateTime>? updatedAt,
+  }) {
+    return PreflightChecklistsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      itemsJson: itemsJson ?? this.itemsJson,
+      isTemplate: isTemplate ?? this.isTemplate,
+      droneId: droneId ?? this.droneId,
+      planId: planId ?? this.planId,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (itemsJson.present) {
+      map['items_json'] = Variable<String>(itemsJson.value);
+    }
+    if (isTemplate.present) {
+      map['is_template'] = Variable<bool>(isTemplate.value);
+    }
+    if (droneId.present) {
+      map['drone_id'] = Variable<int>(droneId.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<int>(planId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PreflightChecklistsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('itemsJson: $itemsJson, ')
+          ..write('isTemplate: $isTemplate, ')
+          ..write('droneId: $droneId, ')
+          ..write('planId: $planId, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TelemetryFlightsTable extends TelemetryFlights
+    with TableInfo<$TelemetryFlightsTable, TelemetryFlight> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TelemetryFlightsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 240,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rawBytesMeta = const VerificationMeta(
+    'rawBytes',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> rawBytes = GeneratedColumn<Uint8List>(
+    'raw_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _droneIdMeta = const VerificationMeta(
+    'droneId',
+  );
+  @override
+  late final GeneratedColumn<int> droneId = GeneratedColumn<int>(
+    'drone_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES drones (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<int> planId = GeneratedColumn<int>(
+    'plan_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES flight_plans (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _importedAtMeta = const VerificationMeta(
+    'importedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> importedAt = GeneratedColumn<DateTime>(
+    'imported_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    fileName,
+    rawBytes,
+    droneId,
+    planId,
+    importedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'telemetry_flights';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TelemetryFlight> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileNameMeta);
+    }
+    if (data.containsKey('raw_bytes')) {
+      context.handle(
+        _rawBytesMeta,
+        rawBytes.isAcceptableOrUnknown(data['raw_bytes']!, _rawBytesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rawBytesMeta);
+    }
+    if (data.containsKey('drone_id')) {
+      context.handle(
+        _droneIdMeta,
+        droneId.isAcceptableOrUnknown(data['drone_id']!, _droneIdMeta),
+      );
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(
+        _planIdMeta,
+        planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta),
+      );
+    }
+    if (data.containsKey('imported_at')) {
+      context.handle(
+        _importedAtMeta,
+        importedAt.isAcceptableOrUnknown(data['imported_at']!, _importedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TelemetryFlight map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TelemetryFlight(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      )!,
+      rawBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}raw_bytes'],
+      )!,
+      droneId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}drone_id'],
+      ),
+      planId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}plan_id'],
+      ),
+      importedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}imported_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TelemetryFlightsTable createAlias(String alias) {
+    return $TelemetryFlightsTable(attachedDatabase, alias);
+  }
+}
+
+class TelemetryFlight extends DataClass implements Insertable<TelemetryFlight> {
+  final int id;
+  final String fileName;
+  final Uint8List rawBytes;
+  final int? droneId;
+  final int? planId;
+  final DateTime importedAt;
+  const TelemetryFlight({
+    required this.id,
+    required this.fileName,
+    required this.rawBytes,
+    this.droneId,
+    this.planId,
+    required this.importedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['file_name'] = Variable<String>(fileName);
+    map['raw_bytes'] = Variable<Uint8List>(rawBytes);
+    if (!nullToAbsent || droneId != null) {
+      map['drone_id'] = Variable<int>(droneId);
+    }
+    if (!nullToAbsent || planId != null) {
+      map['plan_id'] = Variable<int>(planId);
+    }
+    map['imported_at'] = Variable<DateTime>(importedAt);
+    return map;
+  }
+
+  TelemetryFlightsCompanion toCompanion(bool nullToAbsent) {
+    return TelemetryFlightsCompanion(
+      id: Value(id),
+      fileName: Value(fileName),
+      rawBytes: Value(rawBytes),
+      droneId: droneId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(droneId),
+      planId: planId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planId),
+      importedAt: Value(importedAt),
+    );
+  }
+
+  factory TelemetryFlight.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TelemetryFlight(
+      id: serializer.fromJson<int>(json['id']),
+      fileName: serializer.fromJson<String>(json['fileName']),
+      rawBytes: serializer.fromJson<Uint8List>(json['rawBytes']),
+      droneId: serializer.fromJson<int?>(json['droneId']),
+      planId: serializer.fromJson<int?>(json['planId']),
+      importedAt: serializer.fromJson<DateTime>(json['importedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'fileName': serializer.toJson<String>(fileName),
+      'rawBytes': serializer.toJson<Uint8List>(rawBytes),
+      'droneId': serializer.toJson<int?>(droneId),
+      'planId': serializer.toJson<int?>(planId),
+      'importedAt': serializer.toJson<DateTime>(importedAt),
+    };
+  }
+
+  TelemetryFlight copyWith({
+    int? id,
+    String? fileName,
+    Uint8List? rawBytes,
+    Value<int?> droneId = const Value.absent(),
+    Value<int?> planId = const Value.absent(),
+    DateTime? importedAt,
+  }) => TelemetryFlight(
+    id: id ?? this.id,
+    fileName: fileName ?? this.fileName,
+    rawBytes: rawBytes ?? this.rawBytes,
+    droneId: droneId.present ? droneId.value : this.droneId,
+    planId: planId.present ? planId.value : this.planId,
+    importedAt: importedAt ?? this.importedAt,
+  );
+  TelemetryFlight copyWithCompanion(TelemetryFlightsCompanion data) {
+    return TelemetryFlight(
+      id: data.id.present ? data.id.value : this.id,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      rawBytes: data.rawBytes.present ? data.rawBytes.value : this.rawBytes,
+      droneId: data.droneId.present ? data.droneId.value : this.droneId,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      importedAt: data.importedAt.present
+          ? data.importedAt.value
+          : this.importedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TelemetryFlight(')
+          ..write('id: $id, ')
+          ..write('fileName: $fileName, ')
+          ..write('rawBytes: $rawBytes, ')
+          ..write('droneId: $droneId, ')
+          ..write('planId: $planId, ')
+          ..write('importedAt: $importedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    fileName,
+    $driftBlobEquality.hash(rawBytes),
+    droneId,
+    planId,
+    importedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TelemetryFlight &&
+          other.id == this.id &&
+          other.fileName == this.fileName &&
+          $driftBlobEquality.equals(other.rawBytes, this.rawBytes) &&
+          other.droneId == this.droneId &&
+          other.planId == this.planId &&
+          other.importedAt == this.importedAt);
+}
+
+class TelemetryFlightsCompanion extends UpdateCompanion<TelemetryFlight> {
+  final Value<int> id;
+  final Value<String> fileName;
+  final Value<Uint8List> rawBytes;
+  final Value<int?> droneId;
+  final Value<int?> planId;
+  final Value<DateTime> importedAt;
+  const TelemetryFlightsCompanion({
+    this.id = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.rawBytes = const Value.absent(),
+    this.droneId = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.importedAt = const Value.absent(),
+  });
+  TelemetryFlightsCompanion.insert({
+    this.id = const Value.absent(),
+    required String fileName,
+    required Uint8List rawBytes,
+    this.droneId = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.importedAt = const Value.absent(),
+  }) : fileName = Value(fileName),
+       rawBytes = Value(rawBytes);
+  static Insertable<TelemetryFlight> custom({
+    Expression<int>? id,
+    Expression<String>? fileName,
+    Expression<Uint8List>? rawBytes,
+    Expression<int>? droneId,
+    Expression<int>? planId,
+    Expression<DateTime>? importedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (fileName != null) 'file_name': fileName,
+      if (rawBytes != null) 'raw_bytes': rawBytes,
+      if (droneId != null) 'drone_id': droneId,
+      if (planId != null) 'plan_id': planId,
+      if (importedAt != null) 'imported_at': importedAt,
+    });
+  }
+
+  TelemetryFlightsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? fileName,
+    Value<Uint8List>? rawBytes,
+    Value<int?>? droneId,
+    Value<int?>? planId,
+    Value<DateTime>? importedAt,
+  }) {
+    return TelemetryFlightsCompanion(
+      id: id ?? this.id,
+      fileName: fileName ?? this.fileName,
+      rawBytes: rawBytes ?? this.rawBytes,
+      droneId: droneId ?? this.droneId,
+      planId: planId ?? this.planId,
+      importedAt: importedAt ?? this.importedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (rawBytes.present) {
+      map['raw_bytes'] = Variable<Uint8List>(rawBytes.value);
+    }
+    if (droneId.present) {
+      map['drone_id'] = Variable<int>(droneId.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<int>(planId.value);
+    }
+    if (importedAt.present) {
+      map['imported_at'] = Variable<DateTime>(importedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TelemetryFlightsCompanion(')
+          ..write('id: $id, ')
+          ..write('fileName: $fileName, ')
+          ..write('rawBytes: $rawBytes, ')
+          ..write('droneId: $droneId, ')
+          ..write('planId: $planId, ')
+          ..write('importedAt: $importedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$FpvDatabase extends GeneratedDatabase {
   _$FpvDatabase(QueryExecutor e) : super(e);
   $FpvDatabaseManager get managers => $FpvDatabaseManager(this);
@@ -7181,6 +8054,11 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     this,
   );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $PreflightChecklistsTable preflightChecklists =
+      $PreflightChecklistsTable(this);
+  late final $TelemetryFlightsTable telemetryFlights = $TelemetryFlightsTable(
+    this,
+  );
   late final Index spotsCategoryId = Index(
     'spots_category_id',
     'CREATE INDEX spots_category_id ON spots (category_key, id)',
@@ -7215,6 +8093,8 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     radioEquipmentDrones,
     flightWaypoints,
     appSettings,
+    preflightChecklists,
+    telemetryFlights,
     spotsCategoryId,
     spotsFavoriteId,
     spotTagsTagSpot,
@@ -7312,6 +8192,34 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('flight_waypoints', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'drones',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('preflight_checklists', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'flight_plans',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('preflight_checklists', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'drones',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('telemetry_flights', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'flight_plans',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('telemetry_flights', kind: UpdateKind.update)],
     ),
   ]);
 }
@@ -8627,6 +9535,50 @@ final class $$DronesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $PreflightChecklistsTable,
+    List<PreflightChecklist>
+  >
+  _preflightChecklistsRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.preflightChecklists,
+        aliasName: 'drones__id__preflight_checklists__drone_id',
+      );
+
+  $$PreflightChecklistsTableProcessedTableManager get preflightChecklistsRefs {
+    final manager = $$PreflightChecklistsTableTableManager(
+      $_db,
+      $_db.preflightChecklists,
+    ).filter((f) => f.droneId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _preflightChecklistsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$TelemetryFlightsTable, List<TelemetryFlight>>
+  _telemetryFlightsRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
+    db.telemetryFlights,
+    aliasName: 'drones__id__telemetry_flights__drone_id',
+  );
+
+  $$TelemetryFlightsTableProcessedTableManager get telemetryFlightsRefs {
+    final manager = $$TelemetryFlightsTableTableManager(
+      $_db,
+      $_db.telemetryFlights,
+    ).filter((f) => f.droneId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _telemetryFlightsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$DronesTableFilterComposer
@@ -8860,6 +9812,56 @@ class $$DronesTableFilterComposer
           }) => $$RadioEquipmentDronesTableFilterComposer(
             $db: $db,
             $table: $db.radioEquipmentDrones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> preflightChecklistsRefs(
+    Expression<bool> Function($$PreflightChecklistsTableFilterComposer f) f,
+  ) {
+    final $$PreflightChecklistsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.preflightChecklists,
+      getReferencedColumn: (t) => t.droneId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PreflightChecklistsTableFilterComposer(
+            $db: $db,
+            $table: $db.preflightChecklists,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> telemetryFlightsRefs(
+    Expression<bool> Function($$TelemetryFlightsTableFilterComposer f) f,
+  ) {
+    final $$TelemetryFlightsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.telemetryFlights,
+      getReferencedColumn: (t) => t.droneId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TelemetryFlightsTableFilterComposer(
+            $db: $db,
+            $table: $db.telemetryFlights,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -9232,6 +10234,57 @@ class $$DronesTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> preflightChecklistsRefs<T extends Object>(
+    Expression<T> Function($$PreflightChecklistsTableAnnotationComposer a) f,
+  ) {
+    final $$PreflightChecklistsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.preflightChecklists,
+          getReferencedColumn: (t) => t.droneId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PreflightChecklistsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.preflightChecklists,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> telemetryFlightsRefs<T extends Object>(
+    Expression<T> Function($$TelemetryFlightsTableAnnotationComposer a) f,
+  ) {
+    final $$TelemetryFlightsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.telemetryFlights,
+      getReferencedColumn: (t) => t.droneId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TelemetryFlightsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.telemetryFlights,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$DronesTableTableManager
@@ -9252,6 +10305,8 @@ class $$DronesTableTableManager
             bool batteryDronesRefs,
             bool flightPlansRefs,
             bool radioEquipmentDronesRefs,
+            bool preflightChecklistsRefs,
+            bool telemetryFlightsRefs,
           })
         > {
   $$DronesTableTableManager(_$FpvDatabase db, $DronesTable table)
@@ -9395,6 +10450,8 @@ class $$DronesTableTableManager
                 batteryDronesRefs = false,
                 flightPlansRefs = false,
                 radioEquipmentDronesRefs = false,
+                preflightChecklistsRefs = false,
+                telemetryFlightsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -9403,6 +10460,8 @@ class $$DronesTableTableManager
                     if (batteryDronesRefs) db.batteryDrones,
                     if (flightPlansRefs) db.flightPlans,
                     if (radioEquipmentDronesRefs) db.radioEquipmentDrones,
+                    if (preflightChecklistsRefs) db.preflightChecklists,
+                    if (telemetryFlightsRefs) db.telemetryFlights,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -9491,6 +10550,48 @@ class $$DronesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (preflightChecklistsRefs)
+                        await $_getPrefetchedData<
+                          Drone,
+                          $DronesTable,
+                          PreflightChecklist
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DronesTableReferences
+                              ._preflightChecklistsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DronesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).preflightChecklistsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.droneId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (telemetryFlightsRefs)
+                        await $_getPrefetchedData<
+                          Drone,
+                          $DronesTable,
+                          TelemetryFlight
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DronesTableReferences
+                              ._telemetryFlightsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DronesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).telemetryFlightsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.droneId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -9516,6 +10617,8 @@ typedef $$DronesTableProcessedTableManager =
         bool batteryDronesRefs,
         bool flightPlansRefs,
         bool radioEquipmentDronesRefs,
+        bool preflightChecklistsRefs,
+        bool telemetryFlightsRefs,
       })
     >;
 typedef $$DroneParameterSourcesTableCreateCompanionBuilder =
@@ -10975,6 +12078,50 @@ final class $$FlightPlansTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $PreflightChecklistsTable,
+    List<PreflightChecklist>
+  >
+  _preflightChecklistsRefsTable(_$FpvDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.preflightChecklists,
+        aliasName: 'flight_plans__id__preflight_checklists__plan_id',
+      );
+
+  $$PreflightChecklistsTableProcessedTableManager get preflightChecklistsRefs {
+    final manager = $$PreflightChecklistsTableTableManager(
+      $_db,
+      $_db.preflightChecklists,
+    ).filter((f) => f.planId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _preflightChecklistsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$TelemetryFlightsTable, List<TelemetryFlight>>
+  _telemetryFlightsRefsTable(_$FpvDatabase db) => MultiTypedResultKey.fromTable(
+    db.telemetryFlights,
+    aliasName: 'flight_plans__id__telemetry_flights__plan_id',
+  );
+
+  $$TelemetryFlightsTableProcessedTableManager get telemetryFlightsRefs {
+    final manager = $$TelemetryFlightsTableTableManager(
+      $_db,
+      $_db.telemetryFlights,
+    ).filter((f) => f.planId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _telemetryFlightsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$FlightPlansTableFilterComposer
@@ -11098,6 +12245,56 @@ class $$FlightPlansTableFilterComposer
           }) => $$FlightWaypointsTableFilterComposer(
             $db: $db,
             $table: $db.flightWaypoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> preflightChecklistsRefs(
+    Expression<bool> Function($$PreflightChecklistsTableFilterComposer f) f,
+  ) {
+    final $$PreflightChecklistsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.preflightChecklists,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PreflightChecklistsTableFilterComposer(
+            $db: $db,
+            $table: $db.preflightChecklists,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> telemetryFlightsRefs(
+    Expression<bool> Function($$TelemetryFlightsTableFilterComposer f) f,
+  ) {
+    final $$TelemetryFlightsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.telemetryFlights,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TelemetryFlightsTableFilterComposer(
+            $db: $db,
+            $table: $db.telemetryFlights,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -11311,6 +12508,57 @@ class $$FlightPlansTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> preflightChecklistsRefs<T extends Object>(
+    Expression<T> Function($$PreflightChecklistsTableAnnotationComposer a) f,
+  ) {
+    final $$PreflightChecklistsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.preflightChecklists,
+          getReferencedColumn: (t) => t.planId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PreflightChecklistsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.preflightChecklists,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> telemetryFlightsRefs<T extends Object>(
+    Expression<T> Function($$TelemetryFlightsTableAnnotationComposer a) f,
+  ) {
+    final $$TelemetryFlightsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.telemetryFlights,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TelemetryFlightsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.telemetryFlights,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$FlightPlansTableTableManager
@@ -11331,6 +12579,8 @@ class $$FlightPlansTableTableManager
             bool startSpotId,
             bool batteryFlightPlansRefs,
             bool flightWaypointsRefs,
+            bool preflightChecklistsRefs,
+            bool telemetryFlightsRefs,
           })
         > {
   $$FlightPlansTableTableManager(_$FpvDatabase db, $FlightPlansTable table)
@@ -11394,12 +12644,16 @@ class $$FlightPlansTableTableManager
                 startSpotId = false,
                 batteryFlightPlansRefs = false,
                 flightWaypointsRefs = false,
+                preflightChecklistsRefs = false,
+                telemetryFlightsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (batteryFlightPlansRefs) db.batteryFlightPlans,
                     if (flightWaypointsRefs) db.flightWaypoints,
+                    if (preflightChecklistsRefs) db.preflightChecklists,
+                    if (telemetryFlightsRefs) db.telemetryFlights,
                   ],
                   addJoins:
                       <
@@ -11486,6 +12740,48 @@ class $$FlightPlansTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (preflightChecklistsRefs)
+                        await $_getPrefetchedData<
+                          FlightPlan,
+                          $FlightPlansTable,
+                          PreflightChecklist
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FlightPlansTableReferences
+                              ._preflightChecklistsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FlightPlansTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).preflightChecklistsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.planId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (telemetryFlightsRefs)
+                        await $_getPrefetchedData<
+                          FlightPlan,
+                          $FlightPlansTable,
+                          TelemetryFlight
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FlightPlansTableReferences
+                              ._telemetryFlightsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FlightPlansTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).telemetryFlightsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.planId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -11511,6 +12807,8 @@ typedef $$FlightPlansTableProcessedTableManager =
         bool startSpotId,
         bool batteryFlightPlansRefs,
         bool flightWaypointsRefs,
+        bool preflightChecklistsRefs,
+        bool telemetryFlightsRefs,
       })
     >;
 typedef $$BatteryFlightPlansTableCreateCompanionBuilder =
@@ -13446,6 +14744,879 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$PreflightChecklistsTableCreateCompanionBuilder =
+    PreflightChecklistsCompanion Function({
+      Value<int> id,
+      required String name,
+      required String itemsJson,
+      Value<bool> isTemplate,
+      Value<int?> droneId,
+      Value<int?> planId,
+      Value<DateTime> updatedAt,
+    });
+typedef $$PreflightChecklistsTableUpdateCompanionBuilder =
+    PreflightChecklistsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String> itemsJson,
+      Value<bool> isTemplate,
+      Value<int?> droneId,
+      Value<int?> planId,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$PreflightChecklistsTableReferences
+    extends
+        BaseReferences<
+          _$FpvDatabase,
+          $PreflightChecklistsTable,
+          PreflightChecklist
+        > {
+  $$PreflightChecklistsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
+      db.drones.createAlias('preflight_checklists__drone_id__drones__id');
+
+  $$DronesTableProcessedTableManager? get droneId {
+    final $_column = $_itemColumn<int>('drone_id');
+    if ($_column == null) return null;
+    final manager = $$DronesTableTableManager(
+      $_db,
+      $_db.drones,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FlightPlansTable _planIdTable(_$FpvDatabase db) => db.flightPlans
+      .createAlias('preflight_checklists__plan_id__flight_plans__id');
+
+  $$FlightPlansTableProcessedTableManager? get planId {
+    final $_column = $_itemColumn<int>('plan_id');
+    if ($_column == null) return null;
+    final manager = $$FlightPlansTableTableManager(
+      $_db,
+      $_db.flightPlans,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_planIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PreflightChecklistsTableFilterComposer
+    extends Composer<_$FpvDatabase, $PreflightChecklistsTable> {
+  $$PreflightChecklistsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemsJson => $composableBuilder(
+    column: $table.itemsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isTemplate => $composableBuilder(
+    column: $table.isTemplate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DronesTableFilterComposer get droneId {
+    final $$DronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableFilterComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableFilterComposer get planId {
+    final $$FlightPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PreflightChecklistsTableOrderingComposer
+    extends Composer<_$FpvDatabase, $PreflightChecklistsTable> {
+  $$PreflightChecklistsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemsJson => $composableBuilder(
+    column: $table.itemsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isTemplate => $composableBuilder(
+    column: $table.isTemplate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DronesTableOrderingComposer get droneId {
+    final $$DronesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableOrderingComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableOrderingComposer get planId {
+    final $$FlightPlansTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableOrderingComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PreflightChecklistsTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $PreflightChecklistsTable> {
+  $$PreflightChecklistsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get itemsJson =>
+      $composableBuilder(column: $table.itemsJson, builder: (column) => column);
+
+  GeneratedColumn<bool> get isTemplate => $composableBuilder(
+    column: $table.isTemplate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$DronesTableAnnotationComposer get droneId {
+    final $$DronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableAnnotationComposer get planId {
+    final $$FlightPlansTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableAnnotationComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PreflightChecklistsTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $PreflightChecklistsTable,
+          PreflightChecklist,
+          $$PreflightChecklistsTableFilterComposer,
+          $$PreflightChecklistsTableOrderingComposer,
+          $$PreflightChecklistsTableAnnotationComposer,
+          $$PreflightChecklistsTableCreateCompanionBuilder,
+          $$PreflightChecklistsTableUpdateCompanionBuilder,
+          (PreflightChecklist, $$PreflightChecklistsTableReferences),
+          PreflightChecklist,
+          PrefetchHooks Function({bool droneId, bool planId})
+        > {
+  $$PreflightChecklistsTableTableManager(
+    _$FpvDatabase db,
+    $PreflightChecklistsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PreflightChecklistsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PreflightChecklistsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PreflightChecklistsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> itemsJson = const Value.absent(),
+                Value<bool> isTemplate = const Value.absent(),
+                Value<int?> droneId = const Value.absent(),
+                Value<int?> planId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => PreflightChecklistsCompanion(
+                id: id,
+                name: name,
+                itemsJson: itemsJson,
+                isTemplate: isTemplate,
+                droneId: droneId,
+                planId: planId,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required String itemsJson,
+                Value<bool> isTemplate = const Value.absent(),
+                Value<int?> droneId = const Value.absent(),
+                Value<int?> planId = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => PreflightChecklistsCompanion.insert(
+                id: id,
+                name: name,
+                itemsJson: itemsJson,
+                isTemplate: isTemplate,
+                droneId: droneId,
+                planId: planId,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PreflightChecklistsTable, PreflightChecklist>(
+                    table,
+                  ),
+                  $$PreflightChecklistsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({droneId = false, planId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (droneId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.droneId,
+                        referencedTable: $$PreflightChecklistsTableReferences
+                            ._droneIdTable(db),
+                        referencedColumn: $$PreflightChecklistsTableReferences
+                            ._droneIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (planId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.planId,
+                        referencedTable: $$PreflightChecklistsTableReferences
+                            ._planIdTable(db),
+                        referencedColumn: $$PreflightChecklistsTableReferences
+                            ._planIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PreflightChecklistsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $PreflightChecklistsTable,
+      PreflightChecklist,
+      $$PreflightChecklistsTableFilterComposer,
+      $$PreflightChecklistsTableOrderingComposer,
+      $$PreflightChecklistsTableAnnotationComposer,
+      $$PreflightChecklistsTableCreateCompanionBuilder,
+      $$PreflightChecklistsTableUpdateCompanionBuilder,
+      (PreflightChecklist, $$PreflightChecklistsTableReferences),
+      PreflightChecklist,
+      PrefetchHooks Function({bool droneId, bool planId})
+    >;
+typedef $$TelemetryFlightsTableCreateCompanionBuilder =
+    TelemetryFlightsCompanion Function({
+      Value<int> id,
+      required String fileName,
+      required Uint8List rawBytes,
+      Value<int?> droneId,
+      Value<int?> planId,
+      Value<DateTime> importedAt,
+    });
+typedef $$TelemetryFlightsTableUpdateCompanionBuilder =
+    TelemetryFlightsCompanion Function({
+      Value<int> id,
+      Value<String> fileName,
+      Value<Uint8List> rawBytes,
+      Value<int?> droneId,
+      Value<int?> planId,
+      Value<DateTime> importedAt,
+    });
+
+final class $$TelemetryFlightsTableReferences
+    extends
+        BaseReferences<_$FpvDatabase, $TelemetryFlightsTable, TelemetryFlight> {
+  $$TelemetryFlightsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DronesTable _droneIdTable(_$FpvDatabase db) =>
+      db.drones.createAlias('telemetry_flights__drone_id__drones__id');
+
+  $$DronesTableProcessedTableManager? get droneId {
+    final $_column = $_itemColumn<int>('drone_id');
+    if ($_column == null) return null;
+    final manager = $$DronesTableTableManager(
+      $_db,
+      $_db.drones,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_droneIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FlightPlansTable _planIdTable(_$FpvDatabase db) => db.flightPlans
+      .createAlias('telemetry_flights__plan_id__flight_plans__id');
+
+  $$FlightPlansTableProcessedTableManager? get planId {
+    final $_column = $_itemColumn<int>('plan_id');
+    if ($_column == null) return null;
+    final manager = $$FlightPlansTableTableManager(
+      $_db,
+      $_db.flightPlans,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_planIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TelemetryFlightsTableFilterComposer
+    extends Composer<_$FpvDatabase, $TelemetryFlightsTable> {
+  $$TelemetryFlightsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get rawBytes => $composableBuilder(
+    column: $table.rawBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DronesTableFilterComposer get droneId {
+    final $$DronesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableFilterComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableFilterComposer get planId {
+    final $$FlightPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TelemetryFlightsTableOrderingComposer
+    extends Composer<_$FpvDatabase, $TelemetryFlightsTable> {
+  $$TelemetryFlightsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get rawBytes => $composableBuilder(
+    column: $table.rawBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DronesTableOrderingComposer get droneId {
+    final $$DronesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableOrderingComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableOrderingComposer get planId {
+    final $$FlightPlansTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableOrderingComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TelemetryFlightsTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $TelemetryFlightsTable> {
+  $$TelemetryFlightsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get rawBytes =>
+      $composableBuilder(column: $table.rawBytes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => column,
+  );
+
+  $$DronesTableAnnotationComposer get droneId {
+    final $$DronesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.droneId,
+      referencedTable: $db.drones,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DronesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.drones,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FlightPlansTableAnnotationComposer get planId {
+    final $$FlightPlansTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.flightPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlightPlansTableAnnotationComposer(
+            $db: $db,
+            $table: $db.flightPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TelemetryFlightsTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $TelemetryFlightsTable,
+          TelemetryFlight,
+          $$TelemetryFlightsTableFilterComposer,
+          $$TelemetryFlightsTableOrderingComposer,
+          $$TelemetryFlightsTableAnnotationComposer,
+          $$TelemetryFlightsTableCreateCompanionBuilder,
+          $$TelemetryFlightsTableUpdateCompanionBuilder,
+          (TelemetryFlight, $$TelemetryFlightsTableReferences),
+          TelemetryFlight,
+          PrefetchHooks Function({bool droneId, bool planId})
+        > {
+  $$TelemetryFlightsTableTableManager(
+    _$FpvDatabase db,
+    $TelemetryFlightsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TelemetryFlightsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TelemetryFlightsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TelemetryFlightsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> fileName = const Value.absent(),
+                Value<Uint8List> rawBytes = const Value.absent(),
+                Value<int?> droneId = const Value.absent(),
+                Value<int?> planId = const Value.absent(),
+                Value<DateTime> importedAt = const Value.absent(),
+              }) => TelemetryFlightsCompanion(
+                id: id,
+                fileName: fileName,
+                rawBytes: rawBytes,
+                droneId: droneId,
+                planId: planId,
+                importedAt: importedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String fileName,
+                required Uint8List rawBytes,
+                Value<int?> droneId = const Value.absent(),
+                Value<int?> planId = const Value.absent(),
+                Value<DateTime> importedAt = const Value.absent(),
+              }) => TelemetryFlightsCompanion.insert(
+                id: id,
+                fileName: fileName,
+                rawBytes: rawBytes,
+                droneId: droneId,
+                planId: planId,
+                importedAt: importedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TelemetryFlightsTable, TelemetryFlight>(table),
+                  $$TelemetryFlightsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({droneId = false, planId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (droneId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.droneId,
+                        referencedTable: $$TelemetryFlightsTableReferences
+                            ._droneIdTable(db),
+                        referencedColumn: $$TelemetryFlightsTableReferences
+                            ._droneIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (planId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.planId,
+                        referencedTable: $$TelemetryFlightsTableReferences
+                            ._planIdTable(db),
+                        referencedColumn: $$TelemetryFlightsTableReferences
+                            ._planIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TelemetryFlightsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $TelemetryFlightsTable,
+      TelemetryFlight,
+      $$TelemetryFlightsTableFilterComposer,
+      $$TelemetryFlightsTableOrderingComposer,
+      $$TelemetryFlightsTableAnnotationComposer,
+      $$TelemetryFlightsTableCreateCompanionBuilder,
+      $$TelemetryFlightsTableUpdateCompanionBuilder,
+      (TelemetryFlight, $$TelemetryFlightsTableReferences),
+      TelemetryFlight,
+      PrefetchHooks Function({bool droneId, bool planId})
+    >;
 
 class $FpvDatabaseManager {
   final _$FpvDatabase _db;
@@ -13476,4 +15647,8 @@ class $FpvDatabaseManager {
       $$FlightWaypointsTableTableManager(_db, _db.flightWaypoints);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$PreflightChecklistsTableTableManager get preflightChecklists =>
+      $$PreflightChecklistsTableTableManager(_db, _db.preflightChecklists);
+  $$TelemetryFlightsTableTableManager get telemetryFlights =>
+      $$TelemetryFlightsTableTableManager(_db, _db.telemetryFlights);
 }

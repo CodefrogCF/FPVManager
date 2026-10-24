@@ -143,6 +143,7 @@ class _SettingsState extends State<_Settings> {
         powerCurve: _curve(),
         curveSource: _fields['source']!.text.trim(),
         constraints: widget.editor.planning.constraints,
+        signal: widget.editor.planning.signal,
       );
       settings.validate();
       widget.editor.configurePlanning(settings);

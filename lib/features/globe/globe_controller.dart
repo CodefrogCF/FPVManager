@@ -831,6 +831,16 @@ class GlobeController extends ChangeNotifier {
     );
   }
 
+  /// Ephemeral analysis: never replayed against a replaced terrain/renderer.
+  Future<void> setSignalAnalysis(Map<String, Object?> state) async {
+    final rays = state['rays'];
+    if (rays is! List || rays.length > 128) {
+      throw ArgumentError('Invalid radio paths');
+    }
+    if (_disposed || !_ready) return;
+    await _bridge.send({'type': 'set-signal-analysis', ...state});
+  }
+
   Future<TerrainElevation> queryTerrainElevation({
     required double latitude,
     required double longitude,

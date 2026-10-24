@@ -13,6 +13,7 @@ locations on a CesiumJS globe. Android and Web are supported.
 - First-person terrain inspection and map-based editing of multiple local routes.
 - Local GPS, Angle and Acro flight exploration with shared touch, keyboard and controller input.
 - Configurable waypoint heights/airspeeds, drone and battery assignments.
+- Local preflight checklists/templates, terrain LOS/Fresnel screening and telemetry model calibration.
 - Sampled terrain profiles, distance/duration analysis and configurable energy/reserve estimates.
 - Advisory obstacle buffers, route constraint checks and local GeoJSON/GPX route import/export.
 - MeteoSwiss/Open-Meteo forecasts, configurable weather comparisons and sampled wind/rain overlays.
@@ -47,6 +48,7 @@ An iOS runner is not included.
 | Users and developers | [Privacy and permissions](docs/privacy_and_permissions.md) |
 | Users and developers | [Map sources and attribution](docs/map_sources_and_attribution.md) |
 | Users and developers | [Weather sources, controls and limits](docs/weather.md) |
+| Users and developers | [Preflight, signal analysis and telemetry CSV](docs/preflight.md) |
 | Developers | [Contributing, checks and builds](CONTRIBUTING.md) |
 | Developers | [Architecture and storage](docs/architecture.md) |
 | Developers | [Globe bridge](docs/globe_bridge.md) |

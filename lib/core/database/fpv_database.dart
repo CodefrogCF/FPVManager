@@ -239,6 +239,41 @@ class FlightWaypoints extends Table {
 }
 
 /// Local application preferences.
+class PreflightChecklists extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(min: 1, max: 120)();
+  TextColumn get itemsJson => text()();
+  BoolColumn get isTemplate => boolean().withDefault(const Constant(false))();
+  IntColumn get droneId => integer().nullable().references(
+    Drones,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get planId => integer().nullable().references(
+    FlightPlans,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class TelemetryFlights extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get fileName => text().withLength(min: 1, max: 240)();
+  BlobColumn get rawBytes => blob()();
+  IntColumn get droneId => integer().nullable().references(
+    Drones,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get planId => integer().nullable().references(
+    FlightPlans,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  DateTimeColumn get importedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 class AppSettings extends Table {
   TextColumn get key => text()();
 
@@ -265,6 +300,8 @@ class AppSettings extends Table {
     FlightPlans,
     FlightWaypoints,
     AppSettings,
+    PreflightChecklists,
+    TelemetryFlights,
   ],
 )
 class FpvDatabase extends _$FpvDatabase {
@@ -284,7 +321,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -429,6 +466,10 @@ class FpvDatabase extends _$FpvDatabase {
           flightWaypoints,
           flightWaypoints.speedMetersPerSecond,
         );
+      }
+      if (from < 9) {
+        await m.createTable(preflightChecklists);
+        await m.createTable(telemetryFlights);
       }
     },
     beforeOpen: (details) async {

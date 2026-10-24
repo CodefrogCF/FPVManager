@@ -35,9 +35,10 @@ The home screen opens it lazily and closes only resources it created. Injected
 repositories/databases remain caller-owned. Tests use isolated databases.
 Web uses bundled `sqlite3.wasm` and `drift_worker.js`.
 
-Schema version is **8**. Tables cover spots/photos/tags, drones/parameter sources,
+Schema version is **9**. Tables cover spots/photos/tags, drones/parameter sources,
 battery packs/types and assignments, radio equipment/drone assignments, flight
-plans/waypoints and settings. Foreign keys are enabled. Historical schemas are
+plans/waypoints, preflight checklists/templates, raw telemetry and settings.
+Foreign keys are enabled. Historical schemas are
 in `drift_schemas/`; migration fixtures are in `test/generated_migrations/`.
 See [Contributing](../CONTRIBUTING.md) for generation and migration requirements.
 

@@ -35,6 +35,7 @@ import 'map_action_menu.dart';
 import 'map_selection_panel.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/simulation_settings_sheet.dart';
+import '../preflight/preflight_screen.dart';
 
 class FPVHomeScreen extends StatefulWidget {
   const FPVHomeScreen({
@@ -62,6 +63,16 @@ class FPVHomeScreen extends StatefulWidget {
 }
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
+  Future<void> _openPreflight() async {
+    await _leaveGroundView();
+    if (!mounted) return;
+    final database = _database ??= FpvDatabase.open();
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => PreflightScreen(database: database)),
+    );
+  }
+
   late final GlobeController _globeController =
       widget.globeController ?? GlobeController();
   FpvDatabase? _database;
@@ -427,6 +438,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       drawer: HomeNavigationDrawer(
         onSpots: _openSpots,
         onRoutes: _openRoutes,
+        onPreflight: _openPreflight,
         onWeather: _openWeather,
         onDrones: _openDrones,
         onBatteries: _openBatteries,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'route_constraints.dart';
+import 'signal_settings.dart';
 
 class PowerCurvePoint {
   const PowerCurvePoint(this.speed, this.watts);
@@ -25,6 +26,7 @@ class RoutePlanningSettings {
     this.curveSource = 'User estimate',
     this.minimumClearance = 20,
     this.constraints = const RouteConstraints(),
+    this.signal,
   });
   final bool useWind, includeReturn;
   final double windSpeed, windFromDegrees, reservePercent;
@@ -36,6 +38,26 @@ class RoutePlanningSettings {
   final List<PowerCurvePoint> powerCurve;
   final String curveSource;
   final RouteConstraints constraints;
+  final SignalSettings? signal;
+
+  RoutePlanningSettings withSignal(SignalSettings value) {
+    final j = jsonDecode(encode()) as Map<String, dynamic>;
+    j['signal'] = value.toJson();
+    return RoutePlanningSettings.decode(jsonEncode(j));
+  }
+
+  RoutePlanningSettings calibrated(double factor, String source) {
+    if (!factor.isFinite || factor < .25 || factor > 4) {
+      throw ArgumentError('Calibration factor must be 0.25–4');
+    }
+    final j = jsonDecode(encode()) as Map<String, dynamic>;
+    j['powerCurve'] = [
+      for (final p in powerCurve)
+        PowerCurvePoint(p.speed, p.watts * factor).toJson(),
+    ];
+    j['curveSource'] = source;
+    return RoutePlanningSettings.decode(jsonEncode(j));
+  }
 
   RoutePlanningSettings withConstraints(RouteConstraints value) {
     final j = jsonDecode(encode()) as Map<String, dynamic>;
@@ -45,6 +67,7 @@ class RoutePlanningSettings {
 
   void validate() {
     constraints.validate();
+    signal?.validate();
     void range(double n, double low, double high, String name) {
       if (!n.isFinite || n < low || n > high) {
         throw ArgumentError('Invalid $name');
@@ -79,7 +102,7 @@ class RoutePlanningSettings {
 
   String encode() {
     validate();
-    return jsonEncode({
+    final encoded = jsonEncode({
       'version': 1,
       'useWind': useWind,
       'windSpeed': windSpeed,
@@ -95,12 +118,17 @@ class RoutePlanningSettings {
       'curveSource': curveSource,
       'minimumClearance': minimumClearance,
       'constraints': constraints.toJson(),
+      if (signal != null) 'signal': signal!.toJson(),
     });
+    if (encoded.length > 64000) {
+      throw ArgumentError('Planning settings too large');
+    }
+    return encoded;
   }
 
   factory RoutePlanningSettings.decode(String encoded) {
     try {
-      if (encoded.length > 16000) {
+      if (encoded.length > 64000) {
         throw const FormatException('Planning settings too large');
       }
       final j = jsonDecode(encoded) as Map<String, dynamic>;
@@ -110,6 +138,9 @@ class RoutePlanningSettings {
       }
       final value = RoutePlanningSettings(
         useWind: j['useWind'] as bool,
+        signal: j['signal'] == null
+            ? null
+            : SignalSettings.fromJson(j['signal'] as Map<String, dynamic>),
         windSpeed: (j['windSpeed'] as num).toDouble(),
         windFromDegrees: (j['windFromDegrees'] as num).toDouble(),
         reservePercent: (j['reservePercent'] as num).toDouble(),

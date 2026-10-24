@@ -75,6 +75,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/interaction_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/flight-smoke':
             self.reply((ROOT / 'test/web/flight_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/signal-smoke':
+            self.reply((ROOT / 'test/web/signal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/obstacle-smoke':
             self.reply((ROOT / 'test/web/obstacle_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/terrain-fixture.js':

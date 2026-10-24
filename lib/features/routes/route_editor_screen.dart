@@ -20,8 +20,10 @@ import '../obstacles/swiss_obstacle_provider.dart';
 import '../obstacles/obstacle_details_panel.dart';
 import '../obstacles/obstacle_layers_section.dart';
 import '../../core/osint/osint_provider.dart';
+import '../signal/radio_analysis_controller.dart';
+import '../signal/radio_analysis_sheet.dart';
 
-enum _RouteAction { equipment, planning, constraints, layers }
+enum _RouteAction { equipment, planning, constraints, signal, layers }
 
 class RouteEditorScreen extends StatefulWidget {
   const RouteEditorScreen({
@@ -59,6 +61,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
   );
   final _name = TextEditingController();
   late final _analysis = RouteAnalysisController(_editor);
+  late final _radio = RadioAnalysisController(_editor);
   bool _allowPop = false, _framed = false;
 
   @override
@@ -139,6 +142,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
   void dispose() {
     _globe.removeListener(_ready);
     _analysis.dispose();
+    _radio.dispose();
     _editor.dispose();
     _name.dispose();
     if (widget.globeController == null) _globe.dispose();
@@ -174,6 +178,8 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     showRoutePlanningSettings(context, _editor);
                   case _RouteAction.constraints:
                     showRouteConstraints(context, _editor);
+                  case _RouteAction.signal:
+                    showRadioAnalysis(context, _radio);
                   case _RouteAction.layers:
                     _layers();
                 }
@@ -190,6 +196,11 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                 PopupMenuItem(
                   value: _RouteAction.constraints,
                   child: const Text('Route constraints'),
+                ),
+                PopupMenuItem(
+                  value: _RouteAction.signal,
+                  enabled: _editor.points.length >= 2,
+                  child: const Text('Terrain & radio path'),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.layers,
