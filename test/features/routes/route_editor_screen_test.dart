@@ -7,10 +7,139 @@ import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
 import 'package:fpvmanager/core/models/flight_route.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 import 'package:fpvmanager/features/routes/route_editor_screen.dart';
+import 'package:fpvmanager/features/spots/data/spot_repository.dart';
+import 'package:fpvmanager/features/mobility/destination_search.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
 
 void main() {
+  testWidgets(
+    'new route starts at a locally saved spot without a terrain sample',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final db = FpvDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final spots = SpotRepository(db);
+      final id = await spots.createSpot(
+        name: 'My ridge',
+        latitude: 46.8,
+        longitude: 8.5,
+      );
+      final globe = GlobeController();
+      addTearDown(globe.dispose);
+      final peer = FakeGlobeRenderer(globe)..attach();
+      peer.emit({'type': 'globe-ready', 'terrainAvailable': false});
+      final repository = FlightPlanRepository(db);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RouteEditorScreen(
+            repository: repository,
+            spots: spots,
+            globeController: globe,
+            mapBuilder: (_) => const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Saved spot'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Filter saved spots'),
+        'ridge',
+      );
+      await tester.tap(find.text('My ridge'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 waypoints'), findsOneWidget);
+      expect(find.text('Saved spot'), findsNothing);
+      expect(
+        peer.commands.lastWhere((c) => c['type'] == 'fly-to')['latitude'],
+        46.8,
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final route = (await repository.getRoute(
+        (await repository.getAllFlightPlans()).single.id,
+      ))!;
+      expect(route.plan.startSpotId, id);
+      expect(route.waypoints.single.position.longitude, 8.5);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'place search is explicit, focuses the map and leaves the first waypoint to the user',
+    (tester) async {
+      final db = FpvDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      var requests = 0;
+      final search = DestinationSearch(
+        client: MockClient((_) async {
+          requests++;
+          return http.Response(
+            '{"results":[{"attrs":{"label":"Bern station","lat":46.949,"lon":7.439}}]}',
+            200,
+          );
+        }),
+      );
+      addTearDown(search.dispose);
+      final globe = GlobeController();
+      addTearDown(globe.dispose);
+      final peer = FakeGlobeRenderer(globe)
+        ..attach()
+        ..ready();
+      peer.onCommand = (command) {
+        if (command['type'] == 'query-terrain-elevation') {
+          peer.acknowledge(
+            command,
+            result: {
+              'latitude': command['latitude'],
+              'longitude': command['longitude'],
+              'heightReference': 'wgs84Ellipsoid',
+              'heightMeters': 550,
+              'samplingMethod': 'fixture',
+            },
+          );
+        }
+      };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RouteEditorScreen(
+            repository: FlightPlanRepository(db),
+            globeController: globe,
+            placeSearch: search,
+            mapBuilder: (_) => const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Search place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('destinationSearch')),
+        'Bern',
+      );
+      await tester.pump();
+      expect(requests, 0);
+      await tester.tap(find.text('Ziel suchen'));
+      await tester.pumpAndSettle();
+      expect(requests, 1);
+      await tester.tap(find.text('Bern station'));
+      await tester.pumpAndSettle();
+      expect(find.text('0 waypoints'), findsOneWidget);
+      expect(
+        peer.commands.lastWhere((c) => c['type'] == 'focus-spot')['longitude'],
+        7.439,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
   testWidgets(
     'a failed initial load blocks edits and explicit retry recovers the stored route',
     (tester) async {

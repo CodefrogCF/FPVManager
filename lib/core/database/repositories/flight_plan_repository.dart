@@ -11,6 +11,8 @@ import 'drone_repository.dart';
 
 /// Local flight projects. The caller owns the injected database.
 abstract interface class FlightPlanRepository {
+  static RouteWaypoint validatePersistedWaypoint(FlightWaypoint row) =>
+      DriftFlightPlanRepository._readPoint(row);
   const factory FlightPlanRepository(FpvDatabase database) =
       DriftFlightPlanRepository;
 
@@ -303,7 +305,7 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
     );
   }
 
-  RouteWaypoint _readPoint(FlightWaypoint point) {
+  static RouteWaypoint _readPoint(FlightWaypoint point) {
     try {
       RepositoryValidation.coordinates(point.latitude, point.longitude);
       if (point.sequenceNumber < 0) {

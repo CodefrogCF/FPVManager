@@ -9,6 +9,8 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Horizontal UAS-zone intersection checks for saved spots and route segments.
 - Independent Swiss obstacle imagery and selectable, locally cached 3D obstacles.
 - Local spots with photos, search, tags and favorites.
+- Portable local backups with optional password protection and checked restoration.
+- Region-based caching of supported swisstopo maps and terrain for offline use.
 - Drone profiles, battery inventory and radio/video equipment profiles.
 - First-person terrain inspection and map-based editing of multiple local routes.
 - Local GPS, Angle and Acro flight exploration with shared touch, keyboard and controller input.
@@ -23,7 +25,8 @@ locations on a CesiumJS globe. Android and Web are supported.
 Personal records stay in local storage. Online maps and data services require
 network access. This prototype does not determine permission to fly or verify
 obstacle clearance. The flight simulation uses approximate movement
-and terrain contact only. Backups and offline map downloads are not implemented.
+and terrain contact only. Offline regions cache viewed tiles and may remain
+incomplete; live data needs a connection and separate verification.
 
 ## Run from source
 

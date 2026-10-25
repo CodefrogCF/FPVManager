@@ -7,10 +7,18 @@ import 'globe_controller.dart';
 import 'globe_input_scope.dart';
 
 class GlobeView extends StatefulWidget {
-  const GlobeView({super.key, required this.controller, this.offline = false});
+  const GlobeView({
+    super.key,
+    required this.controller,
+    this.offline = false,
+    this.cachedMaps = false,
+    this.cacheRevision = 0,
+  });
 
   final GlobeController controller;
   final bool offline;
+  final bool cachedMaps;
+  final int cacheRevision;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();
@@ -81,12 +89,18 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   void didUpdateWidget(covariant GlobeView oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.controller != widget.controller) {
+    if (oldWidget.controller != widget.controller ||
+        oldWidget.cachedMaps != widget.cachedMaps ||
+        oldWidget.cacheRevision != widget.cacheRevision) {
       oldWidget.controller.detach();
       widget.controller.attach(_sendCommand);
       // A new controller starts its request/marker IDs from the beginning.
       // Reload so the renderer creates a fresh protocol session as well.
-      _iframe?.src = widget.offline ? 'globe.html?offline=1' : 'globe.html';
+      _iframe?.src = widget.offline
+          ? 'globe.html?offline=1'
+          : widget.cachedMaps
+          ? 'globe.html?cachedMaps=1'
+          : 'globe.html';
     }
   }
 
@@ -118,7 +132,11 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
       onElementCreated: (Object element) {
         final iframe = element as web.HTMLIFrameElement;
 
-        iframe.src = widget.offline ? 'globe.html?offline=1' : 'globe.html';
+        iframe.src = widget.offline
+            ? 'globe.html?offline=1'
+            : widget.cachedMaps
+            ? 'globe.html?cachedMaps=1'
+            : 'globe.html';
 
         iframe.style
           ..width = '100%'

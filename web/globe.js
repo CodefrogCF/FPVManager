@@ -57,7 +57,7 @@ function postToFlutter(message) {
     const mapProviders = FPVMapProviders.createAdapters(Cesium, window.FPVMapProviderConfig);
     const terrainAvailable = () => terrainManager?.status().state === "ready";
     const offlineReason = () => offline ? "diagnosticOffline" :
-        navigator.onLine === false ? "networkOffline" : null;
+        navigator.onLine === false && !window.FPVMapProviderConfig?.cacheRoot ? "networkOffline" : null;
     window.addEventListener("offline", () => terrainManager?.networkChanged());
     window.addEventListener("online", () => terrainManager?.networkChanged());
 

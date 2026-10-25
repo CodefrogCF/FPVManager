@@ -7,13 +7,33 @@ automatic sharing or server-side user profile.
 
 Spots, notes, photos, equipment, routes and map preferences are stored in local
 Drift/SQLite storage. The app does not upload or publish these records. There
-is no backup/sync interface. Route import/export is explicit: only the selected
+is no automatic synchronization. **Offline & personal data** creates portable
+backups, optionally encrypted with a password, and previews restoration before
+replacing personal records. Backups include images, planning preferences,
+checklists and imported telemetry; API keys and public dataset/map caches are
+excluded. Unprotected backups contain readable personal information. Restore
+can re-enable backed-up map preferences and their documented network requests.
+Route import/export is explicit: only the selected
 route is written to the chosen Android document destination or Web download.
-OS backups and file providers (including cloud destinations) follow their own settings.
+Android automatic cloud backup and device transfer are excluded in the app's
+backup configuration. An explicitly selected file provider can still save an
+export to a cloud destination according to that provider's settings.
 
 Downloaded public UAS and obstacle datasets use a separate local cache. UAS cache
 retention is 30 days; **Map layers → Clear UAS dataset cache** removes it without
-deleting personal records. This cache does not include imagery or terrain tiles.
+deleting personal records. Supported viewed map/terrain tiles and region labels
+use a separate map-cache section: up to 256 MiB of retained tile payloads, with
+overlapping regions sharing tiles. Android stores them in the public-data cache
+database; Web uses origin-local Cache Storage. Region removal prunes unneeded
+tiles. Retrieval timestamps and incomplete coverage remain visible; they do not
+establish official publication dates or live safety information.
+
+Prepared Web builds cache verified application assets for reopening after installation,
+subject to hosting cache headers and browser storage availability. Browser
+storage may be cleared or evicted; a portable backup protects personal records
+independently. A cached-map choice concerns base maps and terrain; enabled live
+overlays and explicit weather/traffic/routing/API actions retain their documented
+network behavior. It is not an application-wide network blocker.
 
 Photos are imported only through the file picker. Persisted JPEGs/thumbnails
 omit source EXIF/GPS metadata; originals remain unchanged. The native picker
@@ -52,6 +72,15 @@ including when focusing a private spot or displaying a route.
 | `api.adsb.lol` | Explicit Android aircraft refresh after consent; rounded area centre and a 25 NM radius. Web supports local snapshot import because the source blocks direct CORS requests. |
 | `geodesy.geo.admin.ch` | Only explicit LN02 conversion; selected longitude/latitude/elevation, then LV95 coordinates/Bessel height, in GET query parameters. |
 | App origin (Web) / app-owned loopback origin (Android) | Application, Cesium, Workers, Wasm and Flutter renderer resources. The documented Web build bundles renderer assets locally. |
+
+Configured topographic/relief and terrain requests pass through the app's local
+tile cache. Only fixed official swisstopo endpoints are eligible; source requests
+carry no API credentials or personal record bodies. Cached-only requests never
+fall back to a remote tile. Supported caching follows [swisstopo OGD terms](https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices)
+and [FSDI operating conditions](https://www.geo.admin.ch/en/general-terms-of-use-fsdi);
+this implementation retains viewed tiles rather than running a bulk downloader.
+Satellite imagery with additional third-party notices and live WMS overlays are
+outside this persistent map cache.
 
 Map requests contain no spot names, notes, photos, equipment assignments or
 route JSON. Tile requests can still reveal planned/viewed locations. Local

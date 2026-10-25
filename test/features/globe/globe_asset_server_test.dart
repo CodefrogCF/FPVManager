@@ -59,6 +59,19 @@ void main() {
           await response.drain<void>();
         }
         expect(loaded.length, before);
+        for (final headers in [
+          {'Origin': 'https://unrelated.invalid'},
+          {'Sec-Fetch-Site': 'cross-site'},
+        ]) {
+          final foreign = await client.getUrl(
+            server.origin.resolve('/globe.html'),
+          );
+          headers.forEach((key, value) => foreign.headers.set(key, value));
+          final response = await foreign.close();
+          expect(response.statusCode, 403);
+          await response.drain<void>();
+        }
+        expect(loaded.length, before);
         final post = await (await client.postUrl(
           server.origin.resolve('/globe.html'),
         )).close();

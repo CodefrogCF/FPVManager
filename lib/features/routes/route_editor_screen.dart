@@ -22,6 +22,10 @@ import '../obstacles/obstacle_layers_section.dart';
 import '../../core/osint/osint_provider.dart';
 import '../signal/radio_analysis_controller.dart';
 import '../signal/radio_analysis_sheet.dart';
+import '../spots/data/spot_repository.dart';
+import '../mobility/destination_search.dart';
+import 'route_start_sheet.dart';
+import '../offline/cached_map_notice.dart';
 
 enum _RouteAction { equipment, planning, constraints, signal, layers }
 
@@ -35,6 +39,9 @@ class RouteEditorScreen extends StatefulWidget {
     this.obstacleProvider,
     this.uasProvider,
     this.preferencesRepository,
+    this.spots,
+    this.placeSearch,
+    this.cachedMaps = false,
   });
   final FlightPlanRepository repository;
   final int? routeId;
@@ -43,6 +50,9 @@ class RouteEditorScreen extends StatefulWidget {
   final SwissObstacleProvider? obstacleProvider;
   final OsintProvider<Map<String, dynamic>>? uasProvider;
   final UserPreferencesRepository? preferencesRepository;
+  final SpotRepository? spots;
+  final DestinationSearch? placeSearch;
+  final bool cachedMaps;
   @override
   State<RouteEditorScreen> createState() => _RouteEditorScreenState();
 }
@@ -63,6 +73,50 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
   late final _analysis = RouteAnalysisController(_editor);
   late final _radio = RadioAnalysisController(_editor);
   bool _allowPop = false, _framed = false;
+  bool _choosingStart = false;
+
+  Future<void> _chooseStart({required bool search}) async {
+    if (_choosingStart) return;
+    setState(() => _choosingStart = true);
+    try {
+      final location = await showRouteStartLocation(
+        context,
+        search: search,
+        spots: widget.spots,
+        placeSearch: widget.placeSearch,
+      );
+      if (location == null ||
+          !mounted ||
+          !_globe.isReady ||
+          _editor.points.isNotEmpty) {
+        return;
+      }
+      await _command(() async {
+        try {
+          await _globe.focusSpot(
+            latitude: location.position.latitude,
+            longitude: location.position.longitude,
+            rangeMeters: 800,
+          );
+        } catch (_) {
+          // A missing offline terrain tile must not prevent choosing an area.
+          if (!mounted || !_globe.isReady) rethrow;
+          await _globe.flyTo(
+            latitude: location.position.latitude,
+            longitude: location.position.longitude,
+            altitude: 6000,
+          );
+        }
+        if (!mounted) return;
+        if (location.spotId case final id?) {
+          _framed = true;
+          _editor.startAtSpot(spotId: id, position: location.position);
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _choosingStart = false);
+    }
+  }
 
   @override
   void initState() {
@@ -210,7 +264,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
               ],
             ),
             TextButton.icon(
-              onPressed: _editor.canSave
+              onPressed: _editor.canSave && !_choosingStart
                   ? () async {
                       FocusScope.of(context).unfocus();
                       if (await _editor.save() && context.mounted) {
@@ -248,6 +302,37 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     ),
                   ),
                   TerrainStatusBanner(controller: _globe),
+                  if (widget.cachedMaps) const CachedMapNotice(),
+                  if (_editor.points.isEmpty && !_editor.loadFailed)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          if (widget.spots != null)
+                            OutlinedButton.icon(
+                              onPressed:
+                                  !_globe.isReady ||
+                                      _choosingStart ||
+                                      _editor.saving
+                                  ? null
+                                  : () => _chooseStart(search: false),
+                              icon: const Icon(Icons.place_outlined),
+                              label: const Text('Saved spot'),
+                            ),
+                          OutlinedButton.icon(
+                            onPressed:
+                                !_globe.isReady ||
+                                    _choosingStart ||
+                                    _editor.saving
+                                ? null
+                                : () => _chooseStart(search: true),
+                            icon: const Icon(Icons.search),
+                            label: const Text('Search place'),
+                          ),
+                        ],
+                      ),
+                    ),
                   UasDataQualityBanner(
                     controller: _globe,
                     onDetails: () => _layers(initialTab: MapLayerTab.airspace),
@@ -259,7 +344,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                   Expanded(
                     child:
                         widget.mapBuilder?.call(_globe) ??
-                        GlobeView(controller: _globe),
+                        GlobeView(
+                          controller: _globe,
+                          cachedMaps: widget.cachedMaps,
+                        ),
                   ),
                   if (_editor.error != null)
                     Padding(

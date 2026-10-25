@@ -43,7 +43,8 @@ class RouteEditorController extends ChangeNotifier {
   FlightRoute? _original;
   List<EditableWaypoint> _points = const [];
   List<EditableWaypoint> get points => _points;
-  final List<List<EditableWaypoint>> _undo = [];
+  final List<(List<EditableWaypoint>, int?)> _undo = [];
+  int? startSpotId;
   String name = 'New route';
   RoutePlanningSettings planning = const RoutePlanningSettings();
   int? droneId;
@@ -96,6 +97,7 @@ class RouteEditorController extends ChangeNotifier {
       }
       planning = RoutePlanningSettings.decode(route?.plan.planningJson ?? '{}');
       _original = route;
+      startSpotId = route?.plan.startSpotId;
       name = route?.plan.name ?? 'New route';
       droneId = route?.plan.droneId;
       batteryIds = Set.of(route?.batteryIds ?? <int>{});
@@ -279,8 +281,29 @@ class RouteEditorController extends ChangeNotifier {
     _change(_points.where((p) => p.key != id).toList());
   }
 
-  void _change(List<EditableWaypoint> next, {int? selected}) {
-    _undo.add(_points);
+  void startAtSpot({required int spotId, required Wgs84Coordinate position}) {
+    if (saving ||
+        loading ||
+        !_loadedSuccessfully ||
+        _disposed ||
+        _points.isNotEmpty) {
+      return;
+    }
+    if (spotId <= 0) throw ArgumentError('Invalid spot ID');
+    _change(
+      [EditableWaypoint(++_nextKey, position, null)],
+      selected: _nextKey,
+      newStartSpotId: spotId,
+    );
+  }
+
+  void _change(
+    List<EditableWaypoint> next, {
+    int? selected,
+    int? newStartSpotId,
+  }) {
+    _undo.add((_points, startSpotId));
+    if (newStartSpotId != null) startSpotId = newStartSpotId;
     if (_undo.length > 50) _undo.removeAt(0);
     _points = List.unmodifiable(next);
     selectedId = selected;
@@ -293,7 +316,9 @@ class RouteEditorController extends ChangeNotifier {
 
   void undo() {
     if (!canUndo) return;
-    _points = _undo.removeLast();
+    final previous = _undo.removeLast();
+    _points = previous.$1;
+    startSpotId = previous.$2;
     selectedId = null;
     moveId = null;
     dirty = true;
@@ -345,7 +370,7 @@ class RouteEditorController extends ChangeNotifier {
         droneId: droneId,
         batteryIds: Set.of(batteryIds),
         planning: planning,
-        startSpotId: _original?.plan.startSpotId,
+        startSpotId: startSpotId,
         notes: _original?.plan.notes,
         waypoints: [for (final point in _points) point.input],
       );
@@ -353,8 +378,8 @@ class RouteEditorController extends ChangeNotifier {
       routeId = id;
       dirty = false;
       _undo.clear();
-      // Retain original spot/notes metadata without another fallible read
-      // after the committed save. Newly created routes have no such metadata.
+      // Retain loaded notes and the selected start spot without a fallible
+      // read after the committed save.
       return true;
     } catch (_) {
       if (!_disposed) {

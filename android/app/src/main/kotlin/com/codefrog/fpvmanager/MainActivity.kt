@@ -32,21 +32,24 @@ class MainActivity : FlutterActivity() {
         navigationInput = NavigationInputHandler(this,flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.codefrog.fpvmanager/route_files").setMethodCallHandler { call, result ->
-            if (call.method != "saveRoute") {
+            if (call.method != "saveRoute" && call.method != "saveBackup") {
                 result.notImplemented()
                 return@setMethodCallHandler
             }
             if (pendingExport != null) {
-                result.error("busy", "A route export is already open", null)
+                result.error("busy", "A file export is already open", null)
                 return@setMethodCallHandler
             }
             val bytes = call.argument<ByteArray>("bytes")
             val name = call.argument<String>("name")
             val mime = call.argument<String>("mimeType")
-            if (bytes == null || bytes.size > 4 * 1024 * 1024 || name == null ||
+            val backup = call.method == "saveBackup"
+            val allowedSize = if (backup) 64 * 1024 * 1024 else 4 * 1024 * 1024
+            if (bytes == null || bytes.isEmpty() || bytes.size > allowedSize || name == null ||
                 name.length > 130 || name.contains('/') || name.contains('\\') ||
-                mime !in listOf("application/geo+json", "application/gpx+xml")) {
-                result.error("invalid", "Invalid route file", null)
+                (if (backup) mime != "application/octet-stream" || !name.endsWith(".fpvbackup")
+                 else mime !in listOf("application/geo+json", "application/gpx+xml"))) {
+                result.error("invalid", "Invalid export file", null)
                 return@setMethodCallHandler
             }
             pendingExport = result
@@ -96,7 +99,7 @@ class MainActivity : FlutterActivity() {
                     if (pendingExport === result) {
                         pendingExport = null
                         exportBytes = null
-                        result.error("save_failed", "Unable to write route file", null)
+                        result.error("save_failed", "Unable to write export file", null)
                     }
                 }
             }
@@ -108,7 +111,7 @@ class MainActivity : FlutterActivity() {
         roadNavigation = null
         navigationInput?.dispose()
         navigationInput = null
-        pendingExport?.error("cancelled", "Route export interrupted", null)
+        pendingExport?.error("cancelled", "File export interrupted", null)
         pendingExport = null
         exportBytes = null
         super.onDestroy()

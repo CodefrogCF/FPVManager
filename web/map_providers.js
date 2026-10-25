@@ -59,24 +59,33 @@
     function createAdapters(Cesium, configuration = {}) {
         const styles = configuration.imagery ?? imagery;
         const elevation = configuration.terrain ?? terrain;
+        const cached=()=>configuration.cacheOnly===true||globalThis.navigator?.onLine===false;
+        const cacheRoot=typeof configuration.cacheRoot==='string'?configuration.cacheRoot:null;
         return {
             imagery(style, offline = false) {
                 const config = Object.hasOwn(styles, style) ? styles[style] : null;
                 if (!config) throw new Error(`Unknown map style: ${style}`);
-                if (offline) return new Cesium.GridImageryProvider();
+                const supported=cacheRoot&&['topographic','relief'].includes(style)&&config.url===imagery[style].url;
+                if (offline&&!supported) return new Cesium.GridImageryProvider();
                 if (typeof config.url !== "string" || !Number.isInteger(config.maximumLevel) ||
                     config.maximumLevel < 0 || config.maximumLevel > 30) {
                     throw new Error("Invalid imagery provider configuration");
                 }
-                return new Cesium.UrlTemplateImageryProvider({ url: config.url,
+                const local=supported;
+                const url=local?`${cacheRoot}imagery/${style}/{z}/{x}/{y}.${style==='relief'?'png':'jpeg'}?cacheOnly=${cached()?'1':'0'}`:config.url;
+                if(cached()&&!local)return new Cesium.GridImageryProvider();
+                return new Cesium.UrlTemplateImageryProvider({ url,
                     maximumLevel: config.maximumLevel,
                     tilingScheme: new Cesium.WebMercatorTilingScheme(),
-                    credit: credit(Cesium, config.source) });
+                    credit: credit(Cesium, local?{...config.source,attribution:config.source.attribution+' · Local map cache: age/coverage in Offline & personal data'}:config.source) });
             },
             terrain() {
                 if (typeof elevation.url !== "string") throw new Error("Invalid terrain provider configuration");
-                return Cesium.CesiumTerrainProvider.fromUrl(elevation.url,
-                    { ellipsoid: Cesium.Ellipsoid.WGS84, credit: credit(Cesium, elevation.source) });
+                const local=cacheRoot&&elevation.url===terrain.url;
+                if(cached()&&!local)throw new Error('Offline caching unavailable for this terrain provider');
+                const url=local?new Cesium.Resource({url:cacheRoot+'terrain/',queryParameters:{cacheOnly:cached()?'1':'0'}}):elevation.url;
+                return Cesium.CesiumTerrainProvider.fromUrl(url,
+                    { ellipsoid: Cesium.Ellipsoid.WGS84, credit: credit(Cesium, local?{...elevation.source,attribution:elevation.source.attribution+' · Local terrain cache: age/coverage in Offline & personal data'}:elevation.source) });
             },
             // Descriptors have no fabricated download/validity timestamps: a
             // tile service is not a fetched whole-dataset snapshot.

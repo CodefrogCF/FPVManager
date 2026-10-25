@@ -7,6 +7,8 @@ import '../../../features/obstacles/obstacle_models.dart';
 import '../fpv_database.dart';
 
 abstract interface class UserPreferencesRepository {
+  static UserPreferences validatePersistedRows(List<AppSetting> rows) =>
+      DriftUserPreferencesRepository._read(rows);
   const factory UserPreferencesRepository(FpvDatabase database) =
       DriftUserPreferencesRepository;
 
@@ -57,7 +59,7 @@ final class DriftUserPreferencesRepository
       _database.select(_database.appSettings)
         ..where((table) => table.key.isIn(_keys));
 
-  UserPreferences _read(List<AppSetting> rows) {
+  static UserPreferences _read(List<AppSetting> rows) {
     final values = {for (final row in rows) row.key: row.value};
     const defaults = UserPreferences();
     try {
@@ -164,7 +166,7 @@ final class DriftUserPreferencesRepository
     }
   }
 
-  void _validateOpacity(double opacity) {
+  static void _validateOpacity(double opacity) {
     if (!opacity.isFinite || opacity < 0 || opacity > 1) {
       throw ArgumentError('UAS opacity must be finite and between 0 and 1');
     }

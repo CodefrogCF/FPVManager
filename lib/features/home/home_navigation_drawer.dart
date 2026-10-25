@@ -13,6 +13,7 @@ class HomeNavigationDrawer extends StatelessWidget {
     required this.onRadio,
     this.onPreflight,
     this.onMobility,
+    this.onData,
   });
   final Future<void> Function() onSpots,
       onRoutes,
@@ -22,6 +23,7 @@ class HomeNavigationDrawer extends StatelessWidget {
       onRadio;
   final Future<void> Function()? onPreflight;
   final Future<void> Function()? onMobility;
+  final Future<void> Function()? onData;
   Widget _item(
     BuildContext context,
     IconData icon,
@@ -90,6 +92,15 @@ class HomeNavigationDrawer extends StatelessWidget {
             'Radio & video equipment',
             onRadio,
           ),
+          if (onData != null) ...[
+            const Divider(),
+            _item(
+              context,
+              Icons.storage_outlined,
+              'Offline & personal data',
+              onData!,
+            ),
+          ],
         ],
       ),
     ),

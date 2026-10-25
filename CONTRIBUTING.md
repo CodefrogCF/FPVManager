@@ -33,9 +33,15 @@ generated Dart and migration fixtures. CI runs these checks before both builds:
 
 ```sh
 flutter build web --release --no-pub --no-web-resources-cdn
+python tool/prepare_offline_web.py
 python tool/prepare_sqlite_android.py
 flutter build apk --debug --no-pub
 ```
+
+Serve the complete `build/web/` over HTTPS (or localhost). Offline Web startup
+requires the generated integrity manifest and a completed online installation.
+Close all app tabs and reopen to activate an updated snapshot. `flutter run`
+without the manifest supports map caching, but not a verified offline app shell.
 
 The SQLite preparation helper downloads ARM/ARM64/x64 libraries using the
 resolved package's expected hashes, reuses verified cache entries and retries

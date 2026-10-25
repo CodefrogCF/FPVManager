@@ -1,0 +1,1 @@
+{"attribution": "", "bounds": [-180, -90, 180, 90], "description": "", "extensions": ["metadata", "octvertexnormals"], "format": "quantized-mesh-1.0", "maxzoom": 18, "metadataAvailability": 10, "minzoom": 0, "name": "", "projection": "EPSG:4326", "scheme": "tms", "tiles": ["20250101/{z}/{x}/{y}.terrain?v={version}"], "version": "1.43646.0"}

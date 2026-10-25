@@ -101,6 +101,36 @@ void main() {
     },
   );
 
+  test('a saved start spot is persisted, undoable and never replaces existing points', () async {
+    await db.customStatement(
+      "INSERT INTO spots(id,name,latitude,longitude) VALUES(7,'Ridge',46.8,8.5)",
+    );
+    final draft = editor = RouteEditorController(
+      repository: repository,
+      globe: globe,
+    );
+    await draft.load();
+    final start = Wgs84Coordinate(latitude: 46.8, longitude: 8.5);
+    draft.startAtSpot(spotId: 7, position: start);
+    expect(draft.points.single.position.latitude, 46.8);
+    expect(draft.startSpotId, 7);
+    draft.undo();
+    expect(draft.points, isEmpty);
+    expect(draft.startSpotId, isNull);
+    draft.startAtSpot(spotId: 7, position: start);
+    await action('add', lat: 46.81);
+    draft.startAtSpot(
+      spotId: 7,
+      position: Wgs84Coordinate(latitude: 45, longitude: 7),
+    );
+    expect(draft.points.length, 2);
+    expect(draft.points.first.position.latitude, 46.8);
+    expect(await draft.save(), isTrue);
+    final saved = (await repository.getRoute(draft.routeId!))!;
+    expect(saved.plan.startSpotId, 7);
+    expect(saved.waypoints.first.position.latitude, 46.8);
+  });
+
   test(
     'moving preserves stored height semantics, metadata and plan identity',
     () async {

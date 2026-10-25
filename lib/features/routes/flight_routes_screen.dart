@@ -9,6 +9,7 @@ import '../../core/osint/osint_provider.dart';
 import '../../core/models/route_transfer.dart';
 import '../../core/models/flight_route.dart';
 import 'transfer/route_file_service.dart';
+import '../spots/data/spot_repository.dart';
 
 class FlightRoutesScreen extends StatefulWidget {
   const FlightRoutesScreen({
@@ -18,12 +19,16 @@ class FlightRoutesScreen extends StatefulWidget {
     this.uasProvider,
     this.preferencesRepository,
     this.routeFiles = const RouteFileService(),
+    this.spots,
+    this.cachedMaps = false,
   });
   final FlightPlanRepository repository;
   final SwissObstacleProvider? obstacleProvider;
   final OsintProvider<Map<String, dynamic>>? uasProvider;
   final UserPreferencesRepository? preferencesRepository;
   final RouteFileService routeFiles;
+  final SpotRepository? spots;
+  final bool cachedMaps;
   @override
   State<FlightRoutesScreen> createState() => _FlightRoutesScreenState();
 }
@@ -152,6 +157,8 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
     MaterialPageRoute(
       builder: (context) => RouteEditorScreen(
         repository: widget.repository,
+        spots: widget.spots,
+        cachedMaps: widget.cachedMaps,
         routeId: id,
         obstacleProvider: widget.obstacleProvider,
         uasProvider: widget.uasProvider,

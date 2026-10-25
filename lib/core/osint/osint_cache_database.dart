@@ -19,7 +19,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
     ),
   );
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -39,11 +39,22 @@ class OsintCacheDatabase extends GeneratedDatabase {
         'CREATE INDEX obstacles_view ON obstacles(snapshot, category, west, east, south, north)',
       );
       await _createSnapshots();
+      await _createOfflineMaps();
     },
     onUpgrade: (_, from, to) async {
       if (from < 2) await _createSnapshots();
+      if (from < 3) await _createOfflineMaps();
     },
   );
+
+  Future<void> _createOfflineMaps() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS offline_regions(id TEXT PRIMARY KEY,payload TEXT NOT NULL)',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS offline_tiles(key TEXT PRIMARY KEY,body BLOB NOT NULL,content_type TEXT NOT NULL,fetched_at INTEGER NOT NULL,byte_size INTEGER NOT NULL)',
+    );
+  }
 
   Future<void> _createSnapshots() => customStatement(
     'CREATE TABLE osint_snapshots (provider TEXT PRIMARY KEY, '

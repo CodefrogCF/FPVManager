@@ -51,6 +51,7 @@ void main() {
         'route_editor.js',
         'obstacle_layers.js',
         'obstacle_models.js',
+        'offline_map_client.js',
         'situational_layers.js',
         'road_navigation.js',
         'map_compass.js',

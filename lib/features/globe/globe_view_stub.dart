@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'globe_controller.dart';
 import 'globe_asset_server.dart';
+import '../offline/offline_map_store_native.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../simulation/navigation_device_input.dart';
@@ -16,10 +17,18 @@ import '../simulation/navigation_device_input.dart';
 /// Android and iOS use a native WebView.
 /// Other native platforms display a fallback.
 class GlobeView extends StatefulWidget {
-  const GlobeView({super.key, required this.controller, this.offline = false});
+  const GlobeView({
+    super.key,
+    required this.controller,
+    this.offline = false,
+    this.cachedMaps = false,
+    this.cacheRevision = 0,
+  });
 
   final GlobeController controller;
   final bool offline;
+  final bool cachedMaps;
+  final int cacheRevision;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();
@@ -68,7 +77,9 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
   Future<void> _initializeGlobe() async {
     try {
-      final server = await GlobeAssetServer.start();
+      final server = await GlobeAssetServer.start(
+        offlineCache: NativeOfflineMapStore(),
+      );
       if (!mounted) {
         await server.close();
         return;
@@ -137,7 +148,11 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
       await controller.loadRequest(
         server.origin.resolve(
-          widget.offline ? '/globe.html?offline=1' : '/globe.html',
+          widget.offline
+              ? '/globe.html?offline=1'
+              : widget.cachedMaps
+              ? '/globe.html?cachedMaps=1'
+              : '/globe.html',
         ),
       );
     } catch (error) {
@@ -153,6 +168,17 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(covariant GlobeView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if ((oldWidget.cachedMaps != widget.cachedMaps ||
+            oldWidget.cacheRevision != widget.cacheRevision) &&
+        _assetServer != null) {
+      unawaited(
+        _controller?.loadRequest(
+          _assetServer!.origin.resolve(
+            widget.cachedMaps ? '/globe.html?cachedMaps=1' : '/globe.html',
+          ),
+        ),
+      );
+    }
 
     if (oldWidget.controller != widget.controller) {
       _deviceInput?.setEnabled(false);

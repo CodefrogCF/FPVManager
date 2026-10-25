@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'dart:async';
 
+import '../data_management/data_management_screen.dart';
+import '../offline/offline_region.dart';
+import '../offline/cached_map_notice.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import '../../core/database/repositories/battery_repository.dart';
@@ -68,6 +72,41 @@ class FPVHomeScreen extends StatefulWidget {
 }
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
+  bool _cachedMaps = false;
+  int _mapCacheRevision = 0;
+  OfflineRegion? _pendingOfflineRegion;
+  bool _awaitOfflineRenderer = false;
+  Future<void> _openData() async {
+    await _leaveGroundView();
+    if (!mounted) return;
+    final database = _database ??= FpvDatabase.open();
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DataManagementScreen(
+          database: database,
+          latitude: _globeController.selectedPoint?.latitude ?? 46.8,
+          longitude: _globeController.selectedPoint?.longitude ?? 8.3,
+          cachedMaps: _cachedMaps,
+          onCachedMaps: (value) {
+            if (mounted) setState(() => _cachedMaps = value);
+          },
+          onRegionsChanged: (region) {
+            if (mounted) {
+              setState(() {
+                _pendingOfflineRegion = region;
+                _awaitOfflineRenderer = true;
+                _mapCacheRevision++;
+              });
+            }
+          },
+          beforeRestore: () => _globeController.preferencesSettled,
+          onRestored: () => _globeController.retryLoadingPreferences(),
+        ),
+      ),
+    );
+  }
+
   bool _drawerOpen = false;
   Future<void> _openPreflight() async {
     await _leaveGroundView();
@@ -102,6 +141,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => MobilityScreen(
+          cachedMaps: _cachedMaps,
           spots: _spotRepository ??=
               widget.spotRepository ?? SpotRepository(database),
           preferences: MobilityPreferences(database),
@@ -317,7 +357,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => FlightRoutesScreen(
+          cachedMaps: _cachedMaps,
           repository: repository,
+          spots: _spotRepository ??=
+              widget.spotRepository ??
+              SpotRepository(_database ??= FpvDatabase.open()),
           obstacleProvider: _globeController.obstacles.provider,
           uasProvider: _globeController.uasProvider,
           preferencesRepository:
@@ -450,6 +494,28 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    if (!_globeController.isReady) _awaitOfflineRenderer = false;
+    if (!_awaitOfflineRenderer &&
+        _globeController.isReady &&
+        _preferencesStarted &&
+        _globeController.canEditPreferences &&
+        _pendingOfflineRegion != null) {
+      final region = _pendingOfflineRegion!;
+      _pendingOfflineRegion = null;
+      unawaited(
+        _runCommand(() async {
+          await _globeController.setMapStyle(
+            region.style == 'relief'
+                ? GlobeMapStyle.relief
+                : GlobeMapStyle.topographic,
+          );
+          await _globeController.flyTo(
+            latitude: (region.south + region.north) / 2,
+            longitude: (region.west + region.east) / 2,
+          );
+        }),
+      );
+    }
     final selection = _globeController.situationalSelection;
     if (selection != null &&
         _lastSituationalRevision !=
@@ -517,6 +583,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         onDrones: _openDrones,
         onBatteries: _openBatteries,
         onRadio: _openRadioEquipment,
+        onData: _openData,
       ),
       appBar: AppBar(
         title: const Text('FPVManager'),
@@ -538,6 +605,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         child: Column(
           children: [
             TerrainStatusBanner(controller: _globeController),
+            if (_cachedMaps) const CachedMapNotice(),
             ObstacleStatusBanner(
               controller: _globeController.obstacles,
               onDetails: () =>
@@ -547,7 +615,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               controller: _globeController,
               onDetails: () => _openMapLayers(initialTab: MapLayerTab.airspace),
             ),
-            Expanded(child: GlobeView(controller: _globeController)),
+            Expanded(
+              child: GlobeView(
+                cacheRevision: _mapCacheRevision,
+                controller: _globeController,
+                cachedMaps: _cachedMaps,
+              ),
+            ),
           ],
         ),
       ),

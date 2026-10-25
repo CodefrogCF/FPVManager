@@ -21,6 +21,24 @@ queries and ground inspection. **Retry terrain** reconnects while preserving
 the camera and layers. Select a fresh point after recovery. A flat map does not
 provide a measured ground height.
 
+## Offline maps and backups
+
+Open **Offline & personal data** from the navigation menu. Add a Swiss region
+(the selected map point supplies its centre), choose topographic or relief and
+explore it online to retain viewed imagery and terrain. The region list shows
+estimated size, retained tiles, oldest retrieval and incomplete coverage. Switch
+to **Use cached base map and terrain** to prevent remote tile fallbacks. Live
+overlays and API actions remain separate. Satellite imagery is excluded. Remove
+regions to prune their unshared tiles; remove and recreate regions to update them.
+
+**Create backup** exports personal records, images and planning preferences in a
+portable file up to 64 MiB. Password protection is enabled by default; keep the
+password separately. **Restore backup** validates the file and shows counts before
+replacing current personal data. Back up your current data first. API keys and
+public map/OSINT caches are excluded. A prepared Web build needs one complete
+online installation before offline reopening; browser storage can be cleared or
+evicted. Close all app tabs and reopen to activate a newly downloaded Web version.
+
 ## Aviation obstacles
 
 Under **Map layers → Obstacles**, enable the transparent **WMS**
@@ -147,6 +165,9 @@ the viewed area to map providers.
 ## Flight routes
 
 Open **Flight routes** in the navigation drawer and create or open a route.
+For an empty route, **Saved spot** adds waypoint 1 at a saved spot and links the
+route to it. **Search place** moves the map to a Swiss address or place before
+you set the first waypoint. The search sends your input only when submitted.
 
 - Click terrain to append a waypoint; select a point to move or delete it.
 - Use the selected waypoint's menu for **Height & speed**, **Move point** or **Delete point**.

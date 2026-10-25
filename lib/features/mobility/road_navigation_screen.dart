@@ -8,6 +8,7 @@ import 'navigation_platform.dart';
 import 'road_navigation.dart';
 import 'traffic_bulletin.dart';
 import 'traffic_counters_section.dart';
+import '../offline/cached_map_notice.dart';
 
 String navigationDistance(double meters) => meters < 1000
     ? '${(meters / 10).round() * 10} m'
@@ -22,6 +23,7 @@ class RoadNavigationScreen extends StatefulWidget {
     this.initialMapStyle = GlobeMapStyle.satellite,
     this.initialRoadsVisible = false,
     this.initialRoadsOpacity = .8,
+    this.cachedMaps = false,
   });
   final RoadNavigation navigation;
   final NavigationPlatform platform;
@@ -29,6 +31,7 @@ class RoadNavigationScreen extends StatefulWidget {
   final GlobeMapStyle initialMapStyle;
   final bool initialRoadsVisible;
   final double initialRoadsOpacity;
+  final bool cachedMaps;
   @override
   State<RoadNavigationScreen> createState() => _RoadNavigationScreenState();
 }
@@ -465,13 +468,17 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
           if (nav.error ?? nav.routeError ?? _voiceMessage ?? _mapError
               case final String message)
             Padding(padding: const EdgeInsets.all(8), child: Text(message)),
+          if (widget.cachedMaps) const CachedMapNotice(),
           Expanded(
             child: Stack(
               children: [
                 Positioned.fill(
                   child:
                       widget.mapBuilder?.call(_globe) ??
-                      GlobeView(controller: _globe),
+                      GlobeView(
+                        controller: _globe,
+                        cachedMaps: widget.cachedMaps,
+                      ),
                 ),
                 Positioned(
                   right: 12,

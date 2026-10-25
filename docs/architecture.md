@@ -124,6 +124,30 @@ Optional obstacle GLBs are Y-up, unit-height meshes scaled by trusted source AGL
 and anchored to the shared terrain sample. Regenerate with
 `python tool/generate_obstacle_models.py`; use `--check` to verify bundled files.
 
+## Portable backups and offline maps
+
+Backup format v1 starts with `FPVBK001`, followed by flag (1 byte), salt (16) and
+nonce (12). Password exports use AES-256-GCM with the header as AAD, a 16-byte
+authentication tag and PBKDF2-HMAC-SHA256 (600,000 iterations). Unprotected exports
+use a SHA-256 payload checksum for accidental damage, without authenticity.
+JSON includes format/database versions and raw typed rows with base64 BLOBs.
+Restore validates known tables/columns, image dimensions and references; it uses
+one transaction and supports earlier database layouts through defaults/derived
+field migration. Limits are 64 MiB and 100,000 rows. Only explicitly permitted
+settings enter backups; credentials and provider caches are excluded.
+
+Public-cache schema v3 adds offline region/tile tables on Android. The loopback
+asset server exposes only fixed official topographic/relief and terrain tile
+paths. Web uses Cache Storage with a scoped app service worker. Both retain
+viewed tiles inside configured regions, deduplicate requests, bound responses
+to 4 MiB and tile payloads to 256 MiB, and honor `no-store`/`private`. Terrain
+metadata retains its dated template; cached-only availability is rebuilt from
+stored tiles. After a Web build, `python tool/prepare_offline_web.py` creates an
+integrity manifest. The worker verifies a complete staged application snapshot
+before activation; failed installs retain the previous snapshot. Updates wait
+until existing app tabs close. Development without this manifest supports map
+caching but does not promise an offline application shell.
+
 `PolygonIntersectionIndex` checks horizontal Polygon/MultiPolygon geometry,
 including holes, boundary contact and all overlapping features, with bounding-box
 filtering. `UasAirspaceChecker` uses the shared provider independently of renderer

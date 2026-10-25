@@ -36,6 +36,7 @@ class MobilityScreen extends StatefulWidget {
     this.initialCenter,
     this.initialTab = 0,
     this.router,
+    this.cachedMaps = false,
   });
   final SpotRepository spots;
   final MobilityPreferences preferences;
@@ -44,6 +45,7 @@ class MobilityScreen extends StatefulWidget {
   final MobilityPoint? initialCenter;
   final int initialTab;
   final RoadRouter? router;
+  final bool cachedMaps;
   @override
   State<MobilityScreen> createState() => _MobilityScreenState();
 }
@@ -517,6 +519,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => RoadNavigationScreen(
+            cachedMaps: widget.cachedMaps,
             navigation: navigation,
             initialMapStyle: widget.globe.mapStyle,
             initialRoadsVisible: widget.globe.roadsVisible,
