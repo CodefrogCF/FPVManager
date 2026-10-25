@@ -59,8 +59,19 @@ class _SettingsState extends State<_Settings> {
     'acroTerminalVelocity': TextEditingController(
       text: '${widget.initial.acroTerminalVelocity}',
     ),
+    'acroRollRate': TextEditingController(
+      text: '${widget.initial.acroRollRate}',
+    ),
+    'acroPitchRate': TextEditingController(
+      text: '${widget.initial.acroPitchRate}',
+    ),
+    'acroYawRate': TextEditingController(text: '${widget.initial.acroYawRate}'),
+    'acroRateExpo': TextEditingController(
+      text: '${widget.initial.acroRateExpo}',
+    ),
   };
   final _acroOptions = ExpansibleController();
+  final _ratesOptions = ExpansibleController();
   List<Drone> _drones = [];
   int? _drone;
   bool _loading = true;
@@ -101,6 +112,7 @@ class _SettingsState extends State<_Settings> {
       c.dispose();
     }
     _acroOptions.dispose();
+    _ratesOptions.dispose();
     super.dispose();
   }
 
@@ -133,6 +145,27 @@ class _SettingsState extends State<_Settings> {
       acroThrustCurve: curve,
     ).acroHoverThrottle;
     return 'Estimated level hover: ${(hover * 100).toStringAsFixed(0)}% throttle. This is a model estimate, not measured drone performance.';
+  }
+
+  String get _acroSpeedHelp {
+    final thrust = read('acroThrustToWeight'),
+        terminal = read('acroTerminalVelocity');
+    if (thrust == null ||
+        !thrust.isFinite ||
+        thrust < 1.1 ||
+        thrust > 12 ||
+        terminal == null ||
+        !terminal.isFinite ||
+        terminal < 5 ||
+        terminal > 120) {
+      return 'Enter valid thrust and drag values to estimate horizontal speed.';
+    }
+    final speed = SimulationSettings(
+      acroThrustToWeight: thrust,
+      acroTerminalVelocity: terminal,
+    ).acroEstimatedLevelSpeedKmh;
+    return 'Estimated full-throttle level speed: ${speed.toStringAsFixed(0)} km/h. '
+        'A lower terminal free-fall speed adds drag and lowers this value; diving can exceed it. This is a simplified model estimate.';
   }
 
   Widget number(String key, String label, double min, double max) => Padding(
@@ -217,7 +250,7 @@ class _SettingsState extends State<_Settings> {
                     Text(switch (_mode) {
                       SimulationFlightMode.gps => 'Assisted movement with automatic braking. Left stick moves, right stick looks.',
                       SimulationFlightMode.angle => 'Mode 2: left stick throttle/yaw, right stick pitch/roll. Tilt is limited to 50° and self-levels when released.',
-                      SimulationFlightMode.acro => 'Mode 2: left stick throttle/yaw, right stick pitch/roll rates up to 180°/s. No self-level or tilt limit; loops and inverted flight are possible.',
+                      SimulationFlightMode.acro => 'Mode 2: left stick throttle/yaw, right stick pitch/roll. Set rotation speed in Acro rates. No self-level or tilt limit; loops and inverted flight are possible.',
                     }),
                     if (_mode == SimulationFlightMode.angle)
                       const Text(
@@ -303,13 +336,50 @@ class _SettingsState extends State<_Settings> {
                         '0° looks along the drone. Positive angles tilt the camera upward relative to the frame. You can also adjust this during flight using Camera.',
                       ),
                     ],
-                    if (_mode == SimulationFlightMode.acro)
+                    if (_mode == SimulationFlightMode.acro) ...[
                       ExpansionTile(
+                        key: const ValueKey('simulation-acro-rates'),
+                        controller: _ratesOptions,
+                        maintainState: true,
+                        title: const Text('Acro rates'),
+                        subtitle: Text(
+                          'Roll ${_fields['acroRollRate']!.text} · Pitch ${_fields['acroPitchRate']!.text} · Yaw ${_fields['acroYawRate']!.text} °/s',
+                        ),
+                        children: [
+                          const Text(
+                            'Maximum rotation speed at full stick, separately for each axis. '
+                            'Expo softens the stick centre while keeping the full-stick speed. '
+                            'Rates apply to Acro with keyboard, touch sticks and controllers.',
+                          ),
+                          number(
+                            'acroRollRate',
+                            'Roll max rate (°/s)',
+                            10,
+                            1500,
+                          ),
+                          number(
+                            'acroPitchRate',
+                            'Pitch max rate (°/s)',
+                            10,
+                            1500,
+                          ),
+                          number('acroYawRate', 'Yaw max rate (°/s)', 10, 1500),
+                          number(
+                            'acroRateExpo',
+                            'Stick expo (0 linear, 1 soft centre)',
+                            0,
+                            1,
+                          ),
+                        ],
+                      ),
+                      ExpansionTile(
+                        key: const ValueKey('simulation-acro-physics'),
                         controller: _acroOptions,
                         maintainState: true,
                         title: const Text('Acro physics'),
                         subtitle: Text(_acroHoverHelp),
                         children: [
+                          Text(_acroSpeedHelp),
                           number(
                             'acroThrustToWeight',
                             'Maximum thrust / weight',
@@ -336,6 +406,7 @@ class _SettingsState extends State<_Settings> {
                           ),
                         ],
                       ),
+                    ],
                     if (_mode != SimulationFlightMode.acro) ...[
                       number(
                         'speed',
@@ -382,6 +453,7 @@ class _SettingsState extends State<_Settings> {
                         if (!_form.currentState!.validate()) {
                           if (_mode == SimulationFlightMode.acro) {
                             _acroOptions.expand();
+                            _ratesOptions.expand();
                           }
                           return;
                         }
@@ -424,8 +496,27 @@ class _SettingsState extends State<_Settings> {
                               'acroTerminalVelocity',
                               5,
                               120,
-                              35,
+                              22.5,
                             ),
+                            acroRollRate: parameter(
+                              'acroRollRate',
+                              10,
+                              1500,
+                              180,
+                            ),
+                            acroPitchRate: parameter(
+                              'acroPitchRate',
+                              10,
+                              1500,
+                              180,
+                            ),
+                            acroYawRate: parameter(
+                              'acroYawRate',
+                              10,
+                              1500,
+                              180,
+                            ),
+                            acroRateExpo: parameter('acroRateExpo', 0, 1, 0),
                           ),
                         );
                       },

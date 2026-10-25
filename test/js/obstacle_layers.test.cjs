@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {WMS,createWms,createVectors,createHazards} = require('../../web/obstacle_layers.js');
+const {Request,RequestState} = require('../../web/cesium/index.cjs');
 
 function setup({image = () => Promise.resolve({}), yieldBatch,
     terrainReady = () => true, groundHeight = () => undefined} = {}) {
@@ -13,6 +14,7 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
     const preRender=event(),tiles=event(),camera=event();
     let entityId = 0;
     const C = {
+        RequestState,
         WebMercatorTilingScheme:class { positionToTileXY() { return {x:133,y:90}; } },
         WebMapServiceImageryProvider:class { constructor(options) {
             Object.assign(this,options); providers.push(this);
@@ -61,7 +63,7 @@ test('WMS uses capabilities-verified transparent EPSG:3857 parameters and separa
 test('tile/network failure remains local and explicit retry recovers',async () => {
     let fail=true; const p=setup({image:() => fail ? Promise.reject(new Error('offline')) : Promise.resolve({})});
     p.wms.set({visible:true,opacity:1});await tick();
-    assert.equal(p.wms.status().state,'failed');assert.equal(p.layers.length,0);
+    assert.equal(p.wms.status().state,'failed');assert.equal(p.layers.length,1);
     assert.equal(p.events.every(e => e.type==='obstacle-wms-status'),true);
     fail=false;p.wms.set({visible:true,opacity:.7,retry:true});await tick();
     assert.equal(p.wms.status().state,'ready');assert.equal(p.layers.length,1);p.wms.dispose();
@@ -88,6 +90,68 @@ test('camera-cancelled tile requests do not mark healthy WMS imagery unavailable
     const request={cancelled:true};
     await assert.rejects(p.providers[0].requestImage(1,2,3,request),/timeout/);
     assert.equal(p.wms.status().state,'ready');assert.equal(p.layers.length,1);p.wms.dispose();
+});
+
+test('scheduler cancellation without the explicit cancelled flag retains the same WMS layer',async () => {
+    let rejectTile=false;
+    const p=setup({image:()=>rejectTile ? Promise.reject(new Error('Request cancelled')) : Promise.resolve({})});
+    p.wms.set({visible:true,opacity:.8});await tick();
+    const layer=p.layers[0],request=new Request();
+    // Cesium's scheduler also cancels requests directly by changing state.
+    request.state=RequestState.CANCELLED;
+    assert.equal(request.cancelled,false);
+    rejectTile=true;
+    await assert.rejects(p.providers[0].requestImage(1,2,3,request));
+    assert.equal(p.wms.status().state,'ready');
+    assert.equal(p.layers[0],layer);assert.equal(p.providers.length,1);
+    p.wms.dispose();
+});
+
+test('scheduler backpressure defers tiles without failing or replacing the layer',async () => {
+    let throttled=true;
+    const p=setup({image:()=>throttled ? undefined : Promise.resolve({})});
+    p.wms.set({visible:true,opacity:.8});await tick();
+    const layer=p.layers[0],provider=p.providers[0];
+    assert.equal(p.wms.status().state,'loading');
+    assert.equal(provider.requestImage(1,2,3,new Request()),undefined);
+    throttled=false;await provider.requestImage(1,2,3,new Request());
+    assert.equal(p.wms.status().state,'ready');assert.equal(p.layers[0],layer);
+    p.wms.dispose();
+});
+
+test('individual failed tiles retain loaded imagery, retry at most twice and recover in place',async () => {
+    let fail=false;
+    const p=setup({image:(x)=>fail && x===1 ? Promise.reject(new Error('temporary failure')) : Promise.resolve({})});
+    p.wms.set({visible:true,opacity:.8});await tick();
+    const provider=p.providers[0],layer=p.layers[0],request=new Request();
+    let cancelled=0;request.cancel=()=>cancelled++;
+    fail=true;
+    await assert.rejects(provider.requestImage(1,2,3,request));
+    assert.equal(p.layers[0],layer);assert.equal(p.wms.status().state,'failed');
+    assert.equal(cancelled,0,'A network failure must not become an automatically rescheduled cancellation');
+    await provider.requestImage(2,2,3,new Request());
+    assert.equal(p.wms.status().state,'failed','A different successful tile must not conceal a missing tile');
+    for(const retry of [true,true,false]){
+        const error={x:1,y:2,level:3};provider.onError(error);assert.equal(error.retry,retry);
+    }
+    fail=false;await provider.requestImage(1,2,3,new Request());
+    assert.equal(p.wms.status().state,'ready');assert.equal(p.wms.status().error,null);
+    assert.equal(p.layers[0],layer);assert.equal(p.providers.length,1);
+    p.wms.dispose();
+});
+
+test('tile timeout aborts its transport while retaining imagery and bounded retry semantics',async () => {
+    let stall=false;
+    const p=setup({image:()=>stall ? new Promise(()=>{}) : Promise.resolve({})});
+    p.wms.set({visible:true,opacity:.8});await tick();
+    const layer=p.layers[0],request=new Request();let aborted=0;
+    request.cancelFunction=()=>aborted++;
+    stall=true;
+    await assert.rejects(p.providers[0].requestImage(1,2,3,request),/timeout/);
+    assert.equal(aborted,1);assert.equal(request.cancelled,false);
+    assert.equal(p.wms.status().state,'failed');assert.equal(p.layers[0],layer);
+    p.wms.set({visible:false,opacity:.8});assert.equal(p.layers.length,0);
+    assert.equal(p.wms.status().state,'off');p.wms.dispose();
 });
 test('vector geometry retains actual converted heights; unknown heights remain ground-projected',async () => {
     const p=setup();

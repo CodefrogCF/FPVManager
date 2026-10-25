@@ -857,7 +857,7 @@ function postToFlutter(message) {
             applyPose:point=>{
                 applyCamera(point);
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
-                readout.textContent=`SIMULATION · ${point.mode.toUpperCase()}${point.mode==='angle'?' / SELF-LEVEL':''} · ${point.speed.toFixed(1)} m/s · `+
+                readout.textContent=`SIMULATION · ${point.mode.toUpperCase()}${point.mode==='angle'?' / SELF-LEVEL':''} · H ${(point.horizontalSpeed*3.6).toFixed(0)} km/h · `+
                     `${point.mode==='acro'?`V ${point.verticalSpeed.toFixed(1)} m/s · `:''}`+
                     `${point.agl==null?'unknown':point.agl.toFixed(1)} m AGL · ${point.distance.toFixed(0)} m from spawn\n`+
                     `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}${point.mode==='gps'?'':` · Gas ${(point.throttle*100).toFixed(0)}%`} · `+

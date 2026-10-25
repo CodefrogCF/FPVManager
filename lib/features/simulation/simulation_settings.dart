@@ -20,7 +20,11 @@ class SimulationSettings {
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
     this.acroMotorTimeConstant = .04,
-    this.acroTerminalVelocity = 35,
+    this.acroTerminalVelocity = 22.5,
+    this.acroRollRate = 180,
+    this.acroPitchRate = 180,
+    this.acroYawRate = 180,
+    this.acroRateExpo = 0,
   });
   final double agl, maxSpeed, climbSpeed, acceleration, deceleration;
   final int? droneId;
@@ -44,11 +48,23 @@ class SimulationSettings {
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
     acroTerminalVelocity: acroTerminalVelocity,
+    acroRollRate: acroRollRate,
+    acroPitchRate: acroPitchRate,
+    acroYawRate: acroYawRate,
+    acroRateExpo: acroRateExpo,
   );
   final double acroThrustToWeight,
       acroThrustCurve,
       acroMotorTimeConstant,
       acroTerminalVelocity;
+  final double acroRollRate, acroPitchRate, acroYawRate, acroRateExpo;
+
+  /// Full-throttle steady level flight in the current isotropic drag model.
+  /// Vertical thrust balances gravity; remaining thrust balances horizontal drag.
+  double get acroEstimatedLevelSpeedKmh =>
+      acroTerminalVelocity *
+      math.pow(acroThrustToWeight * acroThrustToWeight - 1, .25) *
+      3.6;
   double get acroHoverThrottle {
     final linear = 1 - acroThrustCurve;
     return (2 / acroThrustToWeight) /
@@ -70,6 +86,10 @@ class SimulationSettings {
       (acroThrustCurve, 0.0, 1.0),
       (acroMotorTimeConstant, 0.0, .5),
       (acroTerminalVelocity, 5.0, 120.0),
+      (acroRollRate, 10.0, 1500.0),
+      (acroPitchRate, 10.0, 1500.0),
+      (acroYawRate, 10.0, 1500.0),
+      (acroRateExpo, 0.0, 1.0),
     ]) {
       if (!entry.$1.isFinite || entry.$1 < entry.$2 || entry.$1 > entry.$3) {
         throw ArgumentError('Simulation parameter outside supported range');
@@ -92,6 +112,10 @@ class SimulationSettings {
       'acroThrustCurve': acroThrustCurve,
       'acroMotorTimeConstant': acroMotorTimeConstant,
       'acroTerminalVelocity': acroTerminalVelocity,
+      'acroRollRate': acroRollRate,
+      'acroPitchRate': acroPitchRate,
+      'acroYawRate': acroYawRate,
+      'acroRateExpo': acroRateExpo,
     };
   }
 

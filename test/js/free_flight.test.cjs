@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createSimulator,parameters,distance}=require('../../web/free_flight.js');
+const {createSimulator,parameters,distance,rateCommand}=require('../../web/free_flight.js');
 const spawn={latitude:46.7,longitude:8.4};
 function setup(options={}){
     let ready=true,ground=1000;
@@ -210,10 +210,77 @@ test('Acro thrust curve and motor response have bounded nonnegative spool-up and
 });
 test('Acro free fall approaches aerodynamic terminal velocity smoothly, including after high-speed terrain contact',async()=>{
     const p=setup();await start(p,{flightMode:'acro',agl:1000,acroMotorTimeConstant:0});input(p.model,{throttle:-1});advance(p.model,20);
-    assert.ok(Math.abs(p.model.status().verticalSpeed+35)<.01);
+    assert.ok(Math.abs(p.model.status().verticalSpeed+22.5)<.01);
     const dive=await inverted({acroThrustToWeight:12,acroTerminalVelocity:120});input(dive.model,{throttle:1});advance(dive.model,20);
     assert.ok(dive.model.status().height>=1000.5&&dive.model.status().height<1001);
     assert.equal(dive.model.status().speed,0);
+});
+
+test('standard Acro level-flight speed settles near 160 km/h; explicit legacy drag remains configurable',async()=>{
+    for(const [terminal,expected] of [[undefined,159.407],[35,247.967]]){
+        const p=setup();await start(p,{flightMode:'acro',agl:1000,
+            ...(terminal===undefined?{}:{acroTerminalVelocity:terminal})});
+        // Rotate to the full-throttle level-flight attitude without introducing
+        // a test-only attitude setter: 4*cos(tilt)=1 balances weight.
+        const duration=Math.acos(1/4)/Math.PI,steps=Math.floor(duration*240);
+        input(p.model,{pitch:1});
+        for(let i=0;i<steps;i++)p.model.tick(1/240);
+        p.model.tick(duration-steps/240);
+        input(p.model);advance(p.model,2,240);
+        input(p.model,{throttle:1});advance(p.model,30,240);
+        assert.ok(Math.abs(p.model.status().horizontalSpeed*3.6-expected)<.02);
+        assert.ok(Math.abs(p.model.status().verticalSpeed)<.001);
+    }
+});
+
+test('rate curves keep full stick and neutral exact, remain symmetric and soften the centre',()=>{
+    for(const expo of [0,.3,1]){
+        assert.equal(rateCommand(0,600,expo),0);
+        assert.equal(rateCommand(1,600,expo),600);
+        assert.equal(rateCommand(-1,600,expo),-600);
+        let previous=-600;
+        for(let i=-100;i<=100;i++){
+            const value=rateCommand(i/100,600,expo);
+            assert.ok(value>=previous&&Math.abs(value)<=600);
+            assert.equal(value,-rateCommand(-i/100,600,expo));previous=value;
+        }
+    }
+    assert.equal(rateCommand(.5,600,0),300);
+    assert.equal(rateCommand(.5,600,1),75);
+});
+
+test('independent body rates reach configured roll, pitch and yaw speeds and survive reset',async()=>{
+    const config={flightMode:'acro',agl:500,acroRollRate:600,acroPitchRate:420,acroYawRate:250,acroRateExpo:.4};
+    for(const [axis,rate] of [['roll',600],['pitch',420],['yaw',250]]){
+        const p=setup();await start(p,config);input(p.model,{[axis]:1});advance(p.model,1.5,240);
+        const before=p.model.status().attitude;advance(p.model,.025,240);
+        const after=p.model.status().attitude;
+        const dot=before.w*after.w+before.x*after.x+before.y*after.y+before.z*after.z;
+        const measured=2*Math.acos(Math.min(1,Math.abs(dot)))*180/Math.PI/.025;
+        assert.ok(Math.abs(measured-rate)<.02,`${axis}: ${measured} vs ${rate}`);
+        await p.model.reset();input(p.model,{[axis]:1});advance(p.model,1.5,240);
+        const reset=p.model.status().attitude;
+        assert.ok(Math.abs(before.w*reset.w+before.x*reset.x+before.y*reset.y+before.z*reset.z)>.999999);
+    }
+});
+
+test('custom rates retain frame-rate independence and Angle/GPS controls ignore Acro rates',async()=>{
+    const result=[];
+    for(const fps of [30,60,120,240]){
+        const p=setup();await start(p,{flightMode:'acro',agl:500,acroRollRate:1500,acroPitchRate:850,acroYawRate:700,acroRateExpo:.6});
+        input(p.model,{roll:.3,pitch:.2,yaw:.4,throttle:.5});advance(p.model,2,fps);result.push(p.model.status());
+    }
+    for(const current of result.slice(1)){
+        assert.ok(distance(current.position,result[0].position)<.001);
+        assert.ok(Math.abs(current.height-result[0].height)<.001);
+    }
+    for(const flightMode of ['angle','gps']){
+        const baseline=setup(),custom=setup();await start(baseline,{flightMode,agl:500});
+        await start(custom,{flightMode,agl:500,acroRollRate:1500,acroPitchRate:850,acroYawRate:700,acroRateExpo:.6});
+        for(const p of [baseline,custom]){input(p.model,{roll:.5,pitch:.2,yaw:.3});advance(p.model,1);}
+        assert.deepEqual(custom.model.status().attitude,baseline.model.status().attitude);
+        assert.deepEqual(custom.model.status().position,baseline.model.status().position);
+    }
 });
 test('Acro attitude, motors and trajectory agree at 30, 60, 120 and 240 FPS',async()=>{
     const results=[];
@@ -280,7 +347,9 @@ test('exit, abort and terrain loss invalidate pending spawn without late camera 
 });
 test('invalid modes, parameters and coordinates are rejected before changing camera',async()=>{
     for(const command of [{flightMode:'unknown'},{agl:NaN},{agl:-1},{maxSpeed:101},{climbSpeed:0},{acceleration:0},{deceleration:Infinity},
-        {acroThrustToWeight:1},{acroThrustCurve:1.1},{acroMotorTimeConstant:-1},{acroTerminalVelocity:Infinity}])assert.throws(()=>parameters(command));
+        {acroThrustToWeight:1},{acroThrustCurve:1.1},{acroMotorTimeConstant:-1},{acroTerminalVelocity:Infinity},
+        ...['acroRollRate','acroPitchRate','acroYawRate'].flatMap(key=>[9,1501,NaN,Infinity,'600'].map(value=>({[key]:value}))),
+        ...[-.01,1.01,NaN,Infinity].map(acroRateExpo=>({acroRateExpo}))])assert.throws(()=>parameters(command));
     const p=setup();await assert.rejects(p.model.start({latitude:90,longitude:0},new AbortController().signal));
     assert.equal(p.poses.length,0);
 });

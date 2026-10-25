@@ -13,6 +13,11 @@
         let layer = null, removeError = null, revision = 0, disposed = false;
         let visible = false, opacity = 0.8, state = 'off', error = null;
         const pending = new Set();
+        const failedTiles = new Set(), retries = new Map();
+        let otherFailure = false;
+        const keyFor = (x,y,level) => `${level}/${x}/${y}`;
+        const cancelled = request => request?.cancelled === true ||
+            (C.RequestState?.CANCELLED !== undefined && request?.state === C.RequestState.CANCELLED);
         function status() { return {visible, opacity, state, error}; }
         function publish() { if (!disposed) emit(statusEvent, status()); }
         function clear() {
@@ -20,26 +25,38 @@
             for (const cancel of [...pending]) cancel();
             if (layer) viewer.imageryLayers.remove(layer, true);
             layer = null;
+            failedTiles.clear(); retries.clear(); otherFailure = false;
         }
-        function fail(generation) {
+        function fail(generation, key = null) {
             if (disposed || generation !== revision || !visible) return;
-            state = 'failed'; error = `${label} tiles unavailable or timed out. Retry in Map layers.`;
-            // Invalidates outstanding requests so late completions cannot report ready.
-            revision++; clear(); publish();
+            if (key !== null && (failedTiles.has(key) || failedTiles.size < 256)) failedTiles.add(key);
+            else otherFailure = true;
+            // One missing tile must never discard all previously loaded imagery.
+            // Bound bookkeeping even if an unavailable service is panned widely.
+            if (state !== 'failed') {
+                state = 'failed'; error = `Some ${label.toLowerCase()} tiles are unavailable or timed out. Loaded tiles remain visible. Retry in Map layers.`;
+                publish();
+            }
         }
-        function bounded(request) {
+        function bounded(promise, request) {
             return new Promise((resolve, reject) => {
                 let done = false;
                 const finish = (fn, value) => {
                     if (done) return; done = true;
                     timers.clearTimeout(timer); pending.delete(cancel); fn(value);
                 };
-                const cancel = () => finish(reject, new Error('Obstacle request cancelled'));
+                const cancel = () => {
+                    request?.cancel?.();
+                    finish(reject, new Error('Imagery request cancelled'));
+                };
                 const timer = timers.setTimeout(() => {
-                    finish(reject, new Error('Obstacle tile timeout'));
+                    finish(reject, new Error('Imagery tile timeout'));
+                    // Abort the transport without converting a genuine timeout
+                    // into Cesium's automatically rescheduled camera cancellation.
+                    try { request?.cancelFunction?.(); } catch (_) { /* Already settled. */ }
                 }, timeoutMs);
                 pending.add(cancel);
-                Promise.resolve(request).then(value => finish(resolve, value), reason => finish(reject, reason));
+                Promise.resolve(promise).then(value => finish(resolve, value), reason => finish(reject, reason));
             });
         }
         function set(command) {
@@ -61,31 +78,46 @@
                 const requestImage = provider.requestImage.bind(provider);
                 provider.requestImage = (x,y,level,request) => {
                     if (disposed || generation !== revision) return undefined;
+                    const key = keyFor(x,y,level);
                     let result;
                     try { result = requestImage(x,y,level,request); }
-                    catch (e) { fail(generation); return Promise.reject(e); }
+                    catch (e) { if (!cancelled(request)) fail(generation,key); return Promise.reject(e); }
                     if (result === undefined) return undefined; // Cesium request throttling.
-                    return bounded(result).then(image => {
-                        if (generation === revision && visible && state !== 'ready') {
-                            state = 'ready'; publish();
+                    return bounded(result,request).then(image => {
+                        if (!disposed && generation === revision && visible && !cancelled(request)) {
+                            failedTiles.delete(key); retries.delete(key);
+                            if (!failedTiles.size && !otherFailure && state !== 'ready') {
+                                state = 'ready'; error = null; publish();
+                            }
                         }
                         return image;
                     }, e => {
                         // Camera movement routinely cancels scheduled Cesium
                         // requests. It must not turn a healthy layer off.
-                        if (!request?.cancelled) { fail(generation); request?.cancel?.(); }
+                        if (!cancelled(request)) fail(generation,key);
                         throw e;
                     });
                 };
-                removeError = provider.errorEvent.addEventListener(e => { e.retry = false; fail(generation); });
+                removeError = provider.errorEvent.addEventListener(e => {
+                    e.retry = false;
+                    if (disposed || generation !== revision || !visible) return;
+                    const key = [e.x,e.y,e.level].every(Number.isInteger) ? keyFor(e.x,e.y,e.level) : null;
+                    fail(generation,key);
+                    const count = retries.get(key) ?? 0;
+                    if (key !== null && count < 2 && (retries.has(key) || retries.size < 256)) {
+                        retries.set(key,count+1); e.retry = true;
+                    }
+                });
                 layer = new C.ImageryLayer(provider, {alpha:opacity});
                 viewer.imageryLayers.add(layer);
                 // A Swiss probe prevents an apparently healthy layer when only
                 // out-of-coverage tiles have been requested by the current view.
                 const tile = scheme.positionToTileXY(C.Cartographic.fromDegrees(8.5,46.8), 8);
                 const probe = provider.requestImage(tile.x,tile.y,8);
-                if (probe === undefined) fail(generation);
-                else Promise.resolve(probe).catch(() => fail(generation));
+                // The wrapper reports genuine probe errors and ignores camera
+                // cancellation. Do not reclassify its rejection as a layer loss.
+                // An undefined result is scheduler backpressure, not a failure.
+                if (probe !== undefined) Promise.resolve(probe).catch(() => {});
             } catch (_) { fail(generation); }
         }
         return {set, status, dispose() { if (disposed) return; disposed = true; revision++; clear(); }};

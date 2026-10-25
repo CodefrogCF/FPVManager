@@ -93,14 +93,20 @@ in memory for the current renderer, not persistent offline storage.
 - **Angle:** Mode 2 — left stick vertical is throttle, horizontal is yaw; right
   stick vertical controls pitch and horizontal controls roll. Tilt is limited to
   50° and levels when released. Tilting directs thrust and requires more gas to hold height.
-- **Acro:** The same Mode 2 layout commands body rotation rates up to 180°/s.
+- **Acro:** The same Mode 2 layout commands body rotation. **Acro rates** sets separate
+  roll/pitch/yaw maximum rates (10–1,500°/s) and shared stick expo (0–1).
+  Defaults retain 180°/s and linear input; expo softens the centre while retaining
+  full-stick speed. Settings stay in this session, including camera changes and resets.
   Releasing pitch/roll stops rotation after a short response, retaining attitude.
   Rotor thrust follows the drone's body: inverted full throttle accelerates
   downward, zero throttle allows gravity/drag free fall and existing momentum
   continues. There is no assisted speed/climb limit, leveling or altitude hold.
   **Acro physics** adjusts estimated thrust/weight, thrust curve, motor response
   and terminal free-fall speed (air drag). Defaults are 4:1, quadratic, 0.04 s and
-  35 m/s; these are uncalibrated assumptions, independent of profile speed limits.
+  22.5 m/s, giving about 159 km/h in steady full-throttle level flight. The
+  settings show this estimate; diving can be faster. These remain simplified
+  assumptions, independent of profile speed limits. The HUD labels horizontal
+  speed **H** in km/h and Acro vertical speed **V** in m/s.
 - **GPS:** The previous assisted mode — left stick translates, right stick looks,
   neutral input brakes and maintains height. Its controls match ground view.
 

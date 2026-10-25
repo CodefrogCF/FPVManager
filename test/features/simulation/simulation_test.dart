@@ -76,6 +76,11 @@ void main() {
         const SimulationSettings(acroThrustCurve: -.1),
         const SimulationSettings(acroMotorTimeConstant: double.nan),
         const SimulationSettings(acroTerminalVelocity: 121),
+        const SimulationSettings(acroRollRate: 9),
+        const SimulationSettings(acroPitchRate: 1501),
+        const SimulationSettings(acroYawRate: double.nan),
+        const SimulationSettings(acroRateExpo: -0.1),
+        const SimulationSettings(acroRateExpo: 1.1),
       ]) {
         expect(invalid.validate, throwsArgumentError);
       }
@@ -88,11 +93,19 @@ void main() {
       graphicsProfile: SimulationGraphicsProfile.performance,
       acroThrustToWeight: 6,
       agl: 45,
+      acroRollRate: 600,
+      acroPitchRate: 420,
+      acroYawRate: 250,
+      acroRateExpo: .4,
     );
     final tilted = original.withCameraTilt(35);
     expect(tilted.toCommand()['cameraTiltDegrees'], 35);
     expect(tilted.agl, 45);
     expect(tilted.acroThrustToWeight, 6);
+    expect(tilted.acroRollRate, 600);
+    expect(tilted.acroPitchRate, 420);
+    expect(tilted.acroYawRate, 250);
+    expect(tilted.acroRateExpo, .4);
     expect(tilted.flightMode, SimulationFlightMode.acro);
     expect(tilted.graphicsProfile, SimulationGraphicsProfile.performance);
     for (final profile in SimulationGraphicsProfile.values) {
@@ -102,6 +115,16 @@ void main() {
         profile.name,
       );
     }
+  });
+
+  test('default Acro speed estimate agrees with the level-flight renderer scenario', () {
+    const settings = SimulationSettings();
+    expect(settings.acroEstimatedLevelSpeedKmh, closeTo(159.407, .001));
+    expect(settings.toCommand()['acroTerminalVelocity'], 22.5);
+    expect(settings.toCommand()['acroRollRate'], 180);
+    expect(settings.toCommand()['acroPitchRate'], 180);
+    expect(settings.toCommand()['acroYawRate'], 180);
+    expect(settings.toCommand()['acroRateExpo'], 0);
   });
 
   test('Acro physics settings preserve independent parameters and compute level-hover throttle', () {
@@ -137,12 +160,22 @@ void main() {
       'supports selection or camera target and rejects unsupported entry',
       () async {
         await globe.enterSimulation(
-          const SimulationSettings(agl: 40),
+          const SimulationSettings(
+            agl: 40,
+            acroRollRate: 600,
+            acroPitchRate: 420,
+            acroYawRate: 250,
+            acroRateExpo: .4,
+          ),
           latitude: 47,
           longitude: 8,
         );
         expect(peer.commands.last, containsPair('latitude', 47));
         expect(peer.commands.last, containsPair('agl', 40));
+        expect(peer.commands.last, containsPair('acroRollRate', 600));
+        expect(peer.commands.last, containsPair('acroPitchRate', 420));
+        expect(peer.commands.last, containsPair('acroYawRate', 250));
+        expect(peer.commands.last, containsPair('acroRateExpo', .4));
         expect(peer.commands.last, containsPair('graphicsProfile', 'balanced'));
         await globe.enterSimulation(const SimulationSettings());
         expect(peer.commands.last['type'], 'enter-simulation');
@@ -391,7 +424,9 @@ void main() {
       expect(chosen, isNull);
       expect(
         tester
-            .widget<ExpansionTile>(find.byType(ExpansionTile))
+            .widget<ExpansionTile>(
+              find.byKey(const ValueKey('simulation-acro-physics')),
+            )
             .controller!
             .isExpanded,
         isTrue,
@@ -416,6 +451,95 @@ void main() {
       expect(chosen!.acroTerminalVelocity, 45);
       expect(chosen!.maxSpeed, 22);
       expect(chosen!.climbSpeed, 7);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Acro rates validate collapsed fields, accept decimal comma and remain adjustable before the next flight',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SimulationSettings? chosen;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  chosen = await showSimulationSettings(
+                    context,
+                    repository: _Drones(),
+                    hasSelection: true,
+                    initial:
+                        chosen?.withCameraTilt(30) ??
+                        const SimulationSettings(
+                          flightMode: SimulationFlightMode.acro,
+                        ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Acro rates'));
+      await tester.tap(find.text('Acro rates'));
+      await tester.pumpAndSettle();
+      final roll = find.byKey(const ValueKey('simulation-acroRollRate'));
+      await tester.ensureVisible(roll);
+      await tester.enterText(roll, '0');
+      await tester.ensureVisible(find.text('Acro rates'));
+      await tester.tap(find.text('Acro rates'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Spawn in map'));
+      await tester.tap(find.text('Spawn in map'));
+      await tester.pumpAndSettle();
+      expect(chosen, isNull);
+      expect(
+        tester
+            .widget<ExpansionTile>(
+              find.byKey(const ValueKey('simulation-acro-rates')),
+            )
+            .controller!
+            .isExpanded,
+        isTrue,
+      );
+      for (final entry in [
+        ('acroRollRate', '600'),
+        ('acroPitchRate', '420'),
+        ('acroYawRate', '250'),
+        ('acroRateExpo', '0,4'),
+      ]) {
+        final field = find.byKey(ValueKey('simulation-${entry.$1}'));
+        await tester.ensureVisible(field);
+        await tester.enterText(field, entry.$2);
+      }
+      await tester.ensureVisible(find.text('Spawn in map'));
+      await tester.tap(find.text('Spawn in map'));
+      await tester.pumpAndSettle();
+      expect(chosen!.acroRollRate, 600);
+      expect(chosen!.acroPitchRate, 420);
+      expect(chosen!.acroYawRate, 250);
+      expect(chosen!.acroRateExpo, .4);
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Acro rates'));
+      await tester.tap(find.text('Acro rates'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextFormField>(roll).controller!.text, '600.0');
+      expect(
+        find.byKey(const ValueKey('simulation-cameraTilt')),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.byTooltip('Close simulation settings'));
+      await tester.tap(find.byTooltip('Close simulation settings'));
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );

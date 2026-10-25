@@ -8,6 +8,7 @@
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
     const valid=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<89.9&&Math.abs(p.longitude)<=180;
     const wrap=a=>((a%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+    const rateCommand=(stick,maximum,expo)=>maximum*stick*((1-expo)+expo*stick*stick);
     function move(p,north,east){return {latitude:p.latitude+north/R/rad,
         longitude:((p.longitude+east/(R*Math.cos(p.latitude*rad))/rad+540)%360)-180};}
     function distance(a,b){
@@ -19,10 +20,13 @@
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
             acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,graphicsProfile:c.graphicsProfile??'balanced',
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
-            acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??35};
+            acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
+            acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
+            acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
             ['acceleration',.2,50],['deceleration',.2,50],['cameraTiltDegrees',0,80],['acroThrustToWeight',1.1,12],
-            ['acroThrustCurve',0,1],['acroMotorTimeConstant',0,.5],['acroTerminalVelocity',5,120]]){
+            ['acroThrustCurve',0,1],['acroMotorTimeConstant',0,.5],['acroTerminalVelocity',5,120],
+            ['acroRollRate',10,1500],['acroPitchRate',10,1500],['acroYawRate',10,1500],['acroRateExpo',0,1]]){
             if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`Invalid flight ${key}`);
         }
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
@@ -102,7 +106,7 @@
             const z=response(velocity.up,up*config.climbSpeed);
             velocity={north:n.v,east:e.v,up:z.v};return {north:n.d,east:e.d,up:z.d};
         }
-        // Angle: 50° tilt limit/self-level. Acro: 180°/s body rates, no leveling.
+        // Angle: 50° tilt limit/self-level. Acro: configurable body rates, no leveling.
         // Angle retains its centred hover aid. Acro throttle is a motor command
         // over 0..1; its hover point depends on thrust/weight and the thrust curve.
         function acroThrust(command){
@@ -143,7 +147,11 @@
                     pitch+=(-nose*50*rad-pitch)*response;roll+=(bank*50*rad-roll)*response;
                     heading=wrap(heading+yaw*1.8*dt);q=euler(heading,pitch,roll);
                 }else{
-                    rates.x+=(bank*Math.PI-rates.x)*response;rates.y+=(-nose*Math.PI-rates.y)*response;rates.z+=(yaw*Math.PI-rates.z)*response;
+                    // Cubic expo softens the centre, preserving both the sign
+                    // and full-stick rate. The existing rate response stays intact.
+                    rates.x+=(rateCommand(bank,config.acroRollRate,config.acroRateExpo)*rad-rates.x)*response;
+                    rates.y+=(-rateCommand(nose,config.acroPitchRate,config.acroRateExpo)*rad-rates.y)*response;
+                    rates.z+=(rateCommand(yaw,config.acroYawRate,config.acroRateExpo)*rad-rates.z)*response;
                     const speed=Math.hypot(rates.x,rates.y,rates.z),angle=speed*dt,scale=speed>1e-12?Math.sin(angle/2)/speed:0;
                     q=normalized(multiply(q,{w:Math.cos(angle/2),x:rates.x*scale,y:rates.y*scale,z:rates.z*scale}));
                     const f=rotate(q,{x:1,y:0,z:0}),r=rotate(q,{x:0,y:1,z:0});
@@ -224,5 +232,5 @@
             pause(value){if(paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};
     }
-    return {createSimulator,parameters,distance};
+    return {createSimulator,parameters,distance,rateCommand};
 });

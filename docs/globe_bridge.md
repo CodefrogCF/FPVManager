@@ -79,7 +79,11 @@ before activation and expires native frames after 250 ms. Flight state/telemetry
 remain in the renderer; keyboard/touch and Web gamepads require no bridge stream.
 
 Acro optionally accepts `acroThrustToWeight`, `acroThrustCurve`,
-`acroMotorTimeConstant` (s) and `acroTerminalVelocity` (m/s). Its translation uses
+`acroMotorTimeConstant` (s) and `acroTerminalVelocity` (m/s, default 22.5).
+`acroRollRate`, `acroPitchRate` and `acroYawRate` are full-stick body rates in °/s
+(10–1,500, default 180); `acroRateExpo` (0–1, default 0) uses the symmetric curve
+`maximum * stick * ((1 - expo) + expo * stick²)`. These settings affect Acro only
+and persist across renderer-side resets. Its translation uses
 body-directed thrust, gravity, motor lag and quadratic drag; assisted speed/climb
 and response fields do not clamp Acro. The thrust curve interpolates linear and
 quadratic motor command, following the model described in the

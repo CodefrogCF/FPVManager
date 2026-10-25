@@ -62,6 +62,7 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(v.scene.globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize),'Profile change altered the flight tile budget');
   log('All graphics profiles change actual Cesium resolution/MSAA without respawning');
   check(doc.getElementById('flight-readout').textContent.includes('SIMULATION'),'HUD missing simulation label');
+  check(/H \d+ km\/h/.test(doc.getElementById('flight-readout').textContent),'HUD missing labelled horizontal speed in km/h');
   check(!v.scene.screenSpaceCameraController.enableInputs,'Orbital input active');
   log('Actual Cesium spawns at terrain +20m with FPV camera, HUD and an independent saved route overlay');
   if(new URLSearchParams(location.search).has('cache')){
@@ -159,6 +160,20 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(fallStart-v.camera.positionCartographic.height>3,'Throttle cut failed to continue the fall');
   check(doc.getElementById('flight-readout').textContent.includes('V -'),'Signed vertical speed missing from Acro HUD');
   log('Inverted full throttle accelerates the actual camera toward terrain; throttle cut preserves a gravity/drag fall beyond assisted descent limits');
+  await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:400,flightMode:'acro',
+    acroRollRate:90,acroPitchRate:420,acroYawRate:250,acroRateExpo:.4});
+  async function customRoll(){
+    canvas.focus();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
+    await pause(1100);canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'ArrowRight',bubbles:true}));await pause(700);
+    const up=v.scene.globe.ellipsoid.geodeticSurfaceNormal(v.camera.positionWC);
+    return C.Cartesian3.dot(v.camera.upWC,up);
+  }
+  const slowRoll=await customRoll();
+  check(slowRoll>-.7&&slowRoll<.3,'Configured 90 deg/s roll did not reach the actual camera');
+  await command('reset-simulation');
+  const resetRoll=await customRoll();
+  check(Math.abs(resetRoll-slowRoll)<.2,'Reset lost the configured body rate');
+  log('Configured 90 deg/s Acro roll affects the actual Cesium camera and survives reset; the HUD labels horizontal speed in km/h');
   await command('enter-simulation',{agl:30,flightMode:'gps'});await pause(100);
   check(Math.abs(v.camera.positionCartographic.height-1030)<.5,'Mode switch did not respawn');
   canvas.focus();const gpsStart=v.camera.positionWC.clone();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));await pause(600);

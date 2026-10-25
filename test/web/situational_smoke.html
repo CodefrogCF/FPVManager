@@ -105,8 +105,36 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
     await command('set-map-style',{style:'topographic'});
     await command('set-situational-overlay',{id:'roads',visible:true,opacity:.8});
     await until(()=>states.roads?.state==='ready','Road overlay restored');
+    const stable=v.imageryLayers.get(v.imageryLayers.length-1),provider=stable.imageryProvider;
+    // Exercise real renderer scheduling while repeatedly changing the viewport.
+    for(const [lon,lat,height] of [[8.55,47.45,2500],[8.57,47.43,6500],[8.54,47.44,3000],
+      [8.56,47.47,9000],[8.55,47.45,2200],[8.58,47.46,6000],[8.54,47.45,2500],[8.55,47.45,3500]]){
+      v.camera.setView({destination:C.Cartesian3.fromDegrees(lon,lat,height),orientation:{heading:.4,pitch:-Math.PI/2,roll:0}});
+      await pause(150);
+      check(v.imageryLayers.contains(stable)&&stable.show,'Panning removed or hid the road overlay');
+    }
+    // A real Cesium error event must retain loaded imagery. Recovery of that
+    // same tile clears the failure without rebuilding the layer.
+    const tile=provider.tilingScheme.positionToTileXY(C.Cartographic.fromDegrees(8.5,46.8),8);
+    const tileError=new C.TileProviderError(provider,'Synthetic temporary tile failure',tile.x,tile.y,8,0,new Error('fixture'));
+    provider.errorEvent.raiseEvent(tileError);
+    await until(()=>states.roads?.state==='failed','Partial tile failure status');
+    check(v.imageryLayers.contains(stable)&&tileError.retry,'Tile failure removed imagery or refused bounded retry');
+    await provider.requestImage(tile.x,tile.y,8,new C.Request());
+    await until(()=>states.roads?.state==='ready','Road tile recovered in place');
+    check(v.imageryLayers.contains(stable),'Recovery replaced the road layer');
+    log('Repeated pan/zoom and a synthetic Cesium tile failure retain the same visible road layer; successful tile retry recovers in place');
     v.camera.setView({destination:C.Cartesian3.fromDegrees(8.55,47.45,3500),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
-    await until(()=>v.scene.globe.tilesLoaded,'Labelled imagery loaded');
+    // Check that this layer actually supplies rendered textures. tilesLoaded
+    // also waits for unrelated imagery/terrain work after rapid camera changes.
+    // Pinned Cesium internals are used only by this renderer test harness.
+    await until(()=>v.scene.globe._surface._tilesToRender.some(tile=>
+      tile.data?.imagery?.some(i=>i.readyImagery?.imageryLayer===stable)), 'Road imagery rendered');
+    check(stable.show&&v.imageryLayers.contains(stable),'Rendered road layer unexpectedly hidden');
+    await command('set-situational-overlay',{id:'roads',visible:false,opacity:.8});
+    check(!v.imageryLayers.contains(stable),'Road overlay could not be disabled after recovery');
+    await command('set-situational-overlay',{id:'roads',visible:true,opacity:.8});
+    await until(()=>states.roads?.state==='ready','Road overlay re-enabled after recovery');
     log('Official transparent swissTLM3D roads load with the Topo map, survive style changes, update opacity and recover after toggling');
     document.getElementById('status').textContent='PASS — roads and topographic imagery';return;
   }
