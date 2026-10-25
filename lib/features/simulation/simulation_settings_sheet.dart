@@ -65,6 +65,7 @@ class _SettingsState extends State<_Settings> {
   int? _drone;
   bool _loading = true;
   late SimulationFlightMode _mode = widget.initial.flightMode;
+  late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
   String? _error;
   @override
   void initState() {
@@ -228,6 +229,34 @@ class _SettingsState extends State<_Settings> {
                       ),
                     const SizedBox(height: 12),
                     if (_loading) const LinearProgressIndicator(),
+                    DropdownButtonFormField<SimulationGraphicsProfile>(
+                      key: const ValueKey('simulation-graphics'),
+                      initialValue: _graphics,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Graphics profile',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: SimulationGraphicsProfile.quality,
+                          child: Text('Quality · full resolution'),
+                        ),
+                        DropdownMenuItem(
+                          value: SimulationGraphicsProfile.balanced,
+                          child: Text('Balanced · 85% resolution'),
+                        ),
+                        DropdownMenuItem(
+                          value: SimulationGraphicsProfile.performance,
+                          child: Text('Performance · 75% resolution'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => _graphics = value);
+                      },
+                    ),
+                    const Text(
+                      'Graphics affect image sharpness and smoothing. Terrain detail and flight physics stay the same. Adjustable during flight using Graphics.',
+                    ),
                     if (_error != null) Text(_error!),
                     DropdownButtonFormField<int>(
                       key: ValueKey(_drone),
@@ -366,6 +395,7 @@ class _SettingsState extends State<_Settings> {
                             deceleration: parameter('deceleration', .2, 50, 4),
                             droneId: _drone,
                             flightMode: _mode,
+                            graphicsProfile: _graphics,
                             cameraTiltDegrees: parameter(
                               'cameraTilt',
                               0,

@@ -92,8 +92,10 @@
     }
 
     function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0)),
-        isTerrainReady = () => true} = {}) {
+        isTerrainReady = () => true, now = () => performance.now(), terrainBatchSize = 128} = {}) {
         let source = null, staged = null, revision = -1, disposed = false;
+        if (!Number.isInteger(terrainBatchSize) || terrainBatchSize < 1 || terrainBatchSize > 512) throw new Error('Invalid terrain batch size');
+        let terrain = null, terrainEpoch = 0;
         let selection = new Map();
         const credit = new C.Credit('BAZL / FOCA · Skyguide · geo.admin.ch · CHGeo2004 © swisstopo', true);
         let credited = false;
@@ -104,6 +106,83 @@
         }
         const colors = {powerLines:'#ff6b50', cableways:'#f6c445', masts:'#55d5ff', other:'#dc9aff', unknown:'#eeeeee'};
         function remove(s) { if (s) viewer.dataSources.remove(s, true); }
+        // One sample per distinct support location, independent of the number
+        // of attached cables/graphics. Publish a complete scan atomically so
+        // cable attachments and mast tops always use the same height snapshot.
+        function terrainBindings(entities) {
+            const locations = new Map(), bindings = new Set();
+            let scan = null, scannedEpoch = -1, scannedAt = -Infinity;
+            function watch(coordinates, apply) {
+                const points = coordinates.map(([lon,lat]) => {
+                    const key = `${lon},${lat}`;
+                    if (!locations.has(key)) locations.set(key, {
+                        location:C.Cartographic.fromDegrees(lon,lat), height:undefined, bindings:new Set()
+                    });
+                    return locations.get(key);
+                });
+                const binding = {points,apply};
+                bindings.add(binding);
+                for (const point of points) point.bindings.add(binding);
+            }
+            function begin() { scan = {points:[...locations.values()], index:0, epoch:terrainEpoch}; }
+            function batch() {
+                const end = Math.min(scan.index + terrainBatchSize, scan.points.length), ready = isTerrainReady();
+                for (; scan.index < end; scan.index++) {
+                    const point = scan.points[scan.index];
+                    const height = ready ? viewer.scene.globe.getHeight(point.location) : undefined;
+                    point.next = Number.isFinite(height) && height >= -1500 && height <= 16000 ? height : null;
+                }
+                return scan.index === scan.points.length;
+            }
+            function commit() {
+                const changed = new Set();
+                const ready = isTerrainReady();
+                for (const point of scan.points) {
+                    if (!ready) point.next = null;
+                    if (point.height !== point.next) {
+                        point.height = point.next;
+                        for (const binding of point.bindings) changed.add(binding);
+                    }
+                }
+                entities.suspendEvents?.();
+                try { for (const binding of changed) binding.apply(binding.points); }
+                finally { entities.resumeEvents?.(); }
+                scannedEpoch = scan.epoch; scannedAt = now(); scan = null;
+                if (changed.size) viewer.scene.requestRender?.();
+            }
+            return {
+                watch,
+                async prime(current) {
+                    begin();
+                    while (!batch()) { await yieldBatch(); if (!current()) return; }
+                    if (current()) commit();
+                },
+                update() {
+                    if (!locations.size) return;
+                    if (!scan) {
+                        if (scannedEpoch === terrainEpoch || now() - scannedAt < 200) return;
+                        begin();
+                    }
+                    if (batch()) commit();
+                },
+                hide() {
+                    scan = null;
+                    for (const point of locations.values()) point.height = null;
+                    for (const binding of bindings) binding.apply(binding.points);
+                },
+                dispose() { locations.clear(); bindings.clear(); scan = null; }
+            };
+        }
+        function terrainChanged() {
+            terrainEpoch++;
+            if (!isTerrainReady()) terrain?.hide();
+        }
+        const listeners = [
+            (viewer.scene.preUpdate ?? viewer.scene.preRender)?.addEventListener(() => terrain?.update()),
+            viewer.scene.globe.tileLoadProgressEvent?.addEventListener(terrainChanged),
+            viewer.camera?.changed?.addEventListener(terrainChanged),
+            viewer.camera?.moveEnd?.addEventListener(terrainChanged)
+        ];
         // The source provides two distinct vertical values for point obstacles:
         // an absolute LN02 top elevation and a height above local ground (AGL).
         // Cesium renders a separate terrain mesh, which may differ from the
@@ -112,35 +191,22 @@
         // rendered terrain sample. Never keep the original absolute top while
         // moving only the bottom: doing so changes the displayed object height.
         // Original source elevations remain in Flutter's obstacle attributes.
-        function pointAboveTerrain(coordinate, agl, color) {
+        function pointAboveTerrain(coordinate, agl, color, next, heights) {
             const [lon,lat,sourceElevation] = coordinate;
             const sourceTop = Number.isFinite(sourceElevation) ? sourceElevation : 0;
-            const location = C.Cartographic.fromDegrees(lon,lat);
             const fallbackTop = C.Cartesian3.fromDegrees(lon,lat,sourceTop);
-            const hiddenPositions = [fallbackTop,fallbackTop];
-            let previousGround, cachedTop, cachedStem;
-            function sample() {
-                if (!isTerrainReady()) return null;
-                const ground = viewer.scene?.globe?.getHeight?.(location);
-                // A missing/non-finite tile height is not the ellipsoid zero;
-                // never invent a ground position or a guaranteed obstacle top.
-                if (!Number.isFinite(ground) || ground < -1500 ||
-                    ground + agl > 16000) return null;
-                if (ground !== previousGround) {
-                    cachedTop = C.Cartesian3.fromDegrees(lon,lat,ground + agl);
-                    cachedStem = [C.Cartesian3.fromDegrees(lon,lat,ground),cachedTop];
-                    previousGround = ground;
-                }
-                return {top:cachedTop,stem:cachedStem};
-            }
-            const show = new C.CallbackProperty(() => sample() !== null, false);
-            return {
-                marker:{position:new C.CallbackProperty(() => sample()?.top ?? fallbackTop,false),
-                    show,point:{pixelSize:7,color,outlineColor:C.Color.BLACK,outlineWidth:1,
-                        heightReference:C.HeightReference.NONE}},
-                stem:{polyline:{positions:new C.CallbackProperty(() => sample()?.stem ?? hiddenPositions,false),
-                    show,width:2,material:color,arcType:C.ArcType.NONE}}
-            };
+            const marker = next.entities.add({position:fallbackTop, show:false,
+                point:{pixelSize:7,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.NONE}});
+            const stem = next.entities.add({polyline:{positions:[fallbackTop,fallbackTop],show:false,width:2,material:color,arcType:C.ArcType.NONE}});
+            heights.watch([coordinate], ([point]) => {
+                const ground = point.height, visible = ground != null && ground + agl <= 16000;
+                marker.show = visible; stem.polyline.show = visible;
+                if (!visible) return;
+                const top = C.Cartesian3.fromDegrees(lon,lat,ground + agl);
+                marker.position = top;
+                stem.polyline.positions = [C.Cartesian3.fromDegrees(lon,lat,ground),top];
+            });
+            return {marker,stem};
         }
         function validate(command) {
             if (!Number.isSafeInteger(command.revision) || !Array.isArray(command.features) ||
@@ -199,7 +265,7 @@
                 return candidates.length===1?candidates[0]:null;
             };
         }
-        function anchoredCable(p, findSupport, color) {
+        function anchoredCable(p, findSupport, color, next, heights) {
             const anchors=p.coordinates.map((a,index)=>({index,support:findSupport(a)})).filter(a=>a.support);
             if(!anchors.length)return null;
             const source=p.coordinates.map(a=>C.Cartesian3.fromDegrees(...a));
@@ -208,29 +274,30 @@
                 const a=p.coordinates[i-1],b=p.coordinates[i];
                 lengths.push(lengths[i-1]+Math.hypot((a[0]-b[0])*Math.cos(a[1]*Math.PI/180),a[1]-b[1]));
             }
-            let previous='',cached=source;
-            function sample(){
-                if(!isTerrainReady())return null;
-                const grounds=anchors.map(a=>viewer.scene?.globe?.getHeight?.(C.Cartographic.fromDegrees(a.support.lon,a.support.lat)));
-                if(grounds.some(g=>!Number.isFinite(g)||g < -1500 || g > 16000))return null;
-                const key=grounds.join(',');
-                if(key!==previous){
-                    const deltas=anchors.map((a,i)=>grounds[i]+a.support.agl-p.coordinates[a.index][2]);
-                    cached=p.coordinates.map((a,i)=>{
-                        const exact=anchors.findIndex(v=>v.index===i);
-                        if(exact>=0)return C.Cartesian3.fromDegrees(a[0],a[1],a[2]+deltas[exact]);
-                        const right=anchors.findIndex(v=>v.index>i),left=right-1;
-                        if(left<0||right<0)return source[i];
-                        const length=lengths[anchors[right].index]-lengths[anchors[left].index];
-                        const t=length>0?(lengths[i]-lengths[anchors[left].index])/length:0;
-                        return C.Cartesian3.fromDegrees(a[0],a[1],a[2]+deltas[left]*(1-t)+deltas[right]*t);
-                    });previous=key;
-                }
-                return cached;
-            }
-            return {name:'Approximate cable display anchored to published support tops',polyline:{
-                positions:new C.CallbackProperty(()=>sample()??source,false),
-                show:new C.CallbackProperty(()=>sample()!==null,false),width:3,material:color,arcType:C.ArcType.NONE}};
+            // Resolve interpolation weights once; terrain refinements only
+            // change the vertical offsets, not the source cable topology.
+            let right = 0;
+            const weights = p.coordinates.map((_a,i) => {
+                while (right < anchors.length && anchors[right].index < i) right++;
+                if (anchors[right]?.index === i) return {left:right,right,t:0};
+                const left = right - 1;
+                if (left < 0 || right === anchors.length) return null;
+                const length = lengths[anchors[right].index] - lengths[anchors[left].index];
+                return {left,right,t:length > 0 ? (lengths[i]-lengths[anchors[left].index])/length : 0};
+            });
+            const entity = next.entities.add({name:'Approximate cable display anchored to published support tops',polyline:{
+                positions:source,show:false,width:3,material:color,arcType:C.ArcType.NONE}});
+            heights.watch(anchors.map(a => [a.support.lon,a.support.lat]), points => {
+                const visible = points.every(point => point.height != null);
+                entity.polyline.show = visible;
+                if (!visible) return;
+                const deltas = anchors.map((a,i) => points[i].height + a.support.agl - p.coordinates[a.index][2]);
+                entity.polyline.positions = p.coordinates.map((a,i) => {
+                    const w = weights[i];
+                    return w ? C.Cartesian3.fromDegrees(a[0],a[1],a[2]+deltas[w.left]*(1-w.t)+deltas[w.right]*w.t) : source[i];
+                });
+            });
+            return entity;
         }
         async function replace(command, signal) {
             validate(command);
@@ -238,6 +305,7 @@
             revision = command.revision;
             remove(staged); staged = null;
             const next = new C.CustomDataSource('Swiss aviation obstacles');
+            const heights = terrainBindings(next.entities);
             staged = next;
             const ids = new Map();
             const current = () => !disposed && revision === command.revision && !signal?.aborted;
@@ -256,15 +324,12 @@
                     for (const p of f.parts) {
                         if (p.kind === 'Point' && hasLineOrArea) continue;
                         if(p.kind==='LineString' && p.elevated && ['powerLines','cableways'].includes(f.category)){
-                            const anchored=anchoredCable(p,findSupport,color);
-                            if(anchored){const entity=next.entities.add(anchored);
-                                ids.set(entity.id,{id:f.id,revision:command.revision});continue;}
+                            const anchored=anchoredCable(p,findSupport,color,next,heights);
+                            if(anchored){ids.set(anchored.id,{id:f.id,revision:command.revision});continue;}
                         }
                         const colorPoint = p.kind === 'Point' && p.heightAgl != null;
                         if (colorPoint) {
-                            const objects = pointAboveTerrain(p.coordinates[0],p.heightAgl,color);
-                            const marker = next.entities.add(objects.marker);
-                            const stem = next.entities.add(objects.stem);
+                            const {marker,stem} = pointAboveTerrain(p.coordinates[0],p.heightAgl,color,next,heights);
                             ids.set(marker.id,{id:f.id,revision:command.revision});
                             ids.set(stem.id,{id:f.id,revision:command.revision});
                             continue;
@@ -284,15 +349,19 @@
                     if (++index % 80 === 0) await yieldBatch();
                 }
                 if (!current()) return;
+                await heights.prime(current);
+                if (!current()) return;
+                terrain?.dispose(); terrain = heights;
                 remove(source); source = next; selection = ids; next.show = true; staged = null;
                 setCredit(command.features.length > 0);
                 viewer.scene.requestRender?.();
             } finally {
-                if (source !== next) { remove(next); if (staged === next) staged = null; }
+                if (source !== next) { heights.dispose(); remove(next); if (staged === next) staged = null; }
             }
         }
-        return {replace, pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
-            dispose() { disposed = true; revision++; remove(source); remove(staged); source = staged = null; selection.clear(); setCredit(false); }};
+        return {replace, terrainChanged, pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
+            dispose() { disposed = true; revision++; for (const stop of listeners) stop?.();
+                terrain?.dispose(); terrain = null; remove(source); remove(staged); source = staged = null; selection.clear(); setCredit(false); }};
     }
     function createHazards(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0))} = {}) {
         let source = null, staged = null, revision = -1, disposed = false, selection = new Map();

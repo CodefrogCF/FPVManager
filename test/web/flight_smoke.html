@@ -34,20 +34,61 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.7,2000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
   await until(()=>v.scene.globe.tilesLoaded,'terrain tiles');await pause(250);
   const original=v.camera.positionWC.clone(),near=v.camera.frustum.near;
+  const originalGraphics={resolutionScale:v.resolutionScale,msaaSamples:v.scene.msaaSamples,tileCacheSize:v.scene.globe.tileCacheSize};
+  await command('set-obstacle-vectors',{revision:1,features:[
+    {id:'mast-a',category:'masts',parts:[{kind:'Point',elevated:true,heightAgl:50,coordinates:[[8.4,46.7,1200]]}]},
+    {id:'mast-b',category:'masts',parts:[{kind:'Point',elevated:true,heightAgl:60,coordinates:[[8.401,46.701,1210]]}]},
+    {id:'cable',category:'powerLines',parts:[{kind:'LineString',elevated:true,coordinates:[[8.4,46.7,1200],[8.401,46.701,1210]]}]}
+  ]});
+  const obstacles=v.dataSources.getByName('Swiss aviation obstacles')[0].entities.values;
+  const mast=obstacles.find(e=>e.point),cable=obstacles.find(e=>e.polyline?.positions.getValue(v.clock.currentTime).length===2&&e.name);
+  check(mast.position.isConstant&&cable.polyline.positions.isConstant,'Obstacle geometry is still dynamically evaluated');
+  check(C.Cartesian3.distance(mast.position.getValue(v.clock.currentTime),cable.polyline.positions.getValue(v.clock.currentTime)[0])<.001,'Cable no longer lies on mast top');
+  check(Math.abs(C.Cartographic.fromCartesian(mast.position.getValue(v.clock.currentTime)).height-1050)<.01,'Mast height changed');
+  log('Actual Cesium uses constant mast/cable geometry and keeps cable endpoints on 50m AGL mast tops');
   await command('set-visible-routes',{revision:1,routes:[{id:42,name:'Inspection demo',waypoints:[
     {id:1,latitude:46.70005,longitude:8.4},{id:2,latitude:46.7003,longitude:8.4002}]}]});
   await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,maxSpeed:15,climbSpeed:8,acceleration:15,deceleration:15});
   await until(()=>flight?.active,'flight entry');await pause(300);
   check(Math.abs(v.camera.positionCartographic.height-1020)<.5,'Configured spawn height');
   check(!doc.getElementById('navigation-hud').hidden&&!doc.getElementById('flight-buttons').hidden,'Flight controls absent');
+  check(v.resolutionScale===.85&&v.scene.msaaSamples===2,'Default balanced graphics profile not applied');
+  check(v.scene.globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize),'Flight tile cache not increased');
+  const graphics=doc.getElementById('flight-graphics-profile');
+  graphics.value='performance';graphics.dispatchEvent(new win.Event('change',{bubbles:true}));
+  check(v.resolutionScale===.75&&v.scene.msaaSamples===1,'Live performance graphics profile not applied');
+  graphics.value='quality';graphics.dispatchEvent(new win.Event('change',{bubbles:true}));
+  check(v.resolutionScale===1&&v.scene.msaaSamples===4,'Live quality graphics profile not applied');
+  check(v.scene.globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize),'Profile change altered the flight tile budget');
+  log('All graphics profiles change actual Cesium resolution/MSAA without respawning');
   check(doc.getElementById('flight-readout').textContent.includes('SIMULATION'),'HUD missing simulation label');
   check(!v.scene.screenSpaceCameraController.enableInputs,'Orbital input active');
   log('Actual Cesium spawns at terrain +20m with FPV camera, HUD and an independent saved route overlay');
+  if(new URLSearchParams(location.search).has('cache')){
+    for(const flightMode of ['gps','acro','angle']){
+      await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,flightMode});
+      await command('reset-simulation');
+      check(v.scene.globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize),'Mode/reset lost the flight cache budget');
+    }
+    await command('set-map-style',{style:'topographic'});
+    check(v.scene.globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize),'Map style change reset the flight cache budget');
+    await command('exit-simulation');
+    check(v.scene.globe.tileCacheSize===originalGraphics.tileCacheSize,'Exit did not restore the globe cache budget');
+    await command('enter-ground-view',{latitude:46.7,longitude:8.4});
+    check(v.scene.globe.tileCacheSize===originalGraphics.tileCacheSize,'Ground view inherited the flight cache budget');
+    await command('exit-ground-view');
+    log('Actual Cesium retains the flight tile budget across modes, reset and map style changes; exit restores it and ground view stays independent');
+    document.getElementById('status').textContent='PASS — flight tile cache lifecycle';return;
+  }
   canvas.focus();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));
   canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'e',bubbles:true,cancelable:true}));
-  const before=v.camera.positionWC.clone();await pause(850);
-  canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'w',bubbles:true}));
-  canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'e',bubbles:true}));
+  const before=v.camera.positionWC.clone();
+  try{
+    await until(()=>C.Cartesian3.distance(before,v.camera.positionWC)>1&&v.camera.positionCartographic.height>1020.2,'Movement/climb');
+  }finally{
+    canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'w',bubbles:true}));
+    canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'e',bubbles:true}));
+  }
   check(C.Cartesian3.distance(before,v.camera.positionWC)>1&&v.camera.positionCartographic.height>1020.2,'Movement/climb failed');
   doc.getElementById('exit-flight').focus();const stopped=v.camera.positionWC.clone();await pause(250);
   check(C.Cartesian3.distance(stopped,v.camera.positionWC)<.05,'Focus loss did not brake');
@@ -76,11 +117,18 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(v.camera.positionCartographic.height>=1000.49&&v.camera.positionCartographic.height<1002,'Terrain floor not respected');
   await command('exit-simulation');await until(()=>flight?.active===false,'exit');
   check(C.Cartesian3.distance(original,v.camera.positionWC)<.01&&v.camera.frustum.near===near,'Orbit snapshot not restored');
+  check(v.resolutionScale===originalGraphics.resolutionScale&&v.scene.msaaSamples===originalGraphics.msaaSamples,'Orbital graphics settings not restored');
+  check(v.scene.globe.tileCacheSize===originalGraphics.tileCacheSize,'Orbital tile cache not restored');
+  log('Flight keeps a larger tile cache across graphics changes and restores the previous budget on exit');
   log('Reset restores configured spawn; descent stops above actual terrain; exit restores camera and frustum');
   await command('enter-ground-view',{latitude:46.7,longitude:8.4});await until(()=>ground?.active,'ground entry');
   check(doc.getElementById('flight-buttons').hidden&&doc.getElementById('navigation-hud').hidden,'Flight controls leaked into ground view');
   check(Math.abs(v.camera.positionCartographic.height-1002)<.5,'Ground eye height changed');
   await command('exit-ground-view');await until(()=>ground?.active===false,'ground exit');
+  await until(()=>{
+    const ray=v.camera.getPickRay(new C.Cartesian2(canvas.clientWidth/2,canvas.clientHeight/2));
+    return ray&&v.scene.globe.pick(ray,v.scene);
+  },'Restored camera target terrain');
   await command('enter-simulation',{agl:5});await until(()=>flight?.active,'camera-target entry');
   check(Math.abs(v.camera.positionCartographic.height-1005)<.5,'Camera target spawn failed');
   await command('enter-simulation',{agl:400,flightMode:'acro'});await pause(100);

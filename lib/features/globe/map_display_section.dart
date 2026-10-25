@@ -67,6 +67,48 @@ class MapDisplaySection extends StatelessWidget {
 
         const SizedBox(height: 24),
 
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Straßen und Wege'),
+          subtitle: const Text('swissTLM3D · © swisstopo'),
+          value: controller.roadsVisible,
+          onChanged: controller.isReady && controller.canEditPreferences
+              ? (visible) =>
+                    execute(() => controller.setRoadsOverlay(visible: visible))
+              : null,
+        ),
+        if (controller.roadsVisible) ...[
+          Row(
+            children: [
+              const Text('Deckkraft'),
+              Expanded(
+                child: Slider(
+                  value: controller.roadsOpacity,
+                  min: 0,
+                  max: 1,
+                  divisions: 10,
+                  label: '${(controller.roadsOpacity * 100).round()} %',
+                  onChanged: controller.isReady && controller.canEditPreferences
+                      ? (opacity) => execute(
+                          () => controller.setRoadsOverlay(opacity: opacity),
+                        )
+                      : null,
+                ),
+              ),
+            ],
+          ),
+          if (controller.situationalStatus('roads') == 'loading')
+            const LinearProgressIndicator(),
+          if (controller.situationalStatus('roads') == 'failed')
+            TextButton.icon(
+              onPressed: controller.isReady
+                  ? () => execute(() => controller.setRoadsOverlay(retry: true))
+                  : null,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Straßen-Layer erneut laden'),
+            ),
+        ],
+        const SizedBox(height: 16),
         Text(
           'OVERLAY ORDER · FRONT TO BACK',
           style: Theme.of(context).textTheme.labelLarge,

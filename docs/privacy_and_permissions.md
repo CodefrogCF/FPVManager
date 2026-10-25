@@ -19,13 +19,18 @@ Photos are imported only through the file picker. Persisted JPEGs/thumbnails
 omit source EXIF/GPS metadata; originals remain unchanged. The native picker
 may keep an original copy in its temporary cache.
 
-Only **Use current location** / **Use device location** requests a one-time position and, if needed,
+**Use current location** / **Use device location** requests a one-time position and, if needed,
 permission. Android declares foreground coarse/fine location, supports approximate
-location and requests no background access. There is no continuous position
-stream. Lookup times out after 20 seconds once permission is resolved. Only
+location and requests no background access. This lookup times out after 20 seconds once permission is resolved. Only
 latitude/longitude enter the editable draft; Save is required. Manual edits
 and closed editors are protected from late results. Web needs a secure context;
 OS/browser location providers operate under their own settings.
+
+Android **Navigation starten** separately enables a foreground position stream.
+Starting confirms automatic rerouting: current coordinates and destination can
+be sent to FOSSGIS when leaving the route. Backgrounding pauses navigation; exit
+cancels location tracking. Positions stay in memory and are not recorded/exported.
+Optional spoken instructions use an installed German offline voice.
 
 ## External requests
 
@@ -42,8 +47,8 @@ including when focusing a private spot or displaying a route.
 | `data.geo.admin.ch` | UAS checks/refresh and obstacle STAC metadata/full KMZ download; public national dataset URLs, without a user-position query. Restoring obstacle vectors reads a local snapshot first. |
 | `data.geo.admin.ch` (weather) | Selecting MeteoSwiss or refreshing/comparing forecasts; public point metadata and national forecast CSV files. Coordinates are matched locally and are not part of these requests. |
 | `api.open-meteo.com` | Open-Meteo forecasts, spot comparisons and weather overlays; selected coordinates, requested parameters and forecast range. |
-| `routing.openstreetmap.de` | Explicit driving-route calculation after consent; start/destination coordinates, without spot names or access notes. |
-| `api.opentransportdata.swiss` | Explicit ASTRA traffic refresh; own API key in the authorization header and a national DATEX request, without the user's position. |
+| `routing.openstreetmap.de` | Explicit driving-route calculation, plus automatic rerouting during confirmed foreground navigation; start/current and destination coordinates, without spot names or access notes. |
+| `api.opentransportdata.swiss` | ASTRA traffic situations and optional Traffic Counters on Android, using separate own tokens in authorization headers. Situation requests are national; counter requests contain selected detector IDs, which reveal the requested area. Opted-in navigation can refresh every minute, pausing in the background. Datasets stay in session memory. Web uses local situation XML imports; no public proxy. |
 | `api.adsb.lol` | Explicit Android aircraft refresh after consent; rounded area centre and a 25 NM radius. Web supports local snapshot import because the source blocks direct CORS requests. |
 | `geodesy.geo.admin.ch` | Only explicit LN02 conversion; selected longitude/latitude/elevation, then LV95 coordinates/Bessel height, in GET query parameters. |
 | App origin (Web) / app-owned loopback origin (Android) | Application, Cesium, Workers, Wasm and Flutter renderer resources. The documented Web build bundles renderer assets locally. |
@@ -57,3 +62,7 @@ See [map sources and attribution](map_sources_and_attribution.md) for source
 conditions and [the user guide](user_guide.md) for controls.
 See [Mobility & OSINT](mobility_osint.md) for source terms, session-only snapshots
 and secure storage of user-provided credentials.
+
+Swiss destination search sends the entered address/place query to geo.admin.ch
+only when **Ziel suchen** is pressed. Results are not saved as spots automatically.
+Automatic rerouting also sends a reliable travel bearing to FOSSGIS when available.

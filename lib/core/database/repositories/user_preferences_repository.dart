@@ -26,6 +26,8 @@ final class DriftUserPreferencesRepository
   static const _visible = 'map.uas.visible';
   static const _opacity = 'map.uas.fillOpacity';
   static const _spotsVisible = 'map.spots.visible';
+  static const _roadsVisible = 'map.roads.visible';
+  static const _roadsOpacity = 'map.roads.opacity';
   static const _order = 'map.overlayOrder';
   static const _wmsVisible = 'map.obstacles.wms.visible';
   static const _wmsOpacity = 'map.obstacles.wms.opacity';
@@ -39,6 +41,8 @@ final class DriftUserPreferencesRepository
     _opacity,
     _spotsVisible,
     _order,
+    _roadsVisible,
+    _roadsOpacity,
     _wmsVisible,
     _wmsOpacity,
     _vectorsVisible,
@@ -96,6 +100,10 @@ final class DriftUserPreferencesRepository
         return value == 'true';
       }
 
+      final roadsOpacity = values[_roadsOpacity] == null
+          ? defaults.roadsOpacity
+          : double.parse(values[_roadsOpacity]!);
+      _validateOpacity(roadsOpacity);
       final wmsOpacity = values[_wmsOpacity] == null
           ? defaults.obstacleWmsOpacity
           : double.parse(values[_wmsOpacity]!);
@@ -132,6 +140,8 @@ final class DriftUserPreferencesRepository
         savedSpotsVisible: spotsVisible == null
             ? defaults.savedSpotsVisible
             : spotsVisible == 'true',
+        roadsVisible: readBool(_roadsVisible, defaults.roadsVisible),
+        roadsOpacity: roadsOpacity,
         obstacleWmsVisible: readBool(_wmsVisible, defaults.obstacleWmsVisible),
         obstacleWmsOpacity: wmsOpacity,
         obstacleVectorsVisible: readBool(
@@ -165,6 +175,7 @@ final class DriftUserPreferencesRepository
     final snapshot = preferences.copyWith();
     _validateOpacity(snapshot.uasZonesFillOpacity);
     _validateOpacity(snapshot.obstacleWmsOpacity);
+    _validateOpacity(snapshot.roadsOpacity);
     UserPreferences.validateObstacleBuffer(snapshot.obstacleBufferMeters);
     UserPreferences.validateOverlayOrder(snapshot.overlayOrder);
     final updatedAt = DateTime.now().toUtc();
@@ -176,6 +187,8 @@ final class DriftUserPreferencesRepository
             _visible: snapshot.uasZonesVisible.toString(),
             _opacity: snapshot.uasZonesFillOpacity.toString(),
             _spotsVisible: snapshot.savedSpotsVisible.toString(),
+            _roadsVisible: snapshot.roadsVisible.toString(),
+            _roadsOpacity: snapshot.roadsOpacity.toString(),
             _wmsVisible: snapshot.obstacleWmsVisible.toString(),
             _wmsOpacity: snapshot.obstacleWmsOpacity.toString(),
             _vectorsVisible: snapshot.obstacleVectorsVisible.toString(),

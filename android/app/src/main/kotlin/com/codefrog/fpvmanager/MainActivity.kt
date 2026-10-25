@@ -9,6 +9,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 
 class MainActivity : FlutterActivity() {
+    private var roadNavigation: RoadNavigationHandler? = null
     private var navigationInput: NavigationInputHandler? = null
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
         if (navigationInput?.motion(event) == true) true else super.dispatchGenericMotionEvent(event)
@@ -18,13 +19,15 @@ class MainActivity : FlutterActivity() {
         super.onWindowFocusChanged(hasFocus)
         navigationInput?.focusChanged(hasFocus)
     }
-    override fun onPause() { navigationInput?.pause(); super.onPause() }
+    override fun onPause() { roadNavigation?.pause(); navigationInput?.pause(); super.onPause() }
     private var pendingExport: MethodChannel.Result? = null
     private var exportBytes: ByteArray? = null
     private val exportRequest = 58031
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        roadNavigation?.dispose()
+        roadNavigation = RoadNavigationHandler(this, flutterEngine.dartExecutor.binaryMessenger)
         navigationInput?.dispose()
         navigationInput = NavigationInputHandler(this,flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
@@ -101,6 +104,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        roadNavigation?.dispose()
+        roadNavigation = null
         navigationInput?.dispose()
         navigationInput = null
         pendingExport?.error("cancelled", "Route export interrupted", null)

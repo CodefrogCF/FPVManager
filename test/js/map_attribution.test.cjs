@@ -32,6 +32,9 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
         FPVGlobeBridge: { createBridge },
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
         FPVFreeFlight: {createSimulator:()=>({stop(){},tick(){},status:()=>({active:false})})},
+        FPVFlightRendering: {create:()=>({})},
+        FPVRoadNavigation: {create:()=>({set(){},dispose(){}})},
+        FPVMapCompass: {create:()=>({dispose(){}})},
         FPVNavigationControls: {bindControls:()=>Object.assign(()=>{},{tick(){},reset(){}})},
         FPVSignalAnalysis: require('../../web/signal_analysis.js'),
         FPVSituationalLayers: {create:()=>({set(){},pick(){return null;},dispose(){}})},
@@ -95,7 +98,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(events.some(e => e.type === 'globe-error'), false, info.textContent);
     assert.equal(events.some(e => e.type === 'globe-ready'), true);
-    return { imagery, terrain, context, events, sources, get geojsonLoads() {return geojsonLoads;} };
+    return { imagery, terrain, context, events, sources, get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
 }
 
 function assertSatelliteCredit(provider) {
@@ -228,3 +231,12 @@ test('renderer applies source classification, preserves overlaps, and measures r
     assert.equal(page.geojsonLoads,1,'visibility changes must not trigger import');
     assert.equal(page.sources[0].show,true);
 });
+
+ test('topographic detail retains finer labelled imagery and restores default for other styles',async()=>{
+    const p=await renderer();
+    p.context.setMapStyle('topographic');assert.equal(p.globe.maximumScreenSpaceError,1);
+    p.context.setMapStyle('satellite');assert.equal(p.globe.maximumScreenSpaceError,2);
+    const flight=await renderer({groundView:true});
+    flight.globe.maximumScreenSpaceError=3;
+    flight.context.setMapStyle('topographic');assert.equal(flight.globe.maximumScreenSpaceError,3);
+ });

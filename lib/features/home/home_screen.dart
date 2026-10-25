@@ -126,6 +126,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       initial: _simulationSettings.withCameraTilt(
         _globeController.simulationCameraTiltDegrees ??
             _simulationSettings.cameraTiltDegrees,
+        graphicsProfile:
+            _globeController.simulationGraphicsProfile ??
+            _simulationSettings.graphicsProfile,
       ),
       hasSelection: spot != null || point != null,
     );

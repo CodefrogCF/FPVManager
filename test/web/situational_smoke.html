@@ -4,7 +4,7 @@
 <iframe id="map" title="Actual Cesium with synthetic terrain"></iframe><pre id="log"></pre>
 <script>
 const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map(),errors=[],states={};
-let session,next=0,terrain;
+let session,next=0,terrain,following;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const check=(v,m)=>{if(!v)throw new Error(m);};
 const log=m=>{output.textContent+='PASS: '+m+'\n';};
@@ -15,6 +15,7 @@ window.addEventListener('message',event=>{
   let data;try{data=JSON.parse(event.data);}catch{return;}
   if(data.type==='globe-ready')session=data.sessionId;
   if(data.type==='terrain-status')terrain=data;
+  if(data.type==='road-navigation-follow')following=data.follow;
   if(data.type==='situational-status')states[data.id]=data;
   if(data.type==='globe-error')errors.push(data.message);
   if(data.type==='command-result'){
@@ -28,17 +29,22 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
 });}
 (async()=>{
-  frame.src='/terrain-globe.html';await until(()=>session&&terrain?.state==='ready','startup');
+  frame.src='/terrain-globe.html'+(new URLSearchParams(location.search).has('roads')?'?realImagery=1':'');await until(()=>session&&terrain?.state==='ready','startup');
   const win=frame.contentWindow,v=win.fixtureViewer,C=win.Cesium;
   v.camera.setView({destination:C.Cartesian3.fromDegrees(8.55,47.45,18000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
   const point=(id,coordinates=[8.55,47.45])=>({id,name:'Fixture '+id,detail:'Synthetic source position; not operational information.',
     timestampUtc:new Date().toISOString(),geometry:{type:'Point',coordinates}});
   const road={...point('road'),geometry:{type:'LineString',coordinates:[[8.5,47.43],[8.55,47.45],[8.6,47.46]]}};
-  for(const [id,features] of [['road',[road]],['traffic',[point('traffic')]],['aircraft',[point('aircraft',[8.57,47.46])]]]){
+  for(const [id,features] of [['road',[road]],['traffic',[{...point('traffic'),category:'congestion'}]],['traffic-counters',[point('counter',[8.56,47.45])]],['aircraft',[point('aircraft',[8.57,47.46])]]]){
     await command('set-situational-overlay',{id,visible:true,features});
   }
   const source=id=>v.dataSources.getByName('FPVManager '+id)[0];
   check(source('road')&&source('traffic')&&source('aircraft'),'Independent vector sources missing');
+  check(source('traffic-counters')&&source('traffic-counters').entities.values[0].show,'Counter source missing or current measurement hidden');
+  check(source('traffic').entities.values[0].point.color.getValue().equals(C.Color.fromCssColorString('#ef9847')),'Traffic category color missing');
+  await command('set-situational-overlay',{id:'traffic-counters',visible:true,features:[{...point('old-counter'),timestampUtc:new Date(Date.now()-181000).toISOString()}]});
+  check(!source('traffic-counters').entities.values[0].show,'Old counter measurement remains current on the map');
+  log('Traffic categories render distinctly and independent counter measurements expire after three minutes');
   check(source('road').entities.values[0].polyline.clampToGround.getValue()===true,'Road route is not ground clamped');
   check(source('aircraft').entities.values[0].point.heightReference.getValue()===C.HeightReference.CLAMP_TO_GROUND,'Aircraft marker silently elevated');
   await command('set-situational-overlay',{id:'traffic',visible:false});
@@ -47,6 +53,66 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   try{await command('set-situational-overlay',{id:'aircraft',visible:true,features:[point('bad',[8,147])]});}catch{rejected=true;}
   check(rejected&&source('aircraft'),'Invalid replacement lost a valid snapshot');
   log('Actual Cesium renders independent road and aircraft sources; removing traffic and rejecting invalid updates retains other data');
+  const compass=win.document.getElementById('map-compass');
+  v.camera.setView({orientation:{heading:Math.PI/2,pitch:-Math.PI/2,roll:0}});
+  await pause(100);check(!compass.hidden,'Globe compass is hidden');compass.click();
+  check(Math.min(v.camera.heading,Math.PI*2-v.camera.heading)<.01,'Globe compass did not align north');
+  const saved=v.camera.positionWC.clone();
+  await command('set-road-navigation',{active:true,follow:true,position:{latitude:47.45,longitude:8.55,heading:90}});
+  try{await until(()=>v.camera.positionCartographic.height>1000&&v.camera.positionCartographic.height<2000,'Navigation terrain follow');}
+  catch(error){throw new Error(`${error.message}: camera=${v.camera.positionCartographic.height}, ground=${v.scene.globe.getHeight(C.Cartographic.fromDegrees(8.55,47.45))}, loaded=${v.scene.globe.tilesLoaded}`);}
+  const marker=v.entities.getById('road-navigation-position');
+  check(marker&&marker.point.heightReference.getValue()===C.HeightReference.CLAMP_TO_GROUND,'Navigation marker missing or not clamped');
+  check(!v.scene.screenSpaceCameraController.enableInputs,'Follow camera did not disable orbital input');
+  await command('set-road-navigation',{active:true,follow:true,cameraDistanceMeters:100,position:{latitude:47.45,longitude:8.55,heading:90}});
+  check(v.camera.positionCartographic.height>1000&&v.camera.positionCartographic.height<1150,'Close zoom reset terrain readiness');
+  compass.click();await until(()=>following===false,'Compass free state');
+  check(v.scene.screenSpaceCameraController.enableInputs,'Compass did not release follow');
+  check(Math.min(v.camera.heading,Math.PI*2-v.camera.heading)<.01,'Navigation compass did not align north');
+  compass.click();await until(()=>following===true&&v.camera.positionCartographic.height>1000&&v.camera.positionCartographic.height<1150,'Compass close follow state');
+  check(!v.scene.screenSpaceCameraController.enableInputs&&Math.abs(v.camera.heading-Math.PI/2)<.01,'Compass did not restore tilted heading follow');
+  check(Math.abs(v.camera.pitch+65*Math.PI/180)<.01,'Follow pitch changed');
+  log('Compass aligns north in globe/navigation; second navigation tap restores tilted follow and retains the close 100m zoom');
+  await command('set-road-navigation',{active:true,follow:false,cameraDistanceMeters:100,position:{latitude:47.4501,longitude:8.5501,heading:90}});
+  const free=v.camera.positionWC.clone();
+  await command('set-road-navigation',{active:true,follow:false,cameraDistanceMeters:100,position:{latitude:47.4502,longitude:8.5502,heading:90}});
+  check(C.Cartesian3.distance(free,v.camera.positionWC)<.01,'Free camera unexpectedly follows');
+  check(v.entities.getById('road-navigation-position')===marker,'Position updates recreate the marker');
+  compass.click();check(v.scene.screenSpaceCameraController.enableInputs,'First compass tap from free mode unexpectedly enabled follow');
+  check(Math.min(v.camera.heading,Math.PI*2-v.camera.heading)<.01,'Compass from free mode did not align north');
+  compass.click();await until(()=>!v.scene.screenSpaceCameraController.enableInputs&&v.camera.positionCartographic.height>1000&&v.camera.positionCartographic.height<1150,'Free mode compass recenter');
+  await command('set-road-navigation',{active:true,follow:true,position:null});check(!marker.show,'Stale GPS marker remains visible');
+  await command('set-road-navigation',{active:false,follow:true});
+  check(!v.entities.getById('road-navigation-position')&&v.scene.screenSpaceCameraController.enableInputs,'Navigation cleanup failed');
+  check(C.Cartesian3.distance(saved,v.camera.positionWC)<.01,'Navigation did not restore the original camera');
+  await command('set-rendering-paused',{paused:true});check(!v.useDefaultRenderLoop,'Hidden map still renders');
+  await command('set-rendering-paused',{paused:false});check(v.useDefaultRenderLoop,'Map render loop did not resume');
+  log('Actual Cesium follows GPS/terrain, retains one ground marker, supports free camera, hides stale fixes, restores camera and pauses/resumes rendering');
+  if(new URLSearchParams(location.search).has('roads')){
+    await command('set-map-style',{style:'topographic'});
+    check(v.scene.globe.maximumScreenSpaceError===1,'Topographic detail budget not applied');
+    await command('set-situational-overlay',{id:'roads',visible:true,opacity:.8});
+    await until(()=>['ready','failed'].includes(states.roads?.state),'Road WMS response');
+    check(states.roads.state==='ready','Official road tiles did not load');
+    const count=v.imageryLayers.length,layer=v.imageryLayers.get(count-1);
+    check(layer.imageryProvider.layers==='ch.swisstopo.swisstlm3d-strassen','Wrong road source');
+    await command('set-map-style',{style:'satellite'});
+    check(v.imageryLayers.length===count&&v.imageryLayers.contains(layer),'Base style lost the road overlay');
+    await command('set-situational-overlay',{id:'roads',visible:true,opacity:.5});
+    check(layer.alpha===.5&&v.imageryLayers.length===count,'Opacity recreated the road layer');
+    await command('set-situational-overlay',{id:'roads',visible:false,opacity:.5});
+    check(v.imageryLayers.length===count-1,'Road layer not removed');
+    await command('set-map-style',{style:'topographic'});
+    await command('set-situational-overlay',{id:'roads',visible:true,opacity:.8});
+    await until(()=>states.roads?.state==='ready','Road overlay restored');
+    v.camera.setView({destination:C.Cartesian3.fromDegrees(8.55,47.45,3500),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
+    await until(()=>v.scene.globe.tilesLoaded,'Labelled imagery loaded');
+    log('Official transparent swissTLM3D roads load with the Topo map, survive style changes, update opacity and recover after toggling');
+    document.getElementById('status').textContent='PASS — roads and topographic imagery';return;
+  }
+  if(new URLSearchParams(location.search).has('navigation')){
+    document.getElementById('status').textContent='PASS — road navigation renderer';return;
+  }
   for(const id of ['heliports','wildfire'])await command('set-situational-overlay',{id,visible:true,opacity:.6});
   await until(()=>['heliports','wildfire'].every(id=>['ready','failed'].includes(states[id]?.state)),'Official WMS response');
   for(const id of ['heliports','wildfire']){

@@ -15,6 +15,67 @@ import '../../helpers/fake_globe_renderer.dart';
 import 'mobility_test.dart' show routeBody;
 
 void main() {
+  testWidgets('free coordinates calculate a route without any saved spots', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(450, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final db = FpvDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    var requests = 0;
+    final router = RoadRouter(
+      client: MockClient((r) async {
+        requests++;
+        expect(r.url.path, endsWith('8.6,47.4'));
+        return http.Response(routeBody, 200);
+      }),
+    );
+    addTearDown(router.dispose);
+    final globe = GlobeController();
+    addTearDown(globe.dispose);
+    FakeGlobeRenderer(globe)
+      ..attach()
+      ..ready();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MobilityScreen(
+          spots: SpotRepository(db),
+          preferences: MobilityPreferences(db),
+          globe: globe,
+          router: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('destinationSearch')), findsOneWidget);
+    for (final pair in [
+      ('destinationLat', '47.4'),
+      ('destinationLon', '8.6'),
+      ('originLat', '47.3'),
+      ('originLon', '8.5'),
+    ]) {
+      final field = find.byKey(ValueKey(pair.$1));
+      await tester.ensureVisible(field);
+      await tester.enterText(field, pair.$2);
+    }
+    final consent = find.text(
+      'Allow sending start and destination to FOSSGIS / OpenStreetMap routing.',
+    );
+    await tester.ensureVisible(consent);
+    await tester.tap(consent);
+    await tester.pumpAndSettle();
+    final calculate = find.text('Calculate driving route');
+    await tester.ensureVisible(calculate);
+    await tester.tap(calculate);
+    await tester.pumpAndSettle();
+    expect(requests, 1);
+    expect(find.text('1.2 km · 6 min estimated'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
   testWidgets(
     'road planning requires consent, prefers saved parking and returns a route to the globe',
     (tester) async {
@@ -96,6 +157,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(requests, 1);
       expect(find.text('1.2 km · 6 min estimated'), findsOneWidget);
+      expect(find.text('Navigation starten'), findsOneWidget);
       final show = find.text('Show driving route on map');
       await tester.ensureVisible(show);
       await tester.tap(show);
@@ -107,6 +169,7 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
   testWidgets(
     'environment layers are independently controllable and source limits remain visible',

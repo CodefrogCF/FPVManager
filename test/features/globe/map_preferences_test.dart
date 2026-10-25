@@ -72,6 +72,53 @@ void main() {
     await database.close();
   });
 
+  test('roads persist independently across restart, style changes, reload and reset', () async {
+    await controller.initializePreferences(repository);
+    await controller.setRoadsOverlay(visible: true, opacity: .6);
+    await controller.setMapStyle(GlobeMapStyle.topographic);
+    expect(controller.roadsVisible, isTrue);
+    expect(controller.situationalVisible('roads'), isTrue);
+    controller.dispose();
+    controller = GlobeController(uasProvider: SwissUasProvider(client: client));
+    renderer = FakeGlobeRenderer(controller)..attach();
+    renderer.ready();
+    await controller.initializePreferences(repository);
+    expect(controller.roadsVisible, isTrue);
+    expect(controller.roadsOpacity, .6);
+    renderer.commands.clear();
+    renderer.sessionId = 'roads-reload';
+    renderer.sequence = 0;
+    renderer.emit({'type': 'renderer-loading'});
+    renderer.ready();
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      renderer.commands.where((c) => c['id'] == 'roads').single['opacity'],
+      .6,
+    );
+    await controller.resetPreferences();
+    expect(controller.roadsVisible, isFalse);
+    expect(controller.situationalVisible('roads'), isFalse);
+    expect(
+      renderer.commands.where((c) => c['id'] == 'roads').last['visible'],
+      isFalse,
+    );
+  });
+
+  test(
+    'rejected road commands do not persist or replay an unconfirmed choice',
+    () async {
+      await controller.initializePreferences(controlled);
+      renderer.autoAcknowledge = false;
+      final change = controller.setRoadsOverlay(visible: true);
+      final result = expectLater(change, throwsStateError);
+      renderer.acknowledge(renderer.commands.last, error: 'Synthetic failure');
+      await result;
+      expect(controlled.writes, 0);
+      expect(controller.roadsVisible, isFalse);
+      expect(controller.situationalVisible('roads'), isFalse);
+    },
+  );
+
   test(
     'restores preferences and order without writing defaults or snapshots',
     () async {

@@ -4,13 +4,15 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
     const definitions={
+        roads:{layer:'ch.swisstopo.swisstlm3d-strassen',label:'Roads and paths',attribution:'© swisstopo · geo.admin.ch',bounds:[3.329595,44.074747,14.278255,49.200438]},
         heliports:{layer:'ch.bazl.flugplaetze-heliports',label:'Aerodrome / heliport',attribution:'BAZL / FOCA · geo.admin.ch'},
         wildfire:{layer:'ch.bafu.gefahren-waldbrand_warnung',label:'Wildfire warning',attribution:'BAFU / FOEN · geo.admin.ch'}
     };
     const credits={road:'OSRM / FOSSGIS · © OpenStreetMap contributors · ODbL 1.0',
-        traffic:'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA',aircraft:'adsb.lol community · ODbL 1.0 · incomplete reception'};
+        traffic:'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA','traffic-counters':'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA · Messstellen',aircraft:'adsb.lol community · ODbL 1.0 · incomplete reception'};
+    const trafficColors={closure:'#e75c54',accident:'#e75c54',congestion:'#ef9847',roadworks:'#d6b74f',weather:'#55a9db',hazard:'#bb82cf',other:'#aab4b7'};
     function validate(command){
-        if(!command||!['road','traffic','aircraft',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
+        if(!command||!['road','traffic','traffic-counters','aircraft',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
         if(definitions[command.id]){
             if(!Number.isFinite(command.opacity)||command.opacity<0||command.opacity>1)throw new Error('Invalid layer opacity');
             return;
@@ -24,12 +26,13 @@
             ids.add(feature.id);
             const geometry=feature.geometry;
             if(!geometry||!['Point','LineString'].includes(geometry.type))throw new Error('Unsupported awareness geometry');
-            if((command.id==='aircraft'&&geometry.type!=='Point')||(command.id==='road'&&geometry.type!=='LineString'))throw new Error('Unsupported layer geometry');
+            if((['aircraft','traffic-counters'].includes(command.id)&&geometry.type!=='Point')||(command.id==='road'&&geometry.type!=='LineString'))throw new Error('Unsupported layer geometry');
             const positions=geometry.type==='Point'?[geometry.coordinates]:geometry.coordinates;
             if(!Array.isArray(positions)||positions.length<(geometry.type==='Point'?1:2))throw new Error('Invalid awareness coordinates');
             vertices+=positions.length;if(vertices>20000)throw new Error('Awareness geometry limit exceeded');
             for(const p of positions)if(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||Math.abs(p[0])>180||Math.abs(p[1])>90)throw new Error('Invalid awareness position');
             for(const field of ['timestampUtc','validFromUtc','validUntilUtc'])if(feature[field]!=null&&(!Number.isFinite(Date.parse(feature[field]))||typeof feature[field]!=='string'))throw new Error('Invalid awareness time');
+            if(command.id==='traffic'&&feature.category!=null&&!Object.hasOwn(trafficColors,feature.category))throw new Error('Invalid traffic category');
         }
     }
     function create(C,viewer,emit,wmsFactory,{yieldBatch=()=>new Promise(r=>setTimeout(r,0)),now=()=>Date.now(),timers=globalThis}={}){
@@ -41,6 +44,11 @@
             for(const [id,record] of layers)for(const {entity,feature} of record.entries){
                 let shown=true;
                 if(feature.validUntilUtc&&Date.parse(feature.validUntilUtc)<=time)shown=false;
+                if(id==='traffic'&&((feature.validFromUtc&&Date.parse(feature.validFromUtc)>time)||feature.suspended===true))shown=false;
+                if(id==='traffic-counters'){
+                    const age=time-Date.parse(feature.timestampUtc);
+                    shown=shown&&Number.isFinite(age)&&age>=-5000&&age<=180000;
+                }
                 if(id==='aircraft'){
                     const age=time-Date.parse(feature.timestampUtc);
                     // Unknown/future timestamps never become a current aircraft fix.
@@ -64,7 +72,7 @@
                 if(!wms.has(command.id)){
                     const d=definitions[command.id];
                     wms.set(command.id,wmsFactory(C,viewer,(_,state)=>emit('situational-status',{id:command.id,...state}),{
-                        definition:{url:'https://wms.geo.admin.ch/',layer:d.layer,bounds:[5.8,45.7,10.7,47.9]},
+                        definition:{url:'https://wms.geo.admin.ch/',layer:d.layer,bounds:d.bounds??[5.8,45.7,10.7,47.9]},
                         label:d.label,attribution:d.attribution,statusEvent:'situational-status'}));
                 }
                 wms.get(command.id).set(command);return {};
@@ -77,12 +85,12 @@
             try{
                 for(let i=0;i<command.features.length;i++){
                     if(!current())return {superseded:true};
-                    const feature=command.features[i],g=feature.geometry,color=C.Color.fromCssColorString(command.id==='road'?'#96cc76':command.id==='traffic'?'#f0ac56':'#55c6e8');
+                    const feature=command.features[i],g=feature.geometry,color=C.Color.fromCssColorString(command.id==='road'?'#96cc76':command.id==='traffic'?(trafficColors[feature.category]??trafficColors.other):'#55c6e8');
                     const entity={id:`situational-${command.id}-${feature.id}`,name:feature.name,
                         description:`<p>${escape(feature.detail).replace(/\n/g,'<br>')}</p><p>${credits[command.id]}</p>`,properties:{situationalLayer:command.id,situationalFeature:feature.id}};
                     if(g.type==='Point'){
                         entity.position=C.Cartesian3.fromDegrees(...g.coordinates);
-                        entity.point={pixelSize:9,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND};
+                        entity.point={pixelSize:command.id==='traffic'?12:9,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND};
                     }else entity.polyline={positions:C.Cartesian3.fromDegreesArray(g.coordinates.flat()),width:4,material:color,clampToGround:true};
                     entries.push({entity:source.entities.add(entity),feature});
                     if(i%100===99)await yieldBatch();

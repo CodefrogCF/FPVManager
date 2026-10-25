@@ -152,6 +152,51 @@ class GlobeController extends ChangeNotifier {
   double _requestedUasOpacity = 0.20;
 
   Map<String, dynamic>? _weatherOverlayCommand;
+  Map<String, dynamic>? _roadNavigationCommand;
+  bool? get roadNavigationFollowing =>
+      _roadNavigationCommand?['follow'] as bool?;
+  bool _renderingPaused = false;
+  Future<void> setRenderingPaused(bool paused) async {
+    if (_disposed) return;
+    _renderingPaused = paused;
+    if (_ready) await _send({'type': 'set-rendering-paused', 'paused': paused});
+  }
+
+  Future<void> setRoadNavigation({
+    required bool active,
+    required bool follow,
+    double? latitude,
+    double? longitude,
+    double heading = 0,
+    double cameraDistanceMeters = 550,
+  }) async {
+    if (!cameraDistanceMeters.isFinite ||
+        cameraDistanceMeters < 60 ||
+        cameraDistanceMeters > 1800 ||
+        (latitude == null) != (longitude == null) ||
+        !heading.isFinite ||
+        heading < 0 ||
+        heading >= 360 ||
+        (latitude != null &&
+            (!latitude.isFinite ||
+                latitude.abs() > 90 ||
+                !longitude!.isFinite ||
+                longitude.abs() > 180))) {
+      throw ArgumentError('Invalid road navigation fix');
+    }
+    final command = <String, dynamic>{
+      'type': 'set-road-navigation',
+      'active': active,
+      'follow': follow,
+      'cameraDistanceMeters': cameraDistanceMeters,
+      'position': latitude == null
+          ? null
+          : {'latitude': latitude, 'longitude': longitude, 'heading': heading},
+    };
+    _roadNavigationCommand = active ? command : null;
+    if (_ready) await _send(command);
+  }
+
   final Map<String, Map<String, dynamic>> _situationalCommands = {};
   final Map<String, String> _situationalStatus = {};
   String? situationalStatus(String id) => _situationalStatus[id];
@@ -167,7 +212,9 @@ class GlobeController extends ChangeNotifier {
     final id = value['id'];
     if (!{
           'road',
+          'roads',
           'traffic',
+          'traffic-counters',
           'aircraft',
           'heliports',
           'wildfire',
@@ -219,6 +266,9 @@ class GlobeController extends ChangeNotifier {
   String? get simulationMessage => _simulationMessage;
   double? _simulationCameraTiltDegrees;
   double? get simulationCameraTiltDegrees => _simulationCameraTiltDegrees;
+  SimulationGraphicsProfile? _simulationGraphicsProfile;
+  SimulationGraphicsProfile? get simulationGraphicsProfile =>
+      _simulationGraphicsProfile;
   bool get navigationActive => _simulationActive || _groundViewActive;
 
   Future<void> enterSimulation(
@@ -506,7 +556,26 @@ class GlobeController extends ChangeNotifier {
       final preferences = await repository.getPreferences();
       if (_disposed) return;
       UserPreferences.validateOverlayOrder(preferences.overlayOrder);
+      final roadsWereVisible = situationalVisible('roads');
       _preferences = preferences.copyWith();
+      if (preferences.roadsVisible) {
+        _situationalCommands['roads'] = {
+          'type': 'set-situational-overlay',
+          'id': 'roads',
+          'visible': true,
+          'opacity': preferences.roadsOpacity,
+        };
+      } else {
+        _situationalCommands.remove('roads');
+        if (_ready && roadsWereVisible) {
+          await _send({
+            'type': 'set-situational-overlay',
+            'id': 'roads',
+            'visible': false,
+            'opacity': preferences.roadsOpacity,
+          });
+        }
+      }
       _requestedMapStyle = preferences.mapStyle;
       _requestedUasOpacity = preferences.uasZonesFillOpacity;
       _uasRequestedVisible = preferences.uasZonesVisible;
@@ -1043,6 +1112,47 @@ class GlobeController extends ChangeNotifier {
     await _savePreferences(_preferences.copyWith(mapStyle: style));
   }
 
+  bool get roadsVisible => _preferences.roadsVisible;
+  double get roadsOpacity => _preferences.roadsOpacity;
+  Future<void> setRoadsOverlay({
+    bool? visible,
+    double? opacity,
+    bool retry = false,
+  }) async {
+    _checkPreferencesEditable();
+    final next = _preferences.copyWith(
+      roadsVisible: visible,
+      roadsOpacity: opacity,
+    );
+    if (!next.roadsOpacity.isFinite ||
+        next.roadsOpacity < 0 ||
+        next.roadsOpacity > 1) {
+      throw ArgumentError('Invalid roads opacity');
+    }
+    final command = {
+      'type': 'set-situational-overlay',
+      'id': 'roads',
+      'visible': next.roadsVisible,
+      'opacity': next.roadsOpacity,
+      'retry': retry,
+    };
+    if (_ready) await _send(command);
+    if (_disposed) return;
+    if (next.roadsVisible) {
+      _situationalCommands['roads'] = command;
+    } else {
+      _situationalCommands.remove('roads');
+      _situationalStatus.remove('roads');
+    }
+    await _savePreferences(
+      _preferences.copyWith(
+        roadsVisible: next.roadsVisible,
+        roadsOpacity: next.roadsOpacity,
+      ),
+    );
+    notifyListeners();
+  }
+
   Future<void> setUasZonesVisible(bool visible) async {
     _checkPreferencesEditable();
     final previous = _uasRequestedVisible;
@@ -1176,6 +1286,14 @@ class GlobeController extends ChangeNotifier {
 
     if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
+      case 'road-navigation-follow':
+        if (data['follow'] is bool && _roadNavigationCommand != null) {
+          _roadNavigationCommand = {
+            ..._roadNavigationCommand!,
+            'follow': data['follow'],
+          };
+          notifyListeners();
+        }
       case 'situational-status':
         final id = data['id'], state = data['state'];
         if (id is String &&
@@ -1207,6 +1325,11 @@ class GlobeController extends ChangeNotifier {
         _simulationActive = data['active'] as bool;
         _simulationPending = data['pending'] as bool;
         final tilt = data['cameraTiltDegrees'];
+        final graphics = data['graphicsProfile'];
+        final profile = SimulationGraphicsProfile.values
+            .where((p) => p.name == graphics)
+            .firstOrNull;
+        if (profile != null) _simulationGraphicsProfile = profile;
         if (tilt is num && tilt.isFinite && tilt >= 0 && tilt <= 80) {
           _simulationCameraTiltDegrees = tilt.toDouble();
         }
@@ -1537,6 +1660,10 @@ class GlobeController extends ChangeNotifier {
         }
       }
       if (!current()) return;
+      if (_roadNavigationCommand != null) await _send(_roadNavigationCommand!);
+      if (_renderingPaused) {
+        await _send({'type': 'set-rendering-paused', 'paused': true});
+      }
       if (_uasRequestedVisible) await _updateUas(forceRefresh: false);
       if (current() && forceSettings && !_uasRequestedVisible) {
         await _send({'type': 'set-uas-zones', 'visible': false});

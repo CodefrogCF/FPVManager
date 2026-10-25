@@ -256,7 +256,7 @@ void main() {
     expect(first.persistable, isFalse);
     expect(first.publishedAtUtc, now);
     fail = true;
-    now = now.add(const Duration(seconds: 6));
+    now = now.add(const Duration(seconds: 16));
     await expectLater(
       provider.fetch(forceRefresh: true),
       throwsA(isA<OsintProviderException>()),
@@ -305,11 +305,88 @@ void main() {
       throwsA(isA<OsintProviderException>()),
     );
     expect(requests, 1);
-    now = now.add(const Duration(seconds: 5));
+    now = now.add(const Duration(seconds: 14));
+    await expectLater(
+      provider.fetch(forceRefresh: true),
+      throwsA(isA<OsintProviderException>()),
+    );
+    expect(requests, 1);
+    now = now.add(const Duration(seconds: 1));
     await provider.fetch(forceRefresh: true);
     expect(requests, 2);
     expect(provider.status.dataState, OsintDataState.fresh);
   });
+  test('ASTRA HTTP failures retain status and actionable messages without exposing keys or server bodies', () async {
+    var status = 200;
+    var now = DateTime.utc(2026, 10, 24, 10);
+    final provider = SituationalProvider(
+      kind: SituationalKind.traffic,
+      center: MobilityPoint(47, 8),
+      readTrafficKey: () async => 'secret-test-key',
+      now: () => now,
+      client: MockClient(
+        (_) async => http.Response(
+          status == 200 ? datex() : 'private server detail secret-test-key',
+          status,
+        ),
+      ),
+    );
+    addTearDown(provider.dispose);
+    final previous = await provider.fetch(forceRefresh: true);
+    for (final failure in [
+      (401, 'Token Hash'),
+      (403, 'subscription'),
+      (429, 'quota'),
+      (503, 'Retry later'),
+    ]) {
+      status = failure.$1;
+      now = now.add(const Duration(seconds: 16));
+      await expectLater(
+        provider.fetch(forceRefresh: true),
+        throwsA(
+          isA<OsintProviderException>()
+              .having((e) => e.kind, 'kind', OsintFailureKind.http)
+              .having((e) => e.httpStatus, 'httpStatus', status)
+              .having((e) => e.message, 'message', contains(failure.$2)),
+        ),
+      );
+      expect(identical(provider.status.dataset, previous), isTrue);
+      expect(
+        provider.status.error!.message,
+        isNot(contains('secret-test-key')),
+      );
+      expect(
+        provider.status.error!.message,
+        isNot(contains('private server detail')),
+      );
+    }
+  });
+  test(
+    'ASTRA network errors do not expose transport exception details',
+    () async {
+      final provider = SituationalProvider(
+        kind: SituationalKind.traffic,
+        center: MobilityPoint(47, 8),
+        readTrafficKey: () async => 'secret-test-key',
+        client: MockClient(
+          (_) async => throw http.ClientException('secret-test-key'),
+        ),
+      );
+      addTearDown(provider.dispose);
+      await expectLater(
+        provider.fetch(forceRefresh: true),
+        throwsA(
+          isA<OsintProviderException>()
+              .having((e) => e.kind, 'kind', OsintFailureKind.network)
+              .having(
+                (e) => e.message,
+                'message',
+                isNot(contains('secret-test-key')),
+              ),
+        ),
+      );
+    },
+  );
   test('independent overlays replay after a renderer reload; selection remains bounded', () async {
     final globe = GlobeController();
     addTearDown(globe.dispose);

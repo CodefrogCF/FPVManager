@@ -67,7 +67,10 @@ Free flight uses `enter-simulation` (optional paired latitude/longitude, `agl`,
 `maxSpeed`, `climbSpeed`, `acceleration`, `deceleration`, `flightMode` = gps/angle/acro), `reset-simulation` and
 `exit-simulation`. Missing coordinates select the camera target. `simulation-state`
 reports active/pending/reason and `cameraTiltDegrees` (0–80° upward, also accepted
-at entry; body-relative FPV view only). `navigation-focus` gates device input. Android sends
+at entry; body-relative FPV view only).
+`graphicsProfile` accepts `quality`, `balanced` (default) or `performance` at
+entry and is reported in `simulation-state` after in-flight changes.
+`navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
 reset/exit/connected booleans). Frames retain physical axes: forward/right are
 left-stick up/right; yaw/pitch are right-stick right/down. Angle/Acro map these
@@ -98,6 +101,14 @@ Cancellation/revision checks prevent obsolete geometry from reappearing;
 and heliport/wildfire imagery. `situational-status` reports imagery loading or
 failure; `situational-selected` carries bounded plain-text details. See
 [Mobility & OSINT](mobility_osint.md) for sources and limits.
+
+`set-road-navigation` carries `active`, `follow`, `cameraDistanceMeters`
+(60–1,800 m, default 550 m) and an optional WGS84
+`position: {latitude, longitude, heading}`. A null position hides an unreliable
+fix; ending restores camera inputs. Requested navigation replays after reload.
+The renderer compass emits `road-navigation-follow` when switching between
+north alignment and following; the controller retains that state for reloads.
+`set-rendering-paused` pauses the hidden home map during Android road navigation.
 
 See [architecture](architecture.md) for provider/terrain recovery,
 [Contributing](../CONTRIBUTING.md) for tests, and the [user guide](user_guide.md)

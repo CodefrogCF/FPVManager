@@ -11,6 +11,8 @@ class UserPreferences {
     this.uasZonesVisible = false,
     this.uasZonesFillOpacity = 0.20,
     this.savedSpotsVisible = true,
+    this.roadsVisible = false,
+    this.roadsOpacity = .8,
     this.obstacleWmsVisible = false,
     this.obstacleWmsOpacity = 0.8,
     this.obstacleVectorsVisible = false,
@@ -24,6 +26,8 @@ class UserPreferences {
   final bool uasZonesVisible;
   final double uasZonesFillOpacity;
   final bool savedSpotsVisible;
+  final bool roadsVisible;
+  final double roadsOpacity;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
   final double obstacleWmsOpacity;
   final bool hazardAreasVisible;
@@ -38,6 +42,8 @@ class UserPreferences {
     bool? uasZonesVisible,
     double? uasZonesFillOpacity,
     bool? savedSpotsVisible,
+    bool? roadsVisible,
+    double? roadsOpacity,
     bool? obstacleWmsVisible,
     double? obstacleWmsOpacity,
     bool? obstacleVectorsVisible,
@@ -50,6 +56,8 @@ class UserPreferences {
     uasZonesVisible: uasZonesVisible ?? this.uasZonesVisible,
     uasZonesFillOpacity: uasZonesFillOpacity ?? this.uasZonesFillOpacity,
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
+    roadsVisible: roadsVisible ?? this.roadsVisible,
+    roadsOpacity: roadsOpacity ?? this.roadsOpacity,
     obstacleWmsVisible: obstacleWmsVisible ?? this.obstacleWmsVisible,
     obstacleWmsOpacity: obstacleWmsOpacity ?? this.obstacleWmsOpacity,
     obstacleVectorsVisible:

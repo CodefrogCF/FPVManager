@@ -100,7 +100,7 @@ class SituationalLayersSection extends StatelessWidget {
           icon: const Icon(Icons.open_in_new),
           label: const Text('Official SLF avalanche bulletin'),
         ),
-        for (final id in ['road', 'traffic', 'aircraft'])
+        for (final id in ['road', 'traffic', 'traffic-counters', 'aircraft'])
           if (globe.situationalVisible(id))
             ListTile(
               contentPadding: EdgeInsets.zero,

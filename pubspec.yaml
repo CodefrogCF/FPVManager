@@ -139,10 +139,13 @@ flutter:
     - web/ground_navigation.js
     - web/navigation_controls.js
     - web/free_flight.js
+    - web/flight_rendering.js
     - web/route_editor.js
     - web/signal_analysis.js
     - web/obstacle_layers.js
     - web/situational_layers.js
+    - web/road_navigation.js
+    - web/map_compass.js
     - web/uas_zone_styles.js
     - web/weather_overlay.js
     - assets/geo/chgeo2004_ln02.bin

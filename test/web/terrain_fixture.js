@@ -16,7 +16,7 @@
     }
     window.Cesium = { ...Cesium, Viewer: FixtureViewer,
         ScreenSpaceEventHandler: FixtureScreenSpaceEventHandler,
-        UrlTemplateImageryProvider: Cesium.GridImageryProvider };
+        UrlTemplateImageryProvider: new URLSearchParams(location.search).has('realImagery') ? Cesium.UrlTemplateImageryProvider : Cesium.GridImageryProvider };
     let online = true;
     Object.defineProperty(navigator, 'onLine', { get: () => online });
     window.addEventListener('message', event => {

@@ -15,6 +15,31 @@ function advance(model,seconds=1,fps=60){for(let i=0;i<seconds*fps;i++)model.tic
 function input(model,frame={}){model.flightInput({throttle:0,yaw:0,pitch:0,roll:0,...frame});}
 const dot=(a,b)=>a.north*b.north+a.east*b.east+a.up*b.up;
 
+test('graphics changes do not affect flight state and survive reset; invalid profiles are rejected',async()=>{
+    const profiles=[],p=setup({applyGraphics:value=>profiles.push(value)}),reference=setup();
+    await start(p,{flightMode:'acro',agl:500});await start(reference,{flightMode:'acro',agl:500});
+    for(const profile of ['quality','performance','balanced']){
+        const before=p.model.status();p.model.graphicsProfile(profile);
+        assert.equal(p.model.status().height,before.height);assert.deepEqual(p.model.status().attitude,before.attitude);
+        for(const page of [p,reference]){input(page.model,{throttle:.6,pitch:.2,roll:.1});advance(page.model,.5);}
+        assert.equal(p.model.status().height,reference.model.status().height);
+        assert.deepEqual(p.model.status().position,reference.model.status().position);
+    }
+    await p.model.reset();assert.equal(p.model.status().graphicsProfile,'balanced');
+    assert.equal(profiles.at(-1),'balanced');assert.equal(p.model.active,true);assert.equal(p.model.flightMode,'acro');
+    assert.throws(()=>p.model.graphicsProfile('unknown'));assert.throws(()=>parameters({graphicsProfile:'unknown'}));
+});
+test('vertical flight samples the same floor once per frame and horizontal sweeps remain at most 0.5 m apart',async()=>{
+    const probes=[];
+    const p=setup({renderedHeight:point=>{probes.push({...point});return 1000;}});
+    await start(p,{flightMode:'acro',agl:500});p.model.tick(1/60);assert.equal(probes.length,1);
+    probes.length=0;input(p.model,{throttle:1,pitch:1});advance(p.model,2);
+    assert.ok(probes.length>120);
+    // A fresh frame starts with another probe of its current position. All
+    // consecutive probes, including the intermediate sweep points, stay close.
+    for(let i=1;i<probes.length;i++)assert.ok(distance(probes[i-1],probes[i])<=.5001);
+});
+
 test('FPV camera tilt looks up relative to the body and never changes flight physics',async()=>{
     for(const flightMode of ['angle','acro']){
         const level=setup(),tilted=setup();

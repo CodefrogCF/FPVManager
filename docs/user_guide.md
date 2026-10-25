@@ -2,6 +2,8 @@
 
 ## Map and terrain
 
+The compass at the upper right follows map rotation. Tap it to face north.
+
 Open **Map layers** in the map menu. Its **Map**, **Airspace** and **Obstacles**
 tabs separate display settings and data sources. Choose Satellite, Topographic or Relief, show UAS zones
 and saved spots, adjust zone opacity and change spot/zone overlay order. These
@@ -75,6 +77,18 @@ settings and spawning switches mode at the original spawn point, level and stati
 **FPV camera tilt** sets 0–80° upward relative to the drone in Angle/Acro.
 The compact **Camera** control changes it during flight without respawning;
 camera tilt changes the view, not thrust or the drone's attitude.
+
+**Graphics profile** offers Quality (100% resolution), Balanced (85%, default)
+and Performance (75%), with progressively less multisample antialiasing. Change
+it before spawning or using **Graphics** during flight. It affects image quality,
+not terrain detail or flight physics. The choice stays in this session; exiting
+flight restores the globe's previous graphics settings.
+
+During flight, the globe retains recently viewed terrain and associated imagery
+with a cache target of 512 tiles (normally 100), helping when circling or looking
+back. Visible tiles can exceed this target; memory use depends on tile detail
+and active imagery layers. Exiting restores the previous budget. This cache is
+in memory for the current renderer, not persistent offline storage.
 
 - **Angle:** Mode 2 — left stick vertical is throttle, horizontal is yaw; right
   stick vertical controls pitch and horizontal controls roll. Tilt is limited to

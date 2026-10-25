@@ -21,6 +21,23 @@ test('awareness validation bounds geometries, IDs, coordinates and source text',
     {id:'aircraft',visible:true,features:[feature(),feature()]},
     {id:'aircraft',visible:true,features:[{...feature(),geometry:{type:'Point',coordinates:[8,NaN]}}]}])assert.throws(()=>validate(command));
 });
+test('traffic categories remain distinct; future events and old/unknown counter measurements stay hidden',async()=>{
+  const p=fixture();
+  await p.manager.set({id:'traffic',visible:true,features:[
+    {...feature('closed'),category:'closure'},
+    {...feature('works'),category:'roadworks'},
+    {...feature('planned'),category:'congestion',validFromUtc:new Date(time+60000).toISOString()}
+  ]});
+  const events=p.sources[0].entities.values;
+  assert.equal(events[0].point.color,'#e75c54');assert.equal(events[1].point.color,'#d6b74f');assert.equal(events[2].show,false);
+  p.time(time+61000);assert.equal(events[2].show,true);
+  assert.throws(()=>validate({id:'traffic',visible:true,features:[{...feature(),category:'made-up'}]}));
+  p.time(time);await p.manager.set({id:'traffic-counters',visible:true,features:[feature('counter'),{...feature('unknown'),timestampUtc:null}]});
+  const counters=p.sources[1].entities.values;
+  assert.equal(counters[0].show,true);assert.equal(counters[1].show,false);
+  p.time(time+181000);assert.equal(counters[0].show,false);
+  await p.manager.set({id:'traffic-counters',visible:false});assert.equal(p.sources.length,1);p.manager.dispose();
+});
 test('independent sources retain credits, escape untrusted details and hide stale/expired/outside positions',async()=>{
   const p=fixture();await p.manager.set({id:'aircraft',visible:true,features:[feature()]});
   const entity=p.sources[0].entities.values[0];assert.ok(entity.show);assert.ok(entity.description.includes('&lt;script&gt;'));
@@ -34,11 +51,16 @@ test('independent sources retain credits, escape untrusted details and hide stal
 });
 test('official WMS definitions stay independent and retain visibility, opacity and status routing',async()=>{
   const p=fixture();assert.equal(p.wms.length,0);
-  for(const id of ['heliports','wildfire'])await p.manager.set({id,visible:true,opacity:.4});
+  for(const id of ['heliports','wildfire','roads'])await p.manager.set({id,visible:true,opacity:.4});
   assert.equal(p.wms[0].config.definition.layer,'ch.bazl.flugplaetze-heliports');
   assert.equal(p.wms[1].config.definition.layer,'ch.bafu.gefahren-waldbrand_warnung');
   assert.equal(p.events[1][1].id,'wildfire');assert.equal(p.wms[0].command.opacity,.4);
-  p.manager.dispose();assert.equal(p.disposed.length,2);
+  assert.equal(p.wms[2].config.definition.layer,'ch.swisstopo.swisstlm3d-strassen');
+  assert.deepEqual(p.wms[2].config.definition.bounds,[3.329595,44.074747,14.278255,49.200438]);
+  assert.equal(p.wms[2].config.attribution,'© swisstopo · geo.admin.ch');
+  await p.manager.set({id:'roads',visible:false,opacity:.4});
+  assert.equal(p.wms.at(-1).command.visible,false);
+  p.manager.dispose();assert.equal(p.disposed.length,3);
 });
 test('a failed replacement retains the prior source and disposal retires an attachment that completes late',async()=>{
   const p=fixture();await p.manager.set({id:'traffic',visible:true,features:[feature()]});const old=p.sources[0];

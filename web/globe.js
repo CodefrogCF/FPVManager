@@ -41,12 +41,13 @@ function postToFlutter(message) {
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {
+        if (!event.persisted) { mapCompass?.dispose(); roadNavigation?.dispose(); }
         stopNavigation();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
-    let situationalLayers = null;
+    let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
     let flyer = null;
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
@@ -149,7 +150,7 @@ function postToFlutter(message) {
     }
 
     function stopNavigation(reason = null) { walker?.stop(reason); flyer?.stop(reason); }
-    function navigationActive() { return walker?.status().active || flyer?.status().active; }
+    function navigationActive() { return flyer?.active || walker?.status().active; }
     function simulationSpawn(command) {
         if (command.latitude != null || command.longitude != null) return {latitude:command.latitude,longitude:command.longitude};
         const canvas=activeViewer.canvas;
@@ -224,6 +225,11 @@ function postToFlutter(message) {
 
         activeBaseLayer = newLayer;
         currentMapStyle = style;
+        // A finer terrain LOD also retains the associated, labelled imagery
+        // one level longer when zooming out. Keep flight rendering independent.
+        if (!navigationActive()) activeViewer.scene.globe.maximumScreenSpaceError =
+            style === 'topographic' ? 1 : 2;
+        activeViewer.scene.requestRender();
 
         sendToFlutter("map-style-changed", {
             style
@@ -573,6 +579,14 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case "set-road-navigation": return roadNavigation.set(command);
+            case "set-rendering-paused": {
+                if(typeof command.paused!=='boolean')throw new Error('Invalid render loop state');
+                if(command.paused)stopNavigation();
+                activeViewer.useDefaultRenderLoop=!command.paused;
+                if(!command.paused)activeViewer.scene.requestRender();
+                return {};
+            }
             case "set-situational-overlay": return situationalLayers.set(command);
             case "set-weather-overlay": return weatherOverlay.replace(command);
             case "clear-weather-overlay": return weatherOverlay.clear();
@@ -581,7 +595,7 @@ function postToFlutter(message) {
             case "set-hazard-areas": await hazardAreas.replace(command,signal); return {};
             case "enter-ground-view": flyer?.stop(); return walker.start(command, signal);
             case "enter-simulation": {
-                if(flyer.status().active)return flyer.reconfigure(command,signal);
+                if(flyer.active)return flyer.reconfigure(command,signal);
                 const point = simulationSpawn(command); stopNavigation();
                 return flyer.start({...command,...point},signal);
             }
@@ -739,8 +753,7 @@ function postToFlutter(message) {
                 routeEditor?.terrainChanged();
                 routeOverlays?.terrainChanged();
                 signalAnalysis?.clear();
-                // Dynamic obstacle stems follow the actual rendered terrain;
-                // invalidate the frame on provider transitions as well.
+                obstacleVectors?.terrainChanged();
                 activeViewer?.scene?.requestRender?.();
                 terrainInfo(status);
                 if (rendererReady) sendToFlutter("terrain-status", status);
@@ -764,6 +777,11 @@ function postToFlutter(message) {
         });
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
+        const flightRenderer = FPVFlightRendering.create(Cesium,viewer);
+        roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
+            follow=>sendToFlutter('road-navigation-follow',{follow}));
+        mapCompass = FPVMapCompass.create(Cesium,viewer,document.getElementById('map-compass'),
+            {navigation:roadNavigation,isEnabled:()=>!navigationActive()});
         activeViewer = viewer;
         situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
@@ -776,19 +794,22 @@ function postToFlutter(message) {
         const readout=document.getElementById('flight-readout'),device=document.getElementById('navigation-device');
         const cameraButton=document.getElementById('camera-flight'),cameraPanel=document.getElementById('flight-camera');
         const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
+        const graphicsSelect=document.getElementById('flight-graphics-profile');
         let deviceMessage='', lastHud=0,lastReason=null;
         const lastModes={ground:false,flight:false};
         const cameraAdapter={
             isTerrainReady: terrainAvailable,
             sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal)).heightMeters,
-            renderedHeight: point => viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude)),
+            renderedHeight: flightRenderer.renderedHeight,
+            applyGraphics: flightRenderer.applyGraphics,
             captureCamera: () => {
                 viewer.camera.cancelFlight();
                 const saved = { destination: Cesium.Cartesian3.clone(viewer.camera.positionWC),
                     direction: Cesium.Cartesian3.clone(viewer.camera.directionWC),
                     up: Cesium.Cartesian3.clone(viewer.camera.upWC), heading: viewer.camera.heading,
                     near: viewer.camera.frustum.near, inputs: viewer.scene.screenSpaceCameraController.enableInputs,
-                    collision: viewer.scene.screenSpaceCameraController.enableCollisionDetection };
+                    collision: viewer.scene.screenSpaceCameraController.enableCollisionDetection,
+                    graphics:flightRenderer.captureGraphics(), mapStyle:currentMapStyle };
                 viewer.scene.screenSpaceCameraController.enableInputs = false;
                 viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
                 viewer.camera.frustum.near = 0.1;
@@ -798,18 +819,15 @@ function postToFlutter(message) {
                 viewer.scene.screenSpaceCameraController.enableInputs = saved.inputs;
                 viewer.scene.screenSpaceCameraController.enableCollisionDetection = saved.collision;
                 viewer.camera.frustum.near = saved.near;
+                flightRenderer.restoreGraphics(saved.graphics);
+                if (saved.mapStyle !== currentMapStyle) {
+                    viewer.scene.globe.maximumScreenSpaceError = currentMapStyle === 'topographic' ? 1 : 2;
+                }
                 viewer.camera.setView({destination:saved.destination,orientation:{direction:saved.direction,up:saved.up}});
             }
         };
         function applyCamera(point){
-            const destination=Cesium.Cartesian3.fromDegrees(point.longitude,point.latitude,point.height);
-            let orientation={heading:point.heading,pitch:point.pitch,roll:point.roll??0};
-            if(point.direction&&point.up){
-                const transform=Cesium.Transforms.eastNorthUpToFixedFrame(destination);
-                const world=v=>Cesium.Matrix4.multiplyByPointAsVector(transform,new Cesium.Cartesian3(v.east,v.north,v.up),new Cesium.Cartesian3());
-                orientation={direction:world(point.direction),up:world(point.up)};
-            }
-            viewer.camera.setView({destination,orientation});
+            flightRenderer.applyPose(point);
         }
         function modeState(mode,state){
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
@@ -820,11 +838,12 @@ function postToFlutter(message) {
             cameraButton.hidden=!fpv;
             if(!fpv){cameraPanel.hidden=true;cameraButton.setAttribute?.('aria-expanded','false');}
             if(fpv){cameraSlider.value=String(state.cameraTiltDegrees);cameraValue.textContent=`${state.cameraTiltDegrees}°`;}
+            if(mode==='flight'&&state.graphicsProfile)graphicsSelect.value=state.graphicsProfile;
             if(!state.active){disposeGroundControls?.reset();terrainInfo(terrainManager.status());}
             if(entering)viewer.canvas.focus();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
-                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees}:{})});
+                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
             applyPose:point=>{
@@ -834,14 +853,7 @@ function postToFlutter(message) {
                     `Look: ${(point.pitch*180/Math.PI).toFixed(0)}°`+(deviceMessage?` | ${deviceMessage}`:'');
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
-            terrainCollision:(from,to)=>{
-                const a=Cesium.Cartesian3.fromDegrees(from.longitude,from.latitude,from.height);
-                const b=Cesium.Cartesian3.fromDegrees(to.longitude,to.latitude,to.height);
-                const length=Cesium.Cartesian3.distance(a,b);if(length<.001)return false;
-                const direction=Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(b,a,new Cesium.Cartesian3()),new Cesium.Cartesian3());
-                const hit=viewer.scene.globe.pick(new Cesium.Ray(a,direction),viewer.scene);
-                return !!hit&&Cesium.Cartesian3.distance(a,hit)<=length+.001;
-            },
+            terrainCollision:flightRenderer.terrainCollision,
             applyPose:point=>{
                 applyCamera(point);
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
@@ -851,13 +863,13 @@ function postToFlutter(message) {
                     `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}${point.mode==='gps'?'':` · Gas ${(point.throttle*100).toFixed(0)}%`} · `+
                     `Pitch ${(point.pitch*180/Math.PI).toFixed(0)}° / Roll ${(point.roll*180/Math.PI).toFixed(0)}°`+(point.reason?` · ${point.reason}`:'');
             },onState:state=>modeState('flight',state)});
-        const currentAgent=()=>flyer.status().active?flyer:walker;
-        const navigation={status:()=>({active:!!navigationActive(),mode:flyer.status().active?flyer.status().mode:'ground'}),stop:stopNavigation,
+        const currentAgent=()=>flyer.active?flyer:walker;
+        const navigation={status:()=>({active:!!navigationActive(),mode:flyer.active?flyer.flightMode:'ground'}),stop:stopNavigation,
             key:(...args)=>currentAgent().key(...args),stick:(...args)=>currentAgent().stick(...args),
             look:(...args)=>currentAgent().look(...args),flightInput:frame=>flyer.flightInput(frame),
-            vertical:v=>{if(flyer.status().active)flyer.vertical(v);},
+            vertical:v=>{if(flyer.active)flyer.vertical(v);},
             pause:value=>flyer.pause(value),clearKeys:()=>{walker.clearKeys();flyer.clearKeys();},
-            reset:()=>{if(flyer.status().active)flyer.reset().catch(()=>{});}};
+            reset:()=>{if(flyer.active)flyer.reset().catch(()=>{});}};
         disposeGroundControls=FPVNavigationControls.bindControls(navigation,viewer.canvas,groundPanel,window,document,{
             onFocus:focused=>sendToFlutter('navigation-focus',{focused}),
             onDevice:message=>{deviceMessage=message;device.textContent=message;}});
@@ -867,6 +879,7 @@ function postToFlutter(message) {
             cameraPanel.hidden=!cameraPanel.hidden;cameraButton.setAttribute('aria-expanded',String(!cameraPanel.hidden));
         });
         cameraSlider.addEventListener('input',()=>flyer.cameraTilt(Number(cameraSlider.value)));
+        graphicsSelect.addEventListener('change',()=>flyer.graphicsProfile(graphicsSelect.value));
         let lastWalkTime=performance.now();
         viewer.scene.preRender.addEventListener(()=>{
             const now=performance.now(),seconds=(now-lastWalkTime)/1000;lastWalkTime=now;

@@ -17,7 +17,7 @@
     }
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
-            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,graphicsProfile:c.graphicsProfile??'balanced',
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??35};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
@@ -26,6 +26,7 @@
             if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`Invalid flight ${key}`);
         }
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
+        if(!['quality','balanced','performance'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
         return p;
     }
     // Body forward/right/down -> local north/east/down, a right-handed frame.
@@ -39,7 +40,7 @@
         const axis=(angle,x,y,z)=>({w:Math.cos(angle/2),x:x*Math.sin(angle/2),y:y*Math.sin(angle/2),z:z*Math.sin(angle/2)});
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
-    function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,isTerrainReady,onState}){
+    function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState}){
         let active=false,pending=false,paused=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
@@ -47,14 +48,14 @@
         const keys=new Set();
         // Self-centring sticks: Acro uses only the upper half for motor command.
         function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
-        function clearKeys(){keys.clear();input={throttle:0,yaw:0,pitch:0,roll:0};forward=right=vertical=throttle=0;}
+        function clearKeys(){keys.clear();input.throttle=input.yaw=input.pitch=input.roll=0;forward=right=vertical=throttle=0;}
         function brake(){velocity={north:0,east:0,up:0};rates={x:0,y:0,z:0};}
         function orientation(){
             const tilt=config.cameraTiltDegrees*rad,c=Math.cos(tilt),s=Math.sin(tilt);
             const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,position:position&&{...position},height,heading,pitch,roll,
+        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,graphicsProfile:config.graphicsProfile,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
@@ -79,7 +80,7 @@
                 signal.throwIfAborted();request.signal.throwIfAborted();
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
-                config=next;saved=captureCamera();spawn={latitude:command.latitude,longitude:command.longitude};
+                config=next;saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
                 motorThrust=acroThrust(motorCommand());
                 active=true;pending=false;pose();publish();return {};
@@ -171,20 +172,23 @@
             if(paused){pose();return;}
             if(!Number.isFinite(seconds)||seconds<=0)return;
             const dt=Math.min(seconds,.1),travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
-            const endpoint=move(position,travel.north,travel.east);
+            const horizontal=Math.hypot(travel.north,travel.east);
+            const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
             if(terrainCollision?.({...position,height},{...endpoint,height:height+travel.up})){
                 brake();reason='Terrain contact: movement stopped';pose();return;
             }
-            const steps=Math.max(1,Math.ceil(Math.hypot(travel.north,travel.east)/.5));
+            const steps=Math.max(1,Math.ceil(horizontal/.5));
             let next=null,nextHeight=height,nextGround=null,contact=false;
             for(let i=1;i<=steps;i++){
-                const fraction=i/steps,p=move(position,travel.north*fraction,travel.east*fraction);
+                const fraction=i/steps,p=i===steps?endpoint:move(position,travel.north*fraction,travel.east*fraction);
                 if(!valid(p)){brake();reason='Supported latitude limit reached';pose();return;}
-                const h=renderedHeight(p);
+                // Vertical-only movement reuses the floor sampled above. The
+                // ray sweep and every <=0.5 m horizontal probe stay in place.
+                const h=p===position?floor:renderedHeight(p);
                 if(!Number.isFinite(h)){brake();ground=null;reason='Movement paused: terrain tiles not loaded';pose();return;}
                 const z=height+travel.up*fraction;
                 if(z<h+.5){
-                    if(Math.hypot(travel.north,travel.east)<.001){next=p;nextHeight=h+.5;nextGround=h;}
+                    if(horizontal<.001){next=p;nextHeight=h+.5;nextGround=h;}
                     contact=true;break;
                 }
                 next=p;nextHeight=z;nextGround=h;
@@ -197,7 +201,12 @@
             if(!active||!spawn)return {};
             return start({...spawn,...config},signal??new AbortController().signal);
         }
-        return {start,stop,reset,tick,status,
+        return {start,stop,reset,tick,status,get active(){return active;},get flightMode(){return config.flightMode;},
+            graphicsProfile(profile){
+                if(!['quality','balanced','performance'].includes(profile))throw new Error('Unknown flight graphics profile');
+                if(active)applyGraphics?.(profile);
+                config={...config,graphicsProfile:profile};if(active)publish();
+            },
             cameraTilt(degrees){
                 if(!Number.isFinite(degrees)||degrees<0||degrees>80)throw new Error('Invalid camera tilt');
                 config={...config,cameraTiltDegrees:degrees};
@@ -208,8 +217,9 @@
                 heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},
             key(key,down){if(down&&active)keys.add(key);else keys.delete(key);},
             stick(f,r){if(Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
-            flightInput(frame){if(active&&['throttle','yaw','pitch','roll'].every(k=>Number.isFinite(frame[k]))){
-                input=Object.fromEntries(['throttle','yaw','pitch','roll'].map(k=>[k,clamp(frame[k],-1,1)]));}},
+            flightInput(frame){if(active&&frame&&Number.isFinite(frame.throttle)&&Number.isFinite(frame.yaw)&&Number.isFinite(frame.pitch)&&Number.isFinite(frame.roll)){
+                input.throttle=clamp(frame.throttle,-1,1);input.yaw=clamp(frame.yaw,-1,1);
+                input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);}},
             vertical(v){if(Number.isFinite(v))vertical=clamp(v,-1,1);},
             pause(value){if(paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};

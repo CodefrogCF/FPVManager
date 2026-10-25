@@ -4,6 +4,8 @@ import '../../core/database/fpv_database.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
 
+enum SimulationGraphicsProfile { quality, balanced, performance }
+
 class SimulationSettings {
   const SimulationSettings({
     this.agl = 20,
@@ -14,6 +16,7 @@ class SimulationSettings {
     this.droneId,
     this.flightMode = SimulationFlightMode.angle,
     this.cameraTiltDegrees = 0,
+    this.graphicsProfile = SimulationGraphicsProfile.balanced,
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
     this.acroMotorTimeConstant = .04,
@@ -23,7 +26,11 @@ class SimulationSettings {
   final int? droneId;
   final SimulationFlightMode flightMode;
   final double cameraTiltDegrees;
-  SimulationSettings withCameraTilt(double degrees) => SimulationSettings(
+  final SimulationGraphicsProfile graphicsProfile;
+  SimulationSettings withCameraTilt(
+    double degrees, {
+    SimulationGraphicsProfile? graphicsProfile,
+  }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
     climbSpeed: climbSpeed,
@@ -32,6 +39,7 @@ class SimulationSettings {
     droneId: droneId,
     flightMode: flightMode,
     cameraTiltDegrees: degrees,
+    graphicsProfile: graphicsProfile ?? this.graphicsProfile,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -79,6 +87,7 @@ class SimulationSettings {
       'deceleration': deceleration,
       'flightMode': flightMode.name,
       'cameraTiltDegrees': cameraTiltDegrees,
+      'graphicsProfile': graphicsProfile.name,
       'acroThrustToWeight': acroThrustToWeight,
       'acroThrustCurve': acroThrustCurve,
       'acroMotorTimeConstant': acroMotorTimeConstant,

@@ -85,6 +85,7 @@ void main() {
   test('camera tilt serialization preserves flight parameters', () {
     const original = SimulationSettings(
       flightMode: SimulationFlightMode.acro,
+      graphicsProfile: SimulationGraphicsProfile.performance,
       acroThrustToWeight: 6,
       agl: 45,
     );
@@ -93,6 +94,14 @@ void main() {
     expect(tilted.agl, 45);
     expect(tilted.acroThrustToWeight, 6);
     expect(tilted.flightMode, SimulationFlightMode.acro);
+    expect(tilted.graphicsProfile, SimulationGraphicsProfile.performance);
+    for (final profile in SimulationGraphicsProfile.values) {
+      expect(
+        SimulationSettings(graphicsProfile: profile)
+            .toCommand()['graphicsProfile'],
+        profile.name,
+      );
+    }
   });
 
   test('Acro physics settings preserve independent parameters and compute level-hover throttle', () {
@@ -134,6 +143,7 @@ void main() {
         );
         expect(peer.commands.last, containsPair('latitude', 47));
         expect(peer.commands.last, containsPair('agl', 40));
+        expect(peer.commands.last, containsPair('graphicsProfile', 'balanced'));
         await globe.enterSimulation(const SimulationSettings());
         expect(peer.commands.last['type'], 'enter-simulation');
         expect(peer.commands.last.containsKey('latitude'), isFalse);
@@ -162,6 +172,28 @@ void main() {
         );
       },
     );
+    test('live graphics choice remains available for the next flight and rejects unknown state values', () {
+      peer.emit({
+        'type': 'simulation-state',
+        'active': true,
+        'pending': false,
+        'graphicsProfile': 'performance',
+      });
+      expect(
+        globe.simulationGraphicsProfile,
+        SimulationGraphicsProfile.performance,
+      );
+      peer.emit({
+        'type': 'simulation-state',
+        'active': true,
+        'pending': false,
+        'graphicsProfile': 'invalid',
+      });
+      expect(
+        globe.simulationGraphicsProfile,
+        SimulationGraphicsProfile.performance,
+      );
+    });
     test(
       'input requires active focused navigation and state resets on reload',
       () async {
@@ -293,11 +325,18 @@ void main() {
       final camera = find.byKey(const ValueKey('simulation-cameraTilt'));
       await tester.ensureVisible(camera);
       await tester.enterText(camera, '30');
+      final graphics = find.byKey(const ValueKey('simulation-graphics'));
+      await tester.ensureVisible(graphics);
+      await tester.tap(graphics);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Performance · 75% resolution').last);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Spawn in map'));
       await tester.tap(find.text('Spawn in map'));
       await tester.pumpAndSettle();
       expect(chosen!.agl, 35.5);
       expect(chosen!.cameraTiltDegrees, 30);
+      expect(chosen!.graphicsProfile, SimulationGraphicsProfile.performance);
       expect(chosen!.droneId, 1);
       expect(chosen!.flightMode, SimulationFlightMode.acro);
       expect(chosen!.maxSpeed, 24);

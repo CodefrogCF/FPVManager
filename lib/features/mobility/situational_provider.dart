@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart';
 
 import '../../core/osint/api_access_policy.dart';
 import '../../core/osint/cached_osint_provider.dart';
@@ -10,6 +9,10 @@ import '../../core/osint/osint_dataset.dart';
 import '../../core/osint/osint_provider_state.dart';
 import '../../core/osint/osint_source.dart';
 import 'road_routing.dart';
+import 'traffic_snapshot.dart';
+
+export 'traffic_snapshot.dart'
+    show parseTrafficSnapshot, parseTrafficStream, trafficMaxResponseBytes;
 
 enum SituationalKind { traffic, aircraft }
 
@@ -30,141 +33,6 @@ DateTime? _utc(String? value) {
     return null;
   }
   return DateTime.tryParse(value)?.toUtc();
-}
-
-Iterable<XmlElement> _elements(XmlNode node, String name) =>
-    node.descendants.whereType<XmlElement>().where((e) => e.name.local == name);
-String? _value(XmlNode node, String name) =>
-    _elements(node, name).firstOrNull?.innerText;
-
-/// Accepts explicit DATEX WGS84 coordinates only. TMC references are counted,
-/// never geocoded by guessing from road names or interpreted as clear roads.
-Map<String, dynamic> parseTrafficSnapshot(String input) {
-  if (input.length > 4 * 1024 * 1024 ||
-      RegExp(r'<!\s*(DOCTYPE|ENTITY)', caseSensitive: false).hasMatch(input)) {
-    throw const FormatException('Unsupported DATEX XML');
-  }
-  final xml = XmlDocument.parse(input);
-  final records = _elements(xml, 'situationRecord').take(2001).toList();
-  if (records.length > 2000 ||
-      _elements(xml, 'Fault').isNotEmpty ||
-      (_elements(xml, 'd2LogicalModel').isEmpty &&
-          _elements(xml, 'payloadPublication').isEmpty)) {
-    throw const FormatException('Not a supported DATEX situation snapshot');
-  }
-  final features = <String, Map<String, dynamic>>{};
-  final unlocatedRecords = <String, Map<String, dynamic>>{};
-  var omitted = 0;
-  records.sort(
-    (a, b) =>
-        (_utc(_value(a, 'situationRecordVersionTime'))
-                    ?.millisecondsSinceEpoch ??
-                0)
-            .compareTo(
-              _utc(_value(b, 'situationRecordVersionTime'))
-                      ?.millisecondsSinceEpoch ??
-                  0,
-            ),
-  );
-  for (final record in records) {
-    final id = record.getAttribute('id');
-    if (id == null || id.isEmpty || id.length > 160) {
-      omitted++;
-      continue;
-    }
-    // A newer unlocated/revoked update must not leave an old positioned marker.
-    features.remove(id);
-    unlocatedRecords.remove(id);
-    final publicValues = _elements(record, 'generalPublicComment')
-        .expand((e) => _elements(e, 'value'))
-        .map((e) => e.innerText.trim())
-        .toList();
-    final revoked =
-        publicValues.any(
-          (v) => RegExp(
-            r'^(Aufgehoben|Révoqué|Revocato|Revoked):',
-            caseSensitive: false,
-          ).hasMatch(v),
-        ) ||
-        _elements(
-          record,
-          'validityStatus',
-        ).any((e) => e.innerText.toLowerCase().contains('revoked')) ||
-        _elements(record, 'lifeCycleManagement').any(
-          (e) => _elements(e, 'cancel').any(
-            (flag) =>
-                {'true', '1'}.contains(flag.innerText.trim().toLowerCase()),
-          ),
-        );
-    if (revoked) {
-      features.remove(id);
-      continue;
-    }
-    final from = _utc(_value(record, 'overallStartTime')),
-        until = _utc(_value(record, 'overallEndTime'));
-    final time = _utc(_value(record, 'situationRecordVersionTime'));
-    final coordinates = <List<double>>[];
-    for (final point in _elements(record, 'pointCoordinates').take(33)) {
-      final lat = double.tryParse(_value(point, 'latitude') ?? ''),
-          lon = double.tryParse(_value(point, 'longitude') ?? '');
-      if (lat == null || lon == null) continue;
-      try {
-        coordinates.add(MobilityPoint(lat, lon).toJson());
-      } on FormatException {
-        /* Unsupported coordinate. */
-      }
-    }
-    if (coordinates.isEmpty) {
-      unlocatedRecords[id] = {
-        'name': _text(id, 160),
-        'detail': _text(
-          '${_text(publicValues.take(3).join(" · "), 250)}\nSource: ASTRA / VMZ-CH\nUpdated: ${time?.toIso8601String() ?? "unknown"}\nValid from: ${from?.toIso8601String() ?? "unknown"}\nValid until: ${until?.toIso8601String() ?? "unknown"}\nLocation: TMC/unsupported. Table version: ${_text(_value(record, "alertCLocationTableVersion") ?? "unknown", 30)}; code: ${_text(_value(record, "specificLocation") ?? "unknown", 30)}. No position inferred.',
-        ),
-      };
-      continue;
-    }
-    if (coordinates.length > 32 || features.length >= 1000) {
-      omitted++;
-      continue;
-    }
-    final type =
-        record.attributes
-            .where((a) => a.name.local == 'type')
-            .firstOrNull
-            ?.value
-            .split(':')
-            .last ??
-        'Traffic situation';
-    final comments = _elements(record, 'generalPublicComment')
-        .map((e) => e.innerText.trim())
-        .where((s) => s.isNotEmpty)
-        .take(3)
-        .join(' · ');
-    features[id] = {
-      'id': _text(id, 160),
-      'name': _text(type, 160),
-      'detail': _text(
-        '${_text(comments, 250)}\nSource: ASTRA / VMZ-CH\nSource ID: $id\nUpdated: ${time?.toIso8601String() ?? "unknown"}\nValid from: ${from?.toIso8601String() ?? "unknown"}\nValid until: ${until?.toIso8601String() ?? "unknown"}${coordinates.length > 1 ? "\nStraight connections between source positions; approximate extent." : ""}',
-      ),
-      'timestampUtc': time?.toIso8601String(),
-      'validFromUtc': from?.toIso8601String(),
-      'validUntilUtc': until?.toIso8601String(),
-      'geometry': {
-        'type': coordinates.length == 1 ? 'Point' : 'LineString',
-        'coordinates': coordinates.length == 1
-            ? coordinates.first
-            : coordinates,
-      },
-    };
-  }
-  return {
-    'features': features.values.toList(),
-    'publishedAtUtc': _utc(_value(xml, 'publicationTime'))?.toIso8601String(),
-    'unlocated': unlocatedRecords.length,
-    'unlocatedRecords': unlocatedRecords.values.take(100).toList(),
-    'omitted': omitted,
-    'coverage': 'Swiss road network as reported by ASTRA/VMZ-CH; TMC-only locations require the separate official topology. No complete network coverage claim.',
-  };
 }
 
 /// Positions are displayed as ground-projected awareness markers. Barometric
@@ -267,7 +135,13 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
   final Future<String?> Function()? readTrafficKey;
   final MobilityHttp transport;
   String? _import;
+  Stream<List<int>>? _importStream;
   DateTime? _lastNetworkAttempt;
+  TrafficSnapshot? _networkSnapshot;
+  DateTime? _networkCheckedAt, _fullSnapshotAt;
+  bool get canRefreshNetwork =>
+      _lastNetworkAttempt == null ||
+      nowUtc.difference(_lastNetworkAttempt!) >= const Duration(seconds: 15);
   void _rateLimit(Duration minimum) {
     final now = nowUtc;
     if (_lastNetworkAttempt != null &&
@@ -326,11 +200,32 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
     }
   }
 
+  Future<OsintDataset<Map<String, dynamic>>> importTrafficStream(
+    Stream<List<int>> bytes,
+  ) async {
+    if (kind != SituationalKind.traffic ||
+        status.update == OsintUpdateState.loading) {
+      throw StateError('Traffic import unavailable');
+    }
+    _importStream = bytes;
+    try {
+      return await fetch(forceRefresh: true);
+    } finally {
+      _importStream = null;
+    }
+  }
+
   @override
   Future<OsintDataset<Map<String, dynamic>>> download() async {
-    final imported = _import != null;
-    String body;
-    if (imported) {
+    final imported = _import != null || _importStream != null;
+    String? body;
+    Map<String, dynamic>? trafficData;
+    TrafficSnapshot? nextSnapshot;
+    DateTime? requestStarted;
+    var delta = false;
+    if (_importStream != null) {
+      trafficData = (await readTrafficStream(_importStream!)).data();
+    } else if (imported) {
       body = _import!;
     } else if (kind == SituationalKind.aircraft) {
       if (kIsWeb) {
@@ -341,6 +236,13 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
       _rateLimit(const Duration(seconds: 15));
       body = await transport.text(sourceUri);
     } else {
+      if (kIsWeb) {
+        throw OsintProviderException(
+          providerId: id,
+          kind: OsintFailureKind.network,
+          message: 'The ASTRA traffic API rejects direct browser requests (CORS). Use Android or import a DATEX XML snapshot downloaded with your own registered access. No third-party proxy is used.',
+        );
+      }
       final key = await readTrafficKey?.call();
       if (key == null ||
           key.trim().isEmpty ||
@@ -350,26 +252,73 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
           'Add your registered ASTRA API key, or import a DATEX snapshot.',
         );
       }
-      _rateLimit(const Duration(seconds: 5));
-      body = await transport.text(
-        sourceUri,
-        headers: {
-          'Authorization': key.startsWith('Bearer ') ? key : 'Bearer $key',
-          'Content-Type': 'text/xml; charset=utf-8',
-          'SOAPAction': 'http://opentransportdata.swiss/TDP/Soap_Datex2/Pull/v1/pullTrafficMessages',
-        },
-        body:
-            '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><d2LogicalModel modelBaseVersion="2" xmlns="http://datex2.eu/schema/2/2_0"><exchange><supplierIdentification><country>ch</country><nationalIdentifier>FEDRO</nationalIdentifier></supplierIdentification><subscription><operatingMode>operatingMode1</operatingMode><subscriptionStartTime>${nowUtc.toIso8601String()}</subscriptionStartTime><subscriptionState>active</subscriptionState><updateMethod>singleElementUpdate</updateMethod><target><address></address><protocol>http</protocol></target></subscription></exchange></d2LogicalModel></soap:Body></soap:Envelope>',
-      );
+      // The current portal plan permits five calls/minute; allow headroom.
+      _rateLimit(const Duration(seconds: 15));
+      requestStarted = nowUtc;
+      delta =
+          _networkSnapshot != null &&
+          _networkCheckedAt != null &&
+          nowUtc.difference(_networkCheckedAt!) >= Duration.zero &&
+          nowUtc.difference(_networkCheckedAt!) < const Duration(minutes: 4) &&
+          _fullSnapshotAt != null &&
+          nowUtc.difference(_fullSnapshotAt!) < const Duration(hours: 24);
+      try {
+        final patch = await transport.read<TrafficSnapshot>(
+          sourceUri,
+          maxBytes: trafficMaxResponseBytes,
+          timeout: const Duration(seconds: 60),
+          consume: readTrafficStream,
+          onNotModified: delta ? () => TrafficSnapshot({}) : null,
+          headers: {
+            'Authorization': key.startsWith('Bearer ') ? key : 'Bearer $key',
+            if (delta)
+              'If-Modified-Since': _networkCheckedAt!
+                  .subtract(const Duration(seconds: 30))
+                  .toIso8601String(),
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': 'http://opentransportdata.swiss/TDP/Soap_Datex2/Pull/v1/pullTrafficMessages',
+          },
+          body:
+              '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><d2LogicalModel modelBaseVersion="2" xmlns="http://datex2.eu/schema/2/2_0"><exchange><supplierIdentification><country>ch</country><nationalIdentifier>FEDRO</nationalIdentifier></supplierIdentification><subscription><operatingMode>operatingMode1</operatingMode><subscriptionStartTime>${nowUtc.toIso8601String()}</subscriptionStartTime><subscriptionState>active</subscriptionState><updateMethod>singleElementUpdate</updateMethod><target><address></address><protocol>http</protocol></target></subscription></exchange></d2LogicalModel></soap:Body></soap:Envelope>',
+        );
+        nextSnapshot = delta ? _networkSnapshot!.merge(patch) : patch;
+        trafficData = nextSnapshot.data();
+        trafficData['updateMode'] = delta ? 'changes' : 'full';
+      } on MobilityHttpException catch (error) {
+        throw OsintProviderException(
+          providerId: id,
+          kind: OsintFailureKind.http,
+          httpStatus: error.statusCode,
+          message: switch (error.statusCode) {
+            401 => 'ASTRA rejected the token (HTTP 401). Use the Token for "Road traffic - traffic situations", not Token Hash or an OJP token.',
+            403 => 'ASTRA denied access (HTTP 403). Check that your app has an active "Road traffic - traffic situations" subscription.',
+            429 => 'ASTRA request limit reached (HTTP 429). Wait before retrying and check the quota in your API plan.',
+            _ =>
+              'ASTRA request failed (HTTP ${error.statusCode}). Retry later or import a DATEX XML snapshot.',
+          },
+        );
+      } on http.ClientException {
+        throw OsintProviderException(
+          providerId: id,
+          kind: OsintFailureKind.network,
+          message:
+              'ASTRA network request failed. Check your connection and retry.',
+        );
+      }
     }
-    final data = kind == SituationalKind.traffic
-        ? await compute(parseTrafficSnapshot, body)
-        : await compute(parseAircraftSnapshot, body);
+    final data =
+        trafficData ??
+        await compute<String, Map<String, dynamic>>(
+          kind == SituationalKind.traffic
+              ? parseTrafficSnapshot
+              : parseAircraftSnapshot,
+          body!,
+        );
     data['transport'] = imported
         ? 'Imported local snapshot; not revalidated online'
         : 'Direct provider request';
     final time = nowUtc;
-    return OsintDataset(
+    final dataset = OsintDataset(
       source: source,
       data: data,
       fetchedAtUtc: time,
@@ -378,6 +327,16 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
       persistable: false,
       requiresRevalidation: imported,
     );
+    if (imported) {
+      _networkSnapshot = null;
+      _networkCheckedAt = null;
+      _fullSnapshotAt = null;
+    } else if (nextSnapshot != null) {
+      _networkSnapshot = nextSnapshot;
+      _networkCheckedAt = requestStarted;
+      if (!delta) _fullSnapshotAt = requestStarted;
+    }
+    return dataset;
   }
 
   @override

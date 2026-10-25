@@ -15,8 +15,16 @@ import '../spots/data/spot_repository.dart';
 import '../spots/data/spot_location_service.dart';
 import 'mobility_preferences.dart';
 import 'road_routing.dart';
+import 'destination_search.dart';
 import 'situational_layers_section.dart';
 import 'situational_provider.dart';
+import 'traffic_bulletin.dart';
+import 'traffic_incident.dart';
+import 'traffic_counters_provider.dart';
+import 'traffic_counters_section.dart';
+import 'navigation_location.dart';
+import 'road_navigation.dart';
+import 'road_navigation_screen.dart';
 
 class MobilityScreen extends StatefulWidget {
   const MobilityScreen({
@@ -45,6 +53,8 @@ class _MobilityScreenState extends State<MobilityScreen> {
     for (final key in [
       'originLat',
       'originLon',
+      'destinationLat',
+      'destinationLon',
       'parkingLat',
       'parkingLon',
       'accessLat',
@@ -59,6 +69,8 @@ class _MobilityScreenState extends State<MobilityScreen> {
   late final _spots = widget.spots.getAllSpots();
   final _vault = LocalApiCredentialVault.shared;
   Spot? _spot;
+  bool _freeDestination = false;
+  String? _destinationName;
   int _selection = 0;
   RoadRoute? _route;
   bool _busy = false,
@@ -67,6 +79,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
       _trafficTerms = false;
   String? _message;
   SituationalProvider? _traffic, _aircraft;
+  TrafficCountersProvider? _counters;
   Timer? _freshness;
   @override
   void initState() {
@@ -89,6 +102,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
           spots.where((s) => s.id == widget.initialSpotId).firstOrNull ??
           spots.firstOrNull;
       if (mounted && selected != null) await _chooseSpot(selected);
+      if (mounted && spots.isEmpty) setState(() => _freeDestination = true);
     } catch (_) {
       if (mounted) setState(() => _message = 'Saved spots unavailable.');
     }
@@ -143,6 +157,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
     }
     _key.dispose();
     _traffic?.dispose();
+    _counters?.dispose();
     _aircraft?.dispose();
     if (widget.router == null) _router.dispose();
     super.dispose();
@@ -181,6 +196,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     _aircraft?.dispose();
                     _aircraft = null;
                   } else {
+                    if (prefix == 'destination') _destinationName = null;
                     _route = null;
                   }
                 }),
@@ -212,6 +228,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
         setState(
           () => _message = switch (error) {
             FormatException() => error.message,
+            OsintProviderException() => error.message,
             SpotLocationException() => error.message,
             _ => 'Unable to complete this request. Check coordinates, access and network, then retry.',
           },
@@ -241,15 +258,48 @@ class _MobilityScreenState extends State<MobilityScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Driving route to a saved spot, parking place or access point. Distance/time are estimates without live traffic. Verify parking, private roads and the final approach locally.',
+          'Driving route to an address, coordinates or saved spot. Distance/time are estimates without live traffic. Verify parking, private roads and the final approach locally.',
         ),
         const SizedBox(height: 12),
-        if (snapshot.hasError)
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: false, label: Text('Saved spot')),
+            ButtonSegment(value: true, label: Text('Freies Ziel')),
+          ],
+          selected: {_freeDestination},
+          onSelectionChanged: _busy
+              ? null
+              : (v) => setState(() {
+                  _freeDestination = v.first;
+                  _route = null;
+                  _message = null;
+                }),
+        ),
+        const SizedBox(height: 12),
+        if (_freeDestination) ...[
+          RoadDestinationSearch(
+            onSelected: (result) => setState(() {
+              _fields['destinationLat']!.text = '${result.point.latitude}';
+              _fields['destinationLon']!.text = '${result.point.longitude}';
+              _destinationName = result.name;
+              _route = null;
+            }),
+          ),
+          if (_destinationName != null) Text('Ziel: $_destinationName'),
+          const SizedBox(height: 12),
+          _pointFields(
+            'destination',
+            'Zielkoordinaten (auch direkt eingebbar)',
+          ),
+        ] else if (snapshot.hasError)
           const Text('Saved spots unavailable.')
         else if (!snapshot.hasData)
           const LinearProgressIndicator()
         else if (snapshot.data!.isEmpty)
-          const Text('Save an FPV spot first.')
+          const Text(
+            'No saved spots. Choose Freies Ziel to enter a destination.',
+          )
         else
           DropdownButtonFormField<int>(
             key: ValueKey(_spot?.id),
@@ -280,31 +330,32 @@ class _MobilityScreenState extends State<MobilityScreen> {
           'Location access is requested only when pressed; coordinates are sent to the routing provider only when you calculate.',
         ),
         const SizedBox(height: 16),
-        ExpansionTile(
-          title: const Text('Optional parking & access points'),
-          children: [
-            _pointFields('parking', 'Parking (optional)'),
-            _pointFields('access', 'Access point (optional)'),
-            OutlinedButton(
-              onPressed: _busy || _spot == null
-                  ? null
-                  : () => _run(() async {
-                      final notes = SpotAccess(
-                        parking: _point('parking', optional: true),
-                        access: _point('access', optional: true),
-                      );
-                      await widget.preferences.saveAccess(_spot!.id, notes);
-                      if (mounted) {
-                        setState(
-                          () =>
-                              _message = 'Parking/access notes saved locally.',
+        if (!_freeDestination)
+          ExpansionTile(
+            title: const Text('Optional parking & access points'),
+            children: [
+              _pointFields('parking', 'Parking (optional)'),
+              _pointFields('access', 'Access point (optional)'),
+              OutlinedButton(
+                onPressed: _busy || _spot == null
+                    ? null
+                    : () => _run(() async {
+                        final notes = SpotAccess(
+                          parking: _point('parking', optional: true),
+                          access: _point('access', optional: true),
                         );
-                      }
-                    }),
-              child: const Text('Save access notes locally'),
-            ),
-          ],
-        ),
+                        await widget.preferences.saveAccess(_spot!.id, notes);
+                        if (mounted) {
+                          setState(
+                            () => _message =
+                                'Parking/access notes saved locally.',
+                          );
+                        }
+                      }),
+                child: const Text('Save access notes locally'),
+              ),
+            ],
+          ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           value: _roadConsent,
@@ -317,14 +368,19 @@ class _MobilityScreenState extends State<MobilityScreen> {
           ),
         ),
         FilledButton.icon(
-          onPressed: _busy || !_roadConsent || _spot == null
+          onPressed:
+              _busy || !_roadConsent || (!_freeDestination && _spot == null)
               ? null
               : () => _run(() async {
                   final origin = _point('origin')!,
-                      destination =
-                          _point('parking', optional: true) ??
-                          _point('access', optional: true) ??
-                          MobilityPoint(_spot!.latitude, _spot!.longitude);
+                      destination = _freeDestination
+                          ? _point('destination')!
+                          : _point('parking', optional: true) ??
+                                _point('access', optional: true) ??
+                                MobilityPoint(
+                                  _spot!.latitude,
+                                  _spot!.longitude,
+                                );
                   final result = await _router.calculate(origin, destination);
                   if (mounted) setState(() => _route = result);
                 }),
@@ -337,12 +393,18 @@ class _MobilityScreenState extends State<MobilityScreen> {
             '${(_route!.distanceMeters / 1000).toStringAsFixed(1)} km · ${(_route!.durationSeconds / 60).ceil()} min estimated',
           ),
           Text(
-            'Calculated: ${_route!.retrievedUtc.toIso8601String()} · destination priority: parking → access point → spot. The routing service may snap endpoints to nearby roads.',
+            'Calculated: ${_route!.retrievedUtc.toIso8601String()} · ${_freeDestination ? 'Free destination' : 'destination priority: parking → access point → spot'}. The routing service may snap endpoints to nearby roads.',
           ),
           FilledButton.tonal(
             onPressed: _busy ? null : () => _run(() => _show(_route!.overlay)),
             child: const Text('Show driving route on map'),
           ),
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+            FilledButton.icon(
+              onPressed: _busy ? null : _startNavigation,
+              icon: const Icon(Icons.navigation),
+              label: const Text('Navigation starten'),
+            ),
         ],
         _link(
           'OSRM / FOSSGIS · privacy & service policy',
@@ -355,6 +417,121 @@ class _MobilityScreenState extends State<MobilityScreen> {
       ],
     ),
   );
+  Future<void> _startNavigation() async {
+    final route = _route;
+    if (route == null || _busy) return;
+    bool hasKey, hasCountersKey;
+    try {
+      hasKey = await _vault.contains(astraTrafficAccess);
+      hasCountersKey = await _vault.contains(astraCountersAccess);
+    } catch (_) {
+      hasKey = false;
+      hasCountersKey = false;
+    }
+    if (!mounted) return;
+    var useTraffic = hasKey,
+        useCounters = hasCountersKey,
+        automaticTraffic = true;
+    final start = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Navigation starten'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Während die Navigation geöffnet ist, wird dein Standort laufend genutzt. Bei Routenabweichungen werden Standort und Ziel zur Neuberechnung an FOSSGIS gesendet. Im Hintergrund pausiert die Navigation.',
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: useTraffic,
+                  onChanged: hasKey
+                      ? (value) => update(() => useTraffic = value ?? false)
+                      : null,
+                  title: const Text('ASTRA-Verkehrsmeldungen laden'),
+                  subtitle: Text(
+                    hasKey
+                        ? 'Nutzt deinen gespeicherten Zugang. Aktualisierung bei Bedarf in der Navigation; keine Stauzeiten in der Ankunftsschätzung.'
+                        : 'Zuerst im Traffic-Tab den Token für Road traffic - traffic situations speichern und die Anbieterbedingungen akzeptieren.',
+                  ),
+                ),
+                if (hasCountersKey)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: useCounters,
+                    onChanged: (v) => update(() => useCounters = v ?? false),
+                    title: const Text('ASTRA-Messwerte laden'),
+                    subtitle: const Text(
+                      'Geschwindigkeiten und Fahrzeugraten an bis zu 100 Detektoren im gewählten 30-km-Gebiet.',
+                    ),
+                  ),
+                if (useTraffic || useCounters)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: automaticTraffic,
+                    onChanged: (v) =>
+                        update(() => automaticTraffic = v ?? false),
+                    title: const Text('Verkehr automatisch aktualisieren'),
+                    subtitle: const Text(
+                      'Alle 60 Sekunden, solange die Navigation aktiv ist. Im Hintergrund pausiert der Abruf.',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Starten'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (start != true || !mounted) return;
+    RoadNavigation navigation;
+    try {
+      navigation = RoadNavigation(
+        route: route,
+        router: _router,
+        locations: const DeviceNavigationLocation(),
+        traffic: useTraffic ? _provider(SituationalKind.traffic) : null,
+        counters: useCounters ? _countersProvider() : null,
+        automaticTrafficUpdates:
+            (useTraffic || useCounters) && automaticTraffic,
+      );
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _message = error.message);
+      return;
+    }
+    try {
+      await widget.globe.setRenderingPaused(true).catchError((Object _) {});
+      if (!mounted) return;
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RoadNavigationScreen(
+            navigation: navigation,
+            initialMapStyle: widget.globe.mapStyle,
+            initialRoadsVisible: widget.globe.roadsVisible,
+            initialRoadsOpacity: widget.globe.roadsOpacity,
+          ),
+        ),
+      );
+    } finally {
+      navigation.dispose();
+      unawaited(
+        widget.globe.setRenderingPaused(false).catchError((Object _) {}),
+      );
+    }
+  }
+
   Widget _link(String label, String url) => TextButton.icon(
     onPressed: () => _run(() async {
       if (!await launchUrl(
@@ -367,6 +544,25 @@ class _MobilityScreenState extends State<MobilityScreen> {
     icon: const Icon(Icons.open_in_new),
     label: Text(label),
   );
+  TrafficCountersProvider _countersProvider() {
+    final center =
+        _route?.points.first ??
+        widget.initialCenter ??
+        (_spot == null
+            ? MobilityPoint(46.95, 7.44)
+            : MobilityPoint(_spot!.latitude, _spot!.longitude));
+    if (_counters != null &&
+        _counters!.center.latitude == center.latitude &&
+        _counters!.center.longitude == center.longitude) {
+      return _counters!;
+    }
+    _counters?.dispose();
+    return _counters = TrafficCountersProvider(
+      center: center,
+      readKey: () => _vault.readForProvider(astraCountersAccess),
+    );
+  }
+
   SituationalProvider _provider(SituationalKind kind) {
     final center = kind == SituationalKind.aircraft
         ? _point('area')!
@@ -404,8 +600,17 @@ class _MobilityScreenState extends State<MobilityScreen> {
     );
     if (file == null) return;
     final length = await file.length();
-    if (length <= 0 || length > 4 * 1024 * 1024) {
-      throw const FormatException('Choose a snapshot up to 4 MiB.');
+    final maxBytes = kind == SituationalKind.traffic
+        ? trafficMaxResponseBytes
+        : 4 * 1024 * 1024;
+    if (length <= 0 || length > maxBytes) {
+      throw FormatException(
+        'Choose a snapshot up to ${maxBytes ~/ (1024 * 1024)} MiB.',
+      );
+    }
+    if (kind == SituationalKind.traffic) {
+      await _provider(kind).importTrafficStream(file.openRead(0, length));
+      return;
     }
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in file.openRead(0, length)) {
@@ -422,6 +627,24 @@ class _MobilityScreenState extends State<MobilityScreen> {
     if (provider == null) {
       return const Text(
         'No information loaded. Missing data does not mean clear roads or empty airspace.',
+      );
+    }
+    if (kind == SituationalKind.traffic) {
+      return TrafficBulletin(
+        provider: provider,
+        onShowMap: _busy
+            ? null
+            : () => _run(
+                () => _show({
+                  'id': 'traffic',
+                  'visible': true,
+                  'features': trafficMapFeatures(
+                    (provider.status.dataset?.data['features'] as List?) ?? [],
+                    latitude: provider.center.latitude,
+                    longitude: provider.center.longitude,
+                  ),
+                }),
+              ),
       );
     }
     final features = (data?['features'] as List?) ?? const [];
@@ -506,47 +729,57 @@ class _MobilityScreenState extends State<MobilityScreen> {
         'Register your own free-tier API access',
         'https://api-manager.opentransportdata.swiss/',
       ),
-      CheckboxListTile(
-        contentPadding: EdgeInsets.zero,
-        value: _trafficTerms,
-        onChanged: (v) => setState(() => _trafficTerms = v ?? false),
-        title: const Text(
-          'I have registered access and accepted the provider terms for my own use.',
+      if (kIsWeb)
+        const Text(
+          'The ASTRA API rejects direct browser requests (CORS), before a token can be sent. Use Android for direct refresh, or import a DATEX XML snapshot downloaded with your own registered access. No public proxy is used.',
         ),
-      ),
-      TextField(
-        controller: _key,
-        obscureText: true,
-        enableSuggestions: false,
-        autocorrect: false,
-        decoration: const InputDecoration(labelText: 'Own ASTRA API key'),
-      ),
-      Text(
-        kIsWeb
-            ? 'Keys remain in this browser session only. Browser access may be blocked by source CORS; import a snapshot if unavailable.'
-            : 'Keys use device secure storage and are sent only to the official ASTRA endpoint.',
-      ),
+      if (!kIsWeb) ...[
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _trafficTerms,
+          onChanged: (v) => setState(() => _trafficTerms = v ?? false),
+          title: const Text(
+            'I have registered access and accepted the provider terms for my own use.',
+          ),
+        ),
+        TextField(
+          controller: _key,
+          obscureText: true,
+          enableSuggestions: false,
+          autocorrect: false,
+          decoration: const InputDecoration(
+            labelText: 'Own ASTRA API key',
+            helperText: 'Use the Token for Road traffic - traffic situations, not Token Hash or OJP.',
+            helperMaxLines: 3,
+          ),
+        ),
+        const Text(
+          'Keys use device secure storage and are sent only to the official ASTRA endpoint.',
+        ),
+      ],
       Wrap(
         spacing: 8,
         children: [
-          OutlinedButton(
-            onPressed: _busy || !_trafficTerms
-                ? null
-                : () => _run(() async {
-                    await _vault.save(astraTrafficAccess, _key.text.trim());
-                    _key.clear();
-                    if (mounted) setState(() => _message = 'API key saved.');
-                  }),
-            child: const Text('Save key'),
-          ),
-          TextButton(
-            onPressed: _busy
-                ? null
-                : () => _run(() => _vault.remove(astraTrafficAccess)),
-            child: const Text('Remove key'),
-          ),
+          if (!kIsWeb)
+            OutlinedButton(
+              onPressed: _busy || !_trafficTerms
+                  ? null
+                  : () => _run(() async {
+                      await _vault.save(astraTrafficAccess, _key.text.trim());
+                      _key.clear();
+                      if (mounted) setState(() => _message = 'API key saved.');
+                    }),
+              child: const Text('Save key'),
+            ),
+          if (!kIsWeb)
+            TextButton(
+              onPressed: _busy
+                  ? null
+                  : () => _run(() => _vault.remove(astraTrafficAccess)),
+              child: const Text('Remove key'),
+            ),
           FilledButton(
-            onPressed: _busy || !_trafficTerms
+            onPressed: _busy || !_trafficTerms || kIsWeb
                 ? null
                 : () => _run(() async {
                     await _provider(SituationalKind.traffic)
@@ -562,6 +795,11 @@ class _MobilityScreenState extends State<MobilityScreen> {
       ),
       const SizedBox(height: 12),
       _dataset(SituationalKind.traffic),
+      TrafficCountersSection(provider: _countersProvider(), onShowMap: _show),
+      _link(
+        'Weitere offizielle Daten: Geschwindigkeiten und Fahrzeugmengen an Zählstellen',
+        'https://opentransportdata.swiss/en/cookbook/road-traffic-cookbook/rt-road-traffic-counters/',
+      ),
     ],
   );
   Widget _aircraftPage() => Column(

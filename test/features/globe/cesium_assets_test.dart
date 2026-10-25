@@ -46,9 +46,12 @@ void main() {
         'ground_navigation.js',
         'navigation_controls.js',
         'free_flight.js',
+        'flight_rendering.js',
         'route_editor.js',
         'obstacle_layers.js',
         'situational_layers.js',
+        'road_navigation.js',
+        'map_compass.js',
       ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);

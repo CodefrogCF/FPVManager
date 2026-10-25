@@ -5,6 +5,12 @@ const {WMS,createWms,createVectors,createHazards} = require('../../web/obstacle_
 function setup({image = () => Promise.resolve({}), yieldBatch,
     terrainReady = () => true, groundHeight = () => undefined} = {}) {
     const layers = [],sources = [],events = [],providers = [];
+    let clock = 0, heightCalls = 0;
+    const event = () => {const listeners = new Set(); return {
+        addEventListener(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
+        fire(){for(const fn of listeners)fn();},get size(){return listeners.size;}
+    };};
+    const preRender=event(),tiles=event(),camera=event();
     let entityId = 0;
     const C = {
         WebMercatorTilingScheme:class { positionToTileXY() { return {x:133,y:90}; } },
@@ -25,10 +31,13 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
     };
     const viewer = {imageryLayers:{add:l => layers.push(l),remove:l => {const i=layers.indexOf(l);if(i>=0)layers.splice(i,1);}},
         dataSources:{add:async s => sources.push(s),remove:s => {const i=sources.indexOf(s);if(i>=0)sources.splice(i,1);}},
-        scene:{globe:{getHeight:groundHeight},requestRender() {}}};
+        camera:{changed:camera,moveEnd:event()},
+        scene:{preRender,globe:{tileLoadProgressEvent:tiles,getHeight:p=>{heightCalls++;return groundHeight(p);}},requestRender() {}}};
     const wms = createWms(C,viewer,(type,payload) => events.push({type,...payload}),{timeoutMs:20});
-    const vectors = createVectors(C,viewer,{yieldBatch,isTerrainReady:terrainReady});
-    return {C,viewer,layers,sources,events,providers,wms,vectors};
+    const vectors = createVectors(C,viewer,{yieldBatch,isTerrainReady:terrainReady,now:()=>clock});
+    return {C,viewer,layers,sources,events,providers,wms,vectors,preRender,tiles,camera,
+        get heightCalls(){return heightCalls;},frame(ms=16){clock+=ms;preRender.fire();},
+        refine(){tiles.fire();clock+=201;preRender.fire();}};
 }
 const tick = () => new Promise(r => setImmediate(r));
 const line = {id:'source-id',category:'powerLines',parts:[{kind:'LineString',elevated:true,
@@ -127,37 +136,41 @@ test('isolated Point: a 50 m crane is EXACTLY 50 m above the rendered terrain, n
         line
     ]});
     const [point,stem,cable]=p.sources[0].entities.values;
-    assert.equal(point.position.isConstant,false);
-    assert.equal(stem.polyline.positions.isConstant,false);
-    assert.equal(point.show.getValue(),true);
-    assert.deepEqual(point.position.getValue(),[8.1,46.2,579.25]);
-    assert.equal(stem.polyline.show.getValue(),true);
-    assert.deepEqual(stem.polyline.positions.getValue(),[[8.1,46.2,529.25],[8.1,46.2,579.25]]);
-    assert.equal(stem.polyline.positions.getValue()[1][2]-stem.polyline.positions.getValue()[0][2],50);
+    assert.equal(point.position instanceof p.C.CallbackProperty,false);
+    assert.equal(stem.polyline.positions instanceof p.C.CallbackProperty,false);
+    assert.equal(point.show,true);
+    assert.deepEqual(point.position,[8.1,46.2,579.25]);
+    assert.equal(stem.polyline.show,true);
+    assert.deepEqual(stem.polyline.positions,[[8.1,46.2,529.25],[8.1,46.2,579.25]]);
+    assert.equal(stem.polyline.positions[1][2]-stem.polyline.positions[0][2],50);
     assert.equal(point.point.heightReference,'none');
     // Terrain LOD/refinement adjusts BOTH endpoints by the same delta.
     ground=531.75;
-    assert.deepEqual(point.position.getValue(),[8.1,46.2,581.75]);
-    assert.deepEqual(stem.polyline.positions.getValue(),[[8.1,46.2,531.75],[8.1,46.2,581.75]]);
-    assert.equal(stem.polyline.positions.getValue()[1][2]-stem.polyline.positions.getValue()[0][2],50);
+    p.refine();
+    assert.deepEqual(point.position,[8.1,46.2,581.75]);
+    assert.deepEqual(stem.polyline.positions,[[8.1,46.2,531.75],[8.1,46.2,581.75]]);
+    assert.equal(stem.polyline.positions[1][2]-stem.polyline.positions[0][2],50);
     // Source geometry for elevated cables is untouched.
     assert.deepEqual(cable.polyline.positions,[[8,46,550],[8.01,46.01,560]]);
     assert.equal(cable.polyline.clampToGround,false);
     assert.deepEqual(p.vectors.pick(stem),{id:'crane',revision:1});
     assert.deepEqual(p.vectors.pick(point),{id:'crane',revision:1});
     ready=false;
-    assert.equal(point.show.getValue(),false);
-    assert.equal(stem.polyline.show.getValue(),false);
+    p.vectors.terrainChanged();
+    assert.equal(point.show,false);
+    assert.equal(stem.polyline.show,false);
     ready=true;
     for (const invalidHeight of [undefined,NaN,Infinity,-2000]) {
         ground=invalidHeight;
-        assert.equal(point.show.getValue(),false);
-        assert.equal(stem.polyline.show.getValue(),false);
+        p.refine();
+        assert.equal(point.show,false);
+        assert.equal(stem.polyline.show,false);
     }
     ground=530;
-    assert.equal(point.show.getValue(),true);
-    assert.deepEqual(point.position.getValue(),[8.1,46.2,580]);
-    assert.deepEqual(stem.polyline.positions.getValue(),[[8.1,46.2,530],[8.1,46.2,580]]);
+    p.refine();
+    assert.equal(point.show,true);
+    assert.deepEqual(point.position,[8.1,46.2,580]);
+    assert.deepEqual(stem.polyline.positions,[[8.1,46.2,530],[8.1,46.2,580]]);
     p.vectors.dispose();
 });
 
@@ -200,8 +213,8 @@ test('isolated point with AGL remains accurately drawable even if the absolute d
     await p.vectors.replace({revision:1,features:[{id:'height-only',category:'masts',parts:[
         {kind:'Point',elevated:false,coordinates:[[8,46,null]],heightAgl:50}]}]});
     const [point,stem]=p.sources[0].entities.values;
-    assert.deepEqual(point.position.getValue(),[8,46,452.5]);
-    assert.deepEqual(stem.polyline.positions.getValue(),[[8,46,402.5],[8,46,452.5]]);
+    assert.deepEqual(point.position,[8,46,452.5]);
+    assert.deepEqual(stem.polyline.positions,[[8,46,402.5],[8,46,452.5]]);
     assert.equal(p.sources[0].entities.values.length,2);
     p.vectors.dispose();
 });
@@ -215,20 +228,20 @@ test('cable attachment vertices follow the same terrain and AGL as published mas
         coordinates:[[8.1,46.2,740],[8.15,46.25,750],[8.2,46.3,760]]}]};
     await p.vectors.replace({revision:1,features:[cable,mast('a',8.1,46.2,740,50),mast('b',8.2,46.3,760,70)]});
     const [line,marker]=p.sources[0].entities.values;
-    let positions=line.polyline.positions.getValue();
-    assert.equal(positions[0][2],marker.position.getValue()[2]);
+    let positions=line.polyline.positions;
+    assert.equal(positions[0][2],marker.position[2]);
     assert.equal(positions[0][2],650);assert.equal(positions[1][2],660);assert.equal(positions[2][2],670);
-    ground=620;positions=line.polyline.positions.getValue();
-    assert.equal(positions[0][2],670);assert.equal(marker.position.getValue()[2],670);
+    ground=620;p.refine();positions=line.polyline.positions;
+    assert.equal(positions[0][2],670);assert.equal(marker.position[2],670);
     assert.equal(positions[2][2],690);
-    ground=undefined;assert.equal(line.polyline.show.getValue(),false);
-    assert.equal(marker.show.getValue(),false);
+    ground=undefined;p.refine();assert.equal(line.polyline.show,false);
+    assert.equal(marker.show,false);
     assert.deepEqual(p.vectors.pick(line),{id:'cable',revision:1});
     // Support-only records keep the line anchored when mast markers are hidden.
     ground=600;
     await p.vectors.replace({revision:2,features:[cable,mast('a',8.1,46.2,740,50,true),mast('b',8.2,46.3,760,70,true)]});
     assert.equal(p.sources[0].entities.values.length,1);
-    assert.equal(p.sources[0].entities.values[0].polyline.positions.getValue()[0][2],650);
+    assert.equal(p.sources[0].entities.values[0].polyline.positions[0][2],650);
     p.vectors.dispose();
 });
 
@@ -285,7 +298,32 @@ test('isolated TRANSMISSION_LINE support points also anchor published cable geom
         kind:'Point',elevated:true,coordinates:[[8,46,550]],heightAgl:35}]};
     await p.vectors.replace({revision:1,features:[line,support]});
     const [cable,marker]=p.sources[0].entities.values;
-    assert.equal(cable.polyline.positions.getValue()[0][2],635);
-    assert.equal(cable.polyline.positions.getValue()[0][2],marker.position.getValue()[2]);
+    assert.equal(cable.polyline.positions[0][2],635);
+    assert.equal(cable.polyline.positions[0][2],marker.position[2]);
+    p.vectors.dispose();
+});
+
+test('100 cables share two terrain samples; stable frames never resample or replace geometry',async()=>{
+    const p=setup({groundHeight:()=>600});
+    const supports=[8,8.01].map((lon,i)=>({id:'support-'+i,category:'masts',parts:[{
+        kind:'Point',elevated:true,coordinates:[[lon,46+i*.01,550+i*10]],heightAgl:50}]}));
+    await p.vectors.replace({revision:1,features:[...Array.from({length:100},(_,i)=>({...line,id:'cable-'+i})),...supports]});
+    assert.equal(p.heightCalls,2);
+    const cable=p.sources[0].entities.values[0],positions=cable.polyline.positions;
+    for(let i=0;i<600;i++)p.frame();
+    assert.equal(p.heightCalls,2);assert.equal(cable.polyline.positions,positions);
+    p.refine();assert.equal(p.heightCalls,4);assert.equal(cable.polyline.positions,positions,'Identical refined heights do not recreate static geometry');
+    p.vectors.dispose();assert.equal(p.preRender.size,0);assert.equal(p.tiles.size,0);assert.equal(p.camera.size,0);
+    p.refine();assert.equal(p.heightCalls,4);
+});
+
+test('terrain refinement is sampled in bounded batches and publishes one consistent height snapshot',async()=>{
+    let ground=600;
+    const p=setup({groundHeight:()=>ground});
+    await p.vectors.replace({revision:1,features:Array.from({length:130},(_,i)=>({id:'mast-'+i,category:'masts',parts:[{
+        kind:'Point',elevated:true,coordinates:[[8+i*.001,46,700]],heightAgl:50}]}))});
+    const first=p.sources[0].entities.values[0];assert.equal(first.position[2],650);assert.equal(p.heightCalls,130);
+    ground=620;p.refine();assert.equal(p.heightCalls,258);assert.equal(first.position[2],650);
+    p.frame();assert.equal(p.heightCalls,260);assert.equal(first.position[2],670);
     p.vectors.dispose();
 });
