@@ -35,6 +35,13 @@ network access. Publication, retrieval, cache age and source validity are shown
 separately. Rendering is limited to a local viewport; zoom in when the display
 limit is reached.
 
+Enable **3D obstacle models** within the vector layer for schematic pylons, poles,
+antenna masts, towers, cranes, chimneys, wind turbines and cableway supports.
+Models use the published height above ground: 10 m AGL draws a 10 m model.
+Shape, width and heading are illustrative. Missing types/heights, loading failures
+and views beyond 6 km retain symbols; cables and ropes keep their existing geometry.
+The preference persists locally and the models are bundled for offline use.
+
 The data covers published obstacles only and cannot establish absence of hazards
 or permission to fly. WMS provides combined symbols without category selection
 or precise heights. Vector LN02 elevations are converted locally with CHGeo2004;

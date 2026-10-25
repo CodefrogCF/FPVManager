@@ -32,6 +32,7 @@ final class DriftUserPreferencesRepository
   static const _wmsVisible = 'map.obstacles.wms.visible';
   static const _wmsOpacity = 'map.obstacles.wms.opacity';
   static const _vectorsVisible = 'map.obstacles.vectors.visible';
+  static const _modelsVisible = 'map.obstacles.vectors.models';
   static const _categories = 'map.obstacles.vectors.categories';
   static const _hazards = 'map.obstacles.hazards.visible';
   static const _buffer = 'map.obstacles.hazards.bufferMeters';
@@ -46,6 +47,7 @@ final class DriftUserPreferencesRepository
     _wmsVisible,
     _wmsOpacity,
     _vectorsVisible,
+    _modelsVisible,
     _categories,
     _hazards,
     _buffer,
@@ -149,6 +151,10 @@ final class DriftUserPreferencesRepository
           defaults.obstacleVectorsVisible,
         ),
         obstacleCategories: Set.unmodifiable(categories),
+        obstacleModelsVisible: readBool(
+          _modelsVisible,
+          defaults.obstacleModelsVisible,
+        ),
         hazardAreasVisible: readBool(_hazards, defaults.hazardAreasVisible),
         obstacleBufferMeters: buffer,
         overlayOrder: List.unmodifiable(order),
@@ -192,6 +198,7 @@ final class DriftUserPreferencesRepository
             _wmsVisible: snapshot.obstacleWmsVisible.toString(),
             _wmsOpacity: snapshot.obstacleWmsOpacity.toString(),
             _vectorsVisible: snapshot.obstacleVectorsVisible.toString(),
+            _modelsVisible: snapshot.obstacleModelsVisible.toString(),
             _hazards: snapshot.hazardAreasVisible.toString(),
             _buffer: snapshot.obstacleBufferMeters.toString(),
             _categories: jsonEncode(

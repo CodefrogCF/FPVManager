@@ -66,6 +66,7 @@ class GlobeAssetServer {
         'css' => 'text/css; charset=utf-8',
         'json' => 'application/json',
         'wasm' => 'application/wasm',
+        'glb' => 'model/gltf-binary',
         'svg' => 'image/svg+xml',
         'png' => 'image/png',
         'jpg' || 'jpeg' => 'image/jpeg',

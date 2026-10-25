@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {WMS,createWms,createVectors,createHazards} = require('../../web/obstacle_layers.js');
-const {Request,RequestState} = require('../../web/cesium/index.cjs');
+const {Request,RequestState,DistanceDisplayCondition,ShadowMode} = require('../../web/cesium/index.cjs');
 
 function setup({image = () => Promise.resolve({}), yieldBatch,
     terrainReady = () => true, groundHeight = () => undefined} = {}) {
@@ -9,11 +9,12 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
     let clock = 0, heightCalls = 0;
     const event = () => {const listeners = new Set(); return {
         addEventListener(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
-        fire(){for(const fn of listeners)fn();},get size(){return listeners.size;}
+        fire(...args){for(const fn of listeners)fn(...args);},get size(){return listeners.size;}
     };};
     const preRender=event(),tiles=event(),camera=event();
     let entityId = 0;
     const C = {
+        DistanceDisplayCondition,ShadowMode,
         RequestState,
         WebMercatorTilingScheme:class { positionToTileXY() { return {x:133,y:90}; } },
         WebMapServiceImageryProvider:class { constructor(options) {
@@ -34,7 +35,7 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
     const viewer = {imageryLayers:{add:l => layers.push(l),remove:l => {const i=layers.indexOf(l);if(i>=0)layers.splice(i,1);}},
         dataSources:{add:async s => sources.push(s),remove:s => {const i=sources.indexOf(s);if(i>=0)sources.splice(i,1);}},
         camera:{changed:camera,moveEnd:event()},
-        scene:{preRender,globe:{tileLoadProgressEvent:tiles,getHeight:p=>{heightCalls++;return groundHeight(p);}},requestRender() {}}};
+        scene:{primitives:{primitiveAdded:event()},preRender,globe:{tileLoadProgressEvent:tiles,getHeight:p=>{heightCalls++;return groundHeight(p);}},requestRender() {}}};
     const wms = createWms(C,viewer,(type,payload) => events.push({type,...payload}),{timeoutMs:20});
     const vectors = createVectors(C,viewer,{yieldBatch,isTerrainReady:terrainReady,now:()=>clock});
     return {C,viewer,layers,sources,events,providers,wms,vectors,preRender,tiles,camera,
@@ -44,6 +45,92 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
 const tick = () => new Promise(r => setImmediate(r));
 const line = {id:'source-id',category:'powerLines',parts:[{kind:'LineString',elevated:true,
     coordinates:[[8,46,550],[8.01,46.01,560]]}]};
+
+test('optional models use exactly the published AGL at cached terrain base and retain picking',async () => {
+    let ground=500;
+    const p=setup({groundHeight:()=>ground});
+    const feature={id:'pylon',sourceType:'TRANSMISSION_LINE',category:'powerLines',
+        parts:[{kind:'Point',elevated:true,heightAgl:10,coordinates:[[8,46,580]]}]};
+    await p.vectors.replace({revision:1,useModels:true,features:[feature,line]});
+    const source=p.sources[0], model=source.entities.values.find(e=>e.model);
+    assert.equal(model.model.uri,'models/obstacles/power-pylon.glb');
+    assert.equal(model.model.scale,10);
+    assert.equal(model.model.minimumPixelSize,0);
+    assert.equal(model.model.maximumScale,10);
+    assert.equal(model.model.enableVerticalExaggeration,false);
+    assert.deepEqual(model.position,[8,46,500]);
+    assert.deepEqual(p.vectors.pick(model),{id:'pylon',revision:1});
+    const [marker,stem]=source.entities.values;
+    assert.deepEqual(marker.position,[8,46,510]);
+    assert.equal(marker.point.distanceDisplayCondition,undefined,'fallback visible while loading');
+    const event=()=>{const fns=new Set();return {addEventListener(fn){fns.add(fn);return ()=>fns.delete(fn);},fire(){for(const fn of fns)fn();},get size(){return fns.size;}};};
+    const primitive={id:model,readyEvent:event(),errorEvent:event()};
+    p.viewer.scene.primitives.primitiveAdded.fire(primitive);
+    primitive.readyEvent.fire();
+    assert.equal(marker.point.distanceDisplayCondition.near,6000);
+    assert.equal(stem.polyline.distanceDisplayCondition.near,6000);
+    assert.equal(model.model.distanceDisplayCondition.far,6000);
+    ground=515;p.refine();
+    assert.deepEqual(model.position,[8,46,515]);
+    assert.deepEqual(marker.position,[8,46,525]);
+    assert.deepEqual(stem.polyline.positions,[[8,46,515],[8,46,525]]);
+    primitive.errorEvent.fire();
+    assert.equal(marker.point.distanceDisplayCondition.near,0);
+    assert.equal(model.model.show,false);
+    // Toggle off swaps the entire representation and releases model listeners.
+    await p.vectors.replace({revision:2,useModels:false,features:[feature,line]});
+    assert.equal(p.sources[0].entities.values.some(e=>e.model),false);
+    assert.equal(primitive.readyEvent.size,0);assert.equal(primitive.errorEvent.size,0);
+    assert.equal(p.viewer.scene.primitives.primitiveAdded.size,0);
+    assert.equal(p.vectors.pick(model),undefined);
+    p.vectors.dispose();
+});
+
+test('models keep unknown types, missing heights and KML line labels as the original geometry',async () => {
+    const p=setup({groundHeight:()=>500});
+    const point=(id,sourceType,heightAgl)=>({id,sourceType,category:'masts',parts:[{
+        kind:'Point',elevated:true,coordinates:[[8,46,550]],...(heightAgl==null?{}:{heightAgl})}]});
+    const label={...point('label','POLE',20),parts:[...point('x','POLE',20).parts,...line.parts]};
+    await p.vectors.replace({revision:1,useModels:true,features:[point('unknown','NEW_TYPE',10),point('no-height','MAST'),label]});
+    assert.equal(p.sources[0].entities.values.some(e=>e.model),false);
+    assert.equal(p.sources[0].entities.values.length,4);
+    await assert.rejects(p.vectors.replace({revision:2,useModels:'yes',features:[]}),/Invalid/);
+    await assert.rejects(p.vectors.replace({revision:2,useModels:true,features:[point('bad','x'.repeat(81),10)]}),/Invalid/);
+    p.vectors.dispose();
+    assert.equal(p.viewer.scene.primitives.primitiveAdded.size,0);
+});
+
+test('switching models preserves the exact existing cable anchoring geometry',async () => {
+    const p=setup({groundHeight:()=>500});
+    const support={id:'support',sourceType:'TRANSMISSION_LINE',category:'powerLines',parts:[{
+        kind:'Point',elevated:true,heightAgl:10,coordinates:[[8,46,580]]}]};
+    const cable={...line,parts:[{kind:'LineString',elevated:true,coordinates:[[8,46,580],[8.01,46.01,570]]}]};
+    await p.vectors.replace({revision:1,features:[support,cable]});
+    const old=p.sources[0].entities.values.find(e=>p.vectors.pick(e)?.id===line.id).polyline.positions;
+    await p.vectors.replace({revision:2,useModels:true,features:[support,cable]});
+    const next=p.sources[0].entities.values.find(e=>p.vectors.pick(e)?.id===line.id).polyline.positions;
+    assert.deepEqual(next,old);
+    assert.deepEqual(next[0],[8,46,510]);
+    assert.equal(p.sources[0].entities.values.filter(e=>e.model).length,1);
+    p.vectors.dispose();
+});
+
+test('superseded and disposed model batches release their primitive listeners',async () => {
+    let release;
+    const p=setup({groundHeight:()=>500,yieldBatch:()=>new Promise(resolve=>release=resolve)});
+    const point={id:'mast',category:'masts',sourceType:'MAST',parts:[{
+        kind:'Point',heightAgl:10,elevated:true,coordinates:[[8,46,510]]}]};
+    const batch=Array.from({length:81},(_,i)=>({...point,id:`mast-${i}`}));
+    const pending=p.vectors.replace({revision:1,useModels:true,features:batch});await tick();
+    await p.vectors.replace({revision:2,useModels:true,features:[point]});
+    release();await pending;
+    assert.equal(p.sources.length,1);
+    assert.equal(p.viewer.scene.primitives.primitiveAdded.size,1);
+    const pending2=p.vectors.replace({revision:3,useModels:true,features:batch});await tick();
+    p.vectors.dispose();release();await pending2;
+    assert.equal(p.sources.length,0);
+    assert.equal(p.viewer.scene.primitives.primitiveAdded.size,0);
+});
 
 test('WMS uses capabilities-verified transparent EPSG:3857 parameters and separate imagery layer',async () => {
     const p=setup(); const base={base:true};p.layers.push(base);

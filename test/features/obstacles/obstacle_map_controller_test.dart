@@ -105,6 +105,7 @@ void main() {
       'north': 46.8,
     });
     await globe.obstacles.setVectorsVisible(true);
+    await globe.obstacles.setModelsVisible(true);
     final command = renderer.commands.lastWhere(
       (c) =>
           c['type'] == 'set-obstacle-vectors' &&
@@ -114,6 +115,38 @@ void main() {
       (f) => f['id'] == 'power-line-support',
     );
     expect((support['parts'] as List).single['heightAgl'], 40);
+    expect(support['sourceType'], 'TRANSMISSION_LINE');
+    expect(command['useModels'], isTrue);
+    expect((await preferences.getPreferences()).obstacleModelsVisible, isTrue);
+    // Reopening the renderer restores preferences without a source refresh.
+    final retrieval = provider.status.dataset!.fetchedAtUtc;
+    renderer.emit({'type': 'renderer-loading'});
+    renderer.sessionId = 'model-reload';
+    renderer.sequence = 0;
+    renderer.ready();
+    await pumpEventQueue(times: 20);
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.3,
+      'south': 46.6,
+      'east': 8.5,
+      'north': 46.8,
+    });
+    await globe.obstacles.updateViewport();
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-vectors',
+      )['useModels'],
+      isTrue,
+    );
+    expect(provider.status.dataset!.fetchedAtUtc, retrieval);
+    await globe.obstacles.setModelsVisible(false);
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-vectors',
+      )['useModels'],
+      isFalse,
+    );
   });
   test('hazard controls persist independently, restore after reload and select source obstacles', () async {
     renderer.emit({
@@ -236,6 +269,7 @@ void main() {
       'map.obstacles.wms.visible': 'yes',
       'map.obstacles.wms.opacity': 'NaN',
       'map.obstacles.vectors.visible': 'yes',
+      'map.obstacles.vectors.models': 'yes',
       'map.obstacles.vectors.categories': '["invalid"]',
     }.entries) {
       await database
@@ -251,6 +285,38 @@ void main() {
     expect(defaults.obstacleVectorsVisible, isFalse);
     expect(defaults.obstacleCategories.length, 5);
   });
+  testWidgets(
+    'model option fits a narrow screen, toggles independently and keeps its value',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.runAsync(() => globe.obstacles.setVectorsVisible(true));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ListenableBuilder(
+                listenable: globe.obstacles,
+                builder: (_, _) => ObstacleLayersSection(
+                  controller: globe.obstacles,
+                  enabled: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final control = find.widgetWithText(SwitchListTile, '3D obstacle models');
+      await tester.ensureVisible(control);
+      await tester.tap(control);
+      await tester.pumpAndSettle();
+      expect(globe.obstacles.modelsVisible, isTrue);
+      expect(globe.obstacles.wmsVisible, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'obstacle controls and source details fit a narrow screen and expose unknown data plainly',
     (tester) async {

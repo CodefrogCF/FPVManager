@@ -143,6 +143,8 @@ flutter:
     - web/route_editor.js
     - web/signal_analysis.js
     - web/obstacle_layers.js
+    - web/obstacle_models.js
+    - web/models/obstacles/
     - web/situational_layers.js
     - web/road_navigation.js
     - web/map_compass.js

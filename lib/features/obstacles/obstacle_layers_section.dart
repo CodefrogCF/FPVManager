@@ -145,6 +145,18 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
               ? (v) => unawaited(run(() => controller.setVectorsVisible(v)))
               : null,
         ),
+        if (controller.vectorsVisible)
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('3D obstacle models'),
+            subtitle: const Text(
+              'Published height above ground · schematic shape, width and heading',
+            ),
+            value: controller.modelsVisible,
+            onChanged: enabled
+                ? (v) => unawaited(run(() => controller.setModelsVisible(v)))
+                : null,
+          ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('Highlight hazard areas'),

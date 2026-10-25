@@ -44,6 +44,7 @@ class ObstacleMapController extends ChangeNotifier {
   bool get wmsVisible => preferences().obstacleWmsVisible;
   double get wmsOpacity => preferences().obstacleWmsOpacity;
   bool get vectorsVisible => preferences().obstacleVectorsVisible;
+  bool get modelsVisible => preferences().obstacleModelsVisible;
   bool get hazardsVisible => preferences().hazardAreasVisible;
   double get bufferMeters => preferences().obstacleBufferMeters;
   bool get _needsData => vectorsVisible || hazardsVisible;
@@ -101,6 +102,15 @@ class ObstacleMapController extends ChangeNotifier {
     if (_needsData) {
       await _loadVectors();
     }
+    _notify();
+  }
+
+  Future<void> setModelsVisible(bool visible) async {
+    _editable();
+    await savePreferences(
+      preferences().copyWith(obstacleModelsVisible: visible),
+    );
+    if (vectorsVisible) await updateViewport();
     _notify();
   }
 
@@ -389,6 +399,7 @@ class ObstacleMapController extends ChangeNotifier {
         payload.add({
           'id': f.id,
           'category': f.category.name,
+          'sourceType': f.sourceType,
           if (!categories.contains(f.category)) 'supportOnly': true,
           'parts': converted,
         });
@@ -399,6 +410,7 @@ class ObstacleMapController extends ChangeNotifier {
       if (vectorsVisible) {
         await send({
           'type': 'set-obstacle-vectors',
+          'useModels': modelsVisible,
           'revision': revision,
           'features': payload,
         });

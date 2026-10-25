@@ -120,6 +120,9 @@ external KML resources. Viewport/category queries send at most 1,200 objects,
 revision-based cancellation. WMS imagery has its own non-fatal status/retry and
 does not share UAS or vector visibility. For offline KMZ validation use
 `dart run tool/check_obstacle_kmz.dart <full.kmz>`.
+Optional obstacle GLBs are Y-up, unit-height meshes scaled by trusted source AGL
+and anchored to the shared terrain sample. Regenerate with
+`python tool/generate_obstacle_models.py`; use `--check` to verify bundled files.
 
 `PolygonIntersectionIndex` checks horizontal Polygon/MultiPolygon geometry,
 including holes, boundary contact and all overlapping features, with bounding-box

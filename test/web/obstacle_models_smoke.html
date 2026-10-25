@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Metric obstacle models</title>
+<script>window.CESIUM_BASE_URL='/cesium/';</script><script src="/cesium/Cesium.js"></script>
+<script src="/obstacle_models.js"></script><script src="/obstacle_layers.js"></script>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:#fff;font:14px system-ui}#map{height:78vh}h1,p{margin:8px}h1{font-size:18px}button{margin:4px;padding:8px}pre{margin:8px;white-space:pre-wrap}</style>
+<h1 id="status">Loading local 10 metre models…</h1>
+<p>Synthetic obstacles on flat test terrain. Green rulers are exactly 10 m. Shape and width are schematic.</p>
+<div id="map"></div><button id="toggle">Switch to points and stems</button><button id="close">Dispose obstacle layer</button>
+<pre id="log"></pre><script>
+const C=Cesium,log=document.getElementById('log'),status=document.getElementById('status');
+const failModel=new URLSearchParams(location.search).has('failModel');
+const report=t=>log.textContent+=t+'\n';
+const assert=(ok,message)=>{if(!ok)throw new Error(message);};
+const viewer=new C.Viewer('map',{baseLayer:new C.ImageryLayer(new C.GridImageryProvider({color:C.Color.fromCssColorString('#506055'),glowWidth:0,cells:16})),
+ terrainProvider:new C.EllipsoidTerrainProvider(),baseLayerPicker:false,animation:false,timeline:false,geocoder:false,
+ homeButton:false,fullscreenButton:false,sceneModePicker:false,navigationHelpButton:false,infoBox:false,selectionIndicator:false,
+ requestRenderMode:true,maximumRenderTimeChange:Infinity});
+viewer.scene.globe.enableLighting=false;
+const features=[['Pylon','TRANSMISSION_LINE','powerLines'],['Pole','POLE','masts'],['Antenna','MAST','masts'],['Tower','TOWER','masts'],
+ ['Crane','CRANE','other'],['Chimney','STACK','other'],['Turbine','WINDMILL','other'],['Cableway','CABLE_CAR','cableways']].map(([id,sourceType,category],i)=>{
+ const lon=8.4+(i%4-1.5)*25/76000,lat=46.7+(i<4?1:-1)*15/111195;
+ return {id,sourceType,category,parts:[{kind:'Point',heightAgl:10,elevated:true,coordinates:[[lon,lat,10]]}]};
+});
+const vectors=FPVObstacles.createVectors(C,viewer);
+let revision=0,models=true,readyCount=0,fatal=false;
+viewer.scene.renderError.addEventListener((_,e)=>{fatal=true;status.textContent='FAIL: '+e;});
+viewer.scene.primitives.primitiveAdded.addEventListener(p=>{
+ if(!p.id?.model)return;
+ p.errorEvent.addEventListener(e=>{fatal=true;status.textContent='FAIL: model '+e;});
+ p.readyEvent.addEventListener(()=>{readyCount++;report('Loaded '+vectors.pick(p.id)?.id);});
+});
+viewer.camera.lookAt(C.Cartesian3.fromDegrees(8.4,46.7,3),new C.HeadingPitchRange(C.Math.toRadians(-25),C.Math.toRadians(-28),140));
+viewer.camera.lookAtTransform(C.Matrix4.IDENTITY);
+for(const f of features){
+ const [lon,lat]=f.parts[0].coordinates[0],rulerLon=lon-6/76000;
+ viewer.entities.add({polyline:{positions:[C.Cartesian3.fromDegrees(rulerLon,lat,0),C.Cartesian3.fromDegrees(rulerLon,lat,10)],width:2,material:C.Color.LIME,arcType:C.ArcType.NONE}});
+ for(const height of [0,10])viewer.entities.add({polyline:{positions:[C.Cartesian3.fromDegrees(rulerLon-1/76000,lat,height),C.Cartesian3.fromDegrees(rulerLon+1/76000,lat,height)],width:2,material:C.Color.LIME,arcType:C.ArcType.NONE}});
+ viewer.entities.add({position:C.Cartesian3.fromDegrees(lon,lat,12.5),label:{text:f.id+' · 10 m',font:'14px sans-serif',fillColor:C.Color.WHITE,showBackground:true,
+  backgroundColor:C.Color.fromCssColorString('#101820dd'),disableDepthTestDistance:Number.POSITIVE_INFINITY}});
+}
+async function replace(){await vectors.replace({revision:++revision,useModels:models,features});viewer.scene.requestRender();}
+document.getElementById('toggle').onclick=async()=>{models=!models;await replace();document.getElementById('toggle').textContent=models?'Switch to points and stems':'Switch to models';report(models?'Models enabled':'Original symbols enabled');};
+document.getElementById('close').onclick=()=>{vectors.dispose();status.textContent='Disposed; reference rulers and camera remain';};
+viewer.screenSpaceEventHandler.setInputAction(e=>{const pick=vectors.pick(viewer.scene.pick(e.position)?.id);if(pick)report('Selected '+pick.id);},C.ScreenSpaceEventType.LEFT_CLICK);
+(async()=>{
+ // Wait for actual ellipsoid tiles so globe.getHeight can anchor every model.
+ const deadline=performance.now()+20000;
+ while(viewer.scene.globe.getHeight(C.Cartographic.fromDegrees(8.4,46.7))==null){
+  if(performance.now()>deadline)throw new Error('Terrain not ready');
+  viewer.scene.requestRender();await new Promise(r=>setTimeout(r,100));
+ }
+ const camera=C.Cartesian3.clone(viewer.camera.positionWC);
+ await replace();
+ const source=viewer.dataSources.get(0);
+ if(failModel){
+  source.entities.values.find(e=>e.model&&vectors.pick(e)?.id==='Crane').model.uri='models/obstacles/deliberately-missing.glb';
+ }
+ while(readyCount<(failModel?7:8)){if(fatal||performance.now()>deadline)throw new Error('Model loading failed or timed out');viewer.scene.requestRender();await new Promise(r=>setTimeout(r,100));}
+ for(const entity of source.entities.values.filter(e=>e.model)){
+  assert(entity.model.scale.getValue(viewer.clock.currentTime)===10,'Wrong scale');
+  assert(entity.model.minimumPixelSize.getValue(viewer.clock.currentTime)===0,'Pixel enlargement active');
+  assert(vectors.pick(entity)?.id,'Model selection missing');
+  const selected=vectors.pick(entity),time=viewer.clock.currentTime;
+  const stem=source.entities.values.find(e=>e.polyline&&vectors.pick(e)?.id===selected.id);
+  const ends=stem.polyline.positions.getValue(time),base=entity.position.getValue(time);
+  assert(C.Cartesian3.equals(base,ends[0]),'Model and rendered terrain anchor differ');
+  assert(Math.abs(C.Cartesian3.distance(base,ends[1])-10)<1e-6,'Height differs from the 10 m reference');
+ }
+ assert(C.Cartesian3.equals(camera,viewer.camera.positionWC),'Camera moved');
+ assert(!fatal,'Render failure');
+ if(failModel){
+  const marker=source.entities.values.find(e=>e.point&&vectors.pick(e)?.id==='Crane');
+  assert(marker.show&&marker.point.distanceDisplayCondition===undefined,'Failed model hid the obstacle');
+  status.textContent='PASS: missing GLB retains its point and stem; other models and camera remain usable';
+  report('PASS: deliberately missing crane asset is a non-blocking ModelVisualizer load failure.');
+  return;
+ }
+ status.textContent='PASS: 8 local models · exact 10 m height · terrain anchor · selection · unchanged camera';
+ report('PASS: real Cesium ModelGraphics loaded all bundled GLBs. Toggle to compare the original 10 m stems.');
+})().catch(e=>{status.textContent='FAIL: '+e;report(e.stack);});
+window.addEventListener('pagehide',()=>{vectors.dispose();viewer.destroy();});
+</script></html>

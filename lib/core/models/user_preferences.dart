@@ -16,6 +16,7 @@ class UserPreferences {
     this.obstacleWmsVisible = false,
     this.obstacleWmsOpacity = 0.8,
     this.obstacleVectorsVisible = false,
+    this.obstacleModelsVisible = false,
     this.hazardAreasVisible = false,
     this.obstacleBufferMeters = 30,
     this.obstacleCategories = const {...ObstacleCategory.values},
@@ -29,6 +30,7 @@ class UserPreferences {
   final bool roadsVisible;
   final double roadsOpacity;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
+  final bool obstacleModelsVisible;
   final double obstacleWmsOpacity;
   final bool hazardAreasVisible;
   final double obstacleBufferMeters;
@@ -47,6 +49,7 @@ class UserPreferences {
     bool? obstacleWmsVisible,
     double? obstacleWmsOpacity,
     bool? obstacleVectorsVisible,
+    bool? obstacleModelsVisible,
     bool? hazardAreasVisible,
     double? obstacleBufferMeters,
     Set<ObstacleCategory>? obstacleCategories,
@@ -62,6 +65,7 @@ class UserPreferences {
     obstacleWmsOpacity: obstacleWmsOpacity ?? this.obstacleWmsOpacity,
     obstacleVectorsVisible:
         obstacleVectorsVisible ?? this.obstacleVectorsVisible,
+    obstacleModelsVisible: obstacleModelsVisible ?? this.obstacleModelsVisible,
     hazardAreasVisible: hazardAreasVisible ?? this.hazardAreasVisible,
     obstacleBufferMeters: obstacleBufferMeters ?? this.obstacleBufferMeters,
     obstacleCategories: Set.unmodifiable(

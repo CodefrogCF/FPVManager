@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,12 +50,27 @@ void main() {
         'flight_rendering.js',
         'route_editor.js',
         'obstacle_layers.js',
+        'obstacle_models.js',
         'situational_layers.js',
         'road_navigation.js',
         'map_compass.js',
       ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);
+      }
+      for (final model in [
+        'power-pylon',
+        'utility-pole',
+        'antenna-mast',
+        'lattice-tower',
+        'tower-crane',
+        'chimney',
+        'wind-turbine',
+        'cableway-support',
+      ]) {
+        final bytes = await rootBundle.load('web/models/obstacles/$model.glb');
+        expect(bytes.getUint32(0, Endian.little), 0x46546c67);
+        expect(bytes.getUint32(8, Endian.little), bytes.lengthInBytes);
       }
       expect(
         await rootBundle.loadString('web/map_providers.js'),

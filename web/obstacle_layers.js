@@ -1,7 +1,7 @@
 (function (root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory();
-    else root.FPVObstacles = factory();
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./obstacle_models.js'));
+    else root.FPVObstacles = factory(root.FPVObstacleModels);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (Models) {
     'use strict';
     const WMS = Object.freeze({url: 'https://wms.geo.admin.ch/',
         layer: 'ch.bazl.luftfahrthindernis', bounds: [3.329595,44.074747,14.278255,49.200438],
@@ -223,31 +223,37 @@
         // rendered terrain sample. Never keep the original absolute top while
         // moving only the bottom: doing so changes the displayed object height.
         // Original source elevations remain in Flutter's obstacle attributes.
-        function pointAboveTerrain(coordinate, agl, color, next, heights) {
+        function pointAboveTerrain(coordinate, agl, color, next, heights, models, sourceType) {
             const [lon,lat,sourceElevation] = coordinate;
             const sourceTop = Number.isFinite(sourceElevation) ? sourceElevation : 0;
             const fallbackTop = C.Cartesian3.fromDegrees(lon,lat,sourceTop);
             const marker = next.entities.add({position:fallbackTop, show:false,
                 point:{pixelSize:7,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.NONE}});
             const stem = next.entities.add({polyline:{positions:[fallbackTop,fallbackTop],show:false,width:2,material:color,arcType:C.ArcType.NONE}});
+            const model = models?.add(sourceType,agl,fallbackTop,next,marker,stem);
             heights.watch([coordinate], ([point]) => {
                 const ground = point.height, visible = ground != null && ground + agl <= 16000;
                 marker.show = visible; stem.polyline.show = visible;
+                if (model) model.show = visible;
                 if (!visible) return;
                 const top = C.Cartesian3.fromDegrees(lon,lat,ground + agl);
                 marker.position = top;
-                stem.polyline.positions = [C.Cartesian3.fromDegrees(lon,lat,ground),top];
+                const base = C.Cartesian3.fromDegrees(lon,lat,ground);
+                stem.polyline.positions = [base,top];
+                if (model) model.position = base;
             });
-            return {marker,stem};
+            return [marker,stem,...(model ? [model] : [])];
         }
         function validate(command) {
             if (!Number.isSafeInteger(command.revision) || !Array.isArray(command.features) ||
-                command.features.length > 1200) throw new Error('Invalid obstacle batch');
+                command.features.length > 1200 ||
+                (command.useModels != null && typeof command.useModels !== 'boolean')) throw new Error('Invalid obstacle batch');
             let vertices = 0, parts = 0;
             const ids = new Set();
             for (const f of command.features) {
                 if (typeof f.id !== 'string' || f.id.length > 160 || ids.has(f.id) ||
-                    !Object.hasOwn(colors,f.category) || !Array.isArray(f.parts)) throw new Error('Invalid obstacle feature');
+                    !Object.hasOwn(colors,f.category) || !Array.isArray(f.parts) ||
+                    (f.sourceType != null && (typeof f.sourceType !== 'string' || f.sourceType.length > 80))) throw new Error('Invalid obstacle feature');
                 ids.add(f.id);
                 for (const p of f.parts) {
                     parts++;
@@ -338,6 +344,9 @@
             remove(staged); staged = null;
             const next = new C.CustomDataSource('Swiss aviation obstacles');
             const heights = terrainBindings(next.entities);
+            const models = command.useModels ? Models.create(C,viewer) : null;
+            const cleanupHeights = heights.dispose;
+            heights.dispose = () => { models?.dispose(); cleanupHeights(); };
             staged = next;
             const ids = new Map();
             const current = () => !disposed && revision === command.revision && !signal?.aborted;
@@ -361,9 +370,9 @@
                         }
                         const colorPoint = p.kind === 'Point' && p.heightAgl != null;
                         if (colorPoint) {
-                            const {marker,stem} = pointAboveTerrain(p.coordinates[0],p.heightAgl,color,next,heights);
-                            ids.set(marker.id,{id:f.id,revision:command.revision});
-                            ids.set(stem.id,{id:f.id,revision:command.revision});
+                            const entities = pointAboveTerrain(p.coordinates[0],p.heightAgl,color,next,heights,
+                                f.parts.length === 1 ? models : null,f.sourceType);
+                            for (const entity of entities) ids.set(entity.id,{id:f.id,revision:command.revision});
                             continue;
                         }
                         const points = p.coordinates.map(a => C.Cartesian3.fromDegrees(a[0],a[1],p.elevated ? a[2] : 0));

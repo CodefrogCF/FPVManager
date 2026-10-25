@@ -15,6 +15,7 @@ void main() {
           'web/globe.html',
           'web/cesium/Workers/test.js',
           'web/cesium/ThirdParty/test.wasm',
+          'web/models/obstacles/test.glb',
         },
         load: (path) async {
           loaded.add(path);
@@ -27,6 +28,7 @@ void main() {
           'globe.html': 'text/html',
           'cesium/Workers/test.js': 'application/javascript',
           'cesium/ThirdParty/test.wasm': 'application/wasm',
+          'models/obstacles/test.glb': 'model/gltf-binary',
         }.entries) {
           final response = await (await client.getUrl(
             server.origin.resolve('/${asset.key}'),
