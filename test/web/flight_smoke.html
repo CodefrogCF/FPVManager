@@ -80,21 +80,40 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(!v.scene.screenSpaceCameraController.enableInputs,'Orbital input active');
   log('Actual Cesium spawns at terrain +20m with FPV camera, HUD and an independent saved route overlay');
   if(new URLSearchParams(location.search).has('radio')){
+    // Keep software-rendered input checks independent of GPU throughput.
+    v.resolutionScale=.35;v.scene.msaaSamples=1;
     const axes=[0,0,-1,0],pad={connected:true,mapping:'',index:0,id:'Synthetic USB radio',axes,buttons:[]};
-    Object.defineProperty(win.navigator,'getGamepads',{configurable:true,value:()=>[pad]});
+    let polling=true;
+    Object.defineProperty(win.navigator,'getGamepads',{configurable:true,value:()=>polling?[pad]:[]});
+    const renderFrame=()=>new Promise(resolve=>{
+      const remove=v.scene.postRender.addEventListener(()=>{remove();resolve();});v.scene.requestRender();
+    });
+    const deviceEvent=type=>{
+      const event=new win.Event(type);Object.defineProperty(event,'gamepad',{value:pad});win.dispatchEvent(event);
+    };
     await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:800,flightMode:'acro',controller:{layout:'radio',throttleZero:'bottom'}});
     canvas.focus();await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Radio low-throttle activation');
     check(doc.getElementById('hud-throttle').textContent==='0','Radio bottom must be zero gas');
     axes[2]=0;await until(()=>doc.getElementById('hud-throttle').textContent==='50','Radio centre half gas');
     axes[2]=1;await until(()=>doc.getElementById('hud-throttle').textContent==='100','Radio full gas');
-    settingsButton.click();const zero=doc.getElementById('controller-zero');
+    const stallEnd=performance.now()+450;while(performance.now()<stallEnd){}
+    deviceEvent('gamepadconnected');await renderFrame();
+    check(doc.getElementById('navigation-device').textContent==='Controller ready','Render stall or delayed initial connection revoked radio activation');
+    polling=false;await renderFrame();
+    check(doc.getElementById('navigation-device').textContent.includes('input paused'),'Missing Web poll did not pause controller input');
+    polling=true;await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Web polling recovery without idle');
+    await until(()=>doc.getElementById('hud-throttle').textContent==='100','Fresh Web throttle after recovery');
+    check(doc.getElementById('controller-last-interruption').textContent.includes('temporarily unavailable'),'Last input interruption is not inspectable');
+    log('Actual render loop retains radio activation after a blocked thread, delayed connection event and brief polling gap; fresh full throttle resumes without idle');
+    settingsButton.focus();settingsButton.click();const zero=doc.getElementById('controller-zero');
+    check(doc.getElementById('controller-last-interruption').textContent.includes('temporarily unavailable'),'Opening HUD settings hid the preceding data interruption');
     zero.value='center';zero.dispatchEvent(new win.Event('change',{bubbles:true}));
     await until(()=>flight.controller?.throttleZero==='center','Radio live zero update');
     settingsButton.click();await until(()=>doc.getElementById('hud-throttle').textContent==='0','Changed zero waits for idle');
     await until(()=>doc.getElementById('navigation-device').textContent.includes('Centre controller'),'Updated centre-zero activation prompt');
     axes[2]=0;await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Radio centre activation');
     axes[2]=.6;await until(()=>doc.getElementById('hud-throttle').textContent==='60','Radio upper half gas');
-    pad.connected=false;await until(()=>doc.getElementById('hud-throttle').textContent==='0','Radio unplug clears gas');
+    pad.connected=false;deviceEvent('gamepaddisconnected');await until(()=>doc.getElementById('hud-throttle').textContent==='0','Radio unplug clears gas');
     log('Unmapped USB radio drives actual Acro controls: bottom 0/50/100%, centre 0/60%, idle gate and unplug reset');
     await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:800,flightMode:'acro',controller:{layout:'radio',throttleZero:'bottom'}});
     const native={connected:true,generation:42,axes:[0,0,-1,0],forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false};
@@ -103,8 +122,18 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
       canvas.focus();await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Native radio activation');
       native.axes[2]=0;await until(()=>doc.getElementById('hud-throttle').textContent==='50','Native radio midpoint');
       native.axes[2]=1;await until(()=>doc.getElementById('hud-throttle').textContent==='100','Native radio full gas');
+      const gapStart=performance.now();
+      native.stale=true;await command('navigation-input',native);await renderFrame();
+      check(doc.getElementById('navigation-device').textContent.includes('input paused'),'Stale native data did not pause controller input');
+      native.stale=false;native.axes[2]=0;await command('navigation-input',native);
+      check(performance.now()-gapStart<750,'Native test gap exceeded the recovery window: '+(performance.now()-gapStart).toFixed(0)+' ms');
+      await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Fresh native recovery without idle');
+      await until(()=>doc.getElementById('hud-throttle').textContent==='50','Fresh native throttle after recovery');
+      log('Native transport recovers on current axes after a brief stale heartbeat without requiring bottom throttle');
+      native.axes[2]=1;await until(()=>doc.getElementById('hud-throttle').textContent==='100','Native full throttle before replacement');
       native.generation++;await until(()=>doc.getElementById('hud-throttle').textContent==='0','Replacement radio requires idle');
       native.axes[2]=-1;await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Replacement radio activation');
+      native.axes[2]=1;await until(()=>doc.getElementById('hud-throttle').textContent==='100','Replacement radio full gas');
       native.connected=false;await until(()=>doc.getElementById('hud-throttle').textContent==='0','Native radio disconnect');
     }finally{clearInterval(interval);}
     await command('reset-simulation');await until(()=>flight.controller?.throttleZero==='bottom','Radio settings retained on reset');

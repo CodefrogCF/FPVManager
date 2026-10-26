@@ -100,7 +100,20 @@ class NavigationDeviceInput {
     final stale =
         _received == null ||
         _elapsed() - _received! > const Duration(milliseconds: 250);
-    final frame = stale ? _neutral : _latest!;
+    // A delayed heartbeat is not evidence of a physical USB disconnection.
+    // Send no axes while stale, but retain identity so fresh values from the
+    // same connection can recover without a spurious low-throttle handshake.
+    final frame = stale && _latest!['connected'] == true
+        ? <String, dynamic>{
+            ..._neutral,
+            'connected': true,
+            'stale': true,
+            if (_latest!['generation'] != null)
+              'generation': _latest!['generation'],
+          }
+        : stale
+        ? _neutral
+        : _latest!;
     _sending = true;
     try {
       await send(frame);

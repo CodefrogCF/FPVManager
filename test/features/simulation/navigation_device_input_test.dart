@@ -76,7 +76,8 @@ void main() {
       elapsed = const Duration(milliseconds: 300);
       await tester.pump(const Duration(milliseconds: 300));
       expect(sent.last['forward'], 0);
-      expect(sent.last['connected'], isFalse);
+      expect(sent.last['connected'], isTrue);
+      expect(sent.last['stale'], isTrue);
       input.setEnabled(false);
       final count = sent.length;
       await tester.pump(const Duration(milliseconds: 100));
@@ -156,8 +157,20 @@ void main() {
       }
       elapsed = const Duration(milliseconds: 300);
       await tester.pump(const Duration(milliseconds: 40));
-      expect(sent.last['connected'], false);
+      expect(sent.last['connected'], true);
+      expect(sent.last['stale'], true);
+      expect(sent.last['generation'], 7);
       expect(sent.last.containsKey('axes'), false);
+      await emit({
+        ...radio,
+        'axes': [0.0, 0.0, .8, 0.0],
+      });
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(sent.last['axes'], [0.0, 0.0, .8, 0.0]);
+      expect(sent.last['stale'], isNot(true));
+      await emit({...neutral, 'connected': false, 'generation': 8});
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(sent.last['connected'], false);
       input.dispose();
       await tester.pump();
     },

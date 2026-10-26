@@ -11,7 +11,7 @@ class Target{
     focus(){this.onFocus?.();}setPointerCapture(){}getBoundingClientRect(){return this.rect;}
 }
 function setup(mode='ground',flightAgent=null){
-    let time=0,pads=[],active=true;const movements=[],looks=[],vertical=[],states=[];
+    let time=0,pads=[],active=true;const movements=[],looks=[],vertical=[],states=[],interruptions=[];
     const canvas=new Target(),stick=new Target({left:0,top:450,width:100,height:100}),thumb=new Target(),look=new Target(),lookThumb=new Target();
     const panel=new Target(),host=new Target(),doc=new Target();
     doc.getElementById=id=>id==='look-stick'?look:lookThumb;doc.activeElement=canvas;doc.hasFocus=()=>true;doc.hidden=false;
@@ -20,9 +20,9 @@ function setup(mode='ground',flightAgent=null){
     host.navigator={getGamepads:()=>pads};host.performance={now:()=>time};
     const agent=flightAgent??{status:()=>({active,mode}),flightInput:frame=>movements.push(frame),stick:(...v)=>movements.push(v),look:(...v)=>looks.push(v),
         key(){},clearKeys(){},vertical:v=>vertical.push(v),stop:()=>active=false,reset:()=>states.push('reset'),pause:v=>states.push(v)};
-    const binding=bindControls(agent,canvas,panel,host,doc,{onDevice:v=>states.push(v)});
+    const binding=bindControls(agent,canvas,panel,host,doc,{onDevice:v=>states.push(v),onInterruption:v=>interruptions.push(v)});
     binding.tick(.1);
-    return {binding,canvas,stick,thumb,look,lookThumb,host,doc,movements,looks,vertical,states,
+    return {binding,canvas,stick,thumb,look,lookThumb,host,doc,movements,looks,vertical,states,interruptions,
         pads:v=>pads=v,time:v=>time=v,active:()=>active};
 }
 function pad({x=0,y=0,rx=0,ry=0,lt=0,rt=0,a=0,b=0}={}){return {connected:true,mapping:'standard',axes:[x,y,rx,ry],
@@ -152,4 +152,78 @@ test('native inputs expire, reject nonfinite frames and edge-trigger reset and e
     p.binding.native({...neutral,forward:NaN});p.binding.tick(.1);assert.deepEqual(p.movements.at(-1),[0,0]);
     p.binding.native(neutral);p.binding.tick(.1);p.binding.native({...neutral,exit:true});p.binding.tick(.1);assert.equal(p.active(),false);
     p.binding();assert.equal(p.canvas.listeners.get('pointermove').size,0);
+});
+
+test('render stalls with a fresh Web snapshot retain authorization and read current axes without catch-up',()=>{
+    const p=setup('acro');p.pads([pad()]);p.binding.tick(.1);
+    p.pads([pad({y:-1})]);p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,1);
+    p.time(5000);p.pads([pad({y:0,rx:1})]);p.binding.tick(5);
+    assert.equal(p.movements.at(-1).throttle,0);assert.equal(p.movements.at(-1).roll,1);
+    assert.equal(p.interruptions.length,0);p.binding();
+});
+
+test('short Web polling gaps neutralize output and resume the same controller on current data',()=>{
+    const p=setup('acro');p.pads([pad()]);p.binding.tick(.1);
+    p.pads([pad({y:-1,a:1})]);p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,1);
+    p.time(100);p.pads([]);p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,0);
+    assert.equal(p.interruptions.at(-1),'Controller data temporarily unavailable');
+    p.time(400);p.pads([pad({y:-.8,rx:1,a:1})]);p.binding.tick(.1);
+    assert.ok(p.movements.at(-1).throttle>.7);assert.equal(p.movements.at(-1).roll,1);
+    assert.equal(p.states.filter(v=>v==='reset').length,1,'A held button is not pressed again after a gap');
+    p.binding();
+});
+
+test('long polling gaps, real disconnection during a gap and reconnect require neutral again',()=>{
+    for(const reason of ['timeout','disconnect','reconnect']){
+        const p=setup('acro');p.pads([pad()]);p.binding.tick(.1);p.pads([pad({y:-1})]);p.binding.tick(.1);
+        p.time(100);p.pads([]);p.binding.tick(.1);
+        if(reason==='disconnect')p.host.fire('gamepaddisconnected');
+        if(reason==='reconnect'){
+            p.host.fire('gamepaddisconnected');
+            p.host.fire('gamepadconnected',{gamepad:{index:undefined,id:undefined}});
+        }
+        p.time(reason==='timeout'?1000:300);p.pads([pad({y:-1})]);p.binding.tick(.1);
+        assert.equal(p.movements.at(-1).throttle,0,reason);
+        p.pads([pad()]);p.binding.tick(.1);p.pads([pad({y:-1})]);p.binding.tick(.1);
+        assert.equal(p.movements.at(-1).throttle,1,reason);p.binding();
+    }
+});
+
+test('delayed native heartbeats resume without WebView source switching, but physical removal and generation changes rearm',()=>{
+    const p=setup('acro'),neutral={forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false,connected:true,generation:7};
+    p.binding.native(neutral);p.binding.tick(.1);p.binding.native({...neutral,forward:1});p.binding.tick(.1);
+    p.pads([pad({y:-1})]);p.time(300);p.binding.tick(.1);
+    assert.equal(p.movements.at(-1).throttle,0,'Do not fall back to a duplicate WebView device');
+    p.binding.native({...neutral,stale:true});p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,0);
+    p.time(500);p.binding.native({...neutral,forward:.7});p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,.7);
+    p.binding.native({...neutral,generation:8,forward:1});p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,0);
+    p.binding.native({...neutral,generation:8});p.binding.tick(.1);p.binding.native({...neutral,generation:8,forward:1});p.binding.tick(.1);
+    p.binding.native({...neutral,generation:8,connected:false});p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,0);
+    p.binding.native({...neutral,generation:8,forward:1});p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,0);
+    p.binding();
+});
+
+test('disconnecting an unrelated gamepad does not reset the selected controller',()=>{
+    const p=setup('acro');p.pads([pad()]);p.binding.tick(.1);p.pads([pad({y:-1})]);p.binding.tick(.1);
+    p.host.fire('gamepaddisconnected',{gamepad:{index:5,id:'unrelated'}});p.binding.tick(.1);
+    assert.equal(p.movements.at(-1).throttle,1);assert.equal(p.interruptions.length,0);p.binding();
+});
+
+test('fresh native arrivals end a short gap even when rendering resumes later, while late arrivals require idle',()=>{
+    const p=setup('acro'),neutral={forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false,connected:true,generation:7};
+    p.binding.native(neutral);p.binding.tick(.1);p.binding.native({...neutral,forward:1});p.binding.tick(.1);
+    p.time(300);p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,0);
+    for(const time of [500,700,900,1100,1300,1500]){p.time(time);p.binding.native({...neutral,forward:.7});}
+    p.time(1600);p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,.7);
+    assert.ok(!p.interruptions.includes('Controller input timed out'));
+    p.time(1900);p.binding.tick(.1);p.time(2800);p.binding.native({...neutral,forward:1});p.binding.tick(.1);
+    assert.equal(p.movements.at(-1).throttle,0,'Fresh data arriving after a long gap still requires idle');
+    p.binding.native(neutral);p.binding.tick(.1);p.binding.native({...neutral,forward:1});p.binding.tick(.1);
+    assert.equal(p.movements.at(-1).throttle,1);p.binding();
+});
+
+test('a delayed initial gamepadconnected notification after a render stall does not rearm an active controller',()=>{
+    const p=setup('acro');p.pads([pad()]);p.binding.tick(.1);p.pads([pad({y:-1})]);p.binding.tick(.1);
+    p.time(2000);p.host.fire('gamepadconnected',{gamepad:{index:undefined,id:undefined}});p.binding.tick(2);
+    assert.equal(p.movements.at(-1).throttle,1);assert.equal(p.interruptions.length,0);p.binding();
 });

@@ -170,7 +170,10 @@ if a direct USB-C cable is not detected, try a suitable OTG adapter. Web needs a
 secure context (HTTPS or localhost) and browser Gamepad API support.
 Use zero throttle, centre the other sticks and release gamepad buttons after
 connecting, changing assignments or resuming. Android also handles native gamepad axes/buttons. Input stops on focus loss and
-disconnect. Tap the view to resume; terrain loss returns to the globe. Movement
+disconnect. Brief input gaps pause controller commands; fresh values from the same
+controller can resume within 750 ms without repeating the idle check. Longer gaps
+require idle again. **HUD settings → External controller** shows recent input
+interruptions for this session. Tap the view to resume; terrain loss returns to the globe. Movement
 waits for terrain tiles and stops at terrain contact. Terrain refinement can
 adjust the camera floor. Buildings, vegetation and cables have no collision model.
 

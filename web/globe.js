@@ -876,8 +876,14 @@ function postToFlutter(message) {
             vertical:v=>{if(flyer.active)flyer.vertical(v);},
             pause:value=>flyer.pause(value),clearKeys:()=>{walker.clearKeys();flyer.clearKeys();},
             reset:()=>{if(flyer.active)flyer.reset().catch(()=>{});}};
+        const controllerInterruptions=[];
         disposeGroundControls=FPVNavigationControls.bindControls(navigation,viewer.canvas,groundPanel,window,document,{
             onFocus:focused=>sendToFlutter('navigation-focus',{focused}),
+            onInterruption:message=>{
+                if(controllerInterruptions.at(-1)!==message)controllerInterruptions.push(message);
+                if(controllerInterruptions.length>3)controllerInterruptions.shift();
+                document.getElementById('controller-last-interruption').textContent=`Recent interruptions: ${controllerInterruptions.join(' · ')}`;
+            },
             onDevice:message=>{deviceMessage=message;device.textContent=message;flightHud.device(message);}});
         document.getElementById('reset-flight').addEventListener('click',()=>flyer.reset().catch(()=>{}));
         document.getElementById('exit-flight').addEventListener('click',()=>flyer.stop());

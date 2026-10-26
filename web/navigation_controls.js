@@ -12,16 +12,32 @@
         let left=null,look=null,drag=null,f=0,r=0,yaw=0,pitch=0,vertical=0;
         let focused=false,armed=false,lastDevice=null,previousReset=false,previousExit=false,native=null,nativeAt=-Infinity;
         let lastConfiguration=null,lastSource=null;
+        let gapSince=null,gapExpired=false;
+        let nativeEstablished=false;
+        const recoveryWindowMs=750;
         const now=()=>host.performance?.now?.()??Date.now();
         const keys=new Set(),verticalReleases=[];
         const isFpv=()=>['angle','acro'].includes(agent.status().mode);
         function listen(target,type,fn){target?.addEventListener(type,fn);cleanups.push(()=>target?.removeEventListener(type,fn));}
         function showDevice(message){if(lastDevice!==message){lastDevice=message;options.onDevice?.(message);}}
+        function interruption(reason){options.onInterruption?.(reason);}
+        function freshInput(){
+            if(gapSince!==null&&now()-gapSince>=recoveryWindowMs){
+                if(!gapExpired)interruption('Controller input timed out');
+                armed=false;
+            }
+            gapSince=null;gapExpired=false;
+        }
+        function disconnected(){
+            armed=false;lastSource=null;gapSince=null;gapExpired=false;
+            previousReset=previousExit=false;agent.clearKeys();applyStick();
+            showDevice('Controller disconnected');interruption('Controller disconnected');
+        }
         function applyStick(){if(!isFpv()){agent.stick(f,r);agent.vertical?.(vertical);}}
         function resetLook(){look=drag=null;yaw=pitch=0;if(lookStick)lookStick.hidden=true;if(lookThumb)lookThumb.style.transform='translate(0px, 0px)';}
         function resetLeft(){left=null;f=r=0;if(thumb)thumb.style.transform='translate(0px, 0px)';applyStick();}
-        function clear(){keys.clear();agent.clearKeys();resetLeft();resetLook();vertical=0;for(const release of verticalReleases)release();native=null;nativeAt=-Infinity;armed=false;lastSource=null;previousReset=previousExit=false;applyStick();showDevice('');}
-        function focus(value){if(focused===value)return;focused=value;if(!value)clear();agent.pause?.(!value);options.onFocus?.(value);}
+        function clear(){keys.clear();agent.clearKeys();resetLeft();resetLook();vertical=0;for(const release of verticalReleases)release();native=null;nativeAt=-Infinity;nativeEstablished=false;armed=false;lastSource=null;gapSince=null;gapExpired=false;previousReset=previousExit=false;applyStick();showDevice('');}
+        function focus(value){if(focused===value)return;focused=value;if(!value){clear();interruption('View lost focus');}agent.pause?.(!value);options.onFocus?.(value);}
         canvas.tabIndex=0;
         listen(canvas,'focus',()=>focus(true));listen(canvas,'blur',()=>focus(false));listen(host,'blur',()=>focus(false));
         listen(doc,'visibilitychange',()=>{if(doc.hidden){focus(false);agent.stop('View paused');}});
@@ -83,7 +99,12 @@
                 if(pointer===event.pointerId){pointer=null;vertical=0;applyStick();}
             });
         }
-        listen(host,'gamepaddisconnected',()=>{armed=false;agent.clearKeys();applyStick();showDevice('Controller disconnected');});
+        listen(host,'gamepaddisconnected',event=>{
+            const source=event.gamepad&&`web:${event.gamepad.index}:${event.gamepad.id}`;
+            if(!source||source===lastSource)disconnected();
+        });
+        // A delayed initial gamepadconnected event may follow an already valid
+        // poll. Only a disconnection or a different source revokes that grant.
         const dispose=()=>{clear();agent.stop();for(const remove of cleanups)remove();options.onFocus?.(false);};
         dispose.reset=clear;
         dispose.native=frame=>{
@@ -93,18 +114,32 @@
                 !['reset','exit','connected'].every(k=>typeof frame[k]==='boolean'))return;
             if(frame.axes!==undefined&&(!Array.isArray(frame.axes)||frame.axes.length>16||frame.axes.some(v=>!Number.isFinite(v)||Math.abs(v)>1)))return;
             if(frame.generation!==undefined&&(!Number.isSafeInteger(frame.generation)||frame.generation<0))return;
+            if(frame.stale!==undefined&&typeof frame.stale!=='boolean')return;
             native={...frame};nativeAt=now();
-            if(frame.connected===false){armed=false;agent.clearKeys();showDevice('Controller disconnected');}
+            if(frame.connected)nativeEstablished=true;
+            // Resolve a gap when valid data arrives, rather than on the next
+            // render tick: rendering may itself have been delayed meanwhile.
+            if(frame.connected&&!frame.stale&&lastSource==='native:'+String(frame.generation??0)&&
+                !controller.nativeFrame(frame,lastConfiguration??controller.defaults,isFpv()).unsupported)freshInput();
+            if(frame.connected===false){if(lastSource?.startsWith('native:'))disconnected();}
         };
         dispose.tick=seconds=>{
             if(!agent.status().active){clear();return;}
             if(doc.activeElement!==undefined)focus(!doc.hidden&&doc.activeElement===canvas&&(doc.hasFocus?.()??true));
             if(!focused)return;
             const fpv=isFpv(),c=agent.status().controller??controller.defaults;
-            if(lastConfiguration!==c){armed=false;lastConfiguration=c;}
+            if(lastConfiguration!==c){
+                if(lastConfiguration!==null)interruption('Controller settings changed');
+                armed=false;lastConfiguration=c;gapSince=null;gapExpired=false;
+            }
             let pad=null,source=null;
-            if(now()-nativeAt<250){
-                if(native?.connected){pad=controller.nativeFrame(native,c,fpv);source='native:'+String(native.generation??0);}
+            if(native&&(native.connected||nativeEstablished)){
+                // Keep the native transport selected during a stall. Switching
+                // to the WebView's second copy creates false device changes.
+                if(native.connected){
+                    source='native:'+String(native.generation??0);
+                    if(!native.stale&&now()-nativeAt<250)pad=controller.nativeFrame(native,c,fpv);
+                }
             }
             else{try{
                 const candidates=Array.from(host.navigator?.getGamepads?.()??[]).filter(p=>p?.connected);
@@ -112,16 +147,29 @@
                 if(!pad&&candidates.length)showDevice(c.layout==='radio'&&!fpv?'USB radio channels require Angle or Acro mode':'Unmapped controller: choose USB radio and assign its channels in flight settings');
             }catch(_){showDevice('Gamepad unavailable in this browser');}}
             if(pad?.unsupported){pad=null;showDevice(c.layout==='radio'&&!fpv?'USB radio channels require Angle or Acro mode':'Radio channels unavailable: check the channel assignment');}
-            if(source!==lastSource){armed=false;if(source===null&&lastSource!==null)showDevice('Controller disconnected');lastSource=source;}
+            if(source!==null&&source!==lastSource){
+                if(lastSource!==null)interruption('Controller device changed');
+                armed=false;lastSource=source;gapSince=null;gapExpired=false;
+            }
             if(pad){
+                freshInput();
                 const neutral=controller.neutral(pad,c,fpv);
                 if(!armed&&neutral)armed=true;
                 showDevice(armed?'Controller ready':fpv&&c.throttleZero==='bottom'?'Lower throttle fully and centre the other sticks to enable':'Centre controller sticks to enable');
                 if(!armed)pad=null;
+            }else if(lastSource!==null){
+                if(gapSince===null){gapSince=now();interruption('Controller data temporarily unavailable');}
+                if(now()-gapSince>=recoveryWindowMs){
+                    if(!gapExpired)interruption('Controller input timed out');
+                    armed=false;gapExpired=true;
+                }
+                showDevice(gapExpired?'Controller input timed out; waiting for fresh data':'Controller input paused; waiting for fresh data');
             }else{armed=false;}
-            if(pad?.exit&&!previousExit)agent.stop();
-            else if(pad?.reset&&!previousReset)agent.reset?.();
-            previousExit=!!pad?.exit;previousReset=!!pad?.reset;
+            if(pad){
+                if(pad.exit&&!previousExit)agent.stop();
+                else if(pad.reset&&!previousReset)agent.reset?.();
+                previousExit=!!pad.exit;previousReset=!!pad.reset;
+            }else if(!armed){previousExit=previousReset=false;}
             const dt=Number.isFinite(seconds)?Math.max(0,Math.min(.1,seconds)):0;
             if(fpv){
                 const collective=pad?controller.throttle(clamp(pad.forward+pad.vertical),c.throttleZero):0;
