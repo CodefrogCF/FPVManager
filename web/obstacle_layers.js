@@ -125,7 +125,11 @@
 
     function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0)),
         isTerrainReady = () => true, now = () => performance.now(), terrainBatchSize = 128} = {}) {
-        let source = null, staged = null, revision = -1, disposed = false;
+        let source = null, sourceReady = null, revision = -1, disposed = false;
+        let records = new Map();
+        const heightCache = new Map(), pendingRecords = new Set();
+        let terrainProvider = viewer.terrainProvider, heightGeneration = 0;
+        const models = Models.create(C,viewer);
         if (!Number.isInteger(terrainBatchSize) || terrainBatchSize < 1 || terrainBatchSize > 512) throw new Error('Invalid terrain batch size');
         let terrain = null, terrainEpoch = 0;
         let selection = new Map();
@@ -144,15 +148,15 @@
         function terrainBindings(entities) {
             const locations = new Map(), bindings = new Set();
             let scan = null, scannedEpoch = -1, scannedAt = -Infinity;
-            function watch(coordinates, apply) {
+            function watch(coordinates, apply, force = false) {
                 const points = coordinates.map(([lon,lat]) => {
                     const key = `${lon},${lat}`;
                     if (!locations.has(key)) locations.set(key, {
-                        location:C.Cartographic.fromDegrees(lon,lat), height:undefined, bindings:new Set()
+                        key, location:C.Cartographic.fromDegrees(lon,lat), height:heightCache.get(key), generation:heightGeneration, bindings:new Set()
                     });
                     return locations.get(key);
                 });
-                const binding = {points,apply};
+                const binding = {points,apply,force};
                 bindings.add(binding);
                 for (const point of points) point.bindings.add(binding);
             }
@@ -161,8 +165,10 @@
                 const end = Math.min(scan.index + terrainBatchSize, scan.points.length), ready = isTerrainReady();
                 for (; scan.index < end; scan.index++) {
                     const point = scan.points[scan.index];
+                    if (point.generation !== heightGeneration) { point.height=undefined; point.generation=heightGeneration; }
                     const height = ready ? viewer.scene.globe.getHeight(point.location) : undefined;
-                    point.next = Number.isFinite(height) && height >= -1500 && height <= 16000 ? height : null;
+                    point.next = !ready ? null : Number.isFinite(height) && height >= -1500 && height <= 16000
+                        ? height : point.height ?? heightCache.get(point.key) ?? null;
                 }
                 return scan.index === scan.points.length;
             }
@@ -170,14 +176,21 @@
                 const changed = new Set();
                 const ready = isTerrainReady();
                 for (const point of scan.points) {
-                    if (!ready) point.next = null;
+                    if (!ready || point.generation !== heightGeneration) {
+                        point.next = null; point.generation=heightGeneration;
+                    }
+                    if (point.next != null) {
+                        heightCache.delete(point.key); heightCache.set(point.key,point.next);
+                        if (heightCache.size > 40000) heightCache.delete(heightCache.keys().next().value);
+                    }
                     if (point.height !== point.next) {
                         point.height = point.next;
                         for (const binding of point.bindings) changed.add(binding);
                     }
                 }
+                for (const binding of bindings) if (binding.force) changed.add(binding);
                 entities.suspendEvents?.();
-                try { for (const binding of changed) binding.apply(binding.points); }
+                try { for (const binding of changed) { binding.apply(binding.points); binding.force=false; } }
                 finally { entities.resumeEvents?.(); }
                 scannedEpoch = scan.epoch; scannedAt = now(); scan = null;
                 if (changed.size) viewer.scene.requestRender?.();
@@ -187,8 +200,9 @@
                 async prime(current) {
                     begin();
                     while (!batch()) { await yieldBatch(); if (!current()) return; }
-                    if (current()) commit();
+                    // Reconciliation publishes heights and entities together.
                 },
+                commit,
                 update() {
                     if (!locations.size) return;
                     if (!scan) {
@@ -207,7 +221,11 @@
         }
         function terrainChanged() {
             terrainEpoch++;
-            if (!isTerrainReady()) terrain?.hide();
+            if (!isTerrainReady() || viewer.terrainProvider !== terrainProvider) {
+                terrainProvider = viewer.terrainProvider;
+                heightGeneration++;
+                heightCache.clear(); terrain?.hide();
+            }
         }
         const listeners = [
             (viewer.scene.preUpdate ?? viewer.scene.preRender)?.addEventListener(() => terrain?.update()),
@@ -326,10 +344,12 @@
             const entity = next.entities.add({name:'Approximate cable display anchored to published support tops',polyline:{
                 positions:source,show:false,width:3,material:color,arcType:C.ArcType.NONE}});
             heights.watch(anchors.map(a => [a.support.lon,a.support.lat]), points => {
-                const visible = points.every(point => point.height != null);
-                entity.polyline.show = visible;
-                if (!visible) return;
-                const deltas = anchors.map((a,i) => points[i].height + a.support.agl - p.coordinates[a.index][2]);
+                // Absolute source geometry remains valid even when an offscreen
+                // support has never had a rendered terrain sample. Adjust only
+                // known anchors; never invent terrain or a cable elevation.
+                entity.polyline.show = true;
+                const deltas = anchors.map((a,i) => points[i].height == null ? 0
+                    : points[i].height + a.support.agl - p.coordinates[a.index][2]);
                 entity.polyline.positions = p.coordinates.map((a,i) => {
                     const w = weights[i];
                     return w ? C.Cartesian3.fromDegrees(a[0],a[1],a[2]+deltas[w.left]*(1-w.t)+deltas[w.right]*w.t) : source[i];
@@ -337,27 +357,55 @@
             });
             return entity;
         }
+        function forget(record) {
+            for (const entity of record.entities) models.remove(entity);
+        }
         async function replace(command, signal) {
             validate(command);
             if (disposed || command.revision <= revision) return;
             revision = command.revision;
-            remove(staged); staged = null;
-            const next = new C.CustomDataSource('Swiss aviation obstacles');
-            const heights = terrainBindings(next.entities);
-            const models = command.useModels ? Models.create(C,viewer) : null;
-            const cleanupHeights = heights.dispose;
-            heights.dispose = () => { models?.dispose(); cleanupHeights(); };
-            staged = next;
+            // Keep the data source AND unchanged entity identities. Cesium's
+            // ModelVisualizer otherwise destroys and reloads every GLB.
+            if (!source) {
+                source = new C.CustomDataSource('Swiss aviation obstacles');
+                source.show = true;
+                const added = source;
+                sourceReady = Promise.resolve(viewer.dataSources.add(added)).then(() => {
+                    if (disposed) remove(added);
+                });
+            }
+            const next = new C.CustomDataSource('Staged obstacle entities');
+            const heights = terrainBindings(source.entities), nextRecords = new Map(), created = [];
             const ids = new Map();
             const current = () => !disposed && revision === command.revision && !signal?.aborted;
+            let committed = false;
             try {
-                await viewer.dataSources.add(next);
-                next.show = false;
+                await sourceReady;
+                if (!current()) return;
                 const findSupport=supportIndex(command.features);
                 let index = 0;
                 for (const f of command.features) {
                     if (!current()) return;
                     if(f.supportOnly)continue;
+                    // Cable anchoring is part of its signature: changing a
+                    // published support must invalidate only affected cables.
+                    const anchors = f.parts.map(p => p.kind === 'LineString' && p.elevated
+                        ? p.coordinates.map(a => findSupport(a)) : null);
+                    const signature = JSON.stringify([f,Boolean(command.useModels && f.parts.length === 1 && f.parts[0].kind === 'Point'),anchors]);
+                    const old = records.get(f.id);
+                    if (old?.signature === signature) {
+                        nextRecords.set(f.id,old);
+                        for (const binding of old.bindings) heights.watch(...binding);
+                        for (const entity of old.entities) ids.set(entity.id,{id:f.id,revision:command.revision});
+                        if (++index % 80 === 0) await yieldBatch();
+                        continue;
+                    }
+                    const record = {signature,entities:[],bindings:[]};
+                    created.push(record); pendingRecords.add(record); nextRecords.set(f.id,record);
+                    const bindings = {watch(coordinates,apply) {
+                        record.bindings.push([coordinates,apply]); heights.watch(coordinates,apply,true);
+                    }};
+                    const remember = entity => { record.entities.push(entity); ids.set(entity.id,{id:f.id,revision:command.revision}); };
                     const color = C.Color.fromCssColorString(colors[f.category]);
                     // Swiss obstacle KML can include an extra Point merely to
                     // label a line/polygon. It is not a separate 3D obstacle.
@@ -365,14 +413,14 @@
                     for (const p of f.parts) {
                         if (p.kind === 'Point' && hasLineOrArea) continue;
                         if(p.kind==='LineString' && p.elevated && ['powerLines','cableways'].includes(f.category)){
-                            const anchored=anchoredCable(p,findSupport,color,next,heights);
-                            if(anchored){ids.set(anchored.id,{id:f.id,revision:command.revision});continue;}
+                            const anchored=anchoredCable(p,findSupport,color,next,bindings);
+                            if(anchored){remember(anchored);continue;}
                         }
                         const colorPoint = p.kind === 'Point' && p.heightAgl != null;
                         if (colorPoint) {
-                            const entities = pointAboveTerrain(p.coordinates[0],p.heightAgl,color,next,heights,
-                                f.parts.length === 1 ? models : null,f.sourceType);
-                            for (const entity of entities) ids.set(entity.id,{id:f.id,revision:command.revision});
+                            const entities = pointAboveTerrain(p.coordinates[0],p.heightAgl,color,next,bindings,
+                                command.useModels && f.parts.length === 1 ? models : null,f.sourceType);
+                            for (const entity of entities) remember(entity);
                             continue;
                         }
                         const points = p.coordinates.map(a => C.Cartesian3.fromDegrees(a[0],a[1],p.elevated ? a[2] : 0));
@@ -385,24 +433,42 @@
                                 heightReference:p.elevated ? C.HeightReference.NONE : C.HeightReference.CLAMP_TO_GROUND}
                         } : {polyline:{positions:points, width:p.elevated ? 3 : 2, material:color,
                             clampToGround:!p.elevated, arcType:p.elevated ? C.ArcType.NONE : C.ArcType.GEODESIC}});
-                        ids.set(entity.id, {id:f.id, revision:command.revision});
+                        remember(entity);
                     }
                     if (++index % 80 === 0) await yieldBatch();
                 }
                 if (!current()) return;
                 await heights.prime(current);
                 if (!current()) return;
-                terrain?.dispose(); terrain = heights;
-                remove(source); source = next; selection = ids; next.show = true; staged = null;
+                source.entities.suspendEvents?.();
+                try {
+                    heights.commit();
+                    for (const [id,old] of records) if (nextRecords.get(id) !== old) {
+                        forget(old);
+                        for (const entity of old.entities) source.entities.remove(entity);
+                    }
+                    for (const record of created) for (const entity of record.entities) {
+                        next.entities.remove(entity); source.entities.add(entity);
+                    }
+                    terrain?.dispose(); terrain = heights;
+                    records = nextRecords; selection = ids; committed = true;
+                } finally { source.entities.resumeEvents?.(); }
                 setCredit(command.features.length > 0);
                 viewer.scene.requestRender?.();
             } finally {
-                if (source !== next) { heights.dispose(); remove(next); if (staged === next) staged = null; }
+                for (const record of created) {
+                    pendingRecords.delete(record);
+                    if (!committed) forget(record);
+                }
+                if (!committed) heights.dispose();
             }
         }
         return {replace, terrainChanged, pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
             dispose() { disposed = true; revision++; for (const stop of listeners) stop?.();
-                terrain?.dispose(); terrain = null; remove(source); remove(staged); source = staged = null; selection.clear(); setCredit(false); }};
+                terrain?.dispose(); terrain = null;
+                for (const record of pendingRecords) forget(record);
+                pendingRecords.clear(); records.clear(); models.dispose(); heightCache.clear();
+                remove(source); source = null; selection.clear(); setCredit(false); }};
     }
     function createHazards(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0))} = {}) {
         let source = null, staged = null, revision = -1, disposed = false, selection = new Map();

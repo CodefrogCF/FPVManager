@@ -25,7 +25,8 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
         Credit:class {constructor(html,onScreen) {Object.assign(this,{html,onScreen});}},
         Rectangle:{fromDegrees:(...bounds) => bounds},Cartographic:{fromDegrees:(lon,lat) => ({lon,lat})},
         CustomDataSource:class {constructor(name) {this.name=name;const values=[];
-            this.entities={values,add:options => {const entity={id:`e${++entityId}`,...options};values.push(entity);return entity;}};}},
+            this.entities={values,add:options => {const entity=options.id?options:{id:`e${++entityId}`,...options};values.push(entity);return entity;},
+                remove:entity=>{const i=values.indexOf(entity);if(i>=0)values.splice(i,1);return i>=0;}};}},
         Cartesian3:{fromDegrees:(lon,lat,height) => [lon,lat,height]},
         CallbackProperty:class {constructor(callback,isConstant) {
             this.getValue=callback;this.isConstant=isConstant;
@@ -385,8 +386,9 @@ test('cable attachment vertices follow the same terrain and AGL as published mas
     ground=620;p.refine();positions=line.polyline.positions;
     assert.equal(positions[0][2],670);assert.equal(marker.position[2],670);
     assert.equal(positions[2][2],690);
-    ground=undefined;p.refine();assert.equal(line.polyline.show,false);
-    assert.equal(marker.show,false);
+    ground=undefined;p.refine();assert.equal(line.polyline.show,true);
+    assert.equal(marker.show,true);
+    assert.equal(line.polyline.positions[0][2],670,'A temporary terrain eviction retains the last known anchor');
     assert.deepEqual(p.vectors.pick(line),{id:'cable',revision:1});
     // Support-only records keep the line anchored when mast markers are hidden.
     ground=600;
@@ -477,4 +479,56 @@ test('terrain refinement is sampled in bounded batches and publishes one consist
     ground=620;p.refine();assert.equal(p.heightCalls,258);assert.equal(first.position[2],650);
     p.frame();assert.equal(p.heightCalls,260);assert.equal(first.position[2],670);
     p.vectors.dispose();
+});
+
+test('viewport reconciliation retains unchanged cable/model entities and geometry while adding and removing neighbours',async()=>{
+ let ground=600;
+ const p=setup({groundHeight:()=>ground});
+ const mast={id:'mast',category:'powerLines',sourceType:'TRANSMISSION_LINE',parts:[{kind:'Point',elevated:true,heightAgl:50,coordinates:[[8,46,550]]}]};
+ await p.vectors.replace({revision:1,useModels:true,features:[line,mast]});
+ const source=p.sources[0],cable=source.entities.values[0],positions=cable.polyline.positions,model=source.entities.values.find(e=>e.model);
+ ground=undefined;
+ await p.vectors.replace({revision:2,useModels:true,features:[line,mast,{...line,id:'neighbour'}]});
+ assert.equal(p.sources.length,1);assert.equal(p.sources[0],source);
+ assert.equal(source.entities.values.find(e=>e.id===model.id),model);
+ assert.equal(model.show,true);assert.equal(cable.polyline.show,true);
+ assert.equal(cable.polyline.positions,positions,'Unchanged anchors must not rebuild static line primitives');
+ assert.deepEqual(p.vectors.pick(model),{id:'mast',revision:2});
+ await p.vectors.replace({revision:3,useModels:true,features:[line,mast]});
+ assert.equal(source.entities.values.length,4);assert.equal(source.entities.values.find(e=>e.model),model);
+ ground=620;p.refine();assert.equal(model.position[2],620);assert.equal(cable.polyline.positions[0][2],670);
+ p.viewer.terrainProvider={};p.vectors.terrainChanged();
+ assert.equal(model.show,false,'A changed terrain source invalidates old AGL anchors');
+ ground=undefined;p.refine();assert.equal(model.show,false);
+ ground=700;p.refine();assert.equal(model.show,true);assert.equal(model.position[2],700);
+ p.vectors.dispose();
+});
+
+test('an unsampled offscreen support cannot hide otherwise valid absolute cable geometry',async()=>{
+ const p=setup();
+ const mast={id:'support',category:'masts',parts:[{kind:'Point',elevated:true,heightAgl:50,coordinates:[[8,46,550]]}]};
+ await p.vectors.replace({revision:1,features:[line,mast]});
+ const [cable,marker]=p.sources[0].entities.values;
+ assert.equal(cable.polyline.show,true);assert.deepEqual(cable.polyline.positions,line.parts[0].coordinates);
+ assert.equal(marker.show,false,'No ground or AGL base is fabricated');p.vectors.dispose();
+});
+
+test('a terrain source change during a staged height scan cannot publish obsolete anchors',async()=>{
+ let ground=600,changed=false,p;
+ p=setup({groundHeight:()=>ground,yieldBatch:async()=>{
+  if(p.heightCalls>=128&&!changed){changed=true;ground=undefined;p.viewer.terrainProvider={};p.vectors.terrainChanged();}
+ }});
+ await p.vectors.replace({revision:1,features:Array.from({length:130},(_,i)=>({id:'mast-'+i,category:'masts',parts:[{
+  kind:'Point',elevated:true,coordinates:[[8+i*.001,46,700]],heightAgl:50}]}))});
+ assert.equal(p.sources[0].entities.values.some(e=>e.show===true),false);
+ ground=700;p.refine();p.frame();
+ assert.equal(p.sources[0].entities.values.filter(e=>e.point).every(e=>e.show&&e.position[2]===750),true);
+ p.vectors.dispose();
+});
+
+test('disposing before the initial data-source attachment completes removes its late attachment',async()=>{
+ let release;const p=setup();
+ p.viewer.dataSources.add=source=>new Promise(resolve=>{release=()=>{p.sources.push(source);resolve(source);};});
+ const pending=p.vectors.replace({revision:1,features:[line]});
+ p.vectors.dispose();release();await pending;assert.equal(p.sources.length,0);
 });

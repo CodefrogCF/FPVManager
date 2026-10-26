@@ -81,3 +81,22 @@ test('source classification uses a fixed local asset catalog and unknown types h
     for(const [type,name] of Object.entries(mapping)) assert.equal(Models.uri(type),`models/obstacles/${name}.glb`);
     for(const type of [undefined,'BUILDING','VEGETATION','OTHER','../remote','__proto__','constructor']) assert.equal(Models.uri(type),null);
 });
+
+test('removed or replaced GPU primitives restore symbols and ignore obsolete model readiness',()=>{
+ const primitives=new C.PrimitiveCollection({destroyPrimitives:false}),source=new C.CustomDataSource();
+ const models=Models.create(C,{scene:{primitives,requestRender(){}}});
+ const base=C.Cartesian3.fromDegrees(8.4,46.7,500),time=C.JulianDate.now();
+ const marker=source.entities.add({position:base,point:{pixelSize:7}}),stem=source.entities.add({polyline:{positions:[base,base]}});
+ const entity=models.add('POLE',10,base,source,marker,stem);
+ const primitive=()=>({id:entity,ready:false,readyEvent:new C.Event(),errorEvent:new C.Event()});
+ const first=primitives.add(primitive());first.readyEvent.raiseEvent();
+ assert.equal(marker.point.distanceDisplayCondition.getValue(time).near,6000);
+ primitives.remove(first);
+ assert.equal(marker.point.distanceDisplayCondition.getValue(time).near,0);
+ assert.equal(entity.model.show.getValue(time),true,'A renderer replacement can load again');
+ const second=primitives.add(primitive());first.readyEvent.raiseEvent();
+ assert.equal(marker.point.distanceDisplayCondition.getValue(time).near,0);
+ second.readyEvent.raiseEvent();assert.equal(marker.point.distanceDisplayCondition.getValue(time).near,6000);
+ models.remove(entity);assert.equal(second.readyEvent.numberOfListeners,0);
+ assert.equal(primitives.primitiveRemoved.numberOfListeners,0);models.dispose();
+});

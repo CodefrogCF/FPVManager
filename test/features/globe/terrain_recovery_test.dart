@@ -37,6 +37,21 @@ void main() {
     'heightReference': 'wgs84Ellipsoid',
   });
 
+  test('partial tile failures warn without discarding terrain, selection or the profile generation', () {
+    point();
+    final selection = controller.selectedPoint,
+        revision = controller.terrainRevision;
+    renderer.emit({'type': 'terrain-resource-warning', 'active': true});
+    expect(controller.terrainAvailable, isTrue);
+    expect(controller.terrainResourceWarning, isTrue);
+    expect(controller.canRetryTerrain, isTrue);
+    expect(controller.selectedPoint, same(selection));
+    expect(controller.terrainRevision, revision);
+    renderer.emit({'type': 'terrain-resource-warning', 'active': false});
+    expect(controller.terrainResourceWarning, isFalse);
+    expect(controller.canRetryTerrain, isFalse);
+  });
+
   test('tile failure updates the complete state before notifying and blocks height queries', () async {
     point();
     var observed = false;

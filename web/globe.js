@@ -704,6 +704,7 @@ function postToFlutter(message) {
                 terrainManager.networkChanged();
                 sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable() });
                 sendToFlutter("terrain-status", terrainManager.status());
+                sendToFlutter('terrain-resource-warning',{active:terrainManager.hasWarning});
                 publishObstacleViewport();
             }
         }
@@ -735,6 +736,9 @@ function postToFlutter(message) {
                 if (activeViewer) activeViewer.terrainProvider = provider;
             },
             offlineReason,
+            onWarning: active => {
+                if (rendererReady) sendToFlutter('terrain-resource-warning',{active});
+            },
             probe: async (provider, signal) => {
                 // Metadata alone does not establish that terrain tiles can be read.
                 let request;

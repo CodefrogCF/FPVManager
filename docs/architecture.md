@@ -117,7 +117,10 @@ the active generation; orphaned staging rows are cleared on reopen. Import uses
 bounded ZIP inflation and XML events, rejects unsafe paths/DTDs and never follows
 external KML resources. Viewport/category queries send at most 1,200 objects,
 4,000 parts and 40,000 vertices; the renderer builds batches of 80 objects with
-revision-based cancellation. WMS imagery has its own non-fatal status/retry and
+revision-based cancellation. Nearby batches are retained across small camera moves;
+unchanged entities/models survive reconciliation. Terrain anchors retain known
+heights across tile eviction and invalidate when the terrain provider changes.
+WMS imagery has its own non-fatal status/retry and
 does not share UAS or vector visibility. For offline KMZ validation use
 `dart run tool/check_obstacle_kmz.dart <full.kmz>`.
 Optional obstacle GLBs are Y-up, unit-height meshes scaled by trusted source AGL
@@ -157,8 +160,10 @@ and source gaps remain explicit. Native checks run in an isolate; Web uses the
 browser thread. Height/time applicability is outside the intersection check.
 
 `web/terrain_service.js` bounds initialization/probe to 8 seconds and tile/sample
-requests to 12 seconds. Tile failures/offline events install a labelled ellipsoid
-fallback. Explicit retry replaces the provider within the viewer and refreshes
+requests to 12 seconds. Map downloads use eight active slots and a bounded queue;
+cache hits bypass downloads. Individual tile/sample failures retain loaded terrain
+and report missing information. Failed initialization or offline mode without a
+cache uses a labelled ellipsoid fallback. Explicit retry replaces the provider and refreshes
 the selected imagery style; there is no automatic reconnect loop. Terrain
 generations invalidate pending samples, raw picked heights and route geometry.
 Late results cannot restore obsolete terrain. Ground mode ends on terrain loss.

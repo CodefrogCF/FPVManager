@@ -38,11 +38,21 @@
     }
 
     function createTerrainManager({ createProvider, createFallback, applyProvider,
-        onStatus, offlineReason = () => null, probe = async () => {},
+        onStatus, onWarning = () => {}, offlineReason = () => null, probe = async () => {},
         initializationTimeoutMs = 8000, sampleTimeoutMs = 12000, tileTimeoutMs = 12000 }) {
         let provider = createFallback();
         let state = "loading", reason = null, disposed = false;
         let generation = new AbortController(), removeErrorListener = null, pending = null;
+        const failedTiles = new Set(), retries = new Map();
+        let warning = false;
+        function warn(key) {
+            if (failedTiles.size < 128) failedTiles.add(key);
+            if (!warning) { warning = true; onWarning(true); }
+        }
+        function recovered(key) {
+            failedTiles.delete(key); retries.delete(key);
+            if (warning && !failedTiles.size) { warning = false; onWarning(false); }
+        }
 
         const status = () => ({ state, reason });
         function publish(nextState, nextReason = null) {
@@ -57,17 +67,14 @@
             removeErrorListener?.();
             removeErrorListener = null;
             pending = null;
+            failedTiles.clear(); retries.clear();
+            if (warning) { warning = false; if (!disposed) onWarning(false); }
         }
         function fallback(nextState, nextReason) {
             invalidate();
             provider = createFallback();
             applyProvider(provider);
             publish(nextState, nextReason);
-        }
-        function providerFailed(failedProvider) {
-            if (!disposed && provider === failedProvider) {
-                fallback("unavailable", "tileFailed");
-            }
         }
         function networkChanged() {
             if (disposed) return;
@@ -96,20 +103,29 @@
                 // that contract, but bound real requests even without a height query.
                 const requestTile = next.requestTileGeometry.bind(next);
                 next.requestTileGeometry = (...args) => {
+                    const key = `${args[2]}/${args[0]}/${args[1]}`;
                     const response = requestTile(...args);
                     if (response === undefined) return undefined;
-                    return bounded(() => response, tileTimeoutMs, []).catch(error => {
+                    const cancel = () => {
+                        try { args[3]?.cancelFunction?.(); } catch (_) { /* Already settled. */ }
+                    };
+                    attemptGeneration.signal.addEventListener("abort", cancel, { once: true });
+                    if (attemptGeneration.signal.aborted) cancel();
+                    return bounded(() => response, tileTimeoutMs, [attemptGeneration.signal]).then(tile => {
+                        if (current()) recovered(key);
+                        return tile;
+                    }).catch(error => {
+                        if (!args[3]?.cancelled && current()) warn(key);
                         if (error.name === "TerrainTimeoutError") {
                             // Cesium 1.145 marks requests cancelled before its
                             // scheduler aborts their I/O. Preserve that cancellation
                             // path rather than turning a camera-move cancellation
                             // into a provider outage.
                             if (args[3]?.cancelled) return response;
-                            providerFailed(next);
-                            args[3]?.cancel?.();
+                            cancel();
                         }
                         throw error;
-                    });
+                    }).finally(() => attemptGeneration.signal.removeEventListener("abort", cancel));
                 };
                 await probe(next, attemptGeneration.signal);
                 return next;
@@ -117,9 +133,13 @@
                 if (!current()) return status();
                 provider = next;
                 removeErrorListener = next.errorEvent.addEventListener(error => {
-                    // No unbounded automatic retries of a missing/failed tile.
-                    error.retry = false;
-                    providerFailed(next);
+                    if (!current()) { error.retry = false; return; }
+                    const key = [error.x,error.y,error.level].every(Number.isInteger)
+                        ? `${error.level}/${error.x}/${error.y}` : 'unknown';
+                    warn(key);
+                    const count = retries.get(key) ?? 0;
+                    error.retry = key !== 'unknown' && count < 2 && retries.size < 128;
+                    if (error.retry) retries.set(key,count+1);
                 });
                 applyProvider(next);
                 if (current()) publish("ready");
@@ -146,7 +166,8 @@
                 return result;
             } catch (error) {
                 commandSignal.throwIfAborted();
-                if (!disposed && generation === sampledGeneration) providerFailed(sampledProvider);
+                // A missing profile tile or a timed-out height query does not
+                // invalidate already rendered terrain in the rest of the view.
                 throw error;
             }
         }
@@ -156,6 +177,7 @@
             invalidate();
         }
         return { retry, networkChanged, sample, dispose, status,
+            get hasWarning() { return warning; },
             get provider() { return provider; } };
     }
     return { createTerrainManager };

@@ -50,6 +50,50 @@ void main() {
     await cache.close();
     await database.close();
   });
+  test('small camera changes reuse the nearby batch and do not reload unchanged models or cables', () async {
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.39,
+      'south': 46.69,
+      'east': 8.41,
+      'north': 46.71,
+    });
+    await globe.obstacles.setVectorsVisible(true);
+    await globe.obstacles.setModelsVisible(true);
+    final before = renderer.commands
+        .where((c) => c['type'] == 'set-obstacle-vectors')
+        .length;
+    final command = renderer.commands.lastWhere(
+      (c) => c['type'] == 'set-obstacle-vectors',
+    );
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.391,
+      'south': 46.691,
+      'east': 8.411,
+      'north': 46.711,
+    });
+    await globe.obstacles.updateViewport();
+    expect(
+      renderer.commands
+          .where((c) => c['type'] == 'set-obstacle-vectors')
+          .length,
+      before,
+    );
+    renderer.emit({
+      'type': 'obstacle-selected',
+      'id': 'source-1',
+      'revision': command['revision'],
+    });
+    expect(globe.obstacles.selected?.id, 'source-1');
+    await globe.obstacles.setCategory(ObstacleCategory.powerLines, false);
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-vectors',
+      )['features'],
+      isEmpty,
+    );
+  });
   test('WMS requested settings persist and restore after renderer reload, with local failure/retry', () async {
     await globe.obstacles.setWmsVisible(true);
     await globe.obstacles.setWmsOpacity(.35);

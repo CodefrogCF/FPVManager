@@ -7,7 +7,7 @@ function provider() {
     const listeners = new Set();
     return { requestTileGeometry: async () => ({}), errorEvent: {
         addEventListener: listener => { listeners.add(listener); return () => listeners.delete(listener); },
-        fail: () => { const error = { retry: true }; for (const listener of [...listeners]) listener(error); return error; },
+        fail: (details={}) => { const error = { retry: true,...details }; for (const listener of [...listeners]) listener(error); return error; },
         get listenerCount() { return listeners.size; }
     } };
 }
@@ -36,21 +36,24 @@ test('initialization and probe failures retain a usable flat map; retry can reco
     } finally { manager.dispose(); }
 });
 
-test('missing tile event switches to flat, stops automatic retry and invalidates a pending height', async () => {
+test('a missing tile preserves rendered terrain and unrelated pending heights; recovery clears the warning', async () => {
     const { manager } = peer();
     try {
         await manager.retry();
         const old = manager.provider, height = deferred();
         const query = manager.sample(() => height.promise, new AbortController().signal);
-        const rejected = assert.rejects(query, /cancelled/);
-        const error = old.errorEvent.fail();
-        await rejected;
-        assert.equal(error.retry, false);
-        assert.deepEqual(manager.status(), { state: 'unavailable', reason: 'tileFailed' });
-        assert.equal(manager.provider.flat, true);
-        assert.equal(old.errorEvent.listenerCount, 0);
+        const error = old.errorEvent.fail({x:2,y:3,level:4});
+        assert.equal(error.retry, true);
+        assert.equal(old.errorEvent.fail({x:2,y:3,level:4}).retry, true);
+        assert.equal(old.errorEvent.fail({x:2,y:3,level:4}).retry, false);
+        assert.deepEqual(manager.status(), { state: 'ready', reason: null });
+        assert.equal(manager.provider, old);
+        assert.equal(manager.hasWarning, true);
+        height.resolve(1200); assert.equal(await query,1200);
+        await manager.provider.requestTileGeometry(2,3,4);
+        assert.equal(manager.hasWarning,false);
         await manager.retry();
-        height.resolve(1200); await tick();
+        await tick();
         old.errorEvent.fail();
         assert.equal(manager.status().state, 'ready');
     } finally { manager.dispose(); }
@@ -107,11 +110,10 @@ test('height failures and stalls are bounded and cannot silently return a flat h
         await manager.retry();
         await assert.rejects(manager.sample(() => Promise.reject(new Error('HTTP 404')),
             new AbortController().signal), /404/);
-        assert.equal(manager.status().state, 'unavailable');
-        await manager.retry();
+        assert.equal(manager.status().state, 'ready');
         await assert.rejects(manager.sample(() => new Promise(() => {}),
             new AbortController().signal), /timed out/);
-        assert.equal(manager.status().state, 'unavailable');
+        assert.equal(manager.status().state, 'ready');
     } finally { manager.dispose(); }
 });
 
@@ -125,8 +127,9 @@ test('rendered tile stalls time out without height sampling; scheduling deferral
         assert.equal(manager.status().state, 'ready');
         deferred = false;
         await assert.rejects(manager.provider.requestTileGeometry(0,0,0,
-            { cancel: () => { cancelled = true; } }), /timed out/);
-        assert.equal(manager.status().state, 'unavailable');
+            { cancelFunction: () => { cancelled = true; } }), /timed out/);
+        assert.equal(manager.status().state, 'ready');
+        assert.equal(manager.hasWarning,true);
         assert.equal(cancelled, true);
     } finally { manager.dispose(); }
 });
@@ -142,6 +145,28 @@ test('cancelling a height query leaves healthy terrain intact', async () => {
         height.resolve(42); await tick();
         assert.equal(manager.status().state, 'ready');
         assert.equal(await manager.sample(async () => 1234, new AbortController().signal), 1234);
+    } finally { manager.dispose(); }
+});
+
+test('provider retry aborts obsolete tile I/O before loading replacement terrain', async () => {
+    let cancelled = 0, attempts = 0;
+    const old = provider(), response = deferred();
+    old.requestTileGeometry = () => response.promise;
+    const { manager } = peer({ createProvider: async () => ++attempts === 1 ? old : provider() });
+    try {
+        await manager.retry();
+        const tile = manager.provider.requestTileGeometry(1, 1, 2, {
+            cancelFunction: () => { cancelled++; }
+        });
+        const rejected = assert.rejects(tile, /cancelled/);
+        await manager.retry();
+        await rejected;
+        assert.equal(cancelled, 1);
+        assert.equal(manager.status().state, 'ready');
+        assert.equal(manager.hasWarning, false);
+        await manager.provider.requestTileGeometry(1, 1, 2);
+        response.resolve({}); await tick();
+        assert.equal(manager.hasWarning, false);
     } finally { manager.dispose(); }
 });
 

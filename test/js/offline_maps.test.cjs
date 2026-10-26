@@ -85,6 +85,19 @@ test('the browser tile budget prevents unbounded growth without blocking display
  const response=await p.transport.load('imagery/topographic/1/1/0.jpeg');
  assert.equal(response.status,200);assert.equal(p.rows.size,2);
 });
+
+test('a profile-sized burst queues rather than rejecting the ninth tile; transport stays bounded and deduplicated',async()=>{
+ let release,active=0,peak=0;
+ const gate=new Promise(r=>release=r);
+ const p=setup({defer:async()=>{active++;peak=Math.max(peak,active);await gate;active--;}});
+ const jobs=Array.from({length:24},(_,i)=>p.transport.load(`imagery/topographic/6/${i}/0.jpeg`));
+ const duplicate=p.transport.load('imagery/topographic/6/0/0.jpeg');
+ while(p.calls<8)await new Promise(r=>setImmediate(r));
+ assert.equal(p.calls,8);release();
+ const replies=await Promise.all([...jobs,duplicate]);
+ assert.equal(replies.every(r=>r.status===200),true);
+ assert.equal(p.calls,24);assert.equal(peak,8);
+});
 test('cached provider URLs retain Cesium query flags and custom providers keep their actual attribution',async()=>{
  const fake={...C,UrlTemplateImageryProvider:class{constructor(options){Object.assign(this,options);}},
   GridImageryProvider:class{},

@@ -107,6 +107,12 @@ class GlobeAssetServer {
         data = ByteData.sublistView(Uint8List.fromList(utf8.encode(source)));
       }
       final extension = path.split('.').last.toLowerCase();
+      if (extension == 'glb') {
+        request.response.headers.set(
+          'Cache-Control',
+          'private, max-age=86400, immutable',
+        );
+      }
       request.response.headers.set('Content-Type', switch (extension) {
         'html' => 'text/html; charset=utf-8',
         'js' || 'mjs' => 'application/javascript; charset=utf-8',

@@ -49,6 +49,21 @@ void main() {
         isTrue,
       );
       await closeMapActionMenu(tester);
+      renderer.emit({'type': 'terrain-resource-warning', 'active': true});
+      await tester.pump();
+      expect(
+        find.textContaining('Loaded 3D terrain remains visible'),
+        findsOneWidget,
+      );
+      expect(controller.terrainAvailable, isTrue);
+      expect(tester.element(find.byType(GlobeView)), same(map));
+      expect(controller.selectedPoint, isNotNull);
+      renderer.emit({'type': 'terrain-resource-warning', 'active': false});
+      await tester.pump();
+      expect(
+        find.textContaining('Loaded 3D terrain remains visible'),
+        findsNothing,
+      );
       renderer.emit({
         'type': 'terrain-status',
         'state': 'unavailable',

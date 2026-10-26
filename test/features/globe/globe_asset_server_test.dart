@@ -35,6 +35,12 @@ void main() {
           )).close();
           expect(response.statusCode, 200);
           expect(response.headers.contentType?.mimeType, asset.value);
+          expect(
+            response.headers.value('Cache-Control'),
+            asset.key.endsWith('.glb')
+                ? 'private, max-age=86400, immutable'
+                : 'no-store',
+          );
           expect(await utf8.decoder.bind(response).join(), 'asset');
         }
         final head = await (await client.openUrl(

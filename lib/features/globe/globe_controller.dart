@@ -467,6 +467,7 @@ class GlobeController extends ChangeNotifier {
   bool _terrainAvailable = false;
   GlobeTerrainState _terrainState = GlobeTerrainState.loading;
   String? _terrainReason;
+  bool _terrainResourceWarning = false;
   bool _terrainRetrying = false;
   int _terrainEpoch = 0;
   int _terrainRetryOperation = 0;
@@ -707,12 +708,13 @@ class GlobeController extends ChangeNotifier {
       OsintFreshness.notLoaded;
   GlobeTerrainState get terrainState => _terrainState;
   String? get terrainReason => _terrainReason;
+  bool get terrainResourceWarning => _terrainResourceWarning;
   bool get terrainRetrying => _terrainRetrying;
   bool get canRetryTerrain =>
       _ready &&
       !_terrainRetrying &&
       _terrainState != GlobeTerrainState.loading &&
-      _terrainState != GlobeTerrainState.ready &&
+      (_terrainState != GlobeTerrainState.ready || _terrainResourceWarning) &&
       _terrainReason != 'diagnosticOffline';
   GlobeMapStyle get mapStyle => _mapStyle;
 
@@ -875,6 +877,7 @@ class GlobeController extends ChangeNotifier {
     _ready = false;
     _terrainAvailable = false;
     _terrainState = GlobeTerrainState.loading;
+    _terrainResourceWarning = false;
     _terrainReason = null;
     _terrainRetrying = false;
     _terrainEpoch++;
@@ -1073,6 +1076,7 @@ class GlobeController extends ChangeNotifier {
       return;
     }
     _terrainState = next;
+    _terrainResourceWarning = false;
     _terrainReason = reason as String?;
     _terrainAvailable = next == GlobeTerrainState.ready;
     _terrainEpoch++;
@@ -1389,6 +1393,11 @@ class GlobeController extends ChangeNotifier {
         unawaited(_restoreRendererState(generation));
         notifyListeners();
 
+      case 'terrain-resource-warning':
+        if (data['active'] is bool && _terrainAvailable) {
+          _terrainResourceWarning = data['active'] as bool;
+          notifyListeners();
+        }
       case 'terrain-status':
         _applyTerrainStatus(data['state'], data['reason']);
 

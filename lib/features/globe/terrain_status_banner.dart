@@ -12,13 +12,16 @@ class TerrainStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, child) {
-      if (!controller.isReady || controller.terrainAvailable) {
+      if (!controller.isReady ||
+          (controller.terrainAvailable && !controller.terrainResourceWarning)) {
         return const SizedBox.shrink();
       }
       final busy =
           controller.terrainRetrying ||
           controller.terrainState == GlobeTerrainState.loading;
-      final message = busy
+      final message = controller.terrainAvailable
+          ? 'Some terrain tiles are unavailable. Loaded 3D terrain remains visible; heights may be missing in affected areas.'
+          : busy
           ? 'Connecting to 3D terrain. Flat map shown.'
           : controller.terrainState == GlobeTerrainState.offline
           ? 'Offline: flat map shown. Terrain heights are unavailable.'

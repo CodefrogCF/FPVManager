@@ -48,7 +48,9 @@
   return {bytes,mime:png?'image/png':jpeg?'image/jpeg':'application/octet-stream'};
  }
  function createTransport({caches,fetch,root,Response:Reply=Response,now=()=>new Date()}){
-  const pending=new Map();let writes=Promise.resolve(),usageRevision=null,usedBytes=0;
+  const pending=new Map(),downloadQueue=[];let activeDownloads=0,writes=Promise.resolve(),usageRevision=null,usedBytes=0;
+  async function acquire(){if(activeDownloads<8){activeDownloads++;return;}await new Promise(resolve=>downloadQueue.push(resolve));}
+  function release(){if(downloadQueue.length)downloadQueue.shift()();else activeDownloads--;}
   async function config(cache){const response=await cache.match(root+'regions.json');return response?response.json():{revision:0,regions:[]};}
   async function load(key,cacheOnly=false){
    const remote=source(key);if(!remote)throw new Error('Unsupported map source');
@@ -62,12 +64,14 @@
     return old;
    }
    if(cacheOnly)throw new Error('Offline map resource missing');
-   const original=await config(cache),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+   const original=await config(cache);
+   await acquire();
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
    let data,noStore;
    try{const response=await fetch(remote,{credentials:'omit',redirect:'error',signal:controller.signal,
     headers:key.startsWith('terrain/')&&!key.endsWith('.json')?{Accept:'application/vnd.quantized-mesh;extensions=metadata,application/octet-stream;q=0.9'}:{}});
     noStore=/no-store|private/i.test(response.headers.get('cache-control')??'');data=sanitize(key,await boundedBytes(response));}
-   finally{clearTimeout(timer);}
+   finally{clearTimeout(timer);release();}
    const reply=new Reply(data.bytes,{headers:{'content-type':data.mime,'cache-control':'no-store','x-fpv-size':String(data.bytes.length),'x-fpv-fetched-at':now().toISOString()}});
    if(!noStore&&original.regions.some(r=>includes(r,key))){
     const write=async()=>{
@@ -90,7 +94,7 @@
   }
   return {load(key,cacheOnly=false){
    const id=`${cacheOnly}:${key}`;if(pending.has(id))return pending.get(id).then(r=>r.clone());
-   if(pending.size>=8)return Promise.reject(new Error('Map request budget exceeded'));
+   if(pending.size>=256)return Promise.reject(new Error('Map request queue is full'));
    const promise=load(key,cacheOnly).finally(()=>pending.delete(id));pending.set(id,promise);return promise.then(r=>r.clone());
   }};
  }

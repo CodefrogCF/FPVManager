@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart';
@@ -26,6 +28,28 @@ class NativeOfflineMapStore implements OfflineMapStorage {
   >
   _pending = {};
   bool _closed = false;
+  int _activeDownloads = 0;
+  final _downloadQueue = Queue<Completer<void>>();
+
+  Future<void> _acquireDownload() async {
+    if (_closed) throw StateError('Map cache closed');
+    if (_activeDownloads < 8) {
+      _activeDownloads++;
+      return;
+    }
+    final waiting = Completer<void>();
+    _downloadQueue.add(waiting);
+    await waiting.future;
+  }
+
+  void _releaseDownload() {
+    if (_downloadQueue.isNotEmpty) {
+      _downloadQueue.removeFirst().complete();
+    } else {
+      _activeDownloads--;
+    }
+  }
+
   @override
   Future<List<OfflineRegion>> regions() async {
     final rows = await database
@@ -87,6 +111,11 @@ class NativeOfflineMapStore implements OfflineMapStorage {
   Future<void> close() async {
     _closed = true;
     client.close();
+    while (_downloadQueue.isNotEmpty) {
+      _downloadQueue.removeFirst().completeError(
+        StateError('Map cache closed'),
+      );
+    }
     await Future.wait(
       _pending.values.map(
         (f) => f.then<void>((_) {}).catchError((Object _) {}),
@@ -107,8 +136,8 @@ class NativeOfflineMapStore implements OfflineMapStorage {
     }
     final requestKey = '$cacheOnly:$key';
     if (_pending.containsKey(requestKey)) return _pending[requestKey]!;
-    if (_pending.length >= 8) {
-      return Future.error(StateError('Tile request budget exceeded'));
+    if (_pending.length >= 256) {
+      return Future.error(StateError('Tile request queue is full'));
     }
     late final Future<({Uint8List bytes, String mime, DateTime fetchedAt})>
     future;
@@ -149,27 +178,38 @@ class NativeOfflineMapStore implements OfflineMapStorage {
     }
     if (cacheOnly) throw StateError('Offline resource missing');
     var cacheAllowed = true;
-    final result = await (() async {
-      final request = http.Request('GET', uri);
-      request.followRedirects = false;
-      if (key.startsWith('terrain/') && !key.endsWith('.json')) {
-        request.headers['Accept'] = 'application/vnd.quantized-mesh;extensions=metadata,application/octet-stream;q=0.9';
-      }
-      final response = await client.send(request);
-      cacheAllowed = !RegExp(
-        'no-store|private',
-        caseSensitive: false,
-      ).hasMatch(response.headers['cache-control'] ?? '');
-      if (response.statusCode != 200) throw StateError('Tile unavailable');
-      final bytes = BytesBuilder(copy: false);
-      await for (final chunk in response.stream) {
-        if (bytes.length + chunk.length > 4 * 1024 * 1024) {
-          throw const FormatException('Tile exceeds size limit');
-        }
-        bytes.add(chunk);
-      }
-      return sanitizeOfflineTile(key, bytes.takeBytes());
-    })().timeout(const Duration(seconds: 12));
+    await _acquireDownload();
+    final abort = Completer<void>();
+    final result =
+        await (() async {
+          if (_closed) throw StateError('Map cache closed');
+          final request = http.AbortableRequest(
+            'GET',
+            uri,
+            abortTrigger: abort.future,
+          );
+          request.followRedirects = false;
+          if (key.startsWith('terrain/') && !key.endsWith('.json')) {
+            request.headers['Accept'] = 'application/vnd.quantized-mesh;extensions=metadata,application/octet-stream;q=0.9';
+          }
+          final response = await client.send(request);
+          cacheAllowed = !RegExp(
+            'no-store|private',
+            caseSensitive: false,
+          ).hasMatch(response.headers['cache-control'] ?? '');
+          if (response.statusCode != 200) throw StateError('Tile unavailable');
+          final bytes = BytesBuilder(copy: false);
+          await for (final chunk in response.stream) {
+            if (bytes.length + chunk.length > 4 * 1024 * 1024) {
+              throw const FormatException('Tile exceeds size limit');
+            }
+            bytes.add(chunk);
+          }
+          return sanitizeOfflineTile(key, bytes.takeBytes());
+        })().timeout(const Duration(seconds: 12)).whenComplete(() {
+          if (!abort.isCompleted) abort.complete();
+          _releaseDownload();
+        });
     final time = DateTime.fromMillisecondsSinceEpoch(
       DateTime.now().millisecondsSinceEpoch,
       isUtc: true,

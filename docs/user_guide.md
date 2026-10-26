@@ -16,7 +16,9 @@ use the WGS84 ellipsoid; **Convert to Swiss height (LN02)** is an optional onlin
 conversion. The AGL calculator adds a local vertical offset. See
 [coordinates and heights](coordinates_and_heights.md) for the reference systems.
 
-If terrain fails, the map shows a labelled flat fallback and disables terrain
+Individual missing tiles show a warning while loaded 3D terrain stays visible.
+An incomplete route profile cannot assess terrain clearance. If the terrain
+provider is unavailable, the map shows a labelled flat fallback and disables terrain
 queries and ground inspection. **Retry terrain** reconnects while preserving
 the camera and layers. Select a fresh point after recovery. A flat map does not
 provide a measured ground height.

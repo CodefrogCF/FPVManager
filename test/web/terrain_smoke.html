@@ -5,7 +5,7 @@
 <script>
 const frame = document.getElementById('map'), output = document.getElementById('log');
 const pending = new Map(), errors = [];
-let session, next = 0, terrain, style;
+let session, next = 0, terrain, style, warning = false;
 const log = text => { output.textContent += 'PASS: ' + text + '\n'; };
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate, description, timeout = 20000) {
@@ -22,6 +22,7 @@ window.addEventListener('message', event => {
   if (data.source !== 'fpvmanager-globe' || data.version !== 1) return;
   if (data.type === 'globe-ready') session = data.sessionId;
   if (data.type === 'terrain-status') terrain = data;
+  if (data.type === 'terrain-resource-warning') warning = data.active;
   if (data.type === 'map-style-changed') style = data.style;
   if (data.type === 'globe-error') errors.push(data.message);
   if (data.type === 'command-result' && data.sessionId === session) {
@@ -64,9 +65,15 @@ const zone = {type:'FeatureCollection',features:[{type:'Feature',geometry:{type:
   const viewer = frame.contentWindow.fixtureViewer;
   for (const [fault,longitude] of [['tile-404',-122],['tile-500',130]]) {
     const sources = Array.from({length:viewer.dataSources.length},(_,i)=>viewer.dataSources.get(i));
+    const provider = viewer.terrainProvider;
     await mode(fault);
     await command('fly-to',{latitude:37,longitude,altitude:12000});
-    await state('unavailable'); await heightUnavailable();
+    await until(()=>warning,'Tile warning');
+    if(terrain.state!=='ready'||viewer.terrainProvider!==provider)throw new Error('A missing tile discarded loaded terrain');
+    let missing=false;
+    try{await command('query-route-terrain',{positions:[{latitude:37,longitude},{latitude:37.001,longitude}]});}
+    catch(_){missing=true;}
+    if(!missing||terrain.state!=='ready'||viewer.terrainProvider!==provider)throw new Error('A missing profile tile returned a false height or discarded the provider');
     await pause(1800); // The camera's acknowledged 1.5s flight must finish first.
     const position = viewer.camera.positionWC.clone();
     await mode('healthy'); await retry();
@@ -75,7 +82,7 @@ const zone = {type:'FeatureCollection',features:[{type:'Feature',geometry:{type:
         sources.some((source,i)=>source!==viewer.dataSources.get(i))) throw new Error('Retry replaced camera or layers: distance=' + distance + ', style=' + style);
     const layers = await command('set-overlay-order',{order:['savedSpots','uasZones']});
     if (layers.spotsVisible || JSON.stringify(layers.overlayOrder)!=='["savedSpots","uasZones"]') throw new Error('Retry lost layer settings');
-    log(fault + ' from the real tile loader falls back and recovers with camera, style and layers preserved');
+    log(fault + ' retains the 3D provider, rejects missing profile heights and recovers with camera, style and layers preserved');
   }
   frame.contentWindow.postMessage({fixtureOffline:true},location.origin); await state('offline');
   await heightUnavailable(); const attempts = frame.contentWindow.fixtureProviderAttempts;
@@ -85,10 +92,12 @@ const zone = {type:'FeatureCollection',features:[{type:'Feature',geometry:{type:
   if (frame.contentWindow.fixtureProviderAttempts !== attempts) throw new Error('Online event caused an automatic retry');
   await retry(); log('Offline/online browser events disable heights and allow explicit recovery without a retry loop');
   await mode('tile-stall');
+  const beforeStall=viewer.terrainProvider;
   await command('fly-to',{latitude:-30,longitude:-60,altitude:12000});
-  await state('unavailable');
+  await until(()=>warning,'Stalled tile warning');
+  if(terrain.state!=='ready'||viewer.terrainProvider!==beforeStall)throw new Error('A stalled render tile discarded loaded terrain');
   await mode('healthy'); await retry();
-  log('A stalled render-tile request falls back within its deadline without any height query');
+  log('A stalled render-tile request warns within its deadline while retaining loaded terrain');
   await mode('tile-stall'); const started = performance.now();
   const stalled = await command('retry-terrain');
   if (stalled.state !== 'unavailable' || performance.now()-started > 11000) throw new Error('Stalled tile probe was not bounded');

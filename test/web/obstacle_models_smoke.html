@@ -75,6 +75,25 @@ viewer.screenSpaceEventHandler.setInputAction(e=>{const pick=vectors.pick(viewer
   report('PASS: deliberately missing crane asset is a non-blocking ModelVisualizer load failure.');
   return;
  }
+ const originals=source.entities.values.filter(e=>e.model),beforeModels=new Set(originals);
+ let reloads=0;
+ const stop=viewer.scene.primitives.primitiveAdded.addEventListener(p=>{if(beforeModels.has(p.id))reloads++;});
+ try{
+  const getHeight=viewer.scene.globe.getHeight;
+  try{
+   viewer.scene.globe.getHeight=()=>undefined;
+   vectors.terrainChanged();
+   for(let i=0;i<8;i++){
+    const neighbour={id:'temporary-neighbour',category:'powerLines',parts:[{kind:'LineString',elevated:true,coordinates:[[8.4,46.7,15],[8.4001,46.7,15]]}]};
+    await vectors.replace({revision:++revision,useModels:true,features:i%2?[...features]:[...features,neighbour]});
+    viewer.scene.requestRender();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    assert(viewer.dataSources.get(0)===source,'Viewport update replaced the data source');
+    assert(originals.every(e=>source.entities.contains(e)&&e.show),'Cached model disappeared after terrain eviction');
+   }
+  }finally{viewer.scene.globe.getHeight=getHeight;vectors.terrainChanged();}
+  assert(reloads===0,'Unchanged model GPU resources were reloaded');
+  report('PASS: 8 viewport reconciliations + missing terrain samples retained every original model; no GLB primitive reload.');
+ }finally{stop();}
  status.textContent='PASS: 8 local models · exact 10 m height · terrain anchor · selection · unchanged camera';
  report('PASS: real Cesium ModelGraphics loaded all bundled GLBs. Toggle to compare the original 10 m stems.');
 })().catch(e=>{status.textContent='FAIL: '+e;report(e.stack);});

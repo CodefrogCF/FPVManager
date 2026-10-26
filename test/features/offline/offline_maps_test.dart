@@ -36,6 +36,62 @@ void main() {
     north: 46.71,
   );
   late String key;
+  test(
+    'closing the cache cancels queued requests without starting more downloads',
+    () async {
+      var calls = 0;
+      final started = Completer<void>(), gate = Completer<void>();
+      final burst = NativeOfflineMapStore(
+        database: database,
+        client: MockClient((_) async {
+          if (++calls == 8) started.complete();
+          await gate.future;
+          return http.Response.bytes([255, 216, 255, 217], 200);
+        }),
+      );
+      final jobs = [
+        for (var i = 0; i < 24; i++)
+          burst
+              .load('imagery/topographic/6/$i/0.jpeg')
+              .then((_) => true, onError: (Object _) => false),
+      ];
+      await started.future;
+      final closing = burst.close();
+      gate.complete();
+      final replies = await Future.wait(jobs);
+      await closing;
+      expect(calls, 8);
+      expect(replies.where((ok) => !ok).length, 16);
+    },
+  );
+  test('a profile-sized burst queues downloads with bounded concurrency and deduplicates matching requests', () async {
+    var active = 0, peak = 0, calls = 0;
+    final started = Completer<void>(), gate = Completer<void>();
+    final burst = NativeOfflineMapStore(
+      database: database,
+      client: MockClient((request) async {
+        calls++;
+        active++;
+        if (active > peak) peak = active;
+        if (active == 8 && !started.isCompleted) started.complete();
+        await gate.future;
+        active--;
+        return http.Response.bytes([255, 216, 255, 217], 200);
+      }),
+    );
+    addTearDown(burst.close);
+    final jobs = [
+      for (var i = 0; i < 24; i++)
+        burst.load('imagery/topographic/6/$i/0.jpeg'),
+    ];
+    expect(burst.load('imagery/topographic/6/0/0.jpeg'), same(jobs.first));
+    await started.future;
+    expect(calls, 8);
+    gate.complete();
+    expect((await Future.wait(jobs)).length, 24);
+    expect(peak, 8);
+    expect(calls, 24);
+  });
   setUp(() {
     calls = 0;
     fail = false;

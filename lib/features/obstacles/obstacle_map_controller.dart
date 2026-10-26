@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -41,6 +42,23 @@ class ObstacleMapController extends ChangeNotifier {
   Map<String, ObstacleFeature> _hazardsRendered = {};
   int _hazardRevision = 0;
   Future<SwissObstacleHeights>? _heights;
+  ObstacleViewport? _coverage;
+  String? _coverageKey, _sentVectors, _sentHazards;
+  List<ObstacleFeature> _cachedFeatures = [], _cachedSupports = [];
+
+  static bool _contains(ObstacleViewport outer, ObstacleViewport inner) =>
+      outer.west <= inner.west &&
+      outer.south <= inner.south &&
+      outer.east >= inner.east &&
+      outer.north >= inner.north;
+
+  static ObstacleViewport _expand(ObstacleViewport area, double x, double y) =>
+      ObstacleViewport(
+        (area.west - x).clamp(-180, 180).toDouble(),
+        (area.south - y).clamp(-90, 90).toDouble(),
+        (area.east + x).clamp(-180, 180).toDouble(),
+        (area.north + y).clamp(-90, 90).toDouble(),
+      );
   bool get wmsVisible => preferences().obstacleWmsVisible;
   double get wmsOpacity => preferences().obstacleWmsOpacity;
   bool get vectorsVisible => preferences().obstacleVectorsVisible;
@@ -193,6 +211,7 @@ class ObstacleMapController extends ChangeNotifier {
     _viewport = null;
     _rendered = {};
     _hazardsRendered = {};
+    _sentVectors = _sentHazards = null;
     selected = null;
     wmsState = 'off';
     wmsError = null;
@@ -278,6 +297,7 @@ class ObstacleMapController extends ChangeNotifier {
   Future<void> _clearVectors() async {
     if (!_ready || _disposed) return;
     _rendered = {};
+    _sentVectors = null;
     try {
       await send({
         'type': 'set-obstacle-vectors',
@@ -292,6 +312,7 @@ class ObstacleMapController extends ChangeNotifier {
   Future<void> _clearHazards() async {
     if (!_ready || _disposed) return;
     _hazardsRendered = {};
+    _sentHazards = null;
     try {
       await send({
         'type': 'set-hazard-areas',
@@ -318,33 +339,80 @@ class ObstacleMapController extends ChangeNotifier {
       return;
     }
     try {
-      final features = await provider.cache.queryObstacles(
+      final requested = hazardsVisible
+          ? _expand(viewport, bufferMeters / 60000, bufferMeters / 100000)
+          : viewport;
+      final categoryNames = categories.map((c) => c.name).toList()..sort();
+      final cacheKey = jsonEncode([
         snapshot.key,
-        hazardsVisible
-            ? ObstacleViewport(
-                viewport.west - bufferMeters / 60000,
-                viewport.south - bufferMeters / 100000,
-                viewport.east + bufferMeters / 60000,
-                viewport.north + bufferMeters / 100000,
+        categoryNames,
+        vectorsVisible,
+      ]);
+      var features = _cachedFeatures, supports = _cachedSupports;
+      if (_coverage == null ||
+          _coverageKey != cacheKey ||
+          !_contains(_coverage!, requested)) {
+        var area = _expand(
+          requested,
+          ((viewport.east - viewport.west) * .25).clamp(.01, .05),
+          ((viewport.north - viewport.south) * .25).clamp(.01, .05),
+        );
+        features = await provider.cache.queryObstacles(
+          snapshot.key,
+          area,
+          categories,
+          localViewOnly: false,
+        );
+        if (!current()) return;
+        // Dense views retain the original display budget instead of allowing
+        // offscreen neighbours to displace relevant visible obstacles.
+        if (features.length > 1200) {
+          area = requested;
+          features = await provider.cache.queryObstacles(
+            snapshot.key,
+            area,
+            categories,
+            localViewOnly: false,
+          );
+        }
+        // Hidden support masts still anchor cable display, so category visibility
+        // does not change an otherwise known attachment height.
+        var supportArea = area;
+        for (final feature in features) {
+          if (!feature.parts.any((p) => p.kind == 'LineString')) continue;
+          supportArea = ObstacleViewport(
+            feature.west < supportArea.west ? feature.west : supportArea.west,
+            feature.south < supportArea.south
+                ? feature.south
+                : supportArea.south,
+            feature.east > supportArea.east ? feature.east : supportArea.east,
+            feature.north > supportArea.north
+                ? feature.north
+                : supportArea.north,
+          );
+        }
+        supports =
+            vectorsVisible &&
+                (categories.contains(ObstacleCategory.powerLines) ||
+                    categories.contains(ObstacleCategory.cableways))
+            ? await provider.cache.queryObstacles(
+                snapshot.key,
+                supportArea,
+                {
+                  ObstacleCategory.masts,
+                  ObstacleCategory.powerLines,
+                  ObstacleCategory.cableways,
+                },
+                pointsOnly: true,
+                localViewOnly: false,
               )
-            : viewport,
-        categories,
-        localViewOnly: false,
-      );
-      if (!current()) return;
-      // Hidden support masts still anchor cable display, so category visibility
-      // does not change an otherwise known attachment height.
-      final supports =
-          vectorsVisible &&
-              (categories.contains(ObstacleCategory.powerLines) ||
-                  categories.contains(ObstacleCategory.cableways))
-          ? await provider.cache.queryObstacles(snapshot.key, viewport, {
-              ObstacleCategory.masts,
-              ObstacleCategory.powerLines,
-              ObstacleCategory.cableways,
-            }, pointsOnly: true)
-          : <ObstacleFeature>[];
-      if (!current()) return;
+            : <ObstacleFeature>[];
+        if (!current()) return;
+        _coverage = area;
+        _coverageKey = cacheKey;
+        _cachedFeatures = features;
+        _cachedSupports = supports;
+      }
       final heights = await (_heights ??= SwissObstacleHeights.load());
       if (!current()) return;
       var vertices = 0, parts = 0, projected = 0;
@@ -406,30 +474,39 @@ class ObstacleMapController extends ChangeNotifier {
         if (categories.contains(f.category)) rendered[f.id] = f;
       }
       if (!current()) return;
-      final revision = ++_revision;
-      if (vectorsVisible) {
+      final signature = jsonEncode([snapshot.key, modelsVisible, payload]);
+      if (vectorsVisible && _sentVectors != signature) {
+        final revision = ++_revision;
         await send({
           'type': 'set-obstacle-vectors',
           'useModels': modelsVisible,
           'revision': revision,
           'features': payload,
         });
+        if (!_disposed && _ready && revision == _revision) {
+          _rendered = rendered;
+          _sentVectors = signature;
+        }
       }
       if (!current()) return;
-      _rendered = vectorsVisible ? rendered : {};
-      if (hazardsVisible) {
+      final hazardSignature = jsonEncode([snapshot.key, bufferMeters, payload]);
+      if (hazardsVisible && _sentHazards != hazardSignature) {
+        final revision = ++_hazardRevision;
         await send({
           'type': 'set-hazard-areas',
-          'revision': ++_hazardRevision,
+          'revision': revision,
           'bufferMeters': bufferMeters,
           'features': payload,
         });
+        if (!_disposed && _ready && revision == _hazardRevision) {
+          _hazardsRendered = rendered;
+          _sentHazards = hazardSignature;
+        }
         if (!current()) return;
-        _hazardsRendered = rendered;
       }
       final limited = features.length > rendered.length;
       vectorStatus =
-          '${rendered.length} obstacles in view${limited ? ' · display limit reached; zoom in' : ''}'
+          '${rendered.length} nearby obstacles${limited ? ' · display limit reached; zoom in' : ''}'
           '${projected > 0 ? ' · $projected ground markers (height unavailable/unsupported)' : ''}';
       vectorError = null;
       _notify();
