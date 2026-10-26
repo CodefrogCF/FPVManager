@@ -114,4 +114,52 @@ void main() {
       expect(calls, [true, false]);
     },
   );
+  testWidgets(
+    'native radio channels are bounded, keep connection generation and expire without retaining identifiers',
+    (tester) async {
+      final sent = <Map<String, dynamic>>[];
+      var elapsed = Duration.zero;
+      final input = NavigationDeviceInput(
+        (frame) async => sent.add(Map.of(frame)),
+        elapsed: () => elapsed,
+      );
+      addTearDown(input.dispose);
+      input.setEnabled(true);
+      await tester.pump();
+      final radio = {
+        ...neutral,
+        'axes': [0.0, 0.0, -1.0, 0.0],
+        'generation': 7,
+        'serial': 'private',
+      };
+      await emit(radio);
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(sent.last['axes'], [0.0, 0.0, -1.0, 0.0]);
+      expect(sent.last['generation'], 7);
+      expect(sent.last.containsKey('serial'), isFalse);
+      for (final invalid in [
+        {...radio, 'axes': List.filled(17, 0.0)},
+        {
+          ...radio,
+          'axes': [double.nan],
+        },
+        {
+          ...radio,
+          'axes': [2.0],
+        },
+        {...radio, 'generation': -1},
+      ]) {
+        await emit(invalid);
+        await tester.pump(const Duration(milliseconds: 40));
+        expect(sent.last['generation'], 7);
+        expect(sent.last['axes'], radio['axes']);
+      }
+      elapsed = const Duration(milliseconds: 300);
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(sent.last['connected'], false);
+      expect(sent.last.containsKey('axes'), false);
+      input.dispose();
+      await tester.pump();
+    },
+  );
 }

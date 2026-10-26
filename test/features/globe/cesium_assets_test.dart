@@ -46,7 +46,9 @@ void main() {
       for (final module in [
         'ground_navigation.js',
         'navigation_controls.js',
+        'controller_input.js',
         'free_flight.js',
+        'flight_hud.js',
         'flight_rendering.js',
         'route_editor.js',
         'obstacle_layers.js',
@@ -59,6 +61,8 @@ void main() {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);
       }
+      expect(html, contains('href="flight_hud.css"'));
+      expect(await rootBundle.loadString('web/flight_hud.css'), isNotEmpty);
       for (final model in [
         'power-pylon',
         'utility-pole',

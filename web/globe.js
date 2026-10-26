@@ -795,10 +795,13 @@ function postToFlutter(message) {
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
         const groundPanel = document.getElementById("ground-controls");
         const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
-        const readout=document.getElementById('flight-readout'),device=document.getElementById('navigation-device');
+        const flightHud=FPVFlightHud.create(document),device=document.getElementById('navigation-device');
+        const settingsButton=document.getElementById('settings-flight'),settingsPanel=document.getElementById('flight-options');
+        const hudSelect=document.getElementById('flight-hud-style');
         const cameraButton=document.getElementById('camera-flight'),cameraPanel=document.getElementById('flight-camera');
         const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
         const graphicsSelect=document.getElementById('flight-graphics-profile');
+        const controllerPanel=FPVControllerInput.bindPanel(document,value=>flyer.controllerSettings(value));
         let deviceMessage='', lastHud=0,lastReason=null;
         const lastModes={ground:false,flight:false};
         const cameraAdapter={
@@ -837,7 +840,10 @@ function postToFlutter(message) {
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
             groundPanel.hidden=!state.active; flightButtons.hidden=mode!=='flight'||!state.active;
             groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
-            hud.hidden=mode!=='flight'||!state.active; info.hidden=mode==='flight'&&state.active;
+            const flying=mode==='flight'&&state.active;
+            hud.hidden=!flying; info.hidden=flying;
+            if(!flying){settingsPanel.hidden=true;settingsButton.setAttribute('aria-expanded','false');}
+            else {hudSelect.value=state.hudStyle;flightHud.update(state,viewer.camera.heading);controllerPanel.update(state.controller);}
             const fpv=mode==='flight'&&state.active&&state.mode!=='gps';
             cameraButton.hidden=!fpv;
             if(!fpv){cameraPanel.hidden=true;cameraButton.setAttribute?.('aria-expanded','false');}
@@ -847,7 +853,7 @@ function postToFlutter(message) {
             if(entering)viewer.canvas.focus();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
-                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile}:{})});
+                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,controller:state.controller}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
             applyPose:point=>{
@@ -861,14 +867,10 @@ function postToFlutter(message) {
             applyPose:point=>{
                 applyCamera(point);
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
-                readout.textContent=`SIMULATION · ${point.mode.toUpperCase()}${point.mode==='angle'?' / SELF-LEVEL':''} · H ${(point.horizontalSpeed*3.6).toFixed(0)} km/h · `+
-                    `${point.mode==='acro'?`V ${point.verticalSpeed.toFixed(1)} m/s · `:''}`+
-                    `${point.agl==null?'unknown':point.agl.toFixed(1)} m AGL · ${point.distance.toFixed(0)} m from spawn\n`+
-                    `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}${point.mode==='gps'?'':` · Gas ${(point.throttle*100).toFixed(0)}%`} · `+
-                    `Pitch ${(point.pitch*180/Math.PI).toFixed(0)}° / Roll ${(point.roll*180/Math.PI).toFixed(0)}°`+(point.reason?` · ${point.reason}`:'');
+                flightHud.update(point,viewer.camera.heading);
             },onState:state=>modeState('flight',state)});
         const currentAgent=()=>flyer.active?flyer:walker;
-        const navigation={status:()=>({active:!!navigationActive(),mode:flyer.active?flyer.flightMode:'ground'}),stop:stopNavigation,
+        const navigation={status:()=>({active:!!navigationActive(),mode:flyer.active?flyer.flightMode:'ground',controller:flyer.controller}),stop:stopNavigation,
             key:(...args)=>currentAgent().key(...args),stick:(...args)=>currentAgent().stick(...args),
             look:(...args)=>currentAgent().look(...args),flightInput:frame=>flyer.flightInput(frame),
             vertical:v=>{if(flyer.active)flyer.vertical(v);},
@@ -876,9 +878,15 @@ function postToFlutter(message) {
             reset:()=>{if(flyer.active)flyer.reset().catch(()=>{});}};
         disposeGroundControls=FPVNavigationControls.bindControls(navigation,viewer.canvas,groundPanel,window,document,{
             onFocus:focused=>sendToFlutter('navigation-focus',{focused}),
-            onDevice:message=>{deviceMessage=message;device.textContent=message;}});
+            onDevice:message=>{deviceMessage=message;device.textContent=message;flightHud.device(message);}});
         document.getElementById('reset-flight').addEventListener('click',()=>flyer.reset().catch(()=>{}));
         document.getElementById('exit-flight').addEventListener('click',()=>flyer.stop());
+        settingsButton.addEventListener('click',()=>{
+            settingsPanel.hidden=!settingsPanel.hidden;
+            settingsButton.setAttribute('aria-expanded',String(!settingsPanel.hidden));
+            if(settingsPanel.hidden)viewer.canvas.focus();
+        });
+        hudSelect.addEventListener('change',()=>flyer.hudStyle(hudSelect.value));
         cameraButton.addEventListener('click',()=>{
             cameraPanel.hidden=!cameraPanel.hidden;cameraButton.setAttribute('aria-expanded',String(!cameraPanel.hidden));
         });

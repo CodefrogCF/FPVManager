@@ -75,6 +75,22 @@ class NavigationDeviceInput {
       if (value[name] is! bool) return;
       frame[name] = value[name];
     }
+    final axes = value['axes'];
+    if (axes != null) {
+      if (axes is! List ||
+          axes.length > 16 ||
+          axes.any((v) => v is! num || !v.isFinite || v.abs() > 1)) {
+        return;
+      }
+      frame['axes'] = [for (final v in axes) (v as num).toDouble()];
+    }
+    final generation = value['generation'];
+    if (generation != null) {
+      if (generation is! int || generation < 0 || generation > 0x7fffffff) {
+        return;
+      }
+      frame['generation'] = generation;
+    }
     _latest = frame;
     _received = _elapsed();
   }

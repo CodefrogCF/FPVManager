@@ -6,6 +6,7 @@ import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 import 'package:fpvmanager/features/globe/ground_view_button.dart';
 import 'package:fpvmanager/features/simulation/simulation_settings.dart';
+import 'package:fpvmanager/features/simulation/controller_settings.dart';
 import 'package:fpvmanager/features/simulation/simulation_settings_sheet.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
@@ -91,6 +92,7 @@ void main() {
     const original = SimulationSettings(
       flightMode: SimulationFlightMode.acro,
       graphicsProfile: SimulationGraphicsProfile.performance,
+      hudStyle: SimulationHudStyle.betaflight,
       acroThrustToWeight: 6,
       agl: 45,
       acroRollRate: 600,
@@ -108,6 +110,13 @@ void main() {
     expect(tilted.acroRateExpo, .4);
     expect(tilted.flightMode, SimulationFlightMode.acro);
     expect(tilted.graphicsProfile, SimulationGraphicsProfile.performance);
+    expect(tilted.hudStyle, SimulationHudStyle.betaflight);
+    expect(tilted.toCommand()['hudStyle'], 'betaflight');
+    expect(const SimulationSettings().toCommand()['hudStyle'], 'goggles');
+    expect(
+      tilted.withCameraTilt(20, hudStyle: SimulationHudStyle.goggles).hudStyle,
+      SimulationHudStyle.goggles,
+    );
     for (final profile in SimulationGraphicsProfile.values) {
       expect(
         SimulationSettings(graphicsProfile: profile)
@@ -226,6 +235,42 @@ void main() {
         globe.simulationGraphicsProfile,
         SimulationGraphicsProfile.performance,
       );
+    });
+    test('live HUD choice is retained for the next flight and invalid state is ignored', () {
+      peer.emit({
+        'type': 'simulation-state',
+        'active': true,
+        'pending': false,
+        'hudStyle': 'betaflight',
+      });
+      expect(globe.simulationHudStyle, SimulationHudStyle.betaflight);
+      peer.emit({
+        'type': 'simulation-state',
+        'active': true,
+        'pending': false,
+        'hudStyle': 'unknown',
+      });
+      expect(globe.simulationHudStyle, SimulationHudStyle.betaflight);
+    });
+    test('live radio assignment and throttle zero remain available in the next settings sheet', () {
+      const controller = ControllerSettings(
+        layout: ControllerLayout.radio,
+        throttleZero: ControllerThrottleZero.bottom,
+      );
+      peer.emit({
+        'type': 'simulation-state',
+        'active': true,
+        'pending': false,
+        'controller': controller.toJson(),
+      });
+      expect(globe.simulationController!.toJson(), controller.toJson());
+      peer.emit({
+        'type': 'simulation-state',
+        'active': true,
+        'pending': false,
+        'controller': {'layout': 'unknown'},
+      });
+      expect(globe.simulationController!.toJson(), controller.toJson());
     });
     test(
       'input requires active focused navigation and state resets on reload',
@@ -364,12 +409,19 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Performance · 75% resolution').last);
       await tester.pumpAndSettle();
+      final hud = find.byKey(const ValueKey('simulation-hud'));
+      await tester.ensureVisible(hud);
+      await tester.tap(hud);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Betaflight · classic OSD').last);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Spawn in map'));
       await tester.tap(find.text('Spawn in map'));
       await tester.pumpAndSettle();
       expect(chosen!.agl, 35.5);
       expect(chosen!.cameraTiltDegrees, 30);
       expect(chosen!.graphicsProfile, SimulationGraphicsProfile.performance);
+      expect(chosen!.hudStyle, SimulationHudStyle.betaflight);
       expect(chosen!.droneId, 1);
       expect(chosen!.flightMode, SimulationFlightMode.acro);
       expect(chosen!.maxSpeed, 24);

@@ -1,8 +1,8 @@
 (function(root,factory){
-    const api=factory();
+    const api=factory(typeof module==='object'&&module.exports?require('./controller_input.js'):root.FPVControllerInput);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -16,13 +16,18 @@
         const h=Math.sin(x/2)**2+Math.cos(a.latitude*rad)*Math.cos(b.latitude*rad)*Math.sin(y/2)**2;
         return 2*R*Math.asin(Math.sqrt(clamp(h,0,1)));
     }
+    function bearing(a,b){
+        const lat1=a.latitude*rad,lat2=b.latitude*rad,dl=(b.longitude-a.longitude)*rad;
+        return wrap(Math.atan2(Math.sin(dl)*Math.cos(lat2),
+            Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dl)));
+    }
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
-            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,graphicsProfile:c.graphicsProfile??'balanced',
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
-            acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0};
+            acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0,controller:controller.configuration(c.controller)};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
             ['acceleration',.2,50],['deceleration',.2,50],['cameraTiltDegrees',0,80],['acroThrustToWeight',1.1,12],
             ['acroThrustCurve',0,1],['acroMotorTimeConstant',0,.5],['acroTerminalVelocity',5,120],
@@ -31,6 +36,7 @@
         }
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
         if(!['quality','balanced','performance'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
+        if(!['goggles','betaflight'].includes(p.hudStyle))throw new Error('Unknown flight HUD style');
         return p;
     }
     // Body forward/right/down -> local north/east/down, a right-handed frame.
@@ -46,7 +52,7 @@
     }
     function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState}){
         let active=false,pending=false,paused=false,operation=0,abort=null,saved=null,spawn=null,position=null;
-        let height=0,heading=0,pitch=0,roll=0,ground=null,reason=null,config=parameters({}),q=euler(0,0,0);
+        let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         const keys=new Set();
@@ -59,10 +65,11 @@
             const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,graphicsProfile:config.graphicsProfile,position:position&&{...position},height,heading,pitch,roll,
+        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
+            home:spawn&&{...spawn},heightAboveHome:Number.isFinite(homeHeight)?height-homeHeight:null,
             distance:spawn&&position?distance(spawn,position):0,reason};}
         function publish(){onState(status());}
         function pose(){applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
@@ -85,7 +92,7 @@
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
                 config=next;saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
-                position={...spawn};height=sampled+config.agl;ground=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
+                position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
                 motorThrust=acroThrust(motorCommand());
                 active=true;pending=false;pose();publish();return {};
             }catch(error){if(token!==operation)return {cancelled:true};stop('Unable to start simulated flight');throw error;}
@@ -210,6 +217,15 @@
             return start({...spawn,...config},signal??new AbortController().signal);
         }
         return {start,stop,reset,tick,status,get active(){return active;},get flightMode(){return config.flightMode;},
+            get controller(){return config.controller;},
+            controllerSettings(value){
+                config={...config,controller:controller.configuration(value)};clearKeys();
+                if(active){pose();publish();}
+            },
+            hudStyle(style){
+                if(!['goggles','betaflight'].includes(style))throw new Error('Unknown flight HUD style');
+                config={...config,hudStyle:style};if(active){pose();publish();}
+            },
             graphicsProfile(profile){
                 if(!['quality','balanced','performance'].includes(profile))throw new Error('Unknown flight graphics profile');
                 if(active)applyGraphics?.(profile);
@@ -232,5 +248,5 @@
             pause(value){if(paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};
     }
-    return {createSimulator,parameters,distance,rateCommand};
+    return {createSimulator,parameters,distance,bearing,rateCommand};
 });

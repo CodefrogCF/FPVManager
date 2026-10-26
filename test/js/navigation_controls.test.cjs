@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {bindControls,axis,gamepadFrame}=require('../../web/navigation_controls.js');
 const {createSimulator}=require('../../web/free_flight.js');
+const Controller=require('../../web/controller_input.js');
 class Target{
     constructor(rect={left:0,top:0,width:400,height:600}){this.listeners=new Map();this.style={};this.rect=rect;this.hidden=true;}
     addEventListener(type,fn){if(!this.listeners.has(type))this.listeners.set(type,new Set());this.listeners.get(type).add(fn);}
@@ -78,6 +79,45 @@ test('Web gamepad, native controller and touch use Acro zero-centre throttle thr
         }
         p.binding();
     }
+});
+
+test('USB radio throttle uses selectable endpoints in Angle/Acro through Web and native inputs; unplug cuts Acro gas',async()=>{
+    for(const mode of ['acro','angle'])for(const source of ['web','native'])for(const zero of ['bottom','center']){
+        const agent=createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,isTerrainReady:()=>true,
+            captureCamera:()=>({heading:0}),restoreCamera(){},applyPose(){},onState(){}});
+        await agent.start({latitude:47,longitude:8,flightMode:mode,agl:500,acroMotorTimeConstant:0,
+            controller:{layout:'radio',throttleZero:zero}},new AbortController().signal);
+        const p=setup(mode,agent),axes=[0,0,zero==='bottom'?-1:0,0];
+        const frame={forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false,connected:true,axes,generation:1};
+        const update=()=>{if(source==='web')p.pads([{connected:true,mapping:'',axes,buttons:[{value:1},{value:1}]}]);else p.binding.native(frame);p.binding.tick(.01);agent.tick(.01);};
+        update();assert.equal(agent.status().throttle,0);
+        for(const raw of [-1,0,.5,1]){axes[2]=raw;update();assert.equal(agent.status().throttle,Controller.throttle(raw,zero),`${mode}/${source}/${zero}/${raw}`);}
+        p.canvas.fire('keydown',{key:'q'});update();assert.equal(agent.status().throttle,0,'Keyboard gas cut takes priority over an external throttle');
+        p.canvas.fire('keyup',{key:'q'});p.canvas.fire('keydown',{key:'e'});update();assert.equal(agent.status().throttle,1);
+        p.canvas.fire('keyup',{key:'e'});
+        const snapshot=agent.status();agent.controllerSettings({...agent.controller,throttleZero:zero==='bottom'?'center':'bottom'});
+        assert.equal(agent.status().height,snapshot.height);assert.deepEqual(agent.status().attitude,snapshot.attitude);
+        update();assert.equal(agent.status().throttle,mode==='acro'?0:.5,'Changed mapping must wait for a new idle');
+        p.pads([]);p.binding.native({...frame,connected:false});p.binding.tick(.01);agent.tick(.01);
+        if(mode==='acro')assert.equal(agent.status().throttle,0);
+        await agent.reset();assert.equal(agent.controller.layout,'radio');
+        assert.equal(agent.controller.throttleZero,zero==='bottom'?'center':'bottom');p.binding();
+    }
+});
+
+test('bottom-throttle radio requires idle after focus loss and on replacement by another device',async()=>{
+    const config=Controller.configuration({layout:'radio',throttleZero:'bottom'});
+    const agentPad=(t,id='first')=>({connected:true,mapping:'',index:0,id,axes:[0,0,t,0],buttons:[]});
+    // Supply the immutable settings without bypassing the real input gating.
+    let input;
+    const agent={status:()=>({active:true,mode:'acro',controller:config}),flightInput:v=>input=v,stick(){},look(){},key(){},clearKeys(){},pause(){},stop(){}};
+    const q=setup('acro',agent);
+    q.pads([agentPad(1)]);q.binding.tick(.1);assert.equal(input.throttle,0);
+    q.pads([agentPad(-1)]);q.binding.tick(.1);q.pads([agentPad(1)]);q.binding.tick(.1);assert.equal(input.throttle,1);
+    q.pads([agentPad(1,'second')]);q.binding.tick(.1);assert.equal(input.throttle,0);
+    q.pads([agentPad(-1,'second')]);q.binding.tick(.1);q.pads([agentPad(1,'second')]);q.binding.tick(.1);assert.equal(input.throttle,1);
+    q.host.fire('blur');q.doc.activeElement=null;q.binding.tick(.1);q.canvas.focus();q.binding.tick(.1);assert.equal(input.throttle,0);
+    q.binding();
 });
 
 test('right touch stick floats at the touch and disappears on release without releasing the movement finger',()=>{

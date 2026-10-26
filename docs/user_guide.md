@@ -102,12 +102,12 @@ target when no point is selected. Detailed terrain is required.
 Choose **Angle** (default), **Acro** or **GPS** in the flight settings. Reopening
 settings and spawning switches mode at the original spawn point, level and stationary.
 **FPV camera tilt** sets 0–80° upward relative to the drone in Angle/Acro.
-The compact **Camera** control changes it during flight without respawning;
+Open **HUD settings → Camera** to change it during flight without respawning;
 camera tilt changes the view, not thrust or the drone's attitude.
 
 **Graphics profile** offers Quality (100% resolution), Balanced (85%, default)
 and Performance (75%), with progressively less multisample antialiasing. Change
-it before spawning or using **Graphics** during flight. It affects image quality,
+it before spawning or in **HUD settings → Graphics** during flight. It affects image quality,
 not terrain detail or flight physics. The choice stays in this session; exiting
 flight restores the globe's previous graphics settings.
 
@@ -132,8 +132,8 @@ in memory for the current renderer, not persistent offline storage.
   and terminal free-fall speed (air drag). Defaults are 4:1, quadratic, 0.04 s and
   22.5 m/s, giving about 159 km/h in steady full-throttle level flight. The
   settings show this estimate; diving can be faster. These remain simplified
-  assumptions, independent of profile speed limits. The HUD labels horizontal
-  speed **H** in km/h and Acro vertical speed **V** in m/s.
+  assumptions, independent of profile speed limits. The HUD shows horizontal
+  speed in km/h and signed vertical speed **V** in m/s.
 - **GPS:** The previous assisted mode — left stick translates, right stick looks,
   neutral input brakes and maintains height. Its controls match ground view.
 
@@ -141,19 +141,35 @@ FPV keyboard: E/Q throttle, A/D yaw, W/S (or up/down arrows) pitch, left/right
 arrows roll; IJKL also controls pitch/roll. In GPS, WASD/arrows move, drag/IJKL
 looks and E/Q climbs/descends. Touch the right half to show the second stick.
 ↑/↓, right/left triggers and R1/L1 provide additional gas/height controls.
-Angle retains its centred hover aid. Acro uses the upper stick half for 0–100%
+  Angle touch/keyboard input retains its centred hover aid. Acro touch/keyboard uses the upper stick half for 0–100%
 motor command: centre and downward input cut thrust; fully up gives 100%.
 The estimated hover point depends on the physical settings (50% with defaults)
 and applies only while level.
 The Acro HUD shows signed vertical speed: negative is descent toward terrain.
 
-**Reset**, R or controller A returns to spawn; **Exit**, Escape, controller B or
-the globe icon restores the map camera. The HUD shows mode, speed, AGL, distance,
-coordinates and attitude; FPV modes also show throttle. Saved routes/obstacles remain visible.
+Choose **Goggles** or **Betaflight OSD** before flight or in **HUD settings**.
+Both show speed, AGL, **H START** (height above the ground at spawn), **D HOME**
+(horizontal distance) and a home arrow relative to the view heading. At spawn,
+H START equals the configured spawn height; below that ground elevation it is negative.
+Unknown terrain heights stay unknown. The layout choice lasts for this session.
+**HUD settings → Reset**, R or controller A returns to spawn; **Exit**, Escape,
+controller B or the globe icon restores the map camera. Saved routes/obstacles remain visible.
 
-Release controller sticks/buttons to neutral after connecting or resuming. Web
-requires a secure context and a browser-supported standard-mapped controller;
-Android also handles native gamepad axes/buttons. Input stops on focus loss and
+**External controller** (flight settings or HUD settings) selects **Standard gamepad**
+or **USB radio**. Zero-throttle position is **50% · centre** for self-centring controllers
+or **0% · bottom** for RC radios. In Angle/Acro, bottom zero uses the full travel
+(bottom 0%, centre 50%, top 100% gas); centre zero uses only the upper half.
+Touch/keyboard, GPS and ground-view controls keep their existing behaviour.
+USB radio channels start as roll/pitch/throttle/yaw on channels 1–4; assign and
+reverse them to match the model in your radio and the axes reported by the OS.
+No radio switches are assigned to Reset/Exit. These choices last for this session.
+
+For a Tango 2, connect a data-capable USB cable and select **USB Joystick** on the
+radio. Android needs USB host/OTG support and must recognize the radio as a joystick;
+if a direct USB-C cable is not detected, try a suitable OTG adapter. Web needs a
+secure context (HTTPS or localhost) and browser Gamepad API support.
+Use zero throttle, centre the other sticks and release gamepad buttons after
+connecting, changing assignments or resuming. Android also handles native gamepad axes/buttons. Input stops on focus loss and
 disconnect. Tap the view to resume; terrain loss returns to the globe. Movement
 waits for terrain tiles and stops at terrain contact. Terrain refinement can
 adjust the camera floor. Buildings, vegetation and cables have no collision model.

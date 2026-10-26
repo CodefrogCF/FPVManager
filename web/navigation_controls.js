@@ -1,25 +1,17 @@
 (function(root,factory){
-    const api=factory();
+    const api=factory(typeof module==='object'&&module.exports?require('./controller_input.js'):root.FPVControllerInput);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVNavigationControls=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller){
     'use strict';
     const clamp=v=>Math.max(-1,Math.min(1,Number.isFinite(v)?v:0))||0;
-    function axis(v,zone=.15){v=clamp(v);return Math.abs(v)<=zone?0:Math.sign(v)*(Math.abs(v)-zone)/(1-zone);}
-    function gamepadFrame(pad){
-        if(!pad||!pad.connected)return null;
-        if(pad.mapping!=='standard')return {unsupported:true};
-        const button=i=>clamp(pad.buttons?.[i]?.value??0);
-        return {forward:-axis(pad.axes?.[1]),right:axis(pad.axes?.[0]),
-            yaw:axis(pad.axes?.[2]),pitch:axis(pad.axes?.[3]),
-            vertical:clamp(button(7)-button(6)+button(5)-button(4)),
-            reset:button(0)>.5,exit:button(1)>.5};
-    }
+    const {axis,gamepadFrame}=controller;
     function bindControls(agent,canvas,panel,host=window,doc=document,options={}){
         const cleanups=[],stick=panel.querySelector('[data-stick]'),thumb=panel.querySelector('[data-stick-thumb]');
         const lookStick=doc.getElementById?.('look-stick'),lookThumb=doc.getElementById?.('look-thumb');
         let left=null,look=null,drag=null,f=0,r=0,yaw=0,pitch=0,vertical=0;
         let focused=false,armed=false,lastDevice=null,previousReset=false,previousExit=false,native=null,nativeAt=-Infinity;
+        let lastConfiguration=null,lastSource=null;
         const now=()=>host.performance?.now?.()??Date.now();
         const keys=new Set(),verticalReleases=[];
         const isFpv=()=>['angle','acro'].includes(agent.status().mode);
@@ -28,7 +20,7 @@
         function applyStick(){if(!isFpv()){agent.stick(f,r);agent.vertical?.(vertical);}}
         function resetLook(){look=drag=null;yaw=pitch=0;if(lookStick)lookStick.hidden=true;if(lookThumb)lookThumb.style.transform='translate(0px, 0px)';}
         function resetLeft(){left=null;f=r=0;if(thumb)thumb.style.transform='translate(0px, 0px)';applyStick();}
-        function clear(){keys.clear();agent.clearKeys();resetLeft();resetLook();vertical=0;for(const release of verticalReleases)release();native=null;nativeAt=-Infinity;armed=false;previousReset=previousExit=false;applyStick();}
+        function clear(){keys.clear();agent.clearKeys();resetLeft();resetLook();vertical=0;for(const release of verticalReleases)release();native=null;nativeAt=-Infinity;armed=false;lastSource=null;previousReset=previousExit=false;applyStick();showDevice('');}
         function focus(value){if(focused===value)return;focused=value;if(!value)clear();agent.pause?.(!value);options.onFocus?.(value);}
         canvas.tabIndex=0;
         listen(canvas,'focus',()=>focus(true));listen(canvas,'blur',()=>focus(false));listen(host,'blur',()=>focus(false));
@@ -99,6 +91,8 @@
             const names=['forward','right','yaw','pitch','vertical'];
             if(!frame||!names.every(k=>Number.isFinite(frame[k])&&Math.abs(frame[k])<=1)||
                 !['reset','exit','connected'].every(k=>typeof frame[k]==='boolean'))return;
+            if(frame.axes!==undefined&&(!Array.isArray(frame.axes)||frame.axes.length>16||frame.axes.some(v=>!Number.isFinite(v)||Math.abs(v)>1)))return;
+            if(frame.generation!==undefined&&(!Number.isSafeInteger(frame.generation)||frame.generation<0))return;
             native={...frame};nativeAt=now();
             if(frame.connected===false){armed=false;agent.clearKeys();showDevice('Controller disconnected');}
         };
@@ -106,23 +100,34 @@
             if(!agent.status().active){clear();return;}
             if(doc.activeElement!==undefined)focus(!doc.hidden&&doc.activeElement===canvas&&(doc.hasFocus?.()??true));
             if(!focused)return;
-            let pad=null;
-            if(now()-nativeAt<250)pad=native?.connected===false?null:native;
-            else{try{pad=Array.from(host.navigator?.getGamepads?.()??[]).filter(p=>p?.connected).map(gamepadFrame).find(p=>!p.unsupported)??null;
-                if(!pad&&Array.from(host.navigator?.getGamepads?.()??[]).some(p=>p?.connected))showDevice('Unmapped controller: standard mapping required');
+            const fpv=isFpv(),c=agent.status().controller??controller.defaults;
+            if(lastConfiguration!==c){armed=false;lastConfiguration=c;}
+            let pad=null,source=null;
+            if(now()-nativeAt<250){
+                if(native?.connected){pad=controller.nativeFrame(native,c,fpv);source='native:'+String(native.generation??0);}
+            }
+            else{try{
+                const candidates=Array.from(host.navigator?.getGamepads?.()??[]).filter(p=>p?.connected);
+                for(const device of candidates){const mapped=gamepadFrame(device,c,fpv);if(!mapped.unsupported){pad=mapped;source=`web:${device.index}:${device.id}`;break;}}
+                if(!pad&&candidates.length)showDevice(c.layout==='radio'&&!fpv?'USB radio channels require Angle or Acro mode':'Unmapped controller: choose USB radio and assign its channels in flight settings');
             }catch(_){showDevice('Gamepad unavailable in this browser');}}
+            if(pad?.unsupported){pad=null;showDevice(c.layout==='radio'&&!fpv?'USB radio channels require Angle or Acro mode':'Radio channels unavailable: check the channel assignment');}
+            if(source!==lastSource){armed=false;if(source===null&&lastSource!==null)showDevice('Controller disconnected');lastSource=source;}
             if(pad){
-                const neutral=['forward','right','yaw','pitch','vertical'].every(k=>Math.abs(pad[k])<.02)&&!pad.reset&&!pad.exit;
+                const neutral=controller.neutral(pad,c,fpv);
                 if(!armed&&neutral)armed=true;
-                showDevice(armed?'Controller ready':'Release controller sticks to enable');
+                showDevice(armed?'Controller ready':fpv&&c.throttleZero==='bottom'?'Lower throttle fully and centre the other sticks to enable':'Centre controller sticks to enable');
                 if(!armed)pad=null;
             }else{armed=false;}
             if(pad?.exit&&!previousExit)agent.stop();
             else if(pad?.reset&&!previousReset)agent.reset?.();
             previousExit=!!pad?.exit;previousReset=!!pad?.reset;
             const dt=Number.isFinite(seconds)?Math.max(0,Math.min(.1,seconds)):0;
-            if(isFpv()){
-                agent.flightInput({throttle:clamp(f+(pad?.forward??0)+vertical+(pad?.vertical??0)),
+            if(fpv){
+                const collective=pad?controller.throttle(clamp(pad.forward+pad.vertical),c.throttleZero):0;
+                const manual=left!==null||vertical!==0||keys.has('e')||keys.has('q');
+                const gas=pad&&!manual?(agent.status().mode==='angle'?collective*2-1:collective):clamp(f+vertical);
+                agent.flightInput({throttle:gas,
                     yaw:clamp(r+(pad?.right??0)),pitch:clamp(-pitch-(pad?.pitch??0)),roll:clamp(yaw+(pad?.yaw??0))});
                 return;
             }

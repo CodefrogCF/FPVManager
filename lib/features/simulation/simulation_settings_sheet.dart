@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import 'simulation_settings.dart';
+import 'controller_settings.dart';
+import 'controller_settings_fields.dart';
 
 Future<SimulationSettings?> showSimulationSettings(
   BuildContext context, {
@@ -77,6 +79,8 @@ class _SettingsState extends State<_Settings> {
   bool _loading = true;
   late SimulationFlightMode _mode = widget.initial.flightMode;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
+  late SimulationHudStyle _hud = widget.initial.hudStyle;
+  late ControllerSettings _controller = widget.initial.controller;
   String? _error;
   @override
   void initState() {
@@ -254,14 +258,38 @@ class _SettingsState extends State<_Settings> {
                     }),
                     if (_mode == SimulationFlightMode.angle)
                       const Text(
-                        'Centred throttle is a 50% hover aid while level. Tilt needs more throttle to maintain height. Switching modes respawns level at the spawn point.',
+                        'Centred touch/keyboard throttle is a 50% hover aid while level. External controllers use the selected zero-throttle position. Tilt needs more throttle to maintain height. Switching modes respawns level at the spawn point.',
                       ),
                     if (_mode == SimulationFlightMode.acro)
                       const Text(
-                        'Throttle is 0% with the left stick centred or below centre; pushing upward increases it to 100% at the top. Releasing the stick cuts throttle. Thrust follows the drone: inverted full throttle accelerates toward the ground. Low throttle allows free fall and existing momentum continues. No altitude hold or assisted speed limits. Switching modes respawns level.',
+                        'Touch/keyboard throttle is 0% at centre and below; upward input increases it to 100%. External controllers use the selected zero-throttle position. Thrust follows the drone: inverted full throttle accelerates toward the ground. Low throttle allows free fall and existing momentum continues. No altitude hold or assisted speed limits. Switching modes respawns level.',
                       ),
                     const SizedBox(height: 12),
                     if (_loading) const LinearProgressIndicator(),
+                    DropdownButtonFormField<SimulationHudStyle>(
+                      key: const ValueKey('simulation-hud'),
+                      initialValue: _hud,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Flight HUD',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: SimulationHudStyle.goggles,
+                          child: Text('Goggles · clean telemetry'),
+                        ),
+                        DropdownMenuItem(
+                          value: SimulationHudStyle.betaflight,
+                          child: Text('Betaflight · classic OSD'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => _hud = value);
+                      },
+                    ),
+                    const Text(
+                      'Speed in km/h, height AGL, height above the ground at spawn and horizontal distance home. Switch the layout during flight in HUD settings.',
+                    ),
                     DropdownButtonFormField<SimulationGraphicsProfile>(
                       key: const ValueKey('simulation-graphics'),
                       initialValue: _graphics,
@@ -291,6 +319,10 @@ class _SettingsState extends State<_Settings> {
                       'Graphics affect image sharpness and smoothing. Terrain detail and flight physics stay the same. Adjustable during flight using Graphics.',
                     ),
                     if (_error != null) Text(_error!),
+                    ControllerSettingsFields(
+                      initial: _controller,
+                      onChanged: (value) => _controller = value,
+                    ),
                     DropdownButtonFormField<int>(
                       key: ValueKey(_drone),
                       initialValue: _drone,
@@ -440,7 +472,7 @@ class _SettingsState extends State<_Settings> {
                     Text(
                       '$_controlHelp\n'
                       'Touch and hold the right half to show the second stick. ↑/↓ and right/left triggers or shoulders adjust throttle/height. R or controller A resets, Escape or B exits. '
-                      'Release sticks to neutral when connecting or resuming. Web requires a supported standard-mapped gamepad and a secure context.',
+                      'Use zero throttle and centre the other sticks when connecting or resuming. Web requires a secure context; choose Standard gamepad or assign channels for a USB radio in External controller.',
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -468,6 +500,8 @@ class _SettingsState extends State<_Settings> {
                             droneId: _drone,
                             flightMode: _mode,
                             graphicsProfile: _graphics,
+                            hudStyle: _hud,
+                            controller: _controller,
                             cameraTiltDegrees: parameter(
                               'cameraTilt',
                               0,

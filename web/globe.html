@@ -90,22 +90,6 @@
     #flight-buttons[hidden] { display:none; }
     #flight-buttons button { width:42px;height:38px;border-radius:16px;border:1px solid #ffffff66;
         background:var(--stick-fill);color:var(--map-text);font-size:22px;touch-action:none; }
-    #navigation-hud { position:absolute;top:8px;left:8px;right:8px;z-index:19;pointer-events:none;
-        color:var(--map-text);font-size:12px;line-height:1.45; }
-    #navigation-hud[hidden] { display:none; }
-    #flight-readout { display:block;max-width:520px;padding:6px 9px;background:var(--map-surface);
-        border:1px solid var(--map-outline);border-radius:10px;pointer-events:none; }
-    #navigation-device { display:block;max-width:520px;text-shadow:0 1px 3px #000;background:var(--map-surface); }
-    #flight-actions { display:flex;gap:6px;margin-top:5px; }
-    #flight-actions button { pointer-events:auto;padding:5px 10px;color:var(--map-text);background:var(--map-surface);
-        border:1px solid var(--map-outline);border-radius:12px; }
-    #flight-camera { display:flex;align-items:center;gap:8px;pointer-events:auto;
-        width:max-content;max-width:100%;margin-top:5px;padding:6px 10px;background:var(--map-surface);border-radius:10px; }
-    #flight-camera[hidden], #camera-flight[hidden] { display:none; }
-    #flight-camera-angle { width:130px;max-width:40vw;accent-color:var(--map-accent); }
-    #flight-graphics { display:flex;align-items:center;gap:8px;pointer-events:auto;width:max-content;
-        max-width:100%;margin-top:5px;padding:4px 8px;background:var(--map-surface);border-radius:10px; }
-    #flight-graphics-profile { color:var(--map-text);background:var(--map-surface);border:1px solid var(--map-outline);border-radius:6px; }
     [data-stick] { width: clamp(92px, 20vw, 116px); aspect-ratio: 1; border-radius: 50%;
         border: 1px solid #ffffff66; background: var(--stick-fill); touch-action: none;
         user-select: none; position: relative; box-shadow: 0 0 0 1px #10140f55; }
@@ -132,6 +116,7 @@
     }
     #globe .cesium-widget-credits a { color: var(--map-accent); }
     </style>
+    <link rel="stylesheet" href="flight_hud.css">
 </head>
 
 <body>
@@ -151,19 +136,56 @@
         </div>
     </div>
     <div id="look-region"><div id="look-stick" hidden aria-hidden="true"><div id="look-thumb"></div></div></div>
-    <div id="navigation-hud" hidden>
-        <output id="flight-readout"></output><span id="navigation-device"></span>
-        <div id="flight-actions"><button id="reset-flight">Reset</button><button id="camera-flight" aria-expanded="false" aria-controls="flight-camera">Camera</button><button id="exit-flight">Exit</button></div>
-        <label id="flight-camera" hidden>Camera ↑ <input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"><output id="flight-camera-value">0°</output></label>
-        <label id="flight-graphics">Graphics <select id="flight-graphics-profile" aria-label="Flight graphics profile"><option value="quality">Quality</option><option value="balanced">Balanced</option><option value="performance">Performance</option></select></label>
+    <div id="navigation-hud" data-style="goggles" hidden aria-label="Flight simulation HUD">
+        <span id="hud-mode">SIM</span>
+        <svg class="hud-reticle" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h11m14 0h11M20 9v6"/></svg>
+        <div id="flight-actions">
+            <button id="settings-flight" type="button" title="HUD settings" aria-label="HUD settings" aria-expanded="false" aria-controls="flight-options">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#101820"/><circle cx="15" cy="17" r="3" fill="#101820"/></svg>
+            </button>
+            <button id="exit-flight" type="button" title="Exit flight" aria-label="Exit flight">×</button>
+        </div>
+        <div id="flight-options" hidden aria-label="HUD settings">
+            <div id="flight-option-actions"><button id="reset-flight" type="button">Reset</button><button id="camera-flight" type="button" aria-expanded="false" aria-controls="flight-camera">Camera</button></div>
+            <label id="flight-camera" hidden>Camera ↑ <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label>
+            <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
+            <label id="flight-graphics">Graphics <select id="flight-graphics-profile" aria-label="Flight graphics profile"><option value="quality">Quality</option><option value="balanced">Balanced</option><option value="performance">Performance</option></select></label>
+            <details id="flight-controller"><summary>External controller</summary>
+                <label>Type <select id="controller-layout" aria-label="Controller type"><option value="gamepad">Standard gamepad</option><option value="radio">USB radio / Tango 2</option></select></label>
+                <label>Zero gas <select id="controller-zero" aria-label="Zero-throttle stick position"><option value="bottom">0% · stick bottom</option><option value="center">50% · stick centre</option></select></label>
+                <div id="controller-channels" hidden>
+                    <p>Channels depend on the radio model and operating system. Check each direction before flying. Used channels swap automatically.</p>
+                    <label>Roll <select id="controller-roll-axis" aria-label="Radio roll channel"></select></label><label class="controller-reverse"><input id="controller-roll-reverse" type="checkbox">Reverse roll</label>
+                    <label>Pitch <select id="controller-pitch-axis" aria-label="Radio pitch channel"></select></label><label class="controller-reverse"><input id="controller-pitch-reverse" type="checkbox">Reverse pitch</label>
+                    <label>Throttle <select id="controller-throttle-axis" aria-label="Radio throttle channel"></select></label><label class="controller-reverse"><input id="controller-throttle-reverse" type="checkbox">Reverse throttle</label>
+                    <label>Yaw <select id="controller-yaw-axis" aria-label="Radio yaw channel"></select></label><label class="controller-reverse"><input id="controller-yaw-reverse" type="checkbox">Reverse yaw</label>
+                </div>
+                <p>Angle/Acro external inputs only. Reconnect with zero throttle and other sticks centred. Touch/keyboard controls stay the same.</p>
+            </details>
+            <span id="navigation-device"></span>
+        </div>
+        <span id="hud-warning" hidden role="status" aria-live="polite"></span>
+        <div id="flight-readout" role="group" aria-label="Flight telemetry">
+            <div class="hud-secondary"><span>V <span id="hud-vertical">—</span> m/s</span><span id="hud-throttle-readout">THR <span id="hud-throttle">—</span>%</span></div>
+            <div class="hud-telemetry">
+                <div class="hud-metric"><span class="hud-label">SPEED</span><span class="hud-value"><span id="hud-speed">—</span><small>km/h</small></span></div>
+                <div class="hud-metric" title="Height above terrain at the current position"><span class="hud-label">AGL</span><span class="hud-value"><span id="hud-agl">—</span><small>m</small></span></div>
+                <div class="hud-metric" title="Height above the ground at the spawn point"><span class="hud-label">H START</span><span class="hud-value"><span id="hud-height">—</span><small>m</small></span></div>
+                <div class="hud-metric" title="Horizontal distance and direction to the spawn point"><span class="hud-label">D HOME</span><span class="hud-value">
+                    <svg id="hud-home-arrow" class="hud-home-icon" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Direction home" hidden><path d="M12 2 21 21 12 16 3 21Z"/></svg>
+                    <span id="hud-home-marker" hidden aria-label="At the home point">H</span><span id="hud-distance">—</span><small id="hud-distance-unit">m</small></span></div>
+            </div>
+        </div>
     </div>
 
     <script src="globe_bridge.js"></script>
     <script src="terrain_service.js"></script>
     <script src="map_providers.js"></script>
+    <script src="controller_input.js"></script>
     <script src="navigation_controls.js"></script>
     <script src="ground_navigation.js"></script>
     <script src="free_flight.js"></script>
+    <script src="flight_hud.js"></script>
     <script src="flight_rendering.js"></script>
     <script src="route_editor.js"></script>
     <script src="signal_analysis.js"></script>

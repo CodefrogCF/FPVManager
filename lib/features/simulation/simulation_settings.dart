@@ -1,10 +1,13 @@
 import 'dart:math' as math;
 
 import '../../core/database/fpv_database.dart';
+import 'controller_settings.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
 
 enum SimulationGraphicsProfile { quality, balanced, performance }
+
+enum SimulationHudStyle { goggles, betaflight }
 
 class SimulationSettings {
   const SimulationSettings({
@@ -17,6 +20,8 @@ class SimulationSettings {
     this.flightMode = SimulationFlightMode.angle,
     this.cameraTiltDegrees = 0,
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
+    this.hudStyle = SimulationHudStyle.goggles,
+    this.controller = const ControllerSettings(),
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
     this.acroMotorTimeConstant = .04,
@@ -31,9 +36,13 @@ class SimulationSettings {
   final SimulationFlightMode flightMode;
   final double cameraTiltDegrees;
   final SimulationGraphicsProfile graphicsProfile;
+  final SimulationHudStyle hudStyle;
+  final ControllerSettings controller;
   SimulationSettings withCameraTilt(
     double degrees, {
     SimulationGraphicsProfile? graphicsProfile,
+    SimulationHudStyle? hudStyle,
+    ControllerSettings? controller,
   }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
@@ -44,6 +53,8 @@ class SimulationSettings {
     flightMode: flightMode,
     cameraTiltDegrees: degrees,
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
+    hudStyle: hudStyle ?? this.hudStyle,
+    controller: controller ?? this.controller,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -75,6 +86,7 @@ class SimulationSettings {
   }
 
   void validate() {
+    controller.validate();
     for (final entry in [
       (agl, 1.0, 1000.0),
       (maxSpeed, .5, 100.0),
@@ -108,6 +120,8 @@ class SimulationSettings {
       'flightMode': flightMode.name,
       'cameraTiltDegrees': cameraTiltDegrees,
       'graphicsProfile': graphicsProfile.name,
+      'hudStyle': hudStyle.name,
+      'controller': controller.toJson(),
       'acroThrustToWeight': acroThrustToWeight,
       'acroThrustCurve': acroThrustCurve,
       'acroMotorTimeConstant': acroMotorTimeConstant,

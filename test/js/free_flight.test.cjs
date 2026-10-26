@@ -15,6 +15,25 @@ function advance(model,seconds=1,fps=60){for(let i=0;i<seconds*fps;i++)model.tic
 function input(model,frame={}){model.flightInput({throttle:0,yaw:0,pitch:0,roll:0,...frame});}
 const dot=(a,b)=>a.north*b.north+a.east*b.east+a.up*b.up;
 
+test('HUD launch height is independent of local terrain; layout changes preserve flight state and survive reset',async()=>{
+    let ground=1000;
+    const p=setup({renderedHeight:()=>ground});
+    await start(p,{flightMode:'gps',agl:20});
+    assert.equal(p.model.status().heightAboveHome,20);
+    assert.deepEqual(p.model.status().home,spawn);
+    ground=1005;advance(p.model,.2);
+    assert.equal(p.model.status().agl,15);assert.equal(p.model.status().heightAboveHome,20);
+    const before=p.model.status();p.model.hudStyle('betaflight');
+    const after=p.model.status();assert.equal(after.hudStyle,'betaflight');
+    for(const key of ['height','agl','heightAboveHome','speed','heading'])assert.equal(after[key],before[key]);
+    assert.deepEqual(after.position,before.position);assert.deepEqual(after.attitude,before.attitude);
+    ground=900;p.model.vertical(-1);advance(p.model,8);
+    assert.ok(p.model.status().heightAboveHome<0);assert.ok(p.model.status().agl>0);
+    await p.model.reset();assert.equal(p.model.status().hudStyle,'betaflight');
+    assert.equal(p.model.status().heightAboveHome,20);assert.equal(p.model.status().distance,0);
+    assert.throws(()=>p.model.hudStyle('unknown'));assert.throws(()=>parameters({hudStyle:'unknown'}));
+});
+
 test('graphics changes do not affect flight state and survive reset; invalid profiles are rejected',async()=>{
     const profiles=[],p=setup({applyGraphics:value=>profiles.push(value)}),reference=setup();
     await start(p,{flightMode:'acro',agl:500});await start(reference,{flightMode:'acro',agl:500});

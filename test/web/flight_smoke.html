@@ -61,10 +61,78 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(v.resolutionScale===1&&v.scene.msaaSamples===4,'Live quality graphics profile not applied');
   check(v.scene.globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize),'Profile change altered the flight tile budget');
   log('All graphics profiles change actual Cesium resolution/MSAA without respawning');
-  check(doc.getElementById('flight-readout').textContent.includes('SIMULATION'),'HUD missing simulation label');
-  check(/H \d+ km\/h/.test(doc.getElementById('flight-readout').textContent),'HUD missing labelled horizontal speed in km/h');
+  check(doc.getElementById('hud-mode').textContent.includes('SIM'),'HUD missing simulation label');
+  check(/^\d+$/.test(doc.getElementById('hud-speed').textContent)&&doc.getElementById('flight-readout').textContent.includes('km/h'),'HUD missing labelled horizontal speed in km/h');
+  check(doc.getElementById('hud-agl').textContent==='20.0'&&doc.getElementById('hud-height').textContent==='20.0','HUD confuses AGL and launch-ground height');
+  const settingsButton=doc.getElementById('settings-flight'),settingsPanel=doc.getElementById('flight-options');
+  check(settingsPanel.hidden,'HUD menu obscures the map by default');
+  settingsButton.click();check(!settingsPanel.hidden&&settingsButton.getAttribute('aria-expanded')==='true','HUD menu not reachable');
+  const hudSelect=doc.getElementById('flight-hud-style'),hud=doc.getElementById('navigation-hud');
+  for(const style of ['betaflight','goggles']){
+    const before=v.camera.positionWC.clone();hudSelect.value=style;hudSelect.dispatchEvent(new win.Event('change',{bubbles:true}));
+    await until(()=>flight.hudStyle===style,'HUD style event');
+    check(hud.dataset.style===style&&flight.hudStyle===style,'HUD style not synchronized');
+    check(C.Cartesian3.distance(before,v.camera.positionWC)<.001,'HUD style respawned the drone');
+  }
+  settingsButton.click();check(settingsPanel.hidden,'HUD menu does not close');
+  check(doc.elementFromPoint(win.innerWidth*.7,win.innerHeight*.45)===canvas,'Transparent HUD blocks flight input');
+  log('Both HUD layouts retain height/distance values and switch without respawning; closed HUD controls leave map input reachable');
   check(!v.scene.screenSpaceCameraController.enableInputs,'Orbital input active');
   log('Actual Cesium spawns at terrain +20m with FPV camera, HUD and an independent saved route overlay');
+  if(new URLSearchParams(location.search).has('radio')){
+    const axes=[0,0,-1,0],pad={connected:true,mapping:'',index:0,id:'Synthetic USB radio',axes,buttons:[]};
+    Object.defineProperty(win.navigator,'getGamepads',{configurable:true,value:()=>[pad]});
+    await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:800,flightMode:'acro',controller:{layout:'radio',throttleZero:'bottom'}});
+    canvas.focus();await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Radio low-throttle activation');
+    check(doc.getElementById('hud-throttle').textContent==='0','Radio bottom must be zero gas');
+    axes[2]=0;await until(()=>doc.getElementById('hud-throttle').textContent==='50','Radio centre half gas');
+    axes[2]=1;await until(()=>doc.getElementById('hud-throttle').textContent==='100','Radio full gas');
+    settingsButton.click();const zero=doc.getElementById('controller-zero');
+    zero.value='center';zero.dispatchEvent(new win.Event('change',{bubbles:true}));
+    await until(()=>flight.controller?.throttleZero==='center','Radio live zero update');
+    settingsButton.click();await until(()=>doc.getElementById('hud-throttle').textContent==='0','Changed zero waits for idle');
+    await until(()=>doc.getElementById('navigation-device').textContent.includes('Centre controller'),'Updated centre-zero activation prompt');
+    axes[2]=0;await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Radio centre activation');
+    axes[2]=.6;await until(()=>doc.getElementById('hud-throttle').textContent==='60','Radio upper half gas');
+    pad.connected=false;await until(()=>doc.getElementById('hud-throttle').textContent==='0','Radio unplug clears gas');
+    log('Unmapped USB radio drives actual Acro controls: bottom 0/50/100%, centre 0/60%, idle gate and unplug reset');
+    await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:800,flightMode:'acro',controller:{layout:'radio',throttleZero:'bottom'}});
+    const native={connected:true,generation:42,axes:[0,0,-1,0],forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false};
+    const interval=setInterval(()=>command('navigation-input',native).catch(()=>{}),50);
+    try{
+      canvas.focus();await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Native radio activation');
+      native.axes[2]=0;await until(()=>doc.getElementById('hud-throttle').textContent==='50','Native radio midpoint');
+      native.axes[2]=1;await until(()=>doc.getElementById('hud-throttle').textContent==='100','Native radio full gas');
+      native.generation++;await until(()=>doc.getElementById('hud-throttle').textContent==='0','Replacement radio requires idle');
+      native.axes[2]=-1;await until(()=>doc.getElementById('navigation-device').textContent==='Controller ready','Replacement radio activation');
+      native.connected=false;await until(()=>doc.getElementById('hud-throttle').textContent==='0','Native radio disconnect');
+    }finally{clearInterval(interval);}
+    await command('reset-simulation');await until(()=>flight.controller?.throttleZero==='bottom','Radio settings retained on reset');
+    log('Android bridge-shaped radio frames reach actual Cesium flight; generation changes require idle and reset preserves settings');
+    document.getElementById('status').textContent='PASS — USB radio and throttle zero smoke';return;
+  }
+  if(new URLSearchParams(location.search).has('hud')){
+    await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:30,flightMode:'angle',hudStyle:'betaflight'});
+    settingsButton.click();const cameraButton=doc.getElementById('camera-flight'),cameraSlider=doc.getElementById('flight-camera-angle');
+    cameraButton.click();check(!doc.getElementById('flight-camera').hidden,'Camera control not reachable in HUD settings');
+    cameraSlider.value='25';cameraSlider.dispatchEvent(new win.Event('input',{bubbles:true}));
+    await until(()=>flight.cameraTiltDegrees===25,'Live HUD camera adjustment');
+    const up=v.scene.globe.ellipsoid.geodeticSurfaceNormal(v.camera.positionWC);
+    check(C.Cartesian3.dot(v.camera.directionWC,up)>.4&&hud.dataset.style==='betaflight','Camera adjustment changed the HUD style or failed');
+    settingsButton.click();check(settingsPanel.hidden,'HUD settings did not close after camera adjustment');
+    log('Camera adjustment remains reachable from the compact HUD menu and changes the actual FPV view');
+    await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:30,flightMode:'gps',hudStyle:'betaflight'});
+    canvas.focus();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));
+    await until(()=>Number(doc.getElementById('hud-distance').textContent.split(' ')[0])>=2,'Actual movement for home cue');
+    canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'w',bubbles:true}));await pause(150);
+    check(Number(doc.getElementById('hud-distance').textContent.split(' ')[0])>=1,'HUD home distance did not change');
+    check(!doc.getElementById('hud-home-arrow').hidden&&doc.getElementById('hud-home-arrow').style.transform.includes('rotate('),'HUD home direction not displayed');
+    await command('reset-simulation');await pause(150);
+    check(hud.dataset.style==='betaflight'&&doc.getElementById('hud-height').textContent==='30.0','HUD style/launch height lost on reset');
+    check(!doc.getElementById('hud-home-marker').hidden,'Home marker absent at spawn');
+    log('Distance/home arrow follow actual flight; layout, home marker and launch-ground height survive reset');
+    document.getElementById('status').textContent='PASS — flight HUD smoke';return;
+  }
   if(new URLSearchParams(location.search).has('cache')){
     for(const flightMode of ['gps','acro','angle']){
       await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,flightMode});
@@ -134,12 +202,14 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(Math.abs(v.camera.positionCartographic.height-1005)<.5,'Camera target spawn failed');
   await command('enter-simulation',{agl:400,flightMode:'acro'});await pause(100);
   const cameraButton=doc.getElementById('camera-flight'),cameraSlider=doc.getElementById('flight-camera-angle');
+  settingsButton.click();check(!settingsPanel.hidden,'HUD camera settings not reachable');
   cameraButton.click();check(!doc.getElementById('flight-camera').hidden,'Camera adjustment did not open');
   cameraSlider.value='30';cameraSlider.dispatchEvent(new win.Event('input',{bubbles:true}));
   const tiltUp=v.scene.globe.ellipsoid.geodeticSurfaceNormal(v.camera.positionWC);
   check(C.Cartesian3.dot(v.camera.directionWC,tiltUp)>.49,'Camera did not tilt upward relative to the drone');
   check(doc.getElementById('flight-camera-value').textContent==='30°','Camera angle label not updated');
   cameraSlider.value='0';cameraSlider.dispatchEvent(new win.Event('input',{bubbles:true}));
+  settingsButton.click();check(settingsPanel.hidden,'HUD camera settings did not close');
   log('FPV camera tilt changes the actual Cesium view in flight without respawning');
   canvas.focus();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await pause(1100);
   canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'ArrowRight',bubbles:true}));
@@ -158,7 +228,7 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'q',bubbles:true,cancelable:true}));await pause(300);
   canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'q',bubbles:true}));
   check(fallStart-v.camera.positionCartographic.height>3,'Throttle cut failed to continue the fall');
-  check(doc.getElementById('flight-readout').textContent.includes('V -'),'Signed vertical speed missing from Acro HUD');
+  check(doc.getElementById('hud-vertical').textContent.startsWith('-'),'Signed vertical speed missing from Acro HUD');
   log('Inverted full throttle accelerates the actual camera toward terrain; throttle cut preserves a gravity/drag fall beyond assisted descent limits');
   await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:400,flightMode:'acro',
     acroRollRate:90,acroPitchRate:420,acroYawRate:250,acroRateExpo:.4});

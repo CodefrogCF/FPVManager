@@ -139,7 +139,10 @@ flutter:
     - web/map_providers.js
     - web/ground_navigation.js
     - web/navigation_controls.js
+    - web/controller_input.js
     - web/free_flight.js
+    - web/flight_hud.js
+    - web/flight_hud.css
     - web/flight_rendering.js
     - web/route_editor.js
     - web/signal_analysis.js

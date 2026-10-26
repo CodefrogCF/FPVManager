@@ -23,6 +23,7 @@ import '../obstacles/swiss_obstacle_provider.dart';
 import 'globe_bridge.dart';
 import 'route_map_state.dart';
 import '../simulation/simulation_settings.dart';
+import '../simulation/controller_settings.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../airspace/uas_zone_details.dart' show UasZoneDetails;
@@ -269,6 +270,10 @@ class GlobeController extends ChangeNotifier {
   SimulationGraphicsProfile? _simulationGraphicsProfile;
   SimulationGraphicsProfile? get simulationGraphicsProfile =>
       _simulationGraphicsProfile;
+  SimulationHudStyle? _simulationHudStyle;
+  SimulationHudStyle? get simulationHudStyle => _simulationHudStyle;
+  ControllerSettings? _simulationController;
+  ControllerSettings? get simulationController => _simulationController;
   bool get navigationActive => _simulationActive || _groundViewActive;
 
   Future<void> enterSimulation(
@@ -1334,6 +1339,12 @@ class GlobeController extends ChangeNotifier {
             .where((p) => p.name == graphics)
             .firstOrNull;
         if (profile != null) _simulationGraphicsProfile = profile;
+        final hud = SimulationHudStyle.values
+            .where((p) => p.name == data['hudStyle'])
+            .firstOrNull;
+        if (hud != null) _simulationHudStyle = hud;
+        final controller = ControllerSettings.tryParse(data['controller']);
+        if (controller != null) _simulationController = controller;
         if (tilt is num && tilt.isFinite && tilt >= 0 && tilt <= 80) {
           _simulationCameraTiltDegrees = tilt.toDouble();
         }

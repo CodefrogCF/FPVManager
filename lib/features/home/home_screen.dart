@@ -169,6 +169,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         graphicsProfile:
             _globeController.simulationGraphicsProfile ??
             _simulationSettings.graphicsProfile,
+        hudStyle:
+            _globeController.simulationHudStyle ?? _simulationSettings.hudStyle,
+        controller:
+            _globeController.simulationController ??
+            _simulationSettings.controller,
       ),
       hasSelection: spot != null || point != null,
     );

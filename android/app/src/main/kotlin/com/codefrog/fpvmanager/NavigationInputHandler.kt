@@ -22,6 +22,8 @@ class NavigationInputHandler(private val activity: Activity, messenger: BinaryMe
     private var sink: EventChannel.EventSink? = null
     private var enabled = false
     private var deviceId: Int? = null
+    private var generation = 0
+    private var rawAxes = emptyList<Double>()
     private var leftX = 0.0
     private var leftY = 0.0
     private var rightX = 0.0
@@ -55,6 +57,8 @@ class NavigationInputHandler(private val activity: Activity, messenger: BinaryMe
         if (enabled) handler.post(heartbeat)
     }
     private fun clear() {
+        if (deviceId != null) generation++
+        rawAxes = emptyList()
         deviceId = null; leftX = 0.0; leftY = 0.0; rightX = 0.0; rightY = 0.0
         leftTrigger = 0.0; rightTrigger = 0.0; buttons.clear(); emit()
     }
@@ -68,7 +72,8 @@ class NavigationInputHandler(private val activity: Activity, messenger: BinaryMe
             "yaw" to rightX, "pitch" to rightY,
             "vertical" to (rightTrigger-leftTrigger+pressed(KeyEvent.KEYCODE_BUTTON_R1)-pressed(KeyEvent.KEYCODE_BUTTON_L1)).coerceIn(-1.0,1.0),
             "reset" to buttons.contains(KeyEvent.KEYCODE_BUTTON_A),
-            "exit" to buttons.contains(KeyEvent.KEYCODE_BUTTON_B), "connected" to (deviceId != null)))
+            "exit" to buttons.contains(KeyEvent.KEYCODE_BUTTON_B), "connected" to (deviceId != null),
+            "axes" to rawAxes, "generation" to generation))
     }
     private fun centered(event: MotionEvent, axis: Int): Double {
         val value = event.getAxisValue(axis).toDouble()
@@ -81,6 +86,16 @@ class NavigationInputHandler(private val activity: Activity, messenger: BinaryMe
         if (event.action != MotionEvent.ACTION_MOVE) return false
         if (deviceId != null && deviceId != event.deviceId) clear()
         deviceId = event.deviceId
+        // USB radios need the actual reported channels, not assumed gamepad axes.
+        // Keep only bounded process-local values; no device name/serial is sent.
+        rawAxes = event.device?.motionRanges.orEmpty()
+            .filter { (it.source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK }
+            .distinctBy { it.axis }.sortedBy { it.axis }.take(16).map { range ->
+                val value = event.getAxisValue(range.axis).toDouble()
+                val min = range.min.toDouble(); val max = range.max.toDouble()
+                if (value.isFinite() && min.isFinite() && max.isFinite() && max > min)
+                    (2 * (value-min)/(max-min)-1).coerceIn(-1.0,1.0) else 0.0
+            }
         leftX = centered(event,MotionEvent.AXIS_X)
         leftY = centered(event,MotionEvent.AXIS_Y)
         if (leftX == 0.0) leftX = centered(event,MotionEvent.AXIS_HAT_X)
