@@ -33,6 +33,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Equipment'));
+      await tester.tap(find.text('Equipment'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Battery inventory'));
       await tester.tap(find.text('Battery inventory'));
       await tester.pumpAndSettle();
       expect(find.text('Stored pack'), findsOneWidget);

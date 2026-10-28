@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'globe_controller.dart';
 import 'globe_asset_server.dart';
+import 'globe_page_path.dart';
 import '../offline/offline_map_store_native.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -23,12 +24,14 @@ class GlobeView extends StatefulWidget {
     this.offline = false,
     this.cachedMaps = false,
     this.cacheRevision = 0,
+    this.floatingControls = false,
   });
 
   final GlobeController controller;
   final bool offline;
   final bool cachedMaps;
   final int cacheRevision;
+  final bool floatingControls;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();
@@ -146,15 +149,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
         _controller = controller;
       });
 
-      await controller.loadRequest(
-        server.origin.resolve(
-          widget.offline
-              ? '/globe.html?offline=1'
-              : widget.cachedMaps
-              ? '/globe.html?cachedMaps=1'
-              : '/globe.html',
-        ),
-      );
+      await controller.loadRequest(server.origin.resolve(_page));
     } catch (error) {
       if (!mounted) return;
 
@@ -165,19 +160,20 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     }
   }
 
+  String get _page => globePagePath(
+    offline: widget.offline,
+    cachedMaps: widget.cachedMaps,
+    floatingControls: widget.floatingControls,
+  );
+
   @override
   void didUpdateWidget(covariant GlobeView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if ((oldWidget.cachedMaps != widget.cachedMaps ||
-            oldWidget.cacheRevision != widget.cacheRevision) &&
+            oldWidget.cacheRevision != widget.cacheRevision ||
+            oldWidget.floatingControls != widget.floatingControls) &&
         _assetServer != null) {
-      unawaited(
-        _controller?.loadRequest(
-          _assetServer!.origin.resolve(
-            widget.cachedMaps ? '/globe.html?cachedMaps=1' : '/globe.html',
-          ),
-        ),
-      );
+      unawaited(_controller?.loadRequest(_assetServer!.origin.resolve(_page)));
     }
 
     if (oldWidget.controller != widget.controller) {
@@ -298,7 +294,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
         ),
 
         // Keep the selected-point footer outside the map's source credits.
-        if (_coordinates != null)
+        if (_coordinates != null && !widget.floatingControls)
           SafeArea(
             top: false,
             child: Padding(

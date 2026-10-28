@@ -33,6 +33,22 @@ resolution or accuracy**. No spatial interpolation or native MeteoSwiss raster i
 provided. Missing cells are omitted; cells with different forecast timestamps are
 not combined. The overlay can be cleared and is restored after renderer reload.
 
+**Map layers → Map → 3D-Wind und Prognose** adds an independent animated 3D wind
+field. It is also available before flight and through **HUD settings → Wind**.
+Choose current model wind or a forecast time, load the selected map point/view,
+then enable arrows and/or flight influence. The free Open-Meteo API is for
+non-commercial use. Current values are model output, not local live measurements.
+Nine grid queries provide available 10/80/120/180 m AGL vectors; horizontal and
+vertical interpolation is approximate, with the nearest height held outside
+known layers. The arrows follow airflow (opposite meteorological wind-from).
+Angle/Acro use air-relative drag; GPS counters wind within its airspeed limit.
+No synthetic gusts, thermals or building turbulence are added. Missing/outside/
+expired data suspend wind forces and are shown as unavailable, not calm.
+Current wind refreshes every 15 minutes while visible or used in flight, pausing
+in the background. Snapshots stay in memory, expire after at most 30 minutes
+(current) or 3 hours (forecast), and replay after renderer reload. Wind and sun
+times are independent; changing sun time does not silently replace wind data.
+
 Suitability explains each configured threshold. Missing or invalid required
 values, downloads or known source runs older than 24 hours, and implausible future
 timestamps prevent a positive assessment. The age limit is a local planning policy,
@@ -43,7 +59,9 @@ Weather results do not establish flight permission or obstacle clearance.
 ## Development
 
 Provider, normalization, cache, suitability and overlay fixtures are in
-`test/features/weather/`; renderer tests are in `test/js/weather_overlay.test.cjs`.
+`test/features/weather/`; renderer tests include `test/js/weather_overlay.test.cjs`
+and `test/js/wind_field.test.cjs`. The local `tool/serve_globe_smoke.py` server
+provides `/wind-smoke` for animated arrows, wind drift and expiry on synthetic terrain.
 Use the checks in [CONTRIBUTING.md](../CONTRIBUTING.md). For manual Android/Web
 verification, test provider and time changes during loading, forced refresh,
 missing data, offline errors, terrain inspection, wind/rain overlays and renderer

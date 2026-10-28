@@ -51,6 +51,8 @@ void main() {
       await closeMapActionMenu(tester);
       renderer.emit({'type': 'terrain-resource-warning', 'active': true});
       await tester.pump();
+      await tester.tap(find.byTooltip('Map status'));
+      await tester.pumpAndSettle();
       expect(
         find.textContaining('Loaded 3D terrain remains visible'),
         findsOneWidget,
@@ -58,6 +60,8 @@ void main() {
       expect(controller.terrainAvailable, isTrue);
       expect(tester.element(find.byType(GlobeView)), same(map));
       expect(controller.selectedPoint, isNotNull);
+      await tester.tap(find.byTooltip('Close map status'));
+      await tester.pumpAndSettle();
       renderer.emit({'type': 'terrain-resource-warning', 'active': false});
       await tester.pump();
       expect(
@@ -70,7 +74,11 @@ void main() {
         'reason': 'tileFailed',
       });
       await tester.pump();
+      await tester.tap(find.byTooltip('Map status'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('3D terrain unavailable.'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close map status'));
+      await tester.pumpAndSettle();
       terrainAction = await openMapActionMenu(
         tester,
         'Query terrain elevation',
@@ -82,6 +90,8 @@ void main() {
       await closeMapActionMenu(tester);
       expect(tester.element(find.byType(GlobeView)), same(map));
       renderer.autoAcknowledge = false;
+      await tester.tap(find.byTooltip('Map status'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Retry terrain'));
       await tester.pump();
       expect(renderer.commands.last['type'], 'retry-terrain');
@@ -147,6 +157,8 @@ void main() {
         'state': 'offline',
         'reason': 'networkOffline',
       });
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Map status'));
       await tester.pumpAndSettle();
       expect(find.byType(TerrainStatusBanner), findsOneWidget);
       expect(find.textContaining('Offline: flat map'), findsOneWidget);

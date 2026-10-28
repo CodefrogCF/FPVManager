@@ -13,27 +13,28 @@ const FPVWeatherOverlay = globalThis.FPVWeatherOverlay;
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
-async function renderer({ offline = false, terrainFails = false, configuration, groundView = false } = {}) {
+async function renderer({ offline = false, terrainFails = false, configuration, groundView = false, floating = false } = {}) {
     const imagery = [], terrain = [], events = [], sources = [];
     let geojsonLoads = 0;
     const colors = value => ({ value, withAlpha: a => ({value, alpha:a}) });
     const info = {addEventListener() {}};
     const window = {
         FPVMapProviderConfig: configuration,
-        location: { search: offline ? '?offline=1' : '', origin: 'http://localhost' },
+        location: { search: floating ? '?chrome=floating' : offline ? '?offline=1' : '', origin: 'http://localhost' },
         addEventListener() {},
         FPVBridge: { postMessage: raw => events.push(JSON.parse(raw)) }
     };
     window.parent = window;
     const context = vm.createContext({
         window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders, FPVObstacles,
-        document: { getElementById: () => info },
+        document: { getElementById: () => info, documentElement: {classList: new Set()} },
         console: { error() {}, log() {} }, setTimeout, clearTimeout,
         FPVGlobeBridge: { createBridge },
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
         FPVFreeFlight: {createSimulator:()=>({stop(){},tick(){},status:()=>({active:false})})},
         FPVFlightRendering: {create:()=>({})},
         FPVSceneEnvironment: {create:()=>({set(){},setTime(){},performance(){},dispose(){}}),bindTimeControls:()=>({update(){}})},
+        FPVWindField: {create:()=>({set(){},sample(){return null;},navigation(){},performance(){},terrainChanged(){},dispose(){}})},
         FPVFlightHud: {create:()=>({update(){},device(){}})},
         FPVControllerInput: {bindPanel:()=>({update(){}})},
         FPVRoadNavigation: {create:()=>({set(){},dispose(){}})},
@@ -101,8 +102,16 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(events.some(e => e.type === 'globe-error'), false, info.textContent);
     assert.equal(events.some(e => e.type === 'globe-ready'), true);
-    return { imagery, terrain, context, events, sources, get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
+    return { imagery, terrain, context, events, sources, info, get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
 }
+
+test('floating map chrome hides redundant ready text but retains terrain outage information', async () => {
+    const ready=await renderer({floating:true});
+    assert.equal(ready.info.hidden,true);
+    const failed=await renderer({floating:true,terrainFails:true});
+    assert.equal(failed.info.hidden,false);
+    assert.match(failed.info.textContent,/3D terrain unavailable/);
+});
 
 function assertSatelliteCredit(provider) {
     for (const name of ['swisstopo', 'CNES', 'Spot Image', 'NPOC',

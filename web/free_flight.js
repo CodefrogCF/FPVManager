@@ -50,11 +50,12 @@
         const axis=(angle,x,y,z)=>({w:Math.cos(angle/2),x:x*Math.sin(angle/2),y:y*Math.sin(angle/2),z:z*Math.sin(angle/2)});
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
-    function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState}){
+    function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState,sampleWind=()=>null}){
         let active=false,pending=false,paused=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
+        let wind={north:0,east:0,up:0},windInfo=null;
         const keys=new Set();
         // Self-centring sticks: Acro uses only the upper half for motor command.
         function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
@@ -66,7 +67,7 @@
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
         function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
-            throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,
+            throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
             home:spawn&&{...spawn},heightAboveHome:Number.isFinite(homeHeight)?height-homeHeight:null,
@@ -76,6 +77,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;active=pending=paused=false;reason=message;
+            windInfo=null;wind={north:0,east:0,up:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
         }
@@ -108,8 +110,11 @@
                 const decay=Math.exp(-rate*seconds);
                 return {v:target+(v-target)*decay,d:target*seconds+(v-target)*(1-decay)/rate};
             }
-            const n=response(velocity.north,(Math.cos(heading)*f-Math.sin(heading)*r)*config.maxSpeed);
-            const e=response(velocity.east,(Math.sin(heading)*f+Math.cos(heading)*r)*config.maxSpeed);
+            let airN=(Math.cos(heading)*f-Math.sin(heading)*r)*config.maxSpeed-wind.north;
+            let airE=(Math.sin(heading)*f+Math.cos(heading)*r)*config.maxSpeed-wind.east;
+            const norm=Math.max(1,Math.hypot(airN,airE)/config.maxSpeed);airN/=norm;airE/=norm;
+            const n=response(velocity.north,airN+wind.north);
+            const e=response(velocity.east,airE+wind.east);
             const z=response(velocity.up,up*config.climbSpeed);
             velocity={north:n.v,east:e.v,up:z.v};return {north:n.d,east:e.d,up:z.d};
         }
@@ -127,17 +132,17 @@
             const thrust=tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
             const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
             // Kick / exact quadratic-drag drift / kick (Strang splitting).
-            // Drag opposes the full world velocity; attitude does not rotate
+            // Drag opposes air-relative velocity; attitude does not rotate
             // momentum. No GPS-style speed clamp or altitude/braking controller.
             const middle={};
-            for(const axis of ['north','east','up'])middle[axis]=velocity[axis]+acceleration[axis]*dt*.5;
+            for(const axis of ['north','east','up'])middle[axis]=velocity[axis]+acceleration[axis]*dt*.5-wind[axis];
             const speed=Math.hypot(middle.north,middle.east,middle.up);
             const drag=g/(config.acroTerminalVelocity*config.acroTerminalVelocity),loss=drag*speed*dt;
             const drift=loss>1e-10?Math.log1p(loss)/loss:1;
             const travel={};
             for(const axis of ['north','east','up']){
-                travel[axis]=middle[axis]*dt*drift;
-                velocity[axis]=middle[axis]/(1+loss)+acceleration[axis]*dt*.5;
+                travel[axis]=wind[axis]*dt+middle[axis]*dt*drift;
+                velocity[axis]=wind[axis]+middle[axis]/(1+loss)+acceleration[axis]*dt*.5;
             }
             return travel;
         }
@@ -170,10 +175,13 @@
                 }
                 const thrust=g+throttle*(throttle>=0?config.acceleration:g);
                 const drag=config.deceleration/config.maxSpeed,decay=Math.exp(-drag*dt),old={...velocity};
-                velocity.north=old.north*decay+u.x*thrust*(1-decay)/drag;
-                velocity.east=old.east*decay+u.y*thrust*(1-decay)/drag;
-                const speed=Math.hypot(velocity.north,velocity.east);
-                if(speed>config.maxSpeed){velocity.north*=config.maxSpeed/speed;velocity.east*=config.maxSpeed/speed;}
+                velocity.north=wind.north+(old.north-wind.north)*decay+u.x*thrust*(1-decay)/drag;
+                velocity.east=wind.east+(old.east-wind.east)*decay+u.y*thrust*(1-decay)/drag;
+                const airN=velocity.north-wind.north,airE=velocity.east-wind.east,speed=Math.hypot(airN,airE);
+                // A new gust must not snap ground velocity to an airspeed cap.
+                // Existing excess airspeed can decay naturally through drag.
+                const limit=Math.max(config.maxSpeed,Math.hypot(old.north-wind.north,old.east-wind.east));
+                if(speed>limit){velocity.north=wind.north+airN*limit/speed;velocity.east=wind.east+airE*limit/speed;}
                 velocity.up=clamp(old.up+(-u.z*thrust-g)*dt,-config.climbSpeed,config.climbSpeed);
                 north+=(old.north+velocity.north)*.5*dt;east+=(old.east+velocity.east)*.5*dt;up+=(old.up+velocity.up)*.5*dt;
             }
@@ -184,6 +192,10 @@
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
             const floor=renderedHeight(position);ground=Number.isFinite(floor)?floor:null;
             if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
+            windInfo=sampleWind({...position,agl:ground==null?NaN:height-ground});
+            const validWind=windInfo?.available&&['north','east','up'].every(k=>Number.isFinite(windInfo[k])&&Math.abs(windInfo[k])<=100);
+            wind=validWind?windInfo:{north:0,east:0,up:0};
+            if(windInfo?.available&&!validWind)windInfo={enabled:true,available:false,reason:'invalid'};
             if(paused){pose();return;}
             if(!Number.isFinite(seconds)||seconds<=0)return;
             const dt=Math.min(seconds,.1),travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);

@@ -2,6 +2,12 @@
 
 ## Map and terrain
 
+The globe fills the main view. Floating controls open navigation (upper left),
+map status and source warnings (info/warning badge), layers and map actions
+(upper right). Selected objects appear over the map; details scroll without
+resizing the globe. On short landscape screens, layers and status open at the
+side. Equipment is grouped under **Equipment** in the navigation menu.
+
 The compass at the upper right follows map rotation. Tap it to face north.
 
 Open **Map layers** in the map menu. Its **Map**, **Airspace** and **Obstacles**

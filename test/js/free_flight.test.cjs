@@ -15,6 +15,32 @@ function advance(model,seconds=1,fps=60){for(let i=0;i<seconds*fps;i++)model.tic
 function input(model,frame={}){model.flightInput({throttle:0,yaw:0,pitch:0,roll:0,...frame});}
 const dot=(a,b)=>a.north*b.north+a.east*b.east+a.up*b.up;
 
+test('Acro wind acts through air-relative quadratic drag and produces the analytic lateral drift',async()=>{
+    let calls=0;const p=setup({sampleWind:()=>{calls++;return {enabled:true,available:true,north:0,east:10,up:0,speedMs:10};}});
+    await start(p,{flightMode:'acro',agl:500,acroMotorTimeConstant:0});input(p.model,{throttle:.5});advance(p.model,5);
+    const k=9.80665/(22.5*22.5),expected=10*5-Math.log1p(k*10*5)/k;
+    assert.ok(Math.abs(distance(spawn,p.model.status().position)-expected)<.02);assert.ok(p.model.status().position.longitude>spawn.longitude);
+    assert.ok(Math.abs(p.model.status().position.latitude-spawn.latitude)<1e-10);assert.ok(calls<=301,'Wind is sampled once per rendered step, not 240 times per second');
+    assert.ok(Math.abs(p.model.status().height-1500)<1e-8);
+});
+test('Angle drifts with crosswind; GPS counters ordinary wind but drifts beyond its airspeed limit',async()=>{
+    let east=8;const wind=()=>({enabled:true,available:true,north:0,east,up:0,speedMs:east});
+    const angle=setup({sampleWind:wind});await start(angle,{flightMode:'angle',agl:500});advance(angle.model,3);
+    assert.ok(angle.model.status().position.longitude>spawn.longitude);assert.equal(angle.model.status().attitude.x,0);
+    const gps=setup({sampleWind:wind});await start(gps,{flightMode:'gps',agl:500});advance(gps.model,3);assert.ok(distance(spawn,gps.model.status().position)<1e-8);
+    east=25;advance(gps.model,3);assert.ok(distance(spawn,gps.model.status().position)>1);
+    const gust=setup({sampleWind:wind});await start(gust,{flightMode:'angle',agl:500});gust.model.tick(1/60);
+    assert.ok(gust.model.status().horizontalSpeed<1,'A strong wind starts with acceleration, not an instantaneous speed jump');
+});
+test('wind expiry/disable preserves momentum and invalid vectors never poison flight state',async()=>{
+    let current={enabled:true,available:true,north:0,east:10,up:0,speedMs:10};
+    const p=setup({sampleWind:()=>current});await start(p,{flightMode:'acro',agl:500,acroMotorTimeConstant:0});input(p.model,{throttle:.5});advance(p.model,2);
+    const before=p.model.status();current={enabled:true,available:false,reason:'expired'};p.model.tick(1/60);
+    assert.ok(p.model.status().horizontalSpeed>0);assert.ok(p.model.status().horizontalSpeed<before.horizontalSpeed);assert.equal(p.model.status().wind.available,false);
+    current={available:true,north:NaN,east:Infinity,up:0};advance(p.model,1);assert.ok(Number.isFinite(p.model.status().speed));
+    current=null;advance(p.model,1);assert.equal(p.model.status().wind,null);
+});
+
 test('HUD launch height is independent of local terrain; layout changes preserve flight state and survive reset',async()=>{
     let ground=1000;
     const p=setup({renderedHeight:()=>ground});

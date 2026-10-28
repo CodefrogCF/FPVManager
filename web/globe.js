@@ -45,15 +45,18 @@ function postToFlutter(message) {
         stopNavigation();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
         if (!event.persisted) sceneEnvironment?.dispose();
+        if (!event.persisted) windLayer?.dispose();
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, sceneEnvironment = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, sceneEnvironment = null, windLayer = null, applyFlightTime = null, requestedFlightTime = null;
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
+    const floatingChrome = new URLSearchParams(window.location.search).get('chrome') === 'floating';
+    if (floatingChrome) document.documentElement.classList.add('floating-map-chrome');
     let currentMapStyle = "satellite";
     const mapProviders = FPVMapProviders.createAdapters(Cesium, window.FPVMapProviderConfig);
     const terrainAvailable = () => terrainManager?.status().state === "ready";
@@ -590,6 +593,16 @@ function postToFlutter(message) {
             }
             case "set-situational-overlay": return situationalLayers.set(command);
             case "set-weather-overlay": return weatherOverlay.replace(command);
+            case 'set-wind-field': return windLayer.set(command);
+            case 'query-wind-center': {
+                const flying=flyer?.active?flyer.status().position:null;
+                if(flying)return flying;
+                const scene=activeViewer.scene,canvas=activeViewer.canvas;
+                const ray=activeViewer.camera.getPickRay(new Cesium.Cartesian2(canvas.clientWidth/2,canvas.clientHeight/2));
+                const hit=ray&&scene.globe.pick(ray,scene);
+                const point=hit?Cesium.Cartographic.fromCartesian(hit):activeViewer.camera.positionCartographic;
+                return {latitude:Cesium.Math.toDegrees(point.latitude),longitude:Cesium.Math.toDegrees(point.longitude)};
+            }
             case "clear-weather-overlay": return weatherOverlay.clear();
             case "set-obstacle-wms": obstacleWms.set(command); return {};
             case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
@@ -731,6 +744,7 @@ function postToFlutter(message) {
         const imageryProvider = createMapProvider("satellite");
 
         function terrainInfo(status) {
+            info.hidden = !!flyer?.active || (floatingChrome && status.state === 'ready' && !selectedPointInfo && !walker?.active);
             info.textContent = status.state === "ready"
                 ? selectedPointInfo ?? "FPVManager | 3D terrain loaded"
                 : status.state === "loading"
@@ -766,6 +780,7 @@ function postToFlutter(message) {
                 routeOverlays?.terrainChanged();
                 signalAnalysis?.clear();
                 obstacleVectors?.terrainChanged();
+                windLayer?.terrainChanged();
                 activeViewer?.scene?.requestRender?.();
                 terrainInfo(status);
                 if (rendererReady) sendToFlutter("terrain-status", status);
@@ -789,13 +804,14 @@ function postToFlutter(message) {
         });
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
-        const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>sceneEnvironment?.performance(value)});
+        const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);}});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}));
         mapCompass = FPVMapCompass.create(Cesium,viewer,document.getElementById('map-compass'),
             {navigation:roadNavigation,isEnabled:()=>!navigationActive()});
         activeViewer = viewer;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources});
+        windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
         situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
         hazardAreas = FPVObstacles.createHazards(Cesium,viewer);
@@ -823,6 +839,7 @@ function postToFlutter(message) {
             isTerrainReady: terrainAvailable,
             sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal)).heightMeters,
             renderedHeight: flightRenderer.renderedHeight,
+            sampleWind: point=>windLayer.sample(point),
             applyGraphics: flightRenderer.applyGraphics,
             captureCamera: () => {
                 viewer.camera.cancelFlight();
@@ -850,12 +867,14 @@ function postToFlutter(message) {
         };
         function applyCamera(point){
             flightRenderer.applyPose(point);
+            windLayer.navigation(flyer?.active?point:null);
         }
         function modeState(mode,state){
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
             if(mode==='flight'){
                 if(entering)applyFlightTime(requestedFlightTime??undefined);
                 else if(!state.active)sceneEnvironment.setTime({scope:'flight',enabled:false});
+                if(!state.active)windLayer.navigation(null);
             }
             groundPanel.hidden=!state.active; flightButtons.hidden=mode!=='flight'||!state.active;
             groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
@@ -877,6 +896,7 @@ function postToFlutter(message) {
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
             applyPose:point=>{
                 applyCamera(point);
+                info.hidden=false;
                 info.textContent=`${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} | `+
                     `Ground: ${(point.height-2).toFixed(1)} m WGS84 | Eye: ≈ 2 m AGL | `+
                     `Look: ${(point.pitch*180/Math.PI).toFixed(0)}°`+(deviceMessage?` | ${deviceMessage}`:'');
@@ -1065,6 +1085,7 @@ function postToFlutter(message) {
                     (terrainAvailable()
                         ? `Height: ${altitude.toFixed(1)} m (WGS84 ellipsoid, rendered terrain)`
                         : "Flat map — terrain height unavailable");
+                info.hidden=false;
 
                 sendToFlutter("point-selected", {
                     latitude: latitude,

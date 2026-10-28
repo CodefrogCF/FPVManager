@@ -28,6 +28,7 @@
         const elements=Object.fromEntries(['speed','agl','height','distance','distance-unit','vertical','throttle','throttle-readout','mode','warning','home-arrow','home-marker']
             .map(key=>[key,doc.getElementById('hud-'+key)]));
         let style,reason=null,inputWarning='';
+        const wind=doc.getElementById('hud-wind'),windReadout=doc.getElementById('hud-wind-readout');
         function text(key,value){if(elements[key].textContent!==value)elements[key].textContent=value;}
         function warning(){text('warning',reason||inputWarning);elements.warning.hidden=!(reason||inputWarning);}
         function update(state,viewHeading){
@@ -36,6 +37,8 @@
             for(const key of ['speed','agl','height','distance','vertical','throttle'])text(key,t[key]);
             text('distance-unit',t.distanceUnit);
             elements['throttle-readout'].hidden=state.mode==='gps';
+            if(wind&&windReadout){windReadout.hidden=!state.wind?.enabled;wind.textContent=state.wind?.available?`${number(state.wind.speedMs)} m/s`:'—';
+                windReadout.title=state.wind?.available?(state.wind.extrapolated?'Nächste Modellschicht konstant fortgesetzt':'Interpolierter Modellwind'):'Wind fehlt, ist abgelaufen oder liegt außerhalb des geladenen Ausschnitts. Physik ohne Wind.';}
             text('mode',`SIM · ${state.mode.toUpperCase()}${state.paused?' · PAUSED':''}`);
             reason=state.reason;warning();
             elements['home-arrow'].hidden=t.angle===null;

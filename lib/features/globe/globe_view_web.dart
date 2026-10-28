@@ -5,6 +5,7 @@ import 'package:web/web.dart' as web;
 
 import 'globe_controller.dart';
 import 'globe_input_scope.dart';
+import 'globe_page_path.dart';
 
 class GlobeView extends StatefulWidget {
   const GlobeView({
@@ -13,12 +14,14 @@ class GlobeView extends StatefulWidget {
     this.offline = false,
     this.cachedMaps = false,
     this.cacheRevision = 0,
+    this.floatingControls = false,
   });
 
   final GlobeController controller;
   final bool offline;
   final bool cachedMaps;
   final int cacheRevision;
+  final bool floatingControls;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();
@@ -91,18 +94,21 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
     if (oldWidget.controller != widget.controller ||
         oldWidget.cachedMaps != widget.cachedMaps ||
-        oldWidget.cacheRevision != widget.cacheRevision) {
+        oldWidget.cacheRevision != widget.cacheRevision ||
+        oldWidget.floatingControls != widget.floatingControls) {
       oldWidget.controller.detach();
       widget.controller.attach(_sendCommand);
       // A new controller starts its request/marker IDs from the beginning.
       // Reload so the renderer creates a fresh protocol session as well.
-      _iframe?.src = widget.offline
-          ? 'globe.html?offline=1'
-          : widget.cachedMaps
-          ? 'globe.html?cachedMaps=1'
-          : 'globe.html';
+      _iframe?.src = _page;
     }
   }
+
+  String get _page => globePagePath(
+    offline: widget.offline,
+    cachedMaps: widget.cachedMaps,
+    floatingControls: widget.floatingControls,
+  );
 
   @override
   void dispose() {
@@ -132,11 +138,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
       onElementCreated: (Object element) {
         final iframe = element as web.HTMLIFrameElement;
 
-        iframe.src = widget.offline
-            ? 'globe.html?offline=1'
-            : widget.cachedMaps
-            ? 'globe.html?cachedMaps=1'
-            : 'globe.html';
+        iframe.src = _page;
 
         iframe.style
           ..width = '100%'

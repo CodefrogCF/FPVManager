@@ -17,8 +17,10 @@ class MapActionMenu extends StatelessWidget {
     required this.onLayers,
     required this.onWeather,
     required this.onSimulation,
+    this.compact = false,
   });
   final GlobeController controller;
+  final bool compact;
   final Widget Function() groundButtonBuilder;
   final Future<void> Function() onHome,
       onCoordinates,
@@ -32,7 +34,16 @@ class MapActionMenu extends StatelessWidget {
     builder: (context, _) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        groundButtonBuilder(),
+        if (!compact)
+          IconButton(
+            tooltip: 'Map layers',
+            onPressed: controller.isReady ? onLayers : null,
+            icon: Icon(
+              Icons.layers_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        if (!compact) groundButtonBuilder(),
         PopupMenuButton<_MapAction>(
           tooltip: 'Map actions',
           onSelected: (action) {

@@ -36,6 +36,13 @@
 #navigation-device { display:block;margin-top:10px;font-size:12px;color:#c2c9bd; }
 #navigation-device:empty { display:none; }
 #flight-controller { margin-top:14px;font-size:12px; }
+#flight-wind { margin-top:14px;font-size:12px; }
+#flight-wind summary { min-height:32px;line-height:32px;cursor:pointer; }
+#flight-wind button { min-height:36px;margin-top:8px;padding:6px; }
+#flight-wind label { justify-content:start; }
+#wind-legend { position:absolute;top:90px;left:8px;z-index:15;max-width:min(300px,calc(100% - 24px));
+    background:#101820ce;color:#fff;border-radius:8px;padding:8px;font:12px/1.4 Arial,sans-serif;pointer-events:none; }
+#wind-legend[hidden] { display:none; }
 #flight-time { margin-top:14px;font-size:12px; }
 #flight-time summary { min-height:32px;line-height:32px;cursor:pointer; }
 #flight-time-fixed { flex-direction:column;align-items:stretch; }

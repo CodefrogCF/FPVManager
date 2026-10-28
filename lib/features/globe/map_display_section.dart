@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'globe_controller.dart';
 import 'scene_layers_section.dart';
+import '../weather/wind_settings_sheet.dart';
 
 class MapDisplaySection extends StatelessWidget {
   const MapDisplaySection({
@@ -111,6 +112,7 @@ class MapDisplaySection extends StatelessWidget {
         ],
         const SizedBox(height: 16),
         SceneLayersSection(controller: controller),
+        WindControlsLauncher(globe: controller),
         const SizedBox(height: 16),
         Text(
           'OVERLAY ORDER · FRONT TO BACK',

@@ -4,6 +4,14 @@ const rad=Math.PI/180;
 const state={mode:'acro',hudStyle:'goggles',horizontalSpeed:10,verticalSpeed:-3.5,throttle:.62,
     agl:17.5,heightAboveHome:25,distance:111,position:{latitude:0,longitude:0},home:{latitude:0,longitude:1}};
 
+test('wind HUD distinguishes model wind, unavailable forcing and disabled wind',()=>{
+    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
+    const hud=create(doc);hud.update({...state,wind:{enabled:true,available:true,speedMs:8}},0);
+    assert.equal(nodes.get('hud-wind').textContent,'8.0 m/s');assert.equal(nodes.get('hud-wind-readout').hidden,false);
+    hud.update({...state,wind:{enabled:true,available:false,reason:'expired'}},0);assert.equal(nodes.get('hud-wind').textContent,'—');assert.equal(nodes.get('hud-wind-readout').hidden,false);
+    hud.update(state,0);assert.equal(nodes.get('hud-wind-readout').hidden,true);
+});
+
 test('home cue uses view heading rather than velocity and handles cardinal directions and heading wrap',()=>{
     for(const [home,heading,expected] of [
         [{latitude:1,longitude:0},0,0], [{latitude:0,longitude:1},0,90],

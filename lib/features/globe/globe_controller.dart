@@ -25,6 +25,9 @@ import 'route_map_state.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/controller_settings.dart';
 import '../../core/models/scene_time.dart';
+import '../weather/wind_field.dart';
+import '../weather/wind_field_service.dart';
+import '../weather/wind_map_controller.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../airspace/uas_zone_details.dart' show UasZoneDetails;
@@ -91,6 +94,7 @@ class GlobeController extends ChangeNotifier {
   GlobeController({
     OsintProvider<Map<String, dynamic>>? uasProvider,
     SwissObstacleProvider? obstacleProvider,
+    WindFieldService? windService,
     GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
   }) : _ownsUasProvider = uasProvider == null,
        _bridge = GlobeBridge(options: bridgeOptions) {
@@ -118,9 +122,49 @@ class GlobeController extends ChangeNotifier {
         _resetUasSelection();
       },
     )..addListener(_handleProviderChanged);
+    wind = WindMapController(
+      service: windService,
+      send: (command) async {
+        if (_ready && !_disposed) await _bridge.send(command);
+      },
+    )..addListener(_handleProviderChanged);
   }
 
   late final ObstacleMapController obstacles;
+  late final WindMapController wind;
+  VoidCallback? onWindSettingsRequested;
+  Future<void> loadWindAtSelection({
+    required WindTimeMode mode,
+    DateTime? timeUtc,
+    double radiusMeters = 1500,
+  }) async {
+    final selected = _spotMarkers
+        .where((s) => s.id == _selectedSpotId)
+        .firstOrNull;
+    double? latitude = selected?.latitude ?? _selectedPoint?.latitude,
+        longitude = selected?.longitude ?? _selectedPoint?.longitude;
+    if (_simulationActive) {
+      latitude = null;
+      longitude = null;
+    }
+    if (latitude == null || longitude == null) {
+      if (!_ready) throw StateError('Globe is not ready');
+      final center = await _bridge.send({'type': 'query-wind-center'});
+      final lat = center['latitude'], lon = center['longitude'];
+      if (lat is! num || lon is! num || !lat.isFinite || !lon.isFinite) {
+        throw StateError('Choose a map point first');
+      }
+      latitude = lat.toDouble();
+      longitude = lon.toDouble();
+    }
+    await wind.load(
+      latitude: latitude,
+      longitude: longitude,
+      timeMode: mode,
+      timeUtc: timeUtc,
+      radiusMeters: radiusMeters,
+    );
+  }
 
   void _handleProviderChanged() {
     if (!_disposed) notifyListeners();
@@ -217,6 +261,7 @@ class GlobeController extends ChangeNotifier {
   Future<void> setRenderingPaused(bool paused) async {
     if (_disposed) return;
     _renderingPaused = paused;
+    wind.rendering(!paused);
     if (_ready) await _send({'type': 'set-rendering-paused', 'paused': paused});
   }
 
@@ -1482,6 +1527,26 @@ class GlobeController extends ChangeNotifier {
           _sceneLayerStates[data['layer'] as String] = data['state'] as String;
           notifyListeners();
         }
+      case 'wind-settings-request':
+        onWindSettingsRequested?.call();
+      case 'wind-flags-changed':
+        if (data['visible'] is bool && data['affectFlight'] is bool) {
+          unawaited(
+            wind.flags(
+              arrows: data['visible'] as bool,
+              physics: data['affectFlight'] as bool,
+            ),
+          );
+        }
+      case 'wind-layer-status':
+        if ([
+          'unavailable',
+          'ready',
+          'expired',
+          'terrainPending',
+        ].contains(data['state'])) {
+          wind.rendererStatus(data['state'] as String);
+        }
       case 'scene-time-state':
         try {
           _simulationSceneTime = SceneTime.fromJson(data);
@@ -1703,6 +1768,7 @@ class GlobeController extends ChangeNotifier {
     bool current() =>
         !_disposed && _ready && generation == _connectionGeneration;
     unawaited(obstacles.rendererReady(force: forceSettings));
+    unawaited(wind.rendererReady());
     try {
       if (forceSettings ||
           buildings3dVisible ||
@@ -1842,6 +1908,8 @@ class GlobeController extends ChangeNotifier {
     ];
     obstacles.removeListener(_handleProviderChanged);
     obstacles.dispose();
+    wind.removeListener(_handleProviderChanged);
+    wind.dispose();
     unawaited(_routeActions.close());
     _uasProvider.removeListener(_handleProviderChanged);
     if (_ownsUasProvider) {

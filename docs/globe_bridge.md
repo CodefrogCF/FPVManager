@@ -121,6 +121,13 @@ uses `scope: route|flight`, `enabled` and nullable UTC `timeUtc`; flight overrid
 route, then map lighting. Route-editor and simulation-entry commands also carry
 this object as `sceneTime`. A fixed time freezes the celestial clock.
 
+`set-wind-field` carries independent `visible`/`affectFlight` flags and a nullable
+nine-node snapshot (UTC validity/retrieval/expiry, four supported AGL levels,
+SI speed and meteorological direction). `query-wind-center` returns the active
+drone position or camera target. `wind-layer-status`, `wind-flags-changed` and
+`wind-settings-request` report renderer state and HUD actions. Snapshots replay
+after reload without a download; animation uses elapsed time, expiry wall time.
+
 See [architecture](architecture.md) for provider/terrain recovery,
 [Contributing](../CONTRIBUTING.md) for tests, and the [user guide](user_guide.md)
 for controls and display limitations.

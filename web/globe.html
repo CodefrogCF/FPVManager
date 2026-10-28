@@ -77,6 +77,11 @@
     #map-compass [data-compass-needle] { transform-origin:16px 16px; }
     #map-compass .compass-north { fill:#e75c54; }
     #info { max-width:min(350px,calc(100vw - 100px)); }
+    .floating-map-chrome #info { top:68px;left:8px;right:auto;max-width:min(350px,calc(100vw - 88px)); }
+    .floating-map-chrome #map-compass { top:68px;right:8px; }
+    .floating-map-chrome #wind-legend { top:154px; }
+    .floating-map-chrome #hud-mode { left:16px;top:68px; }
+    @media (min-width:480px) { .floating-map-chrome #hud-mode { left:168px;top:14px; } }
     #ground-controls { position: absolute; left: max(16px, env(safe-area-inset-left));
         bottom: max(74px, calc(env(safe-area-inset-bottom) + 58px)); z-index: 20; }
     #ground-controls[hidden] { display: none; }
@@ -128,6 +133,7 @@
         </g></svg>
     </button>
     <div id="weather-legend" hidden role="status" aria-live="polite"></div>
+    <div id="wind-legend" hidden role="status" aria-live="polite"></div>
     <div id="info">FPVManager – Loading 3D terrain...</div>
     <div id="ground-controls" hidden aria-label="Movement controls">
         <div id="flight-buttons" hidden><button data-vertical="1" aria-label="Climb">↑</button><button data-vertical="-1" aria-label="Descend">↓</button></div>
@@ -168,11 +174,17 @@
                 <label id="flight-time-fixed" hidden>Geräte-Zeitzone <input id="flight-time-value" type="datetime-local" min="1900-01-01T00:00" max="2100-12-31T23:59"></label>
                 <output id="flight-time-error" aria-live="polite"></output>
             </details>
+            <details id="flight-wind"><summary>Wind</summary>
+                <output id="flight-wind-status">Keine Winddaten geladen</output>
+                <label><input id="flight-wind-force" type="checkbox">Wind berücksichtigen</label>
+                <label><input id="flight-wind-arrows" type="checkbox">3D-Pfeile</label>
+                <button id="wind-flight" type="button">Quelle und Prognose wählen</button>
+            </details>
             <span id="navigation-device"></span>
         </div>
         <span id="hud-warning" hidden role="status" aria-live="polite"></span>
         <div id="flight-readout" role="group" aria-label="Flight telemetry">
-            <div class="hud-secondary"><span>V <span id="hud-vertical">—</span> m/s</span><span id="hud-throttle-readout">THR <span id="hud-throttle">—</span>%</span></div>
+            <div class="hud-secondary"><span>V <span id="hud-vertical">—</span> m/s</span><span id="hud-throttle-readout">THR <span id="hud-throttle">—</span>%</span><span id="hud-wind-readout" hidden>WIND <span id="hud-wind">—</span></span></div>
             <div class="hud-telemetry">
                 <div class="hud-metric"><span class="hud-label">SPEED</span><span class="hud-value"><span id="hud-speed">—</span><small>km/h</small></span></div>
                 <div class="hud-metric" title="Height above terrain at the current position"><span class="hud-label">AGL</span><span class="hud-value"><span id="hud-agl">—</span><small>m</small></span></div>
@@ -194,6 +206,7 @@
     <script src="flight_hud.js"></script>
     <script src="flight_rendering.js"></script>
     <script src="scene_environment.js"></script>
+    <script src="wind_field.js"></script>
     <script src="route_editor.js"></script>
     <script src="signal_analysis.js"></script>
     <script src="obstacle_models.js"></script>

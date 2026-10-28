@@ -35,6 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   web: ^1.1.1
+  pointer_interceptor: ^0.10.1+3
   webview_flutter: ^4.14.1
   http: ^1.6.0
   url_launcher: ^6.3.3
@@ -145,6 +146,7 @@ flutter:
     - web/flight_hud.css
     - web/flight_rendering.js
     - web/scene_environment.js
+    - web/wind_field.js
     - web/route_editor.js
     - web/signal_analysis.js
     - web/obstacle_layers.js

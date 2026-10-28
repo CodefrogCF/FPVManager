@@ -4,7 +4,6 @@ import 'dart:async';
 
 import '../data_management/data_management_screen.dart';
 import '../offline/offline_region.dart';
-import '../offline/cached_map_notice.dart';
 
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
@@ -16,7 +15,6 @@ import '../routes/flight_routes_screen.dart';
 import '../routes/route_layers_controller.dart';
 import '../routes/route_layers_section.dart';
 import '../globe/ground_view_button.dart';
-import '../airspace/uas_data_quality_banner.dart';
 import '../batteries/batteries_screen.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../drones/drones_screen.dart';
@@ -27,7 +25,7 @@ import '../spots/spots_screen.dart';
 import '../globe/globe_controller.dart';
 import '../weather/weather_screen.dart';
 import '../weather/weather_preferences.dart';
-import '../globe/terrain_status_banner.dart';
+import '../weather/wind_settings_sheet.dart';
 import '../globe/globe_view.dart';
 import '../globe/globe_input_scope.dart';
 import '../mobility/mobility_screen.dart';
@@ -35,13 +33,15 @@ import '../mobility/mobility_preferences.dart';
 import '../mobility/road_routing.dart';
 import '../mobility/situational_layers_section.dart';
 import '../globe/map_layers_sheet.dart';
-import '../obstacles/obstacle_layers_section.dart';
 import '../globe/terrain_information_dialog.dart';
 
 import 'coordinates_dialog.dart';
 import 'home_navigation_drawer.dart';
 import 'map_action_menu.dart';
 import 'map_selection_panel.dart';
+import 'home_map_workspace.dart';
+import 'home_map_status.dart';
+import '../globe/map_floating_surface.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/simulation_settings_sheet.dart';
 import '../preflight/preflight_screen.dart';
@@ -179,6 +179,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             _simulationSettings.controller,
       ),
       hasSelection: spot != null || point != null,
+      windControls: WindControlsLauncher(globe: _globeController, flight: true),
     );
     if (settings == null || !mounted) return;
     _simulationSettings = settings;
@@ -192,6 +193,19 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
+  AppLifecycleListener? _windLifecycle;
+  bool _windSheetOpen = false;
+  void _windRequestHandler() => unawaited(_openWindSettings());
+  Future<void> _openWindSettings() async {
+    if (!mounted || _windSheetOpen) return;
+    _windSheetOpen = true;
+    try {
+      await showWindSettings(context, _globeController);
+    } finally {
+      _windSheetOpen = false;
+    }
+  }
+
   Map<int, SpotMapEntry> _spotsById = const {};
 
   Future<void> _runCommand(Future<void> Function() command) async {
@@ -212,14 +226,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           FlightPlanRepository(_database ??= FpvDatabase.open()),
       globe: _globeController,
     );
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      constraints: BoxConstraints(
-        maxWidth: 560,
-        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-      ),
+    return showMapPanel<void>(
+      context,
       builder: (context) => MapLayersSheet(
         initialTab: initialTab,
         controller: _globeController,
@@ -234,6 +242,18 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ),
     );
   }
+
+  Future<void> _openMapStatus() => showMapPanel<void>(
+    context,
+    builder: (context) => HomeMapStatusSheet(
+      controller: _globeController,
+      cachedMaps: _cachedMaps,
+      onLayers: (tab) {
+        Navigator.pop(context);
+        unawaited(_openMapLayers(initialTab: tab));
+      },
+    ),
+  );
 
   Future<void> _openSpots() async {
     await _leaveGroundView();
@@ -424,6 +444,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   @override
   void dispose() {
+    _windLifecycle?.dispose();
+    if (_globeController.onWindSettingsRequested == _windRequestHandler) {
+      _globeController.onWindSettingsRequested = null;
+    }
     _globeController.removeListener(_onGlobeStateChanged);
 
     _routeLayers?.dispose();
@@ -499,9 +523,15 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   void initState() {
     super.initState();
     _globeController.addListener(_onGlobeStateChanged);
+    _globeController.onWindSettingsRequested = _windRequestHandler;
+    _windLifecycle = AppLifecycleListener(
+      onStateChange: (state) =>
+          _globeController.wind.foreground(state == AppLifecycleState.resumed),
+    );
   }
 
   void _onGlobeStateChanged() {
+    _globeController.wind.flying(_globeController.simulationActive);
     if (!_globeController.isReady) _awaitOfflineRenderer = false;
     if (!_awaitOfflineRenderer &&
         _globeController.isReady &&
@@ -593,55 +623,75 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         onRadio: _openRadioEquipment,
         onData: _openData,
       ),
-      appBar: AppBar(
-        title: const Text('FPVManager'),
-        actions: [
-          MapActionMenu(
-            controller: _globeController,
-            groundButtonBuilder: _groundButton,
-            onHome: () => _runCommand(_globeController.resetCamera),
-            onCoordinates: _openCoordinatesDialog,
-            onTerrain: _showTerrainElevation,
-            onLayers: _openMapLayers,
-            onWeather: _openWeather,
-            onSimulation: _openSimulation,
-          ),
-        ],
-      ),
-      body: GlobeInputScope(
-        enabled: !_drawerOpen,
-        child: Column(
-          children: [
-            TerrainStatusBanner(controller: _globeController),
-            if (_cachedMaps) const CachedMapNotice(),
-            ObstacleStatusBanner(
-              controller: _globeController.obstacles,
-              onDetails: () =>
-                  _openMapLayers(initialTab: MapLayerTab.obstacles),
-            ),
-            UasDataQualityBanner(
+      body: SafeArea(
+        child: GlobeInputScope(
+          enabled: !_drawerOpen,
+          child: HomeMapWorkspace(
+            globe: GlobeView(
+              floatingControls: true,
+              cacheRevision: _mapCacheRevision,
               controller: _globeController,
-              onDetails: () => _openMapLayers(initialTab: MapLayerTab.airspace),
+              cachedMaps: _cachedMaps,
             ),
-            Expanded(
-              child: GlobeView(
-                cacheRevision: _mapCacheRevision,
-                controller: _globeController,
-                cachedMaps: _cachedMaps,
+            navigation: ListenableBuilder(
+              listenable: _globeController,
+              builder: (context, _) => Builder(
+                builder: (context) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Open navigation menu',
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                      icon: const Icon(Icons.menu),
+                    ),
+                    if (MediaQuery.sizeOf(context).width >= 900 &&
+                        !_globeController.simulationActive)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Text('FPVManager'),
+                      ),
+                    HomeMapStatusButton(
+                      controller: _globeController,
+                      cachedMaps: _cachedMaps,
+                      onPressed: _openMapStatus,
+                    ),
+                    if (_globeController.simulationActive)
+                      _mapActions(compact: true),
+                  ],
+                ),
               ),
             ),
-          ],
+            actions: ListenableBuilder(
+              listenable: _globeController,
+              builder: (context, _) => _globeController.simulationActive
+                  ? const SizedBox.shrink()
+                  : _mapActions(),
+            ),
+            selection: MapSelectionPanel(
+              floating: true,
+              controller: _globeController,
+              spotsById: _spotsById,
+              spotRepository: _spotRepository,
+              onSpotDetails: _openSpotDetails,
+              onCommand: _runCommand,
+            ),
+          ),
         ),
-      ),
-      bottomNavigationBar: MapSelectionPanel(
-        controller: _globeController,
-        spotsById: _spotsById,
-        spotRepository: _spotRepository,
-        onSpotDetails: _openSpotDetails,
-        onCommand: _runCommand,
       ),
     );
   }
+
+  Widget _mapActions({bool compact = false}) => MapActionMenu(
+    compact: compact,
+    controller: _globeController,
+    groundButtonBuilder: _groundButton,
+    onHome: () => _runCommand(_globeController.resetCamera),
+    onCoordinates: _openCoordinatesDialog,
+    onTerrain: _showTerrainElevation,
+    onLayers: _openMapLayers,
+    onWeather: _openWeather,
+    onSimulation: _openSimulation,
+  );
 
   Widget _groundButton() {
     final spot = _spotsById[_globeController.selectedSpotId];

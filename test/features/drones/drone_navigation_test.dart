@@ -48,13 +48,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Equipment'));
+      await tester.tap(find.text('Equipment'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Drone profiles'));
       await tester.tap(find.text('Drone profiles'));
       await tester.pumpAndSettle();
       expect(find.text('Existing profile'), findsOneWidget);
       expect(find.text('Add drone'), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.text('FPVManager'), findsOneWidget);
+      expect(find.byTooltip('Open navigation menu'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
       expect((await drones.getDrone(id))!.name, 'Existing profile');

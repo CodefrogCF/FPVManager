@@ -16,6 +16,23 @@ class UasDataQualityBanner extends StatefulWidget {
   final GlobeController controller;
   final VoidCallback onDetails;
 
+  static String? messageFor(GlobeController controller) {
+    final assessment = controller.uasDatasetAssessment;
+    final status = controller.uasDisplayedStatus;
+    final state = status.dataState;
+    if ((!controller.uasZonesVisible && !controller.uasRequestedVisible) ||
+        state == OsintDataState.fresh &&
+            (!controller.uasZonesVisible || assessment?.hasIssues != true) ||
+        controller.uasZonesLoading && status.dataset == null) {
+      return null;
+    }
+    return state == OsintDataState.fresh && assessment != null
+        ? 'UAS data limited · ${assessment.renderedFeatureCount}/${assessment.sourceFeatureCount} features displayed'
+        : status.dataset == null
+        ? 'UAS data unavailable · check official sources'
+        : 'UAS · ${state.label} · check official sources';
+  }
+
   @override
   State<UasDataQualityBanner> createState() => _UasDataQualityBannerState();
 }
@@ -41,20 +58,8 @@ class _UasDataQualityBannerState extends State<UasDataQualityBanner> {
     listenable: widget.controller,
     builder: (context, _) {
       final controller = widget.controller;
-      final assessment = controller.uasDatasetAssessment;
-      final status = controller.uasDisplayedStatus;
-      final state = status.dataState;
-      if ((!controller.uasZonesVisible && !controller.uasRequestedVisible) ||
-          state == OsintDataState.fresh &&
-              (!controller.uasZonesVisible || assessment?.hasIssues != true) ||
-          controller.uasZonesLoading && status.dataset == null) {
-        return const SizedBox.shrink();
-      }
-      final message = state == OsintDataState.fresh && assessment != null
-          ? 'UAS data limited · ${assessment.renderedFeatureCount}/${assessment.sourceFeatureCount} features displayed'
-          : status.dataset == null
-          ? 'UAS data unavailable · check official sources'
-          : 'UAS · ${state.label} · check official sources';
+      final message = UasDataQualityBanner.messageFor(controller);
+      if (message == null) return const SizedBox.shrink();
       return Material(
         color: Theme.of(context).colorScheme.tertiaryContainer,
         child: Padding(

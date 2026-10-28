@@ -1,0 +1,61 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>3D wind and flight smoke</title>
+<style>body{margin:0;background:#101820;color:white;font:14px system-ui}h1{font-size:18px;margin:8px}iframe{width:100%;height:65vh;border:0}pre{white-space:pre-wrap;padding:8px}</style>
+<h1 id="status">Running wind smoke…</h1><iframe id="map" title="Actual Cesium with synthetic terrain"></iframe><pre id="log"></pre>
+<script>
+const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map(),errors=[];let session,next=0,terrain,flight,windStatus;
+const pause=ms=>new Promise(r=>setTimeout(r,ms)),check=(v,m)=>{if(!v)throw Error(m);},log=m=>output.textContent+='PASS: '+m+'\n';
+async function until(predicate,message,timeout=25000){const end=performance.now()+timeout;while(!predicate()){
+  if(errors.length)throw Error(errors.join('; '));if(performance.now()>end)throw Error(message+' timeout');await pause(50);
+}}
+window.addEventListener('message',event=>{
+  if(event.source!==frame.contentWindow||event.origin!==location.origin)return;let d;try{d=JSON.parse(event.data);}catch{return;}
+  if(d.type==='globe-ready')session=d.sessionId;if(d.type==='terrain-status')terrain=d;if(d.type==='simulation-state')flight=d;
+  if(d.type==='wind-layer-status')windStatus=d.state;if(d.type==='globe-error')errors.push(d.message);
+  if(d.type==='command-result'){const p=pending.get(d.requestId);if(p){clearTimeout(p.timer);pending.delete(d.requestId);d.ok?p.resolve(d.result):p.reject(Error(d.error));}}
+});
+function command(type,fields={}){return new Promise((resolve,reject)=>{const requestId=String(++next),timer=setTimeout(()=>reject(Error(type+' timeout')),25000);
+  pending.set(requestId,{resolve,reject,timer});frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
+});}
+function fixture(){const lat=46.7,lon=8.4,dy=1500/111320,dx=1500/(111320*Math.cos(lat*Math.PI/180)),now=Date.now();
+  return {mode:'current',source:'Synthetic regression field',validAtUtc:new Date(now).toISOString(),retrievedUtc:new Date(now-1000).toISOString(),expiresUtc:new Date(now+1800000).toISOString(),
+    centerLatitude:lat,centerLongitude:lon,radiusMeters:1500,nodes:Array.from({length:9},(_,i)=>({latitude:lat+(Math.floor(i/3)-1)*dy,longitude:lon+(i%3-1)*dx,
+      levels:[10,80,120,180].map(agl=>({agl,speedMs:10,fromDegrees:270}))}))};
+}
+(async()=>{
+  frame.src='/terrain-globe.html';await until(()=>session&&terrain?.state==='ready','terrain ready');
+  const win=frame.contentWindow,doc=win.document,v=win.fixtureViewer,C=win.Cesium;
+  v.resolutionScale=.5;v.scene.msaaSamples=1;
+  v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.7,3000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
+  await until(()=>v.scene.globe.tilesLoaded,'initial terrain mesh');
+  const data=fixture(),lines=()=>Array.from({length:v.scene.primitives.length},(_,i)=>v.scene.primitives.get(i)).find(p=>p instanceof C.PolylineCollection);
+  await command('set-wind-field',{visible:true,affectFlight:false,field:data});await until(()=>lines()?.length>0&&lines().get(0).show,'wind glyphs');
+  check(lines().length<=196,'Unbounded glyph count');const start=C.Cartesian3.clone(lines().get(0).positions[0]);
+  await until(()=>C.Cartesian3.distance(start,lines().get(0).positions[0])>.5,'animated arrow positions');
+  check(Math.abs(C.Cartographic.fromCartesian(lines().get(0).positions[0]).height-1010)<.1,'Wind glyph has wrong AGL reference');
+  log('Actual Cesium draws bounded animated 3D arrows above terrain, moving with wind speed');
+  await command('set-wind-field',{visible:true,affectFlight:true,field:data});
+  await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:500,flightMode:'acro',sceneTime:{enabled:true,timeUtc:'2026-06-21T12:00:00.000Z'}});
+  await until(()=>flight?.active,'Acro entry');v.canvas.focus();
+  const longitude=v.camera.positionCartographic.longitude;v.canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'e',bubbles:true,cancelable:true}));
+  try{await until(()=>v.camera.positionCartographic.longitude-longitude>1e-7,'west wind pushes east');}
+  finally{v.canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'e',bubbles:true}));}
+  check(!doc.getElementById('hud-wind-readout').hidden,'Wind HUD missing');check(doc.getElementById('hud-wind').textContent.includes('10.0'),'Wrong wind HUD speed');
+  check(C.JulianDate.toIso8601(v.clock.currentTime,3)==='2026-06-21T12:00:00.000Z','Wind animation changed fixed solar time');
+  log('Wind pushes the actual Acro camera east; frozen celestial time does not stop wind animation or flight');
+  await command('set-wind-field',{visible:true,affectFlight:false,field:data});await command('reset-simulation');v.canvas.focus();
+  const calmLongitude=v.camera.positionCartographic.longitude;v.canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'e',bubbles:true,cancelable:true}));
+  await pause(500);v.canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'e',bubbles:true}));
+  check(Math.abs(v.camera.positionCartographic.longitude-calmLongitude)<1e-10,'Disabling wind still applies lateral force');
+  const expired={...data,retrievedUtc:new Date(Date.now()-120000).toISOString(),expiresUtc:new Date(Date.now()-1000).toISOString()};
+  await command('set-wind-field',{visible:true,affectFlight:true,field:expired});await until(()=>windStatus==='expired','expired state');
+  await until(()=>doc.getElementById('hud-wind').textContent==='—','expired wind HUD');check(!lines().show,'Expired arrows remain visible');
+  log('Independent overlay/physics controls and expiry work without a generic globe error');
+  await command('exit-simulation');
+  if(new URLSearchParams(location.search).has('live')){
+    const actual=await(await fetch('/wind-live.json')).json();await command('set-wind-field',{visible:true,affectFlight:false,field:actual});
+    await until(()=>lines().length>0&&lines().show,'real model arrows');log('A real nine-point Open-Meteo snapshot passes the production Dart parser and renders in Cesium');
+  }else await command('set-wind-field',{visible:true,affectFlight:false,field:data});
+  v.camera.lookAt(C.Cartesian3.fromDegrees(8.4,46.7,1000),new C.HeadingPitchRange(.4,-.55,1900));v.camera.lookAtTransform(C.Matrix4.IDENTITY);await pause(400);
+  document.getElementById('status').textContent='PASS — animated 3D wind and aerodynamic drift';
+})().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;output.textContent+=error.stack;});
+</script></html>

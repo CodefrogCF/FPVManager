@@ -75,6 +75,10 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/interaction_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/flight-smoke':
             self.reply((ROOT / 'test/web/flight_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/wind-smoke':
+            self.reply((ROOT / 'test/web/wind_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/wind-live.json':
+            self.reply((ROOT / '.dart_tool/wind-live.json').read_bytes())
         elif path == '/scene-smoke':
             self.reply((ROOT / 'test/web/scene_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/scene-fixture.js':
