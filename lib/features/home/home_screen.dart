@@ -691,6 +691,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     onLayers: _openMapLayers,
     onWeather: _openWeather,
     onSimulation: _openSimulation,
+    onExitNavigation: () => _runCommand(_globeController.exitNavigation),
   );
 
   Widget _groundButton() {

@@ -268,6 +268,8 @@ void main() {
     await tester.pumpAndSettle();
     peer.emit({'type': 'spot-selected', 'id': id});
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('More spot actions'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Check airspace'));
     await tester.pumpAndSettle();
     expect(globe.calls.single.$1.single.latitude, _point.latitude);

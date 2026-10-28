@@ -8,6 +8,7 @@ import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 import 'package:fpvmanager/main.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
+import '../../helpers/map_action_menu.dart';
 
 void main() {
   testWidgets(
@@ -85,8 +86,7 @@ void main() {
       peer.emit({'type': 'simulation-state', 'active': true, 'pending': false});
       await tester.pumpAndSettle();
       expect(tester.getRect(find.byType(GlobeView)).bottom, 568);
-      await tester.tap(find.byTooltip('Return to globe'));
-      await tester.pumpAndSettle();
+      await selectMapAction(tester, 'Return to globe');
       expect(peer.commands.last['type'], 'exit-simulation');
       peer.emit({
         'type': 'simulation-state',

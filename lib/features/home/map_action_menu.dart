@@ -4,7 +4,15 @@ import 'package:flutter/material.dart';
 
 import '../globe/globe_controller.dart';
 
-enum _MapAction { home, coordinates, terrain, layers, weather, simulation }
+enum _MapAction {
+  home,
+  coordinates,
+  terrain,
+  layers,
+  weather,
+  simulation,
+  exitNavigation,
+}
 
 class MapActionMenu extends StatelessWidget {
   const MapActionMenu({
@@ -17,6 +25,7 @@ class MapActionMenu extends StatelessWidget {
     required this.onLayers,
     required this.onWeather,
     required this.onSimulation,
+    required this.onExitNavigation,
     this.compact = false,
   });
   final GlobeController controller;
@@ -27,7 +36,7 @@ class MapActionMenu extends StatelessWidget {
       onTerrain,
       onLayers,
       onWeather;
-  final Future<void> Function() onSimulation;
+  final Future<void> Function() onSimulation, onExitNavigation;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
@@ -54,9 +63,15 @@ class MapActionMenu extends StatelessWidget {
               _MapAction.layers => onLayers(),
               _MapAction.weather => onWeather(),
               _MapAction.simulation => onSimulation(),
+              _MapAction.exitNavigation => onExitNavigation(),
             });
           },
           itemBuilder: (_) => [
+            if (compact && controller.navigationActive)
+              const PopupMenuItem(
+                value: _MapAction.exitNavigation,
+                child: Text('Return to globe'),
+              ),
             PopupMenuItem(
               value: _MapAction.simulation,
               enabled:
