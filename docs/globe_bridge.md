@@ -70,6 +70,8 @@ reports active/pending/reason and `cameraTiltDegrees` (0–80° upward, also acc
 at entry; body-relative FPV view only).
 `graphicsProfile` accepts `quality`, `balanced` (default) or `performance` at
 entry and is reported in `simulation-state` after in-flight changes.
+`showCoordinates` is an optional boolean (default false) at entry and is reported
+in `simulation-state` after changes in the HUD settings; coordinates stay renderer-local.
 `navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
 reset/exit/connected booleans). Frames retain physical axes: forward/right are

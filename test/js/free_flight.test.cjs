@@ -60,6 +60,20 @@ test('HUD launch height is independent of local terrain; layout changes preserve
     assert.throws(()=>p.model.hudStyle('unknown'));assert.throws(()=>parameters({hudStyle:'unknown'}));
 });
 
+test('coordinate visibility never changes the flight pose and survives HUD changes, reset and re-entry',async()=>{
+    const p=setup();await start(p,{flightMode:'acro',agl:500});
+    assert.equal(p.model.status().showCoordinates,false);
+    input(p.model,{throttle:.7,pitch:.2});advance(p.model,.5);
+    const before=p.model.status();p.model.showCoordinates(true);
+    const after=p.model.status();assert.equal(after.showCoordinates,true);
+    for(const key of ['position','attitude','height','horizontalSpeed','heading'])assert.deepEqual(after[key],before[key]);
+    p.model.hudStyle('betaflight');assert.equal(p.model.status().showCoordinates,true);
+    await p.model.reset();assert.equal(p.model.status().showCoordinates,true);
+    p.model.stop();await start(p,{showCoordinates:true});assert.equal(p.model.status().showCoordinates,true);
+    p.model.showCoordinates(false);assert.equal(p.model.status().showCoordinates,false);
+    assert.throws(()=>p.model.showCoordinates('true'));assert.throws(()=>parameters({showCoordinates:1}));
+});
+
 test('graphics changes do not affect flight state and survive reset; invalid profiles are rejected',async()=>{
     const profiles=[],p=setup({applyGraphics:value=>profiles.push(value)}),reference=setup();
     await start(p,{flightMode:'acro',agl:500});await start(reference,{flightMode:'acro',agl:500});

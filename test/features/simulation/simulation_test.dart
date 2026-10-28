@@ -93,6 +93,7 @@ void main() {
       flightMode: SimulationFlightMode.acro,
       graphicsProfile: SimulationGraphicsProfile.performance,
       hudStyle: SimulationHudStyle.betaflight,
+      showCoordinates: true,
       acroThrustToWeight: 6,
       agl: 45,
       acroRollRate: 600,
@@ -112,6 +113,12 @@ void main() {
     expect(tilted.graphicsProfile, SimulationGraphicsProfile.performance);
     expect(tilted.hudStyle, SimulationHudStyle.betaflight);
     expect(tilted.toCommand()['hudStyle'], 'betaflight');
+    expect(tilted.toCommand()['showCoordinates'], true);
+    expect(const SimulationSettings().toCommand()['showCoordinates'], false);
+    expect(
+      tilted.withCameraTilt(20, showCoordinates: false).showCoordinates,
+      false,
+    );
     expect(const SimulationSettings().toCommand()['hudStyle'], 'goggles');
     expect(
       tilted.withCameraTilt(20, hudStyle: SimulationHudStyle.goggles).hudStyle,
@@ -251,6 +258,17 @@ void main() {
         'hudStyle': 'unknown',
       });
       expect(globe.simulationHudStyle, SimulationHudStyle.betaflight);
+    });
+    test('live coordinate visibility is retained for the next flight and ignores invalid values', () {
+      for (final value in [true, 'invalid', false]) {
+        peer.emit({
+          'type': 'simulation-state',
+          'active': true,
+          'pending': false,
+          'showCoordinates': value,
+        });
+        expect(globe.simulationShowCoordinates, value != false);
+      }
     });
     test('live radio assignment and throttle zero remain available in the next settings sheet', () {
       const controller = ControllerSettings(
@@ -415,6 +433,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Betaflight · classic OSD').last);
       await tester.pumpAndSettle();
+      final coordinates = find.widgetWithText(
+        SwitchListTile,
+        'Koordinaten im HUD anzeigen',
+      );
+      await tester.ensureVisible(coordinates);
+      expect(tester.widget<SwitchListTile>(coordinates).value, false);
+      await tester.tap(coordinates);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Spawn in map'));
       await tester.tap(find.text('Spawn in map'));
       await tester.pumpAndSettle();
@@ -422,6 +448,7 @@ void main() {
       expect(chosen!.cameraTiltDegrees, 30);
       expect(chosen!.graphicsProfile, SimulationGraphicsProfile.performance);
       expect(chosen!.hudStyle, SimulationHudStyle.betaflight);
+      expect(chosen!.showCoordinates, true);
       expect(chosen!.droneId, 1);
       expect(chosen!.flightMode, SimulationFlightMode.acro);
       expect(chosen!.maxSpeed, 24);

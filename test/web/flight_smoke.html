@@ -29,7 +29,9 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
 });}
 (async()=>{
-  frame.src='/terrain-globe.html';await until(()=>session&&terrain?.state==='ready','startup');
+  const hudOnly=new URLSearchParams(location.search).has('hud');
+  if(hudOnly){frame.style.height='calc(100vh - 54px)';output.hidden=true;}
+  frame.src='/terrain-globe.html'+(hudOnly?'?chrome=floating':'');await until(()=>session&&terrain?.state==='ready','startup');
   const win=frame.contentWindow,doc=win.document,v=win.fixtureViewer,C=win.Cesium,canvas=v.canvas;
   v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.7,2000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
   await until(()=>v.scene.globe.tilesLoaded,'terrain tiles');await pause(250);
@@ -68,15 +70,28 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(settingsPanel.hidden,'HUD menu obscures the map by default');
   settingsButton.click();check(!settingsPanel.hidden&&settingsButton.getAttribute('aria-expanded')==='true','HUD menu not reachable');
   const hudSelect=doc.getElementById('flight-hud-style'),hud=doc.getElementById('navigation-hud');
+  const coordinates=doc.getElementById('hud-coordinates'),coordinateToggle=doc.getElementById('flight-show-coordinates');
+  check(coordinates.hidden&&!coordinateToggle.checked,'Coordinates should be opt-in');
+  const coordinatePose=v.camera.positionWC.clone();coordinateToggle.checked=true;
+  coordinateToggle.dispatchEvent(new win.Event('change',{bubbles:true}));
+  await until(()=>flight.showCoordinates===true,'Coordinate visibility event');
+  check(!coordinates.hidden&&coordinates.textContent==='46.70000, 8.40000','Coordinate readout does not match simulated WGS84 position');
+  check(C.Cartesian3.distance(coordinatePose,v.camera.positionWC)<.001,'Coordinate toggle moved the drone');
   for(const style of ['betaflight','goggles']){
     const before=v.camera.positionWC.clone();hudSelect.value=style;hudSelect.dispatchEvent(new win.Event('change',{bubbles:true}));
     await until(()=>flight.hudStyle===style,'HUD style event');
     check(hud.dataset.style===style&&flight.hudStyle===style,'HUD style not synchronized');
+    check(!coordinates.hidden&&coordinateToggle.checked,'HUD switch lost coordinate visibility');
     check(C.Cartesian3.distance(before,v.camera.positionWC)<.001,'HUD style respawned the drone');
   }
   settingsButton.click();check(settingsPanel.hidden,'HUD menu does not close');
   check(doc.elementFromPoint(win.innerWidth*.7,win.innerHeight*.45)===canvas,'Transparent HUD blocks flight input');
   log('Both HUD layouts retain height/distance values and switch without respawning; closed HUD controls leave map input reachable');
+  coordinateToggle.checked=false;coordinateToggle.dispatchEvent(new win.Event('change',{bubbles:true}));
+  await until(()=>flight.showCoordinates===false,'Coordinate disable event');check(coordinates.hidden,'Coordinates did not hide');
+  log('Coordinates toggle in both actual HUD layouts without respawning and emit the next-flight setting');
+  if(hudOnly){coordinateToggle.checked=true;coordinateToggle.dispatchEvent(new win.Event('change',{bubbles:true}));
+    await until(()=>!coordinates.hidden,'Coordinate preview');document.getElementById('status').textContent='PASS — compact optional HUD coordinates';return;}
   check(!v.scene.screenSpaceCameraController.enableInputs,'Orbital input active');
   log('Actual Cesium spawns at terrain +20m with FPV camera, HUD and an independent saved route overlay');
   if(new URLSearchParams(location.search).has('radio')){

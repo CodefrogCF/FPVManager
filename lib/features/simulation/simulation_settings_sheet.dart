@@ -86,6 +86,7 @@ class _SettingsState extends State<_Settings> {
   late SimulationFlightMode _mode = widget.initial.flightMode;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
   late SimulationHudStyle _hud = widget.initial.hudStyle;
+  late bool _showCoordinates = widget.initial.showCoordinates;
   late ControllerSettings _controller = widget.initial.controller;
   String? _error;
   @override
@@ -307,6 +308,13 @@ class _SettingsState extends State<_Settings> {
                     const Text(
                       'Speed in km/h, height AGL, height above the ground at spawn and horizontal distance home. Switch the layout during flight in HUD settings.',
                     ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Koordinaten im HUD anzeigen'),
+                      value: _showCoordinates,
+                      onChanged: (value) =>
+                          setState(() => _showCoordinates = value),
+                    ),
                     DropdownButtonFormField<SimulationGraphicsProfile>(
                       key: const ValueKey('simulation-graphics'),
                       initialValue: _graphics,
@@ -519,6 +527,7 @@ class _SettingsState extends State<_Settings> {
                             flightMode: _mode,
                             graphicsProfile: _graphics,
                             hudStyle: _hud,
+                            showCoordinates: _showCoordinates,
                             controller: _controller,
                             cameraTiltDegrees: parameter(
                               'cameraTilt',

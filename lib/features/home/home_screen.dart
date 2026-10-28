@@ -174,6 +174,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             _simulationSettings.graphicsProfile,
         hudStyle:
             _globeController.simulationHudStyle ?? _simulationSettings.hudStyle,
+        showCoordinates:
+            _globeController.simulationShowCoordinates ??
+            _simulationSettings.showCoordinates,
         controller:
             _globeController.simulationController ??
             _simulationSettings.controller,

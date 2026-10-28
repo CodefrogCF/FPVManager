@@ -374,6 +374,8 @@ class GlobeController extends ChangeNotifier {
       _simulationGraphicsProfile;
   SimulationHudStyle? _simulationHudStyle;
   SimulationHudStyle? get simulationHudStyle => _simulationHudStyle;
+  bool? _simulationShowCoordinates;
+  bool? get simulationShowCoordinates => _simulationShowCoordinates;
   ControllerSettings? _simulationController;
   ControllerSettings? get simulationController => _simulationController;
   bool get navigationActive => _simulationActive || _groundViewActive;
@@ -1448,6 +1450,9 @@ class GlobeController extends ChangeNotifier {
             .where((p) => p.name == data['hudStyle'])
             .firstOrNull;
         if (hud != null) _simulationHudStyle = hud;
+        if (data['showCoordinates'] is bool) {
+          _simulationShowCoordinates = data['showCoordinates'] as bool;
+        }
         final controller = ControllerSettings.tryParse(data['controller']);
         if (controller != null) _simulationController = controller;
         if (tilt is num && tilt.isFinite && tilt >= 0 && tilt <= 80) {

@@ -4,6 +4,23 @@ const rad=Math.PI/180;
 const state={mode:'acro',hudStyle:'goggles',horizontalSpeed:10,verticalSpeed:-3.5,throttle:.62,
     agl:17.5,heightAboveHome:25,distance:111,position:{latitude:0,longitude:0},home:{latitude:0,longitude:1}};
 
+test('coordinate readout is opt-in, updates in both layouts and clears invalid or missing positions',()=>{
+    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
+    const hud=create(doc),readout=()=>nodes.get('hud-coordinates');
+    hud.update(state,0);assert.equal(readout().hidden,true);
+    for(const hudStyle of ['goggles','betaflight']){
+        hud.update({...state,hudStyle,showCoordinates:true,position:{latitude:46.7123456,longitude:-8.4321098}},0);
+        assert.equal(readout().hidden,false);assert.equal(readout().textContent,'46.71235, -8.43211');
+        hud.update({...state,hudStyle,showCoordinates:true,position:{latitude:47,longitude:9}},0);
+        assert.equal(readout().textContent,'47.00000, 9.00000');
+    }
+    for(const position of [null,{latitude:NaN,longitude:9},{latitude:91,longitude:8},{latitude:46,longitude:181}]){
+        hud.update({...state,showCoordinates:true,position},0);assert.equal(readout().textContent,'—');
+    }
+    assert.equal(telemetry({...state,position:{latitude:-.00000001,longitude:0}},0).coordinates,'0.00000, 0.00000');
+    hud.update({...state,showCoordinates:false},0);assert.equal(readout().hidden,true);
+});
+
 test('wind HUD distinguishes model wind, unavailable forcing and disabled wind',()=>{
     const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
     const hud=create(doc);hud.update({...state,wind:{enabled:true,available:true,speedMs:8}},0);

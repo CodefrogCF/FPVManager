@@ -81,7 +81,11 @@
     .floating-map-chrome #map-compass { top:68px;right:8px; }
     .floating-map-chrome #wind-legend { top:154px; }
     .floating-map-chrome #hud-mode { left:16px;top:68px; }
-    @media (min-width:480px) { .floating-map-chrome #hud-mode { left:168px;top:14px; } }
+    .floating-map-chrome #hud-coordinates { left:16px;top:86px; }
+    @media (min-width:480px) {
+        .floating-map-chrome #hud-mode { left:168px;top:14px; }
+        .floating-map-chrome #hud-coordinates { left:168px;top:34px;max-width:calc(100% - 280px); }
+    }
     #ground-controls { position: absolute; left: max(16px, env(safe-area-inset-left));
         bottom: max(74px, calc(env(safe-area-inset-bottom) + 58px)); z-index: 20; }
     #ground-controls[hidden] { display: none; }
@@ -144,6 +148,7 @@
     <div id="look-region"><div id="look-stick" hidden aria-hidden="true"><div id="look-thumb"></div></div></div>
     <div id="navigation-hud" data-style="goggles" hidden aria-label="Flight simulation HUD">
         <span id="hud-mode">SIM</span>
+        <output id="hud-coordinates" hidden aria-live="off" aria-label="Simulated position, WGS84 latitude and longitude" title="WGS84 · Latitude, longitude · Simulated position"></output>
         <svg class="hud-reticle" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h11m14 0h11M20 9v6"/></svg>
         <div id="flight-actions">
             <button id="settings-flight" type="button" title="HUD settings" aria-label="HUD settings" aria-expanded="false" aria-controls="flight-options">
@@ -155,6 +160,7 @@
             <div id="flight-option-actions"><button id="reset-flight" type="button">Reset</button><button id="camera-flight" type="button" aria-expanded="false" aria-controls="flight-camera">Camera</button></div>
             <label id="flight-camera" hidden>Camera ↑ <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label>
             <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
+            <label><input id="flight-show-coordinates" type="checkbox">Koordinaten anzeigen</label>
             <label id="flight-graphics">Graphics <select id="flight-graphics-profile" aria-label="Flight graphics profile"><option value="quality">Quality</option><option value="balanced">Balanced</option><option value="performance">Performance</option></select></label>
             <details id="flight-controller"><summary>External controller</summary>
                 <label>Type <select id="controller-layout" aria-label="Controller type"><option value="gamepad">Standard gamepad</option><option value="radio">USB radio / Tango 2</option></select></label>

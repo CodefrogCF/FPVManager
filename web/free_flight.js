@@ -23,7 +23,7 @@
     }
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
-            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',showCoordinates:c.showCoordinates??false,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
@@ -37,6 +37,7 @@
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
         if(!['quality','balanced','performance'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
         if(!['goggles','betaflight'].includes(p.hudStyle))throw new Error('Unknown flight HUD style');
+        if(typeof p.showCoordinates!=='boolean')throw new Error('Invalid HUD coordinate visibility');
         return p;
     }
     // Body forward/right/down -> local north/east/down, a right-handed frame.
@@ -66,7 +67,7 @@
             const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
+        function status(){return {active,pending,paused,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
@@ -237,6 +238,10 @@
             hudStyle(style){
                 if(!['goggles','betaflight'].includes(style))throw new Error('Unknown flight HUD style');
                 config={...config,hudStyle:style};if(active){pose();publish();}
+            },
+            showCoordinates(value){
+                if(typeof value!=='boolean')throw new Error('Invalid HUD coordinate visibility');
+                config={...config,showCoordinates:value};if(active){pose();publish();}
             },
             graphicsProfile(profile){
                 if(!['quality','balanced','performance'].includes(profile))throw new Error('Unknown flight graphics profile');

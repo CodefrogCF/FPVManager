@@ -823,6 +823,7 @@ function postToFlutter(message) {
         const flightHud=FPVFlightHud.create(document),device=document.getElementById('navigation-device');
         const settingsButton=document.getElementById('settings-flight'),settingsPanel=document.getElementById('flight-options');
         const hudSelect=document.getElementById('flight-hud-style');
+        const coordinateToggle=document.getElementById('flight-show-coordinates');
         const cameraButton=document.getElementById('camera-flight'),cameraPanel=document.getElementById('flight-camera');
         const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
         const graphicsSelect=document.getElementById('flight-graphics-profile');
@@ -881,7 +882,7 @@ function postToFlutter(message) {
             const flying=mode==='flight'&&state.active;
             hud.hidden=!flying; info.hidden=flying;
             if(!flying){settingsPanel.hidden=true;settingsButton.setAttribute('aria-expanded','false');}
-            else {hudSelect.value=state.hudStyle;flightHud.update(state,viewer.camera.heading);controllerPanel.update(state.controller);}
+            else {hudSelect.value=state.hudStyle;coordinateToggle.checked=state.showCoordinates===true;flightHud.update(state,viewer.camera.heading);controllerPanel.update(state.controller);}
             const fpv=mode==='flight'&&state.active&&state.mode!=='gps';
             cameraButton.hidden=!fpv;
             if(!fpv){cameraPanel.hidden=true;cameraButton.setAttribute?.('aria-expanded','false');}
@@ -891,7 +892,7 @@ function postToFlutter(message) {
             if(entering)viewer.canvas.focus();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
-                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,controller:state.controller}:{})});
+                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,controller:state.controller}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
             applyPose:point=>{
@@ -932,6 +933,7 @@ function postToFlutter(message) {
             if(settingsPanel.hidden)viewer.canvas.focus();
         });
         hudSelect.addEventListener('change',()=>flyer.hudStyle(hudSelect.value));
+        coordinateToggle.addEventListener('change',()=>flyer.showCoordinates(coordinateToggle.checked));
         cameraButton.addEventListener('click',()=>{
             cameraPanel.hidden=!cameraPanel.hidden;cameraButton.setAttribute('aria-expanded',String(!cameraPanel.hidden));
         });

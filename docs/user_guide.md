@@ -167,6 +167,9 @@ Both show speed, AGL, **H START** (height above the ground at spawn), **D HOME**
 (horizontal distance) and a home arrow relative to the view heading. At spawn,
 H START equals the configured spawn height; below that ground elevation it is negative.
 Unknown terrain heights stay unknown. The layout choice lasts for this session.
+**Koordinaten im HUD anzeigen** before flight, or **HUD settings → Koordinaten anzeigen**
+in flight, adds a small WGS84 latitude/longitude line below the mode label in
+either HUD style. It is off by default; its choice lasts for this session.
 **HUD settings → Reset**, R or controller A returns to spawn; **Exit**, Escape,
 controller B or the globe icon restores the map camera. Saved routes/obstacles remain visible.
 

@@ -22,6 +22,7 @@ class SimulationSettings {
     this.cameraTiltDegrees = 0,
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
     this.hudStyle = SimulationHudStyle.goggles,
+    this.showCoordinates = false,
     this.controller = const ControllerSettings(),
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
@@ -39,12 +40,14 @@ class SimulationSettings {
   final double cameraTiltDegrees;
   final SimulationGraphicsProfile graphicsProfile;
   final SimulationHudStyle hudStyle;
+  final bool showCoordinates;
   final ControllerSettings controller;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
     SimulationGraphicsProfile? graphicsProfile,
     SimulationHudStyle? hudStyle,
+    bool? showCoordinates,
     ControllerSettings? controller,
     SceneTime? sceneTime,
   }) => SimulationSettings(
@@ -58,6 +61,7 @@ class SimulationSettings {
     cameraTiltDegrees: degrees,
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
     hudStyle: hudStyle ?? this.hudStyle,
+    showCoordinates: showCoordinates ?? this.showCoordinates,
     controller: controller ?? this.controller,
     sceneTime: sceneTime ?? this.sceneTime,
     acroThrustToWeight: acroThrustToWeight,
@@ -128,6 +132,7 @@ class SimulationSettings {
       'cameraTiltDegrees': cameraTiltDegrees,
       'graphicsProfile': graphicsProfile.name,
       'hudStyle': hudStyle.name,
+      'showCoordinates': showCoordinates,
       'controller': controller.toJson(),
       'acroThrustToWeight': acroThrustToWeight,
       'acroThrustCurve': acroThrustCurve,
