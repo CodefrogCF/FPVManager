@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'globe_controller.dart';
+import 'scene_layers_section.dart';
 
 class MapDisplaySection extends StatelessWidget {
   const MapDisplaySection({
@@ -108,6 +109,8 @@ class MapDisplaySection extends StatelessWidget {
               label: const Text('Straßen-Layer erneut laden'),
             ),
         ],
+        const SizedBox(height: 16),
+        SceneLayersSection(controller: controller),
         const SizedBox(height: 16),
         Text(
           'OVERLAY ORDER · FRONT TO BACK',

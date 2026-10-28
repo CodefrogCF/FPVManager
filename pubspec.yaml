@@ -144,6 +144,7 @@ flutter:
     - web/flight_hud.js
     - web/flight_hud.css
     - web/flight_rendering.js
+    - web/scene_environment.js
     - web/route_editor.js
     - web/signal_analysis.js
     - web/obstacle_layers.js

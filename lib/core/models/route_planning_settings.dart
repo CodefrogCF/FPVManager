@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'route_constraints.dart';
 import 'signal_settings.dart';
+import 'scene_time.dart';
 
 class PowerCurvePoint {
   const PowerCurvePoint(this.speed, this.watts);
@@ -27,6 +28,7 @@ class RoutePlanningSettings {
     this.minimumClearance = 20,
     this.constraints = const RouteConstraints(),
     this.signal,
+    this.sceneTime = const SceneTime(),
   });
   final bool useWind, includeReturn;
   final double windSpeed, windFromDegrees, reservePercent;
@@ -39,6 +41,13 @@ class RoutePlanningSettings {
   final String curveSource;
   final RouteConstraints constraints;
   final SignalSettings? signal;
+  final SceneTime sceneTime;
+
+  RoutePlanningSettings withSceneTime(SceneTime value) {
+    final j = jsonDecode(encode()) as Map<String, dynamic>;
+    j['sceneTime'] = value.toJson();
+    return RoutePlanningSettings.decode(jsonEncode(j));
+  }
 
   RoutePlanningSettings withSignal(SignalSettings value) {
     final j = jsonDecode(encode()) as Map<String, dynamic>;
@@ -67,6 +76,7 @@ class RoutePlanningSettings {
 
   void validate() {
     constraints.validate();
+    sceneTime.validate();
     signal?.validate();
     void range(double n, double low, double high, String name) {
       if (!n.isFinite || n < low || n > high) {
@@ -104,6 +114,7 @@ class RoutePlanningSettings {
     validate();
     final encoded = jsonEncode({
       'version': 1,
+      'sceneTime': sceneTime.toJson(),
       'useWind': useWind,
       'windSpeed': windSpeed,
       'windFromDegrees': windFromDegrees,
@@ -137,6 +148,9 @@ class RoutePlanningSettings {
         throw const FormatException('Unsupported planning settings');
       }
       final value = RoutePlanningSettings(
+        sceneTime: j['sceneTime'] == null
+            ? const SceneTime()
+            : SceneTime.fromJson(j['sceneTime'] as Map<String, dynamic>),
         useWind: j['useWind'] as bool,
         signal: j['signal'] == null
             ? null

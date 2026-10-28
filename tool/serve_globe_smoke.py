@@ -75,6 +75,15 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/interaction_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/flight-smoke':
             self.reply((ROOT / 'test/web/flight_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/scene-smoke':
+            self.reply((ROOT / 'test/web/scene_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/scene-fixture.js':
+            self.reply((ROOT / 'test/web/scene_fixture.js').read_bytes(), 'application/javascript')
+        elif path == '/scene-globe.html':
+            body = (WEB_ROOT / 'globe.html').read_bytes().replace(
+                b'<script src="globe.js"></script>',
+                b'<script src="/scene-fixture.js"></script><script src="globe.js"></script>')
+            self.reply(body, 'text/html; charset=utf-8')
         elif path == '/signal-smoke':
             self.reply((ROOT / 'test/web/signal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/situational-smoke':

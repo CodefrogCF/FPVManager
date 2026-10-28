@@ -132,7 +132,7 @@
     }
     function createEditor(Cesium, viewer, emit, host = window, sampleHeights = async points =>
         points.map(point => viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(point.longitude, point.latitude))),
-        isTerrainReady = () => true) {
+        isTerrainReady = () => true, onSceneTime = () => {}) {
         let state = null, drag = null, building = false;
         const layer = createLayer(Cesium, viewer, sampleHeights, isTerrainReady,
             () => emit("route-preview-error", {message:"Unable to rebuild the route preview. Retry map sync."}));
@@ -162,6 +162,7 @@
         async function set(command, signal) {
             validate(command);
             if (state?.editorId === command.editorId && state.revision >= command.revision) return {};
+            onSceneTime(command.enabled ? command.sceneTime ?? {enabled:false} : {enabled:false});
             release();
             const current = state = structuredClone(command);
             building = true;
@@ -241,6 +242,7 @@
                     offset: new Cesium.HeadingPitchRange(0, -Math.PI / 4, Math.max(300, sphere.radius * 3)) });
             },
             dispose() {
+                onSceneTime({enabled:false});
                 release(); handler.destroy();
                 viewer.canvas.removeEventListener("keydown", key);
                 viewer.canvas.removeEventListener("contextmenu", menu);

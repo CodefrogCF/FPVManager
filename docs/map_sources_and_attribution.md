@@ -34,6 +34,13 @@ grid/ellipsoid is not swisstopo imagery or measured terrain.
 
 ## Use and distribution
 
+Optional 3D buildings and vegetation use the official GeoAdmin 3D Tiles services:
+`https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json` and
+`https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/tileset.json` (© swisstopo).
+Tiles keep their georeferenced source placement without assumed height offsets.
+Vegetation is a source model, not a current survey of every tree. Streaming is
+limited to the visible level of detail and renderer memory cache; no bulk/offline download.
+
 The [Swiss obstacle data specification](https://www.bazl.admin.ch/dam/en/sd-web/CpfHnV604RSJ/dps_obstacle_datenset_aixm.pdf)
 defines absolute KML elevations as LN02 despite the usual KML convention. The
 bundled CHGeo2004/HTRANS grid converts those values to ETRS89 ellipsoid heights,

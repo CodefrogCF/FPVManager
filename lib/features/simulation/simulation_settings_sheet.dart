@@ -5,6 +5,7 @@ import '../../core/database/repositories/drone_repository.dart';
 import 'simulation_settings.dart';
 import 'controller_settings.dart';
 import 'controller_settings_fields.dart';
+import '../globe/scene_time_control.dart';
 
 Future<SimulationSettings?> showSimulationSettings(
   BuildContext context, {
@@ -36,6 +37,7 @@ class _Settings extends StatefulWidget {
 
 class _SettingsState extends State<_Settings> {
   final _form = GlobalKey<FormState>();
+  late var _sceneTime = widget.initial.sceneTime;
   late final _fields = <String, TextEditingController>{
     'agl': TextEditingController(text: '${widget.initial.agl}'),
     'cameraTilt': TextEditingController(
@@ -227,6 +229,16 @@ class _SettingsState extends State<_Settings> {
                           : 'No selected point: spawn at the terrain under the camera target.',
                     ),
                     const SizedBox(height: 12),
+                    ExpansionTile(
+                      title: const Text('Sonnen- und Mondzeit'),
+                      children: [
+                        SceneTimeControl(
+                          value: _sceneTime,
+                          onChanged: (value) =>
+                              setState(() => _sceneTime = value),
+                        ),
+                      ],
+                    ),
                     DropdownButtonFormField<SimulationFlightMode>(
                       initialValue: _mode,
                       isExpanded: true,
@@ -492,6 +504,7 @@ class _SettingsState extends State<_Settings> {
                         Navigator.pop(
                           context,
                           SimulationSettings(
+                            sceneTime: _sceneTime,
                             agl: read('agl')!,
                             maxSpeed: parameter('speed', .5, 100, 15),
                             climbSpeed: parameter('climb', .2, 30, 5),

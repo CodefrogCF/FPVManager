@@ -163,6 +163,11 @@
                 <p>Angle/Acro external inputs only. Reconnect with zero throttle and other sticks centred. Touch/keyboard controls stay the same.</p>
                 <output id="controller-last-interruption" aria-live="polite"></output>
             </details>
+            <details id="flight-time"><summary>Sonnen- und Mondzeit</summary>
+                <label>Zeit <select id="flight-time-mode"><option value="map">Kartenbeleuchtung</option><option value="now">Jetzt</option><option value="fixed">Datum und Uhrzeit</option></select></label>
+                <label id="flight-time-fixed" hidden>Geräte-Zeitzone <input id="flight-time-value" type="datetime-local" min="1900-01-01T00:00" max="2100-12-31T23:59"></label>
+                <output id="flight-time-error" aria-live="polite"></output>
+            </details>
             <span id="navigation-device"></span>
         </div>
         <span id="hud-warning" hidden role="status" aria-live="polite"></span>
@@ -188,6 +193,7 @@
     <script src="free_flight.js"></script>
     <script src="flight_hud.js"></script>
     <script src="flight_rendering.js"></script>
+    <script src="scene_environment.js"></script>
     <script src="route_editor.js"></script>
     <script src="signal_analysis.js"></script>
     <script src="obstacle_models.js"></script>

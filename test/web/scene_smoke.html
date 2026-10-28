@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>3D environment and astronomical time smoke</title>
+<style>body{margin:0;background:#101820;color:white;font:14px system-ui}h1{font-size:18px;margin:8px}iframe{width:100%;height:65vh;border:0}pre{white-space:pre-wrap;padding:8px}</style>
+<h1 id="status">Running real swisstopo environment smoke…</h1><iframe id="map" title="Actual globe with official 3D data"></iframe><pre id="log"></pre>
+<script>
+const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map();
+const mobile=new URLSearchParams(location.search).has('mobile');
+if(mobile){frame.style.width='390px';frame.style.maxWidth='100%';frame.style.height='760px';}
+let session,next=0,terrain,flight;const layers={},errors=[];
+const pause=ms=>new Promise(r=>setTimeout(r,ms));
+const check=(value,message)=>{if(!value)throw Error(message);};
+const log=message=>output.textContent+='PASS: '+message+'\n';
+async function until(predicate,message,timeout=45000){const end=performance.now()+timeout;while(!predicate()){
+    if(errors.length)throw Error(errors.join('; '));if(performance.now()>end)throw Error(message+' timeout; layers '+JSON.stringify(layers));await pause(80);
+}}
+window.addEventListener('message',event=>{
+    if(event.source!==frame.contentWindow||event.origin!==location.origin)return;
+    let data;try{data=JSON.parse(event.data);}catch{return;}
+    if(data.type==='globe-ready')session=data.sessionId;
+    if(data.type==='terrain-status')terrain=data;
+    if(data.type==='scene-layer-status')layers[data.layer]=data.state;
+    if(data.type==='simulation-state')flight=data;
+    if(data.type==='globe-error')errors.push(data.message);
+    if(data.type==='command-result'){
+        const task=pending.get(data.requestId);if(task){pending.delete(data.requestId);clearTimeout(task.timer);data.ok?task.resolve(data.result):task.reject(Error(data.error));}
+    }
+});
+function command(type,fields={}){return new Promise((resolve,reject)=>{
+    const requestId=String(++next),timer=setTimeout(()=>reject(Error(type+' timeout')),45000);
+    pending.set(requestId,{resolve,reject,timer});frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
+});}
+(async()=>{
+    frame.src='/scene-globe.html';await until(()=>session&&terrain?.state==='ready','official terrain startup');
+    const win=frame.contentWindow,doc=win.document,v=win.fixtureViewer,C=win.Cesium;
+    const render=()=>new Promise(resolve=>{const remove=v.scene.postRender.addEventListener(()=>{remove();resolve();});v.scene.requestRender();});
+    const target=C.Cartesian3.fromDegrees(7.4474,46.9474,550);
+    v.camera.lookAt(target,new C.HeadingPitchRange(0,-.55,1300));v.camera.lookAtTransform(C.Matrix4.IDENTITY);
+    await command('set-scene-environment',{buildings:true,vegetation:true,lighting:true});
+    const tilesets=()=>Array.from({length:v.scene.primitives.length},(_,i)=>v.scene.primitives.get(i)).filter(p=>p instanceof C.Cesium3DTileset);
+    // The desktop case covers both datasets. A narrow view may contain no
+    // vegetation; responsive controls must also work in such a view.
+    await until(()=>tilesets().length===2&&(mobile?tilesets().some(p=>p.totalMemoryUsageInBytes>0):tilesets().every(p=>p.totalMemoryUsageInBytes>0)),'official building and vegetation content');
+    check(tilesets().every(p=>p.shadows===C.ShadowMode.DISABLED),'Expensive model shadows active');
+    log(mobile?'Both official manifests load; visible 3D geometry renders in the narrow viewport without model shadows':'Official Swiss buildings and vegetation load in actual Cesium with bounded tile caches and no model shadows');
+    const original=tilesets().slice();
+    await command('set-scene-environment',{buildings:false,vegetation:false,lighting:true});
+    check(original.every(p=>!p.show&&!p.isDestroyed()),'Hidden layers lost their cache');
+    await command('set-scene-environment',{buildings:true,vegetation:true,lighting:true});
+    await command('set-map-style',{style:'satellite'});check(original.every(p=>tilesets().includes(p)&&p.show),'Toggle/style change replaced cached models');
+    log('Layer toggles and base-map changes retain the same loaded tilesets');
+    const routeTime='2026-06-21T09:00:00.000Z';
+    await command('set-route-editor',{editorId:'sun-smoke',revision:1,enabled:true,interactive:true,selectedId:null,moveId:null,waypoints:[],sceneTime:{enabled:true,timeUtc:routeTime}});
+    await render();check(C.JulianDate.toIso8601(v.clock.currentTime,3)===routeTime&&!v.clock.shouldAnimate,'Route time not fixed');
+    const morning=C.Cartesian3.clone(v.scene.context.uniformState.sunDirectionWC);
+    await command('set-scene-time',{scope:'route',enabled:true,timeUtc:'2026-06-21T17:00:00.000Z'});await render();
+    check(C.Cartesian3.dot(morning,v.scene.context.uniformState.sunDirectionWC)<.8,'Actual rendered sun direction did not change');
+    check(v.scene.sun.show&&v.scene.moon.show&&v.scene.globe.enableLighting,'Sun, moon or terrain lighting missing');
+    log('Fixed UTC route times change the actual rendered sun direction; sun and moon are enabled');
+    await command('set-scene-time',{scope:'route',enabled:true,timeUtc:routeTime});
+    await command('enter-simulation',{latitude:46.9474,longitude:7.4474,agl:40,flightMode:'gps',sceneTime:{enabled:true,timeUtc:'2026-12-21T12:00:00.000Z'}});
+    await until(()=>flight?.active,'flight entry');await render();check(C.JulianDate.toIso8601(v.clock.currentTime,3)==='2026-12-21T12:00:00.000Z','Flight time not applied');
+    v.canvas.focus();const beforeMove=C.Cartesian3.clone(v.camera.positionWC);
+    v.canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));
+    try{await until(()=>C.Cartesian3.distance(beforeMove,v.camera.positionWC)>1,'Movement with a frozen celestial clock');}
+    finally{v.canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'w',bubbles:true}));}
+    check(C.JulianDate.toIso8601(v.clock.currentTime,3)==='2026-12-21T12:00:00.000Z','Flight movement advanced the fixed lighting preview');
+    doc.getElementById('settings-flight').click();const mode=doc.getElementById('flight-time-mode'),value=doc.getElementById('flight-time-value');
+    doc.getElementById('flight-time').open=true;
+    mode.value='fixed';mode.dispatchEvent(new win.Event('change',{bubbles:true}));
+    value.value='2026-06-21T15:00';value.dispatchEvent(new win.Event('change',{bubbles:true}));
+    const chosen=new Date(value.value).toISOString();await render();check(C.JulianDate.toIso8601(v.clock.currentTime,3)===chosen,'Live flight time input failed');
+    check(value.getBoundingClientRect().right<=doc.getElementById('flight-options').getBoundingClientRect().right,'Date input overflows HUD settings');
+    const graphics=doc.getElementById('flight-graphics-profile');graphics.value='performance';graphics.dispatchEvent(new win.Event('change',{bubbles:true}));
+    check(tilesets().every(p=>p.cacheBytes<=24*1024*1024),'Flight performance profile did not reduce 3D budgets');
+    doc.getElementById('settings-flight').click();await command('reset-simulation');await render();
+    check(C.JulianDate.toIso8601(v.clock.currentTime,3)===chosen,'Reset lost flight preview time');
+    await command('exit-simulation');await render();check(C.JulianDate.toIso8601(v.clock.currentTime,3)===routeTime,'Flight exit did not restore route time');
+    await command('set-scene-time',{scope:'route',enabled:false});await render();
+    check(Math.abs(C.JulianDate.secondsDifference(v.clock.currentTime,C.JulianDate.now()))<5,'Current time did not resume');
+    log('Flight date/time changes live, survives reset and restores route/current map time on exit; graphics profiles reduce 3D budgets');
+    await command('set-scene-time',{scope:'route',enabled:true,timeUtc:routeTime});
+    v.camera.lookAt(target,new C.HeadingPitchRange(.7,-.5,700));v.camera.lookAtTransform(C.Matrix4.IDENTITY);await render();
+    await pause(1200);
+    output.textContent+='Final tile diagnostics: '+JSON.stringify({terrainLoaded:v.scene.globe.tilesLoaded,tiles:tilesets().map(p=>({visible:p.show,loaded:p.tilesLoaded,bytes:p.totalMemoryUsageInBytes,
+      cache:p.cacheBytes,overflow:p.maximumCacheOverflowBytes,error:p.maximumScreenSpaceError,adjustedError:p.memoryAdjustedScreenSpaceError,
+      pending:p._statistics?.numberOfPendingRequests,processing:p._statistics?.numberOfTilesProcessing,ready:p._statistics?.numberOfTilesWithContentReady}))})+'\n';
+    document.getElementById('status').textContent='PASS — official 3D environment and real scene time';
+})().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;output.textContent+=error.stack;});
+</script></html>

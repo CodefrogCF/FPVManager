@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../core/database/fpv_database.dart';
 import 'controller_settings.dart';
+import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
 
@@ -30,6 +31,7 @@ class SimulationSettings {
     this.acroPitchRate = 180,
     this.acroYawRate = 180,
     this.acroRateExpo = 0,
+    this.sceneTime = const SceneTime(),
   });
   final double agl, maxSpeed, climbSpeed, acceleration, deceleration;
   final int? droneId;
@@ -38,11 +40,13 @@ class SimulationSettings {
   final SimulationGraphicsProfile graphicsProfile;
   final SimulationHudStyle hudStyle;
   final ControllerSettings controller;
+  final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
     SimulationGraphicsProfile? graphicsProfile,
     SimulationHudStyle? hudStyle,
     ControllerSettings? controller,
+    SceneTime? sceneTime,
   }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
@@ -55,6 +59,7 @@ class SimulationSettings {
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
     hudStyle: hudStyle ?? this.hudStyle,
     controller: controller ?? this.controller,
+    sceneTime: sceneTime ?? this.sceneTime,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -87,6 +92,7 @@ class SimulationSettings {
 
   void validate() {
     controller.validate();
+    sceneTime.validate();
     for (final entry in [
       (agl, 1.0, 1000.0),
       (maxSpeed, .5, 100.0),
@@ -113,6 +119,7 @@ class SimulationSettings {
     validate();
     return {
       'agl': agl,
+      'sceneTime': sceneTime.toJson(),
       'maxSpeed': maxSpeed,
       'climbSpeed': climbSpeed,
       'acceleration': acceleration,

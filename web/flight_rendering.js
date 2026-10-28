@@ -13,7 +13,7 @@
     // Cesium's LRU target counts tiles, not bytes; tiles needed by the current
     // frame may exceed it. Keep preloading and terrain detail unchanged.
     const flightTileCacheSize=512;
-    function create(C,viewer){
+    function create(C,viewer,{onProfile=()=>{}}={}){
         // Each result stays private to this adapter. Cesium copies camera
         // poses; no retained scene geometry refers to these scratch objects.
         const destination=new C.Cartesian3(),transform=new C.Matrix4(),direction=new C.Cartesian3(),up=new C.Cartesian3();
@@ -33,6 +33,7 @@
                 viewer.resolutionScale=saved.resolutionScale;viewer.scene.msaaSamples=saved.msaaSamples;
                 viewer.scene.globe.tileCacheSize=saved.tileCacheSize;
                 viewer.scene.globe.maximumScreenSpaceError=saved.maximumScreenSpaceError;
+                onProfile('balanced');
             },
             applyGraphics(profile){
                 if(!Object.hasOwn(profiles,profile))throw new Error('Unknown flight graphics profile');
@@ -40,6 +41,7 @@
                 viewer.scene.globe.maximumScreenSpaceError=2;
                 viewer.resolutionScale=settings.resolutionScale;viewer.scene.msaaSamples=settings.msaaSamples;
                 viewer.scene.globe.tileCacheSize=Math.max(viewer.scene.globe.tileCacheSize,flightTileCacheSize);
+                onProfile(profile);
                 viewer.scene.requestRender();
             },
             renderedHeight(point){

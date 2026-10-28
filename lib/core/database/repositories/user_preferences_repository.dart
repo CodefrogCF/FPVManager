@@ -30,6 +30,9 @@ final class DriftUserPreferencesRepository
   static const _spotsVisible = 'map.spots.visible';
   static const _roadsVisible = 'map.roads.visible';
   static const _roadsOpacity = 'map.roads.opacity';
+  static const _buildings = 'map.scene.buildings';
+  static const _vegetation = 'map.scene.vegetation';
+  static const _lighting = 'map.scene.lighting';
   static const _order = 'map.overlayOrder';
   static const _wmsVisible = 'map.obstacles.wms.visible';
   static const _wmsOpacity = 'map.obstacles.wms.opacity';
@@ -46,6 +49,9 @@ final class DriftUserPreferencesRepository
     _order,
     _roadsVisible,
     _roadsOpacity,
+    _buildings,
+    _vegetation,
+    _lighting,
     _wmsVisible,
     _wmsOpacity,
     _vectorsVisible,
@@ -146,6 +152,12 @@ final class DriftUserPreferencesRepository
             : spotsVisible == 'true',
         roadsVisible: readBool(_roadsVisible, defaults.roadsVisible),
         roadsOpacity: roadsOpacity,
+        buildings3dVisible: readBool(_buildings, defaults.buildings3dVisible),
+        vegetation3dVisible: readBool(
+          _vegetation,
+          defaults.vegetation3dVisible,
+        ),
+        realisticLighting: readBool(_lighting, defaults.realisticLighting),
         obstacleWmsVisible: readBool(_wmsVisible, defaults.obstacleWmsVisible),
         obstacleWmsOpacity: wmsOpacity,
         obstacleVectorsVisible: readBool(
@@ -197,6 +209,9 @@ final class DriftUserPreferencesRepository
             _spotsVisible: snapshot.savedSpotsVisible.toString(),
             _roadsVisible: snapshot.roadsVisible.toString(),
             _roadsOpacity: snapshot.roadsOpacity.toString(),
+            _buildings: snapshot.buildings3dVisible.toString(),
+            _vegetation: snapshot.vegetation3dVisible.toString(),
+            _lighting: snapshot.realisticLighting.toString(),
             _wmsVisible: snapshot.obstacleWmsVisible.toString(),
             _wmsOpacity: snapshot.obstacleWmsOpacity.toString(),
             _vectorsVisible: snapshot.obstacleVectorsVisible.toString(),

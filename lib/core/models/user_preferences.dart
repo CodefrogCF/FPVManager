@@ -13,6 +13,9 @@ class UserPreferences {
     this.savedSpotsVisible = true,
     this.roadsVisible = false,
     this.roadsOpacity = .8,
+    this.buildings3dVisible = false,
+    this.vegetation3dVisible = false,
+    this.realisticLighting = false,
     this.obstacleWmsVisible = false,
     this.obstacleWmsOpacity = 0.8,
     this.obstacleVectorsVisible = false,
@@ -29,6 +32,7 @@ class UserPreferences {
   final bool savedSpotsVisible;
   final bool roadsVisible;
   final double roadsOpacity;
+  final bool buildings3dVisible, vegetation3dVisible, realisticLighting;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
   final bool obstacleModelsVisible;
   final double obstacleWmsOpacity;
@@ -46,6 +50,9 @@ class UserPreferences {
     bool? savedSpotsVisible,
     bool? roadsVisible,
     double? roadsOpacity,
+    bool? buildings3dVisible,
+    bool? vegetation3dVisible,
+    bool? realisticLighting,
     bool? obstacleWmsVisible,
     double? obstacleWmsOpacity,
     bool? obstacleVectorsVisible,
@@ -61,6 +68,9 @@ class UserPreferences {
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
     roadsVisible: roadsVisible ?? this.roadsVisible,
     roadsOpacity: roadsOpacity ?? this.roadsOpacity,
+    buildings3dVisible: buildings3dVisible ?? this.buildings3dVisible,
+    vegetation3dVisible: vegetation3dVisible ?? this.vegetation3dVisible,
+    realisticLighting: realisticLighting ?? this.realisticLighting,
     obstacleWmsVisible: obstacleWmsVisible ?? this.obstacleWmsVisible,
     obstacleWmsOpacity: obstacleWmsOpacity ?? this.obstacleWmsOpacity,
     obstacleVectorsVisible:

@@ -114,6 +114,13 @@ The renderer compass emits `road-navigation-follow` when switching between
 north alignment and following; the controller retains that state for reloads.
 `set-rendering-paused` pauses the hidden home map during Android road navigation.
 
+`set-scene-environment` carries boolean `buildings`, `vegetation`, `lighting`
+and an optional layer name in `retry`. `scene-layer-status` reports loading,
+ready, partial or failed without failing globe initialization. `set-scene-time`
+uses `scope: route|flight`, `enabled` and nullable UTC `timeUtc`; flight overrides
+route, then map lighting. Route-editor and simulation-entry commands also carry
+this object as `sceneTime`. A fixed time freezes the celestial clock.
+
 See [architecture](architecture.md) for provider/terrain recovery,
 [Contributing](../CONTRIBUTING.md) for tests, and the [user guide](user_guide.md)
 for controls and display limitations.

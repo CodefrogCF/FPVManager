@@ -140,6 +140,7 @@ class RouteEditorController extends ChangeNotifier {
     planning = RoutePlanningSettings.decode(value.encode());
     dirty = true;
     notifyListeners();
+    unawaited(syncMap());
   }
 
   Future<void> loadEquipment() async {
@@ -344,6 +345,7 @@ class RouteEditorController extends ChangeNotifier {
         selectedId: selectedId,
         moveId: moveId,
         interactive: !saving && _loadedSuccessfully,
+        sceneTime: planning.sceneTime,
       );
       if (!_disposed && mapError != null) {
         mapError = null;
@@ -398,6 +400,7 @@ class RouteEditorController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    unawaited(globe.clearRouteTimePreview().catchError((Object _) {}));
     unawaited(_subscription.cancel());
     super.dispose();
   }

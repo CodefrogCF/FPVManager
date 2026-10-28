@@ -44,12 +44,13 @@ function postToFlutter(message) {
         if (!event.persisted) { mapCompass?.dispose(); roadNavigation?.dispose(); }
         stopNavigation();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) sceneEnvironment?.dispose();
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null;
+    let flyer = null, sceneEnvironment = null, applyFlightTime = null, requestedFlightTime = null;
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
@@ -597,11 +598,18 @@ function postToFlutter(message) {
             case "enter-simulation": {
                 if(flyer.active)return flyer.reconfigure(command,signal);
                 const point = simulationSpawn(command); stopNavigation();
-                return flyer.start({...command,...point},signal);
+                const preview=command.sceneTime??{enabled:false};
+                if(typeof preview.enabled!=='boolean')throw Error('Invalid flight lighting preview');
+                FPVSceneEnvironment.time(preview.timeUtc);
+                requestedFlightTime=preview;
+                try{return await flyer.start({...command,...point},signal);}
+                finally{if(requestedFlightTime===preview)requestedFlightTime=null;}
             }
             case "exit-simulation": flyer?.stop(); return {};
             case "reset-simulation": return flyer.reset(signal);
             case "navigation-input": disposeGroundControls?.native(command); return {};
+            case 'set-scene-environment': return sceneEnvironment.set(command);
+            case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
             case "set-route-editor": stopNavigation(); return routeEditor.set(command, signal);
             case "set-signal-analysis": return signalAnalysis.set(command);
@@ -781,12 +789,13 @@ function postToFlutter(message) {
         });
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
-        const flightRenderer = FPVFlightRendering.create(Cesium,viewer);
+        const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>sceneEnvironment?.performance(value)});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}));
         mapCompass = FPVMapCompass.create(Cesium,viewer,document.getElementById('map-compass'),
             {navigation:roadNavigation,isEnabled:()=>!navigationActive()});
         activeViewer = viewer;
+        sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources});
         situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
         hazardAreas = FPVObstacles.createHazards(Cesium,viewer);
@@ -802,6 +811,12 @@ function postToFlutter(message) {
         const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
         const graphicsSelect=document.getElementById('flight-graphics-profile');
         const controllerPanel=FPVControllerInput.bindPanel(document,value=>flyer.controllerSettings(value));
+        let flightTimeSettings={enabled:false,timeUtc:null};
+        const timeControls=FPVSceneEnvironment.bindTimeControls(document,value=>applyFlightTime(value));
+        applyFlightTime=(value=flightTimeSettings)=>{
+            sceneEnvironment.setTime({scope:'flight',...value});flightTimeSettings=value;timeControls.update(value);
+            sendToFlutter('scene-time-state',value);
+        };
         let deviceMessage='', lastHud=0,lastReason=null;
         const lastModes={ground:false,flight:false};
         const cameraAdapter={
@@ -838,6 +853,10 @@ function postToFlutter(message) {
         }
         function modeState(mode,state){
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
+            if(mode==='flight'){
+                if(entering)applyFlightTime(requestedFlightTime??undefined);
+                else if(!state.active)sceneEnvironment.setTime({scope:'flight',enabled:false});
+            }
             groundPanel.hidden=!state.active; flightButtons.hidden=mode!=='flight'||!state.active;
             groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
             const flying=mode==='flight'&&state.active;
@@ -911,7 +930,8 @@ function postToFlutter(message) {
                 : Cesium.sampleTerrain(provider, 12, positions, true), signal);
             return sampled.map(point => point.height);
         };
-        routeEditor = FPVRouteEditor.createEditor(Cesium, viewer, sendToFlutter, window, sampleRouteHeights, terrainAvailable);
+        routeEditor = FPVRouteEditor.createEditor(Cesium, viewer, sendToFlutter, window, sampleRouteHeights, terrainAvailable,
+            value=>sceneEnvironment.setTime({scope:'route',...value}));
         signalAnalysis = FPVSignalAnalysis.createLayer(Cesium, viewer);
         routeOverlays = FPVRouteEditor.createOverlays(Cesium, viewer, sampleRouteHeights, terrainAvailable,
             () => sendToFlutter("route-preview-error", {message:"Unable to rebuild saved routes. Retry the route preview in Map layers."}));

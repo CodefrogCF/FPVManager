@@ -24,6 +24,7 @@ import 'globe_bridge.dart';
 import 'route_map_state.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/controller_settings.dart';
+import '../../core/models/scene_time.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../airspace/uas_zone_details.dart' show UasZoneDetails;
@@ -157,6 +158,62 @@ class GlobeController extends ChangeNotifier {
   bool? get roadNavigationFollowing =>
       _roadNavigationCommand?['follow'] as bool?;
   bool _renderingPaused = false;
+  final Map<String, String> _sceneLayerStates = {};
+  bool get buildings3dVisible => _preferences.buildings3dVisible;
+  bool get vegetation3dVisible => _preferences.vegetation3dVisible;
+  bool get realisticLighting => _preferences.realisticLighting;
+  String sceneLayerStatus(String key) => _sceneLayerStates[key] ?? 'hidden';
+  SceneTime? _simulationSceneTime;
+  SceneTime? get simulationSceneTime => _simulationSceneTime;
+
+  Map<String, dynamic> _sceneCommand({String? retry}) => {
+    'type': 'set-scene-environment',
+    'buildings': buildings3dVisible,
+    'vegetation': vegetation3dVisible,
+    'lighting': realisticLighting,
+    'retry': ?retry,
+  };
+
+  Future<void> setSceneEnvironment({
+    bool? buildings,
+    bool? vegetation,
+    bool? lighting,
+    String? retry,
+  }) async {
+    _checkPreferencesEditable();
+    if (retry != null && !['buildings', 'vegetation'].contains(retry)) {
+      throw ArgumentError('Unknown 3D layer');
+    }
+    if (buildings != null || vegetation != null || lighting != null) {
+      await _savePreferences(
+        _preferences.copyWith(
+          buildings3dVisible: buildings,
+          vegetation3dVisible: vegetation,
+          realisticLighting: lighting,
+        ),
+      );
+    }
+    if (_ready) await _send(_sceneCommand(retry: retry));
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> clearRouteTimePreview() async {
+    if (_disposed) return;
+    if (_routeEditorState != null) {
+      _routeEditorState = {
+        ..._routeEditorState!,
+        'sceneTime': const SceneTime().toJson(),
+      };
+    }
+    if (_ready) {
+      await _send({
+        'type': 'set-scene-time',
+        'scope': 'route',
+        ...const SceneTime().toJson(),
+      });
+    }
+  }
+
   Future<void> setRenderingPaused(bool paused) async {
     if (_disposed) return;
     _renderingPaused = paused;
@@ -350,7 +407,9 @@ class GlobeController extends ChangeNotifier {
     int? selectedId,
     int? moveId,
     bool interactive = true,
+    SceneTime sceneTime = const SceneTime(),
   }) async {
+    sceneTime.validate();
     final ids = points.map((p) => p.id).toSet();
     if (editorId.isEmpty ||
         editorId.length > 120 ||
@@ -374,6 +433,7 @@ class GlobeController extends ChangeNotifier {
       'revision': ++_routeEditorRevision,
       'enabled': true,
       'interactive': interactive,
+      'sceneTime': sceneTime.toJson(),
       'selectedId': selectedId,
       'moveId': moveId,
       'waypoints': points.map((p) => p.toJson()).toList(),
@@ -1385,6 +1445,7 @@ class GlobeController extends ChangeNotifier {
         _connectionGeneration++;
         _uasOperation++;
         _ready = true;
+        _sceneLayerStates.clear();
         _error = null;
         _terrainAvailable = data['terrainAvailable'] == true;
         _terrainState = _terrainAvailable
@@ -1408,6 +1469,25 @@ class GlobeController extends ChangeNotifier {
         if (data['active'] is bool && _terrainAvailable) {
           _terrainResourceWarning = data['active'] as bool;
           notifyListeners();
+        }
+      case 'scene-layer-status':
+        if (['buildings', 'vegetation'].contains(data['layer']) &&
+            [
+              'hidden',
+              'loading',
+              'ready',
+              'partial',
+              'failed',
+            ].contains(data['state'])) {
+          _sceneLayerStates[data['layer'] as String] = data['state'] as String;
+          notifyListeners();
+        }
+      case 'scene-time-state':
+        try {
+          _simulationSceneTime = SceneTime.fromJson(data);
+          notifyListeners();
+        } catch (_) {
+          /* Ignore invalid renderer state. */
         }
       case 'terrain-status':
         _applyTerrainStatus(data['state'], data['reason']);
@@ -1624,6 +1704,13 @@ class GlobeController extends ChangeNotifier {
         !_disposed && _ready && generation == _connectionGeneration;
     unawaited(obstacles.rendererReady(force: forceSettings));
     try {
+      if (forceSettings ||
+          buildings3dVisible ||
+          vegetation3dVisible ||
+          realisticLighting) {
+        await _send(_sceneCommand());
+      }
+      if (!current()) return;
       if (forceSettings || _requestedMapStyle != GlobeMapStyle.satellite) {
         await _send({
           'type': 'set-map-style',

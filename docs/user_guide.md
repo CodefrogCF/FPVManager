@@ -11,6 +11,15 @@ preferences are saved locally. Overlay order does not make objects visible
 through terrain. Failed preference loads offer Retry or Reset; failed saves
 retain the current choice and offer Retry.
 
+**Map → 3D-Umgebung und Himmelslicht** optionally streams swisstopo buildings
+and modelled vegetation, with a bounded memory cache and fewer details in the
+Performance flight profile. These Swiss layers are separate from offline map
+regions; missing objects stay missing and have no collision model.
+**Aktueller Sonnen- und Mondstand** enables current-device-time day/night lighting.
+In the route menu, **Sonnen- und Mondzeit** saves a date/time preview with the route.
+The same choice is available before flight and in its HUD settings. Enter device-local
+time; storage is UTC. A fixed time stays frozen. Flight exit restores route/map lighting.
+
 Select a map point to see coordinates and height information. Terrain heights
 use the WGS84 ellipsoid; **Convert to Swiss height (LN02)** is an optional online
 conversion. The AGL calculator adds a local vertical offset. See

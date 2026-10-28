@@ -26,8 +26,9 @@ import '../spots/data/spot_repository.dart';
 import '../mobility/destination_search.dart';
 import 'route_start_sheet.dart';
 import '../offline/cached_map_notice.dart';
+import 'route_scene_time_sheet.dart';
 
-enum _RouteAction { equipment, planning, constraints, signal, layers }
+enum _RouteAction { equipment, planning, constraints, signal, layers, sunTime }
 
 class RouteEditorScreen extends StatefulWidget {
   const RouteEditorScreen({
@@ -236,9 +237,15 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                     showRadioAnalysis(context, _radio);
                   case _RouteAction.layers:
                     _layers();
+                  case _RouteAction.sunTime:
+                    showRouteSceneTime(context, _editor);
                 }
               },
               itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: _RouteAction.sunTime,
+                  child: Text('Sonnen- und Mondzeit'),
+                ),
                 const PopupMenuItem(
                   value: _RouteAction.equipment,
                   child: Text('Route equipment'),

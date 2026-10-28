@@ -144,6 +144,7 @@ class _SettingsState extends State<_Settings> {
         curveSource: _fields['source']!.text.trim(),
         constraints: widget.editor.planning.constraints,
         signal: widget.editor.planning.signal,
+        sceneTime: widget.editor.planning.sceneTime,
       );
       settings.validate();
       widget.editor.configurePlanning(settings);

@@ -94,6 +94,9 @@ void main() {
             uasZonesVisible: true,
             uasZonesFillOpacity: .6,
             savedSpotsVisible: false,
+            buildings3dVisible: true,
+            vegetation3dVisible: true,
+            realisticLighting: true,
             overlayOrder: [GlobeOverlay.savedSpots, GlobeOverlay.uasZones],
           ),
         );
@@ -155,6 +158,9 @@ void main() {
         expect(preferences.uasZonesVisible, isTrue);
         expect(preferences.uasZonesFillOpacity, .6);
         expect(preferences.savedSpotsVisible, isFalse);
+        expect(preferences.buildings3dVisible, isTrue);
+        expect(preferences.vegetation3dVisible, isTrue);
+        expect(preferences.realisticLighting, isTrue);
         expect(preferences.overlayOrder, [
           GlobeOverlay.savedSpots,
           GlobeOverlay.uasZones,
