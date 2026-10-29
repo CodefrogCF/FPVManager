@@ -40,13 +40,46 @@ provide a measured ground height.
 
 ## Offline maps and backups
 
-Open **Offline & personal data** from the navigation menu. Add a Swiss region
-(the selected map point supplies its centre), choose topographic or relief and
-explore it online to retain viewed imagery and terrain. The region list shows
-estimated size, retained tiles, oldest retrieval and incomplete coverage. Switch
-to **Use cached base map and terrain** to prevent remote tile fallbacks. Live
-overlays and API actions remain separate. Satellite imagery is excluded. Remove
-regions to prune their unshared tiles; remove and recreate regions to update them.
+Open **Offline & personal data → Add offline region**. Enter coordinates or mark
+the centre on the globe; choose a radius up to **25 km**. Web additionally offers
+**Gesamte Schweiz**. Choose map detail, terrain detail, topographic/SWISSIMAGE
+satellite/neutral-relief imagery and a storage limit, then **Bereich offline
+vorbereiten**. The estimate describes derived storage; transferred source data
+can differ. Web checks its available browser quota and requests persistent storage.
+Keep the app and preparation page open. Returning cancels the worker; repeating
+the same selection resumes already prepared tiles. Existing regions stay active
+until successful publication. Source editions, preparation time and gaps remain
+distinct; no heights are invented where official rasters contain no data.
+
+Tap a saved region to activate it. **Use cached base map and terrain** prevents
+remote map/terrain fallback; other API actions remain separate. Personal records
+are already local. UAS zones, vector obstacles and SLF bulletins can be selected
+for an additional refresh before preparation; they remain dated snapshots.
+Streaming buildings/vegetation, WMS images and live traffic/weather/aircraft data
+are not promised as complete offline layers. Removing regions prunes their tiles.
+The optional viewed-tile buffer is separate and can remain incomplete (256 MiB).
+
+An optional laptop workflow remains available for small topographic packages:
+choose **Vorbereitungsdatei für Laptop speichern**. The plan discovers official
+Swiss Map Raster and swissALTI3D downloads. Copy the exported `.fpvofflineplan`
+file to the laptop first. The command below assumes it is in the repository
+folder; otherwise pass its actual path, for example in Downloads:
+
+```powershell
+python -m venv .dart_tool/offline-preparation
+.dart_tool/offline-preparation/Scripts/python -m pip install -r tool/offline_region_requirements.txt
+.dart_tool/offline-preparation/Scripts/python tool/prepare_offline_region.py "offline-region.fpvofflineplan" -o "region.fpvregion"
+```
+
+Transfer the result and choose **Offline-Paket importieren**. The app checks the
+whole package before activating it; tapping another saved region switches the
+active area. Source editions and preparation time remain separate. The package
+contains derived imagery and terrain only within its bounds and chosen detail;
+it supplies no current restrictions, traffic, weather or obstacle updates.
+Legacy import/export packages are limited to 64 MiB. The laptop retains checked source
+files in `.fpv-sources` beside the output (up to 2 GiB); reruns reuse matching
+checksums. Delete unused source files when no longer needed. A new plan checks
+available source editions; `--replace` explicitly replaces an existing output.
 
 **Create backup** exports personal records, images and planning preferences in a
 portable file up to 64 MiB. Password protection is enabled by default; keep the

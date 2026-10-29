@@ -63,3 +63,19 @@ test('calendar times reject malformed, out-of-range and timezone-ambiguous value
     for(const value of ['yesterday','2026-02-31T12:00:00Z','1800-01-01T12:00:00Z','2026-06-01T12:00:00','2026-06-01T12:00:00+02:00'])assert.throws(()=>time(value));
     assert.equal(time('2026-06-01T12:00:00.123456Z'),'2026-06-01T12:00:00.123Z');assert.equal(time(null),null);
 });
+
+test('sun lighting remains active close to ground for satellite and relief imagery and restores defaults',()=>{
+ const p=fixture(),g=p.viewer.scene.globe;
+ Object.assign(g,{lightingFadeInDistance:20000000,lightingFadeOutDistance:10000000,
+  nightFadeInDistance:50000000,nightFadeOutDistance:10000000,vertexShadowDarkness:.3});
+ // Capture a fresh manager after configuring the source defaults.
+ p.manager.dispose();const manager=create(p.C,p.viewer);
+ manager.set({buildings:false,vegetation:false,lighting:true});
+ assert.equal(g.lightingFadeOutDistance,0);assert.equal(g.lightingFadeInDistance,1);
+ assert.equal(g.nightFadeOutDistance,0);assert.equal(g.nightFadeInDistance,1);
+ assert.equal(g.vertexShadowDarkness,.06);
+ manager.set({buildings:false,vegetation:false,lighting:false});
+ assert.equal(g.lightingFadeOutDistance,10000000);assert.equal(g.lightingFadeInDistance,20000000);
+ assert.equal(g.nightFadeOutDistance,10000000);assert.equal(g.nightFadeInDistance,50000000);
+ assert.equal(g.vertexShadowDarkness,.3);manager.dispose();
+});

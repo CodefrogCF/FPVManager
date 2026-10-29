@@ -1,3 +1,4 @@
 # Preserve upstream bytes so vendor hashes also match Windows checkouts.
 web/cesium/** -text
+web/vendor/geotiff/** -text
 assets/geo/*.bin -text

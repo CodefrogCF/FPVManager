@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Prepared offline package storage test</title>
+<pre id="status">Running browser package storage test…</pre>
+<script>
+let rejectedPrefix=null;
+const originalPut=Cache.prototype.put;
+Cache.prototype.put=function(key,response){
+  const url=typeof key==='string'?key:key.url;
+  if(rejectedPrefix&&url.includes(rejectedPrefix)){rejectedPrefix=null;return Promise.reject(new DOMException('Synthetic quota failure','QuotaExceededError'));}
+  return originalPut.call(this,key,response);
+};
+window.failNextPreparedWrite=prefix=>{rejectedPrefix=prefix;};
+</script><script defer src="/prepared-storage-test.js"></script></html>

@@ -63,6 +63,7 @@ including when focusing a private spot or displaying a route.
 | `wmts.geo.admin.ch` | Map startup/navigation/style changes or imagery refresh after terrain retry; layer, zoom and tile coordinates. |
 | `wms.geo.admin.ch` | Enabling/restoring obstacle, aerodrome/heliport or wildfire imagery and navigating while enabled; viewed area, projection and image dimensions. |
 | `api3.geo.admin.ch` | Opening official obstacle, aerodrome/heliport or wildfire legends; public legend URL. |
+| `aws.slf.ch` | Enabling or manually refreshing the avalanche bulletin downloads one national GeoJSON, without sending coordinates or saved records. A licensed local snapshot can be restored without a network request. There is no automatic polling or per-viewport download. |
 | `3d.geo.admin.ch` | Terrain startup/probe, navigation, height queries, ground/flight view, route framing/previews and explicit retry; terrain tile identifiers revealing sampled areas. Optional buildings/vegetation additionally request visible 3D tiles while enabled. These caches stay in renderer memory and are outside offline regions. Sun/moon calculations use the device clock or selected UTC time locally, without an additional location API. |
 | `data.geo.admin.ch` | UAS checks/refresh and obstacle STAC metadata/full KMZ download; public national dataset URLs, without a user-position query. Restoring obstacle vectors reads a local snapshot first. |
 | `data.geo.admin.ch` (weather) | Selecting MeteoSwiss or refreshing/comparing forecasts; public point metadata and national forecast CSV files. Coordinates are matched locally and are not part of these requests. |
@@ -79,9 +80,16 @@ tile cache. Only fixed official swisstopo endpoints are eligible; source request
 carry no API credentials or personal record bodies. Cached-only requests never
 fall back to a remote tile. Supported caching follows [swisstopo OGD terms](https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices)
 and [FSDI operating conditions](https://www.geo.admin.ch/en/general-terms-of-use-fsdi);
-this implementation retains viewed tiles rather than running a bulk downloader.
-Satellite imagery with additional third-party notices and live WMS overlays are
-outside this persistent map cache.
+viewed-tile caching does not systematically prefetch those rendering services.
+On-device preparation queries official STAC metadata using the selected bounding
+box and reads allowlisted GeoTIFF byte ranges from `data.geo.admin.ch`, including
+SWISSIMAGE download assets. No tile-rendering service is systematically scraped.
+The source index preserves expected whole-file checksums; partial downloads do
+not verify those whole-file checksums. Exposed ETags pin range reads to one edition.
+Derived tiles remain local; failed preparation retains the previous region.
+The optional laptop workflow verifies full source-file checksums. Package import
+makes no external requests. Source editions and preparation time remain separate.
+Mixed third-party online imagery and live WMS overlays are not included.
 
 Map requests contain no spot names, notes, photos, equipment assignments or
 route JSON. Tile requests can still reveal planned/viewed locations. Local

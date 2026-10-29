@@ -151,6 +151,27 @@ before activation; failed installs retain the previous snapshot. Updates wait
 until existing app tabs close. Development without this manifest supports map
 caching but does not promise an offline application shell.
 
+`SwissOfflineSources` discovers bounded regional download inputs through STAC v1:
+the newest supported map sheet (combined Swiss Map Raster 1:25,000) and 2 m
+swissALTI3D tiles, with SHA-256, edition/update/retrieval times and explicit
+LV95/LN02 references. Source rasters require preparation before globe import;
+discovery is not an offline coverage/completeness result. The laptop tool converts
+checked source rasters and the bundled LN02 height grid into complete PNG and
+quantized-mesh pyramids. Stored-ZIP v1 packages (64 MiB) carry per-file integrity,
+provenance and explicit bounds. Import validates paths, sizes, PNG dimensions,
+mesh arrays and exact coverage; native publication is transactional and Web stages
+a new namespace before publishing the region pointer. Direct preparation uses
+the bundled GeoTIFF.js worker on Android and Web: bounded HTTP ranges, LRU raster
+blocks, published Swiss Map Raster/SWISSIMAGE/swissALTI3D sources, and CHGeo2004
+height conversion. New regions support multiple image styles, circular selection
+up to 25 km and, on Web, a national area. Completed tiles are staged with a
+resumable job; the active pointer changes last. Per-download limits and browser
+quota checks replace the small viewed-cache budget for generated data. NoData
+vertices are omitted rather than filled with assumed terrain. Source indexes
+preserve edition/checksum metadata; partial reads do not verify full-file hashes.
+Prepared resources never
+fall back to the network. It does not prefetch WMTS or terrain-rendering services.
+
 `PolygonIntersectionIndex` checks horizontal Polygon/MultiPolygon geometry,
 including holes, boundary contact and all overlapping features, with bounding-box
 filtering. `UasAirspaceChecker` uses the shared provider independently of renderer

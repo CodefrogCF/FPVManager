@@ -16,6 +16,7 @@ void main() {
           'web/cesium/Workers/test.js',
           'web/cesium/ThirdParty/test.wasm',
           'web/models/obstacles/test.glb',
+          'web/offline_height_grid.bin',
         },
         load: (path) async {
           loaded.add(path);
@@ -29,6 +30,7 @@ void main() {
           'cesium/Workers/test.js': 'application/javascript',
           'cesium/ThirdParty/test.wasm': 'application/wasm',
           'models/obstacles/test.glb': 'model/gltf-binary',
+          'offline_height_grid.bin': 'application/octet-stream',
         }.entries) {
           final response = await (await client.getUrl(
             server.origin.resolve('/${asset.key}'),
@@ -53,6 +55,7 @@ void main() {
           0,
         );
         final before = loaded.length;
+        expect(loaded, contains('assets/geo/chgeo2004_ln02.bin'));
         for (final path in [
           '/pubspec.yaml',
           '/..%2fpubspec.yaml',

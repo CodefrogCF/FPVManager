@@ -61,8 +61,23 @@
         const elevation = configuration.terrain ?? terrain;
         const cached=()=>configuration.cacheOnly===true||globalThis.navigator?.onLine===false;
         const cacheRoot=typeof configuration.cacheRoot==='string'?configuration.cacheRoot:null;
+        const prepared=configuration.prepared;
+        if(prepared&&(!/^[0-9a-f]{64}$/.test(prepared.packageId)||!cacheRoot))throw new Error('Invalid prepared provider');
+        const contains=(lon,lat)=>!prepared||(lon>=prepared.west&&lon<=prepared.east&&lat>=prepared.south&&lat<=prepared.north&&
+            (prepared.scope!=='radius'||Math.hypot((lon-prepared.centerLongitude)*111.195*Math.cos(prepared.centerLatitude*Math.PI/180),(lat-prepared.centerLatitude)*111.195)<=prepared.radiusKm));
         return {
+            terrainProbe:prepared?[1,0,0]:[0,0,0],
+            containsTerrainPoint:contains,
             imagery(style, offline = false) {
+                if(configuration.preparedUnavailable) return new Cesium.GridImageryProvider();
+                if(prepared){
+                    if(!(prepared.maps??['topographic']).includes(style))return new Cesium.GridImageryProvider();
+                    return new Cesium.UrlTemplateImageryProvider({
+                        url:`${cacheRoot}prepared/${prepared.packageId}/imagery/${style}/{z}/{x}/{y}.png`,
+                        maximumLevel:prepared.imageryLevel,tilingScheme:new Cesium.WebMercatorTilingScheme(),
+                        rectangle:Cesium.Rectangle.fromDegrees(prepared.west,prepared.south,prepared.east,prepared.north),
+                        credit:credit(Cesium,{...imagery.topographic.source,attribution:'© swisstopo · Derived offline region · '+prepared.preparedAtUtc})});
+                }
                 const config = Object.hasOwn(styles, style) ? styles[style] : null;
                 if (!config) throw new Error(`Unknown map style: ${style}`);
                 const supported=cacheRoot&&['topographic','relief'].includes(style)&&config.url===imagery[style].url;
@@ -80,6 +95,24 @@
                     credit: credit(Cesium, local?{...config.source,attribution:config.source.attribution+' · Local map cache: age/coverage in Offline & personal data'}:config.source) });
             },
             terrain() {
+                if(configuration.preparedUnavailable)throw new Error('Offline package metadata unavailable');
+                if(prepared){
+                    if(prepared.includeTerrain===false)throw new Error('No offline terrain selected; elevation unavailable');
+                    return Cesium.CesiumTerrainProvider.fromUrl(`${cacheRoot}prepared/${prepared.packageId}/terrain/`,{
+                        ellipsoid:Cesium.Ellipsoid.WGS84,credit:credit(Cesium,{...terrain.source,attribution:'© swisstopo · Derived offline terrain · '+prepared.preparedAtUtc})
+                    }).then(provider=>{
+                        const read=provider.requestTileGeometry.bind(provider);
+                        provider.requestTileGeometry=(...args)=>{
+                            const result=read(...args);if(result===undefined)return undefined;
+                            return Promise.resolve(result).then(tile=>{
+                                const interpolate=tile.interpolateHeight.bind(tile);
+                                tile.interpolateHeight=(rectangle,lon,lat)=>contains(lon*180/Math.PI,lat*180/Math.PI)?interpolate(rectangle,lon,lat):undefined;
+                                return tile;
+                            });
+                        };
+                        return provider;
+                    });
+                }
                 if (typeof elevation.url !== "string") throw new Error("Invalid terrain provider configuration");
                 const local=cacheRoot&&elevation.url===terrain.url;
                 if(cached()&&!local)throw new Error('Offline caching unavailable for this terrain provider');

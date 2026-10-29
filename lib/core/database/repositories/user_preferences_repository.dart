@@ -30,6 +30,8 @@ final class DriftUserPreferencesRepository
   static const _spotsVisible = 'map.spots.visible';
   static const _roadsVisible = 'map.roads.visible';
   static const _roadsOpacity = 'map.roads.opacity';
+  static const _avalancheVisible = 'map.avalanche.visible';
+  static const _avalancheOpacity = 'map.avalanche.opacity';
   static const _buildings = 'map.scene.buildings';
   static const _vegetation = 'map.scene.vegetation';
   static const _lighting = 'map.scene.lighting';
@@ -49,6 +51,8 @@ final class DriftUserPreferencesRepository
     _order,
     _roadsVisible,
     _roadsOpacity,
+    _avalancheVisible,
+    _avalancheOpacity,
     _buildings,
     _vegetation,
     _lighting,
@@ -101,6 +105,10 @@ final class DriftUserPreferencesRepository
           ? defaults.uasZonesFillOpacity
           : double.parse(opacity);
       _validateOpacity(parsedOpacity);
+      final avalancheOpacity = values[_avalancheOpacity] == null
+          ? defaults.avalancheOpacity
+          : double.parse(values[_avalancheOpacity]!);
+      _validateOpacity(avalancheOpacity);
       bool readBool(String key, bool fallback) {
         final value = values[key];
         if (value == null) return fallback;
@@ -152,6 +160,11 @@ final class DriftUserPreferencesRepository
             : spotsVisible == 'true',
         roadsVisible: readBool(_roadsVisible, defaults.roadsVisible),
         roadsOpacity: roadsOpacity,
+        avalancheVisible: readBool(
+          _avalancheVisible,
+          defaults.avalancheVisible,
+        ),
+        avalancheOpacity: avalancheOpacity,
         buildings3dVisible: readBool(_buildings, defaults.buildings3dVisible),
         vegetation3dVisible: readBool(
           _vegetation,
@@ -196,6 +209,7 @@ final class DriftUserPreferencesRepository
     _validateOpacity(snapshot.uasZonesFillOpacity);
     _validateOpacity(snapshot.obstacleWmsOpacity);
     _validateOpacity(snapshot.roadsOpacity);
+    _validateOpacity(snapshot.avalancheOpacity);
     UserPreferences.validateObstacleBuffer(snapshot.obstacleBufferMeters);
     UserPreferences.validateOverlayOrder(snapshot.overlayOrder);
     final updatedAt = DateTime.now().toUtc();
@@ -209,6 +223,8 @@ final class DriftUserPreferencesRepository
             _spotsVisible: snapshot.savedSpotsVisible.toString(),
             _roadsVisible: snapshot.roadsVisible.toString(),
             _roadsOpacity: snapshot.roadsOpacity.toString(),
+            _avalancheVisible: snapshot.avalancheVisible.toString(),
+            _avalancheOpacity: snapshot.avalancheOpacity.toString(),
             _buildings: snapshot.buildings3dVisible.toString(),
             _vegetation: snapshot.vegetation3dVisible.toString(),
             _lighting: snapshot.realisticLighting.toString(),

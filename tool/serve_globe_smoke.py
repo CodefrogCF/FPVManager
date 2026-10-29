@@ -7,11 +7,14 @@ import json
 import struct
 import threading
 import time
+import zipfile
+import hashlib
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB_ROOT = ROOT / 'web'
 FIXTURE_APP = False
 MODE = 'healthy'
+PREPARED_FILE = ROOT / 'test/fixtures/offline/prepared.fpvregion'
 LOCK = threading.Lock()
 MODES = {'healthy', 'metadata-fail', 'metadata-fail-once', 'tile-404', 'tile-500', 'tile-stall'}
 # Cesium heightmap-1.0: 65x65 little-endian encoded heights, child mask, water mask.
@@ -68,7 +71,34 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlsplit(self.path).path
         with LOCK:
             mode = MODE
-        if path in {'/smoke', '/terrain-smoke'}:
+        if path == '/prepared-storage-smoke':
+            self.reply((ROOT/'test/web/prepared_storage_smoke.html').read_bytes(),'text/html; charset=utf-8')
+        elif path == '/prepared-storage-test.js':
+            self.reply((ROOT/'.dart_tool/prepared-storage-test.js').read_bytes(),'application/javascript')
+        elif path == '/prepared-fixture.fpvregion':
+            self.reply(PREPARED_FILE.read_bytes(),'application/octet-stream')
+        elif path == '/prepared-globe.html':
+            body=(WEB_ROOT/'globe.html').read_bytes().replace(b'<script src="offline_map_client.js">',
+                b'<script>window.FPVNativeOfflineCache=true;</script><script src="offline_map_client.js">')
+            body=body.replace(b'<script src="globe.js"></script>',b'<script>const OriginalPreparedViewer=Cesium.Viewer;window.Cesium={...Cesium,Viewer:class extends OriginalPreparedViewer{constructor(...args){super(...args);window.__preparedTestViewer=this;}}};</script><script src="globe.js"></script>')
+            self.reply(body,'text/html; charset=utf-8')
+        elif path.startswith('/offline/maps/prepared'):
+            with zipfile.ZipFile(PREPARED_FILE) as archive:
+                metadata=archive.read('manifest.json')
+                manifest=json.loads(metadata)
+                package=hashlib.sha256(metadata).hexdigest()
+                if path=='/offline/maps/prepared.json':
+                    region=dict(manifest['region'],packageId=package,packageActive=True,preparedAtUtc=manifest['preparedAtUtc'])
+                    self.reply(json.dumps(region).encode())
+                elif path.startswith('/offline/maps/prepared/'+package+'/'):
+                    key=path.removeprefix('/offline/maps/prepared/'+package+'/')
+                    if key not in manifest['files']:
+                        self.reply(b'',status=404)
+                    else:
+                        self.reply(archive.read(key),'application/json' if key.endswith('.json') else 'image/png' if key.endswith('.png') else 'application/octet-stream')
+                else:
+                    self.reply(b'',status=404)
+        elif path in {'/smoke', '/terrain-smoke'}:
             name = 'globe_smoke.html' if path == '/smoke' else 'terrain_smoke.html'
             self.reply((ROOT / 'test/web' / name).read_bytes(), 'text/html; charset=utf-8')
         elif path == '/interaction-smoke':
@@ -141,11 +171,14 @@ if __name__ == '__main__':
     parser.add_argument('--build', action='store_true', help='Serve build/web instead of web')
     parser.add_argument('--terrain-fixture', action='store_true', help='Use synthetic terrain in the app preview')
     parser.add_argument('--fault', choices=sorted(MODES), default='healthy', help='Initial synthetic terrain service condition')
+    parser.add_argument('--prepared-file',type=Path,help='Use a prepared package in the local offline test routes')
     args = parser.parse_args()
     if args.build:
         WEB_ROOT = ROOT / 'build/web'
     FIXTURE_APP = args.terrain_fixture
     MODE = args.fault
+    if args.prepared_file:
+        PREPARED_FILE=args.prepared_file.resolve()
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     print(f'Open http://127.0.0.1:{server.server_port}/smoke (terrain faults: /terrain-smoke)', flush=True)
     server.serve_forever()

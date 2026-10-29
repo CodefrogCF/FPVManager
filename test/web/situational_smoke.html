@@ -29,8 +29,27 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
 });}
 (async()=>{
-  frame.src='/terrain-globe.html'+(new URLSearchParams(location.search).has('roads')?'?realImagery=1':'');await until(()=>session&&terrain?.state==='ready','startup');
+  const prepared=new URLSearchParams(location.search).has('prepared');
+  frame.src=prepared?'/prepared-globe.html?cachedMaps=1':'/terrain-globe.html'+(new URLSearchParams(location.search).has('roads')?'?realImagery=1':'');await until(()=>session&&terrain?.state==='ready','startup');
   const win=frame.contentWindow,v=win.fixtureViewer,C=win.Cesium;
+  if(prepared){
+    // This fixture uses the ordinary viewer, not terrain-fixture.js.
+    const viewer=win.__preparedTestViewer;
+    check(viewer,'Prepared viewer test hook missing');
+    const metadata=await(await fetch('/offline/maps/prepared.json')).json();
+    const latitude=(metadata.south+metadata.north)/2,longitude=(metadata.west+metadata.east)/2;
+    await command('set-map-style',{style:'topographic'});
+    const sampled=await command('query-terrain-elevation',{latitude,longitude});
+    check(Number.isFinite(sampled.heightMeters),'Prepared terrain height missing');
+    viewer.camera.setView({destination:C.Cartesian3.fromDegrees(longitude,latitude,1500),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
+    await pause(800);
+    let outside=false;try{await command('query-terrain-elevation',{latitude,longitude:metadata.east+.01});}catch{outside=true;}
+    check(outside,'Prepared terrain invents outside heights');
+    check(viewer.imageryLayers.get(0).imageryProvider.url.includes('/prepared/'),'Prepared imagery provider missing');
+    await command('enter-ground-view',{latitude,longitude});await command('exit-ground-view');
+    log('Prepared real Cesium terrain/imagery load, sampled ellipsoid height '+sampled.heightMeters.toFixed(2)+' m; outside heights are unavailable; ground view remains usable');
+    document.getElementById('status').textContent='PASS — prepared offline region';return;
+  }
   v.camera.setView({destination:C.Cartesian3.fromDegrees(8.55,47.45,18000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
   const point=(id,coordinates=[8.55,47.45])=>({id,name:'Fixture '+id,detail:'Synthetic source position; not operational information.',
     timestampUtc:new Date().toISOString(),geometry:{type:'Point',coordinates}});
@@ -39,6 +58,26 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
     await command('set-situational-overlay',{id,visible:true,features});
   }
   const source=id=>v.dataSources.getByName('FPVManager '+id)[0];
+  if(new URLSearchParams(location.search).has('avalanche')){
+    const warning={id:'slf-fixture',name:'Synthetic regional warning',detail:'Synthetic test, no current warning. <tag>escaped</tag>',level:3,
+      timestampUtc:new Date(Date.now()-3600000).toISOString(),validFromUtc:new Date(Date.now()-1800000).toISOString(),validUntilUtc:new Date(Date.now()+3600000).toISOString(),
+      geometry:{type:'Polygon',coordinates:[[[8.5,47.4],[8.6,47.4],[8.6,47.5],[8.5,47.5],[8.5,47.4]],[[8.54,47.44],[8.54,47.46],[8.56,47.46],[8.56,47.44],[8.54,47.44]]]}};
+    await command('set-situational-overlay',{id:'avalanche',visible:true,opacity:.4,features:[warning]});
+    const entity=source('avalanche').entities.values[0];
+    check(source('avalanche').entities.values.length===1,'Duplicate avalanche entities');
+    check(entity.polygon.hierarchy.getValue().holes.length===1,'Missing warning hole');
+    check(Math.abs(entity.polygon.material.color.getValue().alpha-.4)<.001,'Warning opacity missing');
+    check(entity.description.getValue().includes('&lt;tag&gt;'),'Warning HTML is not escaped');
+    check(entity.show,'Valid warning hidden');
+    await command('set-map-style',{style:'relief'});check(source('avalanche'),'Map style lost warning');
+    await command('enter-ground-view',{latitude:47.45,longitude:8.55});await command('exit-ground-view');
+    check(source('avalanche'),'Ground view lost warning');
+    await command('set-situational-overlay',{id:'avalanche',visible:true,opacity:.4,features:[{...warning,validUntilUtc:new Date(Date.now()-1).toISOString()}]});
+    check(!source('avalanche').entities.values[0].show,'Expired warning visible');
+    await command('set-situational-overlay',{id:'avalanche',visible:false});check(!source('avalanche'),'Warning cleanup failed');
+    log('Actual Cesium renders SLF fixture with a hole, opacity, escaped text, expiry and independent style/ground-view lifecycle');
+    document.getElementById('status').textContent='PASS — avalanche renderer';return;
+  }
   check(source('road')&&source('traffic')&&source('aircraft'),'Independent vector sources missing');
   check(source('traffic-counters')&&source('traffic-counters').entities.values[0].show,'Counter source missing or current measurement hidden');
   check(source('traffic').entities.values[0].point.color.getValue().equals(C.Color.fromCssColorString('#ef9847')),'Traffic category color missing');

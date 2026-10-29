@@ -8,11 +8,12 @@ import 'package:http/http.dart' as http;
 
 import '../../core/osint/osint_cache_database.dart';
 import 'offline_region.dart';
+import 'offline_region_package.dart';
 
 OfflineMapStorage openOfflineMapStore() => NativeOfflineMapStore();
 
 /// Fixed-source loopback tile transport. No arbitrary URL proxy or credentials.
-class NativeOfflineMapStore implements OfflineMapStorage {
+class NativeOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
   @override
   bool get rendererReady => true;
   NativeOfflineMapStore({OsintCacheDatabase? database, http.Client? client})
@@ -65,6 +66,7 @@ class NativeOfflineMapStore implements OfflineMapStorage {
 
   @override
   Future<void> setRegions(List<OfflineRegion> regions) async {
+    activePreparedRegion(regions);
     if (regions.length > 12) {
       throw const FormatException('Keep at most 12 offline regions');
     }
@@ -128,6 +130,38 @@ class NativeOfflineMapStore implements OfflineMapStorage {
     String key, {
     bool cacheOnly = false,
   }) {
+    if (key == 'prepared.json') {
+      return regions().then(
+        (r) => (
+          bytes: Uint8List.fromList(
+            utf8.encode(jsonEncode(activePreparedRegion(r))),
+          ),
+          mime: 'application/json',
+          fetchedAt: DateTime.now().toUtc(),
+        ),
+      );
+    }
+    if (preparedKey(key)) {
+      return database
+          .customSelect(
+            'SELECT body,content_type,fetched_at FROM offline_tiles WHERE key=?',
+            variables: [Variable(key)],
+          )
+          .getSingleOrNull()
+          .then((row) {
+            if (row == null || _closed) {
+              throw StateError('Prepared resource missing');
+            }
+            return (
+              bytes: row.read<Uint8List>('body'),
+              mime: row.read<String>('content_type'),
+              fetchedAt: DateTime.fromMillisecondsSinceEpoch(
+                row.read<int>('fetched_at'),
+                isUtc: true,
+              ),
+            );
+          });
+    }
     final uri = offlineSourceUri(key);
     if (uri == null || _closed) {
       return Future.error(
@@ -146,6 +180,45 @@ class NativeOfflineMapStore implements OfflineMapStorage {
     });
     _pending[requestKey] = future;
     return future;
+  }
+
+  @override
+  Future<void> importPackage(OfflineRegionPackage package) async {
+    if (_closed) throw StateError('Map cache closed');
+    await database.transaction(() async {
+      final retained = (await regions())
+          .where((r) => r.id != package.region.id)
+          .map((r) => r.withPackageActive(false))
+          .toList();
+      if (retained.length >= 12) {
+        throw const FormatException('Keep at most 12 offline regions');
+      }
+      final next = [...retained, package.region];
+      // Pruning and replacement commit together; any failed write rolls back.
+      await setRegions(next);
+      final prefix = 'prepared/${package.region.packageId}/';
+      final old = await tiles();
+      final size =
+          old
+              .where((t) => !t.key.startsWith(prefix))
+              .fold<int>(0, (n, t) => n + t.bytes) +
+          package.files.values.fold<int>(0, (n, b) => n + b.length);
+      if (size > offlineMapBudget) {
+        throw const FormatException('Offline map storage limit reached');
+      }
+      for (final entry in package.files.entries) {
+        await database.customStatement(
+          'INSERT OR REPLACE INTO offline_tiles VALUES(?,?,?,?,?)',
+          [
+            '$prefix${entry.key}',
+            entry.value,
+            preparedMime(entry.key),
+            package.region.preparedAt!.millisecondsSinceEpoch,
+            entry.value.length,
+          ],
+        );
+      }
+    });
   }
 
   Future<({Uint8List bytes, String mime, DateTime fetchedAt})> _load(

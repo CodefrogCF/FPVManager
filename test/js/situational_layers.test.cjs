@@ -8,6 +8,11 @@ function fixture(options={}){
     Credit:class{constructor(html){this.html=html;}},Color:{BLACK:'black',fromCssColorString:value=>value},
     Cartesian3:{fromDegrees:(...v)=>v,fromDegreesArray:v=>v},Cartographic:{fromDegrees:(...v)=>v},
     HeightReference:{CLAMP_TO_GROUND:1},Rectangle:{contains:(_,p)=>p[0]<10}};
+  if(options.avalanche){
+    C.Color.fromCssColorString=color=>({withAlpha:alpha=>({color,alpha})});
+    C.PolygonHierarchy=class{constructor(positions,holes=[]){this.positions=positions;this.holes=holes;}};
+    C.ClassificationType={TERRAIN:2};
+  }
   const viewer={dataSources:{add:async source=>{sources.push(source);return source;},remove:source=>{const i=sources.indexOf(source);if(i>=0)sources.splice(i,1);}},
     camera:{computeViewRectangle:()=>({}),moveEnd:{addEventListener:()=>()=>{}}},scene:{globe:{},requestRender(){}},
     cesiumWidget:{creditDisplay:{addStaticCredit:c=>credits.add(c),removeStaticCredit:c=>credits.delete(c)}}};
@@ -69,4 +74,32 @@ test('a failed replacement retains the prior source and disposal retires an atta
   let finish;p.viewer.dataSources.add=source=>new Promise(resolve=>{finish=()=>{add(source);resolve(source);};});
   const pending=p.manager.set({id:'traffic',visible:true,features:[feature('late')]});p.manager.dispose();finish();
   assert.deepEqual(await pending,{superseded:true});assert.equal(p.sources.length,0);assert.equal(p.credits.size,0);
+});
+
+function avalanche(){return {id:'warning',name:'Regional warning',detail:'Full source text <script>unsafe</script>\n'+'x'.repeat(2000),level:3,
+  timestampUtc:'2026-10-24T11:00:00Z',validFromUtc:'2026-10-24T11:30:00Z',validUntilUtc:'2026-10-24T14:00:00Z',
+  geometry:{type:'MultiPolygon',coordinates:[
+    [[[8,47],[8.2,47],[8.2,47.2],[8,47.2],[8,47]],[[8.05,47.05],[8.05,47.1],[8.1,47.1],[8.1,47.05],[8.05,47.05]]],
+    [[[8.3,47],[8.4,47],[8.4,47.1],[8.3,47.1],[8.3,47]]]
+  ]}};}
+test('avalanche renders each part once, retains holes, opacity and full escaped details, expires and cleans up',async()=>{
+  const p=fixture({avalanche:true}),f=avalanche();
+  await p.manager.set({id:'avalanche',visible:true,opacity:.4,features:[f]});
+  const entities=p.sources[0].entities.values;
+  assert.equal(entities.length,2);assert.equal(entities[0].polygon.hierarchy.holes.length,1);
+  assert.deepEqual(entities[0].polygon.material,{color:'#ff9900',alpha:.4});
+  assert.equal(entities[0].polygon.classificationType,2);
+  assert.ok(entities[0].description.includes('&lt;script&gt;'));assert.ok(entities[0].description.length>2000);
+  assert.equal(p.manager.pick(entities[1]),f);assert.equal(p.events.at(-1)[1].detail,f.detail);
+  assert.equal(entities[0].show,true);p.time(Date.parse(f.validUntilUtc));assert.equal(entities[0].show,false);
+  p.time(Date.parse(f.validFromUtc)-1);assert.equal(entities[1].show,false);
+  await assert.rejects(p.manager.set({id:'avalanche',visible:true,opacity:.4,features:[{...f,level:6}]}));
+  assert.equal(p.sources.length,1);
+  p.manager.dispose();assert.equal(p.sources.length,0);assert.equal(p.credits.size,0);assert.equal(p.intervals.size,0);
+});
+test('avalanche rejects open rings, foreign coordinates, invalid validity and excessive geometry',()=>{
+  for(const mutate of [f=>f.geometry.coordinates[0][0].pop(),f=>f.geometry.coordinates[0][0][0]=[180,47],
+    f=>f.validUntilUtc='invalid',f=>f.geometry.coordinates=Array(257).fill(f.geometry.coordinates[0])]){
+    const f=avalanche();mutate(f);assert.throws(()=>validate({id:'avalanche',visible:true,opacity:.5,features:[f]}));
+  }
 });

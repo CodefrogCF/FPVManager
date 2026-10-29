@@ -9,6 +9,7 @@ import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/database/repositories/radio_equipment_repository.dart';
+import '../../core/osint/osint_provider.dart';
 import '../radio/radio_equipment_screen.dart';
 import '../../core/database/repositories/flight_plan_repository.dart';
 import '../routes/flight_routes_screen.dart';
@@ -83,31 +84,77 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await _leaveGroundView();
     if (!mounted) return;
     final database = _database ??= FpvDatabase.open();
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DataManagementScreen(
-          database: database,
-          latitude: _globeController.selectedPoint?.latitude ?? 46.8,
-          longitude: _globeController.selectedPoint?.longitude ?? 8.3,
-          cachedMaps: _cachedMaps,
-          onCachedMaps: (value) {
-            if (mounted) setState(() => _cachedMaps = value);
-          },
-          onRegionsChanged: (region) {
-            if (mounted) {
-              setState(() {
-                _pendingOfflineRegion = region;
-                _awaitOfflineRenderer = true;
-                _mapCacheRevision++;
-              });
-            }
-          },
-          beforeRestore: () => _globeController.preferencesSettled,
-          onRestored: () => _globeController.retryLoadingPreferences(),
+    try {
+      await _globeController.setRenderingPaused(true);
+    } catch (_) {
+      /* Offline preparation can proceed without a ready renderer. */
+    }
+    if (!mounted) return;
+    try {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DataManagementScreen(
+            database: database,
+            latitude: _globeController.selectedPoint?.latitude ?? 46.8,
+            longitude: _globeController.selectedPoint?.longitude ?? 8.3,
+            cachedMaps: _cachedMaps,
+            prepareOfflineSnapshots: (selected) async {
+              final results = <String>[];
+              for (final id in selected) {
+                final OsintProvider<Object> provider = switch (id) {
+                  'uas' => _globeController.uasProvider,
+                  'obstacles' => _globeController.obstacles.provider,
+                  _ => _globeController.avalanche.provider,
+                };
+                try {
+                  await provider.fetch(forceRefresh: true);
+                } catch (_) {
+                  /* The provider retains and reports its previous snapshot. */
+                }
+                final status = provider.status;
+                results.add(
+                  '${switch (id) {
+                    'uas' => 'UAS-Zonen',
+                    'obstacles' => 'Vektorhindernisse',
+                    _ => 'SLF-Bulletin',
+                  }}: ${status.dataset == null
+                      ? 'nicht verfügbar'
+                      : status.error != null
+                      ? 'vorheriger Datenstand; Aktualisierung fehlgeschlagen'
+                      : status.cacheError != null
+                      ? 'lokale Speicherung fehlgeschlagen; Offline-Verfügbarkeit nicht bestätigt'
+                      : 'Datenstand lokal vorhanden; Gültigkeit separat prüfen'}',
+                );
+              }
+              return results.join('\n');
+            },
+            onCachedMaps: (value) {
+              if (mounted) setState(() => _cachedMaps = value);
+            },
+            onRegionsChanged: (region) {
+              if (mounted) {
+                setState(() {
+                  _pendingOfflineRegion = region;
+                  _awaitOfflineRenderer = true;
+                  _mapCacheRevision++;
+                });
+              }
+            },
+            beforeRestore: () => _globeController.preferencesSettled,
+            onRestored: () => _globeController.retryLoadingPreferences(),
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) {
+        try {
+          await _globeController.setRenderingPaused(false);
+        } catch (_) {
+          /* The requested state is restored when the renderer recovers. */
+        }
+      }
+    }
   }
 
   bool _drawerOpen = false;

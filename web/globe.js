@@ -59,7 +59,7 @@ function postToFlutter(message) {
     const floatingChrome = new URLSearchParams(window.location.search).get('chrome') === 'floating';
     if (floatingChrome) document.documentElement.classList.add('floating-map-chrome');
     let currentMapStyle = "satellite";
-    const mapProviders = FPVMapProviders.createAdapters(Cesium, window.FPVMapProviderConfig);
+    let mapProviders = FPVMapProviders.createAdapters(Cesium, window.FPVMapProviderConfig);
     const terrainAvailable = () => terrainManager?.status().state === "ready";
     const offlineReason = () => offline ? "diagnosticOffline" :
         navigator.onLine === false && !window.FPVMapProviderConfig?.cacheRoot ? "networkOffline" : null;
@@ -430,6 +430,7 @@ function postToFlutter(message) {
             throw new Error("Invalid terrain coordinates");
         }
         const position = Cesium.Cartographic.fromDegrees(longitude, latitude);
+        if(!mapProviders.containsTerrainPoint(longitude,latitude))throw new Error('Terrain is outside the prepared offline region');
         let detailed;
         const sampled = await terrainManager.sample(terrainProvider => {
             detailed = Boolean(terrainProvider.availability);
@@ -743,6 +744,8 @@ function postToFlutter(message) {
     });
 
     async function initializeGlobe() {
+        await window.FPVPreparedOfflineReady;
+        mapProviders=FPVMapProviders.createAdapters(Cesium,window.FPVMapProviderConfig);
         const info = document.getElementById("info");
         let selectedPointInfo = null;
 
@@ -771,7 +774,7 @@ function postToFlutter(message) {
                 let request;
                 while (request === undefined) {
                     signal.throwIfAborted();
-                    request = provider.requestTileGeometry(0, 0, 0);
+                    request = provider.requestTileGeometry(...mapProviders.terrainProbe);
                     if (request === undefined) await new Promise(resolve => setTimeout(resolve, 50));
                 }
                 const tile = await request;
@@ -810,6 +813,10 @@ function postToFlutter(message) {
         });
 
         viewer.scene.globe.depthTestAgainstTerrain = true;
+        if(window.FPVMapProviderConfig?.prepared){
+            const height=viewer.scene.globe.getHeight.bind(viewer.scene.globe);
+            viewer.scene.globe.getHeight=point=>mapProviders.containsTerrainPoint(point.longitude*180/Math.PI,point.latitude*180/Math.PI)?height(point):undefined;
+        }
         const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);}});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}));

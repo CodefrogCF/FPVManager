@@ -13,6 +13,8 @@
   return `https://wmts.geo.admin.ch/1.0.0/${relief?'ch.swisstopo.swissalti3d-reliefschattierung':'ch.swisstopo.pixelkarte-farbe'}/default/current/3857/${z}/${x}/${y}.${ext}`;
  }
  function includes(region,key){
+  if(region.packageId){const prefix=`prepared/${region.packageId}/`;if(!key.startsWith(prefix))return false;key=key.slice(prefix.length);}
+  else if(key.startsWith('prepared/'))return false;
   if(key==='terrain/layer.json'||key==='terrain/0/0/0.terrain')return true;
   const parts=key.split('/'),terrain=parts[0]==='terrain';
   if(terrain&&parts.length===5&&/^20[0-9]{6}$/.test(parts[1]))parts.splice(1,1);
@@ -53,6 +55,16 @@
   function release(){if(downloadQueue.length)downloadQueue.shift()();else activeDownloads--;}
   async function config(cache){const response=await cache.match(root+'regions.json');return response?response.json():{revision:0,regions:[]};}
   async function load(key,cacheOnly=false){
+   if(key==='prepared.json'){
+    const cache=await caches.open(cacheName+':'+root),settings=await config(cache);
+    const active=settings.regions.filter(r=>r.packageActive&&/^[0-9a-f]{64}$/.test(r.packageId));
+    if(active.length>1)throw new Error('Ambiguous active package');
+    return new Reply(JSON.stringify(active[0]??null),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+   }
+   if(/^prepared\/[0-9a-f]{64}\/(terrain\/layer\.json|terrain\/\d{1,2}\/\d{1,7}\/\d{1,7}\.terrain|imagery\/(topographic|satellite|relief)\/\d{1,2}\/\d{1,7}\/\d{1,7}\.png|sources\/\d{1,4}\.json)$/.test(key)){
+    const cache=await caches.open(cacheName+':'+root),saved=await cache.match(root+key);
+    if(!saved)throw new Error('Prepared offline resource missing');return saved;
+   }
    const remote=source(key);if(!remote)throw new Error('Unsupported map source');
    const cache=await caches.open(cacheName+':'+root),url=root+key,old=await cache.match(url);
    if(old){

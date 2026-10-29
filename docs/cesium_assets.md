@@ -25,6 +25,11 @@ and embedded notices; `.gitattributes` preserves vendor bytes.
 
 ## Serving
 
+Offline raster preparation bundles GeoTIFF.js **2.1.3** in `web/vendor/geotiff/`
+with its MIT licence. Its pinned SHA-256 is checked in
+`test/js/offline_preparation.test.cjs`. Processing runs in a dedicated worker;
+Android uses the same bundled page in a separate app-owned WebView.
+
 Android's `GlobeAssetServer` binds only to `127.0.0.1` on an ephemeral port and
 serves manifest-listed assets with Worker/Wasm MIME types. Host/port/method checks
 prevent filesystem exposure. Cleartext is allowed only for that local origin;

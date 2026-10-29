@@ -20,7 +20,10 @@
     function create(C,viewer,send=()=>{},{urls=sources,timeoutMs=15000,setTimer=setTimeout,clearTimer=clearTimeout}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
-            light:scene.light,lighting:scene.globe.enableLighting,atmosphere:scene.globe.dynamicAtmosphereLightingFromSun};
+            light:scene.light,lighting:scene.globe.enableLighting,atmosphere:scene.globe.dynamicAtmosphereLightingFromSun,
+            lightingIn:scene.globe.lightingFadeInDistance,lightingOut:scene.globe.lightingFadeOutDistance,
+            nightIn:scene.globe.nightFadeInDistance,nightOut:scene.globe.nightFadeOutDistance,
+            ambient:scene.globe.vertexShadowDarkness};
         const credit=new C.Credit('3D buildings / vegetation · © swisstopo',true);
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
@@ -80,6 +83,13 @@
             const enabled=!!selected||lighting,utc=selected?.timeUtc??null;
             const identity=enabled?(utc??'now'):'daylight';if(identity===appliedTime)return;appliedTime=identity;
             scene.globe.enableLighting=enabled;
+            // Cesium's planet-scale defaults otherwise illuminate close terrain
+            // fully, even on the night side. Keep physical lighting near ground.
+            scene.globe.lightingFadeOutDistance=enabled?0:original.lightingOut;
+            scene.globe.lightingFadeInDistance=enabled?1:original.lightingIn;
+            scene.globe.nightFadeOutDistance=enabled?0:original.nightOut;
+            scene.globe.nightFadeInDistance=enabled?1:original.nightIn;
+            scene.globe.vertexShadowDarkness=enabled ? .06 : original.ambient;
             scene.globe.dynamicAtmosphereLightingFromSun=enabled||original.atmosphere;
             scene.light=enabled?new C.SunLight():original.light;
             if(enabled){

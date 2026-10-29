@@ -20,6 +20,7 @@ class DataManagementScreen extends StatefulWidget {
     this.onCachedMaps,
     this.onRegionsChanged,
     this.offlineStorage,
+    this.prepareOfflineSnapshots,
   });
   final FpvDatabase database;
   final Future<void> Function()? beforeRestore, onRestored;
@@ -29,6 +30,7 @@ class DataManagementScreen extends StatefulWidget {
   final ValueChanged<bool>? onCachedMaps;
   final ValueChanged<OfflineRegion?>? onRegionsChanged;
   final OfflineMapStorage? offlineStorage;
+  final Future<String> Function(Set<String>)? prepareOfflineSnapshots;
   @override
   State<DataManagementScreen> createState() => _DataManagementScreenState();
 }
@@ -201,6 +203,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
             cachedMaps: _cachedMaps,
             enabled: !_busy,
             onChanged: widget.onRegionsChanged,
+            prepareSnapshots: widget.prepareOfflineSnapshots,
             onCachedMaps: (value) {
               setState(() => _cachedMaps = value);
               widget.onCachedMaps?.call(value);

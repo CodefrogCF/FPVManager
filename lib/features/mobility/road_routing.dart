@@ -70,6 +70,7 @@ class MobilityHttp {
     int maxBytes = 4 * 1024 * 1024,
     Duration timeout = const Duration(seconds: 25),
     T Function()? onNotModified,
+    void Function(Map<String, String>)? onHeaders,
   }) async {
     if (_disposed) throw StateError('Data source closed');
     final abort = Completer<void>();
@@ -88,6 +89,7 @@ class MobilityHttp {
         }
         if (body != null) request.body = body;
         final response = await client.send(request);
+        onHeaders?.call(Map.unmodifiable(response.headers));
         if (response.statusCode == 304 && onNotModified != null) {
           return onNotModified();
         }

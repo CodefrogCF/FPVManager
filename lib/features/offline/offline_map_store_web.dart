@@ -5,10 +5,11 @@ import 'dart:js_interop_unsafe';
 import 'package:web/web.dart' as web;
 
 import 'offline_region.dart';
+import 'offline_region_package.dart';
 
 OfflineMapStorage openOfflineMapStore() => WebOfflineMapStore();
 
-class WebOfflineMapStore implements OfflineMapStorage {
+class WebOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
   @override
   bool get rendererReady =>
       web.window.isSecureContext &&
@@ -37,6 +38,7 @@ class WebOfflineMapStore implements OfflineMapStorage {
 
   @override
   Future<void> setRegions(List<OfflineRegion> regions) async {
+    activePreparedRegion(regions);
     if (regions.length > 12) {
       throw const FormatException('Keep at most 12 offline regions');
     }
@@ -86,4 +88,77 @@ class WebOfflineMapStore implements OfflineMapStorage {
   Future<void> clear() => setRegions([]);
   @override
   Future<void> close() async {}
+
+  @override
+  Future<void> importPackage(OfflineRegionPackage package) async {
+    final previous = await regions(), cache = await _cache;
+    final retained = previous
+        .where((r) => r.id != package.region.id)
+        .map((r) => r.withPackageActive(false))
+        .toList();
+    if (retained.length >= 12) {
+      throw const FormatException('Keep at most 12 offline regions');
+    }
+    final next = [...retained, package.region],
+        prefix = 'prepared/${package.region.packageId}/';
+    final used = (await tiles())
+        .where(
+          (t) =>
+              !t.key.startsWith(prefix) &&
+              retained.any((r) => r.includesKey(t.key)),
+        )
+        .fold<int>(0, (n, t) => n + t.bytes);
+    if (used + package.files.values.fold<int>(0, (n, b) => n + b.length) >
+        offlineMapBudget) {
+      throw const FormatException('Offline map storage limit reached');
+    }
+    final alreadyValid = previous.any(
+      (r) => r.packageId == package.region.packageId,
+    );
+    try {
+      // New namespace is invisible until the regions pointer is published.
+      for (final entry in package.files.entries) {
+        final headers = web.Headers();
+        headers.set('content-type', preparedMime(entry.key));
+        headers.set('x-fpv-size', entry.value.length.toString());
+        headers.set(
+          'x-fpv-fetched-at',
+          package.region.preparedAt!.toIso8601String(),
+        );
+        await cache
+            .put(
+              '$root$prefix${entry.key}'.toJS,
+              web.Response(
+                entry.value.toJS,
+                web.ResponseInit(headers: headers),
+              ),
+            )
+            .toDart;
+      }
+      await cache
+          .put(
+            '${root}regions.json'.toJS,
+            web.Response(
+              jsonEncode({
+                'revision': DateTime.now().microsecondsSinceEpoch,
+                'regions': next.map((r) => r.toJson()).toList(),
+              }).toJS,
+            ),
+          )
+          .toDart;
+    } catch (_) {
+      if (!alreadyValid) {
+        for (final entry in package.files.keys) {
+          await cache.delete('$root$prefix$entry'.toJS).toDart;
+        }
+      }
+      rethrow;
+    }
+    // Cleanup after publication is best effort, never a failed replacement.
+    try {
+      await setRegions(next);
+    } catch (_) {
+      /* Unreferenced data can be removed later. */
+    }
+  }
 }

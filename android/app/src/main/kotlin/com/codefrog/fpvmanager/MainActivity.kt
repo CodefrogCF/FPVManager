@@ -3,6 +3,7 @@ package com.codefrog.fpvmanager
 import io.flutter.embedding.android.FlutterActivity
 import android.app.Activity
 import android.content.Intent
+import android.os.StatFs
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.view.KeyEvent
@@ -31,8 +32,16 @@ class MainActivity : FlutterActivity() {
         navigationInput?.dispose()
         navigationInput = NavigationInputHandler(this,flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.codefrog.fpvmanager/offline_storage").setMethodCallHandler { call, result ->
+            if (call.method == "availableBytes") {
+                result.success(StatFs(filesDir.absolutePath).availableBytes)
+            } else {
+                result.notImplemented()
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.codefrog.fpvmanager/route_files").setMethodCallHandler { call, result ->
-            if (call.method != "saveRoute" && call.method != "saveBackup") {
+            if (call.method != "saveRoute" && call.method != "saveBackup" && call.method != "saveOfflinePlan") {
                 result.notImplemented()
                 return@setMethodCallHandler
             }
@@ -44,10 +53,12 @@ class MainActivity : FlutterActivity() {
             val name = call.argument<String>("name")
             val mime = call.argument<String>("mimeType")
             val backup = call.method == "saveBackup"
+            val offlinePlan = call.method == "saveOfflinePlan"
             val allowedSize = if (backup) 64 * 1024 * 1024 else 4 * 1024 * 1024
             if (bytes == null || bytes.isEmpty() || bytes.size > allowedSize || name == null ||
                 name.length > 130 || name.contains('/') || name.contains('\\') ||
-                (if (backup) mime != "application/octet-stream" || !name.endsWith(".fpvbackup")
+                (if (offlinePlan) mime != "application/json" || !name.endsWith(".fpvofflineplan")
+                 else if (backup) mime != "application/octet-stream" || !name.endsWith(".fpvbackup")
                  else mime !in listOf("application/geo+json", "application/gpx+xml"))) {
                 result.error("invalid", "Invalid export file", null)
                 return@setMethodCallHandler

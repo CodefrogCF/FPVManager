@@ -3,6 +3,63 @@ const M=require('../../web/offline_maps.js'),C=require('../../web/cesium/index.c
 const {createAdapters,defaultImagery}=require('../../web/map_providers.js');
 const fs=require('node:fs');
 const region={id:'test',name:'test',west:8.39,south:46.69,east:8.41,north:46.71,style:'topographic',imageryLevel:14,terrainLevel:12};
+
+function preparedFixture(){
+ const bytes=fs.readFileSync('test/fixtures/offline/prepared.fpvregion'),files=new Map();let at=0;
+ while(bytes.readUInt32LE(at)===0x04034b50){
+  const size=bytes.readUInt32LE(at+18),nameLength=bytes.readUInt16LE(at+26),extra=bytes.readUInt16LE(at+28);
+  const name=bytes.subarray(at+30,at+30+nameLength).toString('utf8'),start=at+30+nameLength+extra;
+  files.set(name,bytes.subarray(start,start+size));at=start+size;
+ }
+ const manifest=JSON.parse(files.get('manifest.json').toString('utf8'));
+ const id=require('node:crypto').createHash('sha256').update(files.get('manifest.json')).digest('hex');
+ return {files,manifest,region:{...manifest.region,packageId:id,packageActive:true,preparedAtUtc:manifest.preparedAtUtc}};
+}
+
+test('prepared satellite and neutral relief are independent choices; absent terrain never claims an elevation',()=>{
+ const p=preparedFixture(),config={cacheRoot:'https://fixture.invalid/offline/maps/',cacheOnly:true,prepared:{...p.region,maps:['satellite','relief'],includeTerrain:false}};
+ const Grid=class{},providers=createAdapters({...C,GridImageryProvider:Grid},config);
+ assert.throws(()=>providers.terrain(),/elevation unavailable/);
+ assert.match(providers.imagery('satellite').url,/\/imagery\/satellite\/\{z\}/);
+ assert.match(providers.imagery('relief').url,/\/imagery\/relief\/\{z\}/);
+ assert.ok(providers.imagery('topographic') instanceof Grid);
+});
+
+test('prepared official-source packages are understood by the pinned Cesium terrain engine and limit height sampling to their bounds',async()=>{
+ const p=preparedFixture(),original=C.Resource._Implementations.loadWithXhr;
+ C.Resource._Implementations.loadWithXhr=(url,responseType,method,data,headers,deferred)=>{
+  assert.ok(url.startsWith(`https://fixture.invalid/offline/maps/prepared/${p.region.packageId}/`));
+  const key=new URL(url).pathname.split('/').slice(5).join('/'),body=p.files.get(key);
+  if(!body)deferred.reject(Error('Missing fixture '+key));
+  else deferred.resolve(key.endsWith('.json')?body.toString('utf8'):body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength));
+  return {abort(){}};
+ };
+ try{
+  const adapters=createAdapters(C,{cacheRoot:'https://fixture.invalid/offline/maps/',cacheOnly:true,prepared:p.region});
+  assert.deepEqual(adapters.terrainProbe,[1,0,0]);
+  assert.equal(adapters.containsTerrainPoint(8.4,46.7),true);assert.equal(adapters.containsTerrainPoint(8.5,46.7),false);
+  const provider=await adapters.terrain(),tile=await provider.requestTileGeometry(1,0,0);
+  const rectangle=provider.tilingScheme.tileXYToRectangle(1,0,0);
+  const h=tile.interpolateHeight(rectangle,C.Math.toRadians(8.4),C.Math.toRadians(46.7));
+  assert.ok(h>1040&&h<1060,'Converted ellipsoid height missing: '+h);
+  assert.equal(tile.interpolateHeight(rectangle,C.Math.toRadians(8.5),C.Math.toRadians(46.7)),undefined);
+  assert.equal(provider.availability.computeMaximumLevelAtPosition(C.Cartographic.fromDegrees(8.4,46.7)),8);
+  const fine=await C.sampleTerrainMostDetailed(provider,[C.Cartographic.fromDegrees(8.4,46.7)],true);
+  assert.ok(fine[0].height>1040&&fine[0].height<1060);
+ }finally{C.Resource._Implementations.loadWithXhr=original;}
+});
+
+test('prepared browser resources and active metadata are cache-only, including missing resources',async()=>{
+ const p=setup(),f=preparedFixture(),prefix=`prepared/${f.region.packageId}/`;
+ await p.cache.put(p.root+'regions.json',new Response(JSON.stringify({revision:2,regions:[f.region]})));
+ assert.equal((await(await p.transport.load('prepared.json')).json()).packageId,f.region.packageId);
+ await p.cache.put(p.root+prefix+'terrain/layer.json',new Response(f.files.get('terrain/layer.json')));
+ assert.equal((await p.transport.load(prefix+'terrain/layer.json')).status,200);
+ await assert.rejects(p.transport.load(prefix+'terrain/16/0/0.terrain'));
+ assert.equal(p.calls,0);
+ assert.equal(M.includes(f.region,prefix+'terrain/0/1/0.terrain'),true);
+ assert.equal(M.includes(f.region,'terrain/layer.json'),false);
+});
 test('the pinned Cesium engine reads an offline real quantized mesh without live availability',async()=>{
  const originalBytes=new Uint8Array(fs.readFileSync('test/fixtures/offline/root.terrain'));
  const binary=M.withoutTerrainMetadata(originalBytes);

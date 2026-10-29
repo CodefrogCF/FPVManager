@@ -119,8 +119,11 @@ Cancellation/revision checks prevent obsolete geometry from reappearing;
 `route-preview-error` reports asynchronous rebuild failures for explicit retry.
 
 `set-situational-overlay` controls independent road/traffic/aircraft snapshots
-and heliport/wildfire imagery. `situational-status` reports imagery loading or
-failure; `situational-selected` carries bounded plain-text details. See
+and heliport/wildfire imagery. The independent `avalanche` snapshot carries bounded
+SLF polygons/multipolygons with holes, level 0 (unknown/old) or 1–5, opacity,
+publication and validity. It hides future/expired areas and preserves up to 16,000
+plain-text characters per selected warning. `situational-status` reports imagery
+loading or failure; `situational-selected` carries bounded plain-text details. See
 [Mobility & OSINT](mobility_osint.md) for sources and limits.
 
 `set-road-navigation` carries `active`, `follow`, `cameraDistanceMeters`

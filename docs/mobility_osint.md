@@ -34,7 +34,15 @@ and road overlay; its layer menu can switch between Topo/Satellite and roads.
 layers, opacity, retry and official legends. Other loaded snapshots can be removed
 there. Map style changes and renderer reloads retain requested layers during the
 session. These layers are supplementary; consult official publications and local
-orders. The SLF avalanche bulletin is linked rather than scraped or reinterpreted.
+orders. **Lawinenbulletin · SLF** loads the official national GeoJSON on request,
+with regional danger levels, published daily periods, opacity and selectable
+descriptions including elevation bands and aspects. Visibility and opacity persist.
+Licensed local snapshots retain publication, retrieval and validity times; expired
+areas are hidden and unconfirmed/old data appear gray. No active bulletin means
+missing current information, never an all-clear. Consult the linked official
+bulletin and local conditions; regional colors are not individual slope ratings.
+Source: [WSL Institute for Snow and Avalanche Research SLF](https://www.slf.ch),
+[CC BY 4.0 and data-service conditions](https://www.slf.ch/de/services-und-produkte/slf-datenservice/).
 
 On Android, a calculated driving route offers **Navigation starten**. Navigation
 uses foreground GPS, OSRM turn instructions, remaining distance/time and a camera

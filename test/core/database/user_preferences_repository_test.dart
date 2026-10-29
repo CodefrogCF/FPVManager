@@ -47,6 +47,8 @@ void main() {
           savedSpotsVisible: false,
           roadsVisible: true,
           roadsOpacity: .6,
+          avalancheVisible: true,
+          avalancheOpacity: .4,
           buildings3dVisible: true,
           vegetation3dVisible: true,
           realisticLighting: true,
@@ -63,6 +65,8 @@ void main() {
       expect(queue.current.savedSpotsVisible, isFalse);
       expect(queue.current.roadsVisible, isTrue);
       expect(queue.current.roadsOpacity, .6);
+      expect(queue.current.avalancheVisible, true);
+      expect(queue.current.avalancheOpacity, .4);
       expect(queue.current.buildings3dVisible, isTrue);
       expect(queue.current.vegetation3dVisible, isTrue);
       expect(queue.current.realisticLighting, isTrue);
@@ -77,7 +81,7 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      expect(rows, hasLength(18));
+      expect(rows, hasLength(20));
       expect(
         rows
             .where((row) => row.key != 'unrelated')
@@ -95,7 +99,7 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(18));
+      expect(await database.select(database.appSettings).get(), hasLength(20));
       await repository.resetPreferences();
       expect(
         (await repository.getPreferences()).obstacleModelsVisible,

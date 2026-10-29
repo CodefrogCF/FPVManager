@@ -30,6 +30,8 @@ import '../../core/models/scene_time.dart';
 import '../weather/wind_field.dart';
 import '../weather/wind_field_service.dart';
 import '../weather/wind_map_controller.dart';
+import '../avalanche/avalanche_provider.dart';
+import '../avalanche/avalanche_map_controller.dart';
 
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../airspace/uas_zone_details.dart' show UasZoneDetails;
@@ -97,6 +99,7 @@ class GlobeController extends ChangeNotifier {
     OsintProvider<Map<String, dynamic>>? uasProvider,
     SwissObstacleProvider? obstacleProvider,
     WindFieldService? windService,
+    AvalancheProvider? avalancheProvider,
     GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
   }) : _ownsUasProvider = uasProvider == null,
        _bridge = GlobeBridge(options: bridgeOptions) {
@@ -134,12 +137,26 @@ class GlobeController extends ChangeNotifier {
       ..addListener(_handleProviderChanged);
     liveRadio = LiveRadioController(send: _send, sample: _queryLiveRadioTerrain)
       ..addListener(_handleProviderChanged);
+    avalanche = AvalancheMapController(
+      provider:
+          avalancheProvider ??
+          AvalancheProvider(
+            persistentCache: JsonOsintDatasetStore(
+              database: _sharedCache,
+              storageTerms: AvalancheProvider.defaultSource.licenseUri!,
+            ),
+          ),
+      send: showSituationalOverlay,
+      preferences: () => _preferences,
+      savePreferences: _savePreferences,
+    )..addListener(_handleProviderChanged);
   }
 
   late final ObstacleMapController obstacles;
   late final WindMapController wind;
   late final FlightRecording recording;
   late final LiveRadioController liveRadio;
+  late final AvalancheMapController avalanche;
   VoidCallback? onLiveRadioSettingsRequested;
   Future<List<double>> _queryLiveRadioTerrain(
     List<Wgs84Coordinate> positions,
@@ -390,6 +407,7 @@ class GlobeController extends ChangeNotifier {
           'aircraft',
           'heliports',
           'wildfire',
+          'avalanche',
         }.contains(id) ||
         value['visible'] is! bool) {
       throw ArgumentError('Invalid situational overlay');
@@ -740,6 +758,10 @@ class GlobeController extends ChangeNotifier {
       UserPreferences.validateOverlayOrder(preferences.overlayOrder);
       final roadsWereVisible = situationalVisible('roads');
       _preferences = preferences.copyWith();
+      await avalanche.restore(
+        preferences.avalancheVisible,
+        preferences.avalancheOpacity,
+      );
       if (preferences.roadsVisible) {
         _situationalCommands['roads'] = {
           'type': 'set-situational-overlay',
@@ -1522,7 +1544,7 @@ class GlobeController extends ChangeNotifier {
         if (name is String &&
             detail is String &&
             name.length <= 200 &&
-            detail.length <= 1200) {
+            detail.length <= (data['id'] == 'avalanche' ? 16000 : 1200)) {
           _situationalSelection = (name: name, detail: detail);
           _situationalSelectionRevision++;
           _selectedPoint = null;
@@ -1941,7 +1963,11 @@ class GlobeController extends ChangeNotifier {
       for (final entry in _situationalCommands.entries.toList()) {
         if (!current()) return;
         try {
-          await _send(entry.value);
+          await _send(
+            entry.key == 'avalanche'
+                ? {...avalanche.command(), 'type': 'set-situational-overlay'}
+                : entry.value,
+          );
         } catch (_) {
           _situationalStatus[entry.key] = 'failed';
         }
@@ -2019,11 +2045,14 @@ class GlobeController extends ChangeNotifier {
     final pending = [
       if (uas is CachedOsintProvider<Map<String, dynamic>>) uas.settled,
       obstacles.provider.settled,
+      avalanche.provider.settled,
     ];
     obstacles.removeListener(_handleProviderChanged);
     obstacles.dispose();
     wind.removeListener(_handleProviderChanged);
     wind.dispose();
+    avalanche.removeListener(_handleProviderChanged);
+    avalanche.dispose();
     recording.removeListener(_handleProviderChanged);
     recording.dispose();
     liveRadio.removeListener(_handleProviderChanged);

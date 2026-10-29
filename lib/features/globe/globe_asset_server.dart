@@ -28,6 +28,7 @@ class GlobeAssetServer {
             .listAssets()
             .where((path) => path.startsWith('web/'))
             .toSet();
+    if (paths == null) manifest.add('web/offline_height_grid.bin');
     final socket = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final server = GlobeAssetServer._(
       socket,
@@ -94,7 +95,11 @@ class GlobeAssetServer {
         request.response.statusCode = HttpStatus.notFound;
         return;
       }
-      var data = await _load(path);
+      var data = await _load(
+        path == 'web/offline_height_grid.bin'
+            ? 'assets/geo/chgeo2004_ln02.bin'
+            : path,
+      );
       if (path == 'web/globe.html' && _offlineCache != null) {
         final source = utf8
             .decode(

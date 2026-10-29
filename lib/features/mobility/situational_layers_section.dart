@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../globe/globe_controller.dart';
+import '../avalanche/avalanche_layers_section.dart';
 
 class SituationalLayersSection extends StatelessWidget {
   const SituationalLayersSection({super.key, required this.globe, this.onOpen});
@@ -26,7 +27,7 @@ class SituationalLayersSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Independent information layers. Online layers send the viewed area to geo.admin.ch. Published information may be incomplete or outdated; it does not establish flight or ground access permission.',
+          'Independent information layers. Raster layers send the viewed area to geo.admin.ch. The SLF bulletin is retrieved as a national dataset without your location. Published information may be incomplete or outdated; it does not establish flight or ground access permission.',
         ),
         for (final layer in [
           (
@@ -90,16 +91,7 @@ class SituationalLayersSection extends StatelessWidget {
         const Text(
           'Aerodrome data is a planning reference, not the operational AIP or a list of public access rights. Wildfire data does not replace local orders. No confidential emergency data or live responder layer is used.',
         ),
-        TextButton.icon(
-          onPressed: () => launchUrl(
-            Uri.parse(
-              'https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/',
-            ),
-            mode: LaunchMode.externalApplication,
-          ),
-          icon: const Icon(Icons.open_in_new),
-          label: const Text('Official SLF avalanche bulletin'),
-        ),
+        AvalancheLayersSection(globe: globe),
         for (final id in ['road', 'traffic', 'traffic-counters', 'aircraft'])
           if (globe.situationalVisible(id))
             ListTile(

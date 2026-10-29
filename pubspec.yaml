@@ -154,6 +154,12 @@ flutter:
     - web/obstacle_layers.js
     - web/obstacle_models.js
     - web/offline_map_client.js
+    - web/offline_preparation.html
+    - web/offline_preparation_page.js
+    - web/offline_preparation_worker.js
+    - web/offline_preparation_engine.js
+    - web/offline_preparation_storage.js
+    - web/vendor/geotiff/
     - web/models/obstacles/
     - web/situational_layers.js
     - web/road_navigation.js
