@@ -4,7 +4,7 @@
 <iframe id="map" title="Actual Cesium with synthetic terrain"></iframe><pre id="log"></pre>
 <script>
 const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map(),errors=[];
-let session,next=0,flight,ground,terrain,recording,recordingAction;
+let session,next=0,flight,ground,terrain,recording,recordingAction,livePose;
 const recorded=[];
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const check=(v,m)=>{if(!v)throw new Error(m);};
@@ -17,6 +17,7 @@ window.addEventListener('message',event=>{
   if(data.type==='globe-ready')session=data.sessionId;
   if(data.type==='terrain-status')terrain=data;
   if(data.type==='simulation-state')flight=data;
+  if(data.type==='flight-radio-position')livePose=data;
   if(data.type==='flight-recording-sample')recorded.push(data.sample);
   if(data.type==='flight-recording-state')recording=data;
   if(data.type==='flight-recording-action')recordingAction=data.action;
@@ -35,9 +36,10 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
 (async()=>{
   const hudOnly=new URLSearchParams(location.search).has('hud');
   const recordingOnly=new URLSearchParams(location.search).has('recording');
-  if(hudOnly||recordingOnly){frame.style.height='calc(100vh - 54px)';frame.style.display='block';output.hidden=true;
+  const liveOnly=new URLSearchParams(location.search).has('live-radio');
+  if(hudOnly||recordingOnly||liveOnly){frame.style.height='calc(100vh - 54px)';frame.style.display='block';output.hidden=true;
     document.getElementById('status').style.cssText='height:30px;margin:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';}
-  frame.src='/terrain-globe.html'+(hudOnly||recordingOnly?'?chrome=floating':'');await until(()=>session&&terrain?.state==='ready','startup');
+  frame.src='/terrain-globe.html'+(hudOnly||recordingOnly||liveOnly?'?chrome=floating':'');await until(()=>session&&terrain?.state==='ready','startup');
   const win=frame.contentWindow,doc=win.document,v=win.fixtureViewer,C=win.Cesium,canvas=v.canvas;
   v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.7,2000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
   await until(()=>v.scene.globe.tilesLoaded,'terrain tiles');await pause(250);
@@ -114,6 +116,26 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
     await command('flight-recording-control',{action:'restore',id:'retained',count:recorded.length});
     check(!doc.getElementById('review-recording').hidden,'Retained recording is unavailable');
     document.getElementById('status').textContent='PASS — bounded flight recording, pause, resume and reset retention';return;
+  }
+  if(liveOnly){
+    await command('set-flight-radio-monitor',{enabled:true,revision:10});await until(()=>livePose?.active,'Live position stream');
+    const sampled=await command('query-live-radio-terrain',{positions:[{latitude:46.7,longitude:8.4},{latitude:46.701,longitude:8.4}]});
+    check(sampled.heightReference==='wgs84Ellipsoid'&&sampled.samplingMethod==='level-12'&&sampled.heights.every(h=>Math.abs(h-1000)<.01),'Live terrain datum / bounded level changed');
+    const link=(revision,state='noSampledObstruction',flightId=livePose.flightId)=>({revision,flightId,expiresAtMs:Date.now()+5000,state,message:state,
+      pilot:{latitude:46.701,longitude:8.4,height:1002},frequencyMhz:5800,fraction:.6,selected:0,
+      rays:[{latitude:46.7,longitude:8.4,height:1020,ground:1000,state}],
+      ...(state==='obstructed'?{obstruction:{latitude:46.7005,longitude:8.4,height:1050}}:{})});
+    await command('set-live-radio-result',link(11));
+    const source=()=>v.dataSources.getByName('Simulated radio link')[0];
+    check(source().entities.values.length<=12&&source().entities.getById('signal-ray-0').polyline.positions.isConstant,'Unbounded or dynamic live geometry');
+    await command('set-live-radio-result',link(12,'obstructed'));check(source().entities.getById('signal-obstruction'),'Obstruction marker absent');
+    await command('set-live-radio-result',{...link(13),expiresAtMs:Date.now()-1});check(!source()&&doc.getElementById('hud-live-radio').textContent==='LOS: ?','Expired profile restored a clear layer');
+    await command('set-live-radio-result',link(14));const oldFlight=livePose.flightId;
+    await command('reset-simulation');await until(()=>livePose.active&&livePose.flightId!==oldFlight,'Live reset generation');
+    check(!source(),'Reset retained old radio geometry');await command('set-live-radio-result',link(15,'noSampledObstruction',oldFlight));check(!source(),'Old flight restored radio geometry');
+    await command('set-flight-radio-monitor',{enabled:false,revision:16});check(doc.getElementById('hud-live-radio').hidden,'Disabled badge remains visible');
+    await command('set-flight-radio-monitor',{enabled:true,revision:17});await until(()=>livePose.active,'Live restart');await command('set-live-radio-result',link(18));
+    document.getElementById('status').textContent='PASS — live LOS, fixed-level terrain, obstruction marker, expiry and reset cleanup';return;
   }
   if(hudOnly){coordinateToggle.checked=true;coordinateToggle.dispatchEvent(new win.Event('change',{bubbles:true}));
     await until(()=>!coordinates.hidden,'Coordinate preview');document.getElementById('status').textContent='PASS — compact optional HUD coordinates';return;}

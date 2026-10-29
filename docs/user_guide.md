@@ -182,6 +182,15 @@ default; AGL requires recorded terrain heights. Recording ends on reset or exit.
 retained after a renderer interruption. Unsaved recordings are temporary and are
 lost when closing the app. Capture is limited to 30 minutes / 4,096 samples.
 
+**Radio line of sight** before flight, or **HUD settings → Radio link preview**,
+enables an optional geometric LOS/Fresnel preview. Choose the launch point, a saved
+spot or fixed coordinates as transmitter; set antenna height, frequency and Fresnel
+clearance. The small **LOS** HUD field opens details. Profiles cover up to 6 km,
+use terrain points at most 25 m apart and update at most every two seconds.
+Results expire after five seconds. Missing terrain stays unknown. Imported local
+surface observations are optional; visible 3D objects are not automatically included.
+This previews sampled geometry, not measured radio quality or guaranteed range.
+
 **External controller** (flight settings or HUD settings) selects **Standard gamepad**
 or **USB radio**. Zero-throttle position is **50% · centre** for self-centring controllers
 or **0% · bottom** for RC radios. In Angle/Acro, bottom zero uses the full travel

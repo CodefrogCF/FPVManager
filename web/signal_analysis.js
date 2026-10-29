@@ -23,16 +23,19 @@
                 (ray.height === null && ray.state !== 'unknown')) throw new Error('Invalid radio path state');
         }
     }
-    function createLayer(Cesium, viewer) {
+    function createLayer(Cesium, viewer, {name='Geometric radio analysis'}={}) {
         let source = null;
         function clear() { if (source) viewer.dataSources.remove(source, true); source = null; viewer.scene.requestRender(); }
         function set(command) {
             validate(command);
             if (!command.rays.length) { clear(); return {}; }
-            const replacement = new Cesium.CustomDataSource('Geometric radio analysis');
+            if(command.obstruction)point(command.obstruction);
+            const replacement = new Cesium.CustomDataSource(name);
             const C = Cesium.Cartesian3;
             const pilot = C.fromDegrees(command.pilot.longitude, command.pilot.latitude, command.pilot.height);
             replacement.entities.add({id:'signal-pilot', name:'Pilot antenna', position:pilot, point:{pixelSize:12, color:Cesium.Color.YELLOW}});
+            if(command.obstruction)replacement.entities.add({id:'signal-obstruction',name:'Potential sampled obstruction',
+                position:C.fromDegrees(command.obstruction.longitude,command.obstruction.latitude,command.obstruction.height),point:{pixelSize:12,color:Cesium.Color.ORANGE,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
             const colors = [Cesium.Color.GRAY, Cesium.Color.ORANGE, Cesium.Color.MEDIUMPURPLE, Cesium.Color.CYAN];
             command.rays.forEach((ray, index) => {
                 const color = colors[states.indexOf(ray.state)], target = C.fromDegrees(ray.longitude, ray.latitude, ray.height ?? ray.ground);

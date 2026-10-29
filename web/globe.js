@@ -43,6 +43,7 @@ function postToFlutter(message) {
     window.addEventListener("pagehide", event => {
         if (!event.persisted) { mapCompass?.dispose(); roadNavigation?.dispose(); }
         stopNavigation();
+        if (!event.persisted) liveRadio?.dispose();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
         if (!event.persisted) sceneEnvironment?.dispose();
         if (!event.persisted) windLayer?.dispose();
@@ -51,7 +52,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, flightRecording = null, sceneEnvironment = null, windLayer = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, applyFlightTime = null, requestedFlightTime = null;
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
@@ -621,6 +622,9 @@ function postToFlutter(message) {
             case "exit-simulation": flyer?.stop(); return {};
             case "reset-simulation": return flyer.reset(signal);
             case 'flight-recording-control': return flightRecording.control(command);
+            case 'set-flight-radio-monitor': return liveRadio.monitor(command);
+            case 'query-live-radio-terrain': return liveRadio.sample(command,signal);
+            case 'set-live-radio-result': return liveRadio.set(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-scene-environment': return sceneEnvironment.set(command);
             case 'set-scene-time': return sceneEnvironment.setTime(command);
@@ -780,6 +784,7 @@ function postToFlutter(message) {
                 routeEditor?.terrainChanged();
                 routeOverlays?.terrainChanged();
                 signalAnalysis?.clear();
+                liveRadio?.terrainChanged();
                 obstacleVectors?.terrainChanged();
                 windLayer?.terrainChanged();
                 activeViewer?.scene?.requestRender?.();
@@ -822,6 +827,8 @@ function postToFlutter(message) {
         const groundPanel = document.getElementById("ground-controls");
         const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
         const flightHud=FPVFlightHud.create(document),device=document.getElementById('navigation-device');
+        liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,
+            layer:FPVSignalAnalysis.createLayer(Cesium,viewer,{name:'Simulated radio link'})});
         flightRecording=FPVFlightRecording.create({emit:sendToFlutter,getState:()=>flyer.status()});
         flightRecording.bind(document);
         const settingsButton=document.getElementById('settings-flight'),settingsPanel=document.getElementById('flight-options');
@@ -875,6 +882,7 @@ function postToFlutter(message) {
         }
         function modeState(mode,state){
             if(mode==='flight')flightRecording.observe(state);
+            if(mode==='flight')liveRadio.observe(state,true);
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
             if(mode==='flight'){
                 if(entering)applyFlightTime(requestedFlightTime??undefined);
@@ -911,6 +919,7 @@ function postToFlutter(message) {
             applyPose:point=>{
                 applyCamera(point);
                 flightRecording.observe(point);
+                liveRadio.observe(point);
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
                 flightHud.update(point,viewer.camera.heading);
             },onState:state=>modeState('flight',state)});

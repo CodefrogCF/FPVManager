@@ -150,6 +150,7 @@ flutter:
     - web/wind_field.js
     - web/route_editor.js
     - web/signal_analysis.js
+    - web/live_radio.js
     - web/obstacle_layers.js
     - web/obstacle_models.js
     - web/offline_map_client.js

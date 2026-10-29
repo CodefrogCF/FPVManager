@@ -25,6 +25,7 @@ import 'route_map_state.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/controller_settings.dart';
 import '../simulation/flight_recording.dart';
+import '../signal/live_radio_controller.dart';
 import '../../core/models/scene_time.dart';
 import '../weather/wind_field.dart';
 import '../weather/wind_field_service.dart';
@@ -131,11 +132,42 @@ class GlobeController extends ChangeNotifier {
     )..addListener(_handleProviderChanged);
     recording = FlightRecording((command) => _send(command))
       ..addListener(_handleProviderChanged);
+    liveRadio = LiveRadioController(send: _send, sample: _queryLiveRadioTerrain)
+      ..addListener(_handleProviderChanged);
   }
 
   late final ObstacleMapController obstacles;
   late final WindMapController wind;
   late final FlightRecording recording;
+  late final LiveRadioController liveRadio;
+  VoidCallback? onLiveRadioSettingsRequested;
+  Future<List<double>> _queryLiveRadioTerrain(
+    List<Wgs84Coordinate> positions,
+  ) async {
+    if (!_terrainAvailable || positions.isEmpty || positions.length > 256) {
+      throw StateError('Live terrain unavailable');
+    }
+    final epoch = terrainRevision;
+    final data = await _request({
+      'type': 'query-live-radio-terrain',
+      'positions': [
+        for (final p in positions)
+          {'latitude': p.latitude, 'longitude': p.longitude},
+      ],
+    }, timeout: _bridge.options.terrainTimeout);
+    final heights = data['heights'];
+    if (!_terrainAvailable ||
+        terrainRevision != epoch ||
+        data['heightReference'] != 'wgs84Ellipsoid' ||
+        data['samplingMethod'] != 'level-12' ||
+        heights is! List ||
+        heights.length != positions.length ||
+        heights.any((h) => h is! num || !h.isFinite || h.abs() > 100000)) {
+      throw const FormatException('Incomplete live terrain');
+    }
+    return heights.map((h) => (h as num).toDouble()).toList(growable: false);
+  }
+
   VoidCallback? onRecordingReviewRequested;
   Future<void> discardFlightRecording() async {
     recording.discard();
@@ -1042,6 +1074,7 @@ class GlobeController extends ChangeNotifier {
     _selectedSpotId = null;
     _resetUasSelection();
     recording.rendererLost();
+    liveRadio.renderer(false);
     if (!_disposed) notifyListeners();
   }
 
@@ -1229,6 +1262,7 @@ class GlobeController extends ChangeNotifier {
     _terrainResourceWarning = false;
     _terrainReason = reason as String?;
     _terrainAvailable = next == GlobeTerrainState.ready;
+    liveRadio.terrainChanged(_terrainAvailable);
     _terrainEpoch++;
     _spotFocusSequence++;
     _selectedPoint = null;
@@ -1441,6 +1475,25 @@ class GlobeController extends ChangeNotifier {
     if (recording.handle(data)) return;
     if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
+      case 'flight-radio-position':
+        liveRadio.telemetry(data);
+      case 'flight-radio-settings-request':
+        onLiveRadioSettingsRequested?.call();
+      case 'flight-radio-toggle':
+        if (data['enabled'] is bool) {
+          final s = liveRadio.settings;
+          unawaited(
+            liveRadio
+                .configure(
+                  LiveRadioSettings(
+                    enabled: data['enabled'] as bool,
+                    useSpawn: s.useSpawn,
+                    signal: s.signal,
+                  ),
+                )
+                .catchError((Object _) {}),
+          );
+        }
       case 'flight-recording-action':
         final action = data['action'];
         if (action is String &&
@@ -1551,6 +1604,7 @@ class GlobeController extends ChangeNotifier {
         _terrainState = _terrainAvailable
             ? GlobeTerrainState.ready
             : GlobeTerrainState.unavailable;
+        liveRadio.renderer(_terrainAvailable);
         _terrainReason = _terrainAvailable ? null : 'connectionFailed';
         _terrainEpoch++;
         _uasDatasetSentToRenderer = false;
@@ -1679,6 +1733,7 @@ class GlobeController extends ChangeNotifier {
         }
 
       case 'globe-error':
+        liveRadio.renderer(false);
         _error = data['message']?.toString() ?? 'Unknown globe error';
         _uasZonesLoading = false;
         notifyListeners();
@@ -1971,6 +2026,8 @@ class GlobeController extends ChangeNotifier {
     wind.dispose();
     recording.removeListener(_handleProviderChanged);
     recording.dispose();
+    liveRadio.removeListener(_handleProviderChanged);
+    liveRadio.dispose();
     unawaited(_routeActions.close());
     _uasProvider.removeListener(_handleProviderChanged);
     if (_ownsUasProvider) {

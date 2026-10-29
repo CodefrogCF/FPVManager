@@ -80,6 +80,13 @@ reports phase/count/reason; HUD actions use `flight-recording-action`. Flutter
 retains received samples across renderer loss. Capture has a 30-minute / 4,096-sample
 limit, and reset/exit ends capture. Neither simulated velocity nor a display AGL
 default is converted into a planned speed or an assumed height.
+Live radio uses `set-flight-radio-monitor` and bounded `flight-radio-position`
+events (1 Hz plus mode transitions). `query-live-radio-terrain` accepts up to 256
+positions and returns explicit WGS84 ellipsoidal heights at terrain level 12.
+Exact-point heights are cached for 30 seconds, up to 4,096 entries, and invalidated
+with the terrain provider. `set-live-radio-result` carries a monotonic revision
+and `expiresAtMs`; Flutter and the renderer both expire results after five seconds.
+The live layer is independent of route radio analysis and is cleared on interruption.
 `navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
 reset/exit/connected booleans). Frames retain physical axes: forward/right are

@@ -67,6 +67,14 @@
 #flight-readout { position:absolute;bottom:max(38px,calc(env(safe-area-inset-bottom) + 30px));left:50%;transform:translateX(-50%);
     width:min(620px,calc(100% - 24px));box-sizing:border-box; }
 .hud-secondary { display:flex;justify-content:center;gap:20px;font-size:12px;margin-bottom:8px;color:#e2e5e8; }
+.hud-secondary { flex-wrap:wrap;row-gap:4px; }
+#hud-live-radio { pointer-events:auto;border:1px solid #ffffff65;border-radius:5px;background:#10182080;color:#e2e5e8;font:inherit;padding:2px 5px;cursor:pointer; }
+#hud-live-radio[data-state="obstructed"] { color:#ffc48a; }
+#hud-live-radio[data-state="fresnelIntrusion"] { color:#e6c3ff; }
+#hud-live-radio[data-state="noSampledObstruction"] { color:#9be7e8; }
+#flight-radio { margin-top:14px;font-size:12px; }
+#flight-radio button { min-height:36px;padding:6px;margin-top:8px; }
+#flight-radio output { display:block;margin-top:6px; }
 .hud-telemetry { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
     padding:10px 8px;border-radius:12px;background:linear-gradient(0deg,#10182075,#10182010); }
 .hud-metric { display:flex;flex-direction:column;align-items:center;justify-content:end;gap:4px;min-width:0; }

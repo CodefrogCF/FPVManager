@@ -13,6 +13,7 @@ Future<SimulationSettings?> showSimulationSettings(
   SimulationSettings initial = const SimulationSettings(),
   required bool hasSelection,
   Widget? windControls,
+  Widget? radioControls,
 }) => showModalBottomSheet<SimulationSettings>(
   context: context,
   isScrollControlled: true,
@@ -21,6 +22,7 @@ Future<SimulationSettings?> showSimulationSettings(
     initial: initial,
     hasSelection: hasSelection,
     windControls: windControls,
+    radioControls: radioControls,
   ),
 );
 
@@ -30,11 +32,13 @@ class _Settings extends StatefulWidget {
     required this.initial,
     required this.hasSelection,
     this.windControls,
+    this.radioControls,
   });
   final DroneRepository repository;
   final SimulationSettings initial;
   final bool hasSelection;
   final Widget? windControls;
+  final Widget? radioControls;
   @override
   State<_Settings> createState() => _SettingsState();
 }
@@ -245,6 +249,7 @@ class _SettingsState extends State<_Settings> {
                       ],
                     ),
                     if (widget.windControls != null) widget.windControls!,
+                    if (widget.radioControls != null) widget.radioControls!,
                     DropdownButtonFormField<SimulationFlightMode>(
                       initialValue: _mode,
                       isExpanded: true,

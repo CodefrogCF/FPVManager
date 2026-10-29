@@ -16,6 +16,8 @@ Future<RouteStartLocation?> showRouteStartLocation(
   required bool search,
   SpotRepository? spots,
   DestinationSearch? placeSearch,
+  String? title,
+  String? hint,
 }) => showModalBottomSheet<RouteStartLocation>(
   context: context,
   isScrollControlled: true,
@@ -27,7 +29,9 @@ Future<RouteStartLocation?> showRouteStartLocation(
       child: Column(
         children: [
           ListTile(
-            title: Text(search ? 'Find a start area' : 'Start at a saved spot'),
+            title: Text(
+              title ?? (search ? 'Find a start area' : 'Start at a saved spot'),
+            ),
             trailing: IconButton(
               tooltip: 'Close',
               onPressed: () => Navigator.pop(context),
@@ -60,7 +64,7 @@ Future<RouteStartLocation?> showRouteStartLocation(
                       ],
                     ),
                   )
-                : _SavedStarts(repository: spots!),
+                : _SavedStarts(repository: spots!, hint: hint),
           ),
         ],
       ),
@@ -69,8 +73,9 @@ Future<RouteStartLocation?> showRouteStartLocation(
 );
 
 class _SavedStarts extends StatefulWidget {
-  const _SavedStarts({required this.repository});
+  const _SavedStarts({required this.repository, this.hint});
   final SpotRepository repository;
+  final String? hint;
   @override
   State<_SavedStarts> createState() => _SavedStartsState();
 }
@@ -94,10 +99,10 @@ class _SavedStartsState extends State<_SavedStarts> {
               setState(() => _filter = value.trim().toLowerCase()),
         ),
       ),
-      const Padding(
-        padding: EdgeInsets.all(16),
+      Padding(
+        padding: const EdgeInsets.all(16),
         child: Text(
-          'Choose a spot to add the first waypoint at its saved coordinates.',
+          widget.hint ?? 'Choose a spot to add the first waypoint at its saved coordinates.',
         ),
       ),
       Expanded(

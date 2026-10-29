@@ -118,7 +118,9 @@ class Handler(SimpleHTTPRequestHandler):
         elif path.startswith('/terrain-data/') and path.endswith('.terrain'):
             try:
                 z, x, y = map(int, path.removeprefix('/terrain-data/').removesuffix('.terrain').split('/'))
-                if not (0 <= z <= 8 and 0 <= x < (2 << z) and 0 <= y < (1 << z)):
+                # Rendered fixture LOD stops at 8; explicit live-radio profiles
+                # can also sample the same synthetic 1000 m surface at level 12.
+                if not (0 <= z <= 12 and 0 <= x < (2 << z) and 0 <= y < (1 << z)):
                     raise ValueError()
             except ValueError:
                 self.reply(b'', status=404)

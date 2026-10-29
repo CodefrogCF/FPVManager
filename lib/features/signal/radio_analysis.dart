@@ -113,11 +113,15 @@ class RadioAnalysisPlan {
       heights.sublist(1, route.samples.length + 1),
       const RoutePlanningSettings(),
     );
-    final pilotHeight = heights[0] + settings.antennaHeight,
-        a = _ecef(settings.pilot, pilotHeight);
+    final pilotHeight = heights[0] + settings.antennaHeight;
     return List.unmodifiable([
       for (var i = 0; i < paths.length; i++)
-        _calculatePath(i, heights, routeResult.profile[i].altitude, a),
+        _calculatePath(
+          i,
+          heights,
+          routeResult.profile[i].altitude,
+          pilotHeight,
+        ),
     ]);
   }
 
@@ -125,7 +129,7 @@ class RadioAnalysisPlan {
     int index,
     List<double> heights,
     double? altitude,
-    _Vector a,
+    double pilotHeight,
   ) {
     final target = route.samples[index].position;
     if (altitude == null || routeDistance(settings.pilot, target) < 1) {
@@ -135,65 +139,108 @@ class RadioAnalysisPlan {
         state: RadioPathState.unknown,
       );
     }
-    final b = _ecef(target, altitude),
-        delta = b - a,
-        length = delta.length,
-        direction = delta * (1 / length);
-    final samples = <RadioPathSample>[];
-    final indices = paths[index];
-    var minimum = double.infinity, fresnelMinimum = double.infinity;
-    for (var i = 0; i < indices.length; i++) {
-      final t = i / (indices.length - 1),
-          p = positions[indices[i]],
-          ground = heights[indices[i]];
-      var surface = ground;
-      if (settings.useSurfaces) {
-        for (final s in settings.surfaces) {
-          if (routeDistance(p, s.position) <= s.radius) {
-            surface = math.max(surface, ground + s.height);
-          }
-        }
-      }
-      final up = _up(p), line = a + delta * t;
-      final verticalClearance = (line - _ecef(p, surface)).dot(up);
-      final perpendicularScale = math.sqrt(
-        math.max(0, 1 - math.pow(up.dot(direction), 2)),
-      );
-      final clearance = verticalClearance * perpendicularScale;
-      final radius = fresnelRadius(
-        settings.frequencyMhz,
-        length * t,
-        length * (1 - t),
-      );
-      minimum = math.min(minimum, clearance);
-      fresnelMinimum = math.min(
-        fresnelMinimum,
-        clearance - settings.clearanceFraction * radius,
-      );
-      samples.add(
-        RadioPathSample(
-          p,
-          ground,
-          surface,
-          surface + verticalClearance,
-          radius,
-          clearance,
-        ),
-      );
-    }
+    return calculateRadioLink(
+      settings: settings,
+      target: target,
+      altitude: altitude,
+      pilotHeight: pilotHeight,
+      positions: [for (final i in paths[index]) positions[i]],
+      heights: [for (final i in paths[index]) heights[i]],
+    );
+  }
+}
+
+/// Shared single-link kernel for route planning and live simulation.
+RadioPathResult calculateRadioLink({
+  required SignalSettings settings,
+  required Wgs84Coordinate target,
+  required double altitude,
+  required double pilotHeight,
+  required List<Wgs84Coordinate> positions,
+  required List<double> heights,
+}) {
+  settings.validate();
+  bool validPosition(Wgs84Coordinate p) =>
+      p.latitude.isFinite &&
+      p.longitude.isFinite &&
+      p.latitude.abs() <= 90 &&
+      p.longitude.abs() <= 180;
+  if (!validPosition(target) || positions.any((p) => !validPosition(p))) {
+    throw ArgumentError('Invalid radio coordinates');
+  }
+  if (positions.length < 2 ||
+      positions.length != heights.length ||
+      positions.length > 4096 ||
+      heights.any((h) => !h.isFinite || h.abs() > 100000) ||
+      !altitude.isFinite ||
+      altitude.abs() > 100000 ||
+      !pilotHeight.isFinite ||
+      pilotHeight.abs() > 100000) {
+    throw ArgumentError('Incomplete radio path');
+  }
+  if (routeDistance(settings.pilot, target) < 1) {
     return RadioPathResult(
       target: target,
       altitude: altitude,
-      state: minimum <= 0
-          ? RadioPathState.obstructed
-          : fresnelMinimum <= 0
-          ? RadioPathState.fresnelIntrusion
-          : RadioPathState.noSampledObstruction,
-      minimumClearance: minimum,
-      minimumFresnelClearance: fresnelMinimum,
-      profile: List.unmodifiable(samples),
+      state: RadioPathState.unknown,
     );
   }
+  final a = _ecef(settings.pilot, pilotHeight),
+      b = _ecef(target, altitude),
+      delta = b - a,
+      length = delta.length,
+      direction = delta * (1 / length);
+  final samples = <RadioPathSample>[];
+  var minimum = double.infinity, fresnelMinimum = double.infinity;
+  for (var i = 0; i < positions.length; i++) {
+    final t = i / (positions.length - 1), p = positions[i], ground = heights[i];
+    var surface = ground;
+    if (settings.useSurfaces) {
+      for (final s in settings.surfaces) {
+        if (routeDistance(p, s.position) <= s.radius) {
+          surface = math.max(surface, ground + s.height);
+        }
+      }
+    }
+    final up = _up(p), line = a + delta * t;
+    final verticalClearance = (line - _ecef(p, surface)).dot(up);
+    final perpendicularScale = math.sqrt(
+      math.max(0, 1 - math.pow(up.dot(direction), 2)),
+    );
+    final clearance = verticalClearance * perpendicularScale;
+    final radius = fresnelRadius(
+      settings.frequencyMhz,
+      length * t,
+      length * (1 - t),
+    );
+    minimum = math.min(minimum, clearance);
+    fresnelMinimum = math.min(
+      fresnelMinimum,
+      clearance - settings.clearanceFraction * radius,
+    );
+    samples.add(
+      RadioPathSample(
+        p,
+        ground,
+        surface,
+        surface + verticalClearance,
+        radius,
+        clearance,
+      ),
+    );
+  }
+  return RadioPathResult(
+    target: target,
+    altitude: altitude,
+    state: minimum <= 0
+        ? RadioPathState.obstructed
+        : fresnelMinimum <= 0
+        ? RadioPathState.fresnelIntrusion
+        : RadioPathState.noSampledObstruction,
+    minimumClearance: minimum,
+    minimumFresnelClearance: fresnelMinimum,
+    profile: List.unmodifiable(samples),
+  );
 }
 
 List<RadioPathResult> calculateRadioAnalysis(

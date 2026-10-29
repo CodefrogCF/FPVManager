@@ -45,6 +45,7 @@ import '../globe/map_floating_surface.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/simulation_settings_sheet.dart';
 import '../simulation/flight_recording_sheet.dart';
+import '../signal/live_radio_sheet.dart';
 import '../routes/route_editor_screen.dart';
 import '../preflight/preflight_screen.dart';
 
@@ -241,6 +242,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ),
       hasSelection: spot != null || point != null,
       windControls: WindControlsLauncher(globe: _globeController, flight: true),
+      radioControls: LiveRadioLauncher(
+        globe: _globeController,
+        spots: _spotRepository ??=
+            widget.spotRepository ??
+            SpotRepository(_database ??= FpvDatabase.open()),
+      ),
     );
     if (settings == null || !mounted) return;
     _simulationSettings = settings;
@@ -256,6 +263,24 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   StreamSubscription<List<SpotMapEntry>>? _spotsSubscription;
   AppLifecycleListener? _windLifecycle;
   bool _windSheetOpen = false;
+  bool _radioSheetOpen = false;
+  void _radioRequestHandler() => unawaited(_openRadioPreview());
+  Future<void> _openRadioPreview() async {
+    if (!mounted || _radioSheetOpen) return;
+    _radioSheetOpen = true;
+    try {
+      await showLiveRadioSettings(
+        context,
+        _globeController,
+        spots: _spotRepository ??=
+            widget.spotRepository ??
+            SpotRepository(_database ??= FpvDatabase.open()),
+      );
+    } finally {
+      _radioSheetOpen = false;
+    }
+  }
+
   void _windRequestHandler() => unawaited(_openWindSettings());
   Future<void> _openWindSettings() async {
     if (!mounted || _windSheetOpen) return;
@@ -505,6 +530,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   @override
   void dispose() {
+    if (_globeController.onLiveRadioSettingsRequested == _radioRequestHandler) {
+      _globeController.onLiveRadioSettingsRequested = null;
+    }
     _windLifecycle?.dispose();
     if (_globeController.onWindSettingsRequested == _windRequestHandler) {
       _globeController.onWindSettingsRequested = null;
@@ -590,6 +618,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     _globeController.addListener(_onGlobeStateChanged);
     _globeController.onWindSettingsRequested = _windRequestHandler;
     _globeController.onRecordingReviewRequested = _recordingReviewHandler;
+    _globeController.onLiveRadioSettingsRequested = _radioRequestHandler;
     _windLifecycle = AppLifecycleListener(
       onStateChange: (state) =>
           _globeController.wind.foreground(state == AppLifecycleState.resumed),
