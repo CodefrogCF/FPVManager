@@ -9,6 +9,7 @@ import 'road_routing.dart';
 import 'situational_provider.dart';
 import 'traffic_incident.dart';
 import 'traffic_counters_provider.dart';
+import 'route_traffic_evaluation.dart';
 
 double _lon(double delta) => (delta + 540) % 360 - 180;
 double roadDistance(MobilityPoint a, MobilityPoint b) {
@@ -241,6 +242,7 @@ List<Map<String, dynamic>> navigationTraffic(Map<String, dynamic> input) {
   final result = <Map<String, dynamic>>[];
   for (final item in (input['features'] as List).take(20000)) {
     final feature = Map<String, dynamic>.from(item as Map);
+    feature.remove('routingEvidence');
     final until = DateTime.tryParse(feature['validUntilUtc'] as String? ?? '');
     if (feature['suspended'] == true ||
         (until != null && !until.isAfter(time))) {
@@ -277,18 +279,30 @@ class RoadNavigation extends ChangeNotifier {
     this.traffic,
     this.counters,
     this.automaticTrafficUpdates = false,
+    this.trafficAwareRouting = false,
     DateTime Function()? now,
   }) : _route = route,
        _geometry = RoadGeometry(route.points),
        _now = now ?? DateTime.now {
-    traffic?.addListener(_trafficChanged);
-    counters?.addListener(_trafficChanged);
+    traffic?.addListener(_sourceChanged);
+    counters?.addListener(_sourceChanged);
   }
   final RoadRouter router;
   final NavigationLocationSource locations;
   final SituationalProvider? traffic;
   final TrafficCountersProvider? counters;
   bool automaticTrafficUpdates;
+  bool trafficAwareRouting;
+  int _routingPolicyEpoch = 0;
+  int _routingDataEpoch = 0;
+  RouteTrafficEvaluation? routeTrafficEvaluation;
+  void setTrafficAwareRouting(bool enabled) {
+    trafficAwareRouting = enabled;
+    ++_routingPolicyEpoch;
+    routeTrafficEvaluation = null;
+    notifyListeners();
+  }
+
   Timer? _trafficTimer;
   void setAutomaticTrafficUpdates(bool enabled) {
     automaticTrafficUpdates = enabled && (traffic != null || counters != null);
@@ -576,16 +590,39 @@ class RoadNavigation extends ChangeNotifier {
     routeError = null;
     final epoch = _epoch;
     final origin = fix!.point;
+    final policyEpoch = _routingPolicyEpoch;
     notifyListeners();
     try {
-      final next = await router.calculate(
+      final candidate = await router.calculate(
         origin,
         _route.destination ?? _route.points.last,
         headingDegrees: _moving && _currentCourse ? _travelHeading : null,
       );
+      RouteTrafficEvaluation? evaluation;
+      final dataEpoch = _routingDataEpoch;
+      if (trafficAwareRouting && policyEpoch == _routingPolicyEpoch) {
+        evaluation = await compute(
+          evaluateRouteTraffic,
+          RouteTrafficInput(
+            candidate.choices,
+            _now().toUtc(),
+            traffic: traffic?.status,
+            counters: counters?.status,
+          ),
+        );
+      }
+      if (!trafficAwareRouting ||
+          policyEpoch != _routingPolicyEpoch ||
+          dataEpoch != _routingDataEpoch) {
+        evaluation = null;
+      }
+      final next = evaluation == null
+          ? candidate
+          : evaluation.assessments[evaluation.recommendedIndex].route;
       final geometry = RoadGeometry(next.points);
       if (_disposed || !active || epoch != _epoch) return;
       _route = next;
+      routeTrafficEvaluation = evaluation;
       _geometry = geometry;
       trafficAlerts = [];
       routeRevision++;
@@ -680,6 +717,12 @@ class RoadNavigation extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _sourceChanged() {
+    ++_routingDataEpoch;
+    routeTrafficEvaluation = null;
+    _trafficChanged();
+  }
+
   String get trafficStatus {
     if (trafficAnalysisError != null) return trafficAnalysisError!;
     if (traffic == null) return 'Verkehrsdaten ausgeschaltet';
@@ -713,8 +756,8 @@ class RoadNavigation extends ChangeNotifier {
     _disposed = true;
     pause();
     ++_trafficEpoch;
-    traffic?.removeListener(_trafficChanged);
-    counters?.removeListener(_trafficChanged);
+    traffic?.removeListener(_sourceChanged);
+    counters?.removeListener(_sourceChanged);
     super.dispose();
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -10,6 +11,8 @@ import '../../core/osint/osint_provider_state.dart';
 import '../../core/osint/osint_source.dart';
 import 'road_routing.dart';
 import 'traffic_snapshot.dart';
+import 'tmc_repository.dart';
+import 'tmc_traffic_resolution.dart';
 
 export 'traffic_snapshot.dart'
     show parseTrafficSnapshot, parseTrafficStream, trafficMaxResponseBytes;
@@ -122,6 +125,7 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
     required this.kind,
     required this.center,
     this.readTrafficKey,
+    this.tmc,
     http.Client? client,
     super.now,
   }) : transport = MobilityHttp(client: client),
@@ -129,11 +133,144 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
          cacheDuration: kind == SituationalKind.aircraft
              ? const Duration(seconds: 30)
              : const Duration(minutes: 5),
-       );
+       ) {
+    if (kind == SituationalKind.traffic && tmc != null) {
+      addListener(_queueTmc);
+      tmc!.addListener(_queueTmc);
+    }
+  }
   final SituationalKind kind;
   final MobilityPoint center;
   final Future<String?> Function()? readTrafficKey;
   final MobilityHttp transport;
+  final TmcRepository? tmc;
+  OsintDataset<Map<String, dynamic>>? _resolvedDataset;
+  Map<String, dynamic>? _resolvingSource;
+  String? _resolvedSignature;
+  bool _tmcDisposed = false, _tmcAgain = false;
+  int _tmcEpoch = 0;
+  Future<void>? _resolution;
+  String? tmcError;
+  Future<void> get tmcSettled async {
+    while (_resolution != null) {
+      await _resolution;
+    }
+  }
+
+  @override
+  OsintProviderState<Map<String, dynamic>> get status {
+    final base = super.status;
+    final resolved = _resolvedDataset;
+    if (resolved == null || !identical(_resolvingSource, base.dataset?.data)) {
+      return base;
+    }
+    return OsintProviderState(
+      update: base.update,
+      freshness: base.freshness,
+      checkedAtUtc: base.checkedAtUtc,
+      dataset: resolved,
+      lastAttemptAtUtc: base.lastAttemptAtUtc,
+      error: base.error,
+      servedFromCache: base.servedFromCache,
+      cacheError: base.cacheError,
+    );
+  }
+
+  void _queueTmc() {
+    if (_tmcDisposed || tmc == null) return;
+    final base = super.status.dataset;
+    if (base == null) return;
+    final needed = neededTmcVersions(base.data);
+    if (needed.isEmpty &&
+        !(base.data['records'] as List? ?? const [])
+            .take(20000)
+            .any(
+              (r) =>
+                  r is Map &&
+                  (r['routingEvidence'] as List? ?? const [])
+                      .take(32)
+                      .any((p) => p is Map && p['tmc'] != null),
+            )) {
+      return;
+    }
+    unawaited(tmc!.restore(needed));
+    final snapshots = tmc!.snapshots;
+    final signature = [
+      for (final v in needed)
+        '$v:${snapshots[v]?.table.sha256sum}:${snapshots[v]?.imported}',
+    ].join('|');
+    if (identical(_resolvingSource, base.data) &&
+        _resolvedSignature == signature) {
+      return;
+    }
+    if (_resolution != null) {
+      _tmcAgain = true;
+      ++_tmcEpoch;
+      return;
+    }
+    final epoch = ++_tmcEpoch;
+    tmcError = null;
+    _resolvingSource = base.data;
+    _resolvedSignature = signature;
+    _resolvedDataset = null;
+    final completion = Completer<void>();
+    _resolution = completion.future;
+    unawaited(() async {
+      try {
+        final data = await compute(
+          resolveTrafficTmc,
+          TmcTrafficInput(
+            base.data,
+            {
+              for (final v in needed)
+                if (snapshots[v] != null) v: snapshots[v]!.table,
+            },
+            {
+              for (final v in needed)
+                if (snapshots[v] != null)
+                  v: {
+                    'verified': !snapshots[v]!.imported,
+                    'retrievedUtc': snapshots[v]!.retrievedUtc
+                        .toIso8601String(),
+                    'publication': snapshots[v]!.table.publication,
+                  },
+            },
+          ),
+        );
+        if (!_tmcDisposed && epoch == _tmcEpoch) {
+          _resolvedDataset = OsintDataset(
+            source: base.source,
+            data: data,
+            fetchedAtUtc: base.fetchedAtUtc,
+            cacheExpiresAtUtc: base.cacheExpiresAtUtc,
+            lastCheckedAtUtc: base.lastCheckedAtUtc,
+            publishedAtUtc: base.publishedAtUtc,
+            validity: base.validity,
+            persistable: base.persistable,
+            requiresRevalidation: base.requiresRevalidation,
+            httpEtag: base.httpEtag,
+            httpLastModified: base.httpLastModified,
+          );
+        }
+      } catch (_) {
+        if (!_tmcDisposed && epoch == _tmcEpoch) tmcError = 'TMC-Ortsauflösung nicht verfügbar. Ursprüngliche Meldungen bleiben erhalten; Tabellen prüfen oder erneut laden.';
+        // Keep raw messages available; a failed reference lookup is not a live
+        // traffic download failure and must never renew the source timestamp.
+      } finally {
+        _resolution = null;
+        completion.complete();
+        if (!_tmcDisposed) {
+          if (_tmcAgain) {
+            _tmcAgain = false;
+            _resolvingSource = null;
+            _queueTmc();
+          }
+          notifyListeners();
+        }
+      }
+    }());
+  }
+
   String? _import;
   Stream<List<int>>? _importStream;
   DateTime? _lastNetworkAttempt;
@@ -341,6 +478,10 @@ class SituationalProvider extends CachedOsintProvider<Map<String, dynamic>> {
 
   @override
   void dispose() {
+    _tmcDisposed = true;
+    ++_tmcEpoch;
+    tmc?.removeListener(_queueTmc);
+    removeListener(_queueTmc);
     transport.dispose();
     super.dispose();
   }

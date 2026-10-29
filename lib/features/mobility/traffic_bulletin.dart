@@ -255,6 +255,11 @@ class TrafficIncidentCard extends StatelessWidget {
               ),
             if (r.data['geometryAccuracy'] == 'displayReference')
               const Text('Anzeigereferenz · genaue Ausdehnung unbekannt'),
+            if ({
+              'tmcAnchors',
+              'tmcReference',
+            }.contains(r.data['geometryAccuracy']))
+              const Text('TMC-Tabellenbezug · kein genauer Straßenverlauf'),
             if (along != null)
               Text(
                 'In ${((along - progressMeters).clamp(0, double.infinity) / 1000).toStringAsFixed(1)} km · im 300-m-Routenumfeld',
@@ -282,6 +287,7 @@ class TrafficIncidentCard extends StatelessWidget {
                   const Text(
                     'Die Quelle nennt wiederkehrende Zeitfenster. Einzelne Zeitfenster vor Fahrtantritt prüfen.',
                   ),
+                if (r.data['tmcStatus'] case final String status) Text(status),
                 if (r.data['geometryAccuracy'] == 'approximateLine')
                   const Text(
                     'Gerade Verbindung zwischen Quellenpositionen; kein genauer Straßenverlauf.',

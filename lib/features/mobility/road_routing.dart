@@ -202,12 +202,30 @@ class RoadRoute {
     required this.retrievedUtc,
     this.maneuvers = const [],
     this.destination,
+    this.sections = const [],
+    this.alternatives = const [],
+    this.omittedAlternatives = 0,
   });
   final double distanceMeters, durationSeconds;
   final List<MobilityPoint> points;
   final DateTime retrievedUtc;
   final List<RoadManeuver> maneuvers;
   final MobilityPoint? destination;
+  final List<RoadSection> sections;
+  final List<RoadRoute> alternatives;
+  final int omittedAlternatives;
+  List<RoadRoute> get choices => [this, ...alternatives];
+  RoadRoute withAlternatives(List<RoadRoute> others, int omitted) => RoadRoute(
+    distanceMeters: distanceMeters,
+    durationSeconds: durationSeconds,
+    points: points,
+    retrievedUtc: retrievedUtc,
+    maneuvers: maneuvers,
+    destination: destination,
+    sections: sections,
+    alternatives: List.unmodifiable(others),
+    omittedAlternatives: omitted,
+  );
   Map<String, dynamic> get overlay => {
     'id': 'road',
     'visible': true,
@@ -216,7 +234,7 @@ class RoadRoute {
         'id': 'road-route',
         'name': 'Driving route · OSRM / © OpenStreetMap contributors (ODbL)',
         'detail':
-            '${(distanceMeters / 1000).toStringAsFixed(1)} km · ${(durationSeconds / 60).ceil()} min estimate; no live traffic, access permission or last-mile guarantee.',
+            '${(distanceMeters / 1000).toStringAsFixed(1)} km · ${(durationSeconds / 60).ceil()} min OSRM base estimate without traffic delays; verify access and the final approach.',
         'geometry': {
           'type': 'LineString',
           'coordinates': points.map((p) => p.toJson()).toList(),
@@ -225,6 +243,29 @@ class RoadRoute {
     ],
   };
 }
+
+/// Explicit OSRM step geometry and road references; never inferred from turn names.
+class RoadSection {
+  const RoadSection({
+    required this.points,
+    required this.references,
+    required this.durationSeconds,
+    required this.distanceMeters,
+    this.link = false,
+  });
+  final List<MobilityPoint> points;
+  final Set<String> references;
+  final double durationSeconds, distanceMeters;
+  final bool link;
+}
+
+Set<String> roadReferences(String value) => value
+    .toUpperCase()
+    .split(RegExp(r'[;,]'))
+    .map((s) => s.replaceAll(RegExp(r'\s+'), ''))
+    .where((s) => RegExp(r'^[A-Z]{0,3}[0-9]{1,5}[A-Z]?$').hasMatch(s))
+    .take(8)
+    .toSet();
 
 class RoadRouter {
   RoadRouter({http.Client? client, DateTime Function()? now})
@@ -268,6 +309,7 @@ class RoadRouter {
         'overview': 'full',
         'geometries': 'geojson',
         'steps': 'true',
+        'alternatives': 'true',
         if (headingDegrees != null)
           'bearings': '${headingDegrees.round() % 360},60;',
       },
@@ -287,97 +329,167 @@ class RoadRouter {
   }
 
   Future<RoadRoute> _load(Uri uri, MobilityPoint destination) async {
-    final json = jsonDecode(
-      await transport.text(uri, maxBytes: 2 * 1024 * 1024),
-    ) as Map<String, dynamic>;
-    if (json['code'] != 'Ok' ||
-        json['routes'] is! List ||
-        (json['routes'] as List).isEmpty) {
-      throw const FormatException('No driving route available');
-    }
-    final route = (json['routes'] as List).first as Map;
-    final distance = route['distance'],
-        duration = route['duration'],
-        geometry = route['geometry'];
-    if (distance is! num ||
-        duration is! num ||
-        !distance.isFinite ||
-        !duration.isFinite ||
-        distance < 0 ||
-        duration < 0 ||
-        distance > 100000000 ||
-        duration > 2592000 ||
-        geometry is! Map ||
-        geometry['type'] != 'LineString' ||
-        geometry['coordinates'] is! List) {
-      throw const FormatException('Invalid route response');
-    }
-    final coordinates = geometry['coordinates'] as List;
-    if (coordinates.length < 2 || coordinates.length > 20000) {
-      throw const FormatException('Unsupported route size');
-    }
-    final maneuvers = <RoadManeuver>[];
-    var at = 0.0;
-    if (route['legs'] != null) {
-      final legs = route['legs'];
-      if (legs is! List || legs.length > 100) {
-        throw const FormatException('Invalid route legs');
+    final body = await transport.text(uri, maxBytes: 6 * 1024 * 1024);
+    final input = (body, destination, now().toUtc());
+    // Tiny responses do not benefit from worker startup and message copying.
+    return body.length < 64 * 1024
+        ? _decodeAlternatives(input)
+        : compute(_decodeAlternatives, input);
+  }
+}
+
+RoadRoute _decodeAlternatives((String, MobilityPoint, DateTime) request) {
+  final decoded = jsonDecode(request.$1);
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Invalid routing response');
+  }
+  final json = decoded;
+  if (json['code'] != 'Ok' ||
+      json['routes'] is! List ||
+      (json['routes'] as List).isEmpty) {
+    throw const FormatException('No driving route available');
+  }
+  final routes = json['routes'] as List;
+  if (routes.length > 8) {
+    throw const FormatException('Unsupported alternative count');
+  }
+  RoadRoute read(Object? raw) {
+    if (raw is! Map) throw const FormatException('Invalid route');
+    return _decodeRoadRoute(raw, request.$2, request.$3);
+  }
+
+  final first = read(routes.first), others = <RoadRoute>[];
+  var omitted = routes.length > 3 ? routes.length - 3 : 0;
+  for (final raw in routes.skip(1).take(2)) {
+    try {
+      final alternative = read(raw);
+      if (alternative.distanceMeters < 1 ||
+          !alternative.points.any(
+            (p) =>
+                p.latitude != alternative.points.first.latitude ||
+                p.longitude != alternative.points.first.longitude,
+          )) {
+        throw const FormatException('Empty alternative');
       }
-      for (final leg in legs) {
-        if (leg is! Map || leg['steps'] is! List) {
-          throw const FormatException('Missing route instructions');
+      others.add(alternative);
+    } on FormatException {
+      omitted++;
+    }
+  }
+  return first.withAlternatives(others, omitted);
+}
+
+RoadRoute _decodeRoadRoute(
+  Map route,
+  MobilityPoint destination,
+  DateTime time,
+) {
+  final distance = route['distance'],
+      duration = route['duration'],
+      geometry = route['geometry'];
+  if (distance is! num ||
+      duration is! num ||
+      !distance.isFinite ||
+      !duration.isFinite ||
+      distance < 0 ||
+      duration < 0 ||
+      distance > 100000000 ||
+      duration > 2592000 ||
+      geometry is! Map ||
+      geometry['type'] != 'LineString' ||
+      geometry['coordinates'] is! List) {
+    throw const FormatException('Invalid route response');
+  }
+  final coordinates = geometry['coordinates'] as List;
+  if (coordinates.length < 2 || coordinates.length > 20000) {
+    throw const FormatException('Unsupported route size');
+  }
+  final maneuvers = <RoadManeuver>[];
+  final sections = <RoadSection>[];
+  var sectionVertices = 0;
+  var at = 0.0;
+  if (route['legs'] != null) {
+    final legs = route['legs'];
+    if (legs is! List || legs.length > 100) {
+      throw const FormatException('Invalid route legs');
+    }
+    for (final leg in legs) {
+      if (leg is! Map || leg['steps'] is! List) {
+        throw const FormatException('Missing route instructions');
+      }
+      for (final step in leg['steps'] as List) {
+        if (maneuvers.length >= 2000 ||
+            step is! Map ||
+            step['maneuver'] is! Map) {
+          throw const FormatException('Invalid route instructions');
         }
-        for (final step in leg['steps'] as List) {
-          if (maneuvers.length >= 2000 ||
-              step is! Map ||
-              step['maneuver'] is! Map) {
-            throw const FormatException('Invalid route instructions');
+        final maneuver = step['maneuver'] as Map,
+            d = step['distance'],
+            t = step['duration'];
+        if (d is! num ||
+            t is! num ||
+            !d.isFinite ||
+            !t.isFinite ||
+            d < 0 ||
+            t < 0 ||
+            maneuver['type'] is! String) {
+          throw const FormatException('Invalid route instruction');
+        }
+        if (d > distance + 1000 || t > duration + 600) {
+          throw const FormatException('Inconsistent route instruction');
+        }
+        MobilityPoint.fromJson(maneuver['location']);
+        String label(Object? value) => value is String
+            ? value.substring(0, value.length.clamp(0, 160))
+            : '';
+        final exit = maneuver['exit'];
+        if (exit != null && (exit is! int || exit < 1 || exit > 100)) {
+          throw const FormatException('Invalid roundabout exit');
+        }
+        maneuvers.add(
+          RoadManeuver(
+            type: label(maneuver['type']),
+            modifier: label(maneuver['modifier']),
+            road: label(step['name']),
+            atMeters: at,
+            distanceMeters: d.toDouble(),
+            durationSeconds: t.toDouble(),
+            exit: exit as int?,
+          ),
+        );
+        final section = step['geometry'];
+        if (section is Map &&
+            section['type'] == 'LineString' &&
+            section['coordinates'] is List) {
+          final raw = section['coordinates'] as List;
+          sectionVertices += raw.length;
+          if (raw.length < 2 || sectionVertices > 40000) {
+            throw const FormatException('Unsupported road section size');
           }
-          final maneuver = step['maneuver'] as Map,
-              d = step['distance'],
-              t = step['duration'];
-          if (d is! num ||
-              t is! num ||
-              !d.isFinite ||
-              !t.isFinite ||
-              d < 0 ||
-              t < 0 ||
-              maneuver['type'] is! String) {
-            throw const FormatException('Invalid route instruction');
-          }
-          if (d > distance + 1000 || t > duration + 600) {
-            throw const FormatException('Inconsistent route instruction');
-          }
-          MobilityPoint.fromJson(maneuver['location']);
-          String label(Object? value) => value is String
-              ? value.substring(0, value.length.clamp(0, 160))
-              : '';
-          final exit = maneuver['exit'];
-          if (exit != null && (exit is! int || exit < 1 || exit > 100)) {
-            throw const FormatException('Invalid roundabout exit');
-          }
-          maneuvers.add(
-            RoadManeuver(
-              type: label(maneuver['type']),
-              modifier: label(maneuver['modifier']),
-              road: label(step['name']),
-              atMeters: at,
-              distanceMeters: d.toDouble(),
+          final points = raw
+              .map(MobilityPoint.fromJson)
+              .toList(growable: false);
+          sections.add(
+            RoadSection(
+              points: points,
+              references: Set.unmodifiable(roadReferences(label(step['ref']))),
               durationSeconds: t.toDouble(),
-              exit: exit as int?,
+              distanceMeters: d.toDouble(),
+              link: {'on ramp', 'off ramp'}.contains(maneuver['type']),
             ),
           );
-          at += d;
         }
+        at += d;
       }
     }
-    return RoadRoute(
-      distanceMeters: distance.toDouble(),
-      durationSeconds: duration.toDouble(),
-      points: coordinates.map(MobilityPoint.fromJson).toList(growable: false),
-      retrievedUtc: now().toUtc(),
-      maneuvers: List.unmodifiable(maneuvers),
-      destination: destination,
-    );
   }
+  return RoadRoute(
+    distanceMeters: distance.toDouble(),
+    durationSeconds: duration.toDouble(),
+    points: coordinates.map(MobilityPoint.fromJson).toList(growable: false),
+    retrievedUtc: time,
+    maneuvers: List.unmodifiable(maneuvers),
+    destination: destination,
+    sections: List.unmodifiable(sections),
+  );
 }

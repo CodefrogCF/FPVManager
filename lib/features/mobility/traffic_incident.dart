@@ -66,7 +66,7 @@ List<Map<String, dynamic>> trafficMapFeatures(
         : (geometry['coordinates'] as List).length;
     if (result.length >= 1000 || vertices + count > 20000) break;
     vertices += count;
-    result.add(item.record);
+    result.add({...item.record}..remove('routingEvidence'));
   }
   return result;
 }
@@ -104,5 +104,6 @@ class TrafficIncident {
   Map<String, dynamic> get metrics =>
       Map<String, dynamic>.from(data['metrics'] as Map? ?? {});
   String get searchable =>
-      '${category.label} $title $description ${data['id']}'.toLowerCase();
+      '${category.label} $title $description ${data['id']} ${data['tmcStatus'] ?? ""}'
+          .toLowerCase();
 }

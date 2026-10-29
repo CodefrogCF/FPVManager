@@ -5,6 +5,7 @@ import 'package:xml/xml_events.dart';
 
 import 'road_routing.dart';
 import 'traffic_incident.dart';
+import 'tmc_reference.dart';
 
 Map<String, dynamic> parseTrafficSnapshot(String input) =>
     readTrafficSnapshot(input).data();
@@ -119,7 +120,7 @@ class TrafficRecord {
             (v) => {'true', '1'}.contains(v.innerText.trim().toLowerCase()),
           ),
         );
-    validityStatus = _value(node, 'validityStatus') ?? '';
+    validityStatus = (_value(node, 'validityStatus') ?? '').trim();
     suspended = validityStatus == 'suspended';
     recurring =
         _elements(node, 'validPeriod').isNotEmpty ||
@@ -176,7 +177,27 @@ class TrafficRecord {
       node,
       'specificLocation',
     ).map((e) => _text(e.innerText, 30)).toSet().take(8).toList();
-    direction = _text(_value(node, 'alertCDirectionCoded'), 60);
+    direction = _text(_value(node, 'alertCDirectionCoded'), 60).trim();
+    tmcReference = readTmcReference(node);
+    final location = _elements(node, 'groupOfLocations').firstOrNull;
+    roadNumbers = location == null
+        ? <String>[]
+        : _elements(
+            location,
+            'roadNumber',
+          ).map((e) => _text(e.innerText, 80)).toSet().take(8).toList();
+    directionBound = location == null
+        ? ''
+        : _text(
+            _value(location, 'directionBound') ??
+                _value(location, 'directionBoundAtPoint') ??
+                _value(location, 'directionBoundOnLinearSection'),
+            60,
+          );
+    carriageway = location == null
+        ? ''
+        : _text(_value(location, 'carriageway'), 60);
+    lane = location == null ? '' : _text(_value(location, 'lane'), 60);
     // Only source coordinates. An explicit display reference is a point,
     // not a reconstruction of a TMC road segment or its direction.
     for (final point in _elements(node, 'pointCoordinates').take(33)) {
@@ -210,6 +231,9 @@ class TrafficRecord {
       direction,
       validityStatus;
   late final List<String> tmcCodes;
+  late final List<String> roadNumbers;
+  late final Map<String, dynamic>? tmcReference;
+  late final String directionBound, carriageway, lane;
   late final DateTime? updated, from, until;
   late final TrafficCategory category;
   late final bool suspended, recurring;
@@ -283,6 +307,38 @@ class _TrafficAccumulator {
       'tmcVersion': tmc.tmcVersion,
       'tmcCodes': tmc.tmcCodes,
       'directionCode': tmc.direction,
+      'routingEvidenceComplete': parts.length <= 32,
+      // Keep identity, direction, validity and effects from the SAME source part.
+      // Display references and straight endpoint connections are not road topology.
+      'routingEvidence': [
+        for (final p in parts.take(32))
+          {
+            'id': _text(p.id, 160),
+            'roadNumbers': p.roadNumbers,
+            'directionBound': p.directionBound,
+            'directionCode': p.direction,
+            'tmc': p.tmcReference,
+            'carriageway': p.carriageway,
+            'lane': p.lane,
+            'category': p.category.name,
+            'metrics': p.metrics,
+            'timestampUtc': p.updated?.toIso8601String(),
+            'validFromUtc': p.from?.toIso8601String(),
+            'validUntilUtc': p.until?.toIso8601String(),
+            'validityStatus': p.validityStatus,
+            'suspended': p.suspended,
+            'recurring': p.recurring,
+            'withdrawn': p.revoked,
+            'geometryAccuracy': p.displayReference
+                ? 'displayReference'
+                : p.coordinates.length == 1
+                ? 'sourcePoint'
+                : 'approximateLine',
+            'point': !p.displayReference && p.coordinates.length == 1
+                ? p.coordinates.first
+                : null,
+          },
+      ],
       'geometryAccuracy': position?.displayReference == true
           ? 'displayReference'
           : points.length > 1

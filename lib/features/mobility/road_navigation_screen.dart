@@ -8,6 +8,7 @@ import 'navigation_platform.dart';
 import 'road_navigation.dart';
 import 'traffic_bulletin.dart';
 import 'traffic_counters_section.dart';
+import 'road_route_comparison.dart';
 import '../offline/cached_map_notice.dart';
 
 String navigationDistance(double meters) => meters < 1000
@@ -285,6 +286,34 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                   ),
                   if (nav.traffic == null && nav.counters == null)
                     const Text('Verkehrsdaten ausgeschaltet'),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Verkehr bei Neuberechnung berücksichtigen',
+                    ),
+                    subtitle: const Text(
+                      'Nur ausreichend zugeordnete aktuelle Daten. Neue Meldungen allein lösen keinen Routenwechsel aus.',
+                    ),
+                    value: nav.trafficAwareRouting,
+                    onChanged: nav.setTrafficAwareRouting,
+                  ),
+                  OutlinedButton(
+                    onPressed:
+                        nav.reliable && !nav.recalculating && !nav.arrived
+                        ? nav.reroute
+                        : null,
+                    child: const Text('Routenalternativen neu berechnen'),
+                  ),
+                  const Text(
+                    'Neuberechnungen sind frühestens alle 30 Sekunden möglich. Die Ankunftsschätzung bleibt ohne Verkehrszuschläge.',
+                  ),
+                  if (nav.routeTrafficEvaluation case final evaluation?) ...[
+                    RouteTrafficAssessmentView(
+                      assessment:
+                          evaluation.assessments[evaluation.recommendedIndex],
+                    ),
+                    RouteTrafficExplanation(evaluation: evaluation),
+                  ],
                   if (nav.traffic != null || nav.counters != null)
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,

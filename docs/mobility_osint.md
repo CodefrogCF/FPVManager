@@ -8,7 +8,21 @@ the entered query to geo.admin.ch; typing alone stays local. Spot access notes s
 the personal database and are deleted with the spot. Driving destination priority
 is parking, access point, then the spot. Calculating requires consent to send the
 two coordinates to FOSSGIS. Results show distance/time and can be drawn on the globe;
-they do not establish parking/access rights or account for live traffic.
+they do not establish parking/access rights. Up to three OSRM alternatives can be
+selected; the service may return only one.
+
+Enable **Verkehr bei der Routenbewertung berücksichtigen** to compare existing
+traffic snapshots locally. Current source points require an explicit matching
+road number and supported travel direction. Resolved TMC sections require a verified
+matching table and an ordered chain of anchors along one continuous OSRM road;
+offsets are measured on that route, never on straight anchor connections. Closures sort behind
+routes without matched closures; the largest published delay influences the
+comparison without summing possibly overlapping reports. Current aggregate speed
+measurements have a small influence only when comparable observations exist for
+every alternative. Sources, exclusions and rules are expandable below the routes.
+Select the desired route explicitly. Display references, approximate lines,
+unresolved TMC references, stale/unverified imports and unknown directions are not weighted.
+OSRM times remain baseline estimates, without traffic-adjusted arrival times.
 
 **Map Layers → Map → Straßen und Wege** adds the transparent swissTLM3D road/path
 network with persistent visibility and opacity. The Topo base map retains a finer
@@ -42,9 +56,12 @@ Backgrounding or ending navigation stops automatic requests; HTTP 401/403/429
 disables them until explicitly enabled again.
 The panel and map show up to 50 nearby messages within 300 m of the remaining
 route, with source/retrieval times and unavailable/stale states. Proximity does
-not establish the same road or travel direction. TMC-only records remain unlocated.
-OSRM arrival estimates exclude traffic delays; ASTRA messages do not automatically
-change road weights or generate traffic-dependent detours.
+not establish the same road or travel direction. Unresolved TMC records remain unlocated.
+**Verkehr bei Neuberechnung berücksichtigen** uses the same optional comparison
+when rerouting. **Routenalternativen neu berechnen** requests new candidates;
+reroutes remain limited to once per 30 seconds. Traffic updates alone do not switch
+the active route. This compares returned alternatives; it does not update OSRM's
+road graph or guarantee an optimal detour. OSRM arrival estimates exclude delays.
 
 **Traffic** supports an own registered ASTRA API key on Android and local DATEX II
 XML snapshots on both platforms. Use the **Token** for **Road traffic - traffic
@@ -59,9 +76,20 @@ situation replacements and withdrawals. Longer gaps or a day require a full relo
 Manual requests are limited to once per fifteen seconds. Search includes grouped
 German public descriptions and unlocated events; filters separate current/planned
 events and types. Map limits apply after selecting nearby events, not during ingestion.
-Explicit WGS84 positions are drawn; TMC-only messages remain inspectable as text
-and count as unlocated. The matching official TMC topology is not bundled; obtain
-the matching version from [ASTRA’s public TMC dataset](https://data.opentransportdata.swiss/dataset/rds-tmc). No road position is guessed from a road name or location code.
+**Traffic → TMC-Ortsdaten** detects required Swiss table versions. Load a version
+or all missing supported versions explicitly; LTEF ZIP downloads support 7.3–7.5
+from [ASTRA’s public TMC dataset](https://data.opentransportdata.swiss/dataset/rds-tmc).
+Each version persists independently in the public OSINT cache and can be deleted.
+The downloaded reference table can be reopened offline; it does not refresh live
+traffic timestamps. Source dates and local retrieval times remain separate.
+In Web, download the official ZIP externally, choose its version and use
+**TMC-ZIP importieren**. Imported tables remain informational until replaced by a
+direct official download. GeoPackage is explicitly unsupported in this importer.
+Resolved anchors and names improve map display and search. Anchor connections are
+approximate; nonzero offsets show a reference point until assigned to a route.
+Missing codes, broken chains and version conflicts retain the original messages.
+Downloads are bounded to 8 MiB; ZIP expansion to 32 MiB; graphs to 50,000 points.
+No road position is guessed from a name or an unmatched location code.
 
 **Aircraft** uses optional adsb.lol reception snapshots in a 25-nautical-mile area.
 Android supports manual direct refresh after area-sharing consent. The provider's

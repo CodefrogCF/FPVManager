@@ -164,6 +164,17 @@ Map<String, dynamic> _parseSite(XmlElement node) {
     'name': _short(_value(node, 'measurementSiteName') ?? id),
     'lane': _short(_value(node, 'lane'), 60),
     'carriageway': _short(_value(node, 'carriageway'), 60),
+    'roadNumbers': _nodes(
+      node,
+      'roadNumber',
+    ).map((e) => _short(e.innerText, 80)).toSet().take(8).toList(),
+    'directionBound': _short(
+      _value(node, 'directionBound') ??
+          _value(node, 'directionBoundAtPoint') ??
+          _value(node, 'directionBoundOnLinearSection'),
+      60,
+    ),
+    'directionCode': _short(_value(node, 'alertCDirectionCoded'), 60),
     'characteristics': characteristics,
   };
 }
@@ -391,6 +402,10 @@ class TrafficCountersProvider
           'values': values,
           'lane': site['lane'],
           'carriageway': site['carriageway'],
+          'roadNumbers': site['roadNumbers'],
+          'directionBound': site['directionBound'],
+          'directionCode': site['directionCode'],
+          'metadataVersionVerified': true,
           'geometry': {'type': 'Point', 'coordinates': site['coordinates']},
         });
       }

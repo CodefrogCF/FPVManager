@@ -45,7 +45,13 @@ void main() {
         final xml = XmlDocument.parse(request.body),
             op = request.headers['SOAPAction']!;
         if (op.endsWith('pullMeasurementSiteTable')) {
-          return http.Response(counterTable(), 200);
+          return http.Response(
+            counterTable().replaceFirst(
+              '<measurementSiteLocation>',
+              '<measurementSiteLocation><roadNumber>A 1</roadNumber><directionBound>northBound</directionBound>',
+            ),
+            200,
+          );
         }
         final references = xml.descendants
             .whereType<XmlElement>()
@@ -63,6 +69,9 @@ void main() {
     expect(first.data['features'], hasLength(1));
     final record = first.data['features'].single;
     expect(record['geometry']['coordinates'], [8.0, 47.0]);
+    expect(record['roadNumbers'], ['A 1']);
+    expect(record['directionBound'], 'northBound');
+    expect(record['metadataVersionVerified'], true);
     expect(record['values'][0]['value'], 1200);
     expect(record['values'][0]['vehicle'], 'car');
     expect(record['values'][1]['value'], 76.5);

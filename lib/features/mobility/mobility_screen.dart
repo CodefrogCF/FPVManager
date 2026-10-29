@@ -22,9 +22,12 @@ import 'traffic_bulletin.dart';
 import 'traffic_incident.dart';
 import 'traffic_counters_provider.dart';
 import 'traffic_counters_section.dart';
+import 'road_route_comparison.dart';
 import 'navigation_location.dart';
 import 'road_navigation.dart';
 import 'road_navigation_screen.dart';
+import 'tmc_repository.dart';
+import 'tmc_section.dart';
 
 class MobilityScreen extends StatefulWidget {
   const MobilityScreen({
@@ -37,6 +40,7 @@ class MobilityScreen extends StatefulWidget {
     this.initialTab = 0,
     this.router,
     this.cachedMaps = false,
+    this.tmcRepository,
   });
   final SpotRepository spots;
   final MobilityPreferences preferences;
@@ -46,6 +50,7 @@ class MobilityScreen extends StatefulWidget {
   final int initialTab;
   final RoadRouter? router;
   final bool cachedMaps;
+  final TmcRepository? tmcRepository;
   @override
   State<MobilityScreen> createState() => _MobilityScreenState();
 }
@@ -70,11 +75,14 @@ class _MobilityScreenState extends State<MobilityScreen> {
   late final RoadRouter _router = widget.router ?? RoadRouter();
   late final _spots = widget.spots.getAllSpots();
   final _vault = LocalApiCredentialVault.shared;
+  late final _tmc = widget.tmcRepository ?? TmcRepository();
   Spot? _spot;
   bool _freeDestination = false;
   String? _destinationName;
   int _selection = 0;
   RoadRoute? _route;
+  RoadRoute? _routeBundle;
+  bool _trafficRouting = false;
   bool _busy = false,
       _roadConsent = false,
       _airConsent = false,
@@ -161,6 +169,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
     _traffic?.dispose();
     _counters?.dispose();
     _aircraft?.dispose();
+    if (widget.tmcRepository == null) _tmc.dispose();
     if (widget.router == null) _router.dispose();
     super.dispose();
   }
@@ -260,7 +269,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Driving route to an address, coordinates or saved spot. Distance/time are estimates without live traffic. Verify parking, private roads and the final approach locally.',
+          'Driving route to an address, coordinates or saved spot. Times are OSRM baseline estimates. Available traffic can help compare alternatives. Verify parking, private roads and the final approach locally.',
         ),
         const SizedBox(height: 12),
         SegmentedButton<bool>(
@@ -384,13 +393,32 @@ class _MobilityScreenState extends State<MobilityScreen> {
                                   _spot!.longitude,
                                 );
                   final result = await _router.calculate(origin, destination);
-                  if (mounted) setState(() => _route = result);
+                  if (mounted) {
+                    setState(() {
+                      _route = result;
+                      _routeBundle = result;
+                    });
+                  }
                 }),
           icon: const Icon(Icons.directions_car_outlined),
           label: const Text('Calculate driving route'),
         ),
         if (_route != null) ...[
           const SizedBox(height: 12),
+          Builder(
+            builder: (roadContext) => RoadRouteComparison(
+              key: ValueKey(_routeBundle),
+              routes: _routeBundle?.choices ?? [_route!],
+              selected: _route!,
+              enabled: _trafficRouting,
+              traffic: _traffic,
+              counters: _counters,
+              onSelected: (route) => setState(() => _route = route),
+              onEnabled: (value) => setState(() => _trafficRouting = value),
+              onOpenTraffic: () =>
+                  DefaultTabController.of(roadContext).animateTo(1),
+            ),
+          ),
           Text(
             '${(_route!.distanceMeters / 1000).toStringAsFixed(1)} km · ${(_route!.durationSeconds / 60).ceil()} min estimated',
           ),
@@ -507,6 +535,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
         counters: useCounters ? _countersProvider() : null,
         automaticTrafficUpdates:
             (useTraffic || useCounters) && automaticTraffic,
+        trafficAwareRouting: _trafficRouting,
       );
     } on FormatException catch (error) {
       if (mounted) setState(() => _message = error.message);
@@ -549,6 +578,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
   );
   TrafficCountersProvider _countersProvider() {
     final center =
+        (_route == null ? null : _routeBundle)?.points.first ??
         _route?.points.first ??
         widget.initialCenter ??
         (_spot == null
@@ -581,6 +611,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
       kind: kind,
       center: center,
       readTrafficKey: () => _vault.readForProvider(astraTrafficAccess),
+      tmc: kind == SituationalKind.traffic ? _tmc : null,
     );
     if (kind == SituationalKind.aircraft) {
       _aircraft = provider;
@@ -722,7 +753,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const Text(
-        'ASTRA / VMZ-CH traffic situations · Swiss road network. Registered API access is required. Location-only TMC references cannot be drawn without the matching official topology. They are counted as unlocated, not interpreted as an absence of disruption. Routes do not automatically incorporate these messages.',
+        'ASTRA / VMZ-CH traffic situations · Swiss road network. Registered API access is required. TMC-only references require the matching official topology. Unlocated or uncertain messages remain information; sufficiently matched current data can be enabled for route comparison.',
       ),
       _link(
         'ASTRA access, terms and six-month standard access',
@@ -798,6 +829,10 @@ class _MobilityScreenState extends State<MobilityScreen> {
       ),
       const SizedBox(height: 12),
       _dataset(SituationalKind.traffic),
+      TmcSection(
+        repository: _tmc,
+        provider: _provider(SituationalKind.traffic),
+      ),
       TrafficCountersSection(provider: _countersProvider(), onShowMap: _show),
       _link(
         'Weitere offizielle Daten: Geschwindigkeiten und Fahrzeugmengen an Zählstellen',
