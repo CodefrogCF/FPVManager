@@ -71,6 +71,15 @@ void main() {
       await tester.tap(add);
       await tester.pumpAndSettle();
       final save = find.text('Save region for caching');
+      expect(save, findsNothing);
+      final cacheOptions = find.text(
+        'Ansichtspuffer und optionaler Laptop-Export',
+      );
+      await tester.ensureVisible(cacheOptions);
+      await tester.pumpAndSettle();
+      await tester.tap(cacheOptions);
+      await tester.pumpAndSettle();
+      expect(save, findsOneWidget);
       await tester.ensureVisible(save);
       await tester.pumpAndSettle();
       await tester.tap(save);
