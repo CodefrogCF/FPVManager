@@ -24,7 +24,9 @@ spec.loader.exec_module(prepare)
 
 class OfficialRegionPreparationTest(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory(dir=ROOT/'.dart_tool',prefix='region-gis-test-')
+        temp_root=ROOT/'.dart_tool'
+        temp_root.mkdir(exist_ok=True)
+        self.temp=tempfile.TemporaryDirectory(dir=temp_root,prefix='region-gis-test-')
         assert Path(self.temp.name).resolve().is_relative_to((ROOT/'.dart_tool').resolve())
         self.addCleanup(self.temp.cleanup)
         self.folder=Path(self.temp.name)

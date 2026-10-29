@@ -36,10 +36,18 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Check formatting
         run: dart run tool/check_format.dart
+      - name: Set up Python for tooling tests
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tool/offline_region_requirements.txt
+      - name: Install Python tooling test dependencies
+        run: python -m pip install --only-binary=:all: --requirement tool/offline_region_requirements.txt
       - name: Verify bundled Cesium resources
-        run: python3 tool/vendor_cesium.py --check
-      - name: Test verified SQLite download preparation
-        run: python3 -m unittest discover -s test/tool -p 'test_*.py'
+        run: python tool/vendor_cesium.py --check
+      - name: Test Python tooling
+        run: python -m unittest discover -s test/tool -p 'test_*.py'
       - name: Test renderer protocol, terrain and map interactions
         run: node --test test/js/*.test.cjs
       - name: Analyze
