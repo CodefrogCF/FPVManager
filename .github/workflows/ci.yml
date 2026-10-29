@@ -43,7 +43,8 @@ jobs:
           cache: pip
           cache-dependency-path: tool/offline_region_requirements.txt
       - name: Install Python tooling test dependencies
-        run: python -m pip install --only-binary=:all: --requirement tool/offline_region_requirements.txt
+        run: |
+          python -m pip install --only-binary=:all: --requirement tool/offline_region_requirements.txt
       - name: Verify bundled Cesium resources
         run: python tool/vendor_cesium.py --check
       - name: Test Python tooling
