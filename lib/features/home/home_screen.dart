@@ -44,6 +44,8 @@ import 'home_map_status.dart';
 import '../globe/map_floating_surface.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/simulation_settings_sheet.dart';
+import '../simulation/flight_recording_sheet.dart';
+import '../routes/route_editor_screen.dart';
 import '../preflight/preflight_screen.dart';
 
 class FPVHomeScreen extends StatefulWidget {
@@ -130,7 +132,63 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   bool _preferencesStarted = false;
   String? _lastGroundReason;
   String? _lastSimulationReason;
+  String? _lastRecordingMessage;
   SimulationSettings _simulationSettings = const SimulationSettings();
+  bool _recordingReviewOpen = false;
+  void _recordingReviewHandler() => unawaited(_openRecordingReview());
+  Future<void> _openRecordingReview() async {
+    if (_recordingReviewOpen ||
+        !mounted ||
+        !_globeController.recording.hasSamples ||
+        _globeController.recording.busy) {
+      return;
+    }
+    _recordingReviewOpen = true;
+    try {
+      if (_globeController.recording.running) {
+        await _runCommand(() => _globeController.recording.control('stop'));
+      }
+      if (!mounted || !_globeController.recording.hasSamples) return;
+      final flight = _globeController.recording.snapshot();
+      final repository = _flightPlanRepository ??=
+          widget.flightPlanRepository ??
+          FlightPlanRepository(_database ??= FpvDatabase.open());
+      final routeId = await showFlightRecordingReview(
+        context,
+        flight: flight,
+        repository: repository,
+        onDiscard: _globeController.discardFlightRecording,
+      );
+      if (!mounted || routeId == null) return;
+      if (_globeController.recording.id == flight.id) {
+        await _runCommand(_globeController.discardFlightRecording);
+      }
+      await _leaveGroundView();
+      if (!mounted) return;
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RouteEditorScreen(
+            routeId: routeId,
+            repository: repository,
+            cachedMaps: _cachedMaps,
+            spots: _spotRepository ??=
+                widget.spotRepository ??
+                SpotRepository(_database ??= FpvDatabase.open()),
+            obstacleProvider: _globeController.obstacles.provider,
+            uasProvider: _globeController.uasProvider,
+            preferencesRepository:
+                widget.preferencesRepository ??
+                UserPreferencesRepository(_database ??= FpvDatabase.open()),
+          ),
+        ),
+      );
+      if (mounted) await _globeController.retryLoadingPreferences();
+    } finally {
+      _recordingReviewOpen = false;
+    }
+  }
+
   int _lastSituationalRevision = 0;
   Future<void> _openMobility({int? initialSpotId}) async {
     await _leaveGroundView();
@@ -451,6 +509,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     if (_globeController.onWindSettingsRequested == _windRequestHandler) {
       _globeController.onWindSettingsRequested = null;
     }
+    if (_globeController.onRecordingReviewRequested ==
+        _recordingReviewHandler) {
+      _globeController.onRecordingReviewRequested = null;
+    }
     _globeController.removeListener(_onGlobeStateChanged);
 
     _routeLayers?.dispose();
@@ -527,6 +589,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     super.initState();
     _globeController.addListener(_onGlobeStateChanged);
     _globeController.onWindSettingsRequested = _windRequestHandler;
+    _globeController.onRecordingReviewRequested = _recordingReviewHandler;
     _windLifecycle = AppLifecycleListener(
       onStateChange: (state) =>
           _globeController.wind.foreground(state == AppLifecycleState.resumed),
@@ -534,6 +597,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    final recordingMessage = _globeController.recording.message;
+    if (recordingMessage != null &&
+        recordingMessage != _lastRecordingMessage &&
+        mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(recordingMessage)));
+    }
+    _lastRecordingMessage = recordingMessage;
     _globeController.wind.flying(_globeController.simulationActive);
     if (!_globeController.isReady) _awaitOfflineRenderer = false;
     if (!_awaitOfflineRenderer &&
@@ -694,6 +765,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     onLayers: _openMapLayers,
     onWeather: _openWeather,
     onSimulation: _openSimulation,
+    onRecordingReview: _openRecordingReview,
     onExitNavigation: () => _runCommand(_globeController.exitNavigation),
   );
 

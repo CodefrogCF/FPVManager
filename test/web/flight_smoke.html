@@ -4,7 +4,8 @@
 <iframe id="map" title="Actual Cesium with synthetic terrain"></iframe><pre id="log"></pre>
 <script>
 const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map(),errors=[];
-let session,next=0,flight,ground,terrain;
+let session,next=0,flight,ground,terrain,recording,recordingAction;
+const recorded=[];
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const check=(v,m)=>{if(!v)throw new Error(m);};
 const log=m=>{output.textContent+='PASS: '+m+'\n';};
@@ -16,6 +17,9 @@ window.addEventListener('message',event=>{
   if(data.type==='globe-ready')session=data.sessionId;
   if(data.type==='terrain-status')terrain=data;
   if(data.type==='simulation-state')flight=data;
+  if(data.type==='flight-recording-sample')recorded.push(data.sample);
+  if(data.type==='flight-recording-state')recording=data;
+  if(data.type==='flight-recording-action')recordingAction=data.action;
   if(data.type==='ground-view-state')ground=data;
   if(data.type==='globe-error')errors.push(data.message);
   if(data.type==='command-result'){
@@ -30,8 +34,10 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
 });}
 (async()=>{
   const hudOnly=new URLSearchParams(location.search).has('hud');
-  if(hudOnly){frame.style.height='calc(100vh - 54px)';output.hidden=true;}
-  frame.src='/terrain-globe.html'+(hudOnly?'?chrome=floating':'');await until(()=>session&&terrain?.state==='ready','startup');
+  const recordingOnly=new URLSearchParams(location.search).has('recording');
+  if(hudOnly||recordingOnly){frame.style.height='calc(100vh - 54px)';frame.style.display='block';output.hidden=true;
+    document.getElementById('status').style.cssText='height:30px;margin:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';}
+  frame.src='/terrain-globe.html'+(hudOnly||recordingOnly?'?chrome=floating':'');await until(()=>session&&terrain?.state==='ready','startup');
   const win=frame.contentWindow,doc=win.document,v=win.fixtureViewer,C=win.Cesium,canvas=v.canvas;
   v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.7,2000),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
   await until(()=>v.scene.globe.tilesLoaded,'terrain tiles');await pause(250);
@@ -90,6 +96,25 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   coordinateToggle.checked=false;coordinateToggle.dispatchEvent(new win.Event('change',{bubbles:true}));
   await until(()=>flight.showCoordinates===false,'Coordinate disable event');check(coordinates.hidden,'Coordinates did not hide');
   log('Coordinates toggle in both actual HUD layouts without respawning and emit the next-flight setting');
+  if(recordingOnly){
+    const button=doc.getElementById('record-flight');canvas.focus();
+    const pointer=new win.PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerType:'mouse'});button.dispatchEvent(pointer);
+    check(pointer.defaultPrevented&&doc.activeElement===canvas,'Recording button blurred the active flight view');button.click();
+    await until(()=>recordingAction==='start','Recording button request');
+    const before=v.camera.positionWC.clone();await command('flight-recording-control',{action:'start',id:'recording-smoke'});
+    await until(()=>recorded.length>=2,'Bounded recording samples');
+    check(recorded[0][3]===46.7&&recorded[0][4]===8.4&&Math.abs(recorded[0][5]-1020)<.01&&Math.abs(recorded[0][6]-1000)<.01,'Recording changed coordinates or height reference');
+    check(C.Cartesian3.distance(before,v.camera.positionWC)<.001,'Recording moved the drone');
+    await command('flight-recording-control',{action:'pause',id:'recording-smoke'});
+    const count=recorded.length;await pause(700);check(recorded.length===count,'Recording pause leaked samples');
+    await command('flight-recording-control',{action:'resume',id:'recording-smoke'});
+    await until(()=>recorded.length>count,'Recording resume');check(recorded.at(-1)[1]>recorded[0][1],'Recording gap was silently joined');
+    await command('reset-simulation');await until(()=>recording?.phase==='stopped','Reset ends recording');
+    check(button.title==='Review flight recording','Reset lost recording access');
+    await command('flight-recording-control',{action:'restore',id:'retained',count:recorded.length});
+    check(!doc.getElementById('review-recording').hidden,'Retained recording is unavailable');
+    document.getElementById('status').textContent='PASS — bounded flight recording, pause, resume and reset retention';return;
+  }
   if(hudOnly){coordinateToggle.checked=true;coordinateToggle.dispatchEvent(new win.Event('change',{bubbles:true}));
     await until(()=>!coordinates.hidden,'Coordinate preview');document.getElementById('status').textContent='PASS — compact optional HUD coordinates';return;}
   check(!v.scene.screenSpaceCameraController.enableInputs,'Orbital input active');

@@ -21,6 +21,12 @@
     border:1px solid #ffffff45;background:#10182080;color:#fff;border-radius:10px; }
 #flight-actions button { width:44px;height:44px;font-size:22px;line-height:1; }
 #flight-actions svg { width:22px;height:22px;vertical-align:middle; }
+#record-flight { color:#ff9b94; }
+#record-flight[data-recording="recording"] { background:#631e2580;border-color:#ff9b94; }
+#record-flight[data-recording="paused"] { color:#ffe1a0; }
+#flight-recording-controls { display:flex;flex-wrap:wrap;gap:8px;font-size:12px; }
+#flight-recording-controls output { width:100%;color:#c2c9bd; }
+#flight-recording-controls button { padding:6px;min-height:36px;font:inherit; }
 #navigation-hud button:focus-visible,#navigation-hud select:focus-visible,#navigation-hud input:focus-visible {
     outline:2px solid #a0d39a;outline-offset:2px;
 }

@@ -173,6 +173,15 @@ either HUD style. It is off by default; its choice lasts for this session.
 **HUD settings → Reset**, R or controller A returns to spawn; **Exit**, Escape,
 controller B or the globe icon restores the map camera. Saved routes/obstacles remain visible.
 
+The recording icon captures a simulated flight; **HUD settings** provides pause,
+resume and review. Stop opens a preview with continuous sections, trimming and
+3D simplification (up to 1,000 route waypoints). **Save as route** creates a new
+local route and opens its editor. WGS84 ellipsoidal heights are preserved by
+default; AGL requires recorded terrain heights. Recording ends on reset or exit.
+**Map actions → Review flight recording** reopens unsaved data, including samples
+retained after a renderer interruption. Unsaved recordings are temporary and are
+lost when closing the app. Capture is limited to 30 minutes / 4,096 samples.
+
 **External controller** (flight settings or HUD settings) selects **Standard gamepad**
 or **USB radio**. Zero-throttle position is **50% · centre** for self-centring controllers
 or **0% · bottom** for RC radios. In Angle/Acro, bottom zero uses the full travel

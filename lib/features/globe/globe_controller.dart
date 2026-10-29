@@ -24,6 +24,7 @@ import 'globe_bridge.dart';
 import 'route_map_state.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/controller_settings.dart';
+import '../simulation/flight_recording.dart';
 import '../../core/models/scene_time.dart';
 import '../weather/wind_field.dart';
 import '../weather/wind_field_service.dart';
@@ -128,10 +129,46 @@ class GlobeController extends ChangeNotifier {
         if (_ready && !_disposed) await _bridge.send(command);
       },
     )..addListener(_handleProviderChanged);
+    recording = FlightRecording((command) => _send(command))
+      ..addListener(_handleProviderChanged);
   }
 
   late final ObstacleMapController obstacles;
   late final WindMapController wind;
+  late final FlightRecording recording;
+  VoidCallback? onRecordingReviewRequested;
+  Future<void> discardFlightRecording() async {
+    recording.discard();
+    if (_ready) {
+      try {
+        await _send({
+          'type': 'flight-recording-control',
+          'action': 'restore',
+          'id': 'empty-${DateTime.now().microsecondsSinceEpoch}',
+          'count': 0,
+        });
+      } catch (_) {
+        /* The next start clears renderer-only remnants. */
+      }
+    }
+  }
+
+  Future<void> _recordingAction(String action) async {
+    if (recording.busy) return;
+    try {
+      if (action == 'review') {
+        if (recording.running) await recording.control('stop');
+      } else {
+        await recording.control(action);
+      }
+      if ((action == 'stop' || action == 'review') && recording.hasSamples) {
+        onRecordingReviewRequested?.call();
+      }
+    } catch (_) {
+      /* The recording retains its data and exposes the failure. */
+    }
+  }
+
   VoidCallback? onWindSettingsRequested;
   Future<void> loadWindAtSelection({
     required WindTimeMode mode,
@@ -1004,6 +1041,7 @@ class GlobeController extends ChangeNotifier {
     _selectedPoint = null;
     _selectedSpotId = null;
     _resetUasSelection();
+    recording.rendererLost();
     if (!_disposed) notifyListeners();
   }
 
@@ -1400,8 +1438,15 @@ class GlobeController extends ChangeNotifier {
       return;
     }
 
+    if (recording.handle(data)) return;
     if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
+      case 'flight-recording-action':
+        final action = data['action'];
+        if (action is String &&
+            {'start', 'pause', 'resume', 'stop', 'review'}.contains(action)) {
+          unawaited(_recordingAction(action));
+        }
       case 'road-navigation-follow':
         if (data['follow'] is bool && _roadNavigationCommand != null) {
           _roadNavigationCommand = {
@@ -1439,6 +1484,11 @@ class GlobeController extends ChangeNotifier {
       case 'simulation-state':
         if (data['active'] is! bool || data['pending'] is! bool) return;
         _simulationActive = data['active'] as bool;
+        if (!_simulationActive) {
+          recording.rendererLost(
+            'Flight ended. Recording retained for review.',
+          );
+        }
         _simulationPending = data['pending'] as bool;
         final tilt = data['cameraTiltDegrees'];
         final graphics = data['graphicsProfile'];
@@ -1512,6 +1562,10 @@ class GlobeController extends ChangeNotifier {
         _selectedSpotId = null;
         _resetUasSelection();
         final generation = _connectionGeneration;
+        if (recording.id != null) {
+          recording.rendererLost();
+          unawaited(recording.restore().catchError((Object _) {}));
+        }
         unawaited(_restoreRendererState(generation));
         notifyListeners();
 
@@ -1915,6 +1969,8 @@ class GlobeController extends ChangeNotifier {
     obstacles.dispose();
     wind.removeListener(_handleProviderChanged);
     wind.dispose();
+    recording.removeListener(_handleProviderChanged);
+    recording.dispose();
     unawaited(_routeActions.close());
     _uasProvider.removeListener(_handleProviderChanged);
     if (_ownsUasProvider) {

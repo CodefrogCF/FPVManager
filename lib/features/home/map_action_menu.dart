@@ -11,6 +11,7 @@ enum _MapAction {
   layers,
   weather,
   simulation,
+  recording,
   exitNavigation,
 }
 
@@ -25,6 +26,7 @@ class MapActionMenu extends StatelessWidget {
     required this.onLayers,
     required this.onWeather,
     required this.onSimulation,
+    required this.onRecordingReview,
     required this.onExitNavigation,
     this.compact = false,
   });
@@ -36,7 +38,9 @@ class MapActionMenu extends StatelessWidget {
       onTerrain,
       onLayers,
       onWeather;
-  final Future<void> Function() onSimulation, onExitNavigation;
+  final Future<void> Function() onSimulation,
+      onExitNavigation,
+      onRecordingReview;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
@@ -63,10 +67,17 @@ class MapActionMenu extends StatelessWidget {
               _MapAction.layers => onLayers(),
               _MapAction.weather => onWeather(),
               _MapAction.simulation => onSimulation(),
+              _MapAction.recording => onRecordingReview(),
               _MapAction.exitNavigation => onExitNavigation(),
             });
           },
           itemBuilder: (_) => [
+            if (controller.recording.hasSamples)
+              PopupMenuItem(
+                value: _MapAction.recording,
+                enabled: !controller.recording.busy,
+                child: const Text('Review flight recording'),
+              ),
             if (compact && controller.navigationActive)
               const PopupMenuItem(
                 value: _MapAction.exitNavigation,

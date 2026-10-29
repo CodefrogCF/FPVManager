@@ -72,6 +72,14 @@ at entry; body-relative FPV view only).
 entry and is reported in `simulation-state` after in-flight changes.
 `showCoordinates` is an optional boolean (default false) at entry and is reported
 in `simulation-state` after changes in the HUD settings; coordinates stay renderer-local.
+`flight-recording-control` starts, pauses, resumes, stops or restores capture by
+recording ID. `flight-recording-sample` transfers bounded individual samples
+`[sequence, section, elapsedSeconds, latitude, longitude, ellipsoidHeight, groundHeightOrNull]`
+at up to 2 Hz during movement, plus boundary samples. `flight-recording-state`
+reports phase/count/reason; HUD actions use `flight-recording-action`. Flutter
+retains received samples across renderer loss. Capture has a 30-minute / 4,096-sample
+limit, and reset/exit ends capture. Neither simulated velocity nor a display AGL
+default is converted into a planned speed or an assumed height.
 `navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
 reset/exit/connected booleans). Frames retain physical axes: forward/right are
