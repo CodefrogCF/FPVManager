@@ -129,6 +129,10 @@ const guideArticles = <GuideTopic, GuideArticle>{
   ]),
   GuideTopic.mobility: GuideArticle('Navigation und Verkehr', [
     GuideSection(
+      '3D-Umgebung',
+      'Unter Einstellungen → Navigation oder Kartendarstellung → 3D-Umgebung lassen sich Gebäude und Vegetation jeweils auf Wie Karte, Aus oder Ein stellen. Die normale Karte und Luftfahrthindernisse behalten eigene Einstellungen. Fehlende Streaming-Daten unterbrechen die Navigation nicht. Die geglättete Anzeige bleibt beim letzten GPS-Punkt stehen; Geschwindigkeit und Routenführung verwenden die ursprünglichen Messwerte.',
+    ),
+    GuideSection(
       'Navigation',
       'Routen und Ansagen sind Orientierungshilfen. Straßenregeln und die reale Situation gehen vor. Der Kompass richtet zuerst nach Norden aus; erneutes Antippen kehrt zur schrägen Verfolgungsansicht zurück. Ungenaue GPS-Signale begrenzen Richtung und Neuberechnung.',
     ),

@@ -43,10 +43,12 @@ class SceneLayersSection extends StatelessWidget {
             onChanged: enabled ? (value) => change(() => toggle(value)) : null,
           ),
           if (visible && state == 'loading') const LinearProgressIndicator(),
-          if (visible && ['failed', 'partial'].contains(state)) ...[
+          if (visible && ['failed', 'partial', 'offline'].contains(state)) ...[
             Text(
               state == 'partial'
                   ? 'Einige 3D-Kacheln fehlen. Geladene Modelle bleiben sichtbar.'
+                  : state == 'offline'
+                  ? '3D-Daten offline nicht vollständig verfügbar.'
                   : '3D-Daten derzeit nicht verfügbar.',
             ),
             TextButton.icon(

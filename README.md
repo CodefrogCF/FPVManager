@@ -15,7 +15,7 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Multiple waypoint routes with configurable heights, speeds, terrain profiles and energy/reserve estimates; GeoJSON/GPX import/export.
 - First-person ground inspection and GPS, Angle and Acro flight simulation using touch, keyboard or controllers; configurable rates, throttle neutral point, camera angle and flight HUD.
 - Simulated flight recording converted to planning routes, with optional live radio line-of-sight screening.
-- Android road navigation with voice guidance, follow camera, compass and rerouting; destination search, traffic/counter data and optional TMC location-table import.
+- Android road navigation with voice guidance, smooth GPS follow camera, compass, rerouting and independent 3D environment settings; destination search, traffic/counter data and optional TMC location-table import.
 - Aircraft snapshots, aerodromes/heliports, wildfire information and an independent SLF avalanche bulletin map with freshness information.
 - MeteoSwiss/Open-Meteo forecasts, weather comparisons, 3D wind/rain overlays and optional wind influence in the flight simulator.
 - Local preflight checklists/templates, terrain LOS/Fresnel analysis, obstacle buffers, route constraints and telemetry calibration.

@@ -38,7 +38,7 @@ import '../avalanche/avalanche_map_controller.dart';
 export 'globe_bridge.dart' show GlobeBridgeOptions, GlobeCommandSender;
 export '../airspace/uas_zone_details.dart' show UasZoneDetails;
 export '../../core/models/user_preferences.dart'
-    show GlobeMapStyle, GlobeOverlay;
+    show GlobeMapStyle, GlobeOverlay, NavigationEnvironmentMode;
 
 class GlobePoint {
   const GlobePoint({
@@ -339,6 +339,33 @@ class GlobeController extends ChangeNotifier {
   bool get buildings3dVisible => _preferences.buildings3dVisible;
   bool get vegetation3dVisible => _preferences.vegetation3dVisible;
   bool get realisticLighting => _preferences.realisticLighting;
+  NavigationEnvironmentMode get navigationBuildings =>
+      _preferences.navigationBuildings;
+  NavigationEnvironmentMode get navigationVegetation =>
+      _preferences.navigationVegetation;
+
+  Map<String, dynamic> get _navigationSceneCommand => {
+    'type': 'set-navigation-environment',
+    'active': _roadNavigationCommand != null,
+    'buildings': navigationBuildings.override,
+    'vegetation': navigationVegetation.override,
+  };
+
+  Future<void> setNavigationEnvironment({
+    NavigationEnvironmentMode? buildings,
+    NavigationEnvironmentMode? vegetation,
+  }) async {
+    _checkPreferencesEditable();
+    await _savePreferences(
+      _preferences.copyWith(
+        navigationBuildings: buildings,
+        navigationVegetation: vegetation,
+      ),
+    );
+    if (_ready) await _send(_navigationSceneCommand);
+    if (!_disposed) notifyListeners();
+  }
+
   String sceneLayerStatus(String key) => _sceneLayerStates[key] ?? 'hidden';
   SceneTime? _simulationSceneTime;
   SceneTime? get simulationSceneTime => _simulationSceneTime;
@@ -1748,6 +1775,7 @@ class GlobeController extends ChangeNotifier {
               'ready',
               'partial',
               'failed',
+              'offline',
             ].contains(data['state'])) {
           _sceneLayerStates[data['layer'] as String] = data['state'] as String;
           notifyListeners();
@@ -2011,6 +2039,13 @@ class GlobeController extends ChangeNotifier {
       if (_searchDestination != null) {
         await _send({..._searchDestination!, 'recenter': false});
       }
+      if (forceSettings ||
+          _roadNavigationCommand != null ||
+          navigationBuildings != NavigationEnvironmentMode.inherit ||
+          navigationVegetation != NavigationEnvironmentMode.inherit) {
+        await _send(_navigationSceneCommand);
+      }
+      if (!current()) return;
       if (forceSettings ||
           buildings3dVisible ||
           vegetation3dVisible ||

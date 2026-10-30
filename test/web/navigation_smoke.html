@@ -1,0 +1,87 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>GPS navigation performance and 3D lifecycle</title>
+<style>body{margin:0;background:#101820;color:white;font:14px system-ui}h1{font-size:18px;margin:8px}iframe{width:100%;height:70vh;border:0}pre{white-space:pre-wrap;padding:8px}</style>
+<h1 id="status">Running navigation checks…</h1><iframe id="map" title="Navigation renderer"></iframe><pre id="log"></pre>
+<script>
+const frame=document.getElementById('map'),output=document.getElementById('log'),pending=new Map(),query=new URLSearchParams(location.search);
+let session,next=0,terrain;const errors=[],layers={};
+const pause=ms=>new Promise(r=>setTimeout(r,ms)),check=(ok,message)=>{if(!ok)throw Error(message);};
+const log=message=>output.textContent+=message+'\n';
+async function until(predicate,message,timeout=45000){const end=performance.now()+timeout;while(!predicate()){
+    if(errors.length)throw Error(errors.join('; '));if(performance.now()>end)throw Error(message+' timeout');await pause(50);
+}}
+window.addEventListener('message',event=>{
+    if(event.source!==frame.contentWindow||event.origin!==location.origin)return;
+    let data;try{data=JSON.parse(event.data);}catch{return;}
+    if(data.type==='globe-ready')session=data.sessionId;
+    if(data.type==='terrain-status')terrain=data;
+    if(data.type==='scene-layer-status')layers[data.layer]=data.state;
+    if(data.type==='globe-error')errors.push(data.message);
+    if(data.type==='command-result'){const task=pending.get(data.requestId);if(task){pending.delete(data.requestId);clearTimeout(task.timer);data.ok?task.resolve(data.result):task.reject(Error(data.error));}}
+});
+function command(type,fields={}){return new Promise((resolve,reject)=>{
+    const requestId=String(++next),timer=setTimeout(()=>reject(Error(type+' timeout')),45000);
+    pending.set(requestId,{resolve,reject,timer});frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
+});}
+(async()=>{
+    const live=query.has('live3d'),baseline=query.has('baseline');
+    frame.src='/navigation-globe.html?'+query;
+    await until(()=>session&&terrain?.state==='ready','terrain startup');
+    const w=frame.contentWindow,v=w.fixtureViewer,C=w.Cesium,nav=w.fixtureRoadNavigation,counts=w.fixtureNavigationCounts;
+    const position={latitude:46.9474,longitude:7.4474,heading:90};
+    v.resolutionScale=1;v.scene.msaaSamples=4;
+    const graphics={resolution:v.resolutionScale,msaa:v.scene.msaaSamples,cache:v.scene.globe.tileCacheSize};
+    if(live){
+        await command('set-scene-environment',{buildings:false,vegetation:false,lighting:false});
+        await command('set-navigation-environment',{buildings:true,vegetation:true});
+    }
+    const packet=()=>({active:true,follow:true,cameraDistanceMeters:150,position:{...position}});
+    await command('set-road-navigation',packet());
+    await until(()=>v.camera.positionCartographic.height>(live?450:1000)&&v.camera.positionCartographic.height<(live?850:1200)&&Math.abs(v.camera.pitch+65*Math.PI/180)<.01,'terrain follow');
+    const tilesets=()=>Array.from({length:v.scene.primitives.length},(_,i)=>v.scene.primitives.get(i)).filter(p=>p instanceof C.Cesium3DTileset);
+    if(live){
+        await until(()=>tilesets().length===2&&tilesets().some(p=>p.totalMemoryUsageInBytes>0),'official navigation models');
+        check(tilesets().every(p=>p.maximumCacheOverflowBytes<=2*1024*1024),'unbounded navigation models');
+        log('Official swisstopo models render in navigation with independent 24/12 MiB targets + 2 MiB overflow per layer.');
+    }
+    await pause(1500);
+    const intervals=[],renderCpu=[],markerSteps=[],headingSteps=[];let lastAt=null,lastPoint=null,lastHeading=null;
+    const before={...counts},beforeMetrics=nav.metrics;let packets=0,intermediateFrames=0;
+    const removePost=v.scene.postRender.addEventListener(()=>{
+        const at=w.performance.now();if(lastAt!==null)intervals.push(at-lastAt);lastAt=at;renderCpu.push(at-counts.updateStart);
+        const point=v.entities.getById('road-navigation-position')?.position?.getValue(v.clock.currentTime);
+        if(lastPoint&&point){const step=C.Cartesian3.distance(lastPoint,point);markerSteps.push(step);if(step>.01&&step<12)intermediateFrames++;}if(point)lastPoint=C.Cartesian3.clone(point,lastPoint??new C.Cartesian3());
+        if(lastHeading!==null)headingSteps.push(Math.abs(C.Math.negativePiToPi(v.camera.heading-lastHeading))*180/Math.PI);lastHeading=v.camera.heading;
+    });
+    for(let i=0;i<8;i++){
+        position.longitude+=.00018;position.heading=(90+i*12)%360;
+        await command('set-road-navigation',packet());packets++;await pause(1000);
+    }
+    removePost();
+    const percentile=(values,p)=>values.slice().sort((a,b)=>a-b)[Math.min(values.length-1,Math.floor(values.length*p))]??0;
+    const result={variant:baseline?'baseline':'smoothed',live3d:live,viewport:[v.canvas.clientWidth,v.canvas.clientHeight],
+        drawingBuffer:[v.scene.drawingBufferWidth,v.scene.drawingBufferHeight],resolutionScale:v.resolutionScale,msaa:v.scene.msaaSamples,
+        frames:intervals.length,frameMedianMs:percentile(intervals,.5),frameP95Ms:percentile(intervals,.95),stallsOver100ms:intervals.filter(n=>n>100).length,
+        renderCpuMedianMs:percentile(renderCpu,.5),renderCpuP95Ms:percentile(renderCpu,.95),
+        maxMarkerStepMeters:Math.max(...markerSteps),maxHeadingStepDegrees:Math.max(...headingSteps),
+        totalTerrainQueries:counts.terrain-before.terrain,navigationTerrainQueries:nav.metrics?nav.metrics.terrainQueries-beforeMetrics.terrainQueries:null,
+        cameraUpdates:counts.camera-before.camera,cameraCpuMs:counts.cameraMs-before.cameraMs,bridgeFixPackets:packets,intermediateFrames};
+    window.navigationResult=result;log(JSON.stringify(result,null,2));
+    if(!baseline){check(result.cameraUpdates>packets,'camera did not animate locally between fixes');check(intermediateFrames>0,'position did not interpolate between fixes');}
+    const marker=v.entities.getById('road-navigation-position');
+    await command('set-road-navigation',{...packet(),follow:false});const free=C.Cartesian3.clone(v.camera.positionWC);
+    position.longitude+=.0001;await command('set-road-navigation',{...packet(),follow:false});await pause(1200);
+    check(C.Cartesian3.distance(free,v.camera.positionWC)<.01,'manual camera moved on GPS update');
+    await command('set-road-navigation',{...packet(),position:null});check(!marker.show,'missing GPS retained marker');
+    await command('set-road-navigation',{active:false,follow:false});
+    check(v.resolutionScale===graphics.resolution&&v.scene.msaaSamples===graphics.msaa&&v.scene.globe.tileCacheSize===graphics.cache,'graphics not restored');
+    if(live){
+        check(tilesets().every(p=>!p.show),'navigation models leaked into disabled map');
+        const original=tilesets().slice();await command('set-road-navigation',packet());await pause(800);
+        check(original.every(p=>tilesets().includes(p)),'navigation reimported cached models');
+        await command('set-road-navigation',{active:false,follow:false});
+        await command('set-road-navigation',packet());await pause(2500);
+    }
+    check(!errors.length,'generic renderer error');log('Free camera, missing GPS, start/stop and graphics restoration passed.');
+    document.getElementById('status').textContent='PASS — navigation '+(baseline?'baseline':live?'official 3D':'smoothing');
+})().catch(error=>{document.getElementById('status').textContent='FAIL — '+error.message;log(error.stack);});
+</script></html>

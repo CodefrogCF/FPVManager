@@ -50,9 +50,17 @@ void main() {
         await gps.source.close();
       });
       FakeGlobeRenderer? peer;
+      final settings = GlobeController();
+      addTearDown(settings.dispose);
+      await settings.setSceneEnvironment(buildings: true);
+      await settings.setNavigationEnvironment(
+        buildings: NavigationEnvironmentMode.disabled,
+        vegetation: NavigationEnvironmentMode.enabled,
+      );
       await tester.pumpWidget(
         MaterialApp(
           home: RoadNavigationScreen(
+            settingsController: settings,
             navigation: nav,
             initialMapStyle: GlobeMapStyle.topographic,
             initialRoadsVisible: true,
@@ -76,13 +84,71 @@ void main() {
         peer!.commands.where((c) => c['id'] == 'roads').last['opacity'],
         .7,
       );
+      final environment = peer!.commands.lastWhere(
+        (c) => c['type'] == 'set-navigation-environment',
+      );
+      expect(environment['buildings'], false);
+      expect(environment['vegetation'], true);
+      expect(environment['active'], true);
+      expect(
+        peer!.commands.lastWhere(
+          (c) => c['type'] == 'set-road-navigation',
+        )['active'],
+        true,
+      );
+      nav.pause();
+      await tester.pump();
+      expect(
+        peer!.commands.lastWhere(
+          (c) => c['type'] == 'set-road-navigation',
+        )['active'],
+        false,
+      );
+      nav.start();
+      // Stream cancellation can complete outside the widget test's fake clock.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(
+        peer!.commands.lastWhere(
+          (c) => c['type'] == 'set-road-navigation',
+        )['active'],
+        true,
+      );
+      expect(
+        peer!.commands.lastWhere(
+          (c) => c['type'] == 'set-scene-environment',
+        )['buildings'],
+        true,
+      );
       await tester.tap(find.byTooltip('Kartendarstellung'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Straßen und Wege'));
+      await tester.tap(find.byKey(const Key('navigation-roads-toggle')));
       await tester.pumpAndSettle();
       expect(
         peer!.commands.where((c) => c['id'] == 'roads').last['visible'],
         false,
+      );
+      await tester.tap(find.byTooltip('Kartendarstellung'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('3D-Umgebung'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ein').first);
+      await tester.pumpAndSettle();
+      expect(settings.navigationBuildings, NavigationEnvironmentMode.enabled);
+      expect(settings.buildings3dVisible, true);
+      expect(settings.vegetation3dVisible, false);
+      expect(
+        peer!.commands.lastWhere(
+          (c) => c['type'] == 'set-navigation-environment',
+        )['buildings'],
+        true,
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        gps.source.hasListener,
+        true,
+        reason: 'GPS subscription after pause/resume',
       );
       gps.source.add(
         NavigationFix(
@@ -95,6 +161,11 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(
+        nav.reliable,
+        true,
+        reason: 'GPS reliability: ${nav.error}; fix=${nav.fix?.timeUtc}',
+      );
       expect(find.text('links abbiegen'), findsOneWidget);
       expect(find.text('36 km/h'), findsOneWidget);
       expect(find.textContaining('Ankunft'), findsOneWidget);

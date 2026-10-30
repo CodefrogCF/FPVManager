@@ -35,6 +35,7 @@
     function create(C,viewer,emit=()=>{},{fetcher=globalThis.fetch,online=()=>globalThis.navigator?.onLine!==false,
         cachedOnly=false,timers=globalThis,now=()=>Date.now(),cacheEntries=24}={}){
         const scene=viewer.scene,canvas=viewer.canvas,collection=new C.LabelCollection({scene});scene.primitives.add(collection);collection.show=false;
+        let navigating=false;
         const cache=new Map(),heights=new Map(),pool=[],position=new C.Cartographic();
         const credit=new C.Credit('Orts-/Straßennamen · © swisstopo · swissNAMES3D / amtliches Strassenverzeichnis',true);
         const credits=viewer.cesiumWidget?.creditDisplay;
@@ -115,12 +116,13 @@
                 // fighting; it is not an object elevation or source height.
                 label.text=record.text;label.position=C.Cartesian3.fromDegrees(record.longitude,record.latitude,5);label.font=`600 ${size}px sans-serif`;
                 label.fillColor=C.Color.fromCssColorString(record.kind==='street'?'#ffffff':'#e4f2c6');label.show=true;count++;
+                label.disableDepthTestDistance=navigating?Number.POSITIVE_INFINITY:0;
             }
             for(let i=count;i<pool.length;i++)pool[i].show=false;
         }
         const removeChanged=viewer.camera.changed.addEventListener(schedule),removeRender=scene.preRender.addEventListener(draw);
         const removeTerrain=scene.globe.tileLoadProgressEvent.addEventListener(pending=>{if(pending===0){heights.clear();dirty=true;}});
-        return {set(command){if(typeof command.visible!=='boolean')throw Error('Invalid label visibility');requested=command.visible;
+        return {navigation(active){navigating=active;dirty=true;},set(command){if(typeof command.visible!=='boolean')throw Error('Invalid label visibility');requested=command.visible;
             if(!requested){stop();collection.show=false;publish('off');creditState();return {};}
             void load(command.retry===true);return {};},networkChanged(){if(requested)void load(true);},
             dispose(){if(disposed)return;disposed=true;stop();removeChanged();removeRender();removeTerrain();cache.clear();heights.clear();if(credited)credits?.removeStaticCredit(credit);scene.primitives.remove(collection);}};

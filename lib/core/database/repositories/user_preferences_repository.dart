@@ -37,6 +37,8 @@ final class DriftUserPreferencesRepository
   static const _buildings = 'map.scene.buildings';
   static const _vegetation = 'map.scene.vegetation';
   static const _lighting = 'map.scene.lighting';
+  static const _navigationBuildings = 'navigation.scene.buildings';
+  static const _navigationVegetation = 'navigation.scene.vegetation';
   static const _order = 'map.overlayOrder';
   static const _wmsVisible = 'map.obstacles.wms.visible';
   static const _wmsOpacity = 'map.obstacles.wms.opacity';
@@ -60,6 +62,8 @@ final class DriftUserPreferencesRepository
     _buildings,
     _vegetation,
     _lighting,
+    _navigationBuildings,
+    _navigationVegetation,
     _wmsVisible,
     _wmsOpacity,
     _vectorsVisible,
@@ -180,6 +184,16 @@ final class DriftUserPreferencesRepository
           defaults.vegetation3dVisible,
         ),
         realisticLighting: readBool(_lighting, defaults.realisticLighting),
+        navigationBuildings: values[_navigationBuildings] == null
+            ? defaults.navigationBuildings
+            : NavigationEnvironmentMode.values.byName(
+                values[_navigationBuildings]!,
+              ),
+        navigationVegetation: values[_navigationVegetation] == null
+            ? defaults.navigationVegetation
+            : NavigationEnvironmentMode.values.byName(
+                values[_navigationVegetation]!,
+              ),
         obstacleWmsVisible: readBool(_wmsVisible, defaults.obstacleWmsVisible),
         obstacleWmsOpacity: wmsOpacity,
         obstacleVectorsVisible: readBool(
@@ -239,6 +253,8 @@ final class DriftUserPreferencesRepository
             _buildings: snapshot.buildings3dVisible.toString(),
             _vegetation: snapshot.vegetation3dVisible.toString(),
             _lighting: snapshot.realisticLighting.toString(),
+            _navigationBuildings: snapshot.navigationBuildings.name,
+            _navigationVegetation: snapshot.navigationVegetation.name,
             _wmsVisible: snapshot.obstacleWmsVisible.toString(),
             _wmsOpacity: snapshot.obstacleWmsOpacity.toString(),
             _vectorsVisible: snapshot.obstacleVectorsVisible.toString(),

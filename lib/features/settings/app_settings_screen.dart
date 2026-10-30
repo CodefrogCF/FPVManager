@@ -4,8 +4,9 @@ import '../globe/globe_controller.dart';
 import '../globe/map_display_section.dart';
 import '../globe/globe_location_controls.dart';
 import '../help/guides_screen.dart';
+import '../mobility/navigation_environment_section.dart';
 
-enum AppSettingsSection { display, controls, sources, dataPrivacy }
+enum AppSettingsSection { display, controls, navigation, sources, dataPrivacy }
 
 /// Reuses existing controllers and feature screens. This route owns no database,
 /// credential vault or second copy of the user's preferences.
@@ -74,6 +75,7 @@ class AppSettingsScreen extends StatelessWidget {
     const titles = {
       AppSettingsSection.display: 'Darstellung und Karte',
       AppSettingsSection.controls: 'Steuerung',
+      AppSettingsSection.navigation: 'Navigation',
       AppSettingsSection.sources: 'Datenquellen und Zugänge',
       AppSettingsSection.dataPrivacy: 'Offline und Datenschutz',
     };
@@ -129,6 +131,8 @@ class AppSettingsScreen extends StatelessWidget {
                         switch (value) {
                           AppSettingsSection.display => Icons.layers_outlined,
                           AppSettingsSection.controls => Icons.gamepad_outlined,
+                          AppSettingsSection.navigation =>
+                            Icons.navigation_outlined,
                           AppSettingsSection.sources => Icons.cloud_outlined,
                           AppSettingsSection.dataPrivacy =>
                             Icons.privacy_tip_outlined,
@@ -152,6 +156,8 @@ class AppSettingsScreen extends StatelessWidget {
                   ],
                   if (section == AppSettingsSection.display)
                     MapDisplaySection(controller: globe),
+                  if (section == AppSettingsSection.navigation)
+                    NavigationEnvironmentSection(settings: globe),
                   if (section == AppSettingsSection.controls) ...[
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,

@@ -4,6 +4,18 @@ enum GlobeMapStyle { satellite, topographic, relief }
 
 enum GlobeOverlay { uasZones, savedSpots }
 
+enum NavigationEnvironmentMode {
+  inherit,
+  disabled,
+  enabled;
+
+  bool? get override => switch (this) {
+    inherit => null,
+    disabled => false,
+    enabled => true,
+  };
+}
+
 /// Preferences supported by the current map. Reading alone never writes defaults.
 class UserPreferences {
   const UserPreferences({
@@ -20,6 +32,8 @@ class UserPreferences {
     this.buildings3dVisible = false,
     this.vegetation3dVisible = false,
     this.realisticLighting = false,
+    this.navigationBuildings = NavigationEnvironmentMode.inherit,
+    this.navigationVegetation = NavigationEnvironmentMode.inherit,
     this.obstacleWmsVisible = false,
     this.obstacleWmsOpacity = 0.8,
     this.obstacleVectorsVisible = false,
@@ -41,6 +55,7 @@ class UserPreferences {
   final bool avalancheVisible;
   final double avalancheOpacity;
   final bool buildings3dVisible, vegetation3dVisible, realisticLighting;
+  final NavigationEnvironmentMode navigationBuildings, navigationVegetation;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
   final bool obstacleModelsVisible;
   final double obstacleWmsOpacity;
@@ -65,6 +80,8 @@ class UserPreferences {
     bool? buildings3dVisible,
     bool? vegetation3dVisible,
     bool? realisticLighting,
+    NavigationEnvironmentMode? navigationBuildings,
+    NavigationEnvironmentMode? navigationVegetation,
     bool? obstacleWmsVisible,
     double? obstacleWmsOpacity,
     bool? obstacleVectorsVisible,
@@ -87,6 +104,8 @@ class UserPreferences {
     buildings3dVisible: buildings3dVisible ?? this.buildings3dVisible,
     vegetation3dVisible: vegetation3dVisible ?? this.vegetation3dVisible,
     realisticLighting: realisticLighting ?? this.realisticLighting,
+    navigationBuildings: navigationBuildings ?? this.navigationBuildings,
+    navigationVegetation: navigationVegetation ?? this.navigationVegetation,
     obstacleWmsVisible: obstacleWmsVisible ?? this.obstacleWmsVisible,
     obstacleWmsOpacity: obstacleWmsOpacity ?? this.obstacleWmsOpacity,
     obstacleVectorsVisible:

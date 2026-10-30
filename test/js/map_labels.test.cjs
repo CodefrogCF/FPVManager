@@ -35,6 +35,8 @@ test('visibility is independent of imagery, repeated requests use the bounded se
  p.layer.set({visible:true});await tick();assert.equal(p.calls.length,2);
  p.layer.set({visible:false});assert.equal(p.primitives[0].show,false);assert.equal(p.credits.size,0);
  p.layer.set({visible:true});await tick();p.draw();assert.equal(p.calls.length,2);assert.equal(p.credits.size,1);
+ p.layer.navigation(true);p.draw();assert.equal(p.primitives[0].items.find(l=>l.show).disableDepthTestDistance,Infinity);
+ p.layer.navigation(false);p.draw();assert.equal(p.primitives[0].items.find(l=>l.show).disableDepthTestDistance,0);
  p.layer.dispose();assert.equal(p.changed.listeners.size,0);assert.equal(p.render.listeners.size,0);assert.equal(p.terrain.listeners.size,0);assert.equal(p.primitives.length,0);
 });
 test('cached-only and network-offline modes never fall back to remote label requests',async()=>{

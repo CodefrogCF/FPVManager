@@ -9,7 +9,7 @@ resizing the globe. On short landscape screens, layers and status open at the
 side. Equipment is grouped under **Equipment** in the navigation menu.
 
 **Einstellungen** in navigation or map actions groups display/map defaults,
-controls, source/access shortcuts and offline/privacy. It uses the same settings
+controls, navigation, source/access shortcuts and offline/privacy. It uses the same settings
 as contextual tools. Flight/controller configuration here prepares the next
 simulation without spawning. **Guides und Hilfe** is bundled for offline reading;
 contextual help returns to the current tool with its draft intact. Current
@@ -26,6 +26,13 @@ near the end; search and filters reset the list. Returning from details keeps
 the list position. A failed additional load leaves existing entries usable.
 
 The compass at the upper right follows map rotation. Tap it to face north.
+
+Road navigation has separate **Gebäude** and **Bäume und Wälder** choices under
+**Einstellungen → Navigation** or **Kartendarstellung → 3D-Umgebung** while navigating:
+**Wie Karte**, **Aus**, or **Ein**. Map/flight defaults and aviation obstacles remain
+separate. Missing streaming data is reported locally; cached-only mode does not
+download models. The follow camera and position marker smooth accepted GPS fixes
+without extrapolating; speed, guidance and rerouting still use the original fixes.
 
 **Mein Standort** requests foreground location, shows an accuracy circle and recentres
 once. Long-press it or open **Standortanzeige** for following and on/off controls;

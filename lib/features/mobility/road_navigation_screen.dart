@@ -10,6 +10,7 @@ import 'traffic_bulletin.dart';
 import 'traffic_counters_section.dart';
 import 'road_route_comparison.dart';
 import '../offline/cached_map_notice.dart';
+import 'navigation_environment_section.dart';
 
 String navigationDistance(double meters) => meters < 1000
     ? '${(meters / 10).round() * 10} m'
@@ -25,6 +26,7 @@ class RoadNavigationScreen extends StatefulWidget {
     this.initialRoadsVisible = false,
     this.initialRoadsOpacity = .8,
     this.cachedMaps = false,
+    this.settingsController,
   });
   final RoadNavigation navigation;
   final NavigationPlatform platform;
@@ -33,6 +35,7 @@ class RoadNavigationScreen extends StatefulWidget {
   final bool initialRoadsVisible;
   final double initialRoadsOpacity;
   final bool cachedMaps;
+  final GlobeController? settingsController;
   @override
   State<RoadNavigationScreen> createState() => _RoadNavigationScreenState();
 }
@@ -40,6 +43,9 @@ class RoadNavigationScreen extends StatefulWidget {
 class _RoadNavigationScreenState extends State<RoadNavigationScreen>
     with WidgetsBindingObserver {
   final _globe = GlobeController();
+  GlobeController get _settings => widget.settingsController ?? _globe;
+  Object? _sceneSnapshot;
+  Future<void> _sceneSync = Future.value();
   bool _follow = true, _voice = false;
   bool _mapConfigured = false;
   static const _cameraDistances = <double>[
@@ -61,6 +67,7 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
   Object? _lastCounters;
   String? _lastTrafficIds;
   bool? _lastReliable;
+  bool? _lastActive;
   int _routeRevision = -1;
   RoadNavigation get nav => widget.navigation;
   @override
@@ -68,6 +75,8 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _globe.addListener(_cameraChanged);
+    widget.settingsController?.addListener(_settingsChanged);
+    _settingsChanged();
     nav.addListener(_changed);
     _changed();
     nav.start();
@@ -75,6 +84,7 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
   }
 
   void _cameraChanged() {
+    _settingsChanged();
     if (_globe.isReady && !_mapConfigured) {
       _mapConfigured = true;
       // Readiness can arrive during a platform-view build. Configure afterwards.
@@ -82,6 +92,9 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
         if (!mounted) return;
         try {
           await _globe.setMapStyle(widget.initialMapStyle);
+          if (widget.settingsController?.labelsVisible == true && mounted) {
+            await _globe.setMapLabels(true);
+          }
           if (widget.initialRoadsVisible && mounted) {
             await _globe.setRoadsOverlay(
               visible: true,
@@ -104,6 +117,63 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
     if (mounted && follow != null && follow != _follow) {
       setState(() => _follow = follow);
     }
+  }
+
+  void _settingsChanged() {
+    final settings = _settings;
+    final snapshot = (
+      settings.buildings3dVisible,
+      settings.vegetation3dVisible,
+      settings.realisticLighting,
+      settings.navigationBuildings,
+      settings.navigationVegetation,
+    );
+    if (_sceneSnapshot == snapshot) {
+      return;
+    }
+    _sceneSnapshot = snapshot;
+    _sceneSync = _sceneSync
+        .then((_) async {
+          if (!mounted) return;
+          if (!identical(settings, _globe)) {
+            await _globe.setNavigationEnvironment(
+              buildings: snapshot.$4,
+              vegetation: snapshot.$5,
+            );
+            if (!mounted) return;
+            await _globe.setSceneEnvironment(
+              buildings: snapshot.$1,
+              vegetation: snapshot.$2,
+              lighting: snapshot.$3,
+            );
+          }
+        })
+        .catchError((Object _) {
+          if (mounted) {
+            setState(
+              () => _mapError = '3D-Umgebung konnte nicht übernommen werden.',
+            );
+          }
+        });
+  }
+
+  void _environment() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: ListenableBuilder(
+            listenable: Listenable.merge([_settings, _globe]),
+            builder: (_, _) => NavigationEnvironmentSection(
+              settings: _settings,
+              renderer: _globe,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _zoom(int delta) {
@@ -169,9 +239,12 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
             }),
       );
     }
-    if (!identical(_lastFix, nav.fix) || _lastReliable != nav.reliable) {
+    if (!identical(_lastFix, nav.fix) ||
+        _lastReliable != nav.reliable ||
+        _lastActive != nav.active) {
       _lastFix = nav.fix;
       _lastReliable = nav.reliable;
+      _lastActive = nav.active;
       _updateMap();
     }
     if (_voice && nav.reliable && !nav.offRoute && !nav.recalculating) {
@@ -230,12 +303,14 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(_globe.setRenderingPaused(false).catchError((Object _) {}));
       nav.start();
       unawaited(widget.platform.keepAwake(true));
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       nav.pause();
+      unawaited(_globe.setRenderingPaused(true).catchError((Object _) {}));
       unawaited(widget.platform.stopVoice());
       unawaited(widget.platform.keepAwake(false));
     }
@@ -249,6 +324,7 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
     unawaited(widget.platform.stopVoice());
     unawaited(widget.platform.keepAwake(false));
     _globe.removeListener(_cameraChanged);
+    widget.settingsController?.removeListener(_settingsChanged);
     _globe.dispose();
     super.dispose();
   }
@@ -400,12 +476,21 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                 child: Text('Satellitenkarte'),
               ),
               CheckedPopupMenuItem(
+                key: const Key('navigation-roads-toggle'),
                 value: 'roads',
                 checked: _globe.roadsVisible,
                 child: const Text('Straßen und Wege'),
               ),
+              const PopupMenuItem(
+                value: 'environment',
+                child: Text('3D-Umgebung'),
+              ),
             ],
             onSelected: (choice) async {
+              if (choice == 'environment') {
+                _environment();
+                return;
+              }
               try {
                 if (choice == 'roads') {
                   await _globe.setRoadsOverlay(visible: !_globe.roadsVisible);

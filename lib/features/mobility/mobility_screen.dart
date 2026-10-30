@@ -548,6 +548,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => RoadNavigationScreen(
+            settingsController: widget.globe,
             cachedMaps: widget.cachedMaps,
             navigation: navigation,
             initialMapStyle: widget.globe.mapStyle,

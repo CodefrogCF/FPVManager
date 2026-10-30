@@ -73,8 +73,8 @@ function postToFlutter(message) {
     const terrainAvailable = () => terrainManager?.status().state === "ready";
     const offlineReason = () => offline ? "diagnosticOffline" :
         navigator.onLine === false && !window.FPVMapProviderConfig?.cacheRoot ? "networkOffline" : null;
-    window.addEventListener("offline", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();});
-    window.addEventListener("online", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();});
+    window.addEventListener("offline", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();sceneEnvironment?.networkChanged();});
+    window.addEventListener("online", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();sceneEnvironment?.networkChanged();});
 
     let activeViewer = null;
     let activeBaseLayer = null;
@@ -642,6 +642,7 @@ function postToFlutter(message) {
             case 'set-live-radio-result': return liveRadio.set(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-scene-environment': return sceneEnvironment.set(command);
+            case 'set-navigation-environment': return sceneEnvironment.navigation(command);
             case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
             case "set-route-editor": stopNavigation(); return routeEditor.set(command, signal);
@@ -833,11 +834,13 @@ function postToFlutter(message) {
         }
         const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);}});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
-            follow=>sendToFlutter('road-navigation-follow',{follow}));
+            follow=>sendToFlutter('road-navigation-follow',{follow}),
+            {isTerrainReady:terrainAvailable,onActive:active=>{sceneEnvironment?.navigationActive(active);mapLabels?.navigation(active);}});
         mapCompass = FPVMapCompass.create(Cesium,viewer,document.getElementById('map-compass'),
             {navigation:roadNavigation,isEnabled:()=>!navigationActive()});
         activeViewer = viewer;
-        sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources});
+        sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
+            cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
         windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
         globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
         mapLabels = FPVMapLabels.create(Cesium,viewer,sendToFlutter,{cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});

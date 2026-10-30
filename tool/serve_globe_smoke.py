@@ -121,6 +121,22 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / '.dart_tool/wind-live.json').read_bytes())
         elif path == '/scene-smoke':
             self.reply((ROOT / 'test/web/scene_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/navigation-smoke':
+            self.reply((ROOT / 'test/web/navigation_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/navigation-fixture.js':
+            self.reply((ROOT / 'test/web/navigation_fixture.js').read_bytes(), 'application/javascript')
+        elif path == '/navigation-baseline.js':
+            self.reply((ROOT / '.dart_tool/road_navigation_baseline.js').read_bytes(), 'application/javascript')
+        elif path == '/navigation-globe.html':
+            live = 'live3d' in urlsplit(self.path).query
+            baseline = 'baseline' in urlsplit(self.path).query
+            body = (WEB_ROOT / 'globe.html').read_bytes().replace(
+                b'<script src="globe.js"></script>',
+                (b'<script src="/scene-fixture.js"></script>' if live else b'<script src="/terrain-fixture.js"></script>') +
+                b'<script src="/navigation-fixture.js"></script><script src="globe.js"></script>')
+            if baseline:
+                body = body.replace(b'src="road_navigation.js"', b'src="/navigation-baseline.js"')
+            self.reply(body, 'text/html; charset=utf-8')
         elif path == '/scene-fixture.js':
             self.reply((ROOT / 'test/web/scene_fixture.js').read_bytes(), 'application/javascript')
         elif path == '/scene-globe.html':

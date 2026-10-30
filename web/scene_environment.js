@@ -8,7 +8,7 @@
         buildings:'https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json',
         vegetation:'https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/tileset.json'
     });
-    const budgets=Object.freeze({quality:[12,24,48,24,8],balanced:[24,40,32,16,4],performance:[40,64,24,12,2]});
+    const budgets=Object.freeze({quality:[12,24,48,24,8],balanced:[24,40,32,16,4],performance:[40,64,24,12,2],navigation:[32,56,24,12,2]});
     function time(value){
         if(value==null)return null;
         if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?Z$/.test(value))throw Error('Expected UTC scene time');
@@ -17,7 +17,8 @@
             date.toISOString().slice(0,19)!==value.slice(0,19))throw Error('Scene date must be within 1900–2100');
         return date.toISOString();
     }
-    function create(C,viewer,send=()=>{},{urls=sources,timeoutMs=15000,setTimer=setTimeout,clearTimer=clearTimeout}={}){
+    function create(C,viewer,send=()=>{},{urls=sources,timeoutMs=15000,setTimer=setTimeout,clearTimer=clearTimeout,
+        cachedOnly=false,isOnline=()=>globalThis.navigator?.onLine!==false}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
             light:scene.light,lighting:scene.globe.enableLighting,atmosphere:scene.globe.dynamicAtmosphereLightingFromSun,
@@ -29,6 +30,8 @@
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
             phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null}]));
         let disposed=false,lighting=false,profile='balanced',credited=false,appliedTime=null;
+        let navigating=false;
+        const mapLayers={buildings:false,vegetation:false},navigationLayers={buildings:null,vegetation:null};
         function publish(key){
             if(disposed)return;
             const l=layers[key],state=!l.requested?'hidden':l.phase;
@@ -41,7 +44,7 @@
             if(needed)creditDisplay?.addStaticCredit(credit);else creditDisplay?.removeStaticCredit(credit);
         }
         function options(key){
-            const b=budgets[profile],trees=key==='vegetation',mb=1024*1024;
+            const b=budgets[navigating?'navigation':profile],trees=key==='vegetation',mb=1024*1024;
             return {show:false,maximumScreenSpaceError:b[trees?1:0],cacheBytes:b[trees?3:2]*mb,
                 maximumCacheOverflowBytes:b[4]*mb,shadows:C.ShadowMode.DISABLED,
                 preloadWhenHidden:false,preloadFlightDestinations:false,loadSiblings:false,
@@ -59,6 +62,7 @@
         }
         function load(key){
             const l=layers[key];if(disposed||l.pending||l.tileset||!l.requested)return;
+            if(cachedOnly||!isOnline()){l.phase='offline';publish(key);return;}
             const revision=++l.revision;l.phase='loading';l.failed=false;publish(key);
             const current=()=>!disposed&&revision===l.revision;
             let timedOut=false;
@@ -68,10 +72,10 @@
             l.pending=Promise.resolve().then(()=>C.Cesium3DTileset.fromUrl(urls[key],options(key))).then(tileset=>{
                 if(!current()||timedOut){if(!tileset.isDestroyed())tileset.destroy();return;}
                 Object.assign(tileset,options(key));l.tileset=tileset;scene.primitives.add(tileset);visibility(key);
-                l.phase='ready';publish(key);
-                l.removers.push(tileset.tileFailed.addEventListener(()=>{if(!current())return;l.failed=true;l.phase='partial';publish(key);}));
+                l.phase=isOnline()?'ready':'offline';publish(key);
+                l.removers.push(tileset.tileFailed.addEventListener(()=>{if(!current())return;l.failed=true;l.phase=isOnline()?'partial':'offline';publish(key);}));
                 l.removers.push(tileset.loadProgress.addEventListener((pending,processing)=>{
-                    if(!current()||l.failed)return;l.phase=pending+processing>0?'loading':'ready';publish(key);
+                    if(!current()||l.failed)return;l.phase=isOnline()?(pending+processing>0?'loading':'ready'):'offline';publish(key);
                 }));
                 scene.requestRender();
             }).catch(()=>{if(current()){l.phase='failed';publish(key);}}).finally(()=>{
@@ -102,19 +106,47 @@
             scene.skyAtmosphere?.setDynamicLighting?.(enabled,enabled);
             scene.requestRender();
         }
+        function applyLayers(retry){
+            for(const key of Object.keys(layers)){
+                const l=layers[key];l.requested=navigating?(navigationLayers[key]??mapLayers[key]):mapLayers[key];
+                if(retry===key){release(l);l.pending=null;}
+                if(l.tileset)Object.assign(l.tileset,options(key));
+                if(l.requested&&!l.tileset&&!l.pending&&(l.phase!=='failed'||retry===key))load(key);
+                visibility(key);publish(key);
+            }
+            credits();scene.requestRender();
+        }
         const removeUpdate=scene.preUpdate.addEventListener(()=>{for(const key of Object.keys(layers))visibility(key);});
         return {
             set(command){
                 if(disposed)return {};
                 for(const key of ['buildings','vegetation','lighting'])if(typeof command[key]!=='boolean')throw Error('Invalid scene preference');
                 lighting=command.lighting;applyTime();
+                for(const key of Object.keys(layers))mapLayers[key]=command[key];
+                applyLayers(command.retry);return {};
+            },
+            navigation(command){
+                if(disposed)return {};
+                for(const key of Object.keys(layers))if(command[key]!==null&&typeof command[key]!=='boolean')throw Error('Invalid navigation scene preference');
+                if(command.active!==undefined&&typeof command.active!=='boolean')throw Error('Invalid navigation scene state');
+                if(command.active!==undefined)navigating=command.active;
+                Object.assign(navigationLayers,{buildings:command.buildings,vegetation:command.vegetation});
+                applyLayers();return {};
+            },
+            navigationActive(active){
+                if(disposed||navigating===active)return;
+                navigating=active;applyLayers();
+            },
+            networkChanged(){
+                if(disposed)return;
                 for(const key of Object.keys(layers)){
-                    const l=layers[key];l.requested=command[key];
-                    if(command.retry===key){release(l);l.pending=null;}
-                    if(l.requested&&!l.tileset&&!l.pending&&(l.phase!=='failed'||command.retry===key))load(key);
-                    visibility(key);publish(key);
+                    const l=layers[key];if(!l.requested)continue;
+                    if(cachedOnly||!isOnline()){l.phase='offline';publish(key);}
+                    else if(l.phase==='offline'){
+                        if(l.tileset){l.phase=l.failed?'partial':'ready';publish(key);}
+                        else load(key);
+                    }
                 }
-                credits();scene.requestRender();return {};
             },
             setTime({scope,enabled,timeUtc=null}){
                 if(disposed)return {};

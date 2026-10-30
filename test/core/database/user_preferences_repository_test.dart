@@ -22,6 +22,8 @@ void main() {
     expect(defaults.uasZonesFillOpacity, 0.20);
     expect(defaults.savedSpotsVisible, isTrue);
     expect(defaults.obstacleModelsVisible, isFalse);
+    expect(defaults.navigationBuildings, NavigationEnvironmentMode.inherit);
+    expect(defaults.navigationVegetation, NavigationEnvironmentMode.inherit);
     expect(defaults.overlayOrder, [
       GlobeOverlay.uasZones,
       GlobeOverlay.savedSpots,
@@ -52,6 +54,8 @@ void main() {
           buildings3dVisible: true,
           vegetation3dVisible: true,
           realisticLighting: true,
+          navigationBuildings: NavigationEnvironmentMode.disabled,
+          navigationVegetation: NavigationEnvironmentMode.enabled,
           hazardAreasVisible: true,
           obstacleModelsVisible: true,
           obstacleBufferMeters: 75,
@@ -70,6 +74,10 @@ void main() {
       expect(queue.current.buildings3dVisible, isTrue);
       expect(queue.current.vegetation3dVisible, isTrue);
       expect(queue.current.realisticLighting, isTrue);
+      final reopened = await UserPreferencesRepository(database)
+          .getPreferences();
+      expect(reopened.navigationBuildings, NavigationEnvironmentMode.disabled);
+      expect(reopened.navigationVegetation, NavigationEnvironmentMode.enabled);
       expect(queue.current.hazardAreasVisible, isTrue);
       expect(queue.current.obstacleModelsVisible, isTrue);
       expect(
@@ -81,7 +89,7 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      expect(rows, hasLength(22));
+      expect(rows, hasLength(24));
       expect(
         rows
             .where((row) => row.key != 'unrelated')
@@ -99,7 +107,7 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(22));
+      expect(await database.select(database.appSettings).get(), hasLength(24));
       await repository.resetPreferences();
       expect(
         (await repository.getPreferences()).obstacleModelsVisible,
@@ -140,6 +148,8 @@ void main() {
       'map.uas.visible': 'yes',
       'map.uas.fillOpacity': 'NaN',
       'map.spots.visible': 'yes',
+      'navigation.scene.buildings': 'yes',
+      'navigation.scene.vegetation': 'unknown',
       'map.overlayOrder': '["savedSpots","savedSpots"]',
     }.entries) {
       await database

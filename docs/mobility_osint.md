@@ -29,6 +29,10 @@ network with persistent visibility and opacity. The Topo base map retains a fine
 terrain/imagery level longer while zooming out; labels remain scale-dependent.
 Flight graphics keep their own detail budget. Navigation inherits this map style
 and road overlay; its layer menu can switch between Topo/Satellite and roads.
+Buildings and vegetation each have independent **Wie Karte / Aus / Ein** choices
+under **Einstellungen → Navigation**, also available in the navigation layer menu.
+Navigation temporarily uses its own graphics/model budgets and restores map settings
+on exit. Missing 3D data does not stop guidance; cached-only mode makes no model requests.
 
 **Map Layers → OSINT** controls the independent aerodrome/heliport and wildfire
 layers, opacity, retry and official legends. Other loaded snapshots can be removed
@@ -146,3 +150,51 @@ have independent source credits, bounded batches, cancellation, viewport/age
 filtering and cleanup. No confidential emergency information or live responder
 locations are added. Tests use synthetic data; real API credentials, coverage
 and device gestures require separate manual verification.
+
+## Navigation rendering checks (#72 / #73)
+
+Camera/marker interpolation runs locally before Cesium updates the scene; GPS speed,
+course validation, route matching and announcements keep their original fixes.
+Interpolation stops at the last fix. Jumps over 250 m start a conservative overview;
+missing fixes hide the marker. Free-camera mode stops follow updates; returning to
+follow blends the actual camera pose over 650 ms. Pausing/exiting releases the loop
+and restores graphics/camera state. Terrain samples are limited to 5 Hz with at most
+256 cached cells; unavailable terrain cannot supply ellipsoid fallback heights.
+
+Navigation uses at most 0.9 resolution scale, 2× MSAA and a 256-tile terrain/imagery
+cache target. Building/vegetation cache targets are 24/12 MiB with 2 MiB overflow each,
+screen-space error 32/56, no model shadows or hidden/sibling preloading. These are
+Cesium cache targets, not a hard limit on total application memory.
+See [scene update events](https://cesium.com/learn/cesiumjs/ref-doc/Scene.html#preUpdate)
+and [3D Tiles cache semantics](https://cesium.com/learn/cesiumjs/ref-doc/Cesium3DTileset.html#cacheBytes).
+
+Reproduce with `python tool/serve_globe_smoke.py --port 8780`, then open
+`http://127.0.0.1:8780/navigation-smoke`. For the comparison, first export
+`git show 9b013db:web/road_navigation.js` as UTF-8 to
+`.dart_tool/road_navigation_baseline.js`, then open `/navigation-smoke?baseline=1`.
+Use the same viewport and no parallel test processes. `/navigation-smoke?live3d=1`
+checks official Swiss model loading, reuse and restoration separately.
+
+2026-10-30, one sequential Chrome headless/SwiftShader run per variant, 800×420 CSS
+map viewport, synthetic flat terrain/grid imagery, eight nominal 1 Hz fixes:
+
+| Measurement | Baseline | Updated |
+| --- | ---: | ---: |
+| Drawing buffer | 800×420 | 720×378 |
+| Frame samples | 30 | 27 |
+| Median / p95 frame interval | 294.16 / 355.55 ms | 301.68 / 354.50 ms |
+| Frames over 100 ms | 28 | 27 |
+| Median / p95 scene update/render CPU interval | 10.68 / 19.46 ms | 8.08 / 15.12 ms |
+| Largest displayed position step | 13.70 m | 6.18 m |
+| Largest heading step | 12.00° | 5.41° |
+| GPS bridge packets | 8 | 8 |
+| Total terrain height calls, including Cesium | 30 | 70 |
+
+The updated renderer made 15 of those terrain queries; smoother camera motion also
+causes more Cesium-internal queries. The run demonstrates intermediate poses and
+lower measured scene CPU intervals, **not a higher device frame rate**. Software
+rendering still stalls; official model streaming also produced long pauses in this
+environment. Reference Android and hardware-accelerated Web measurements remain open:
+record device, viewport/resolution, layers, cold/warm loading, median/p95 frame time
+and stalls while following, panning, turning, backgrounding and resuming. No physical
+Android navigation or app build was performed here.

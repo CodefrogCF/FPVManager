@@ -27,6 +27,8 @@ bool backupSetting(String key) =>
       'map.scene.buildings',
       'map.scene.vegetation',
       'map.scene.lighting',
+      'navigation.scene.buildings',
+      'navigation.scene.vegetation',
       'map.overlayOrder',
       'map.obstacles.wms.visible',
       'map.obstacles.wms.opacity',

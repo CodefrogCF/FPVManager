@@ -121,7 +121,8 @@
                         }
                     }else if(g.type==='Point'){
                         entity.position=C.Cartesian3.fromDegrees(...g.coordinates);
-                        entity.point={pixelSize:command.id==='traffic'?12:9,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND};
+                        entity.point={pixelSize:command.id==='traffic'?12:9,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance:Number.POSITIVE_INFINITY};
                     }else entity.polyline={positions:C.Cartesian3.fromDegreesArray(g.coordinates.flat()),width:4,material:color,clampToGround:true};
                     if(command.id!=='avalanche')entries.push({entity:source.entities.add(entity),feature});
                     if(i%100===99)await yieldBatch();

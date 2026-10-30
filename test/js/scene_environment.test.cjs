@@ -6,7 +6,7 @@ class Event{
     fire(...v){for(const f of this.listeners)f(...v);}
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
-function fixture(loader){
+function fixture(loader,options={}){
     const requests=[],states=[],primitives=[],credits=new Set(),timers=new Map();let nextTimer=0;
     const C={JulianDate:{clone:x=>({...x}),fromIso8601:value=>({value})},ClockStep:{SYSTEM_CLOCK:2},SunLight:class{},Credit:class{},ShadowMode:{DISABLED:0},
         Cesium3DTileset:{fromUrl:(url,options)=>{requests.push({url,options});return loader?.(url,options)??Promise.resolve(tile(options));}}};
@@ -15,7 +15,7 @@ function fixture(loader){
         scene:{light:{original:true},globe:{enableLighting:false,dynamicAtmosphereLightingFromSun:false},preUpdate:new Event(),requestRender(){},
             primitives:{add:p=>primitives.push(p),remove:p=>{primitives.splice(primitives.indexOf(p),1);p.destroy();}}}};
     function tile(options){let destroyed=false;return {...options,tileFailed:new Event(),loadProgress:new Event(),destroy(){destroyed=true;},isDestroyed:()=>destroyed};}
-    const manager=create(C,viewer,(type,event)=>states.push({type,...event}),{setTimer:f=>{timers.set(++nextTimer,f);return nextTimer;},clearTimer:id=>timers.delete(id)});
+    const manager=create(C,viewer,(type,event)=>states.push({type,...event}),{setTimer:f=>{timers.set(++nextTimer,f);return nextTimer;},clearTimer:id=>timers.delete(id),...options});
     const set=(options={})=>manager.set({buildings:false,vegetation:false,lighting:false,...options});
     return {manager,set,C,viewer,requests,states,primitives,credits,timers,tile};
 }
@@ -62,6 +62,45 @@ test('fixed route and flight times have scoped priority and restore current map 
 test('calendar times reject malformed, out-of-range and timezone-ambiguous values',()=>{
     for(const value of ['yesterday','2026-02-31T12:00:00Z','1800-01-01T12:00:00Z','2026-06-01T12:00:00','2026-06-01T12:00:00+02:00'])assert.throws(()=>time(value));
     assert.equal(time('2026-06-01T12:00:00.123456Z'),'2026-06-01T12:00:00.123Z');assert.equal(time(null),null);
+});
+
+test('navigation inherits or overrides each model layer independently and restores map budgets without reimports',async()=>{
+    const p=fixture();p.set({buildings:true});await flush();const building=p.primitives[0];
+    p.manager.navigation({buildings:false,vegetation:true});assert.equal(building.show,true,'inactive navigation cannot change map');
+    p.manager.navigationActive(true);await flush();assert.equal(building.show,false);assert.equal(p.primitives.length,2);
+    const trees=p.primitives[1];assert.equal(trees.show,true);assert.equal(trees.cacheBytes,12*1024*1024);
+    assert.equal(building.cacheBytes,24*1024*1024);assert.equal(trees.maximumScreenSpaceError,56);
+    p.manager.performance('quality');assert.equal(building.maximumScreenSpaceError,32,'navigation retains its own budget');
+    p.set({buildings:true,vegetation:false});assert.equal(trees.show,true,'map updates cannot overwrite enabled navigation');
+    p.manager.navigation({buildings:null,vegetation:null});assert.equal(building.show,true);assert.equal(trees.show,false);
+    p.manager.navigation({buildings:true,vegetation:true});p.manager.navigationActive(false);
+    assert.equal(building.show,true);assert.equal(trees.show,false);assert.equal(building.maximumScreenSpaceError,12);
+    assert.equal(p.requests.length,2);assert.throws(()=>p.manager.navigation({buildings:'enabled',vegetation:null}));
+    assert.equal(trees.show,false);p.manager.dispose();
+});
+
+test('offline navigation model failure remains local and a late request cannot replace restored map settings',async()=>{
+    let resolve;const p=fixture(()=>new Promise(r=>resolve=r));
+    p.manager.navigation({buildings:true,vegetation:false});p.manager.navigationActive(true);await flush();
+    p.manager.navigationActive(false);const model=p.tile({});resolve(model);await flush();
+    assert.equal(model.show,false);assert.equal(model.cacheBytes,32*1024*1024);p.manager.dispose();
+    const q=fixture(()=>Promise.reject(Error('offline')));
+    q.manager.navigation({buildings:false,vegetation:true});q.manager.navigationActive(true);await flush();
+    assert.equal(q.states.at(-1).state,'failed');assert.ok(q.states.every(s=>s.type==='scene-layer-status'));
+    q.manager.navigationActive(false);assert.equal(q.states.at(-1).state,'hidden');q.manager.dispose();
+});
+
+test('navigation overrides precede inherited map imports; cached-only and offline sources recover without inventing models',async()=>{
+    const p=fixture();p.manager.navigation({active:true,buildings:false,vegetation:false});
+    p.set({buildings:true,vegetation:true});await flush();assert.equal(p.requests.length,0);
+    p.manager.navigationActive(false);await flush();assert.equal(p.requests.length,2);p.manager.dispose();
+    const q=fixture(undefined,{cachedOnly:true});q.manager.navigation({active:true,buildings:true,vegetation:true});await flush();
+    assert.equal(q.requests.length,0);assert.equal(q.primitives.length,0);assert.equal(q.states.at(-1).state,'offline');q.manager.dispose();
+    let online=false;const r=fixture(undefined,{isOnline:()=>online});r.set({buildings:true});
+    assert.equal(r.requests.length,0);online=true;r.manager.networkChanged();await flush();
+    assert.equal(r.requests.length,1);assert.equal(r.primitives.length,1);const model=r.primitives[0];
+    online=false;r.manager.networkChanged();assert.equal(r.states.at(-1).state,'offline');assert.equal(model.show,true);
+    online=true;r.manager.networkChanged();assert.equal(r.requests.length,1);assert.equal(r.states.at(-1).state,'ready');r.manager.dispose();
 });
 
 test('sun lighting remains active close to ground for satellite and relief imagery and restores defaults',()=>{
