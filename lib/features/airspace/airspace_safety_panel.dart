@@ -10,6 +10,7 @@ import '../../core/osint/osint_source.dart';
 import 'api_credentials_section.dart';
 import '../globe/globe_controller.dart';
 import 'uas_restriction.dart';
+import '../help/guides_screen.dart';
 
 /// Official destinations only. No scraping, authentication, tracking or
 /// unlicensed redistribution of DABS/NOTAM contents is performed.
@@ -216,15 +217,16 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
                 assessment.timeDependentFeatureCount.toString(),
               ),
             const Text(
-              'Colors reflect the official restriction attribute (CodeRestrictionType), not the zone definition type COMMON. Blue does not mean flight clearance. Overlapping restrictions, validity, aircraft weight, altitude and local rules must be checked individually.',
+              'Colors describe source restrictions. Blue is not flight clearance; check every overlapping zone and its conditions.',
             ),
+            const GuideLink(GuideTopic.airspace),
             const Divider(height: 32),
             Text(
               'Temporary / time-dependent information',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const Text(
-              'Skyguide DABS is a periodically published snapshot. NOTAM information can change between DABS editions. The authoritative original NOTAM and applicable AIP must be checked immediately before flying. DABS is not continuously updated.',
+              'Check the latest DABS and original NOTAM immediately before flying. DABS is a periodic snapshot.',
             ),
             const Text(
               'Automatic DABS/NOTAM availability: not connected. No assertion is made that temporary restrictions have been retrieved or checked.',

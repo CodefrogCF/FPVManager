@@ -44,7 +44,8 @@ void main() {
       expect(simulationItem.enabled, isFalse);
       expect(find.text('Weather intelligence'), findsOneWidget);
       expect(find.text('Standortanzeige'), findsOneWidget);
-      expect(menuItems.where((item) => item.enabled), hasLength(2));
+      expect(find.text('Einstellungen'), findsOneWidget);
+      expect(menuItems.where((item) => item.enabled), hasLength(3));
       await tester.tapAt(const Offset(20, 200));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));

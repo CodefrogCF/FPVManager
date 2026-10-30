@@ -1109,6 +1109,7 @@ class GlobeController extends ChangeNotifier {
   }
 
   void _resetConnection() {
+    _labelsState = labelsVisible ? 'loading' : 'off';
     obstacles.rendererLost();
     _situationalSelection = null;
     _situationalStatus.clear();
@@ -1370,6 +1371,22 @@ class GlobeController extends ChangeNotifier {
   }
 
   bool get roadsVisible => _preferences.roadsVisible;
+  bool get labelsVisible => _preferences.labelsVisible;
+  String _labelsState = 'off';
+  String get labelsState => _labelsState;
+  Future<void> setMapLabels(bool visible, {bool retry = false}) async {
+    _checkPreferencesEditable();
+    if (_ready) {
+      await _send({
+        'type': 'set-map-labels',
+        'visible': visible,
+        'retry': retry,
+      });
+    }
+    await _savePreferences(_preferences.copyWith(labelsVisible: visible));
+    if (!_disposed) notifyListeners();
+  }
+
   double get roadsOpacity => _preferences.roadsOpacity;
   Future<void> setRoadsOverlay({
     bool? visible,
@@ -1709,6 +1726,20 @@ class GlobeController extends ChangeNotifier {
           _terrainResourceWarning = data['active'] as bool;
           notifyListeners();
         }
+      case 'labels-layer-status':
+        if ({
+          'off',
+          'loading',
+          'ready',
+          'partial',
+          'failed',
+          'offline',
+          'zoomIn',
+          'outside',
+        }.contains(data['state'])) {
+          _labelsState = data['state'] as String;
+          notifyListeners();
+        }
       case 'scene-layer-status':
         if (['buildings', 'vegetation'].contains(data['layer']) &&
             [
@@ -1972,6 +2003,9 @@ class GlobeController extends ChangeNotifier {
           'type': 'set-touch-controls',
           'visible': touchControlsVisible,
         });
+      }
+      if (forceSettings || labelsVisible) {
+        await _send({'type': 'set-map-labels', 'visible': labelsVisible});
       }
       if (!current()) return;
       if (_searchDestination != null) {

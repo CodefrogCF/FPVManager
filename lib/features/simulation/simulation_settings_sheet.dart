@@ -6,6 +6,7 @@ import 'simulation_settings.dart';
 import 'controller_settings.dart';
 import 'controller_settings_fields.dart';
 import '../globe/scene_time_control.dart';
+import '../help/guides_screen.dart';
 
 Future<SimulationSettings?> showSimulationSettings(
   BuildContext context, {
@@ -14,6 +15,7 @@ Future<SimulationSettings?> showSimulationSettings(
   required bool hasSelection,
   Widget? windControls,
   Widget? radioControls,
+  bool configureOnly = false,
 }) => showModalBottomSheet<SimulationSettings>(
   context: context,
   isScrollControlled: true,
@@ -23,6 +25,7 @@ Future<SimulationSettings?> showSimulationSettings(
     hasSelection: hasSelection,
     windControls: windControls,
     radioControls: radioControls,
+    configureOnly: configureOnly,
   ),
 );
 
@@ -33,12 +36,14 @@ class _Settings extends StatefulWidget {
     required this.hasSelection,
     this.windControls,
     this.radioControls,
+    this.configureOnly = false,
   });
   final DroneRepository repository;
   final SimulationSettings initial;
   final bool hasSelection;
   final Widget? windControls;
   final Widget? radioControls;
+  final bool configureOnly;
   @override
   State<_Settings> createState() => _SettingsState();
 }
@@ -141,8 +146,8 @@ class _SettingsState extends State<_Settings> {
   }
 
   String get _controlHelp => _mode == SimulationFlightMode.gps
-      ? 'Touch/controller: left stick moves, right stick looks. Keyboard: WASD / arrows move, drag or IJKL looks, E/Q climbs/descends.'
-      : 'Touch/controller: left stick vertical = throttle, horizontal = yaw; right stick vertical = pitch, horizontal = roll. Keyboard: E/Q throttle, A/D yaw, W/S pitch, left/right arrows roll. IJKL also controls pitch/roll.';
+      ? 'Left: move · Right: look · E/Q or buttons: height'
+      : 'Left: throttle / yaw · Right: pitch / roll';
   String get _acroHoverHelp {
     final ratio = read('acroThrustToWeight'), curve = read('acroThrustCurve');
     if (ratio == null ||
@@ -210,7 +215,11 @@ class _SettingsState extends State<_Settings> {
         child: Column(
           children: [
             ListTile(
-              title: const Text('Free flight simulation'),
+              title: Text(
+                widget.configureOnly
+                    ? 'Flug- und Controller-Einstellungen'
+                    : 'Free flight simulation',
+              ),
               trailing: IconButton(
                 tooltip: 'Close simulation settings',
                 onPressed: () => Navigator.pop(context),
@@ -228,15 +237,17 @@ class _SettingsState extends State<_Settings> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const GuideLink(GuideTopic.controls),
                     const Text(
                       'Simplified flight exploration, not a prediction of real aircraft performance. '
                       'Terrain contact stops movement; cables, buildings and other obstacles have no collision model.',
                     ),
-                    Text(
-                      widget.hasSelection
-                          ? 'Spawn at the selected map point or spot.'
-                          : 'No selected point: spawn at the terrain under the camera target.',
-                    ),
+                    if (!widget.configureOnly)
+                      Text(
+                        widget.hasSelection
+                            ? 'Spawn at the selected map point or spot.'
+                            : 'No selected point: spawn at the terrain under the camera target.',
+                      ),
                     const SizedBox(height: 12),
                     ExpansionTile(
                       title: const Text('Sonnen- und Mondzeit'),
@@ -587,7 +598,9 @@ class _SettingsState extends State<_Settings> {
                         );
                       },
                       icon: const Icon(Icons.flight_takeoff),
-                      label: const Text('Spawn in map'),
+                      label: Text(
+                        widget.configureOnly ? 'Übernehmen' : 'Spawn in map',
+                      ),
                     ),
                   ],
                 ),

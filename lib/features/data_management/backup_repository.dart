@@ -22,6 +22,7 @@ bool backupSetting(String key) =>
       'map.spots.visible',
       'simulation.touchControls.visible',
       'map.roads.visible',
+      'map.labels.visible',
       'map.roads.opacity',
       'map.scene.buildings',
       'map.scene.vegetation',

@@ -109,6 +109,14 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/wind_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/map-controls-smoke':
             self.reply((ROOT / 'test/web/map_controls_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/labels-smoke':
+            self.reply((ROOT / 'test/web/map_labels_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/map-labels-fixture.js':
+            self.reply((ROOT / 'test/web/map_labels_fixture.js').read_bytes(), 'application/javascript')
+        elif path == '/labels-globe.html':
+            body = (WEB_ROOT / 'globe.html').read_bytes().replace(b'<script src="globe.js"></script>',
+                b'<script src="/terrain-fixture.js"></script><script src="/map-labels-fixture.js"></script><script src="globe.js"></script>')
+            self.reply(body, 'text/html; charset=utf-8')
         elif path == '/wind-live.json':
             self.reply((ROOT / '.dart_tool/wind-live.json').read_bytes())
         elif path == '/scene-smoke':

@@ -48,12 +48,14 @@ function postToFlutter(message) {
         if (!event.persisted) sceneEnvironment?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
+        if (!event.persisted) mapLabels?.dispose();
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
     let flyer = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
         if(typeof visible!=='boolean')throw Error('Invalid touch visibility');
@@ -71,8 +73,8 @@ function postToFlutter(message) {
     const terrainAvailable = () => terrainManager?.status().state === "ready";
     const offlineReason = () => offline ? "diagnosticOffline" :
         navigator.onLine === false && !window.FPVMapProviderConfig?.cacheRoot ? "networkOffline" : null;
-    window.addEventListener("offline", () => terrainManager?.networkChanged());
-    window.addEventListener("online", () => terrainManager?.networkChanged());
+    window.addEventListener("offline", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();});
+    window.addEventListener("online", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();});
 
     let activeViewer = null;
     let activeBaseLayer = null;
@@ -605,6 +607,7 @@ function postToFlutter(message) {
             case "set-weather-overlay": return weatherOverlay.replace(command);
             case 'set-touch-controls': setTouchControls(command.visible); return {};
             case 'set-device-location': return globePositions.location(command);
+            case 'set-map-labels': return mapLabels.set(command);
             case 'set-search-destination': stopNavigation(); return globePositions.destination(command);
             case 'set-wind-field': return windLayer.set(command);
             case 'query-wind-center': {
@@ -837,6 +840,7 @@ function postToFlutter(message) {
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources});
         windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
         globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
+        mapLabels = FPVMapLabels.create(Cesium,viewer,sendToFlutter,{cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
         situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
         hazardAreas = FPVObstacles.createHazards(Cesium,viewer);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../mobility/destination_search.dart';
 import 'globe_search.dart';
+import '../help/guides_screen.dart';
 
 class CoordinatesDialog extends StatefulWidget {
   const CoordinatesDialog({super.key, this.search});
@@ -110,6 +111,7 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
       ),
     ),
     actions: [
+      const GuideLink(GuideTopic.coordinates, label: 'Koordinatenhilfe'),
       TextButton(
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancel'),

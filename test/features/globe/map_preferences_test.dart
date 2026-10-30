@@ -72,6 +72,38 @@ void main() {
     await database.close();
   });
 
+  test('labels remain independent across style changes, restart, renderer reload and reset', () async {
+    await controller.initializePreferences(repository);
+    await controller.setMapLabels(true);
+    await controller.setMapStyle(GlobeMapStyle.topographic);
+    expect(controller.labelsVisible, true);
+    expect(controller.roadsVisible, false);
+    controller.dispose();
+    controller = GlobeController(uasProvider: SwissUasProvider(client: client));
+    renderer = FakeGlobeRenderer(controller)
+      ..attach()
+      ..ready();
+    await controller.initializePreferences(repository);
+    expect(controller.labelsVisible, true);
+    renderer.commands.clear();
+    renderer.sessionId = 'labels-reload';
+    renderer.sequence = 0;
+    renderer.emit({'type': 'renderer-loading'});
+    renderer.ready();
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      renderer.commands
+          .where((c) => c['type'] == 'set-map-labels')
+          .single['visible'],
+      true,
+    );
+    renderer.emit({'type': 'labels-layer-status', 'state': 'offline'});
+    expect(controller.labelsState, 'offline');
+    expect(controller.labelsVisible, true);
+    await controller.resetPreferences();
+    expect(controller.labelsVisible, false);
+  });
+
   test('touch visibility persists, renderer quick settings save locally and reload restores the requested value', () async {
     await controller.initializePreferences(repository);
     await controller.setTouchControlsVisible(false);

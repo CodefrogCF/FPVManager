@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'globe_controller.dart';
 import 'scene_layers_section.dart';
 import '../weather/wind_settings_sheet.dart';
+import '../help/guides_screen.dart';
 
 class MapDisplaySection extends StatelessWidget {
   const MapDisplaySection({
@@ -32,6 +33,7 @@ class MapDisplaySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const GuideLink(GuideTopic.map),
         Text('BASE MAP', style: Theme.of(context).textTheme.labelLarge),
 
         const SizedBox(height: 12),
@@ -68,6 +70,36 @@ class MapDisplaySection extends StatelessWidget {
         ),
 
         const SizedBox(height: 24),
+
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Orts- und Straßennamen'),
+          subtitle: const Text('Reine Textbeschriftung · © swisstopo'),
+          value: controller.labelsVisible,
+          onChanged: controller.canEditPreferences
+              ? (value) => execute(() => controller.setMapLabels(value))
+              : null,
+        ),
+        if (controller.labelsVisible) ...[
+          Text(switch (controller.labelsState) {
+            'loading' => 'Beschriftungen werden geladen …',
+            'partial' =>
+              'Auswahl verfügbar · Quell- oder Darstellungsgrenze erreicht.',
+            'offline' => 'Beschriftungen offline nicht verfügbar; kein Online-Ersatzabruf.',
+            'zoomIn' => 'Für Beschriftungen näher heranzoomen.',
+            'outside' =>
+              'Beschriftungsquelle für die Schweiz und Liechtenstein.',
+            'failed' => 'Beschriftungsabruf fehlgeschlagen. Geladene Namen bleiben erhalten.',
+            _ => 'Ortsnamen; Straßennamen im Nahbereich. Keine vollständige Wegabdeckung.',
+          }, style: Theme.of(context).textTheme.bodySmall),
+          if (controller.labelsState == 'failed')
+            TextButton.icon(
+              onPressed: () =>
+                  execute(() => controller.setMapLabels(true, retry: true)),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Beschriftungen erneut laden'),
+            ),
+        ],
 
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,

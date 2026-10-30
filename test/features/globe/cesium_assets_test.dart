@@ -58,6 +58,7 @@ void main() {
         'road_navigation.js',
         'map_compass.js',
         'globe_positions.js',
+        'map_labels.js',
       ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);

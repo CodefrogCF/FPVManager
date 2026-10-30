@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'globe_controller.dart';
+import '../help/guides_screen.dart';
 
 class SceneLayersSection extends StatelessWidget {
   const SceneLayersSection({super.key, required this.controller});
@@ -78,7 +79,7 @@ class SceneLayersSection extends StatelessWidget {
           (value) => controller.setSceneEnvironment(vegetation: value),
         ),
         const Text(
-          'Schweizer Quelldaten. Zusätzlicher Speicher- und Datenverbrauch; weniger Details im Grafikprofil Leistung. Aus großer Höhe ausgeblendet. Vegetation ist modelliert, fehlende Objekte werden nicht ergänzt.',
+          'Schweizer Streaming-Daten · Vegetation modelliert · kein Kollisionsmodell.',
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
@@ -93,9 +94,7 @@ class SceneLayersSection extends StatelessWidget {
                 )
               : null,
         ),
-        const Text(
-          'Eine eigene Zeit für Route oder Flug überschreibt diese Beleuchtung vorübergehend. 3D-Daten benötigen Netzabrufe; sie gehören nicht zum Offline-Kartenpaket.',
-        ),
+        const GuideLink(GuideTopic.map, label: '3D-Daten und Beleuchtung'),
       ],
     );
   }

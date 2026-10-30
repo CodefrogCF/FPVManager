@@ -165,6 +165,7 @@ flutter:
     - web/road_navigation.js
     - web/map_compass.js
     - web/globe_positions.js
+    - web/map_labels.js
     - web/uas_zone_styles.js
     - web/weather_overlay.js
     - assets/geo/chgeo2004_ln02.bin

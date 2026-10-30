@@ -46,6 +46,7 @@ abstract interface class SpotRepository {
     int limit = 50,
   });
   Stream<List<SpotMapEntry>> watchMapSpots();
+  Stream<void> watchListChanges();
   Future<List<String>> getTags(int spotId);
   Stream<SpotDetails?> watchDetails(int spotId);
   Future<List<String>> findCategories(String prefix, {int limit = 20});
@@ -56,6 +57,13 @@ final class DriftSpotRepository implements SpotRepository {
   const DriftSpotRepository(this._database);
 
   final FpvDatabase _database;
+
+  @override
+  Stream<void> watchListChanges() => _database
+      .tableUpdates(
+        TableUpdateQuery.onAllTables([_database.spots, _database.spotTags]),
+      )
+      .map((_) {});
 
   void _validate({
     required String name,

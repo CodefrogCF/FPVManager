@@ -5,6 +5,11 @@ automatic sharing or server-side user profile.
 
 ## Local records and permissions
 
+App settings reuse existing preference records and credential boundaries. Guides
+are bundled and need no network requests. Enabling place/street labels sends a
+bounded map envelope to the official GeoAdmin Identify API without user records,
+search text or credentials; names are held in a limited session cache only.
+
 Spots, notes, photos, equipment, routes and map preferences are stored in local
 Drift/SQLite storage. The app does not upload or publish these records. There
 is no automatic synchronization. **Offline & personal data** creates portable

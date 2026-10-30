@@ -16,6 +16,7 @@ enum _MapAction {
   simulation,
   recording,
   exitNavigation,
+  settings,
 }
 
 class MapActionMenu extends StatelessWidget {
@@ -32,9 +33,11 @@ class MapActionMenu extends StatelessWidget {
     required this.onRecordingReview,
     required this.onExitNavigation,
     this.compact = false,
+    this.onSettings,
   });
   final GlobeController controller;
   final bool compact;
+  final Future<void> Function()? onSettings;
   final Widget Function() groundButtonBuilder;
   final Future<void> Function() onHome,
       onCoordinates,
@@ -80,6 +83,7 @@ class MapActionMenu extends StatelessWidget {
               _MapAction.simulation => onSimulation(),
               _MapAction.recording => onRecordingReview(),
               _MapAction.exitNavigation => onExitNavigation(),
+              _MapAction.settings => onSettings?.call() ?? Future<void>.value(),
             });
           },
           itemBuilder: (_) => [
@@ -143,6 +147,11 @@ class MapActionMenu extends StatelessWidget {
               value: _MapAction.weather,
               child: Text('Weather intelligence'),
             ),
+            if (onSettings != null)
+              PopupMenuItem(
+                value: _MapAction.settings,
+                child: const Text('Einstellungen'),
+              ),
             const PopupMenuDivider(),
             PopupMenuItem(
               value: _MapAction.home,

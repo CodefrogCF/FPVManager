@@ -34,6 +34,17 @@ grid/ellipsoid is not swisstopo imagery or measured terrain.
 
 ## Use and distribution
 
+Optional text labels query the official [Identify API](https://docs.geo.admin.ch/access-data/identify-features.html)
+for `ch.swisstopo.swissnames3d` settlement names and
+`ch.swisstopo.amtliches-strassenverzeichnis` (© swisstopo), independently of roads.
+Requests are viewport-limited and capped; dense areas can be incomplete. Area/line
+extents use a representative display anchor, not a surveyed label position.
+The [street directory](https://www.swisstopo.admin.ch/de/amtliches-verzeichnis-der-strassen)
+primarily covers named streets with building addresses, not every path or motorway.
+Normalized names stay in a bounded session cache; no bulk download or persistent
+offline-label package is provided. Cached-only/offline mode makes no remote
+label fallback. Source attribution remains visible with the layer.
+
 Optional 3D buildings and vegetation use the official GeoAdmin 3D Tiles services:
 `https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json` and
 `https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/tileset.json` (© swisstopo).

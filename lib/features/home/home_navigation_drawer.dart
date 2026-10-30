@@ -16,6 +16,7 @@ class HomeNavigationDrawer extends StatelessWidget {
     this.onPreflight,
     this.onMobility,
     this.onData,
+    this.onSettings,
   });
   final Future<void> Function() onSpots,
       onRoutes,
@@ -26,6 +27,7 @@ class HomeNavigationDrawer extends StatelessWidget {
   final Future<void> Function()? onPreflight;
   final Future<void> Function()? onMobility;
   final Future<void> Function()? onData;
+  final Future<void> Function()? onSettings;
   Widget _item(
     BuildContext context,
     IconData icon,
@@ -112,6 +114,13 @@ class HomeNavigationDrawer extends StatelessWidget {
                   ),
                 ],
               ),
+              if (onSettings != null)
+                _item(
+                  context,
+                  Icons.settings_outlined,
+                  'Einstellungen',
+                  onSettings!,
+                ),
               if (onData != null) ...[
                 const Divider(),
                 _item(

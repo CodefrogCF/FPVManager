@@ -7,6 +7,7 @@ import '../../core/osint/osint_source.dart';
 import 'obstacle_map_controller.dart';
 import 'obstacle_models.dart';
 import 'swiss_obstacle_provider.dart';
+import '../help/guides_screen.dart';
 
 const obstacleCoverageNotice =
     'Published obstacles only. Missing objects, cables and other hazards may exist. '
@@ -57,6 +58,7 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const Text(obstacleCoverageNotice),
+        const GuideLink(GuideTopic.obstacles),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('Published obstacles · WMS'),
@@ -187,9 +189,7 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
               : null,
         ),
         const Text(
-          'Cyan areas are calculated planning aids around published points and lines. '
-          'They do not define legal separation or vertical clearance. A zero buffer draws no area. '
-          'Category filters also apply to advisory areas and route proximity checks.',
+          'Cyan buffers are planning aids, not legal separation or vertical clearance.',
         ),
         if (busy) const LinearProgressIndicator(),
         Text(controller.provider.progress),

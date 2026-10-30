@@ -10,6 +10,7 @@ import 'data/spot_repository.dart';
 import 'spot_details_screen.dart';
 import 'spot_editor_dialog.dart';
 import 'spot_label_field.dart';
+import 'spot_list_controller.dart';
 
 class SpotsScreen extends StatefulWidget {
   const SpotsScreen({
@@ -29,36 +30,44 @@ class SpotsScreen extends StatefulWidget {
 
 class _SpotsScreenState extends State<SpotsScreen> {
   final _search = TextEditingController();
-  final _cursors = <int?>[null];
+  final _scroll = ScrollController();
+  late SpotListController _list;
   Timer? _debounce;
   String _query = '';
   bool _favorites = false;
   SpotClassification _labels = SpotClassification();
-  late Stream<SpotPage> _page;
-  int _revision = 0;
 
   @override
   void initState() {
     super.initState();
-    _refresh(reset: true);
+    _list = SpotListController(widget.repository)..addListener(_listChanged);
+    _scroll.addListener(_nearEnd);
+  }
+
+  void _listChanged() {
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nearEnd();
+    });
+  }
+
+  void _nearEnd() {
+    if (_scroll.hasClients && _scroll.position.extentAfter < 300) {
+      unawaited(_list.loadMore());
+    }
   }
 
   void _refresh({bool reset = false}) {
-    if (reset) {
-      _cursors
-        ..clear()
-        ..add(null);
-    }
-    _revision++;
-    _page = widget.repository.watchSpotPage(
-      beforeId: _cursors.last,
-      filter: SpotFilter(
+    _list.setFilter(
+      SpotFilter(
         query: _query,
         favoritesOnly: _favorites,
         category: _labels.category,
         tags: _labels.tags,
       ),
     );
+    if (reset && _scroll.hasClients) _scroll.jumpTo(0);
   }
 
   void _searchChanged(String value) {
@@ -140,6 +149,9 @@ class _SpotsScreenState extends State<SpotsScreen> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    _scroll.dispose();
+    _list.removeListener(_listChanged);
+    _list.dispose();
     super.dispose();
   }
 
@@ -233,145 +245,7 @@ class _SpotsScreenState extends State<SpotsScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: StreamBuilder<SpotPage>(
-              key: ValueKey(_revision),
-              stream: _page,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Unable to load spots.'),
-                        TextButton(
-                          onPressed: () => setState(() => _refresh()),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final page = snapshot.data!;
-                return Column(
-                  children: [
-                    Expanded(
-                      child: page.items.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(24),
-                                child: Text(
-                                  'No spots found. Add a spot or adjust your filters.',
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: page.items.length,
-                              itemBuilder: (context, index) {
-                                final spot = page.items[index];
-                                return ListTile(
-                                  leading: const Icon(Icons.place_outlined),
-                                  title: Text(
-                                    spot.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${spot.latitude.toStringAsFixed(6)}, ${spot.longitude.toStringAsFixed(6)}',
-                                      ),
-                                      if (spot.category != null ||
-                                          spot.tags.isNotEmpty)
-                                        Text(
-                                          [
-                                            if (spot.category != null)
-                                              spot.category!,
-                                            ...spot.tags.map((tag) => '#$tag'),
-                                          ].join(' · '),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      if (spot.notesPreview.isNotEmpty)
-                                        Text(
-                                          spot.notesPreview,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
-                                  ),
-                                  onTap: () => _details(spot.id),
-                                  trailing: IconButton(
-                                    tooltip: spot.isFavorite
-                                        ? 'Remove favorite'
-                                        : 'Add favorite',
-                                    onPressed:
-                                        _favoriteChanges.contains(spot.id)
-                                        ? null
-                                        : () => _favorite(spot),
-                                    icon: Icon(
-                                      spot.isFavorite
-                                          ? Icons.star
-                                          : Icons.star_border,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          8,
-                          4,
-                          8,
-                          keyboardVisible ? 4 : 88,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            TextButton(
-                              onPressed: _cursors.length == 1
-                                  ? null
-                                  : () => setState(() {
-                                      _cursors.removeLast();
-                                      _refresh();
-                                    }),
-                              child: const Text('Previous'),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Page ${_cursors.length} · ${page.items.length} spots',
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: page.hasNext
-                                  ? () => setState(() {
-                                      _cursors.add(page.nextBeforeId);
-                                      _refresh();
-                                    })
-                                  : null,
-                              child: const Text('Next'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
+          Expanded(child: _spotList(keyboardVisible)),
         ],
       ),
       floatingActionButton: keyboardVisible
@@ -389,6 +263,116 @@ class _SpotsScreenState extends State<SpotsScreen> {
               icon: const Icon(Icons.add),
               label: const Text('Add Spot'),
             ),
+    );
+  }
+
+  Widget _spotList(bool keyboardVisible) {
+    if (_list.items.isEmpty) {
+      if (_list.loading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _list.error ??
+                    'No spots found. Add a spot or adjust your filters.',
+                textAlign: TextAlign.center,
+              ),
+              if (_list.error != null)
+                TextButton(onPressed: _list.retry, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    final indices = {
+      for (var i = 0; i < _list.items.length; i++) _list.items[i].id: i,
+    };
+    return Column(
+      children: [
+        if (_list.refreshing) const LinearProgressIndicator(),
+        Expanded(
+          child: ListView.builder(
+            key: const PageStorageKey('continuous-spot-list'),
+            controller: _scroll,
+            padding: EdgeInsets.only(bottom: keyboardVisible ? 8 : 96),
+            itemCount: _list.items.length + 1,
+            findChildIndexCallback: (key) =>
+                key is ValueKey<int> ? indices[key.value] : null,
+            itemBuilder: (context, index) {
+              if (index == _list.items.length) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: _list.loading
+                        ? const CircularProgressIndicator()
+                        : _list.error != null
+                        ? Column(
+                            children: [
+                              Text(_list.error!),
+                              TextButton(
+                                onPressed: _list.retry,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            _list.hasMore
+                                ? 'Weitere Spots werden beim Scrollen geladen.'
+                                : 'Alle ${_list.items.length} Spots geladen.',
+                          ),
+                  ),
+                );
+              }
+              final spot = _list.items[index];
+              return ListTile(
+                key: ValueKey(spot.id),
+                leading: const Icon(Icons.place_outlined),
+                title: Text(
+                  spot.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${spot.latitude.toStringAsFixed(6)}, ${spot.longitude.toStringAsFixed(6)}',
+                    ),
+                    if (spot.category != null || spot.tags.isNotEmpty)
+                      Text(
+                        [
+                          if (spot.category != null) spot.category!,
+                          ...spot.tags.map((tag) => '#$tag'),
+                        ].join(' · '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    if (spot.notesPreview.isNotEmpty)
+                      Text(
+                        spot.notesPreview,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+                onTap: () => _details(spot.id),
+                trailing: IconButton(
+                  tooltip: spot.isFavorite ? 'Remove favorite' : 'Add favorite',
+                  onPressed: _favoriteChanges.contains(spot.id)
+                      ? null
+                      : () => _favorite(spot),
+                  icon: Icon(spot.isFavorite ? Icons.star : Icons.star_border),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

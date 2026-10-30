@@ -8,6 +8,23 @@ map status and source warnings (info/warning badge), layers and map actions
 resizing the globe. On short landscape screens, layers and status open at the
 side. Equipment is grouped under **Equipment** in the navigation menu.
 
+**Einstellungen** in navigation or map actions groups display/map defaults,
+controls, source/access shortcuts and offline/privacy. It uses the same settings
+as contextual tools. Flight/controller configuration here prepares the next
+simulation without spawning. **Guides und Hilfe** is bundled for offline reading;
+contextual help returns to the current tool with its draft intact. Current
+source status and immediate warnings remain in the tool.
+
+**Orts- und Straßennamen** adds independent text labels, including over satellite
+imagery. It requests a bounded Swiss area, selects names to fit the screen and
+shows streets only nearby. This is a selection, not complete coverage. Names
+are session-cached and are not part of offline-region packages; cached-only
+mode disables remote label requests. See [sources](map_sources_and_attribution.md).
+
+The spot library scrolls continuously. Additional lightweight summaries load
+near the end; search and filters reset the list. Returning from details keeps
+the list position. A failed additional load leaves existing entries usable.
+
 The compass at the upper right follows map rotation. Tap it to face north.
 
 **Mein Standort** requests foreground location, shows an accuracy circle and recentres
@@ -342,7 +359,7 @@ HTTPS or trusted localhost. Save is required to store the result.
 
 Spots support notes, favorites, one category and up to ten comma-separated tags.
 Search matches name, notes, category and tags without case sensitivity; every
-search term and selected filter must match. List pages contain up to 50 spots.
+search term and selected filter must match. More spots load automatically while scrolling.
 List filters do not hide map markers; the complete map supports up to 10,000 spots.
 
 Add up to six JPEG, PNG or WebP still photos per spot, each no larger than 12 MiB

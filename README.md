@@ -5,12 +5,13 @@ locations on a CesiumJS globe. Android and Web are supported.
 
 ## Features
 
-- Swiss 3D terrain, satellite/topographic/relief maps and an optional road overlay.
+- Swiss 3D terrain, satellite/topographic/relief maps, optional roads and independent place/street labels.
 - Opt-in current location with accuracy/freshness and foreground following; combined coordinate, place and street search.
 - Official UAS zones with structured details, overlapping-zone selection and spatial spot/route checks.
 - Independent aviation obstacle imagery and selectable cached vectors, with optional scaled mast/crane models.
 - Optional streamed buildings/vegetation, real sun/moon positions and fixed route/simulation times.
-- Local spots with photos, tags and favorites; drone, battery and radio/video profiles.
+- Local spots with a continuous lazy list, photos, tags and favorites; drone, battery and radio/video profiles.
+- Grouped app settings and bundled Guides & Help, with contextual shortcuts.
 - Multiple waypoint routes with configurable heights, speeds, terrain profiles and energy/reserve estimates; GeoJSON/GPX import/export.
 - First-person ground inspection and GPS, Angle and Acro flight simulation using touch, keyboard or controllers; configurable rates, throttle neutral point, camera angle and flight HUD.
 - Simulated flight recording converted to planning routes, with optional live radio line-of-sight screening.

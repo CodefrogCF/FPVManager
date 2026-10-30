@@ -50,6 +50,7 @@ import '../simulation/flight_recording_sheet.dart';
 import '../signal/live_radio_sheet.dart';
 import '../routes/route_editor_screen.dart';
 import '../preflight/preflight_screen.dart';
+import '../settings/app_settings_screen.dart';
 
 class FPVHomeScreen extends StatefulWidget {
   const FPVHomeScreen({
@@ -240,7 +241,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   int _lastSituationalRevision = 0;
-  Future<void> _openMobility({int? initialSpotId}) async {
+  Future<void> _openMobility({int? initialSpotId, int initialTab = 0}) async {
     await _leaveGroundView();
     if (!mounted) return;
     final database = _database ??= FpvDatabase.open();
@@ -250,6 +251,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       MaterialPageRoute(
         builder: (_) => MobilityScreen(
           cachedMaps: _cachedMaps,
+          initialTab: initialTab,
           spots: _spotRepository ??=
               widget.spotRepository ?? SpotRepository(database),
           preferences: MobilityPreferences(database),
@@ -263,7 +265,32 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     );
   }
 
-  Future<void> _openSimulation() async {
+  Future<void> _openSettings({AppSettingsSection? section}) async {
+    if (!_preferencesStarted) {
+      _preferencesStarted = true;
+      unawaited(
+        _globeController.initializePreferences(
+          widget.preferencesRepository ??
+              UserPreferencesRepository(_database ??= FpvDatabase.open()),
+        ),
+      );
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => AppSettingsScreen(
+          globe: _globeController,
+          section: section,
+          onFlightSettings: () => _openSimulation(configureOnly: true),
+          onWeather: _openWeather,
+          onTraffic: () => _openMobility(initialTab: 1),
+          onAirspace: () => _openMapLayers(initialTab: MapLayerTab.airspace),
+          onData: _openData,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSimulation({bool configureOnly = false}) async {
     final spot = _spotsById[_globeController.selectedSpotId],
         point = _globeController.selectedPoint;
     final settings = await showSimulationSettings(
@@ -290,6 +317,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             _simulationSettings.controller,
       ),
       hasSelection: spot != null || point != null,
+      configureOnly: configureOnly,
       windControls: WindControlsLauncher(globe: _globeController, flight: true),
       radioControls: LiveRadioLauncher(
         globe: _globeController,
@@ -300,6 +328,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     );
     if (settings == null || !mounted) return;
     _simulationSettings = settings;
+    if (configureOnly) return;
     await _runCommand(
       () => _globeController.enterSimulation(
         settings,
@@ -366,6 +395,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       builder: (context) => MapLayersSheet(
         initialTab: initialTab,
         controller: _globeController,
+        onOpenSettings: () {
+          Navigator.pop(context);
+          unawaited(_openSettings(section: AppSettingsSection.display));
+        },
         routeControls: RouteLayersSection(controller: routes),
         situationalControls: SituationalLayersSection(
           globe: _globeController,
@@ -780,6 +813,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     return Scaffold(
       onDrawerChanged: (open) => setState(() => _drawerOpen = open),
       drawer: HomeNavigationDrawer(
+        onSettings: _openSettings,
         onSpots: _openSpots,
         onRoutes: _openRoutes,
         onMobility: _openMobility,
@@ -860,6 +894,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     onSimulation: _openSimulation,
     onRecordingReview: _openRecordingReview,
     onExitNavigation: () => _runCommand(_globeController.exitNavigation),
+    onSettings: _openSettings,
   );
 
   Widget _groundButton() {

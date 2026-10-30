@@ -14,11 +14,13 @@ class MapLayersSheet extends StatelessWidget {
     this.routeControls,
     this.situationalControls,
     this.initialTab = MapLayerTab.map,
+    this.onOpenSettings,
   });
   final GlobeController controller;
   final Widget? routeControls;
   final Widget? situationalControls;
   final MapLayerTab initialTab;
+  final VoidCallback? onOpenSettings;
   @override
   Widget build(BuildContext context) {
     Future<void> execute(Future<void> Function() command) async {
@@ -53,10 +55,21 @@ class MapLayersSheet extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.layers_outlined),
                 title: const Text('Map Layers'),
-                trailing: IconButton(
-                  tooltip: 'Close',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onOpenSettings != null)
+                      IconButton(
+                        tooltip: 'App-Einstellungen',
+                        onPressed: onOpenSettings,
+                        icon: const Icon(Icons.settings_outlined),
+                      ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
               ),
               if (controller.preferencesLoading) ...[

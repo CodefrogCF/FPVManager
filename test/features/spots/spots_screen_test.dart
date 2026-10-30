@@ -75,42 +75,47 @@ void main() {
     },
   );
 
-  testWidgets('pages navigate both ways and search resets the cursor', (
-    tester,
-  ) async {
-    await database.batch((batch) {
-      for (var i = 1; i <= 55; i++) {
-        batch.insert(
-          database.spots,
-          SpotsCompanion.insert(
-            id: Value(i),
-            name: 'Spot $i',
-            latitude: 47,
-            longitude: 8,
-            searchText: Value('spot $i'),
-          ),
-        );
-      }
-    });
-    await open(tester);
-    expect(find.text('Page 1 · 50 spots'), findsOneWidget);
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-    expect(find.text('Page 2 · 5 spots'), findsOneWidget);
-    expect(find.text('Spot 5'), findsOneWidget);
-    await tester.tap(find.text('Previous'));
-    await tester.pumpAndSettle();
-    expect(find.text('Page 1 · 50 spots'), findsOneWidget);
-    await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
-    await tester.enterText(field('Search spots'), '55');
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
-    expect(find.text('Page 1 · 1 spots'), findsOneWidget);
-    expect(find.text('Spot 55'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
-  });
+  testWidgets(
+    'continuous list loads automatically and a new search resets the loaded result',
+    (tester) async {
+      await database.batch((batch) {
+        for (var i = 1; i <= 115; i++) {
+          batch.insert(
+            database.spots,
+            SpotsCompanion.insert(
+              id: Value(i),
+              name: 'Spot $i',
+              latitude: 47,
+              longitude: 8,
+              searchText: Value('spot $i'),
+            ),
+          );
+        }
+      });
+      await open(tester);
+      expect(find.text('Previous'), findsNothing);
+      expect(find.text('Next'), findsNothing);
+      expect(find.text('Spot 115'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Spot 5'),
+        500,
+        scrollable: find.descendant(
+          of: find.byKey(const PageStorageKey('continuous-spot-list')),
+          matching: find.byType(Scrollable),
+        ),
+        maxScrolls: 50,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Spot 5'), findsOneWidget);
+      await tester.enterText(field('Search spots'), '115');
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.text('Spot 115'), findsOneWidget);
+      expect(find.text('Spot 5'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('list opens live details and editing preserves tags', (
     tester,

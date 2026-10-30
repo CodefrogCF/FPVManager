@@ -30,6 +30,7 @@ final class DriftUserPreferencesRepository
   static const _spotsVisible = 'map.spots.visible';
   static const _touchControls = 'simulation.touchControls.visible';
   static const _roadsVisible = 'map.roads.visible';
+  static const _labelsVisible = 'map.labels.visible';
   static const _roadsOpacity = 'map.roads.opacity';
   static const _avalancheVisible = 'map.avalanche.visible';
   static const _avalancheOpacity = 'map.avalanche.opacity';
@@ -52,6 +53,7 @@ final class DriftUserPreferencesRepository
     _touchControls,
     _order,
     _roadsVisible,
+    _labelsVisible,
     _roadsOpacity,
     _avalancheVisible,
     _avalancheOpacity,
@@ -161,6 +163,7 @@ final class DriftUserPreferencesRepository
             ? defaults.savedSpotsVisible
             : spotsVisible == 'true',
         roadsVisible: readBool(_roadsVisible, defaults.roadsVisible),
+        labelsVisible: readBool(_labelsVisible, defaults.labelsVisible),
         touchControlsVisible: readBool(
           _touchControls,
           defaults.touchControlsVisible,
@@ -228,6 +231,7 @@ final class DriftUserPreferencesRepository
             _opacity: snapshot.uasZonesFillOpacity.toString(),
             _spotsVisible: snapshot.savedSpotsVisible.toString(),
             _roadsVisible: snapshot.roadsVisible.toString(),
+            _labelsVisible: snapshot.labelsVisible.toString(),
             _roadsOpacity: snapshot.roadsOpacity.toString(),
             _touchControls: snapshot.touchControlsVisible.toString(),
             _avalancheVisible: snapshot.avalancheVisible.toString(),

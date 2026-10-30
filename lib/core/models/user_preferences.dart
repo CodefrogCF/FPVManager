@@ -13,6 +13,7 @@ class UserPreferences {
     this.savedSpotsVisible = true,
     this.touchControlsVisible = true,
     this.roadsVisible = false,
+    this.labelsVisible = false,
     this.roadsOpacity = .8,
     this.avalancheVisible = false,
     this.avalancheOpacity = .35,
@@ -35,6 +36,7 @@ class UserPreferences {
   final bool savedSpotsVisible;
   final bool touchControlsVisible;
   final bool roadsVisible;
+  final bool labelsVisible;
   final double roadsOpacity;
   final bool avalancheVisible;
   final double avalancheOpacity;
@@ -56,6 +58,7 @@ class UserPreferences {
     bool? savedSpotsVisible,
     bool? touchControlsVisible,
     bool? roadsVisible,
+    bool? labelsVisible,
     double? roadsOpacity,
     bool? avalancheVisible,
     double? avalancheOpacity,
@@ -77,6 +80,7 @@ class UserPreferences {
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
     touchControlsVisible: touchControlsVisible ?? this.touchControlsVisible,
     roadsVisible: roadsVisible ?? this.roadsVisible,
+    labelsVisible: labelsVisible ?? this.labelsVisible,
     roadsOpacity: roadsOpacity ?? this.roadsOpacity,
     avalancheVisible: avalancheVisible ?? this.avalancheVisible,
     avalancheOpacity: avalancheOpacity ?? this.avalancheOpacity,
