@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image;
 
 import '../../core/database/fpv_database.dart';
+import '../../core/models/activity_profile.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../../core/database/repositories/flight_plan_repository.dart';
 import '../../core/models/route_planning_settings.dart';
@@ -15,6 +16,7 @@ import 'backup_codec.dart';
 /// Explicitly excludes secrets, consent and provider caches, including future
 /// unknown settings. Those must never silently enter a portable export.
 bool backupSetting(String key) =>
+    key == activityProfilesKey ||
     const {
       'map.style',
       'map.uas.visible',
@@ -280,6 +282,11 @@ class BackupRepository {
             ].contains(row['key'])) {
           validateBackupJsonText(row['value'] as String, expectList: true);
         }
+      }
+    }
+    for (final row in input['app_settings'] as List? ?? []) {
+      if ((row as Map)['key'] == activityProfilesKey) {
+        ActivityProfileCatalog.decode(row['value'] as String);
       }
     }
     UserPreferencesRepository.validatePersistedRows([

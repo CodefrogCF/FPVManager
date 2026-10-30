@@ -24,6 +24,7 @@ final class DriftUserPreferencesRepository
     implements UserPreferencesRepository {
   const DriftUserPreferencesRepository(this._database);
   final FpvDatabase _database;
+  FpvDatabase get database => _database;
   static const _style = 'map.style';
   static const _visible = 'map.uas.visible';
   static const _opacity = 'map.uas.fillOpacity';

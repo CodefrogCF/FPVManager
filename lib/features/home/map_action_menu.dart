@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../globe/globe_controller.dart';
 import '../globe/globe_location_controls.dart';
+import '../../core/models/activity_profile.dart';
 
 enum _MapAction {
   home,
@@ -17,6 +18,7 @@ enum _MapAction {
   recording,
   exitNavigation,
   settings,
+  allTools,
 }
 
 class MapActionMenu extends StatelessWidget {
@@ -34,10 +36,16 @@ class MapActionMenu extends StatelessWidget {
     required this.onExitNavigation,
     this.compact = false,
     this.onSettings,
+    this.preferredActions,
+    this.onAllTools,
   });
   final GlobeController controller;
   final bool compact;
   final Future<void> Function()? onSettings;
+  final List<ActivityAction>? preferredActions;
+  final VoidCallback? onAllTools;
+  bool _show(ActivityAction action) =>
+      preferredActions == null || preferredActions!.contains(action);
   final Widget Function() groundButtonBuilder;
   final Future<void> Function() onHome,
       onCoordinates,
@@ -53,8 +61,9 @@ class MapActionMenu extends StatelessWidget {
     builder: (context, _) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!compact) GlobeLocationButton(controller: controller.location),
-        if (!compact)
+        if (!compact && _show(ActivityAction.location))
+          GlobeLocationButton(controller: controller.location),
+        if (!compact && _show(ActivityAction.layers))
           IconButton(
             tooltip: 'Map layers',
             onPressed: controller.isReady ? onLayers : null,
@@ -63,7 +72,9 @@ class MapActionMenu extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
           ),
-        if (!compact) groundButtonBuilder(),
+        if (!compact &&
+            (_show(ActivityAction.ground) || controller.navigationActive))
+          groundButtonBuilder(),
         PopupMenuButton<_MapAction>(
           tooltip: 'Map actions',
           onSelected: (action) {
@@ -84,6 +95,9 @@ class MapActionMenu extends StatelessWidget {
               _MapAction.recording => onRecordingReview(),
               _MapAction.exitNavigation => onExitNavigation(),
               _MapAction.settings => onSettings?.call() ?? Future<void>.value(),
+              _MapAction.allTools => Future<void>.sync(
+                () => onAllTools?.call(),
+              ),
             });
           },
           itemBuilder: (_) => [
@@ -98,32 +112,36 @@ class MapActionMenu extends StatelessWidget {
                 value: _MapAction.exitNavigation,
                 child: Text('Return to globe'),
               ),
-            PopupMenuItem(
-              value: _MapAction.simulation,
-              enabled:
-                  controller.isReady &&
-                  controller.terrainAvailable &&
-                  !controller.simulationPending,
-              child: Text(
-                controller.simulationActive
-                    ? 'Flight simulation settings'
-                    : 'Spawn in map · simulated flight',
+            if (_show(ActivityAction.simulation) || controller.simulationActive)
+              PopupMenuItem(
+                value: _MapAction.simulation,
+                enabled:
+                    controller.isReady &&
+                    controller.terrainAvailable &&
+                    !controller.simulationPending,
+                child: Text(
+                  controller.simulationActive
+                      ? 'Flight simulation settings'
+                      : 'Spawn in map · simulated flight',
+                ),
               ),
-            ),
-            PopupMenuItem(
-              value: _MapAction.layers,
-              enabled: controller.isReady,
-              child: const Text('Map layers'),
-            ),
-            PopupMenuItem(
-              value: _MapAction.coordinates,
-              enabled: controller.isReady,
-              child: const Text('Ort oder Koordinaten suchen'),
-            ),
-            const PopupMenuItem(
-              value: _MapAction.location,
-              child: Text('Standortanzeige'),
-            ),
+            if (_show(ActivityAction.layers))
+              PopupMenuItem(
+                value: _MapAction.layers,
+                enabled: controller.isReady,
+                child: const Text('Map layers'),
+              ),
+            if (_show(ActivityAction.search))
+              PopupMenuItem(
+                value: _MapAction.coordinates,
+                enabled: controller.isReady,
+                child: const Text('Ort oder Koordinaten suchen'),
+              ),
+            if (_show(ActivityAction.location))
+              const PopupMenuItem(
+                value: _MapAction.location,
+                child: Text('Standortanzeige'),
+              ),
             if (controller.navigationActive)
               PopupMenuItem(
                 value: _MapAction.touchControls,
@@ -134,30 +152,38 @@ class MapActionMenu extends StatelessWidget {
                       : 'Touch-Steuerung anzeigen',
                 ),
               ),
-            PopupMenuItem(
-              value: _MapAction.terrain,
-              enabled:
-                  controller.isReady &&
-                  controller.terrainAvailable &&
-                  controller.selectedPoint != null &&
-                  controller.selectedUasZone == null,
-              child: const Text('Query terrain elevation'),
-            ),
-            const PopupMenuItem(
-              value: _MapAction.weather,
-              child: Text('Weather intelligence'),
-            ),
+            if (_show(ActivityAction.terrain))
+              PopupMenuItem(
+                value: _MapAction.terrain,
+                enabled:
+                    controller.isReady &&
+                    controller.terrainAvailable &&
+                    controller.selectedPoint != null &&
+                    controller.selectedUasZone == null,
+                child: const Text('Query terrain elevation'),
+              ),
+            if (_show(ActivityAction.weather))
+              const PopupMenuItem(
+                value: _MapAction.weather,
+                child: Text('Weather intelligence'),
+              ),
             if (onSettings != null)
               PopupMenuItem(
                 value: _MapAction.settings,
                 child: const Text('Einstellungen'),
               ),
+            if (preferredActions != null && onAllTools != null)
+              const PopupMenuItem(
+                value: _MapAction.allTools,
+                child: Text('Alle Werkzeuge'),
+              ),
             const PopupMenuDivider(),
-            PopupMenuItem(
-              value: _MapAction.home,
-              enabled: controller.isReady,
-              child: const Text('Home'),
-            ),
+            if (_show(ActivityAction.home))
+              PopupMenuItem(
+                value: _MapAction.home,
+                enabled: controller.isReady,
+                child: const Text('Home'),
+              ),
           ],
         ),
       ],

@@ -11,6 +11,7 @@ locations on a CesiumJS globe. Android and Web are supported.
 - Independent aviation obstacle imagery and selectable cached vectors, with optional scaled mast/crane models.
 - Optional streamed buildings/vegetation, real sun/moon positions and fixed route/simulation times.
 - Local spots with a continuous lazy list, photos, tags and favorites; drone, battery and radio/video profiles.
+- Editable activity profiles (FPV, hiking, cycling, photography, family and exploration), custom workspaces and map shortcuts; portable profile import/export and inclusion in personal backups. All tools remain accessible from every profile.
 - Grouped app settings and bundled Guides & Help, with contextual shortcuts.
 - Multiple waypoint routes with configurable heights, speeds, terrain profiles and energy/reserve estimates; GeoJSON/GPX import/export.
 - First-person ground inspection and GPS, Angle and Acro flight simulation using touch, keyboard or controllers; configurable rates, throttle neutral point, camera angle and flight HUD.

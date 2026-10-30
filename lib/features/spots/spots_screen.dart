@@ -19,8 +19,10 @@ class SpotsScreen extends StatefulWidget {
     this.initialLatitude,
     this.initialLongitude,
     this.onRoadRoute,
+    this.title = 'FPV Spots',
   });
   final SpotRepository repository;
+  final String title;
   final double? initialLatitude;
   final double? initialLongitude;
   final Future<void> Function(int)? onRoadRoute;
@@ -159,7 +161,7 @@ class _SpotsScreenState extends State<SpotsScreen> {
   Widget build(BuildContext context) {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
-      appBar: AppBar(title: const Text('FPV Spots')),
+      appBar: AppBar(title: Text(widget.title)),
       body: Column(
         children: [
           Padding(

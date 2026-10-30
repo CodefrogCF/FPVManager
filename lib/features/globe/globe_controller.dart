@@ -11,6 +11,7 @@ import '../../core/osint/osint_dataset_store.dart';
 import '../../core/osint/cached_osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/user_preferences.dart';
+import '../../core/models/activity_profile.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import '../airspace/uas_dataset_assessment.dart';
@@ -335,6 +336,48 @@ class GlobeController extends ChangeNotifier {
   bool? get roadNavigationFollowing =>
       _roadNavigationCommand?['follow'] as bool?;
   bool _renderingPaused = false;
+  bool get canApplyActivityDefaults =>
+      _ready &&
+      canEditPreferences &&
+      !_renderingPaused &&
+      !navigationActive &&
+      !_simulationPending &&
+      !_groundViewPending &&
+      _roadNavigationCommand == null;
+
+  /// Profiles change only normal map defaults. Active modes retain priority.
+  /// This deliberately avoids replaying layers, requesting data or moving the camera.
+  Future<bool> applyActivityDefaults(ActivityMapDefaults defaults) async {
+    if (!canApplyActivityDefaults) return false;
+    if (defaults.style != null && defaults.style != _requestedMapStyle) {
+      await _send({'type': 'set-map-style', 'style': defaults.style!.name});
+      _requestedMapStyle = defaults.style!;
+    }
+    if (!canApplyActivityDefaults) return false;
+    if (defaults.savedPlaces != null &&
+        defaults.savedPlaces != _savedSpotsVisible) {
+      await _send({
+        'type': 'set-spots-visible',
+        'visible': defaults.savedPlaces,
+      });
+      _savedSpotsVisible = defaults.savedPlaces!;
+    }
+    if (!canApplyActivityDefaults) return false;
+    if (defaults.lighting != null && defaults.lighting != realisticLighting) {
+      await _send({..._sceneCommand(), 'lighting': defaults.lighting});
+    }
+    if (!canApplyActivityDefaults) return false;
+    await _savePreferences(
+      _preferences.copyWith(
+        mapStyle: defaults.style,
+        savedSpotsVisible: defaults.savedPlaces,
+        realisticLighting: defaults.lighting,
+      ),
+    );
+    if (!_disposed) notifyListeners();
+    return true;
+  }
+
   final Map<String, String> _sceneLayerStates = {};
   bool get buildings3dVisible => _preferences.buildings3dVisible;
   bool get vegetation3dVisible => _preferences.vegetation3dVisible;
@@ -423,6 +466,7 @@ class GlobeController extends ChangeNotifier {
     _renderingPaused = paused;
     wind.rendering(!paused);
     if (_ready) await _send({'type': 'set-rendering-paused', 'paused': paused});
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> setRoadNavigation({

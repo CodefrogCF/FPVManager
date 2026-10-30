@@ -24,6 +24,7 @@ import '../spots/data/spot_query.dart';
 import '../spots/spot_details_screen.dart';
 import '../spots/spots_screen.dart';
 import '../globe/globe_controller.dart';
+import '../globe/globe_location_controls.dart';
 import '../weather/weather_screen.dart';
 import '../weather/weather_preferences.dart';
 import '../weather/wind_settings_sheet.dart';
@@ -51,6 +52,9 @@ import '../signal/live_radio_sheet.dart';
 import '../routes/route_editor_screen.dart';
 import '../preflight/preflight_screen.dart';
 import '../settings/app_settings_screen.dart';
+import '../../core/models/activity_profile.dart';
+import '../profiles/activity_profiles_repository.dart';
+import '../profiles/activity_profiles_screen.dart';
 
 class FPVHomeScreen extends StatefulWidget {
   const FPVHomeScreen({
@@ -62,6 +66,7 @@ class FPVHomeScreen extends StatefulWidget {
     this.flightPlanRepository,
     this.preferencesRepository,
     this.globeController,
+    this.profilesRepository,
   });
 
   /// An injected repository remains owned by its caller.
@@ -72,12 +77,175 @@ class FPVHomeScreen extends StatefulWidget {
   final FlightPlanRepository? flightPlanRepository;
   final UserPreferencesRepository? preferencesRepository;
   final GlobeController? globeController;
+  final ActivityProfilesRepository? profilesRepository;
 
   @override
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
 }
 
 class _FPVHomeScreenState extends State<FPVHomeScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  ActivityProfilesController? _profiles;
+  ActivityMapDefaults? _pendingProfileDefaults;
+  bool _applyingProfile = false;
+  bool _allToolsExpanded = false;
+
+  Future<void> _ensureProfiles() async {
+    if (_profiles == null) {
+      final preferences = widget.preferencesRepository;
+      _profiles = ActivityProfilesController(
+        widget.profilesRepository ??
+            ActivityProfilesRepository(
+              preferences is DriftUserPreferencesRepository
+                  ? preferences.database
+                  : _database ??= FpvDatabase.open(),
+            ),
+      );
+      _profiles!.addListener(_onProfilesChanged);
+      await _profiles!.load();
+      if (mounted && _profiles!.selected != null) {
+        _pendingProfileDefaults = _profiles!.selected!.map;
+        await _tryProfileDefaults();
+      }
+    } else {
+      await _profiles!.settled;
+    }
+  }
+
+  void _onProfilesChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _activateProfile(ActivityProfile? profile) async {
+    _pendingProfileDefaults = profile?.map;
+    await _tryProfileDefaults();
+    if (mounted && _pendingProfileDefaults != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Arbeitsbereich gewechselt. Kartenstartwerte folgen nach der laufenden Ansicht.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _tryProfileDefaults() async {
+    final pending = _pendingProfileDefaults;
+    if (_applyingProfile ||
+        pending == null ||
+        !_globeController.canApplyActivityDefaults) {
+      return;
+    }
+    _applyingProfile = true;
+    try {
+      if (await _globeController.applyActivityDefaults(pending) &&
+          identical(_pendingProfileDefaults, pending)) {
+        _pendingProfileDefaults = null;
+      }
+    } catch (_) {
+      final current = identical(_pendingProfileDefaults, pending);
+      if (current) _pendingProfileDefaults = null;
+      if (mounted && current) {
+        final selectedId = _profiles?.selected?.id;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Kartenstartwerte konnten nicht übernommen werden.',
+            ),
+            action: SnackBarAction(
+              label: 'Erneut versuchen',
+              onPressed: () {
+                if (_profiles?.selected?.id == selectedId) {
+                  _pendingProfileDefaults = pending;
+                  unawaited(_tryProfileDefaults());
+                }
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      _applyingProfile = false;
+      if (mounted &&
+          _pendingProfileDefaults != null &&
+          !identical(_pendingProfileDefaults, pending)) {
+        unawaited(_tryProfileDefaults());
+      }
+    }
+  }
+
+  Future<void> _openProfiles() async {
+    await _ensureProfiles();
+    if (!mounted) return;
+    await _startPreferences();
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ActivityProfilesScreen(
+          controller: _profiles!,
+          onActivate: _activateProfile,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startPreferences() async {
+    if (!_preferencesStarted) {
+      _preferencesStarted = true;
+      await _globeController.initializePreferences(
+        widget.preferencesRepository ??
+            UserPreferencesRepository(_database ??= FpvDatabase.open()),
+      );
+    }
+  }
+
+  void _openAllTools() {
+    setState(() => _allToolsExpanded = true);
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
+  Future<void> _profileLayer(ActivityLayer layer) => switch (layer) {
+    ActivityLayer.airspace => _openMapLayers(initialTab: MapLayerTab.airspace),
+    ActivityLayer.obstacles => _openMapLayers(
+      initialTab: MapLayerTab.obstacles,
+    ),
+    ActivityLayer.avalanche => _openMapLayers(
+      initialTab: MapLayerTab.situational,
+    ),
+    ActivityLayer.wind => _openWindSettings(),
+    _ => _openMapLayers(),
+  };
+
+  Future<void> _profileAction(ActivityAction action) => _runCommand(() async {
+    switch (action) {
+      case ActivityAction.search:
+        await _openCoordinatesDialog();
+      case ActivityAction.layers:
+        await _openMapLayers();
+      case ActivityAction.location:
+        await showGlobeLocationSettings(context, _globeController.location);
+      case ActivityAction.ground:
+        if (_globeController.navigationActive) {
+          await _globeController.exitNavigation();
+        } else if (_globeController.selectedPoint case final point?) {
+          await _globeController.enterGroundView(
+            latitude: point.latitude,
+            longitude: point.longitude,
+          );
+        }
+      case ActivityAction.simulation:
+        await _openSimulation();
+      case ActivityAction.weather:
+        await _openWeather();
+      case ActivityAction.terrain:
+        await _showTerrainElevation();
+      case ActivityAction.home:
+        await _globeController.resetCamera();
+    }
+  });
+
   bool _cachedMaps = false;
   int _mapCacheRevision = 0;
   OfflineRegion? _pendingOfflineRegion;
@@ -143,8 +311,15 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                 });
               }
             },
-            beforeRestore: () => _globeController.preferencesSettled,
-            onRestored: () => _globeController.retryLoadingPreferences(),
+            beforeRestore: () async {
+              await _globeController.preferencesSettled;
+              await _profiles?.settled;
+            },
+            onRestored: () async {
+              _pendingProfileDefaults = null;
+              await _globeController.retryLoadingPreferences();
+              await _profiles?.load();
+            },
           ),
         ),
       );
@@ -285,6 +460,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           onTraffic: () => _openMobility(initialTab: 1),
           onAirspace: () => _openMapLayers(initialTab: MapLayerTab.airspace),
           onData: _openData,
+          onProfiles: _openProfiles,
         ),
       ),
     );
@@ -437,6 +613,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     final spot = await Navigator.of(context).push<Spot>(
       MaterialPageRoute(
         builder: (context) => SpotsScreen(
+          title: _profiles?.selected == null
+              ? 'FPV Spots'
+              : 'Gespeicherte Orte',
           repository: repository,
           initialLatitude: point?.latitude,
           initialLongitude: point?.longitude,
@@ -612,6 +791,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   @override
   void dispose() {
+    _profiles?.removeListener(_onProfilesChanged);
+    _profiles?.dispose();
     if (_globeController.onLiveRadioSettingsRequested == _radioRequestHandler) {
       _globeController.onLiveRadioSettingsRequested = null;
     }
@@ -684,6 +865,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     StreamSubscription<List<SpotMapEntry>>? subscription,
     FpvDatabase? database,
   ) async {
+    try {
+      await _profiles?.settled;
+    } catch (_) {
+      /* Reported by the profile editor. */
+    }
     await _routeLayers?.settled;
     if (subscription != null) {
       await subscription.cancel();
@@ -715,6 +901,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    if (_globeController.isReady && _profiles == null) {
+      unawaited(_ensureProfiles());
+    }
+    unawaited(_tryProfileDefaults());
     final locationMessage = _globeController.location.message;
     if (locationMessage != null &&
         locationMessage != _lastLocationMessage &&
@@ -811,8 +1001,17 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      onDrawerChanged: (open) => setState(() => _drawerOpen = open),
+      key: _scaffoldKey,
+      onDrawerChanged: (open) => setState(() {
+        _drawerOpen = open;
+        if (!open) _allToolsExpanded = false;
+      }),
       drawer: HomeNavigationDrawer(
+        profile: _profiles?.selected,
+        onProfiles: _openProfiles,
+        onAction: _profileAction,
+        onLayer: _profileLayer,
+        allToolsExpanded: _allToolsExpanded,
         onSettings: _openSettings,
         onSpots: _openSpots,
         onRoutes: _openRoutes,
@@ -845,11 +1044,30 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                       onPressed: () => Scaffold.of(context).openDrawer(),
                       icon: const Icon(Icons.menu),
                     ),
+                    if (!_globeController.navigationActive &&
+                        MediaQuery.sizeOf(context).width >= 360)
+                      IconButton(
+                        tooltip: _profiles?.selected == null
+                            ? 'Profil wählen'
+                            : 'Aktivitätsprofil: ${_profiles!.selected!.name}',
+                        onPressed: _openProfiles,
+                        icon: const Icon(Icons.person_outline),
+                      ),
                     if (MediaQuery.sizeOf(context).width >= 900 &&
                         !_globeController.simulationActive)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: Text('FPVManager'),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 180),
+                          child: Text(
+                            _profiles?.selected?.name ??
+                                ((_profiles?.catalog?.firstUseDone ?? false)
+                                    ? 'FPVManager'
+                                    : 'Profil wählen'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
                     HomeMapStatusButton(
                       controller: _globeController,
@@ -883,6 +1101,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Widget _mapActions({bool compact = false}) => MapActionMenu(
+    preferredActions: _profiles?.selected?.actions,
+    onAllTools: _openAllTools,
     compact: compact,
     controller: _globeController,
     groundButtonBuilder: _groundButton,

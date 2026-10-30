@@ -1,4 +1,5 @@
 enum GuideTopic {
+  profiles,
   map,
   controls,
   coordinates,
@@ -25,6 +26,24 @@ class GuideArticle {
 /// Bundled, offline-readable explanations. Immediate errors, source dates and
 /// safety status belong in their original panels, not only in these guides.
 const guideArticles = <GuideTopic, GuideArticle>{
+  GuideTopic.profiles: GuideArticle('Aktivitätsprofile und Arbeitsbereiche', [
+    GuideSection(
+      'Starten und anpassen',
+      'Über „Profil wählen“ oder Einstellungen → Aktivitätsprofile wählst du eine Vorlage, erstellst ein leeres Profil oder überspringst die Auswahl. Vorlagen lassen sich bearbeiten, duplizieren und löschen. Bevorzugte Werkzeuge stehen im Menü zuerst; die Kartenaktionen folgen deinen Schnellaktionen. „Alle Werkzeuge“ öffnet jederzeit den vollständigen Funktionsumfang. Flugrouten und Ausrüstung behalten ihre Bedeutung; ein Wander- oder Radprofil stellt keine neue Routingart bereit.',
+    ),
+    GuideSection(
+      'Karte und laufende Aktivitäten',
+      'Kartenstartwerte gelten beim App-Start, Aktivieren oder Speichern des aktiven Profils. Spätere Änderungen auf der Karte bleiben bis zur nächsten Aktivierung oder zum Neustart erhalten. Während Bodenansicht, Simulation, Navigation oder pausiertem Renderer werden Startwerte zurückgestellt und erst danach angewendet. Kamera, Auswahl, laufende Steuerung, Formulare und persönliche Datensätze werden beim Wechsel nicht zurückgesetzt. Ohne Profil bleibt die aktuelle Karte erhalten.',
+    ),
+    GuideSection(
+      'Ebenen und Datenschutz',
+      'Bevorzugte Ebenen sind Schnellzugriffe zu den bestehenden Ebenenreglern. Ein Profil aktiviert keine Datenquelle, Standortfreigabe, API-Verbindung oder automatische Aktualisierung. Quelleneinstellungen und Berechtigungen bleiben eigenständig. Profile speichern keine Zugangsdaten oder persönlichen Orte.',
+    ),
+    GuideSection(
+      'Sichern und teilen',
+      'Profile und Auswahl sind Bestandteil persönlicher Backups. Einzelne Profile können als versionierte .fpvprofile-Datei exportiert werden. Der Import zeigt eine Vorschau und ergänzt ein inaktives Profil, ohne vorhandene Profile zu überschreiben. Unterstützt werden höchstens 32 Profile und Dateien bis 128 KiB.',
+    ),
+  ]),
   GuideTopic.map: GuideArticle('Karte und Beschriftungen', [
     GuideSection(
       'Orientierung',

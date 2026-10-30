@@ -20,6 +20,7 @@ class AppSettingsScreen extends StatelessWidget {
     required this.onAirspace,
     required this.onData,
     this.section,
+    this.onProfiles,
   });
   final GlobeController globe;
   final Future<void> Function() onFlightSettings,
@@ -28,6 +29,7 @@ class AppSettingsScreen extends StatelessWidget {
       onAirspace,
       onData;
   final AppSettingsSection? section;
+  final Future<void> Function()? onProfiles;
 
   Future<void> _run(
     BuildContext context,
@@ -56,6 +58,7 @@ class AppSettingsScreen extends StatelessWidget {
     onAirspace: onAirspace,
     onData: onData,
     section: value,
+    onProfiles: onProfiles,
   );
   Widget _link(
     BuildContext context,
@@ -125,6 +128,13 @@ class AppSettingsScreen extends StatelessWidget {
                     ),
                   ],
                   if (section == null) ...[
+                    if (onProfiles != null)
+                      _link(
+                        context,
+                        Icons.person_outline,
+                        'Aktivitätsprofile',
+                        onProfiles!,
+                      ),
                     for (final value in AppSettingsSection.values)
                       _link(
                         context,
