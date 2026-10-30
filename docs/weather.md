@@ -27,11 +27,27 @@ Forecast times are stored in UTC and displayed in local time; hourly rain totals
 refer to the preceding hour. Unknown values remain unknown.
 
 The weather map always uses Open-Meteo, independently of the forecast provider.
-It displays 49 sampled points for wind or precipitation, with a legend and forecast
-timestamp. The 1 km / 5 km setting controls display spacing, **not native model
+Wind, cloud cover, total precipitation, large-scale rain, snowfall, snow depth
+and temperature can be displayed independently, with opacity, units and a common
+forecast time. Precipitation/rain and snowfall are preceding-hour totals, not
+instantaneous rates; snow depth is a separate variable. Each grid uses 49 samples
+and a ten-minute memory cache. Expired grids are hidden. The 1 km / 5 km setting
+controls display spacing, **not native model
 resolution or accuracy**. No spatial interpolation or native MeteoSwiss raster is
-provided. Missing cells are omitted; cells with different forecast timestamps are
-not combined. The overlay can be cleared and is restored after renderer reload.
+provided. Missing cells are counted and omitted; incompatible forecast times are
+not combined. Each overlay can be cleared and is restored after renderer reload.
+Official MeteoSwiss radar products use ODIM HDF5/LV95 and require a separate
+decoder/reprojection adapter; they are not currently displayed as radar imagery.
+
+**Messstationen** shows measured MeteoSwiss SwissMetNet and BAFU water observations
+near a map point, saved spot or route. Station identity, elevation, times, native
+units and available validation states remain visible. MeteoSwiss precipitation is
+a ten-minute total; BAFU live values are uncorrected and separate from ten-minute
+means. Licensed snapshots use the shared persistent cache; failed updates retain
+dated values. No station measurement is interpolated into a terrain wind field or
+used as flight-simulation wind. Refresh follows the ten-minute product cadence.
+Web uses ordinary MeteoSwiss GET requests because conditional-header preflight is
+rejected by that service; native clients can use Last-Modified revalidation.
 
 **Map layers → Map → 3D-Wind und Prognose** adds an independent animated 3D wind
 field. It is also available before flight and through **HUD settings → Wind**.

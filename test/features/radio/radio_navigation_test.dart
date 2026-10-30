@@ -32,7 +32,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Equipment'));
+      await tester.scrollUntilVisible(
+        find.text('Equipment'),
+        160,
+        scrollable: find
+            .descendant(
+              of: find.byType(Drawer),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       await tester.tap(find.text('Equipment'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Radio & video equipment'));

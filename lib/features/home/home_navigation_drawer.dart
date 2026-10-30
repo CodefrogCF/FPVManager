@@ -18,6 +18,8 @@ class HomeNavigationDrawer extends StatelessWidget {
     this.onMobility,
     this.onData,
     this.onSettings,
+    this.onObservations,
+    this.onGroundRoutes,
     this.profile,
     this.onProfiles,
     this.onAction,
@@ -34,6 +36,8 @@ class HomeNavigationDrawer extends StatelessWidget {
   final Future<void> Function()? onMobility;
   final Future<void> Function()? onData;
   final Future<void> Function()? onSettings;
+  final Future<void> Function()? onObservations;
+  final Future<void> Function()? onGroundRoutes;
   final ActivityProfile? profile;
   final Future<void> Function()? onProfiles;
   final Future<void> Function(ActivityAction)? onAction;
@@ -41,6 +45,18 @@ class HomeNavigationDrawer extends StatelessWidget {
   final bool allToolsExpanded;
 
   Widget _tool(BuildContext context, ActivityTool tool) => switch (tool) {
+    ActivityTool.groundRoutes => _item(
+      context,
+      Icons.hiking,
+      tool.label,
+      onGroundRoutes ?? () async {},
+    ),
+    ActivityTool.observations => _item(
+      context,
+      Icons.sensors_outlined,
+      tool.label,
+      onObservations ?? () async {},
+    ),
     ActivityTool.places => _item(
       context,
       Icons.bookmark_outline,
@@ -229,6 +245,15 @@ class HomeNavigationDrawer extends StatelessWidget {
                   onWeather,
                 ),
                 const Divider(indent: 16, endIndent: 16),
+                if (onGroundRoutes != null)
+                  _item(context, Icons.hiking, 'Bodenrouten', onGroundRoutes!),
+                if (onObservations != null)
+                  _item(
+                    context,
+                    Icons.sensors_outlined,
+                    'Messstationen',
+                    onObservations!,
+                  ),
                 ExpansionTile(
                   key: const PageStorageKey('equipment-navigation'),
                   leading: const Icon(Icons.flight_outlined),

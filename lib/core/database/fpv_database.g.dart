@@ -8033,6 +8033,350 @@ class TelemetryFlightsCompanion extends UpdateCompanion<TelemetryFlight> {
   }
 }
 
+class $GroundRoutesTable extends GroundRoutes
+    with TableInfo<$GroundRoutesTable, GroundRoute> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GroundRoutesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 120,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _routeJsonMeta = const VerificationMeta(
+    'routeJson',
+  );
+  @override
+  late final GeneratedColumn<String> routeJson = GeneratedColumn<String>(
+    'route_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _savedAtMeta = const VerificationMeta(
+    'savedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> savedAt = GeneratedColumn<DateTime>(
+    'saved_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, mode, routeJson, savedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ground_routes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GroundRoute> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('route_json')) {
+      context.handle(
+        _routeJsonMeta,
+        routeJson.isAcceptableOrUnknown(data['route_json']!, _routeJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_routeJsonMeta);
+    }
+    if (data.containsKey('saved_at')) {
+      context.handle(
+        _savedAtMeta,
+        savedAt.isAcceptableOrUnknown(data['saved_at']!, _savedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GroundRoute map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GroundRoute(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      routeJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}route_json'],
+      )!,
+      savedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}saved_at'],
+      )!,
+    );
+  }
+
+  @override
+  $GroundRoutesTable createAlias(String alias) {
+    return $GroundRoutesTable(attachedDatabase, alias);
+  }
+}
+
+class GroundRoute extends DataClass implements Insertable<GroundRoute> {
+  final int id;
+  final String name;
+  final String mode;
+  final String routeJson;
+  final DateTime savedAt;
+  const GroundRoute({
+    required this.id,
+    required this.name,
+    required this.mode,
+    required this.routeJson,
+    required this.savedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['mode'] = Variable<String>(mode);
+    map['route_json'] = Variable<String>(routeJson);
+    map['saved_at'] = Variable<DateTime>(savedAt);
+    return map;
+  }
+
+  GroundRoutesCompanion toCompanion(bool nullToAbsent) {
+    return GroundRoutesCompanion(
+      id: Value(id),
+      name: Value(name),
+      mode: Value(mode),
+      routeJson: Value(routeJson),
+      savedAt: Value(savedAt),
+    );
+  }
+
+  factory GroundRoute.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GroundRoute(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      mode: serializer.fromJson<String>(json['mode']),
+      routeJson: serializer.fromJson<String>(json['routeJson']),
+      savedAt: serializer.fromJson<DateTime>(json['savedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'mode': serializer.toJson<String>(mode),
+      'routeJson': serializer.toJson<String>(routeJson),
+      'savedAt': serializer.toJson<DateTime>(savedAt),
+    };
+  }
+
+  GroundRoute copyWith({
+    int? id,
+    String? name,
+    String? mode,
+    String? routeJson,
+    DateTime? savedAt,
+  }) => GroundRoute(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    mode: mode ?? this.mode,
+    routeJson: routeJson ?? this.routeJson,
+    savedAt: savedAt ?? this.savedAt,
+  );
+  GroundRoute copyWithCompanion(GroundRoutesCompanion data) {
+    return GroundRoute(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      routeJson: data.routeJson.present ? data.routeJson.value : this.routeJson,
+      savedAt: data.savedAt.present ? data.savedAt.value : this.savedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroundRoute(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('mode: $mode, ')
+          ..write('routeJson: $routeJson, ')
+          ..write('savedAt: $savedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, mode, routeJson, savedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GroundRoute &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.mode == this.mode &&
+          other.routeJson == this.routeJson &&
+          other.savedAt == this.savedAt);
+}
+
+class GroundRoutesCompanion extends UpdateCompanion<GroundRoute> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> mode;
+  final Value<String> routeJson;
+  final Value<DateTime> savedAt;
+  const GroundRoutesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.routeJson = const Value.absent(),
+    this.savedAt = const Value.absent(),
+  });
+  GroundRoutesCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required String mode,
+    required String routeJson,
+    this.savedAt = const Value.absent(),
+  }) : name = Value(name),
+       mode = Value(mode),
+       routeJson = Value(routeJson);
+  static Insertable<GroundRoute> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? mode,
+    Expression<String>? routeJson,
+    Expression<DateTime>? savedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (mode != null) 'mode': mode,
+      if (routeJson != null) 'route_json': routeJson,
+      if (savedAt != null) 'saved_at': savedAt,
+    });
+  }
+
+  GroundRoutesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String>? mode,
+    Value<String>? routeJson,
+    Value<DateTime>? savedAt,
+  }) {
+    return GroundRoutesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      mode: mode ?? this.mode,
+      routeJson: routeJson ?? this.routeJson,
+      savedAt: savedAt ?? this.savedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (routeJson.present) {
+      map['route_json'] = Variable<String>(routeJson.value);
+    }
+    if (savedAt.present) {
+      map['saved_at'] = Variable<DateTime>(savedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroundRoutesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('mode: $mode, ')
+          ..write('routeJson: $routeJson, ')
+          ..write('savedAt: $savedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$FpvDatabase extends GeneratedDatabase {
   _$FpvDatabase(QueryExecutor e) : super(e);
   $FpvDatabaseManager get managers => $FpvDatabaseManager(this);
@@ -8059,6 +8403,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
   late final $TelemetryFlightsTable telemetryFlights = $TelemetryFlightsTable(
     this,
   );
+  late final $GroundRoutesTable groundRoutes = $GroundRoutesTable(this);
   late final Index spotsCategoryId = Index(
     'spots_category_id',
     'CREATE INDEX spots_category_id ON spots (category_key, id)',
@@ -8095,6 +8440,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     appSettings,
     preflightChecklists,
     telemetryFlights,
+    groundRoutes,
     spotsCategoryId,
     spotsFavoriteId,
     spotTagsTagSpot,
@@ -15617,6 +15963,209 @@ typedef $$TelemetryFlightsTableProcessedTableManager =
       TelemetryFlight,
       PrefetchHooks Function({bool droneId, bool planId})
     >;
+typedef $$GroundRoutesTableCreateCompanionBuilder =
+    GroundRoutesCompanion Function({
+      Value<int> id,
+      required String name,
+      required String mode,
+      required String routeJson,
+      Value<DateTime> savedAt,
+    });
+typedef $$GroundRoutesTableUpdateCompanionBuilder =
+    GroundRoutesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String> mode,
+      Value<String> routeJson,
+      Value<DateTime> savedAt,
+    });
+
+class $$GroundRoutesTableFilterComposer
+    extends Composer<_$FpvDatabase, $GroundRoutesTable> {
+  $$GroundRoutesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get routeJson => $composableBuilder(
+    column: $table.routeJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get savedAt => $composableBuilder(
+    column: $table.savedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$GroundRoutesTableOrderingComposer
+    extends Composer<_$FpvDatabase, $GroundRoutesTable> {
+  $$GroundRoutesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get routeJson => $composableBuilder(
+    column: $table.routeJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get savedAt => $composableBuilder(
+    column: $table.savedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$GroundRoutesTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $GroundRoutesTable> {
+  $$GroundRoutesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get routeJson =>
+      $composableBuilder(column: $table.routeJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get savedAt =>
+      $composableBuilder(column: $table.savedAt, builder: (column) => column);
+}
+
+class $$GroundRoutesTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $GroundRoutesTable,
+          GroundRoute,
+          $$GroundRoutesTableFilterComposer,
+          $$GroundRoutesTableOrderingComposer,
+          $$GroundRoutesTableAnnotationComposer,
+          $$GroundRoutesTableCreateCompanionBuilder,
+          $$GroundRoutesTableUpdateCompanionBuilder,
+          (
+            GroundRoute,
+            BaseReferences<_$FpvDatabase, $GroundRoutesTable, GroundRoute>,
+          ),
+          GroundRoute,
+          PrefetchHooks Function()
+        > {
+  $$GroundRoutesTableTableManager(_$FpvDatabase db, $GroundRoutesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GroundRoutesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GroundRoutesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GroundRoutesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String> routeJson = const Value.absent(),
+                Value<DateTime> savedAt = const Value.absent(),
+              }) => GroundRoutesCompanion(
+                id: id,
+                name: name,
+                mode: mode,
+                routeJson: routeJson,
+                savedAt: savedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required String mode,
+                required String routeJson,
+                Value<DateTime> savedAt = const Value.absent(),
+              }) => GroundRoutesCompanion.insert(
+                id: id,
+                name: name,
+                mode: mode,
+                routeJson: routeJson,
+                savedAt: savedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$GroundRoutesTable, GroundRoute>(table),
+                  BaseReferences<
+                    _$FpvDatabase,
+                    $GroundRoutesTable,
+                    GroundRoute
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$GroundRoutesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $GroundRoutesTable,
+      GroundRoute,
+      $$GroundRoutesTableFilterComposer,
+      $$GroundRoutesTableOrderingComposer,
+      $$GroundRoutesTableAnnotationComposer,
+      $$GroundRoutesTableCreateCompanionBuilder,
+      $$GroundRoutesTableUpdateCompanionBuilder,
+      (
+        GroundRoute,
+        BaseReferences<_$FpvDatabase, $GroundRoutesTable, GroundRoute>,
+      ),
+      GroundRoute,
+      PrefetchHooks Function()
+    >;
 
 class $FpvDatabaseManager {
   final _$FpvDatabase _db;
@@ -15651,4 +16200,6 @@ class $FpvDatabaseManager {
       $$PreflightChecklistsTableTableManager(_db, _db.preflightChecklists);
   $$TelemetryFlightsTableTableManager get telemetryFlights =>
       $$TelemetryFlightsTableTableManager(_db, _db.telemetryFlights);
+  $$GroundRoutesTableTableManager get groundRoutes =>
+      $$GroundRoutesTableTableManager(_db, _db.groundRoutes);
 }

@@ -48,11 +48,13 @@ class MobilityHttp {
     Map<String, String> headers = const {},
     String? body,
     int maxBytes = 4 * 1024 * 1024,
+    void Function(Map<String, String>)? onHeaders,
   }) => read(
     uri,
     headers: headers,
     body: body,
     maxBytes: maxBytes,
+    onHeaders: onHeaders,
     consume: (stream) async {
       final bytes = BytesBuilder(copy: false);
       await for (final chunk in stream) {

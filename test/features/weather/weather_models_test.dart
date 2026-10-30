@@ -178,12 +178,14 @@ void main() {
 
   test('Weather map uses 49 point samples without interpolation', () async {
     final service = WeatherOverlayService(
+      now: () => instant,
       client: MockClient((request) async {
         expect(request.url.queryParameters.containsKey('apikey'), isFalse);
         expect(request.url.queryParameters['latitude']!.split(',').length, 49);
         final series = List.generate(
           49,
           (_) => {
+            'hourly_units': {'wind_speed_10m': 'm/s'},
             'hourly': {
               'time': ['2026-10-23T12:00'],
               'wind_speed_10m': [5.0],

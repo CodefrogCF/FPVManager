@@ -178,7 +178,7 @@ void main() {
         );
       }
       await expectLater(
-        repository.restore({'schema': 10, 'tables': {}}),
+        repository.restore({'schema': 11, 'tables': {}}),
         throwsFormatException,
       );
     },

@@ -1,4 +1,5 @@
 import '../../features/obstacles/obstacle_models.dart';
+import 'outdoor_layer.dart';
 
 enum GlobeMapStyle { satellite, topographic, relief }
 
@@ -20,6 +21,7 @@ enum NavigationEnvironmentMode {
 class UserPreferences {
   const UserPreferences({
     this.mapStyle = GlobeMapStyle.satellite,
+    this.outdoorLayers = const {},
     this.uasZonesVisible = false,
     this.uasZonesFillOpacity = 0.20,
     this.savedSpotsVisible = true,
@@ -45,6 +47,7 @@ class UserPreferences {
   });
 
   final GlobeMapStyle mapStyle;
+  final Map<OutdoorLayer, OutdoorLayerPreference> outdoorLayers;
   final bool uasZonesVisible;
   final double uasZonesFillOpacity;
   final bool savedSpotsVisible;
@@ -68,6 +71,7 @@ class UserPreferences {
 
   UserPreferences copyWith({
     GlobeMapStyle? mapStyle,
+    Map<OutdoorLayer, OutdoorLayerPreference>? outdoorLayers,
     bool? uasZonesVisible,
     double? uasZonesFillOpacity,
     bool? savedSpotsVisible,
@@ -92,6 +96,7 @@ class UserPreferences {
     List<GlobeOverlay>? overlayOrder,
   }) => UserPreferences(
     mapStyle: mapStyle ?? this.mapStyle,
+    outdoorLayers: Map.unmodifiable(outdoorLayers ?? this.outdoorLayers),
     uasZonesVisible: uasZonesVisible ?? this.uasZonesVisible,
     uasZonesFillOpacity: uasZonesFillOpacity ?? this.uasZonesFillOpacity,
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,

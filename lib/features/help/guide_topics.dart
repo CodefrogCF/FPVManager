@@ -1,4 +1,5 @@
 enum GuideTopic {
+  outdoor,
   profiles,
   map,
   controls,
@@ -26,10 +27,32 @@ class GuideArticle {
 /// Bundled, offline-readable explanations. Immediate errors, source dates and
 /// safety status belong in their original panels, not only in these guides.
 const guideArticles = <GuideTopic, GuideArticle>{
+  GuideTopic.outdoor: GuideArticle('Outdoor-Karten und Messstationen', [
+    GuideSection(
+      'Bodenrouten',
+      'Im Bereich Bodenrouten wählst du ausdrücklich „Zu Fuß“ oder „Velo“. Nach deiner Zustimmung werden Start und Ziel an die dazu passenden FOSSGIS-/OSRM-Profile gesendet. Berechnete und importierte Routen bleiben als eigene lokale Datensätze auch ohne Netz verfügbar und werden mit dem persönlichen Backup gesichert. GPX erhält den Aktivitätsmodus und vorhandene Quellenhöhen, ohne daraus AGL-Höhen zu erzeugen. Unbekannte GPX-Typen benötigen den gewählten Importmodus; zusätzliche oder nicht unterstützte Angaben werden gemeldet. Ein gespeicherter Linienverlauf bestätigt keine aktuelle Öffnung. Der Bereich bietet Planung und Austausch; die bisherige Autonavigation ist eigenständig.',
+    ),
+    GuideSection(
+      'Amtliche Wegenetze',
+      'Wander-, Velo-, Mountainbike- und Winterrouten sind veröffentlichte Netze. Legenden erklären die jeweiligen Kategorien; ohne entsprechende Quelldaten wird keine Schwierigkeit berechnet. Diese Online-Kartenebenen sind von deinen gespeicherten Boden- und Flugrouten getrennt. Kartenstand, Öffnung und aktuelle Bedingungen sind eigenständig zu prüfen.',
+    ),
+    GuideSection(
+      'Natur und Sperrungen',
+      'Wildruhezonen können rechtsverbindlich oder empfohlen sein. Schutzzeiten, örtliche Bestimmungen und zulässige Wege stehen in den offiziellen Details. Der räumliche Detailabruf ist ein begrenzter Auszug; fehlende kantonale Informationen oder fehlende Treffer bestätigen keine Zugänglichkeit. Sperrungen und Umleitungen haben eigene Gültigkeitsangaben. Eine Schutzfläche ist keine pauschale luftrechtliche Einstufung.',
+    ),
+    GuideSection(
+      'Gemessene Werte',
+      'MeteoSwiss-Stationswerte sind Messungen an einem einzelnen Standort; Wind und Böen stehen im Quellenformat km/h, Niederschlag als Summe über zehn Minuten. Die Messzeiten sind UTC und werden zusätzlich lokal angezeigt. Sie beschreiben kein vollständiges Windfeld und ändern den Simulatorwind nicht. Fehlende Qualitätsflags bleiben unbekannt.',
+    ),
+    GuideSection(
+      'Gewässer und Aktualität',
+      'BAFU-Live-Werte sind unkorrigiert. 10-Minuten-Mittel enthalten die bereitgestellte Einheit und den verfügbaren Freigabestatus; unbekannte Referenzen bleiben unbekannt. Frische des lokalen Snapshots und Alter einer einzelnen Messung sind getrennte Angaben. Beobachtungen bewerten weder eine Aktivität als sicher noch ersetzen sie amtliche Warnungen. Abrufe erfolgen bewusst, in begrenzten Abständen; lokale Messwert-Snapshots lassen sich auch ohne Netz öffnen.',
+    ),
+  ]),
   GuideTopic.profiles: GuideArticle('Aktivitätsprofile und Arbeitsbereiche', [
     GuideSection(
       'Starten und anpassen',
-      'Über „Profil wählen“ oder Einstellungen → Aktivitätsprofile wählst du eine Vorlage, erstellst ein leeres Profil oder überspringst die Auswahl. Vorlagen lassen sich bearbeiten, duplizieren und löschen. Bevorzugte Werkzeuge stehen im Menü zuerst; die Kartenaktionen folgen deinen Schnellaktionen. „Alle Werkzeuge“ öffnet jederzeit den vollständigen Funktionsumfang. Flugrouten und Ausrüstung behalten ihre Bedeutung; ein Wander- oder Radprofil stellt keine neue Routingart bereit.',
+      'Über „Profil wählen“ oder Einstellungen → Aktivitätsprofile wählst du eine Vorlage, erstellst ein leeres Profil oder überspringst die Auswahl. Vorlagen lassen sich bearbeiten, duplizieren und löschen. Bevorzugte Werkzeuge stehen im Menü zuerst; die Kartenaktionen folgen deinen Schnellaktionen. „Alle Werkzeuge“ öffnet jederzeit den vollständigen Funktionsumfang. Flugrouten und Ausrüstung behalten ihre Bedeutung. Den Fuß- oder Velomodus wählst du im Bereich Bodenrouten; ein Aktivitätsprofil ändert den Routingmodus nicht automatisch.',
     ),
     GuideSection(
       'Karte und laufende Aktivitäten',
@@ -127,6 +150,10 @@ const guideArticles = <GuideTopic, GuideArticle>{
     ),
   ]),
   GuideTopic.weather: GuideArticle('Wetter und 3D-Wind', [
+    GuideSection(
+      'Wetterraster',
+      'Bewölkung, Niederschlag, Regen, Neuschnee, Schneehöhe und Temperatur sind getrennte Modellprognosen mit gemeinsamer Zeit. Summen gelten für eine Stunde; Schneehöhe ist davon unabhängig. Das Stichprobenraster ist kein Wetterradar und keine gemessene 3D-Wolke. Offizielle Radarprodukte benötigen eine gesonderte HDF5-/Projektionsaufbereitung und werden hier noch nicht angezeigt.',
+    ),
     GuideSection(
       'Modell und Messung',
       'Eine Modellprognose ist keine lokale Windmessung am Flugpunkt. Die 3D-Pfeile folgen der Luftströmung, nicht der meteorologischen Herkunftsrichtung. Farben: grün <3, gelb 3–7, orange 7–12, rot ab 12 m/s. Fehlende oder abgelaufene Werte bleiben nicht verfügbar.',

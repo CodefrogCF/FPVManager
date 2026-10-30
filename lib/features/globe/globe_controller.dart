@@ -12,6 +12,8 @@ import '../../core/osint/cached_osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/user_preferences.dart';
 import '../../core/models/activity_profile.dart';
+import '../../core/models/outdoor_layer.dart';
+import '../observations/observation_controller.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../airspace/data/swiss_uas_provider.dart';
 import '../airspace/uas_dataset_assessment.dart';
@@ -161,6 +163,10 @@ class GlobeController extends ChangeNotifier {
       preferences: () => _preferences,
       savePreferences: _savePreferences,
     )..addListener(_handleProviderChanged);
+    observations = ObservationController(
+      cacheFactory: _sharedCache,
+      send: showSituationalOverlay,
+    )..addListener(_handleProviderChanged);
   }
 
   late final ObstacleMapController obstacles;
@@ -205,6 +211,7 @@ class GlobeController extends ChangeNotifier {
   late final FlightRecording recording;
   late final LiveRadioController liveRadio;
   late final AvalancheMapController avalanche;
+  late final ObservationController observations;
   VoidCallback? onLiveRadioSettingsRequested;
   Future<List<double>> _queryLiveRadioTerrain(
     List<Wgs84Coordinate> positions,
@@ -331,7 +338,7 @@ class GlobeController extends ChangeNotifier {
   GlobeMapStyle _requestedMapStyle = GlobeMapStyle.satellite;
   double _requestedUasOpacity = 0.20;
 
-  Map<String, dynamic>? _weatherOverlayCommand;
+  final Map<String, Map<String, dynamic>> _weatherOverlayCommands = {};
   Map<String, dynamic>? _roadNavigationCommand;
   bool? get roadNavigationFollowing =>
       _roadNavigationCommand?['follow'] as bool?;
@@ -507,6 +514,28 @@ class GlobeController extends ChangeNotifier {
   final Map<String, Map<String, dynamic>> _situationalCommands = {};
   final Map<String, String> _situationalStatus = {};
   String? situationalStatus(String id) => _situationalStatus[id];
+  OutdoorLayerPreference outdoorPreference(OutdoorLayer layer) =>
+      _preferences.outdoorLayers[layer] ?? const OutdoorLayerPreference();
+  Future<void> setOutdoorLayer(
+    OutdoorLayer layer, {
+    bool? visible,
+    double? opacity,
+    bool retry = false,
+  }) async {
+    _checkPreferencesEditable();
+    final next = outdoorPreference(layer)
+        .copyWith(visible: visible, opacity: opacity);
+    final settings = {..._preferences.outdoorLayers, layer: next};
+    encodeOutdoorPreferences(settings);
+    await _savePreferences(_preferences.copyWith(outdoorLayers: settings));
+    await showSituationalOverlay({
+      'id': layer.rendererId,
+      'visible': next.visible,
+      'opacity': next.opacity,
+      'retry': retry,
+    });
+  }
+
   bool situationalVisible(String id) => _situationalCommands.containsKey(id);
   double situationalOpacity(String id) =>
       (_situationalCommands[id]?['opacity'] as num?)?.toDouble() ?? .75;
@@ -526,6 +555,11 @@ class GlobeController extends ChangeNotifier {
           'heliports',
           'wildfire',
           'avalanche',
+          'outdoor-context',
+          'meteo-stations',
+          'hydro-stations',
+          'ground-route',
+          ...OutdoorLayer.values.map((l) => l.rendererId),
         }.contains(id) ||
         value['visible'] is! bool) {
       throw ArgumentError('Invalid situational overlay');
@@ -546,18 +580,53 @@ class GlobeController extends ChangeNotifier {
     if (command['type'] != 'set-weather-overlay') {
       throw ArgumentError('Invalid weather overlay');
     }
-    _weatherOverlayCommand = command;
+    final kind = command['kind'];
+    if (kind is! String ||
+        !{
+          'wind',
+          'precipitation',
+          'cloudCover',
+          'rain',
+          'snowfall',
+          'snowDepth',
+          'temperature',
+        }.contains(kind)) {
+      throw ArgumentError('Unsupported weather variable');
+    }
+    if (_weatherOverlayCommands.values.any(
+      (c) => c['kind'] != kind && c['timestampUtc'] != command['timestampUtc'],
+    )) {
+      throw StateError(
+        'Sichtbare Wetterraster benötigen dieselbe Prognosezeit. Bitte bisherige Raster entfernen oder die Zeit angleichen.',
+      );
+    }
+    _weatherOverlayCommands[kind] = Map<String, dynamic>.unmodifiable(command);
     if (_ready) await _send(command);
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> clearWeatherOverlay() async {
-    _weatherOverlayCommand = null;
-    if (_ready) await _send({'type': 'clear-weather-overlay'});
+  Future<void> clearWeatherOverlay({String? kind}) async {
+    if (kind == null) {
+      _weatherOverlayCommands.clear();
+    } else {
+      _weatherOverlayCommands.remove(kind);
+    }
+    if (_ready) await _send({'type': 'clear-weather-overlay', 'kind': ?kind});
     if (!_disposed) notifyListeners();
   }
 
-  bool get weatherOverlayVisible => _weatherOverlayCommand != null;
+  bool get weatherOverlayVisible => _weatherOverlayCommands.isNotEmpty;
+  Map<String, Map<String, dynamic>> get weatherOverlays =>
+      Map.unmodifiable(_weatherOverlayCommands);
+  Future<void> setWeatherOpacity(String kind, double opacity) async {
+    if (!opacity.isFinite || opacity < 0 || opacity > 1) {
+      throw ArgumentError('Invalid weather opacity');
+    }
+    final command = _weatherOverlayCommands[kind];
+    if (command != null) {
+      await showWeatherOverlay({...command, 'opacity': opacity});
+    }
+  }
 
   bool _uasDatasetSentToRenderer = false;
   OsintDataset<Map<String, dynamic>>? _uasDisplayedDataset;
@@ -876,6 +945,28 @@ class GlobeController extends ChangeNotifier {
       UserPreferences.validateOverlayOrder(preferences.overlayOrder);
       final roadsWereVisible = situationalVisible('roads');
       _preferences = preferences.copyWith();
+      for (final layer in OutdoorLayer.values) {
+        final config = outdoorPreference(layer);
+        final wasVisible = _situationalCommands.containsKey(layer.rendererId);
+        if (config.visible) {
+          _situationalCommands[layer.rendererId] = {
+            'type': 'set-situational-overlay',
+            'id': layer.rendererId,
+            'visible': true,
+            'opacity': config.opacity,
+          };
+        } else {
+          _situationalCommands.remove(layer.rendererId);
+          if (_ready && wasVisible) {
+            await _send({
+              'type': 'set-situational-overlay',
+              'id': layer.rendererId,
+              'visible': false,
+              'opacity': config.opacity,
+            });
+          }
+        }
+      }
       await avalanche.restore(
         preferences.avalancheVisible,
         preferences.avalancheOpacity,
@@ -1668,7 +1759,11 @@ class GlobeController extends ChangeNotifier {
       case 'situational-status':
         final id = data['id'], state = data['state'];
         if (id is String &&
-            {'heliports', 'wildfire'}.contains(id) &&
+            {
+              'heliports',
+              'wildfire',
+              ...OutdoorLayer.values.map((l) => l.rendererId),
+            }.contains(id) &&
             state is String &&
             {'off', 'loading', 'ready', 'failed'}.contains(state)) {
           _situationalStatus[id] = state;
@@ -2066,6 +2161,7 @@ class GlobeController extends ChangeNotifier {
   }) async {
     bool current() =>
         !_disposed && _ready && generation == _connectionGeneration;
+    final uasOperationAtStart = _uasOperation;
     unawaited(obstacles.rendererReady(force: forceSettings));
     unawaited(wind.rendererReady());
     if (location.enabled) unawaited(location.rendererReady());
@@ -2141,11 +2237,13 @@ class GlobeController extends ChangeNotifier {
         });
       }
       if (!current()) return;
-      if (_weatherOverlayCommand != null && current()) {
-        await _send(_weatherOverlayCommand!);
+      for (final command in _weatherOverlayCommands.values.toList()) {
+        if (!current()) return;
+        await _send(command);
       }
       for (final entry in _situationalCommands.entries.toList()) {
         if (!current()) return;
+        if ({'meteo-stations', 'hydro-stations'}.contains(entry.key)) continue;
         try {
           await _send(
             entry.key == 'avalanche'
@@ -2156,12 +2254,15 @@ class GlobeController extends ChangeNotifier {
           _situationalStatus[entry.key] = 'failed';
         }
       }
+      if (current()) await observations.restoreRenderer();
       if (!current()) return;
       if (_roadNavigationCommand != null) await _send(_roadNavigationCommand!);
       if (_renderingPaused) {
         await _send({'type': 'set-rendering-paused', 'paused': true});
       }
-      if (_uasRequestedVisible) await _updateUas(forceRefresh: false);
+      if (_uasRequestedVisible && _uasOperation == uasOperationAtStart) {
+        await _updateUas(forceRefresh: false);
+      }
       if (current() && forceSettings && !_uasRequestedVisible) {
         await _send({'type': 'set-uas-zones', 'visible': false});
       }
@@ -2230,6 +2331,7 @@ class GlobeController extends ChangeNotifier {
       if (uas is CachedOsintProvider<Map<String, dynamic>>) uas.settled,
       obstacles.provider.settled,
       avalanche.provider.settled,
+      observations.settled,
     ];
     obstacles.removeListener(_handleProviderChanged);
     obstacles.dispose();
@@ -2239,6 +2341,8 @@ class GlobeController extends ChangeNotifier {
     wind.dispose();
     avalanche.removeListener(_handleProviderChanged);
     avalanche.dispose();
+    observations.removeListener(_handleProviderChanged);
+    observations.dispose();
     recording.removeListener(_handleProviderChanged);
     recording.dispose();
     liveRadio.removeListener(_handleProviderChanged);

@@ -6,14 +6,28 @@
     const definitions={
         roads:{layer:'ch.swisstopo.swisstlm3d-strassen',label:'Roads and paths',attribution:'© swisstopo · geo.admin.ch',bounds:[3.329595,44.074747,14.278255,49.200438]},
         heliports:{layer:'ch.bazl.flugplaetze-heliports',label:'Aerodrome / heliport',attribution:'BAZL / FOCA · geo.admin.ch'},
-        wildfire:{layer:'ch.bafu.gefahren-waldbrand_warnung',label:'Wildfire warning',attribution:'BAFU / FOEN · geo.admin.ch'}
+        wildfire:{layer:'ch.bafu.gefahren-waldbrand_warnung',label:'Wildfire warning',attribution:'BAFU / FOEN · geo.admin.ch'},
+        'outdoor-wildlife':{layer:'ch.bafu.wrz-wildruhezonen_portal',label:'Wildruhezonen',attribution:'BAFU / Kantone · geo.admin.ch'},
+        'outdoor-hiking':{layer:'ch.swisstopo.swisstlm3d-wanderwege',label:'Wanderwege',attribution:'swisstopo / Kantone · geo.admin.ch'},
+        'outdoor-cycling':{layer:'ch.astra.veloland',label:'Velorouten',attribution:'ASTRA / SchweizMobil · geo.admin.ch'},
+        'outdoor-mountainBiking':{layer:'ch.astra.mountainbikeland',label:'Mountainbike-Routen',attribution:'ASTRA / SchweizMobil · geo.admin.ch'},
+        'outdoor-winterWalking':{layer:'ch.astra.winterwanderwege',label:'Winterwanderwege',attribution:'ASTRA / SchweizMobil · geo.admin.ch'},
+        'outdoor-snowshoe':{layer:'ch.swisstopo-karto.schneeschuhrouten',label:'Schneeschuhrouten',attribution:'swisstopo · geo.admin.ch'},
+        'outdoor-skiTouring':{layer:'ch.swisstopo-karto.skitouren',label:'Skitouren',attribution:'swisstopo · geo.admin.ch'},
+        'outdoor-hikingClosures':{layer:'ch.astra.wanderland-sperrungen_umleitungen',label:'Sperrungen Wandern',attribution:'ASTRA / Schweizer Wanderwege · geo.admin.ch'},
+        'outdoor-cyclingClosures':{layer:'ch.astra.veloland-sperrungen_umleitungen',label:'Sperrungen Velo',attribution:'ASTRA / SchweizMobil · geo.admin.ch'},
+        'outdoor-mtbClosures':{layer:'ch.astra.mountainbikeland-sperrungen_umleitungen',label:'Sperrungen Mountainbike',attribution:'ASTRA / SchweizMobil · geo.admin.ch'}
     };
     const credits={road:'OSRM / FOSSGIS · © OpenStreetMap contributors · ODbL 1.0',
         traffic:'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA','traffic-counters':'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA · Messstellen',aircraft:'adsb.lol community · ODbL 1.0 · incomplete reception',
-        avalanche:'<a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a> · CC BY 4.0'};
+        avalanche:'<a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a> · CC BY 4.0',
+        'outdoor-context':'BAFU / ASTRA / Kantone · geo.admin.ch · begrenzter räumlicher Auszug',
+        'meteo-stations':'MeteoSchweiz · Messstationen · CC BY',
+        'hydro-stations':'BAFU · Hydrologische Messstationen · OGD',
+        'ground-route':'OSRM / FOSSGIS · © OpenStreetMap contributors · ODbL 1.0 · geplante Bodenroute'};
     const trafficColors={closure:'#e75c54',accident:'#e75c54',congestion:'#ef9847',roadworks:'#d6b74f',weather:'#55a9db',hazard:'#bb82cf',other:'#aab4b7'};
     function validate(command){
-        if(!command||!['road','traffic','traffic-counters','aircraft','avalanche',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
+        if(!command||!['road','traffic','traffic-counters','aircraft','avalanche','outdoor-context','meteo-stations','hydro-stations','ground-route',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
         if(definitions[command.id]){
             if(!Number.isFinite(command.opacity)||command.opacity<0||command.opacity>1)throw new Error('Invalid layer opacity');
             return;
@@ -27,8 +41,8 @@
                 typeof feature.detail!=='string'||feature.detail.length>(command.id==='avalanche'?16000:1200))throw new Error('Invalid awareness feature');
             ids.add(feature.id);
             const geometry=feature.geometry;
-            if(command.id==='avalanche'){
-                if(!geometry||!['Polygon','MultiPolygon'].includes(geometry.type)||!Number.isInteger(feature.level)||feature.level<0||feature.level>5)throw new Error('Invalid avalanche polygon');
+            if(command.id==='avalanche'||(command.id==='outdoor-context'&&['Polygon','MultiPolygon'].includes(geometry?.type))){
+                if(!geometry||!['Polygon','MultiPolygon'].includes(geometry.type)||(command.id==='avalanche'&&(!Number.isInteger(feature.level)||feature.level<0||feature.level>5)))throw new Error('Invalid context polygon');
                 const polygons=geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates;
                 if(!Array.isArray(polygons)||!polygons.length||polygons.length>256)throw new Error('Invalid avalanche parts');
                 for(const polygon of polygons){
@@ -39,11 +53,11 @@
                         if(ring[0][0]!==ring.at(-1)[0]||ring[0][1]!==ring.at(-1)[1])throw new Error('Unclosed avalanche ring');
                     }
                 }
-                for(const field of ['timestampUtc','validFromUtc','validUntilUtc'])if(typeof feature[field]!=='string'||!Number.isFinite(Date.parse(feature[field])))throw new Error('Invalid avalanche validity');
+                if(command.id==='avalanche')for(const field of ['timestampUtc','validFromUtc','validUntilUtc'])if(typeof feature[field]!=='string'||!Number.isFinite(Date.parse(feature[field])))throw new Error('Invalid avalanche validity');
                 continue;
             }
             if(!geometry||!['Point','LineString'].includes(geometry.type))throw new Error('Unsupported awareness geometry');
-            if((['aircraft','traffic-counters'].includes(command.id)&&geometry.type!=='Point')||(command.id==='road'&&geometry.type!=='LineString'))throw new Error('Unsupported layer geometry');
+            if((['aircraft','traffic-counters','meteo-stations','hydro-stations'].includes(command.id)&&geometry.type!=='Point')||(['road','ground-route'].includes(command.id)&&geometry.type!=='LineString'))throw new Error('Unsupported layer geometry');
             const positions=geometry.type==='Point'?[geometry.coordinates]:geometry.coordinates;
             if(!Array.isArray(positions)||positions.length<(geometry.type==='Point'?1:2))throw new Error('Invalid awareness coordinates');
             vertices+=positions.length;if(vertices>20000)throw new Error('Awareness geometry limit exceeded');
@@ -60,7 +74,7 @@
             const rectangle=viewer.camera.computeViewRectangle?.(viewer.scene.globe.ellipsoid),time=now();
             for(const [id,record] of layers)for(const {entity,feature} of record.entries){
                 let shown=true;
-                if(feature.validUntilUtc&&Date.parse(feature.validUntilUtc)<=time)shown=false;
+                if(id!=='outdoor-context'&&feature.validUntilUtc&&Date.parse(feature.validUntilUtc)<=time)shown=false;
                 if(id==='avalanche'&&feature.validFromUtc&&Date.parse(feature.validFromUtc)>time)shown=false;
                 if(id==='traffic'&&((feature.validFromUtc&&Date.parse(feature.validFromUtc)>time)||feature.suspended===true))shown=false;
                 if(id==='traffic-counters'){
@@ -106,16 +120,16 @@
                     const feature=command.features[i],g=feature.geometry,color=C.Color.fromCssColorString(command.id==='road'?'#96cc76':command.id==='traffic'?(trafficColors[feature.category]??trafficColors.other):'#55c6e8');
                     const entity={id:`situational-${command.id}-${feature.id}`,name:feature.name,
                         description:`<p>${escape(feature.detail).replace(/\n/g,'<br>')}</p><p>${credits[command.id]}</p>`,properties:{situationalLayer:command.id,situationalFeature:feature.id}};
-                    if(command.id==='avalanche'){
+                    if(command.id==='avalanche'||(command.id==='outdoor-context'&&['Polygon','MultiPolygon'].includes(g.type))){
                         const palette=['#89949e','#ccff66','#ffff00','#ff9900','#ff0000','#660000'];
-                        const base=C.Color.fromCssColorString(palette[feature.level]);
+                        const base=C.Color.fromCssColorString(command.id==='avalanche'?palette[feature.level]:'#dc9b60');
                         const polygons=g.type==='Polygon'?[g.coordinates]:g.coordinates;
                         for(let j=0;j<polygons.length;j++){
                             if(!current())return {superseded:true};
                             const rings=polygons[j],hierarchy=new C.PolygonHierarchy(C.Cartesian3.fromDegreesArray(rings[0].flat()),
                                 rings.slice(1).map(r=>new C.PolygonHierarchy(C.Cartesian3.fromDegreesArray(r.flat()))));
                             entries.push({entity:source.entities.add({...entity,id:entity.id+'-'+j,
-                                polygon:{hierarchy,material:base.withAlpha(command.opacity),heightReference:C.HeightReference.CLAMP_TO_GROUND,
+                                polygon:{hierarchy,material:base.withAlpha(command.opacity??.3),heightReference:C.HeightReference.CLAMP_TO_GROUND,
                                     classificationType:C.ClassificationType.TERRAIN}}),feature});
                             if(j%20===19)await yieldBatch();
                         }
@@ -124,7 +138,7 @@
                         entity.point={pixelSize:command.id==='traffic'?12:9,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND,
                             disableDepthTestDistance:Number.POSITIVE_INFINITY};
                     }else entity.polyline={positions:C.Cartesian3.fromDegreesArray(g.coordinates.flat()),width:4,material:color,clampToGround:true};
-                    if(command.id!=='avalanche')entries.push({entity:source.entities.add(entity),feature});
+                    if(command.id!=='avalanche'&&!(command.id==='outdoor-context'&&['Polygon','MultiPolygon'].includes(g.type)))entries.push({entity:source.entities.add(entity),feature});
                     if(i%100===99)await yieldBatch();
                 }
                 await viewer.dataSources.add(source);

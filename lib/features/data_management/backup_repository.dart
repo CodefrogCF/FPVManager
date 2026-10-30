@@ -6,17 +6,20 @@ import 'package:image/image.dart' as image;
 
 import '../../core/database/fpv_database.dart';
 import '../../core/models/activity_profile.dart';
+import '../../core/models/outdoor_layer.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
 import '../../core/database/repositories/flight_plan_repository.dart';
 import '../../core/models/route_planning_settings.dart';
 import '../../core/models/spot_classification.dart';
 import '../preflight/checklist.dart';
+import '../ground_routes/ground_route_repository.dart';
 import 'backup_codec.dart';
 
 /// Explicitly excludes secrets, consent and provider caches, including future
 /// unknown settings. Those must never silently enter a portable export.
 bool backupSetting(String key) =>
     key == activityProfilesKey ||
+    key == outdoorPreferencesKey ||
     const {
       'map.style',
       'map.uas.visible',
@@ -144,6 +147,7 @@ class BackupRepository {
       if (schema >= 6) ...['battery_drones', 'battery_flight_plans'],
       if (schema >= 7) 'radio_equipment_drones',
       if (schema >= 9) ...['preflight_checklists', 'telemetry_flights'],
+      if (schema >= 10) 'ground_routes',
     };
     if (requiredTables.any((key) => !input.containsKey(key))) {
       throw const FormatException('Incomplete backup for its database version');
@@ -267,6 +271,17 @@ class BackupRepository {
               heightReference:
                   row['height_reference'] as String? ?? 'unverified',
               altitudeMode: row['altitude_mode'] as String? ?? 'absolute',
+            ),
+          );
+        }
+        if (name == 'ground_routes') {
+          GroundRouteRepository.validateRow(
+            GroundRoute(
+              id: row['id'] as int,
+              name: row['name'] as String,
+              mode: row['mode'] as String,
+              routeJson: row['route_json'] as String,
+              savedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
             ),
           );
         }

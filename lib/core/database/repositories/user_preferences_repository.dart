@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/user_preferences.dart';
+import '../../models/outdoor_layer.dart';
 import '../../../features/obstacles/obstacle_models.dart';
 import '../fpv_database.dart';
 
@@ -49,6 +50,7 @@ final class DriftUserPreferencesRepository
   static const _hazards = 'map.obstacles.hazards.visible';
   static const _buffer = 'map.obstacles.hazards.bufferMeters';
   static const _keys = [
+    outdoorPreferencesKey,
     _style,
     _visible,
     _opacity,
@@ -157,6 +159,7 @@ final class DriftUserPreferencesRepository
           : double.parse(values[_buffer]!);
       UserPreferences.validateObstacleBuffer(buffer);
       return UserPreferences(
+        outdoorLayers: decodeOutdoorPreferences(values[outdoorPreferencesKey]),
         mapStyle: style == null
             ? defaults.mapStyle
             : GlobeMapStyle.values.byName(style),
@@ -242,6 +245,9 @@ final class DriftUserPreferencesRepository
         batch.insertAllOnConflictUpdate(_database.appSettings, [
           for (final entry in {
             _style: snapshot.mapStyle.name,
+            outdoorPreferencesKey: encodeOutdoorPreferences(
+              snapshot.outdoorLayers,
+            ),
             _visible: snapshot.uasZonesVisible.toString(),
             _opacity: snapshot.uasZonesFillOpacity.toString(),
             _spotsVisible: snapshot.savedSpotsVisible.toString(),

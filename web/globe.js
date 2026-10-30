@@ -619,7 +619,7 @@ function postToFlutter(message) {
                 const point=hit?Cesium.Cartographic.fromCartesian(hit):activeViewer.camera.positionCartographic;
                 return {latitude:Cesium.Math.toDegrees(point.latitude),longitude:Cesium.Math.toDegrees(point.longitude)};
             }
-            case "clear-weather-overlay": return weatherOverlay.clear();
+            case "clear-weather-overlay": return weatherOverlay.clear(command.kind);
             case "set-obstacle-wms": obstacleWms.set(command); return {};
             case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
             case "set-hazard-areas": await hazardAreas.replace(command,signal); return {};

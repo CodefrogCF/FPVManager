@@ -157,6 +157,9 @@ void main() {
       -500,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.pumpAndSettle();
+    await Scrollable.ensureVisible(tester.element(dropdown), alignment: .5);
+    await tester.pumpAndSettle();
     await tester.tap(dropdown);
     await tester.pumpAndSettle();
     await tester.tap(find.text(label).last);

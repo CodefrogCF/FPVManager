@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../globe/globe_controller.dart';
 import '../avalanche/avalanche_layers_section.dart';
+import '../outdoor/outdoor_layers_section.dart';
+import '../observations/observation_controller.dart';
 
 class SituationalLayersSection extends StatelessWidget {
   const SituationalLayersSection({super.key, required this.globe, this.onOpen});
@@ -26,6 +28,7 @@ class SituationalLayersSection extends StatelessWidget {
     builder: (context, _) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        OutdoorLayersSection(globe: globe),
         const Text(
           'Independent information layers. Raster layers send the viewed area to geo.admin.ch. The SLF bulletin is retrieved as a national dataset without your location. Published information may be incomplete or outdated; it does not establish flight or ground access permission.',
         ),
@@ -92,7 +95,16 @@ class SituationalLayersSection extends StatelessWidget {
           'Aerodrome data is a planning reference, not the operational AIP or a list of public access rights. Wildfire data does not replace local orders. No confidential emergency data or live responder layer is used.',
         ),
         AvalancheLayersSection(globe: globe),
-        for (final id in ['road', 'traffic', 'traffic-counters', 'aircraft'])
+        for (final id in [
+          'road',
+          'traffic',
+          'traffic-counters',
+          'aircraft',
+          'ground-route',
+          'meteo-stations',
+          'hydro-stations',
+          'outdoor-context',
+        ])
           if (globe.situationalVisible(id))
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -100,7 +112,15 @@ class SituationalLayersSection extends StatelessWidget {
               trailing: IconButton(
                 tooltip: 'Remove $id layer',
                 icon: const Icon(Icons.visibility_off_outlined),
-                onPressed: () => _set(context, {'id': id, 'visible': false}),
+                onPressed: () =>
+                    id == 'meteo-stations' || id == 'hydro-stations'
+                    ? globe.observations.setVisible(
+                        id == 'meteo-stations'
+                            ? StationKind.meteo
+                            : StationKind.hydro,
+                        false,
+                      )
+                    : _set(context, {'id': id, 'visible': false}),
               ),
             ),
         if (onOpen != null)

@@ -4,6 +4,8 @@ import 'dart:math';
 import 'user_preferences.dart';
 
 enum ActivityTool {
+  groundRoutes('Bodenrouten'),
+  observations('Messstationen'),
   places('Gespeicherte Orte'),
   routes('Flugrouten'),
   mobility('Navigation und Mobilität'),
@@ -31,6 +33,8 @@ enum ActivityAction {
 }
 
 enum ActivityLayer {
+  observations('Wetter- und Gewässermessstationen'),
+  outdoor('Wegenetze, Natur und Sperrungen'),
   roads('Straßen und Wege'),
   labels('Orts- und Straßennamen'),
   buildings('3D-Gebäude'),
@@ -235,13 +239,25 @@ List<ActivityProfile> activityProfileTemplates() {
     preset(
       'hiking',
       'Wandern',
-      [ActivityTool.places, ActivityTool.weather, ActivityTool.offline],
+      [
+        ActivityTool.groundRoutes,
+        ActivityTool.places,
+        ActivityTool.observations,
+        ActivityTool.weather,
+        ActivityTool.offline,
+      ],
       [ActivityLayer.roads, ActivityLayer.avalanche, ActivityLayer.wind],
     ),
     preset(
       'cycling',
       'Radfahren',
-      [ActivityTool.mobility, ActivityTool.places, ActivityTool.weather],
+      [
+        ActivityTool.groundRoutes,
+        ActivityTool.mobility,
+        ActivityTool.places,
+        ActivityTool.observations,
+        ActivityTool.weather,
+      ],
       [ActivityLayer.roads, ActivityLayer.labels],
     ),
     preset(

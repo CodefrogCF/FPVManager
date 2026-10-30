@@ -55,6 +55,10 @@ import '../settings/app_settings_screen.dart';
 import '../../core/models/activity_profile.dart';
 import '../profiles/activity_profiles_repository.dart';
 import '../profiles/activity_profiles_screen.dart';
+import '../observations/observations_screen.dart';
+import '../outdoor/planning_context_picker.dart';
+import '../ground_routes/ground_routes_screen.dart';
+import '../ground_routes/ground_route_repository.dart';
 
 class FPVHomeScreen extends StatefulWidget {
   const FPVHomeScreen({
@@ -89,6 +93,64 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   ActivityMapDefaults? _pendingProfileDefaults;
   bool _applyingProfile = false;
   bool _allToolsExpanded = false;
+  FpvDatabase get _planningDatabase {
+    final repository = widget.preferencesRepository;
+    return repository is DriftUserPreferencesRepository
+        ? repository.database
+        : _database ??= FpvDatabase.open();
+  }
+
+  Future<void> _chooseObservationContext() async {
+    final db = _planningDatabase;
+    final point = _globeController.selectedPoint;
+    final path = await choosePlanningContext(
+      context,
+      database: db,
+      spots: _spotRepository ??= widget.spotRepository ?? SpotRepository(db),
+      flights: _flightPlanRepository ??=
+          widget.flightPlanRepository ?? FlightPlanRepository(db),
+      selected: point == null
+          ? null
+          : MobilityPoint(point.latitude, point.longitude),
+    );
+    if (path != null && mounted) {
+      await _globeController.observations.setContext(path);
+    }
+  }
+
+  Future<void> _openObservations() async {
+    final point = _globeController.selectedPoint;
+    if (point != null) {
+      await _globeController.observations.setContext([
+        MobilityPoint(point.latitude, point.longitude),
+      ]);
+    }
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ObservationsScreen(
+          controller: _globeController.observations,
+          onChooseLocation: _chooseObservationContext,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openGroundRoutes() async {
+    final db = _planningDatabase;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroundRoutesScreen(
+          repository: GroundRouteRepository(db),
+          spots: _spotRepository ??=
+              widget.spotRepository ?? SpotRepository(db),
+          globe: _globeController,
+        ),
+      ),
+    );
+  }
 
   Future<void> _ensureProfiles() async {
     if (_profiles == null) {
@@ -207,6 +269,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _profileLayer(ActivityLayer layer) => switch (layer) {
+    ActivityLayer.observations => _openObservations(),
+    ActivityLayer.outdoor => _openMapLayers(
+      initialTab: MapLayerTab.situational,
+    ),
     ActivityLayer.airspace => _openMapLayers(initialTab: MapLayerTab.airspace),
     ActivityLayer.obstacles => _openMapLayers(
       initialTab: MapLayerTab.obstacles,
@@ -1007,6 +1073,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         if (!open) _allToolsExpanded = false;
       }),
       drawer: HomeNavigationDrawer(
+        onGroundRoutes: _openGroundRoutes,
+        onObservations: _openObservations,
         profile: _profiles?.selected,
         onProfiles: _openProfiles,
         onAction: _profileAction,

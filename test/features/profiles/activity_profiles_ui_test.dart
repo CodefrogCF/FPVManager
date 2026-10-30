@@ -370,7 +370,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Gespeicherte Orte'), findsOneWidget);
       expect(find.text('Flugvorbereitung'), findsNothing);
-      await tester.ensureVisible(find.text('Alle Werkzeuge'));
+      await tester.scrollUntilVisible(
+        find.text('Alle Werkzeuge'),
+        160,
+        scrollable: find
+            .descendant(
+              of: find.byType(Drawer),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       await tester.tap(find.text('Alle Werkzeuge'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(

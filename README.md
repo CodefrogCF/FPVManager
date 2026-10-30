@@ -17,8 +17,11 @@ locations on a CesiumJS globe. Android and Web are supported.
 - First-person ground inspection and GPS, Angle and Acro flight simulation using touch, keyboard or controllers; configurable rates, throttle neutral point, camera angle and flight HUD.
 - Simulated flight recording converted to planning routes, with optional live radio line-of-sight screening.
 - Android road navigation with voice guidance, smooth GPS follow camera, compass, rerouting and independent 3D environment settings; destination search, traffic/counter data and optional TMC location-table import.
+- Separate walking/cycling route planning with explicit provider consent, local saved routes, GPX exchange and backup support.
+- Independent official hiking, cycling, mountain-bike and winter route layers; wildlife quiet zones and temporary closures with source details and bounded spatial checks.
 - Aircraft snapshots, aerodromes/heliports, wildfire information and an independent SLF avalanche bulletin map with freshness information.
-- MeteoSwiss/Open-Meteo forecasts, weather comparisons, 3D wind/rain overlays and optional wind influence in the flight simulator.
+- MeteoSwiss/Open-Meteo forecasts and comparisons; independent sampled cloud, precipitation, rain, snow and temperature maps, animated 3D wind and optional flight-simulation wind influence.
+- Measured MeteoSwiss weather and BAFU hydrological stations near points or routes, with observation times, quality information and dated persistent snapshots.
 - Local preflight checklists/templates, terrain LOS/Fresnel analysis, obstacle buffers, route constraints and telemetry calibration.
 - On-device offline region preparation up to 25 km radius; Web additionally supports the whole of Switzerland. Choose detail, terrain and topographic/satellite/neutral-relief imagery; mark the centre on the globe.
 - Portable personal-data backups with optional password protection and validated restoration; optional prepared-map package import and laptop preparation.

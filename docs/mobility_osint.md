@@ -11,6 +11,22 @@ two coordinates to FOSSGIS. Results show distance/time and can be drawn on the g
 they do not establish parking/access rights. Up to three OSRM alternatives can be
 selected; the service may return only one.
 
+**Bodenrouten** provides separate walking and cycling planning through the documented
+FOSSGIS foot/bike profiles. Select a mode and consent to send endpoints before
+calculating. Geometry, mode, endpoints, source and calculation time are saved locally,
+included in personal backups and exchanged through GPX. Missing surface/access or
+elevation information remains unknown. These routes have no drone/AGL settings and
+do not provide walking/cycling turn-by-turn guidance.
+
+**Map Layers → OSINT** also offers independent official hiking, cycling, MTB and
+winter networks, wildlife quiet zones and temporary closures/diversions. Official
+legends and bounded detail queries explain supported classifications, seasons and
+validity; overlapping records are retained. Source dates and incomplete coverage
+remain explicit. WMS layers require a connection; this feature does not download
+their tiles for offline use. Targeted feature excerpts stay in memory, since
+cantonal redistribution terms differ. Neither an empty result nor a displayed
+network confirms accessibility or permission. Closures do not automatically reroute.
+
 Enable **Verkehr bei der Routenbewertung berücksichtigen** to compare existing
 traffic snapshots locally. Current source points require an explicit matching
 road number and supported travel direction. Resolved TMC sections require a verified

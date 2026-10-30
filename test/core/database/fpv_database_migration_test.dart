@@ -49,7 +49,7 @@ void main() {
           );
       await old.close();
       final database = FpvDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       expect(
         (await database.select(database.drones).getSingle()).name,
         'Existing quad',
@@ -89,7 +89,7 @@ void main() {
           );
       await old.close();
       final database = FpvDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       final point = await database.select(database.flightWaypoints).getSingle();
       expect(point.heightMeters, 500);
       expect(point.heightReference, 'ln02');
@@ -123,7 +123,7 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 9);
+    await verifier.migrateAndValidate(database, 10);
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -220,7 +220,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       expect(
         (await database.select(database.spots).get()).single.name,
         'Private spot',
@@ -286,7 +286,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 9);
+    await verifier.migrateAndValidate(database, 10);
     final repository = SpotRepository(database);
     final page = await repository.getSpotPage(
       filter: SpotFilter(query: 'älpler 404 über', favoritesOnly: true),
@@ -357,7 +357,7 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 9);
+    await verifier.migrateAndValidate(database, 10);
     final profile = (await DroneRepository(database).getProfile(droneId))!;
     expect(profile.drone.name, 'Existing drone');
     expect(profile.drone.type, 'fixed-wing');
@@ -432,7 +432,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       final battery = await (database.select(
         database.batteries,
       )..where((t) => t.id.equals(batteryId))).getSingle();
@@ -515,7 +515,7 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 9);
+      await verifier.migrateAndValidate(database, 10);
       final row = await database.select(database.radioEquipment).getSingle();
       expect(row.id, id);
       expect(row.name, 'Old RX');

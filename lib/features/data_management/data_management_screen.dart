@@ -135,6 +135,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         'batteries': 'Batteries',
         'radio_equipment': 'Radio profiles',
         'flight_plans': 'Flight routes',
+        'ground_routes': 'Bodenrouten',
         'spot_photos': 'Images',
         'preflight_checklists': 'Checklists',
         'telemetry_flights': 'Telemetry flights',

@@ -285,6 +285,15 @@ class AppSettings extends Table {
   Set<Column> get primaryKey => {key};
 }
 
+/// Ground planning records have no association with drones or AGL waypoints.
+class GroundRoutes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(min: 1, max: 120)();
+  TextColumn get mode => text()();
+  TextColumn get routeJson => text()();
+  DateTimeColumn get savedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(
   tables: [
     Spots,
@@ -302,6 +311,7 @@ class AppSettings extends Table {
     AppSettings,
     PreflightChecklists,
     TelemetryFlights,
+    GroundRoutes,
   ],
 )
 class FpvDatabase extends _$FpvDatabase {
@@ -321,7 +331,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -471,6 +481,7 @@ class FpvDatabase extends _$FpvDatabase {
         await m.createTable(preflightChecklists);
         await m.createTable(telemetryFlights);
       }
+      if (from < 10) await m.createTable(groundRoutes);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

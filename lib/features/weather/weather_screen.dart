@@ -14,6 +14,8 @@ import 'weather_overlay_service.dart';
 import 'weather_preferences.dart';
 import 'weather_providers.dart';
 import 'spot_terrain_exposure.dart';
+import '../observations/observations_screen.dart';
+import '../mobility/road_routing.dart' show MobilityPoint;
 
 /// The UI never represents a favorable weather forecast as legal clearance.
 class WeatherScreen extends StatefulWidget {
@@ -580,7 +582,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           ),
                           Chip(
                             label: Text(
-                              'Rain ${_number(reading?.precipitationMm, 'mm/h')}',
+                              'Niederschlag ${_number(reading?.precipitationMm, 'mm / 1 h')}',
                             ),
                           ),
                           Chip(
@@ -791,6 +793,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       'Weather map (Open-Meteo sample grid)',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
+                    TextButton.icon(
+                      onPressed: () => _openStationObservations(),
+                      icon: const Icon(Icons.sensors_outlined),
+                      label: const Text(
+                        'Gemessene Wetter- und Gewässerstationen',
+                      ),
+                    ),
                     const Text(
                       '49 sampled model points around the selected spot. Display spacing does NOT indicate actual meteorological model accuracy; no spatial interpolation. This is NOT a MeteoSwiss layer, even if MeteoSwiss is selected above.',
                     ),
@@ -811,28 +820,89 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         _invalidateOverlay();
                       }),
                     ),
-                    SegmentedButton<WeatherOverlayKind>(
-                      segments: const [
-                        ButtonSegment(
-                          value: WeatherOverlayKind.wind,
-                          label: Text('Wind'),
-                        ),
-                        ButtonSegment(
-                          value: WeatherOverlayKind.precipitation,
-                          label: Text('Precipitation'),
-                        ),
+                    DropdownButtonFormField<WeatherOverlayKind>(
+                      initialValue: _overlayKind,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Zusätzliches Prognoseraster',
+                      ),
+                      items: [
+                        for (final kind in WeatherOverlayKind.values)
+                          DropdownMenuItem(
+                            value: kind,
+                            child: Text(kind.label),
+                          ),
                       ],
-                      selected: {_overlayKind},
-                      onSelectionChanged: (s) => setState(() {
-                        _overlayKind = s.first;
-                        _invalidateOverlay();
-                      }),
+                      onChanged: _overlayLoading
+                          ? null
+                          : (kind) => setState(() => _overlayKind = kind!),
                     ),
                     const Text(
                       'Wind legend (m/s): green <3, yellow 3–7, orange 7–12, red ≥12.',
                     ),
                     const Text(
-                      'Precipitation legend (mm/h): cyan <0.2, blue 0.2–1, violet 1–3, purple ≥3.',
+                      'Niederschlag und großräumiger Regen sind Summen der vorangegangenen Stunde (mm), Neuschnee in cm, Schneehöhe in m. Eine Regenrate oder Niederschlagsart wird daraus nicht abgeleitet.',
+                    ),
+                    const Text(
+                      'Bewölkung: 0–100 % Modellbedeckung, keine gemessenen 3D-Wolken. Temperatur: °C in 2 m Höhe. Alle sichtbaren Raster verwenden dieselbe Prognosezeit.',
+                    ),
+                    ListenableBuilder(
+                      listenable: widget.globe,
+                      builder: (context, _) => Column(
+                        children: [
+                          for (final entry
+                              in widget.globe.weatherOverlays.entries)
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      '${WeatherOverlayKind.values.byName(entry.key).label} · ${entry.value['units'] ?? WeatherOverlayKind.values.byName(entry.key).unit}',
+                                    ),
+                                    Text(
+                                      'Prognose: ${entry.value['timestampUtc']}\nAbgerufen: ${entry.value['retrievedAtUtc'] ?? "nicht bereitgestellt"} · ${entry.value['missingSamples'] ?? 0} fehlende Stichproben',
+                                    ),
+                                    if (DateTime.tryParse(
+                                          '${entry.value['expiresAtUtc']}',
+                                        )?.isBefore(DateTime.now().toUtc()) ==
+                                        true)
+                                      const Text(
+                                        'Raster abgelaufen · auf der Karte ausgeblendet',
+                                      ),
+                                    Slider(
+                                      label: 'Deckkraft',
+                                      value:
+                                          (entry.value['opacity'] as num? ?? .4)
+                                              .toDouble(),
+                                      onChanged: (opacity) => _updateOverlay(
+                                        () => widget.globe.setWeatherOpacity(
+                                          entry.key,
+                                          opacity,
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () => _updateOverlay(
+                                        () => widget.globe.clearWeatherOverlay(
+                                          kind: entry.key,
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                        Icons.visibility_off_outlined,
+                                      ),
+                                      label: const Text(
+                                        'Dieses Raster ausblenden',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     Wrap(
                       spacing: 8,
@@ -897,6 +967,37 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Future<void> _updateOverlay(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Kartenebene konnte nicht aktualisiert werden. Bitte erneut versuchen.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openStationObservations() async {
+    final lat = _latitude, lon = _longitude;
+    if (lat != null && lon != null) {
+      await widget.globe.observations.setContext([MobilityPoint(lat, lon)]);
+    }
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ObservationsScreen(controller: widget.globe.observations),
+      ),
     );
   }
 }
