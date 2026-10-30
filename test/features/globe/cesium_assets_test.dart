@@ -57,6 +57,7 @@ void main() {
         'situational_layers.js',
         'road_navigation.js',
         'map_compass.js',
+        'globe_positions.js',
       ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);

@@ -3,7 +3,7 @@
     if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVWindField=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
-    const rad=Math.PI/180,R=6378137,zero=Object.freeze({north:0,east:0,up:0});
+    const rad=Math.PI/180,R=6378137,eccentricitySquared=6.6943799901413165e-3,zero=Object.freeze({north:0,east:0,up:0});
     const vector=l=>({north:-l.speedMs*Math.cos(l.fromDegrees*rad),east:-l.speedMs*Math.sin(l.fromDegrees*rad)});
     function field(raw){
         if(!raw||!['current','forecast'].includes(raw.mode)||typeof raw.source!=='string'||raw.source.length>200||
@@ -52,11 +52,12 @@
     const density={quality:7,balanced:5,performance:3};
     function create(C,viewer,send=()=>{},{now=()=>Date.now(),elapsed=()=>performance.now(),doc=typeof document==='undefined'?null:document,isTerrainReady=()=>true}={}){
         const collection=new C.PolylineCollection();viewer.scene.primitives.add(collection);collection.show=false;
-        const materials=['#32a172','#f8c449','#ed842d','#cd4041'].map(color=>C.Material.fromType('PolylineArrow',{color:C.Color.fromCssColorString(color).withAlpha(.85)}));
-        const terrain=new Map(),location=new C.Cartographic(),local=new C.Cartesian3();
+        const palette=['#61dea5','#ffe080','#ffab66','#ff797b'];
+        const terrain=new Map(),location=new C.Cartographic();
         const credit=new C.Credit('<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · CC BY 4.0 · interpolated wind',true);
         const credits=viewer.cesiumWidget?.creditDisplay;let credited=false;
         let data=null,visible=false,affectFlight=false,disposed=false,dirty=true,terrainMissing=false,entries=[],navigation=null,anchor=null,profile='balanced',lastDraw=-Infinity,lastTerrain=0,status=null;
+        let windowBounds=null,groundGrid=null,lastMotion=null;
         let uiData,uiVisible,uiForce,uiNav,uiFresh;
         function fresh(){return data&&now()<data.expires;}
         function publish(){
@@ -84,27 +85,54 @@
             C.Cartographic.fromDegrees(lon,lat,0,location);const value=viewer.scene.globe.getHeight(location);
             if(Number.isFinite(value)){if(terrain.size>=256)terrain.delete(terrain.keys().next().value);terrain.set(key,value);}return value;
         }
+        function inside(p,b){return p.latitude>=b.south&&p.latitude<=b.north&&p.longitude>=b.west&&p.longitude<=b.east;}
+        function remove(entry){collection.remove(entry.line);collection.remove(entry.back);}
         function rebuild(){
-            dirty=false;terrainMissing=false;collection.removeAll();entries=[];if(!data||!visible||!fresh())return;
+            dirty=false;terrainMissing=false;if(!data||!visible||!fresh())return;
             const count=density[profile],radius=navigation?Math.min(250,data.radiusMeters):data.radiusMeters;
             const center=navigation??{latitude:data.centerLatitude,longitude:data.centerLongitude};
             anchor={latitude:center.latitude,longitude:center.longitude,agl:navigation?.agl};
             const latStep=radius/111320,lonStep=radius/(111320*Math.cos(center.latitude*rad));
+            windowBounds={south:Math.max(data.south,center.latitude-latStep),north:Math.min(data.north,center.latitude+latStep),
+                west:Math.max(data.west,center.longitude-lonStep),east:Math.min(data.east,center.longitude+lonStep)};
+            if(windowBounds.south>=windowBounds.north||windowBounds.west>=windowBounds.east){for(const e of entries)remove(e);entries=[];groundGrid=null;return;}
             const heights=navigation?(profile==='performance'?[Math.max(5,navigation.agl-20),navigation.agl+20]:[Math.max(5,navigation.agl-25),navigation.agl,navigation.agl+25]):
                 profile==='quality'?[10,80,120,180]:profile==='performance'?[10,80]:[10,80,180];
-            const spacing=2*radius/(count-1),span=Math.min(120,spacing*.65),length=Math.max(8,Math.min(60,spacing*.25));
+            groundGrid={count,bounds:windowBounds,values:[]};
             for(let y=0;y<count;y++)for(let x=0;x<count;x++){
-                const latitude=center.latitude+(2*y/(count-1)-1)*latStep,longitude=center.longitude+(2*x/(count-1)-1)*lonStep;
-                const base=ground(latitude,longitude);if(!Number.isFinite(base)){terrainMissing=true;continue;}
-                for(const agl of heights){
-                    const wind=sample(data,latitude,longitude,agl);if(!wind||wind.speedMs<.05)continue;
-                    const position=C.Cartesian3.fromDegrees(longitude,latitude,base+agl),transform=C.Transforms.eastNorthUpToFixedFrame(position);
-                    const paths=Array.from({length:2},()=>[new C.Cartesian3(),new C.Cartesian3()]);
-                    const band=wind.speedMs<3?0:wind.speedMs<7?1:wind.speedMs<12?2:3;
-                    const line=collection.add({positions:paths[0],width:4,material:materials[band],show:false});
-                    entries.push({latitude,longitude,transform,wind,span,length,paths,line,slot:0,offset:entries.length*.618});
-                }
+                const latitude=windowBounds.south+(windowBounds.north-windowBounds.south)*y/(count-1);
+                const longitude=windowBounds.west+(windowBounds.east-windowBounds.west)*x/(count-1);
+                const value=ground(latitude,longitude);groundGrid.values.push(value);if(!Number.isFinite(value))terrainMissing=true;
             }
+            const maximum=count*count*heights.length,keep=[];
+            const minHeight=Math.min(...heights)-10,maxHeight=Math.max(...heights)+10;
+            for(const e of entries){
+                const inHeight=navigation?e.agl>=minHeight&&e.agl<=maxHeight:heights.some(h=>Math.abs(e.agl-h)<.01);
+                if(keep.length<maximum&&inside(e,windowBounds)&&inHeight)keep.push(e);else remove(e);
+            }
+            entries=keep;
+            const spacing=2*radius/count,length=Math.max(10,Math.min(48,spacing*.24));
+            for(let i=entries.length;i<maximum;i++){
+                const agl=heights[i%heights.length],cell=Math.floor(i/heights.length),y=Math.floor(cell/count),x=cell%count;
+                const latitude=windowBounds.south+(windowBounds.north-windowBounds.south)*(y+.5)/count;
+                const longitude=windowBounds.west+(windowBounds.east-windowBounds.west)*(x+.5)/count;
+                const paths=Array.from({length:2},()=>[new C.Cartesian3(),new C.Cartesian3()]);
+                const tint=C.Color.fromCssColorString(palette[0]).withAlpha(0),backTint=C.Color.fromCssColorString('#101820').withAlpha(0);
+                const material=C.Material.fromType('PolylineArrow',{color:tint}),background=C.Material.fromType('PolylineArrow',{color:backTint});
+                const back=collection.add({positions:paths[0],width:7,material:background,show:false});
+                const line=collection.add({positions:paths[0],width:4,material,show:false});
+                entries.push({latitude,longitude,agl,length,paths,line,back,material,background,tint,backTint,band:-1,slot:0});
+            }
+            if(lastMotion===null)lastMotion=elapsed();
+        }
+        function groundAt(latitude,longitude){
+            if(!groundGrid)return undefined;
+            const {count,bounds:b,values}=groundGrid;
+            const x=Math.max(0,Math.min(count-1,(longitude-b.west)/(b.east-b.west)*(count-1)));
+            const y=Math.max(0,Math.min(count-1,(latitude-b.south)/(b.north-b.south)*(count-1)));
+            const col=Math.min(count-2,Math.floor(x)),row=Math.min(count-2,Math.floor(y)),fx=x-col,fy=y-row;
+            const a=values[row*count+col],c=values[(row+1)*count+col],d=values[(row+1)*count+col+1],e=values[row*count+col+1];
+            return [a,c,d,e].every(Number.isFinite)?a*(1-fx)*(1-fy)+e*fx*(1-fy)+c*(1-fx)*fy+d*fx*fy:undefined;
         }
         const removeTerrain=viewer.scene.globe.tileLoadProgressEvent.addEventListener(pending=>{
             if(pending===0&&elapsed()-lastTerrain>500){lastTerrain=elapsed();terrain.clear();dirty=true;}
@@ -113,18 +141,37 @@
             if(disposed)return;
             if(navigation&&(!anchor||Math.abs(navigation.latitude-anchor.latitude)>30/111320||Math.abs(navigation.longitude-anchor.longitude)>30/111320||Math.abs(navigation.agl-anchor.agl)>10))dirty=true;
             if(dirty)rebuild();publish();controls();collection.show=!!(visible&&fresh()&&entries.length&&isTerrainReady());
-            const clock=elapsed();if(!collection.show||clock-lastDraw<50)return;lastDraw=clock;
+            const clock=elapsed();if(!collection.show){lastMotion=null;return;}if(clock-lastDraw<50)return;lastDraw=clock;
+            const dt=lastMotion===null?0:Math.max(0,(clock-lastMotion)/1000);lastMotion=clock;
             for(const e of entries){
-                const unitN=e.wind.north/e.wind.speedMs,unitE=e.wind.east/e.wind.speedMs;
-                const travel=((clock/1000*e.wind.speedMs+e.offset*e.span)%e.span)-e.span/2;
-                const paths=e.paths[e.slot^=1];
-                const lat=e.latitude+(unitN*(travel+e.length))/R/rad,lon=e.longitude+(unitE*(travel+e.length))/(R*Math.cos(e.latitude*rad))/rad;
-                e.line.show=lat>=data.south&&lat<=data.north&&lon>=data.west&&lon<=data.east;
-                for(let i=0;i<2;i++){
-                    const distance=travel+(i?e.length:0);local.x=unitE*distance;local.y=unitN*distance;local.z=0;
-                    C.Matrix4.multiplyByPoint(e.transform,local,paths[i]);
+                const wind=sample(data,e.latitude,e.longitude,e.agl);
+                if(!wind||wind.speedMs<.05){e.line.show=e.back.show=false;continue;}
+                const altitude=(groundAt(e.latitude,e.longitude)??0)+e.agl,sin=Math.sin(e.latitude*rad);
+                const denominator=Math.sqrt(1-eccentricitySquared*sin*sin);
+                const northRadius=R*(1-eccentricitySquared)/(denominator**3)+altitude;
+                const eastRadius=(R/denominator+altitude)*Math.max(.01,Math.cos(e.latitude*rad));
+                e.latitude+=wind.north*dt/northRadius/rad;e.longitude+=wind.east*dt/eastRadius/rad;
+                const b=windowBounds;
+                // Recycle only at the displayed boundary, across the full field.
+                if(!inside(e,b)){
+                    const wrap=(v,lo,hi)=>lo+((v-lo)%(hi-lo)+(hi-lo))%(hi-lo);
+                    e.latitude=wrap(e.latitude,b.south,b.north);e.longitude=wrap(e.longitude,b.west,b.east);
                 }
-                e.line.positions=paths;
+                const unitN=wind.north/wind.speedMs,unitE=wind.east/wind.speedMs;
+                const base=groundAt(e.latitude,e.longitude);
+                const edge=Math.min((e.latitude-b.south)*R*rad,(b.north-e.latitude)*R*rad,
+                    (e.longitude-b.west)*R*rad*Math.cos(e.latitude*rad),(b.east-e.longitude)*R*rad*Math.cos(e.latitude*rad));
+                const alpha=Math.max(0,Math.min(1,edge/Math.max(30,e.length*2)));
+                const band=wind.speedMs<3?0:wind.speedMs<7?1:wind.speedMs<12?2:3;
+                if(band!==e.band){e.band=band;e.tint=C.Color.fromCssColorString(palette[band]).withAlpha(1);e.material.uniforms.color=e.tint;}
+                e.tint.alpha=.92*alpha;e.background.uniforms.color.alpha=.65*alpha;
+                const paths=e.paths[e.slot^=1];
+                const lat=e.latitude+unitN*e.length/northRadius/rad,lon=e.longitude+unitE*e.length/eastRadius/rad;
+                e.line.show=e.back.show=Number.isFinite(base)&&inside({latitude:lat,longitude:lon},b);
+                for(let i=0;i<2;i++){
+                    paths[i]=C.Cartesian3.fromDegrees(i?lon:e.longitude,i?lat:e.latitude,(base??0)+e.agl,undefined,paths[i]);
+                }
+                e.back.positions=paths;e.line.positions=paths;
             }
             viewer.scene.requestRender();
         });

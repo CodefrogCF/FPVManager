@@ -1,0 +1,43 @@
+<!doctype html><html lang="de"><meta charset="utf-8"><title>Globe position and fixed controls smoke</title>
+<style>body{margin:0;background:#101820;color:white;font:14px system-ui}h1{position:absolute;top:0;left:8px;font-size:13px;pointer-events:none;z-index:2}iframe{width:100%;height:100vh;border:0;display:block}pre{position:absolute;bottom:0;left:8px;max-height:60px;overflow:auto;white-space:pre-wrap;pointer-events:none;font-size:10px}</style>
+<h1 id="status">Running map controls smoke…</h1><iframe id="map" title="Cesium globe"></iframe><pre id="log"></pre>
+<script>
+const frame=document.getElementById('map'),pending=new Map(),errors=[];let session,next=0,ready,flight;
+const pause=ms=>new Promise(r=>setTimeout(r,ms)),check=(v,m)=>{if(!v)throw Error(m);},log=m=>document.getElementById('log').textContent+='PASS: '+m+'\n';
+async function until(predicate,message){const end=performance.now()+25000;while(!predicate()){if(errors.length)throw Error(errors.join('; '));if(performance.now()>end)throw Error(message+' timeout');await pause(50);}}
+window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||event.origin!==location.origin)return;let value;try{value=JSON.parse(event.data);}catch{return;}
+  if(value.type==='globe-ready')session=value.sessionId;if(value.type==='terrain-status')ready=value.state==='ready';if(value.type==='simulation-state')flight=value;
+  if(value.type==='globe-error')errors.push(value.message);if(value.type==='command-result'){const p=pending.get(value.requestId);if(p){pending.delete(value.requestId);clearTimeout(p.timer);value.ok?p.resolve(value.result):p.reject(Error(value.error));}}});
+function command(type,fields={}){return new Promise((resolve,reject)=>{const requestId=String(++next),timer=setTimeout(()=>reject(Error(type+' timeout')),25000);pending.set(requestId,{resolve,reject,timer});
+  frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);});}
+(async()=>{
+  frame.src='/terrain-globe.html';await until(()=>session&&ready,'terrain');const win=frame.contentWindow,doc=win.document,v=win.fixtureViewer,C=win.Cesium;
+  v.resolutionScale=.35;v.scene.msaaSamples=1;
+  const fix={latitude:46.7,longitude:8.4,accuracyMeters:18,timeUtc:new Date().toISOString(),stale:false,heading:90};
+  await command('set-device-location',{enabled:true,follow:false,recenter:true,fix});await pause(900);
+  const source=Array.from({length:v.dataSources.length},(_,i)=>v.dataSources.get(i)).find(d=>d.name==='device-and-search-positions');
+  check(source?.entities.getById('fpv-device-position'),'Device marker missing');check(source.entities.getById('fpv-device-accuracy').ellipse.semiMajorAxis.getValue()===18,'Wrong accuracy');
+  const camera=v.camera.positionWC.clone();await command('set-device-location',{enabled:true,follow:false,recenter:false,fix:{...fix,latitude:46.701}});await pause(200);
+  check(C.Cartesian3.distance(camera,v.camera.positionWC)<.01,'Marker update moved manual camera');
+  await command('set-search-destination',{latitude:46.7,longitude:8.4,name:'Testziel',recenter:false});check(source.entities.getById('fpv-search-destination'),'Search marker missing');
+  log('Device accuracy, reliable course and independent search marker render in actual Cesium without unwanted recentering');
+  for(const mode of ['gps','angle','acro']){
+    await command('enter-simulation',{latitude:46.7,longitude:8.4,flightMode:mode,agl:500,acroMotorTimeConstant:0});await until(()=>flight?.active,'flight entry');v.canvas.focus();await pause(120);
+    const left=doc.querySelector('[data-stick]'),right=doc.getElementById('look-stick'),buttons=doc.getElementById('flight-buttons');
+    check(!right.hidden,'Fixed right stick hidden');check(buttons.hidden===(mode!=='gps'),'Climb/descent must be GPS-only');
+    const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();check(b.left>a.right,'Stick overlap');check(Math.abs(a.bottom-b.bottom)<4,'Sticks are not opposite');
+    await command('set-touch-controls',{visible:false});check(right.hidden&&doc.getElementById('ground-controls').hidden,'Hidden touch controls still visible');
+    check(!doc.getElementById('navigation-hud').hidden&&!doc.getElementById('settings-flight').hidden,'HUD/settings hidden with touch controls');
+    if(mode==='acro'){
+      v.canvas.focus();v.canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'e',bubbles:true,cancelable:true}));await pause(250);
+      await until(()=>Number(doc.getElementById('hud-throttle').textContent)>90,'Keyboard throttle unavailable with hidden touch controls');
+      v.canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'e',bubbles:true}));
+    }
+    await command('set-touch-controls',{visible:true});check(!right.hidden,'Touch controls did not return');await command('exit-simulation');
+  }
+  log('Fixed symmetric sticks, GPS-only auxiliary buttons and touch visibility preserve HUD/settings and keyboard input in all flight modes');
+  await command('set-device-location',{enabled:false,follow:false,recenter:false,fix:null});check(!source.entities.getById('fpv-device-position'),'Disabled device marker retained');
+  check(source.entities.getById('fpv-search-destination'),'Disabling location removed search destination');
+  document.getElementById('status').textContent='PASS — globe positions and fixed flight controls';
+})().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;document.getElementById('log').textContent+=error.stack;});
+</script></html>

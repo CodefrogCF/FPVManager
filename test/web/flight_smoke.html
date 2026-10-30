@@ -254,15 +254,16 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(C.Cartesian3.distance(stopped,v.camera.positionWC)<.05,'Focus loss did not brake');
   log('Keyboard movement and climb run in the real render loop; losing focus brakes the simulator');
   canvas.focus();const rect=canvas.getBoundingClientRect(),look=doc.getElementById('look-stick');
-  const capture=canvas.setPointerCapture;canvas.setPointerCapture=()=>{};
-  const point=(type,x,y)=>canvas.dispatchEvent(new win.PointerEvent(type,{pointerType:'touch',pointerId:12,button:0,
-    clientX:rect.left+x,clientY:rect.top+y,bubbles:true,cancelable:true}));
-  point('pointerdown',rect.width*.25,200);check(look.hidden,'Look stick appeared on left');
-  point('pointerdown',rect.width*.75,200);check(!look.hidden,'Look stick did not appear on right');
-  const bank=v.camera.roll;point('pointermove',rect.width*.75+35,180);await pause(350);
-  point('pointercancel',rect.width*.75+35,180);canvas.setPointerCapture=capture;
-  check(look.hidden&&Math.abs(v.camera.roll-bank)>.05,'Attitude stick did not bank or cancel');
-  log('Right touch stick appears only on the right, banks the actual FPV camera and disappears on cancellation');
+  const capture=look.setPointerCapture;look.setPointerCapture=()=>{};
+  const right=look.getBoundingClientRect(),x=right.left+right.width/2,y=right.top+right.height/2;
+  const point=(type,dx,dy)=>look.dispatchEvent(new win.PointerEvent(type,{pointerType:'touch',pointerId:12,button:0,
+    clientX:x+dx,clientY:y+dy,bubbles:true,cancelable:true}));
+  check(!look.hidden&&right.left>rect.left+rect.width/2,'Fixed right stick is not available on the right');
+  point('pointerdown',0,0);
+  const bank=v.camera.roll;point('pointermove',35,-20);await pause(350);
+  point('pointercancel',35,-20);look.setPointerCapture=capture;
+  check(!look.hidden&&Math.abs(v.camera.roll-bank)>.05,'Attitude stick did not bank or cancel');
+  log('Fixed right touch stick banks the actual FPV camera and returns to neutral on cancellation');
   let pads=[];Object.defineProperty(win.navigator,'getGamepads',{configurable:true,value:()=>pads});
   const pad=(y=0,rx=0)=>({connected:true,mapping:'standard',axes:[0,y,rx,0],buttons:Array.from({length:16},()=>({value:0}))});
   pads=[pad()];await pause(100);const beforePad=v.camera.positionWC.clone();pads=[pad(-1,.5)];await pause(500);

@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../globe/globe_controller.dart';
+import '../globe/globe_location_controls.dart';
 
 enum _MapAction {
   home,
   coordinates,
+  location,
+  touchControls,
   terrain,
   layers,
   weather,
@@ -47,6 +50,7 @@ class MapActionMenu extends StatelessWidget {
     builder: (context, _) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (!compact) GlobeLocationButton(controller: controller.location),
         if (!compact)
           IconButton(
             tooltip: 'Map layers',
@@ -63,6 +67,13 @@ class MapActionMenu extends StatelessWidget {
             unawaited(switch (action) {
               _MapAction.home => onHome(),
               _MapAction.coordinates => onCoordinates(),
+              _MapAction.location => showGlobeLocationSettings(
+                context,
+                controller.location,
+              ),
+              _MapAction.touchControls => controller.setTouchControlsVisible(
+                !controller.touchControlsVisible,
+              ),
               _MapAction.terrain => onTerrain(),
               _MapAction.layers => onLayers(),
               _MapAction.weather => onWeather(),
@@ -103,8 +114,22 @@ class MapActionMenu extends StatelessWidget {
             PopupMenuItem(
               value: _MapAction.coordinates,
               enabled: controller.isReady,
-              child: const Text('Go to coordinates'),
+              child: const Text('Ort oder Koordinaten suchen'),
             ),
+            const PopupMenuItem(
+              value: _MapAction.location,
+              child: Text('Standortanzeige'),
+            ),
+            if (controller.navigationActive)
+              PopupMenuItem(
+                value: _MapAction.touchControls,
+                enabled: controller.canEditPreferences,
+                child: Text(
+                  controller.touchControlsVisible
+                      ? 'Touch-Steuerung ausblenden'
+                      : 'Touch-Steuerung anzeigen',
+                ),
+              ),
             PopupMenuItem(
               value: _MapAction.terrain,
               enabled:

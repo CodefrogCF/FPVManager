@@ -9,6 +9,10 @@
 #ground-controls[data-mode="flight"],#ground-controls[data-mode="gps"] {
     bottom:max(125px,calc(env(safe-area-inset-bottom) + 110px));
 }
+#ground-controls[data-mode="flight"] ~ #look-region #look-stick,
+#ground-controls[data-mode="gps"] ~ #look-region #look-stick {
+    bottom:max(140px,calc(env(safe-area-inset-bottom) + 125px));
+}
 #hud-mode { position:absolute;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));
     font-size:12px;letter-spacing:.08em; }
 .hud-reticle { display:none;position:absolute;top:50%;left:50%;width:40px;height:24px;
@@ -104,5 +108,6 @@
 @media(max-height:450px) {
     #hud-warning { bottom:114px; }
     #ground-controls[data-mode="flight"] [data-stick],#ground-controls[data-mode="gps"] [data-stick] { width:84px; }
+    #ground-controls[data-mode="flight"] ~ #look-region #look-stick,#ground-controls[data-mode="gps"] ~ #look-region #look-stick { width:84px; }
     #flight-buttons button { height:32px;width:36px; }
 }

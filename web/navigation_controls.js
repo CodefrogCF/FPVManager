@@ -14,6 +14,7 @@
         let lastConfiguration=null,lastSource=null;
         let gapSince=null,gapExpired=false;
         let nativeEstablished=false;
+        let touchVisible=true,lastMode=null;
         const recoveryWindowMs=750;
         const now=()=>host.performance?.now?.()??Date.now();
         const keys=new Set(),verticalReleases=[];
@@ -34,8 +35,16 @@
             showDevice('Controller disconnected');interruption('Controller disconnected');
         }
         function applyStick(){if(!isFpv()){agent.stick(f,r);agent.vertical?.(vertical);}}
-        function resetLook(){look=drag=null;yaw=pitch=0;if(lookStick)lookStick.hidden=true;if(lookThumb)lookThumb.style.transform='translate(0px, 0px)';}
+        function resetLook(){look=drag=null;yaw=pitch=0;if(lookThumb)lookThumb.style.transform='translate(0px, 0px)';}
         function resetLeft(){left=null;f=r=0;if(thumb)thumb.style.transform='translate(0px, 0px)';applyStick();}
+        function releaseTouch(){resetLeft();resetLook();vertical=0;for(const release of verticalReleases)release();applyStick();}
+        function syncTouch(){
+            const state=agent.status();
+            if(state.mode!==lastMode){releaseTouch();lastMode=state.mode;}
+            panel.hidden=!state.active||!touchVisible;
+            if(lookStick)lookStick.hidden=panel.hidden;
+            const buttons=doc.getElementById?.('flight-buttons');if(buttons)buttons.hidden=panel.hidden||state.mode!=='gps';
+        }
         function clear(){keys.clear();agent.clearKeys();resetLeft();resetLook();vertical=0;for(const release of verticalReleases)release();native=null;nativeAt=-Infinity;nativeEstablished=false;armed=false;lastSource=null;gapSince=null;gapExpired=false;previousReset=previousExit=false;applyStick();showDevice('');}
         function focus(value){if(focused===value)return;focused=value;if(!value){clear();interruption('View lost focus');}agent.pause?.(!value);options.onFocus?.(value);}
         canvas.tabIndex=0;
@@ -55,27 +64,30 @@
             if(movement.has(key)){event.preventDefault();}keys.delete(key);agent.key(key,false);
         });
         listen(canvas,'pointerdown',event=>{
-            if(!agent.status().active||event.button!==0||look||drag)return;
-            const rect=canvas.getBoundingClientRect();
-            const touch=event.pointerType==='touch'||event.pointerType==='pen'||isFpv();
-            if(touch&&event.clientX<rect.left+rect.width/2)return;
+            if(!agent.status().active||event.button!==0||look||drag||event.pointerType==='touch'||event.pointerType==='pen'||isFpv())return;
             canvas.focus();focus(true);canvas.setPointerCapture(event.pointerId);
-            if(touch&&lookStick){
-                event.preventDefault();look={id:event.pointerId,x:event.clientX,y:event.clientY};
-                lookStick.style.left=`${event.clientX-rect.left-rect.width/2-50}px`;
-                lookStick.style.top=`${event.clientY-rect.top-50}px`;lookStick.hidden=false;
-            }else drag={id:event.pointerId,x:event.clientX,y:event.clientY};
+            drag={id:event.pointerId,x:event.clientX,y:event.clientY};
         });
         listen(canvas,'pointermove',event=>{
-            if(look?.id===event.pointerId){
-                event.preventDefault();const x=clamp((event.clientX-look.x)/35),y=clamp((event.clientY-look.y)/35);
-                yaw=axis(x,.1);pitch=axis(y,.1);const norm=Math.max(1,Math.hypot(yaw,pitch));yaw/=norm;pitch/=norm;
-                if(lookThumb)lookThumb.style.transform=`translate(${yaw*35}px, ${pitch*35}px)`;
-            }else if(drag?.id===event.pointerId){agent.look(event.clientX-drag.x,event.clientY-drag.y);drag.x=event.clientX;drag.y=event.clientY;}
+            if(drag?.id===event.pointerId){agent.look(event.clientX-drag.x,event.clientY-drag.y);drag.x=event.clientX;drag.y=event.clientY;}
         });
         for(const type of ['pointerup','pointercancel','lostpointercapture'])listen(canvas,type,event=>{
-            if(look?.id===event.pointerId||drag?.id===event.pointerId)resetLook();
+            if(drag?.id===event.pointerId)resetLook();
         });
+        function moveLook(event){
+            if(look!==event.pointerId)return;event.preventDefault();
+            const rect=lookStick.getBoundingClientRect(),radius=Math.max(1,rect.width*.35);
+            yaw=axis(clamp((event.clientX-rect.left-rect.width/2)/radius),.1);
+            pitch=axis(clamp((event.clientY-rect.top-rect.height/2)/radius),.1);
+            const norm=Math.max(1,Math.hypot(yaw,pitch));yaw/=norm;pitch/=norm;
+            if(lookThumb)lookThumb.style.transform=`translate(${yaw*radius}px, ${pitch*radius}px)`;
+        }
+        listen(lookStick,'pointerdown',event=>{
+            if(!touchVisible||!agent.status().active||event.button!==0||look!==null)return;
+            event.preventDefault();canvas.focus();focus(true);look=event.pointerId;lookStick.setPointerCapture(event.pointerId);moveLook(event);
+        });
+        listen(lookStick,'pointermove',moveLook);
+        for(const type of ['pointerup','pointercancel','lostpointercapture'])listen(lookStick,type,event=>{if(look===event.pointerId)resetLook();});
         function moveLeft(event){
             if(left!==event.pointerId)return;event.preventDefault();
             const rect=stick.getBoundingClientRect(),radius=Math.max(1,rect.width*.35);
@@ -84,7 +96,7 @@
             f=-y;r=x;applyStick();if(thumb)thumb.style.transform=`translate(${x*radius}px, ${y*radius}px)`;
         }
         listen(stick,'pointerdown',event=>{
-            if(!agent.status().active||event.button!==0||left!=null)return;
+            if(!touchVisible||!agent.status().active||event.button!==0||left!=null)return;
             event.preventDefault();canvas.focus();focus(true);left=event.pointerId;stick.setPointerCapture(event.pointerId);moveLeft(event);
         });
         listen(stick,'pointermove',moveLeft);
@@ -92,7 +104,7 @@
         for(const button of panel.querySelectorAll?.('[data-vertical]')??[]){
             let pointer=null;
             verticalReleases.push(()=>{pointer=null;});
-            listen(button,'pointerdown',event=>{if(!agent.status().active||pointer!=null||event.button!==0)return;
+            listen(button,'pointerdown',event=>{if(!touchVisible||!agent.status().active||agent.status().mode!=='gps'||pointer!=null||event.button!==0)return;
                 event.preventDefault();canvas.focus();focus(true);pointer=event.pointerId;button.setPointerCapture(pointer);
                 vertical=Number(button.dataset.vertical);applyStick();});
             for(const type of ['pointerup','pointercancel','lostpointercapture'])listen(button,type,event=>{
@@ -107,6 +119,8 @@
         // poll. Only a disconnection or a different source revokes that grant.
         const dispose=()=>{clear();agent.stop();for(const remove of cleanups)remove();options.onFocus?.(false);};
         dispose.reset=clear;
+        dispose.sync=syncTouch;
+        dispose.setVisible=value=>{if(touchVisible!==value)releaseTouch();touchVisible=value;syncTouch();};
         dispose.native=frame=>{
             if(!focused||!agent.status().active)return;
             const names=['forward','right','yaw','pitch','vertical'];
@@ -124,6 +138,7 @@
             if(frame.connected===false){if(lastSource?.startsWith('native:'))disconnected();}
         };
         dispose.tick=seconds=>{
+            syncTouch();
             if(!agent.status().active){clear();return;}
             if(doc.activeElement!==undefined)focus(!doc.hidden&&doc.activeElement===canvas&&(doc.hasFocus?.()??true));
             if(!focused)return;

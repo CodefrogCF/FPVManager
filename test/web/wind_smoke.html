@@ -29,10 +29,19 @@ function fixture(){const lat=46.7,lon=8.4,dy=1500/111320,dx=1500/(111320*Math.co
   await until(()=>v.scene.globe.tilesLoaded,'initial terrain mesh');
   const data=fixture(),lines=()=>Array.from({length:v.scene.primitives.length},(_,i)=>v.scene.primitives.get(i)).find(p=>p instanceof C.PolylineCollection);
   await command('set-wind-field',{visible:true,affectFlight:false,field:data});await until(()=>lines()?.length>0&&lines().get(0).show,'wind glyphs');
-  check(lines().length<=196,'Unbounded glyph count');const start=C.Cartesian3.clone(lines().get(0).positions[0]);
+  check(lines().length<=392,'Unbounded glyph count');const start=C.Cartesian3.clone(lines().get(0).positions[0]);
   await until(()=>C.Cartesian3.distance(start,lines().get(0).positions[0])>.5,'animated arrow positions');
   check(Math.abs(C.Cartographic.fromCartesian(lines().get(0).positions[0]).height-1010)<.1,'Wind glyph has wrong AGL reference');
   log('Actual Cesium draws bounded animated 3D arrows above terrain, moving with wind speed');
+  let probeClock=0;
+  const probe=win.FPVWindField.create(C,v,()=>{},{elapsed:()=>probeClock,doc:null,isTerrainReady:()=>true});
+  try{
+    probe.set({visible:true,affectFlight:false,field:data});v.scene.preUpdate.raiseEvent(v.scene,v.clock.currentTime);
+    const glyphs=v.scene.primitives.get(v.scene.primitives.length-1),origin=C.Cartesian3.clone(glyphs.get(73).positions[0]);
+    probeClock=1000;v.scene.preUpdate.raiseEvent(v.scene,v.clock.currentTime);
+    const metres=C.Cartesian3.distance(origin,glyphs.get(73).positions[0]);check(Math.abs(metres-10)<.001,'10 m/s did not move ten world metres: '+metres);
+    log('A deterministic second moves a glyph exactly ten world metres on the real WGS84 ellipsoid');
+  }finally{probe.dispose();}
   await command('set-wind-field',{visible:true,affectFlight:true,field:data});
   await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:500,flightMode:'acro',sceneTime:{enabled:true,timeUtc:'2026-06-21T12:00:00.000Z'}});
   await until(()=>flight?.active,'Acro entry');v.canvas.focus();

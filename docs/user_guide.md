@@ -10,6 +10,13 @@ side. Equipment is grouped under **Equipment** in the navigation menu.
 
 The compass at the upper right follows map rotation. Tap it to face north.
 
+**Mein Standort** requests foreground location, shows an accuracy circle and recentres
+once. Long-press it or open **Standortanzeige** for following and on/off controls;
+moving the map stops following. Old fixes are grey. **Ort oder Koordinaten suchen**
+accepts WGS84 latitude/longitude, LV95 east/north or Swiss place/street names.
+Select a result to mark it; this does not save a spot. Coordinates work offline;
+place/address queries are sent to swisstopo only when submitted.
+
 Open **Map layers** in the map menu. Its **Map**, **Airspace** and **Obstacles**
 tabs separate display settings and data sources. Choose Satellite, Topographic or Relief, show UAS zones
 and saved spots, adjust zone opacity and change spot/zone overlay order. These
@@ -130,7 +137,7 @@ the details and are used for route checks.
 Select a terrain point or saved spot, then use the walking icon beside the
 right-hand map menu to spawn approximately two metres above terrain. Move with
 WASD, arrow keys or the transparent stick at the lower left. Drag to look around,
-or touch and hold the right half for a floating look stick. A controller uses its
+or use the fixed transparent stick at the lower right. A controller uses its
 left stick to move and right stick to look; B exits.
 Click the map to restore keyboard focus after using another control.
 
@@ -187,8 +194,11 @@ in memory for the current renderer, not persistent offline storage.
 
 FPV keyboard: E/Q throttle, A/D yaw, W/S (or up/down arrows) pitch, left/right
 arrows roll; IJKL also controls pitch/roll. In GPS, WASD/arrows move, drag/IJKL
-looks and E/Q climbs/descends. Touch the right half to show the second stick.
-↑/↓, right/left triggers and R1/L1 provide additional gas/height controls.
+looks and E/Q climbs/descends. Both touch sticks stay at fixed opposite positions;
+the separate ↑/↓ buttons appear only in GPS mode. **Touch-Steuerung anzeigen** in
+HUD quick settings or map actions saves their visibility locally. Hiding them
+releases touch input; keyboard and external controllers remain available.
+Right/left triggers and R1/L1 provide additional gas/height controls.
   Angle touch/keyboard input retains its centred hover aid. Acro touch/keyboard uses the upper stick half for 0–100%
 motor command: centre and downward input cut thrust; fully up gives 100%.
 The estimated hover point depends on the physical settings (50% with defaults)

@@ -12,9 +12,9 @@ class Target{
 }
 function setup(mode='ground',flightAgent=null){
     let time=0,pads=[],active=true;const movements=[],looks=[],vertical=[],states=[],interruptions=[];
-    const canvas=new Target(),stick=new Target({left:0,top:450,width:100,height:100}),thumb=new Target(),look=new Target(),lookThumb=new Target();
+    const canvas=new Target(),stick=new Target({left:0,top:450,width:100,height:100}),thumb=new Target(),look=new Target({left:250,top:450,width:100,height:100}),lookThumb=new Target();
     const panel=new Target(),host=new Target(),doc=new Target();
-    doc.getElementById=id=>id==='look-stick'?look:lookThumb;doc.activeElement=canvas;doc.hasFocus=()=>true;doc.hidden=false;
+    doc.getElementById=id=>id==='look-stick'?look:id==='look-thumb'?lookThumb:null;doc.activeElement=canvas;doc.hasFocus=()=>true;doc.hidden=false;
     canvas.onFocus=()=>{doc.activeElement=canvas;canvas.fire('focus');};
     panel.querySelector=s=>s==='[data-stick]'?stick:thumb;
     host.navigator={getGamepads:()=>pads};host.performance={now:()=>time};
@@ -48,12 +48,12 @@ test('two touch fingers independently control FPV throttle/yaw and attitude; rel
     const p=setup('angle');
     p.stick.fire('pointerdown',{pointerId:1,clientX:85,clientY:500});p.binding.tick(.1);
     assert.deepEqual(p.movements.at(-1),{throttle:0,yaw:1,pitch:0,roll:0});
-    p.canvas.fire('pointerdown',{pointerId:2,pointerType:'touch',clientX:300,clientY:300});
-    p.canvas.fire('pointermove',{pointerId:2,pointerType:'touch',clientX:300,clientY:265});p.binding.tick(.1);
+    p.look.fire('pointerdown',{pointerId:2,pointerType:'touch',clientX:300,clientY:500});
+    p.look.fire('pointermove',{pointerId:2,pointerType:'touch',clientX:300,clientY:465});p.binding.tick(.1);
     assert.deepEqual(p.movements.at(-1),{throttle:0,yaw:1,pitch:1,roll:0});
     p.stick.fire('pointermove',{pointerId:1,clientX:50,clientY:465});p.binding.tick(.1);
     assert.deepEqual(p.movements.at(-1),{throttle:1,yaw:0,pitch:1,roll:0});
-    p.canvas.fire('pointercancel',{pointerId:2});p.binding.tick(.1);
+    p.look.fire('pointercancel',{pointerId:2});p.binding.tick(.1);
     assert.deepEqual(p.movements.at(-1),{throttle:1,yaw:0,pitch:0,roll:0});
     p.stick.fire('pointercancel',{pointerId:1});p.binding.tick(.1);
     assert.deepEqual(p.movements.at(-1),{throttle:0,yaw:0,pitch:0,roll:0});p.binding();
@@ -120,17 +120,17 @@ test('bottom-throttle radio requires idle after focus loss and on replacement by
     q.binding();
 });
 
-test('right touch stick floats at the touch and disappears on release without releasing the movement finger',()=>{
+test('fixed right stick releases attitude independently and ignores touches outside its fixed surface',()=>{
     const p=setup();p.stick.fire('pointerdown',{pointerId:1,clientX:50,clientY:450});
-    p.canvas.fire('pointerdown',{pointerId:2,pointerType:'touch',clientX:300,clientY:300});
+    p.look.fire('pointerdown',{pointerId:2,pointerType:'touch',clientX:300,clientY:500});
     assert.equal(p.look.hidden,false);
-    p.canvas.fire('pointermove',{pointerId:2,pointerType:'touch',clientX:335,clientY:265});p.binding.tick(.1);
+    p.look.fire('pointermove',{pointerId:2,pointerType:'touch',clientX:335,clientY:465});p.binding.tick(.1);
     assert.ok(p.looks.at(-1)[0]>0&&p.looks.at(-1)[1]<0);assert.ok(p.movements.at(-1)[0]>0);
-    p.canvas.fire('pointerup',{pointerId:3});assert.equal(p.look.hidden,false);
-    p.canvas.fire('pointercancel',{pointerId:2});assert.equal(p.look.hidden,true);
+    p.look.fire('pointerup',{pointerId:3});assert.equal(p.look.hidden,false);
+    p.look.fire('pointercancel',{pointerId:2});assert.equal(p.look.hidden,false);
     p.binding.tick(.1);assert.ok(p.movements.at(-1)[0]>0);
     p.stick.fire('pointercancel',{pointerId:1});p.binding.tick(.1);assert.deepEqual(p.movements.at(-1),[0,0]);
-    p.canvas.fire('pointerdown',{pointerType:'touch',clientX:100});assert.equal(p.look.hidden,true);
+    p.canvas.fire('pointerdown',{pointerType:'touch',clientX:100});p.binding.tick(.1);assert.deepEqual(p.looks.at(-1),[0,0]);
     p.binding();
 });
 test('controller activation and focus recovery require neutral sticks; no stale movement survives disconnection',()=>{
@@ -142,6 +142,19 @@ test('controller activation and focus recovery require neutral sticks; no stale 
     p.pads([pad()]);p.binding.tick(.1);p.pads([pad({y:-1})]);p.binding.tick(.1);assert.equal(p.movements.at(-1)[0],1);
     p.pads([]);p.host.fire('gamepaddisconnected');p.binding.tick(.1);assert.deepEqual(p.movements.at(-1),[0,0]);
     p.binding();
+});
+
+test('hiding fixed touch controls releases held fingers but keeps an authorized external controller usable',()=>{
+    const p=setup('acro');p.pads([pad()]);p.binding.tick(.1);
+    p.stick.fire('pointerdown',{clientX:50,clientY:465});p.look.fire('pointerdown',{pointerId:2,clientX:335,clientY:500});p.binding.tick(.1);
+    assert.equal(p.movements.at(-1).throttle,1);assert.equal(p.movements.at(-1).roll,1);
+    p.binding.setVisible(false);p.binding.tick(.1);assert.equal(p.look.hidden,true);
+    assert.deepEqual(p.movements.at(-1),{throttle:0,yaw:0,pitch:0,roll:0});
+    p.stick.fire('pointerdown',{clientX:50,clientY:465});p.look.fire('pointermove',{pointerId:2,clientX:335,clientY:465});p.binding.tick(.1);
+    assert.equal(p.movements.at(-1).throttle,0);
+    p.pads([pad({y:-1,rx:.5})]);p.binding.tick(.1);assert.equal(p.movements.at(-1).throttle,1);
+    assert.ok(p.movements.at(-1).roll>0);assert.equal(p.states.at(-1),'Controller ready');
+    p.binding.setVisible(true);assert.equal(p.look.hidden,false);p.binding();
 });
 test('native inputs expire, reject nonfinite frames and edge-trigger reset and exit',()=>{
     const p=setup();const neutral={forward:0,right:0,yaw:0,pitch:0,vertical:0,reset:false,exit:false,connected:true};

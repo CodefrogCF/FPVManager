@@ -11,6 +11,7 @@ class UserPreferences {
     this.uasZonesVisible = false,
     this.uasZonesFillOpacity = 0.20,
     this.savedSpotsVisible = true,
+    this.touchControlsVisible = true,
     this.roadsVisible = false,
     this.roadsOpacity = .8,
     this.avalancheVisible = false,
@@ -32,6 +33,7 @@ class UserPreferences {
   final bool uasZonesVisible;
   final double uasZonesFillOpacity;
   final bool savedSpotsVisible;
+  final bool touchControlsVisible;
   final bool roadsVisible;
   final double roadsOpacity;
   final bool avalancheVisible;
@@ -52,6 +54,7 @@ class UserPreferences {
     bool? uasZonesVisible,
     double? uasZonesFillOpacity,
     bool? savedSpotsVisible,
+    bool? touchControlsVisible,
     bool? roadsVisible,
     double? roadsOpacity,
     bool? avalancheVisible,
@@ -72,6 +75,7 @@ class UserPreferences {
     uasZonesVisible: uasZonesVisible ?? this.uasZonesVisible,
     uasZonesFillOpacity: uasZonesFillOpacity ?? this.uasZonesFillOpacity,
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
+    touchControlsVisible: touchControlsVisible ?? this.touchControlsVisible,
     roadsVisible: roadsVisible ?? this.roadsVisible,
     roadsOpacity: roadsOpacity ?? this.roadsOpacity,
     avalancheVisible: avalancheVisible ?? this.avalancheVisible,

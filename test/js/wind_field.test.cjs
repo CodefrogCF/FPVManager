@@ -22,8 +22,10 @@ test('bilinear interpolation preserves holes, exact grid nodes and outside cover
 class Event{constructor(){this.listeners=new Set();}addEventListener(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);}fire(...args){for(const fn of this.listeners)fn(...args);}}
 function renderer(){
     let clock=0,now=Date.parse('2026-10-28T10:05:00Z'),queries=0,ready=true;const states=[],primitives=[],credits=new Set();
-    class V{constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}static fromDegrees(x,y,z){return new V(x,y,z);}}
-    class Lines{constructor(){this.lines=[];}add(line){this.lines.push(line);return line;}removeAll(){this.lines=[];}}
+    class V{constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}static fromDegrees(x,y,z,ellipsoid,result=new V()){
+        const rad=Math.PI/180,e2=6.6943799901413165e-3,d=Math.sqrt(1-e2*Math.sin(y*rad)**2),a=6378137;
+        return Object.assign(result,{x:(x-8.4)*rad*(a/d+z)*Math.cos(y*rad),y:(y-46.7)*rad*(a*(1-e2)/d**3+z),z});}}
+    class Lines{constructor(){this.lines=[];}add(line){this.lines.push(line);return line;}remove(line){this.lines.splice(this.lines.indexOf(line),1);}removeAll(){this.lines=[];}}
     const tiles=new Event(),update=new Event();
     const C={Cartesian3:V,Cartographic:class{static fromDegrees(lon,lat,z,out){Object.assign(out,{lon,lat,z});return out;}},
         PolylineCollection:Lines,Transforms:{eastNorthUpToFixedFrame:p=>p},Matrix4:{multiplyByPoint:(p,v,out)=>Object.assign(out,{x:p.x+v.x,y:p.y+v.y,z:p.z+v.z})},
@@ -35,9 +37,9 @@ function renderer(){
 }
 test('animated 3D glyphs reuse ground heights, keep bounded densities and are independent of celestial time',()=>{
     const p=renderer();p.layer.set({visible:true,affectFlight:true,field:snapshot()});p.frame();
-    assert.equal(p.lines().lines.length,75);const first={...p.lines().lines[20].positions[0]},queries=p.queries();
+    assert.equal(p.lines().lines.length,150);const first={...p.lines().lines[20].positions[0]},queries=p.queries();
     for(let i=0;i<40;i++)p.frame();assert.equal(p.queries(),queries);assert.notEqual(p.lines().lines[20].positions[0].x,first.x);
-    p.layer.performance('performance');p.frame();assert.equal(p.lines().lines.length,18);
+    p.layer.performance('performance');p.frame();assert.equal(p.lines().lines.length,36);
     assert.ok(p.queries()<=queries);assert.ok(p.layer.sample({latitude:46.7,longitude:8.4,agl:30}).east>9.9);
     p.layer.navigation({latitude:46.7,longitude:8.4,agl:500});p.frame();assert.ok(p.layer.sample({latitude:46.7,longitude:8.4,agl:500}).extrapolated);
     p.layer.dispose();assert.equal(p.update.listeners.size,0);assert.equal(p.tiles.listeners.size,0);assert.equal(p.credits.size,0);
@@ -49,4 +51,44 @@ test('expiry, unknown coverage and terrain failure suspend display/forces withou
     p.now(Date.parse('2026-10-28T10:31:00Z'));p.frame();assert.equal(p.states.at(-1).state,'expired');assert.equal(p.lines().show,false);
     assert.equal(p.layer.sample({latitude:46.7,longitude:8.4,agl:50}).reason,'expired');
     p.layer.set({visible:false,affectFlight:false,field:null});assert.equal(p.layer.sample({latitude:46.7,longitude:8.4,agl:50}),null);p.layer.dispose();
+});
+
+test('10 m/s wind travels 10 metres per second and no longer loops on a short local track',()=>{
+    const p=renderer();p.layer.set({visible:true,affectFlight:true,field:snapshot()});p.frame(0);
+    const arrow=p.lines().lines[73],start={...arrow.positions[0]};
+    p.frame(1000);assert.ok(Math.abs(arrow.positions[0].x-start.x-10)<1e-6);
+    assert.ok(Math.abs(arrow.positions[0].y-start.y)<1e-6);
+    p.frame(30000);assert.ok(Math.abs(arrow.positions[0].x-start.x-310)<1e-6);
+    const position={...arrow.positions[0]},queries=p.queries();
+    p.tiles.fire(0);p.frame(50);
+    assert.ok(Math.abs(arrow.positions[0].x-position.x-.5)<1e-6,'Terrain detail changes must not reseed the glyph');
+    const next={...arrow.positions[0]};p.layer.set({visible:true,affectFlight:false,field:snapshot()});p.frame(50);
+    assert.ok(Math.abs(arrow.positions[0].x-next.x-.5)<1e-6,'Equivalent field refresh preserves travel');
+    assert.ok(p.queries()<=queries*2);p.layer.dispose();
+});
+
+test('world displacement is independent of frame rate and meteorological direction agrees with flight forces',()=>{
+    for(const from of [0,90,180,270]){
+        const results=[];
+        for(const step of [10,50,100]){
+            const p=renderer();p.layer.set({visible:true,affectFlight:true,field:snapshot({from})});p.frame(0);
+            const arrow=p.lines().lines[73],start={...arrow.positions[0]},queries=p.queries();
+            for(let elapsed=0;elapsed<1000;elapsed+=step)p.frame(step);
+            const dx=arrow.positions[0].x-start.x,dy=arrow.positions[0].y-start.y;
+            results.push([dx,dy]);const flow=p.layer.sample({latitude:46.7,longitude:8.4,agl:80});
+            // X in this test projection also changes slightly with latitude.
+            if(from===90||from===270)assert.ok(Math.abs(dx-flow.east)<1e-6);
+            assert.ok(Math.abs(dy-flow.north)<1e-6);assert.equal(p.queries(),queries);p.layer.dispose();
+        }
+        for(const actual of results)for(let i=0;i<2;i++)assert.ok(Math.abs(actual[i]-results[0][i])<1e-5);
+    }
+});
+
+test('a moving or climbing flight viewport preserves glyphs that remain inside the displayed field',()=>{
+    const p=renderer();p.layer.navigation({latitude:46.7,longitude:8.4,agl:80});p.layer.set({visible:true,affectFlight:true,field:snapshot()});p.frame(0);
+    const arrow=p.lines().lines[75],position={...arrow.positions[0]};
+    p.layer.navigation({latitude:46.7,longitude:8.4+40/111320,agl:92});p.frame(100);
+    assert.ok(p.lines().lines.includes(arrow),'Changing flight height must retain nearby particles');
+    assert.ok(Math.abs(arrow.positions[0].x-position.x-1)<1e-6);assert.equal(arrow.positions[0].z,position.z);
+    p.layer.dispose();
 });

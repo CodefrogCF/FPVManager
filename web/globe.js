@@ -47,12 +47,20 @@ function postToFlutter(message) {
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); terrainManager?.dispose(); bridge.dispose(); }
         if (!event.persisted) sceneEnvironment?.dispose();
         if (!event.persisted) windLayer?.dispose();
+        if (!event.persisted) globePositions?.dispose();
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let touchControlsVisible=true;
+    function setTouchControls(visible){
+        if(typeof visible!=='boolean')throw Error('Invalid touch visibility');
+        touchControlsVisible=visible;disposeGroundControls?.setVisible(visible);
+        const toggle=document.getElementById('flight-show-touch');if(toggle)toggle.checked=visible;
+        activeViewer?.scene.requestRender();
+    }
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
@@ -595,6 +603,9 @@ function postToFlutter(message) {
             }
             case "set-situational-overlay": return situationalLayers.set(command);
             case "set-weather-overlay": return weatherOverlay.replace(command);
+            case 'set-touch-controls': setTouchControls(command.visible); return {};
+            case 'set-device-location': return globePositions.location(command);
+            case 'set-search-destination': stopNavigation(); return globePositions.destination(command);
             case 'set-wind-field': return windLayer.set(command);
             case 'query-wind-center': {
                 const flying=flyer?.active?flyer.status().position:null;
@@ -825,6 +836,7 @@ function postToFlutter(message) {
         activeViewer = viewer;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources});
         windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
+        globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
         situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
         hazardAreas = FPVObstacles.createHazards(Cesium,viewer);
@@ -896,7 +908,7 @@ function postToFlutter(message) {
                 else if(!state.active)sceneEnvironment.setTime({scope:'flight',enabled:false});
                 if(!state.active)windLayer.navigation(null);
             }
-            groundPanel.hidden=!state.active; flightButtons.hidden=mode!=='flight'||!state.active;
+            groundPanel.hidden=!state.active||!touchControlsVisible; flightButtons.hidden=state.mode!=='gps'||!state.active||!touchControlsVisible;
             groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
             const flying=mode==='flight'&&state.active;
             hud.hidden=!flying; info.hidden=flying;
@@ -909,6 +921,7 @@ function postToFlutter(message) {
             if(mode==='flight'&&state.graphicsProfile)graphicsSelect.value=state.graphicsProfile;
             if(!state.active){disposeGroundControls?.reset();terrainInfo(terrainManager.status());}
             if(entering)viewer.canvas.focus();
+            disposeGroundControls?.sync();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
                 ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,controller:state.controller}:{})});
@@ -946,6 +959,10 @@ function postToFlutter(message) {
                 document.getElementById('controller-last-interruption').textContent=`Recent interruptions: ${controllerInterruptions.join(' · ')}`;
             },
             onDevice:message=>{deviceMessage=message;device.textContent=message;flightHud.device(message);}});
+        disposeGroundControls.setVisible(touchControlsVisible);
+        document.getElementById('flight-show-touch').addEventListener('change',event=>{
+            setTouchControls(event.target.checked);sendToFlutter('touch-controls-changed',{visible:touchControlsVisible});
+        });
         document.getElementById('reset-flight').addEventListener('click',()=>flyer.reset().catch(()=>{}));
         document.getElementById('exit-flight').addEventListener('click',()=>flyer.stop());
         settingsButton.addEventListener('click',()=>{

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'road_routing.dart';
@@ -25,7 +26,8 @@ abstract interface class NavigationLocationSource {
 }
 
 class DeviceNavigationLocation implements NavigationLocationSource {
-  const DeviceNavigationLocation();
+  const DeviceNavigationLocation({this.forNavigation = true});
+  final bool forNavigation;
   @override
   Stream<NavigationFix> watch() async* {
     if (!await Geolocator.isLocationServiceEnabled()) {
@@ -38,7 +40,7 @@ class DeviceNavigationLocation implements NavigationLocationSource {
     if (permission != LocationPermission.always &&
         permission != LocationPermission.whileInUse) {
       throw const FormatException(
-        'Standortzugriff fehlt. Bitte in den Android-Einstellungen erlauben.',
+        'Standortzugriff fehlt. Bitte in den Geräte- oder Browser-Einstellungen erlauben.',
       );
     }
     NavigationFix convert(Position p) => NavigationFix(
@@ -59,11 +61,21 @@ class DeviceNavigationLocation implements NavigationLocationSource {
     );
     // Foreground only. No background service or background location permission.
     yield* Geolocator.getPositionStream(
-      locationSettings: AndroidSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0,
-        intervalDuration: const Duration(seconds: 1),
-      ),
+      locationSettings:
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+          ? AndroidSettings(
+              accuracy: forNavigation
+                  ? LocationAccuracy.bestForNavigation
+                  : LocationAccuracy.high,
+              distanceFilter: forNavigation ? 0 : 3,
+              intervalDuration: const Duration(seconds: 1),
+            )
+          : LocationSettings(
+              accuracy: forNavigation
+                  ? LocationAccuracy.bestForNavigation
+                  : LocationAccuracy.high,
+              distanceFilter: forNavigation ? 0 : 3,
+            ),
     ).map(convert);
   }
 }

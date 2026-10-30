@@ -72,6 +72,30 @@ void main() {
     await database.close();
   });
 
+  test('touch visibility persists, renderer quick settings save locally and reload restores the requested value', () async {
+    await controller.initializePreferences(repository);
+    await controller.setTouchControlsVisible(false);
+    expect((await repository.getPreferences()).touchControlsVisible, false);
+    renderer.sessionId = 'touch-reload';
+    renderer.sequence = 0;
+    renderer.emit({'type': 'renderer-loading'});
+    renderer.ready();
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      renderer.commands
+          .where((c) => c['type'] == 'set-touch-controls')
+          .last['visible'],
+      false,
+    );
+    renderer.emit({'type': 'touch-controls-changed', 'visible': true});
+    await Future<void>.delayed(Duration.zero);
+    await controller.preferencesSettled;
+    expect((await repository.getPreferences()).touchControlsVisible, true);
+    await controller.setTouchControlsVisible(false);
+    await controller.resetPreferences();
+    expect(controller.touchControlsVisible, true);
+  });
+
   test('roads persist independently across restart, style changes, reload and reset', () async {
     await controller.initializePreferences(repository);
     await controller.setRoadsOverlay(visible: true, opacity: .6);

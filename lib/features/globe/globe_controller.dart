@@ -22,6 +22,8 @@ import '../obstacles/obstacle_map_controller.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import 'globe_bridge.dart';
 import 'route_map_state.dart';
+import 'globe_location_controller.dart';
+import '../mobility/navigation_location.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/controller_settings.dart';
 import '../simulation/flight_recording.dart';
@@ -100,6 +102,7 @@ class GlobeController extends ChangeNotifier {
     SwissObstacleProvider? obstacleProvider,
     WindFieldService? windService,
     AvalancheProvider? avalancheProvider,
+    NavigationLocationSource? locationSource,
     GlobeBridgeOptions bridgeOptions = const GlobeBridgeOptions(),
   }) : _ownsUasProvider = uasProvider == null,
        _bridge = GlobeBridge(options: bridgeOptions) {
@@ -112,6 +115,13 @@ class GlobeController extends ChangeNotifier {
           ),
         );
     _uasProvider.addListener(_handleProviderChanged);
+    location = GlobeLocationController(
+      source: locationSource,
+      send: (command) async {
+        if (!_ready || _disposed) throw StateError('Renderer unavailable');
+        await _send(command);
+      },
+    )..addListener(_handleProviderChanged);
     obstacles = ObstacleMapController(
       provider: obstacleProvider,
       cacheFactory: _sharedCache,
@@ -153,6 +163,43 @@ class GlobeController extends ChangeNotifier {
   }
 
   late final ObstacleMapController obstacles;
+  late final GlobeLocationController location;
+  Map<String, dynamic>? _searchDestination;
+
+  Future<void> selectSearchDestination({
+    required String name,
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (name.isEmpty ||
+        name.length > 250 ||
+        !latitude.isFinite ||
+        latitude.abs() > 90 ||
+        !longitude.isFinite ||
+        longitude.abs() > 180) {
+      throw ArgumentError('Invalid search destination');
+    }
+    await location.setFollowing(false);
+    final command = <String, dynamic>{
+      'type': 'set-search-destination',
+      'name': name,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+    await _send(command);
+    _searchDestination = command;
+  }
+
+  bool get touchControlsVisible => _preferences.touchControlsVisible;
+  Future<void> setTouchControlsVisible(bool visible) async {
+    _checkPreferencesEditable();
+    if (_ready) await _send({'type': 'set-touch-controls', 'visible': visible});
+    await _savePreferences(
+      _preferences.copyWith(touchControlsVisible: visible),
+    );
+    if (!_disposed) notifyListeners();
+  }
+
   late final WindMapController wind;
   late final FlightRecording recording;
   late final LiveRadioController liveRadio;
@@ -1284,10 +1331,10 @@ class GlobeController extends ChangeNotifier {
     _terrainResourceWarning = false;
     _terrainReason = reason as String?;
     _terrainAvailable = next == GlobeTerrainState.ready;
-    liveRadio.terrainChanged(_terrainAvailable);
     _terrainEpoch++;
     _spotFocusSequence++;
     _selectedPoint = null;
+    liveRadio.terrainChanged(_terrainAvailable);
     notifyListeners();
   }
 
@@ -1556,9 +1603,19 @@ class GlobeController extends ChangeNotifier {
         if (data['focused'] is! bool) return;
         _navigationFocused = data['focused'] as bool;
         notifyListeners();
+      case 'location-follow-changed':
+        if (data['following'] == false) unawaited(location.setFollowing(false));
+      case 'touch-controls-changed':
+        if (data['visible'] is bool && canEditPreferences) {
+          unawaited(
+            setTouchControlsVisible(data['visible'] as bool)
+                .catchError((Object _) {}),
+          );
+        }
       case 'simulation-state':
         if (data['active'] is! bool || data['pending'] is! bool) return;
         _simulationActive = data['active'] as bool;
+        unawaited(location.suspended(navigationActive));
         if (!_simulationActive) {
           recording.rendererLost(
             'Flight ended. Recording retained for review.',
@@ -1591,6 +1648,7 @@ class GlobeController extends ChangeNotifier {
       case 'ground-view-state':
         if (data['active'] is! bool || data['pending'] is! bool) return;
         _groundViewActive = data['active'] as bool;
+        unawaited(location.suspended(navigationActive));
         _groundViewPending = data['pending'] as bool;
         final reason = data['reason'];
         _groundViewMessage = reason is String
@@ -1615,6 +1673,7 @@ class GlobeController extends ChangeNotifier {
         obstacles.rendererLost();
         _groundViewActive = _groundViewPending = false;
         _simulationActive = _simulationPending = _navigationFocused = false;
+        unawaited(location.suspended(false));
         _simulationMessage = null;
         _groundViewMessage = null;
         _connectionGeneration++;
@@ -1755,6 +1814,7 @@ class GlobeController extends ChangeNotifier {
         }
 
       case 'globe-error':
+        unawaited(location.suspended(true));
         liveRadio.renderer(false);
         _error = data['message']?.toString() ?? 'Unknown globe error';
         _uasZonesLoading = false;
@@ -1905,7 +1965,18 @@ class GlobeController extends ChangeNotifier {
         !_disposed && _ready && generation == _connectionGeneration;
     unawaited(obstacles.rendererReady(force: forceSettings));
     unawaited(wind.rendererReady());
+    if (location.enabled) unawaited(location.rendererReady());
     try {
+      if (forceSettings || !touchControlsVisible) {
+        await _send({
+          'type': 'set-touch-controls',
+          'visible': touchControlsVisible,
+        });
+      }
+      if (!current()) return;
+      if (_searchDestination != null) {
+        await _send({..._searchDestination!, 'recenter': false});
+      }
       if (forceSettings ||
           buildings3dVisible ||
           vegetation3dVisible ||
@@ -2049,6 +2120,8 @@ class GlobeController extends ChangeNotifier {
     ];
     obstacles.removeListener(_handleProviderChanged);
     obstacles.dispose();
+    location.removeListener(_handleProviderChanged);
+    location.dispose();
     wind.removeListener(_handleProviderChanged);
     wind.dispose();
     avalanche.removeListener(_handleProviderChanged);

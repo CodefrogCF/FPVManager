@@ -32,6 +32,7 @@ import '../globe/globe_input_scope.dart';
 import '../mobility/mobility_screen.dart';
 import '../mobility/mobility_preferences.dart';
 import '../mobility/road_routing.dart';
+import '../mobility/destination_search.dart';
 import '../mobility/situational_layers_section.dart';
 import '../globe/map_layers_sheet.dart';
 import '../globe/terrain_information_dialog.dart';
@@ -179,6 +180,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   RouteLayersController? _routeLayers;
   bool _preferencesStarted = false;
   String? _lastGroundReason;
+  String? _lastLocationMessage;
   String? _lastSimulationReason;
   String? _lastRecordingMessage;
   SimulationSettings _simulationSettings = const SimulationSettings();
@@ -484,18 +486,18 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openCoordinatesDialog() async {
-    final point = await showDialog<GlobePoint>(
+    final result = await showDialog<RoadDestination>(
       context: context,
       builder: (context) => const CoordinatesDialog(),
     );
 
-    if (point == null || !mounted) return;
+    if (result == null || !mounted) return;
 
     await _runCommand(
-      () => _globeController.flyTo(
-        latitude: point.latitude,
-        longitude: point.longitude,
-        altitude: 12000,
+      () => _globeController.selectSearchDestination(
+        name: result.name,
+        latitude: result.point.latitude,
+        longitude: result.point.longitude,
       ),
     );
   }
@@ -581,6 +583,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       _globeController.onLiveRadioSettingsRequested = null;
     }
     _windLifecycle?.dispose();
+    unawaited(_globeController.location.foreground(false));
     if (_globeController.onWindSettingsRequested == _windRequestHandler) {
       _globeController.onWindSettingsRequested = null;
     }
@@ -667,12 +670,26 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     _globeController.onRecordingReviewRequested = _recordingReviewHandler;
     _globeController.onLiveRadioSettingsRequested = _radioRequestHandler;
     _windLifecycle = AppLifecycleListener(
-      onStateChange: (state) =>
-          _globeController.wind.foreground(state == AppLifecycleState.resumed),
+      onStateChange: (state) {
+        _globeController.wind.foreground(state == AppLifecycleState.resumed);
+        unawaited(
+          _globeController.location.foreground(
+            state == AppLifecycleState.resumed,
+          ),
+        );
+      },
     );
   }
 
   void _onGlobeStateChanged() {
+    final locationMessage = _globeController.location.message;
+    if (locationMessage != null &&
+        locationMessage != _lastLocationMessage &&
+        mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(locationMessage)));
+    }
+    _lastLocationMessage = locationMessage;
     final recordingMessage = _globeController.recording.message;
     if (recordingMessage != null &&
         recordingMessage != _lastRecordingMessage &&

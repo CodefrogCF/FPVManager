@@ -46,6 +46,13 @@ latitude/longitude enter the editable draft; Save is required. Manual edits
 and closed editors are protected from late results. Web needs a secure context;
 OS/browser location providers operate under their own settings.
 
+The globe's **Mein Standort** control separately enables foreground position
+updates. They stop when disabled, backgrounded or disposed and are suspended
+during ground inspection/simulation. Fixes stay in memory; no location history
+or remote position reporting is added. Following can request map tiles for the
+displayed area. Globe coordinate parsing is local; submitted place/address
+searches use the same swisstopo endpoint as route destination search.
+
 Android **Navigation starten** separately enables a foreground position stream.
 Starting confirms automatic rerouting: current coordinates and destination can
 be sent to FOSSGIS when leaving the route. Backgrounding pauses navigation; exit

@@ -20,6 +20,7 @@ bool backupSetting(String key) =>
       'map.uas.visible',
       'map.uas.fillOpacity',
       'map.spots.visible',
+      'simulation.touchControls.visible',
       'map.roads.visible',
       'map.roads.opacity',
       'map.scene.buildings',
