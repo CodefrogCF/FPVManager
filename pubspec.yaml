@@ -51,6 +51,7 @@ dependencies:
   xml: 7.0.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.3
   integration_test:
     sdk: flutter
   flutter_test:
@@ -196,3 +197,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/fpvmanager_icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
