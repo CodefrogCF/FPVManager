@@ -1,5 +1,5 @@
 name: fpvmanager
-description: "A new Flutter project."
+description: "Open-source FPV flight planning and situational awareness app with 3D maps, weather, routes, and Swiss aviation data."
 
 publish_to: 'none'
 
