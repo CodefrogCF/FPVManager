@@ -15,6 +15,7 @@ import '../spots/data/spot_repository.dart';
 import '../spots/data/spot_location_service.dart';
 import 'mobility_preferences.dart';
 import 'ojp/public_transport_section.dart';
+import 'osm_poi/osm_poi_section.dart';
 import 'road_routing.dart';
 import 'destination_search.dart';
 import 'situational_layers_section.dart';
@@ -894,7 +895,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
   );
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 5,
+    length: 6,
     initialIndex: widget.initialTab,
     child: Scaffold(
       appBar: AppBar(
@@ -907,6 +908,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
             Tab(text: 'Traffic'),
             Tab(text: 'Aircraft'),
             Tab(text: 'Environment'),
+            Tab(text: 'Nearby POIs'),
           ],
         ),
       ),
@@ -931,6 +933,15 @@ class _MobilityScreenState extends State<MobilityScreen> {
                 _page(_trafficPage()),
                 _page(_aircraftPage()),
                 _page(SituationalLayersSection(globe: widget.globe)),
+                _page(
+                  OsmPoiSection(
+                    spots: widget.spots,
+                    preferences: widget.preferences,
+                    globe: widget.globe,
+                    initialSpotId: widget.initialSpotId,
+                    initialMapPoint: widget.initialCenter,
+                  ),
+                ),
               ],
             ),
           ),

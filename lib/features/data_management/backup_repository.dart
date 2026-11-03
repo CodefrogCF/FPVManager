@@ -45,7 +45,10 @@ bool backupSetting(String key) =>
       'map.obstacles.hazards.bufferMeters',
       'weather.settings.v1',
     }.contains(key) ||
-    RegExp(r'^mobility\.access\.[1-9][0-9]*\.v1$').hasMatch(key);
+    RegExp(r'^mobility\.access\.[1-9][0-9]*\.v1$').hasMatch(key) ||
+    RegExp(r'^spot\.osm\.source\.[1-9][0-9]*\.v1$').hasMatch(key) ||
+    RegExp(r'^spot\.osm\.index\.(node|way|relation)\.[1-9][0-9]*\.v1$')
+        .hasMatch(key);
 
 class BackupRepository {
   const BackupRepository(this.database);

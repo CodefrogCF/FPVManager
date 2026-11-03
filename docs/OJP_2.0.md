@@ -16,19 +16,6 @@ The default, free OJP 2.0 plan allows **50 requests/minute and 20,000/day**. The
 
 Requests are not automatically retried. Invalid/missing credentials, HTTP 401/403, server 429, malformed XML and empty results are distinct paths. The API response body and credentials are not logged or shown to the user.
 
-## Browser access status and optional relay
-
-**Not live-verified.** The development environment used for this issue cannot resolve `api.opentransportdata.swiss`, so a real authenticated POST and CORS `OPTIONS` preflight (Authorization + Content-Type headers) could not be tested. Direct Flutter Web requests may be blocked by the API's CORS settings. The Web UI explicitly warns about this; **no proxy or relay is installed**. Any future intermediary must be separately deployed, authenticated and reviewed for privacy and abuse / quota risks. Never hardcode a shared production key into the web bundle.
-
-## Manual verification
-
-1. On Android/desktop save a private, correctly subscribed OJP 2.0 key. Select the free plan unless the API Manager shows an upgraded subscription.
-2. Select a saved spot as destination. Use device location, arbitrary coordinates or selected map point as origin. Compare with an OJP itinerary for the same exact coordinates.
-3. Confirm the estimated time is shown separately from timetabled time if offered, and walking legs and transfers are visible.
-4. Save the result, go offline, reopen the public-transport tab and view the dated archived journey. Ensure no new network call occurs.
-5. Open Ground routes, select a start, tap **ÖV-Anreise zum Bodenrouten-Start planen**. It should be the destination, not a car park.
-6. For Web: check the preflight and POST in browser DevTools with a *personal test key*. If CORS fails, native platforms remain the supported path until an approved optional relay exists.
-
 ## Sources
 
 * https://opentransportdata.swiss/en/cookbook/open-journey-planner-ojp-landing-page/

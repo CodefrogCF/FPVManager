@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'data/spot_query.dart';
 import 'data/spot_repository.dart';
@@ -21,6 +22,10 @@ class SpotDetailsScreen extends StatefulWidget {
 
 class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
   late final _details = widget.repository.watchDetails(widget.spotId);
+  late final Future<Map<String, dynamic>?>? _osmProvenance =
+      widget.repository is DriftSpotRepository
+      ? (widget.repository as DriftSpotRepository).osmProvenance(widget.spotId)
+      : null;
   bool _changing = false;
   String? _error;
 
@@ -143,6 +148,38 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                       ? spot.notes!
                       : 'No description added.',
                 ),
+                if (_osmProvenance != null)
+                  FutureBuilder<Map<String, dynamic>?>(
+                    future: _osmProvenance,
+                    builder: (context, source) {
+                      final reference = source.data?['reference'];
+                      if (reference is! String ||
+                          !RegExp(r'^(node|way|relation)/[1-9][0-9]*$')
+                              .hasMatch(reference)) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+                          Text('OpenStreetMap source: $reference'),
+                          TextButton(
+                            onPressed: () => launchUrl(
+                              Uri.parse(
+                                'https://www.openstreetmap.org/$reference',
+                              ),
+                            ),
+                            child: const Text(
+                              'View original OSM element · © OpenStreetMap contributors · ODbL',
+                            ),
+                          ),
+                          const Text(
+                            'Original OSM source reference is kept separately from personal edits.',
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 const SizedBox(height: 24),
                 Wrap(
                   spacing: 12,

@@ -103,3 +103,18 @@ test('avalanche rejects open rings, foreign coordinates, invalid validity and ex
     const f=avalanche();mutate(f);assert.throws(()=>validate({id:'avalanche',visible:true,opacity:.5,features:[f]}));
   }
 });
+
+test('OSM POI rendering uses bounded markers, retains ODbL credit and escapes names/tags',async()=>{
+  const p=fixture();
+  const item={...feature('node/123'),name:'Water <b>unsafe</b>',detail:'access: <script>unsafe</script>\nRetrieved: 2026-11-03'};
+  await p.manager.set({id:'osm-poi',visible:true,features:[item]});
+  assert.equal(p.sources.length,1);
+  const entity=p.sources[0].entities.values[0];
+  assert.equal(entity.point.color,'#86ca70');
+  assert.ok(entity.description.includes('&lt;script&gt;'));
+  assert.ok([...p.credits][0].html.includes('OpenStreetMap contributors'));
+  assert.ok([...p.credits][0].html.includes('ODbL'));
+  assert.throws(()=>validate({id:'osm-poi',visible:true,features:Array.from({length:301},(_,i)=>feature(String(i)))}));
+  assert.throws(()=>validate({id:'osm-poi',visible:true,features:[{...item,geometry:{type:'LineString',coordinates:[[8,47],[8.1,47.1]]}}]}));
+  p.manager.dispose();assert.equal(p.credits.size,0);
+});

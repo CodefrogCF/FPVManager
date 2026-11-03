@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../../core/database/fpv_database.dart';
@@ -231,10 +233,55 @@ final class DriftSpotRepository implements SpotRepository {
     });
   }
 
+  /// Optional source metadata for OSM-imported spots. Never merged into
+  /// user-controlled name, coordinates, notes or classification on refresh.
+  Future<Map<String, dynamic>?> osmProvenance(int id) async {
+    RepositoryValidation.id(id);
+    final row = await (_database.select(
+      _database.appSettings,
+    )..where((s) => s.key.equals('spot.osm.source.$id.v1'))).getSingleOrNull();
+    if (row == null) {
+      return null;
+    }
+    try {
+      return Map<String, dynamic>.from(jsonDecode(row.value) as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Future<int> deleteSpot(int id) {
     RepositoryValidation.id(id);
     return _database.transaction(() async {
+      // Keep the OSM provenance/index linked to this personal spot only.
+      final osmSource =
+          await (_database.select(_database.appSettings)
+                ..where((s) => s.key.equals('spot.osm.source.$id.v1')))
+              .getSingleOrNull();
+      if (osmSource != null) {
+        try {
+          final metadata = jsonDecode(osmSource.value) as Map;
+          final reference = metadata['reference'];
+          if (reference is String &&
+              RegExp(r'^(node|way|relation)/[1-9][0-9]*$')
+                  .hasMatch(reference)) {
+            final parts = reference.split('/');
+            final indexKey = 'spot.osm.index.${parts[0]}.${parts[1]}.v1';
+            await (_database.delete(
+                  _database.appSettings,
+                )..where((s) => s.key.equals(indexKey) & s.value.equals('$id')))
+                .go();
+          }
+        } on FormatException {
+          // Invalid metadata should not prevent a user from deleting their spot.
+        } on TypeError {
+          // Treat malformed provenance as non-authoritative.
+        }
+        await (_database.delete(
+          _database.appSettings,
+        )..where((s) => s.key.equals('spot.osm.source.$id.v1'))).go();
+      }
       // Spot-owned access notes must not survive deletion of their spot.
       await (_database.delete(
         _database.appSettings,
