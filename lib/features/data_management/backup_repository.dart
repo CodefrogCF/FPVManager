@@ -20,6 +20,7 @@ import 'backup_codec.dart';
 bool backupSetting(String key) =>
     key == activityProfilesKey ||
     key == outdoorPreferencesKey ||
+    key == 'mobility.ojp.snapshots.v1' ||
     const {
       'map.style',
       'map.uas.visible',
@@ -287,8 +288,12 @@ class BackupRepository {
         }
         if (name == 'app_settings' &&
             (row['key'] == 'weather.settings.v1' ||
-                (row['key'] as String).startsWith('mobility.access.'))) {
-          validateBackupJsonText(row['value'] as String);
+                (row['key'] as String).startsWith('mobility.access.') ||
+                row['key'] == 'mobility.ojp.snapshots.v1')) {
+          validateBackupJsonText(
+            row['value'] as String,
+            expectList: row['key'] == 'mobility.ojp.snapshots.v1',
+          );
         }
         if (name == 'app_settings' &&
             [

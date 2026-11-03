@@ -8,6 +8,8 @@ import '../help/guides_screen.dart';
 import '../home/coordinates_dialog.dart';
 import '../mobility/destination_search.dart';
 import '../mobility/road_routing.dart';
+import '../mobility/mobility_preferences.dart';
+import '../mobility/ojp/public_transport_section.dart';
 import '../observations/observations_screen.dart';
 import '../outdoor/outdoor_layers_section.dart';
 import '../spots/data/spot_repository.dart';
@@ -354,6 +356,26 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                       '${destination!.point.latitude.toStringAsFixed(5)}, ${destination!.point.longitude.toStringAsFixed(5)}',
                     ),
               onTap: busy ? null : () => _run(() => _point(false)),
+            ),
+            OutlinedButton.icon(
+              onPressed: busy
+                  ? null
+                  : () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PublicTransportScreen(
+                          spots: widget.spots,
+                          preferences: MobilityPreferences(
+                            widget.repository.database,
+                          ),
+                          globe: widget.globe,
+                          destination: origin?.point ?? displayed?.origin,
+                          destinationName: origin?.name ?? 'Bodenrouten-Start',
+                        ),
+                      ),
+                    ),
+              icon: const Icon(Icons.directions_transit),
+              label: const Text('ÖV-Anreise zum Bodenrouten-Start planen'),
             ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,

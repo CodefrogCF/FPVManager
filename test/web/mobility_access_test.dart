@@ -68,7 +68,7 @@ void main() {
             spots: _Spots(),
             preferences: _Preferences(),
             globe: globe,
-            initialTab: 1,
+            initialTab: 2,
           ),
         ),
       );

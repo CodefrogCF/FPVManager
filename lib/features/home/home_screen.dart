@@ -523,7 +523,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           section: section,
           onFlightSettings: () => _openSimulation(configureOnly: true),
           onWeather: _openWeather,
-          onTraffic: () => _openMobility(initialTab: 1),
+          onTraffic: () => _openMobility(initialTab: 2),
           onAirspace: () => _openMapLayers(initialTab: MapLayerTab.airspace),
           onData: _openData,
           onProfiles: _openProfiles,
