@@ -560,6 +560,10 @@ class GlobeController extends ChangeNotifier {
           'heliports',
           'wildfire',
           'wildfire-prevention',
+          'drought-warning',
+          'drought-index',
+          'vegetation-vhi',
+          'vegetation-vhi-all',
           'avalanche',
           'outdoor-context',
           'meteo-stations',
@@ -1307,7 +1311,15 @@ class GlobeController extends ChangeNotifier {
     obstacles.rendererLost();
     _situationalSelection = null;
     _situationalStatus.clear();
-    for (final id in ['heliports', 'wildfire', 'wildfire-prevention']) {
+    for (final id in [
+      'heliports',
+      'wildfire',
+      'wildfire-prevention',
+      'drought-warning',
+      'drought-index',
+      'vegetation-vhi',
+      'vegetation-vhi-all',
+    ]) {
       if (_situationalCommands.containsKey(id)) {
         _situationalStatus[id] = 'loading';
       }
@@ -1795,6 +1807,10 @@ class GlobeController extends ChangeNotifier {
               'heliports',
               'wildfire',
               'wildfire-prevention',
+              'drought-warning',
+              'drought-index',
+              'vegetation-vhi',
+              'vegetation-vhi-all',
               ...OutdoorLayer.values.map((l) => l.rendererId),
             }.contains(id) &&
             state is String &&

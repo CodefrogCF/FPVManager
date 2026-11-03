@@ -7,6 +7,9 @@
         roads:{layer:'ch.swisstopo.swisstlm3d-strassen',label:'Roads and paths',attribution:'© swisstopo · geo.admin.ch',bounds:[3.329595,44.074747,14.278255,49.200438]},
         heliports:{layer:'ch.bazl.flugplaetze-heliports',label:'Aerodrome / heliport',attribution:'BAZL / FOCA · geo.admin.ch'},
         wildfire:{layer:'ch.bafu.gefahren-waldbrand_warnung',label:'Wildfire warning',attribution:'BAFU / FOEN · geo.admin.ch'},
+        'drought-index':{layer:'ch.bafu.trockenheitsindex',label:'BAFU combined drought index (CDI)',attribution:'BAFU · Nationale Trockenheitsplattform · geo.admin.ch',maximumLevel:11},
+        'vegetation-vhi':{layer:'ch.swisstopo.swisseo_vhi_v100',label:'swissEO VHI forest',attribution:'© swisstopo, Contains modified Copernicus Sentinel data · geo.admin.ch',maximumLevel:12},
+        'vegetation-vhi-all':{layer:'ch.swisstopo.swisseo_vhi_v100_vegetation',label:'swissEO VHI all vegetation',attribution:'© swisstopo, Contains modified Copernicus Sentinel data · geo.admin.ch',maximumLevel:12},
         'wildfire-prevention':{layer:'ch.bafu.gefahren-waldbrand_praeventionsmassnahmen_kantone',label:'Cantonal forest-fire prevention measures',attribution:'BAFU / Kantone · geo.admin.ch · kantonale Vorschriften massgebend'},
         'outdoor-wildlife':{layer:'ch.bafu.wrz-wildruhezonen_portal',label:'Wildruhezonen',attribution:'BAFU / Kantone · geo.admin.ch'},
         'outdoor-hiking':{layer:'ch.swisstopo.swisstlm3d-wanderwege',label:'Wanderwege',attribution:'swisstopo / Kantone · geo.admin.ch'},
@@ -19,6 +22,8 @@
         'outdoor-cyclingClosures':{layer:'ch.astra.veloland-sperrungen_umleitungen',label:'Sperrungen Velo',attribution:'ASTRA / SchweizMobil · geo.admin.ch'},
         'outdoor-mtbClosures':{layer:'ch.astra.mountainbikeland-sperrungen_umleitungen',label:'Sperrungen Mountainbike',attribution:'ASTRA / SchweizMobil · geo.admin.ch'}
     };
+    // Warning map is published as WMTS, unlike the CDI and swissEO WMS.
+    const droughtWarning={id:'drought-warning',layer:'ch.bafu.trockenheitswarnkarte',credit:'BAFU · Nationale Trockenheitsplattform · geo.admin.ch'};
     const credits={road:'OSRM / FOSSGIS · © OpenStreetMap contributors · ODbL 1.0',
         traffic:'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA','traffic-counters':'Datenquelle: Verkehrsdaten-Plattform (VDP) ASTRA · Messstellen',aircraft:'adsb.lol community · ODbL 1.0 · incomplete reception',
         avalanche:'<a href="https://www.slf.ch" target="_blank" rel="noopener">WSL-Institut für Schnee- und Lawinenforschung SLF</a> · CC BY 4.0',
@@ -31,9 +36,11 @@
         'osm-poi':'<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL 1.0</a>'};
     const trafficColors={closure:'#e75c54',accident:'#e75c54',congestion:'#ef9847',roadworks:'#d6b74f',weather:'#55a9db',hazard:'#bb82cf',other:'#aab4b7'};
     function validate(command){
-        if(!command||!['road','traffic','traffic-counters','aircraft','avalanche','outdoor-context','meteo-stations','hydro-stations','ground-route','osm-poi','ev-charging','mobile-sites',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
-        if(definitions[command.id]){
+        if(!command||!['road','traffic','traffic-counters','aircraft','avalanche','outdoor-context','meteo-stations','hydro-stations','ground-route','osm-poi','ev-charging','mobile-sites','drought-warning',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
+        if(definitions[command.id]||command.id===droughtWarning.id){
             if(!Number.isFinite(command.opacity)||command.opacity<0||command.opacity>1)throw new Error('Invalid layer opacity');
+            if(command.id==='drought-index'&&command.timeStep!==undefined&&(!Number.isInteger(command.timeStep)||command.timeStep<0||command.timeStep>4))throw new Error('Invalid CDI time step');
+            if(command.id!=='drought-index'&&command.timeStep!==undefined)throw new Error('Unsupported time step');
             return;
         }
         if(!command.visible)return;
@@ -71,7 +78,7 @@
         }
     }
     function create(C,viewer,emit,wmsFactory,{yieldBatch=()=>new Promise(r=>setTimeout(r,0)),now=()=>Date.now(),timers=globalThis}={}){
-        const layers=new Map(),wms=new Map(),generations=new Map(),staged=new Set();let disposed=false;
+        const layers=new Map(),wms=new Map(),wmts=new Map(),wmsTimeSteps=new Map(),generations=new Map(),staged=new Set();let disposed=false;
         const escape=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         function remove(record){if(!record)return;viewer.dataSources.remove(record.source,true);viewer.cesiumWidget?.creditDisplay?.removeStaticCredit(record.credit);}
         function visibility(){
@@ -105,13 +112,73 @@
         async function set(command){
             validate(command);if(disposed)throw new Error('Situational layers disposed');
             if(definitions[command.id]){
+                const d=definitions[command.id];
+                const step=command.id==='drought-index'?(command.timeStep??1):null;
+                if(wms.has(command.id)&&wmsTimeSteps.get(command.id)!==step){
+                    wms.get(command.id).dispose();wms.delete(command.id);
+                }
                 if(!wms.has(command.id)){
-                    const d=definitions[command.id];
+                    wmsTimeSteps.set(command.id,step);
                     wms.set(command.id,wmsFactory(C,viewer,(_,state)=>emit('situational-status',{id:command.id,...state}),{
-                        definition:{url:'https://wms.geo.admin.ch/',layer:d.layer,bounds:d.bounds??[5.8,45.7,10.7,47.9]},
+                        definition:{url:'https://wms.geo.admin.ch/',layer:d.layer,bounds:d.bounds??[5.8,45.7,10.7,47.9],
+                            maximumLevel:d.maximumLevel,parameters:step===null?undefined:{time:String(step)}},
                         label:d.label,attribution:d.attribution,statusEvent:'situational-status'}));
                 }
                 wms.get(command.id).set(command);return {};
+            }
+            if(command.id===droughtWarning.id){
+                let record=wmts.get(command.id);
+                if(!command.visible){
+                    if(record){record.dispose();wmts.delete(command.id);}
+                    emit('situational-status',{id:command.id,state:'off',visible:false});return {};
+                }
+                if(!record){
+                    let imagery=null,unlisten=null,removed=false,recordState='loading';
+                    const report=(state)=>emit('situational-status',{id:command.id,state,visible:true});
+                    try{
+                        const provider=new C.UrlTemplateImageryProvider({
+                            url:`https://wmts.geo.admin.ch/1.0.0/${droughtWarning.layer}/default/current/3857/{z}/{x}/{y}.png`,
+                            tilingScheme:new C.WebMercatorTilingScheme(),
+                            rectangle:C.Rectangle.fromDegrees(5.8,45.7,10.7,47.9),
+                            maximumLevel:11,minimumLevel:0,enablePickFeatures:false,
+                            credit:new C.Credit(droughtWarning.credit,true)
+                        });
+                        unlisten=provider.errorEvent?.addEventListener(()=>{
+                            if(!removed){recordState='failed';report('failed');}
+                        });
+                        if(typeof provider.requestImage==='function'){
+                            const fetchTile=provider.requestImage.bind(provider);
+                            provider.requestImage=(x,y,level,request)=>{
+                                if(removed)return undefined;
+                                let image;
+                                try{image=fetchTile(x,y,level,request);}
+                                catch(error){recordState='failed';report('failed');throw error;}
+                                if(image===undefined)return undefined; // Cesium backpressure
+                                return Promise.resolve(image).then(value=>{
+                                    if(!removed&&recordState==='loading'){
+                                        recordState='ready';report('ready');
+                                    }
+                                    return value;
+                                },error=>{
+                                    if(!removed){recordState='failed';report('failed');}
+                                    throw error;
+                                });
+                            };
+                        }
+                        imagery=new C.ImageryLayer(provider,{alpha:command.opacity});
+                        viewer.imageryLayers.add(imagery);
+                        report('loading');
+                    }catch(error){
+                        unlisten?.();if(imagery)viewer.imageryLayers.remove(imagery,true);
+                        report('failed');throw error;
+                    }
+                    record={imagery,dispose(){removed=true;unlisten?.();viewer.imageryLayers.remove(imagery,true);}};
+                    wmts.set(command.id,record);
+                }else if(command.retry){
+                    record.dispose();wmts.delete(command.id);
+                    return set({...command,retry:false});
+                }else record.imagery.alpha=command.opacity;
+                return {};
             }
             if(!command.visible){clear(command.id);return {};}
             const generation=(generations.get(command.id)||0)+1;generations.set(command.id,generation);
@@ -159,7 +226,7 @@
             return false;
         }
         return {set,pick,dispose(){disposed=true;timers.clearInterval(timer);stopViewport?.();for(const record of layers.values())remove(record);
-            layers.clear();for(const source of staged)viewer.dataSources.remove(source,true);staged.clear();for(const layer of wms.values())layer.dispose();wms.clear();}};
+            layers.clear();for(const source of staged)viewer.dataSources.remove(source,true);staged.clear();for(const layer of wms.values())layer.dispose();wms.clear();for(const layer of wmts.values())layer.dispose();wmts.clear();wmsTimeSteps.clear();}};
     }
-    return {create,validate,definitions};
+    return {create,validate,definitions,droughtWarning};
 });

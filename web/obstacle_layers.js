@@ -71,9 +71,9 @@
             try {
                 const scheme = new C.WebMercatorTilingScheme();
                 const provider = new C.WebMapServiceImageryProvider({url: definition.url, layers: definition.layer,
-                    parameters: {service:'WMS', version:'1.3.0', transparent:true, format:'image/png', styles:'default'},
+                    parameters: {service:'WMS', version:'1.3.0', transparent:true, format:'image/png', styles:'default',...definition.parameters},
                     crs:'EPSG:3857', tilingScheme:scheme, rectangle:C.Rectangle.fromDegrees(...definition.bounds),
-                    enablePickFeatures:false, maximumLevel:19,
+                    enablePickFeatures:false, maximumLevel:definition.maximumLevel??19,
                     credit:new C.Credit(attribution, true)});
                 const requestImage = provider.requestImage.bind(provider);
                 provider.requestImage = (x,y,level,request) => {
