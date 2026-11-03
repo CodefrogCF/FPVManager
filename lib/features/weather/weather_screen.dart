@@ -14,6 +14,7 @@ import 'weather_overlay_service.dart';
 import 'weather_preferences.dart';
 import 'weather_providers.dart';
 import 'spot_terrain_exposure.dart';
+import 'radar/meteo_radar_section.dart';
 import '../observations/observations_screen.dart';
 import '../mobility/road_routing.dart' show MobilityPoint;
 
@@ -416,6 +417,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     const Text(
                       'Weather forecasts are planning aids, not real-time flight safety or legal authorisation.',
                     ),
+                    const SizedBox(height: 18),
+                    MeteoRadarSection(globe: widget.globe),
                     const SizedBox(height: 18),
                     DropdownButtonFormField<WeatherProviderId>(
                       initialValue: _providerId,

@@ -1,4 +1,4 @@
-# Shared Mobility — Issue #88
+# Shared Mobility
 
 ## Source and mode
 

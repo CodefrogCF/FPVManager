@@ -339,6 +339,8 @@ class GlobeController extends ChangeNotifier {
   double _requestedUasOpacity = 0.20;
 
   final Map<String, Map<String, dynamic>> _weatherOverlayCommands = {};
+  Map<String, dynamic>? _radarCommand;
+  int _radarRevision = 0;
   Map<String, dynamic>? _roadNavigationCommand;
   bool? get roadNavigationFollowing =>
       _roadNavigationCommand?['follow'] as bool?;
@@ -614,6 +616,32 @@ class GlobeController extends ChangeNotifier {
       _weatherOverlayCommands.remove(kind);
     }
     if (_ready) await _send({'type': 'clear-weather-overlay', 'kind': ?kind});
+    if (!_disposed) notifyListeners();
+  }
+
+  /// MeteoSwiss observations are independent of weather-forecast sample times.
+  Future<void> showMeteoSwissRadar(Map<String, dynamic> command) async {
+    if (command['type'] != 'set-meteoswiss-radar' ||
+        !{'RZC', 'CPC'}.contains(command['product'])) {
+      throw ArgumentError('Invalid MeteoSwiss radar frame');
+    }
+    if (!_ready || _disposed) throw StateError('Globe is not ready');
+    final revision = ++_radarRevision;
+    final result = await _bridge.send(
+      command,
+      timeout: _bridge.options.datasetTimeout,
+    );
+    if (revision != _radarRevision || result['superseded'] == true) return;
+    _radarCommand = Map<String, dynamic>.unmodifiable(command);
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> clearMeteoSwissRadar() async {
+    _radarRevision++;
+    _radarCommand = null;
+    if (_ready && !_disposed) {
+      await _send({'type': 'clear-meteoswiss-radar'});
+    }
     if (!_disposed) notifyListeners();
   }
 
@@ -2239,6 +2267,17 @@ class GlobeController extends ChangeNotifier {
         });
       }
       if (!current()) return;
+      final radarCommand = _radarCommand;
+      if (radarCommand != null && current()) {
+        try {
+          await _bridge.send(
+            radarCommand,
+            timeout: _bridge.options.datasetTimeout,
+          );
+        } catch (_) {
+          // Radar is optional and must never prevent a renderer recovery.
+        }
+      }
       for (final command in _weatherOverlayCommands.values.toList()) {
         if (!current()) return;
         await _send(command);

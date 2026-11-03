@@ -169,6 +169,7 @@ flutter:
     - web/map_labels.js
     - web/uas_zone_styles.js
     - web/weather_overlay.js
+    - web/meteo_radar_overlay.js
     - assets/geo/chgeo2004_ln02.bin
     - assets/geo/chgeo2004_ln02.NOTICE.txt
 

@@ -171,8 +171,16 @@ void main() {
     (tester) async {
       await show(tester);
       expect(open.refreshes, [false]);
-      await tester.ensureVisible(find.text('Refresh forecast'));
-      await tester.tap(find.text('Refresh forecast'));
+      final refresh = find.text('Refresh forecast');
+      // The independent radar section may put this button outside the
+      // ListView's initially built children. Scroll before interacting.
+      await tester.scrollUntilVisible(
+        refresh,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(refresh);
       await tester.pumpAndSettle();
       expect(open.refreshes, [false, true]);
       await chooseProvider(tester, 'Swiss fixture');

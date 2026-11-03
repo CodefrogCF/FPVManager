@@ -67,7 +67,8 @@
         border: 1px solid var(--map-outline); border-radius: 12px;
         font-size: 12px; line-height: 1.45; pointer-events: none;
     }
-    #weather-legend[hidden] { display: none; }
+    #weather-legend[hidden], #radar-legend[hidden] { display: none; }
+    #radar-legend { position:absolute;bottom:120px;right:12px;z-index:18;max-width:350px;padding:7px 10px;border:1px solid var(--map-outline);border-radius:12px;background:var(--map-surface);color:var(--map-text);font-size:12px;pointer-events:none; }
     #map-compass { position:absolute;top:12px;right:12px;z-index:22;width:44px;height:44px;
         border:1px solid var(--map-outline);border-radius:50%;background:var(--map-surface);
         color:var(--map-text);box-shadow:0 2px 6px #0004;cursor:pointer;touch-action:manipulation; }
@@ -138,6 +139,7 @@
         </g></svg>
     </button>
     <div id="weather-legend" hidden role="status" aria-live="polite"></div>
+    <div id="radar-legend" hidden role="status" aria-live="polite"></div>
     <div id="wind-legend" hidden role="status" aria-live="polite"></div>
     <div id="info">FPVManager – Loading 3D terrain...</div>
     <div id="ground-controls" hidden aria-label="Movement controls">
@@ -235,6 +237,7 @@
     <script src="map_compass.js"></script>
     <script src="uas_zone_styles.js"></script>
     <script src="weather_overlay.js"></script>
+    <script src="meteo_radar_overlay.js"></script>
     <script src="offline_map_client.js"></script>
     <script src="globe.js"></script>
 </body>
