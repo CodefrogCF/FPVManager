@@ -340,6 +340,14 @@ class GlobeController extends ChangeNotifier {
 
   final Map<String, Map<String, dynamic>> _weatherOverlayCommands = {};
   Map<String, dynamic>? _radarCommand;
+  Map<String, dynamic>? _datedImageryCommand;
+  String _datedImageryStatus = 'off';
+  String? _datedImageryError;
+  int _datedImageryRevision = 0;
+  String get datedImageryStatus => _datedImageryStatus;
+  String? get datedImageryError => _datedImageryError;
+  bool get datedImageryVisible => _datedImageryCommand != null;
+  String? get datedImageryItemId => _datedImageryCommand?['id'] as String?;
   int _radarRevision = 0;
   Map<String, dynamic>? _roadNavigationCommand;
   bool? get roadNavigationFollowing =>
@@ -622,6 +630,61 @@ class GlobeController extends ChangeNotifier {
       _weatherOverlayCommands.remove(kind);
     }
     if (_ready) await _send({'type': 'clear-weather-overlay', 'kind': ?kind});
+    if (!_disposed) notifyListeners();
+  }
+
+  /// A dated image overlays but never replaces the user's chosen base map.
+  /// Only a STAC-verified item and a supported rendering mode are permitted.
+  Future<void> showDatedImagery(Map<String, dynamic> command) async {
+    if (command['type'] != 'set-dated-imagery' ||
+        command['visible'] != true ||
+        !{
+          'ch.swisstopo.swisseo_s2-sr_v200',
+          'ch.swisstopo.spezialbefliegungen',
+        }.contains(command['product']) ||
+        command['id'] is! String ||
+        (command['id'] as String).length > 160 ||
+        command['bbox'] is! List ||
+        (command['bbox'] as List).length != 4 ||
+        command['opacity'] is! num ||
+        (command['opacity'] as num) < 0 ||
+        (command['opacity'] as num) > 1) {
+      throw ArgumentError('Invalid dated imagery command');
+    }
+    if (!_ready || _disposed) throw StateError('Globe is not ready');
+    final revision = ++_datedImageryRevision;
+    _datedImageryCommand = null;
+    _datedImageryStatus = 'loading';
+    _datedImageryError = null;
+    notifyListeners();
+    try {
+      final result = await _bridge.send(
+        command,
+        timeout: const Duration(seconds: 45),
+      );
+      if (revision != _datedImageryRevision || result['superseded'] == true) {
+        return;
+      }
+      _datedImageryCommand = Map<String, dynamic>.unmodifiable(command);
+      _datedImageryStatus = 'ready';
+    } catch (_) {
+      if (revision == _datedImageryRevision) {
+        _datedImageryStatus = 'failed';
+      }
+      rethrow;
+    } finally {
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> clearDatedImagery() async {
+    ++_datedImageryRevision;
+    _datedImageryCommand = null;
+    _datedImageryStatus = 'off';
+    _datedImageryError = null;
+    if (_ready && !_disposed) {
+      await _send({'type': 'clear-dated-imagery'});
+    }
     if (!_disposed) notifyListeners();
   }
 
@@ -1310,6 +1373,8 @@ class GlobeController extends ChangeNotifier {
     _labelsState = labelsVisible ? 'loading' : 'off';
     obstacles.rendererLost();
     _situationalSelection = null;
+    _datedImageryStatus = _datedImageryCommand == null ? 'off' : 'loading';
+    _datedImageryError = null;
     _situationalStatus.clear();
     for (final id in [
       'heliports',
@@ -1800,6 +1865,17 @@ class GlobeController extends ChangeNotifier {
           };
           notifyListeners();
         }
+      case 'dated-imagery-status':
+        final status = data['state'];
+        if (status is String &&
+            {'off', 'loading', 'ready', 'failed'}.contains(status)) {
+          _datedImageryStatus = status;
+          final reason = data['reason'];
+          _datedImageryError = reason is String
+              ? (reason.length > 160 ? reason.substring(0, 160) : reason)
+              : null;
+          notifyListeners();
+        }
       case 'situational-status':
         final id = data['id'], state = data['state'];
         if (id is String &&
@@ -2284,6 +2360,18 @@ class GlobeController extends ChangeNotifier {
           'type': 'set-overlay-order',
           'order': _overlayOrder.map((item) => item.name).toList(),
         });
+      }
+      if (!current()) return;
+      final datedCommand = _datedImageryCommand;
+      if (datedCommand != null && current()) {
+        try {
+          await _bridge.send(
+            datedCommand,
+            timeout: const Duration(seconds: 45),
+          );
+        } catch (_) {
+          _datedImageryStatus = 'failed';
+        }
       }
       if (!current()) return;
       final radarCommand = _radarCommand;

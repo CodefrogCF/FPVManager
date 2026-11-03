@@ -9,6 +9,7 @@ import 'road_routing.dart';
 import 'wildfire_prevention/prevention_section.dart';
 import 'mobile_sites/mobile_sites_section.dart';
 import 'drought/drought_condition_section.dart';
+import 'dated_imagery/dated_imagery_section.dart';
 
 class SituationalLayersSection extends StatelessWidget {
   const SituationalLayersSection({
@@ -110,6 +111,7 @@ class SituationalLayersSection extends StatelessWidget {
         WildfirePreventionSection(globe: globe, initialCenter: initialCenter),
         MobileSitesSection(globe: globe, initialCenter: initialCenter),
         DroughtConditionSection(globe: globe),
+        DatedImagerySection(globe: globe, initialCenter: initialCenter),
         const Text(
           'Aerodrome data is a planning reference, not the operational AIP or a list of public access rights. Wildfire data does not replace local orders. No confidential emergency data or live responder layer is used.',
         ),

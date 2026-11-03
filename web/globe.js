@@ -40,6 +40,11 @@ function postToFlutter(message) {
     const meteoswissRadar = typeof FPVMeteoRadar !== "undefined"
         ? FPVMeteoRadar.create(Cesium, () => activeViewer)
         : { replace: async () => { throw Error("MeteoSwiss radar decoder unavailable"); }, clear: () => ({}), dispose() {} };
+    const datedImagery = typeof FPVDatedImagery !== "undefined"
+        ? FPVDatedImagery.create(Cesium, () => activeViewer,
+            (type,payload) => sendToFlutter(type,payload))
+        : { replace: async () => { throw Error("Dated imagery renderer unavailable"); },
+            clear: () => ({}), dispose() {} };
     const bridge = FPVGlobeBridge.createBridge({ send: postToFlutter, execute: executeCommand });
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
@@ -47,7 +52,7 @@ function postToFlutter(message) {
         if (!event.persisted) { mapCompass?.dispose(); roadNavigation?.dispose(); }
         stopNavigation();
         if (!event.persisted) liveRadio?.dispose();
-        if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); meteoswissRadar.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); meteoswissRadar.dispose(); datedImagery.dispose(); terrainManager?.dispose(); bridge.dispose(); }
         if (!event.persisted) sceneEnvironment?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
@@ -610,6 +615,8 @@ function postToFlutter(message) {
             case "set-weather-overlay": return weatherOverlay.replace(command);
             case "set-meteoswiss-radar": return meteoswissRadar.replace(command, signal);
             case "clear-meteoswiss-radar": return meteoswissRadar.clear();
+            case "set-dated-imagery": return datedImagery.replace(command, signal);
+            case "clear-dated-imagery": return datedImagery.clear();
             case 'set-touch-controls': setTouchControls(command.visible); return {};
             case 'set-device-location': return globePositions.location(command);
             case 'set-map-labels': return mapLabels.set(command);
