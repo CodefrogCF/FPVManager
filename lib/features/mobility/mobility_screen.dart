@@ -16,6 +16,8 @@ import '../spots/data/spot_location_service.dart';
 import 'mobility_preferences.dart';
 import 'ojp/public_transport_section.dart';
 import 'osm_poi/osm_poi_section.dart';
+import 'ev_charging/ev_charging_models.dart';
+import 'ev_charging/ev_charging_section.dart';
 import 'road_routing.dart';
 import 'destination_search.dart';
 import 'situational_layers_section.dart';
@@ -895,7 +897,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
   );
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 6,
+    length: 7,
     initialIndex: widget.initialTab,
     child: Scaffold(
       appBar: AppBar(
@@ -909,6 +911,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
             Tab(text: 'Aircraft'),
             Tab(text: 'Environment'),
             Tab(text: 'Nearby POIs'),
+            Tab(text: 'EV Charging'),
           ],
         ),
       ),
@@ -940,6 +943,30 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     globe: widget.globe,
                     initialSpotId: widget.initialSpotId,
                     initialMapPoint: widget.initialCenter,
+                  ),
+                ),
+                _page(
+                  Builder(
+                    builder: (tabContext) => EvChargingSection(
+                      spots: widget.spots,
+                      globe: widget.globe,
+                      route: _route,
+                      initialSpotId: widget.initialSpotId,
+                      initialMapPoint: widget.initialCenter,
+                      onDriveTo: (EvChargingStation station) {
+                        setState(() {
+                          _freeDestination = true;
+                          _destinationName = station.name;
+                          _fields['destinationLat']!.text =
+                              '${station.latitude}';
+                          _fields['destinationLon']!.text =
+                              '${station.longitude}';
+                          _route = null;
+                          _routeBundle = null;
+                        });
+                        DefaultTabController.of(tabContext).animateTo(0);
+                      },
+                    ),
                   ),
                 ),
               ],

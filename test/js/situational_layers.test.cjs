@@ -118,3 +118,20 @@ test('OSM POI rendering uses bounded markers, retains ODbL credit and escapes na
   assert.throws(()=>validate({id:'osm-poi',visible:true,features:[{...item,geometry:{type:'LineString',coordinates:[[8,47],[8.1,47.1]]}}]}));
   p.manager.dispose();assert.equal(p.credits.size,0);
 });
+
+test('BFE charging markers are bounded, attributed, and never interpreted as guaranteed availability',async()=>{
+  const p=fixture();
+  const charging={...feature('bfe:CH:ABC:123'),name:'Station <b>unsafe</b>',detail:'Unbekannt / veraltet\nBFE <script>unsafe</script>'};
+  await p.manager.set({id:'ev-charging',visible:true,features:[charging]});
+  assert.equal(p.sources.length,1);
+  const entity=p.sources[0].entities.values[0];
+  assert.equal(entity.point.color,'#85cfaa');
+  assert.ok(entity.description.includes('&lt;script&gt;'));
+  assert.ok([...p.credits][0].html.includes('Bundesamt für Energie'));
+  assert.ok([...p.credits][0].html.includes('O-By-Ask'));
+  assert.throws(()=>validate({id:'ev-charging',visible:true,features:Array.from({length:151},(_,i)=>feature(String(i)))}));
+  assert.throws(()=>validate({id:'ev-charging',visible:true,features:[{...charging,geometry:{type:'LineString',coordinates:[[8,47],[8.1,47.1]]}}]}));
+  await p.manager.set({id:'ev-charging',visible:false});
+  assert.equal(p.credits.size,0);
+  p.manager.dispose();
+});
