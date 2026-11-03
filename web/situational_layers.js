@@ -7,6 +7,7 @@
         roads:{layer:'ch.swisstopo.swisstlm3d-strassen',label:'Roads and paths',attribution:'© swisstopo · geo.admin.ch',bounds:[3.329595,44.074747,14.278255,49.200438]},
         heliports:{layer:'ch.bazl.flugplaetze-heliports',label:'Aerodrome / heliport',attribution:'BAZL / FOCA · geo.admin.ch'},
         wildfire:{layer:'ch.bafu.gefahren-waldbrand_warnung',label:'Wildfire warning',attribution:'BAFU / FOEN · geo.admin.ch'},
+        'wildfire-prevention':{layer:'ch.bafu.gefahren-waldbrand_praeventionsmassnahmen_kantone',label:'Cantonal forest-fire prevention measures',attribution:'BAFU / Kantone · geo.admin.ch · kantonale Vorschriften massgebend'},
         'outdoor-wildlife':{layer:'ch.bafu.wrz-wildruhezonen_portal',label:'Wildruhezonen',attribution:'BAFU / Kantone · geo.admin.ch'},
         'outdoor-hiking':{layer:'ch.swisstopo.swisstlm3d-wanderwege',label:'Wanderwege',attribution:'swisstopo / Kantone · geo.admin.ch'},
         'outdoor-cycling':{layer:'ch.astra.veloland',label:'Velorouten',attribution:'ASTRA / SchweizMobil · geo.admin.ch'},

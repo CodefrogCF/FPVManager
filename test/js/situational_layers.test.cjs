@@ -135,3 +135,24 @@ test('BFE charging markers are bounded, attributed, and never interpreted as gua
   assert.equal(p.credits.size,0);
   p.manager.dispose();
 });
+
+test('cantonal prevention WMS is independent of fire danger and cleans up on dispose',async()=>{
+  const p=fixture();
+  await p.manager.set({id:'wildfire-prevention',visible:true,opacity:.55});
+  assert.equal(p.wms.length,1);
+  assert.equal(p.wms[0].config.definition.layer,
+    'ch.bafu.gefahren-waldbrand_praeventionsmassnahmen_kantone');
+  assert.match(p.wms[0].config.attribution,/BAFU \/ Kantone/);
+  await p.manager.set({id:'wildfire',visible:true,opacity:.4});
+  assert.equal(p.wms.length,2);
+  assert.notEqual(p.wms[0].config.definition.layer,p.wms[1].config.definition.layer);
+  await p.manager.set({id:'wildfire',visible:false,opacity:.4});
+  assert.equal(p.wms.at(-1).command.id,'wildfire');
+  assert.equal(p.wms.at(-1).command.visible,false);
+  await p.manager.set({id:'wildfire-prevention',visible:true,opacity:.3});
+  assert.equal(p.wms.at(-1).command.opacity,.3);
+  p.manager.dispose();
+  assert.equal(p.disposed.length,2);
+  assert.equal(p.intervals.size,0);
+  assert.throws(()=>validate({id:'wildfire-prevention',visible:true,opacity:5}));
+});

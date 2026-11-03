@@ -214,3 +214,13 @@ environment. Reference Android and hardware-accelerated Web measurements remain 
 record device, viewport/resolution, layers, cold/warm loading, median/p95 frame time
 and stalls while following, panning, turning, backgrounding and resuming. No physical
 Android navigation or app build was performed here.
+
+## Official cantonal forest-fire prevention measures (Issue #91)
+
+The Environment tab has a separately toggleable **Cantonal forest-fire
+prevention measures** WMS overlay and a manually invoked point Identify lookup.
+Official category names/descriptions, canton, validity and dataset publication
+status remain distinct from the existing wildfire danger layer. Cached data,
+unknown publication dates and failed updates are explicitly not an all-clear.
+See [WILDFIRE_PREVENTION.md](WILDFIRE_PREVENTION.md) for API, limits,
+source attribution and manual validation steps.

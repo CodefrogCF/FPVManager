@@ -5,11 +5,19 @@ import '../globe/globe_controller.dart';
 import '../avalanche/avalanche_layers_section.dart';
 import '../outdoor/outdoor_layers_section.dart';
 import '../observations/observation_controller.dart';
+import 'road_routing.dart';
+import 'wildfire_prevention/prevention_section.dart';
 
 class SituationalLayersSection extends StatelessWidget {
-  const SituationalLayersSection({super.key, required this.globe, this.onOpen});
+  const SituationalLayersSection({
+    super.key,
+    required this.globe,
+    this.onOpen,
+    this.initialCenter,
+  });
   final GlobeController globe;
   final VoidCallback? onOpen;
+  final MobilityPoint? initialCenter;
   Future<void> _set(BuildContext context, Map<String, dynamic> value) async {
     try {
       await globe.showSituationalOverlay(value);
@@ -44,6 +52,12 @@ class SituationalLayersSection extends StatelessWidget {
             name: 'Wildfire danger',
             source: 'BAFU / FOEN',
             code: 'ch.bafu.gefahren-waldbrand_warnung',
+          ),
+          (
+            id: 'wildfire-prevention',
+            name: 'Cantonal forest-fire prevention measures',
+            source: 'BAFU / Cantons',
+            code: 'ch.bafu.gefahren-waldbrand_praeventionsmassnahmen_kantone',
           ),
         ]) ...[
           SwitchListTile(
@@ -91,6 +105,7 @@ class SituationalLayersSection extends StatelessWidget {
             label: const Text('Official legend & source'),
           ),
         ],
+        WildfirePreventionSection(globe: globe, initialCenter: initialCenter),
         const Text(
           'Aerodrome data is a planning reference, not the operational AIP or a list of public access rights. Wildfire data does not replace local orders. No confidential emergency data or live responder layer is used.',
         ),

@@ -558,6 +558,7 @@ class GlobeController extends ChangeNotifier {
           'aircraft',
           'heliports',
           'wildfire',
+          'wildfire-prevention',
           'avalanche',
           'outdoor-context',
           'meteo-stations',
@@ -1305,7 +1306,7 @@ class GlobeController extends ChangeNotifier {
     obstacles.rendererLost();
     _situationalSelection = null;
     _situationalStatus.clear();
-    for (final id in ['heliports', 'wildfire']) {
+    for (final id in ['heliports', 'wildfire', 'wildfire-prevention']) {
       if (_situationalCommands.containsKey(id)) {
         _situationalStatus[id] = 'loading';
       }
@@ -1792,6 +1793,7 @@ class GlobeController extends ChangeNotifier {
             {
               'heliports',
               'wildfire',
+              'wildfire-prevention',
               ...OutdoorLayer.values.map((l) => l.rendererId),
             }.contains(id) &&
             state is String &&

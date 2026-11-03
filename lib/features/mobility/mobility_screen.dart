@@ -944,7 +944,16 @@ class _MobilityScreenState extends State<MobilityScreen> {
                 ),
                 _page(_trafficPage()),
                 _page(_aircraftPage()),
-                _page(SituationalLayersSection(globe: widget.globe)),
+                _page(
+                  SituationalLayersSection(
+                    globe: widget.globe,
+                    initialCenter:
+                        widget.initialCenter ??
+                        (_spot == null
+                            ? null
+                            : MobilityPoint(_spot!.latitude, _spot!.longitude)),
+                  ),
+                ),
                 _page(
                   OsmPoiSection(
                     spots: widget.spots,
