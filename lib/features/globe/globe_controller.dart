@@ -555,6 +555,7 @@ class GlobeController extends ChangeNotifier {
           'traffic-counters',
           'osm-poi',
           'ev-charging',
+          'mobile-sites',
           'aircraft',
           'heliports',
           'wildfire',

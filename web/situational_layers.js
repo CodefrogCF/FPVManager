@@ -27,17 +27,18 @@
         'hydro-stations':'BAFU · Hydrologische Messstationen · OGD',
         'ev-charging':'Bundesamt für Energie (BFE) · geo.admin.ch · O-By-Ask · Verfügbarkeit nicht garantiert',
         'ground-route':'OSRM / FOSSGIS · © OpenStreetMap contributors · ODbL 1.0 · geplante Bodenroute',
+        'mobile-sites':'Bundesamt für Kommunikation (BAKOM) · geo.admin.ch · Standorte, keine Masthöhen / keine Funkabdeckung',
         'osm-poi':'<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL 1.0</a>'};
     const trafficColors={closure:'#e75c54',accident:'#e75c54',congestion:'#ef9847',roadworks:'#d6b74f',weather:'#55a9db',hazard:'#bb82cf',other:'#aab4b7'};
     function validate(command){
-        if(!command||!['road','traffic','traffic-counters','aircraft','avalanche','outdoor-context','meteo-stations','hydro-stations','ground-route','osm-poi','ev-charging',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
+        if(!command||!['road','traffic','traffic-counters','aircraft','avalanche','outdoor-context','meteo-stations','hydro-stations','ground-route','osm-poi','ev-charging','mobile-sites',...Object.keys(definitions)].includes(command.id)||typeof command.visible!=='boolean')throw new Error('Invalid situational layer');
         if(definitions[command.id]){
             if(!Number.isFinite(command.opacity)||command.opacity<0||command.opacity>1)throw new Error('Invalid layer opacity');
             return;
         }
         if(!command.visible)return;
         if(command.id==='avalanche'&&(!Number.isFinite(command.opacity)||command.opacity<0||command.opacity>1))throw new Error('Invalid avalanche opacity');
-        if(!Array.isArray(command.features)||command.features.length>(command.id==='osm-poi'?300:command.id==='ev-charging'?150:1000))throw new Error('Invalid awareness feature count');
+        if(!Array.isArray(command.features)||command.features.length>(command.id==='osm-poi'?300:command.id==='ev-charging'?150:command.id==='mobile-sites'?180:1000))throw new Error('Invalid awareness feature count');
         let vertices=0;const ids=new Set();
         for(const feature of command.features){
             if(typeof feature.id!=='string'||feature.id.length>160||ids.has(feature.id)||typeof feature.name!=='string'||feature.name.length>200||
@@ -60,7 +61,7 @@
                 continue;
             }
             if(!geometry||!['Point','LineString'].includes(geometry.type))throw new Error('Unsupported awareness geometry');
-            if((['aircraft','traffic-counters','meteo-stations','hydro-stations','osm-poi','ev-charging'].includes(command.id)&&geometry.type!=='Point')||(['road','ground-route'].includes(command.id)&&geometry.type!=='LineString'))throw new Error('Unsupported layer geometry');
+            if((['aircraft','traffic-counters','meteo-stations','hydro-stations','osm-poi','ev-charging','mobile-sites'].includes(command.id)&&geometry.type!=='Point')||(['road','ground-route'].includes(command.id)&&geometry.type!=='LineString'))throw new Error('Unsupported layer geometry');
             const positions=geometry.type==='Point'?[geometry.coordinates]:geometry.coordinates;
             if(!Array.isArray(positions)||positions.length<(geometry.type==='Point'?1:2))throw new Error('Invalid awareness coordinates');
             vertices+=positions.length;if(vertices>20000)throw new Error('Awareness geometry limit exceeded');
@@ -120,8 +121,8 @@
             try{
                 for(let i=0;i<command.features.length;i++){
                     if(!current())return {superseded:true};
-                    const feature=command.features[i],g=feature.geometry,color=C.Color.fromCssColorString(command.id==='road'?'#96cc76':command.id==='osm-poi'?'#86ca70':command.id==='ev-charging'?'#85cfaa':command.id==='traffic'?(trafficColors[feature.category]??trafficColors.other):'#55c6e8');
-                    const entity={id:`situational-${command.id}-${feature.id}`,name:feature.name,
+                    const feature=command.features[i],g=feature.geometry,color=C.Color.fromCssColorString(command.id==='road'?'#96cc76':command.id==='osm-poi'?'#86ca70':command.id==='ev-charging'?'#85cfaa':command.id==='mobile-sites'?'#b0a5ea':command.id==='traffic'?(trafficColors[feature.category]??trafficColors.other):'#55c6e8');
+                    const entity={id:`situational-${command.id}-${feature.id}`,name:command.id==='mobile-sites'?feature.name.replace(/[<>]/g,''):feature.name,
                         description:`<p>${escape(feature.detail).replace(/\n/g,'<br>')}</p><p>${credits[command.id]}</p>`,properties:{situationalLayer:command.id,situationalFeature:feature.id}};
                     if(command.id==='avalanche'||(command.id==='outdoor-context'&&['Polygon','MultiPolygon'].includes(g.type))){
                         const palette=['#89949e','#ccff66','#ffff00','#ff9900','#ff0000','#660000'];

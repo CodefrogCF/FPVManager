@@ -19,7 +19,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
     ),
   );
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -40,12 +40,37 @@ class OsintCacheDatabase extends GeneratedDatabase {
       );
       await _createSnapshots();
       await _createOfflineMaps();
+      await _createMobileSites();
     },
     onUpgrade: (_, from, to) async {
       if (from < 2) await _createSnapshots();
       if (from < 3) await _createOfflineMaps();
+      if (from < 4) await _createMobileSites();
     },
   );
+
+  /// Independent public BAKOM snapshots; never part of user backup/profile data.
+  /// Numeric range indexes serve viewport bounding-box queries on Android/Web.
+  Future<void> _createMobileSites() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS mobile_site_regions('
+      'area_key TEXT PRIMARY KEY, metadata TEXT NOT NULL, fetched_at INTEGER NOT NULL)',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS mobile_site_points('
+      'area_key TEXT NOT NULL, site_id TEXT NOT NULL, '
+      'lat REAL NOT NULL, lon REAL NOT NULL, payload TEXT NOT NULL, '
+      'PRIMARY KEY(area_key,site_id))',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS mobile_site_view '
+      'ON mobile_site_points(area_key,lat,lon)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS mobile_site_view_lon '
+      'ON mobile_site_points(area_key,lon,lat)',
+    );
+  }
 
   Future<void> _createOfflineMaps() async {
     await customStatement(
