@@ -15,6 +15,7 @@ import 'weather_preferences.dart';
 import 'weather_providers.dart';
 import 'spot_terrain_exposure.dart';
 import 'radar/meteo_radar_section.dart';
+import 'pollen/pollen_section.dart';
 import '../observations/observations_screen.dart';
 import '../mobility/road_routing.dart' show MobilityPoint;
 
@@ -966,6 +967,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         ),
                         isThreeLine: true,
                       ),
+                    const Divider(height: 30),
+                    PollenSection(latitude: _latitude, longitude: _longitude),
                   ],
                 ),
               ),
