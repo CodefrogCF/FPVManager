@@ -18,6 +18,7 @@ import 'ojp/public_transport_section.dart';
 import 'osm_poi/osm_poi_section.dart';
 import 'ev_charging/ev_charging_models.dart';
 import 'ev_charging/ev_charging_section.dart';
+import 'shared_mobility/shared_mobility_section.dart';
 import 'road_routing.dart';
 import 'destination_search.dart';
 import 'situational_layers_section.dart';
@@ -84,6 +85,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
   bool _freeDestination = false;
   String? _destinationName;
   int _selection = 0;
+  MobilityPoint? _sharedMobilityCenter;
   RoadRoute? _route;
   RoadRoute? _routeBundle;
   bool _trafficRouting = false;
@@ -897,7 +899,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
   );
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 7,
+    length: 8,
     initialIndex: widget.initialTab,
     child: Scaffold(
       appBar: AppBar(
@@ -912,6 +914,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
             Tab(text: 'Environment'),
             Tab(text: 'Nearby POIs'),
             Tab(text: 'EV Charging'),
+            Tab(text: 'Shared Mobility'),
           ],
         ),
       ),
@@ -925,12 +928,18 @@ class _MobilityScreenState extends State<MobilityScreen> {
               children: [
                 _page(_road()),
                 _page(
-                  PublicTransportSection(
-                    spots: widget.spots,
-                    preferences: widget.preferences,
-                    globe: widget.globe,
-                    initialSpotId: widget.initialSpotId,
-                    initialMapPoint: widget.initialCenter,
+                  Builder(
+                    builder: (transportContext) => PublicTransportSection(
+                      onShowNearbyMobility: (center) {
+                        setState(() => _sharedMobilityCenter = center);
+                        DefaultTabController.of(transportContext).animateTo(7);
+                      },
+                      spots: widget.spots,
+                      preferences: widget.preferences,
+                      globe: widget.globe,
+                      initialSpotId: widget.initialSpotId,
+                      initialMapPoint: widget.initialCenter,
+                    ),
                   ),
                 ),
                 _page(_trafficPage()),
@@ -967,6 +976,15 @@ class _MobilityScreenState extends State<MobilityScreen> {
                         DefaultTabController.of(tabContext).animateTo(0);
                       },
                     ),
+                  ),
+                ),
+                _page(
+                  SharedMobilitySection(
+                    spots: widget.spots,
+                    globe: widget.globe,
+                    initialSpotId: widget.initialSpotId,
+                    initialMapPoint:
+                        _sharedMobilityCenter ?? widget.initialCenter,
                   ),
                 ),
               ],

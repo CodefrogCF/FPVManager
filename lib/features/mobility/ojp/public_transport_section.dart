@@ -30,6 +30,7 @@ class PublicTransportSection extends StatefulWidget {
     this.initialOriginName,
     this.initialDestinationName,
     this.client,
+    this.onShowNearbyMobility,
   });
   final SpotRepository spots;
   final MobilityPreferences preferences;
@@ -38,6 +39,7 @@ class PublicTransportSection extends StatefulWidget {
   final MobilityPoint? initialMapPoint, initialOrigin, initialDestination;
   final String? initialOriginName, initialDestinationName;
   final OjpTripClient? client;
+  final void Function(MobilityPoint destination)? onShowNearbyMobility;
 
   @override
   State<PublicTransportSection> createState() => _PublicTransportSectionState();
@@ -626,6 +628,20 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
           ],
         ),
       _results(),
+      if (widget.onShowNearbyMobility != null &&
+          _result != null &&
+          _result!.journeys.isNotEmpty)
+        OutlinedButton.icon(
+          onPressed: () {
+            try {
+              widget.onShowNearbyMobility!(_result!.query.destination);
+            } on FormatException catch (error) {
+              setState(() => _message = error.message);
+            }
+          },
+          icon: const Icon(Icons.pedal_bike),
+          label: const Text('Sharing-Angebote am ÖV-Ziel suchen'),
+        ),
       TextButton.icon(
         onPressed: () => launchUrl(
           Uri.parse(
