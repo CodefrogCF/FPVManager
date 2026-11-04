@@ -543,6 +543,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       initial: _simulationSettings.withCameraTilt(
         _globeController.simulationCameraTiltDegrees ??
             _simulationSettings.cameraTiltDegrees,
+        cameraFovDegrees:
+            _globeController.simulationCameraFovDegrees ??
+            _simulationSettings.cameraFovDegrees,
         sceneTime:
             _globeController.simulationSceneTime ??
             _simulationSettings.sceneTime,

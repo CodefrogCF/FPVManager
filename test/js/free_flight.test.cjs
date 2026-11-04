@@ -74,6 +74,21 @@ test('coordinate visibility never changes the flight pose and survives HUD chang
     assert.throws(()=>p.model.showCoordinates('true'));assert.throws(()=>parameters({showCoordinates:1}));
 });
 
+test('horizontal camera FOV changes perspective only and persists through reset',async()=>{
+    const p=setup(),reference=setup();
+    await start(p,{flightMode:'acro',cameraFovDegrees:110,agl:500});
+    await start(reference,{flightMode:'acro',agl:500});
+    assert.equal(p.model.status().cameraFovDegrees,110);
+    assert.equal(p.poses.at(-1).cameraFovDegrees,110);
+    for(const page of [p,reference]){input(page.model,{throttle:.6,pitch:.2});advance(page.model,.5);}
+    const before=p.model.status();p.model.cameraFov(125);const after=p.model.status();
+    for(const key of ['position','height','speed','attitude'])assert.deepEqual(after[key],before[key]);
+    assert.equal(p.poses.at(-1).cameraFovDegrees,125);
+    assert.deepEqual(after.position,reference.model.status().position);
+    await p.model.reset();assert.equal(p.model.status().cameraFovDegrees,125);
+    for(const value of [49,141,NaN,Infinity,'80'])assert.throws(()=>p.model.cameraFov(value));
+    for(const value of [49,141,NaN])assert.throws(()=>parameters({cameraFovDegrees:value}));
+});
 test('graphics changes do not affect flight state and survive reset; invalid profiles are rejected',async()=>{
     const profiles=[],p=setup({applyGraphics:value=>profiles.push(value)}),reference=setup();
     await start(p,{flightMode:'acro',agl:500});await start(reference,{flightMode:'acro',agl:500});

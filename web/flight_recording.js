@@ -11,16 +11,25 @@
         function valid(s){return s?.active&&s.position&&Number.isFinite(s.position.latitude)&&Math.abs(s.position.latitude)<89.9&&
             Number.isFinite(s.position.longitude)&&Math.abs(s.position.longitude)<=180&&Number.isFinite(s.height)&&Math.abs(s.height)<=100000;}
         function point(s){const p=latest??{};p.latitude=s.position.latitude;p.longitude=s.position.longitude;p.height=s.height;
-            p.ground=Number.isFinite(s.agl)?s.height-s.agl:null;p.time=Math.max(0,(clock()-started)/1000);return p;}
+            p.ground=Number.isFinite(s.agl)&&s.agl>=0&&s.agl<=100000?s.height-s.agl:null;
+            p.speed=Number.isFinite(s.speed)&&s.speed>=0&&s.speed<=200?s.speed:null;
+            p.time=Math.max(0,(clock()-started)/1000);return p;}
         function distance(a,b){const r=Math.PI/180,n=(a.latitude-b.latitude)*r*6371000,
             e=(a.longitude-b.longitude)*r*6371000*Math.cos((a.latitude+b.latitude)*r/2);return Math.hypot(n,e,a.height-b.height);}
         function append(p,force=false){
             if(p.time>maxSeconds){stop('30-minute recording limit reached');return;}
             const dt=last?p.time-last.time:Infinity;
-            if(last&&(!force&&(dt<.5||distance(p,last)<1&&dt<2)||dt<=0))return;
+            const dynamicChange=last&&(
+                (p.speed===null)!==(last.speed===null)||
+                (Number.isFinite(p.speed)&&Number.isFinite(last.speed)&&Math.abs(p.speed-last.speed)>.75)||
+                (p.ground===null)!==(last.ground===null)||
+                (Number.isFinite(p.ground)&&Number.isFinite(last.ground)&&
+                    Math.abs((p.height-p.ground)-(last.height-last.ground))>1)
+            );
+            if(last&&(dt<=0||(!force&&(dt<.5||(distance(p,last)<1&&dt<2&&!dynamicChange)))))return;
             if(gap||last&&(dt>3||distance(p,last)>2000)){segment++;gap=false;}
             count++;last={...p};
-            emit('flight-recording-sample',{id,sample:[count,segment,p.time,p.latitude,p.longitude,p.height,p.ground]});
+            emit('flight-recording-sample',{id,sample:[count,segment,p.time,p.latitude,p.longitude,p.height,p.ground,p.speed]});
             updateControls();
             if(count>=maxSamples)stop('4096-sample recording limit reached');
         }

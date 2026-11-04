@@ -16,6 +16,17 @@ test('recording is opt-in and samples movement at 2Hz, retaining a final endpoin
     assert.equal(p.recorder.status().phase,'stopped');assert.throws(()=>p.control('start'),/Review or discard/);
     p.time(3);p.observe();assert.equal(p.samples().at(-1)[5],1200);
 });
+test('records speed changes and missing terrain without exceeding the 2Hz budget',()=>{
+    const p=setup();p.control('start');
+    assert.equal(p.samples()[0].length,8);assert.equal(p.samples()[0][7],null);
+    p.time(.51);p.observe({...p.state,speed:2});
+    p.time(1.02);p.observe({...p.state,speed:14});
+    p.time(1.53);p.observe({...p.state,agl:null,speed:3});
+    const samples=p.samples();
+    assert.deepEqual(samples.map(s=>s[7]),[null,2,14,3]);
+    assert.equal(samples.at(-1)[6],null);
+    assert.ok(samples.every((s,i)=>i===0||s[2]-samples[i-1][2]>=.5));
+});
 test('manual pauses and view-focus gaps create separate continuous segments; reset ends capture',()=>{
     const p=setup();p.control('start');p.time(.8);p.observe({...p.state,height:1050});p.control('pause');
     const count=p.samples().length;p.time(2);p.observe({...p.state,height:1300});assert.equal(p.samples().length,count);

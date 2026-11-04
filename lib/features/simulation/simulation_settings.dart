@@ -20,6 +20,7 @@ class SimulationSettings {
     this.droneId,
     this.flightMode = SimulationFlightMode.angle,
     this.cameraTiltDegrees = 0,
+    this.cameraFovDegrees = 90,
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
     this.hudStyle = SimulationHudStyle.goggles,
     this.showCoordinates = false,
@@ -38,6 +39,9 @@ class SimulationSettings {
   final int? droneId;
   final SimulationFlightMode flightMode;
   final double cameraTiltDegrees;
+
+  /// Horizontal FPV camera field of view in degrees (not a focal length).
+  final double cameraFovDegrees;
   final SimulationGraphicsProfile graphicsProfile;
   final SimulationHudStyle hudStyle;
   final bool showCoordinates;
@@ -45,6 +49,7 @@ class SimulationSettings {
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
+    double? cameraFovDegrees,
     SimulationGraphicsProfile? graphicsProfile,
     SimulationHudStyle? hudStyle,
     bool? showCoordinates,
@@ -59,6 +64,7 @@ class SimulationSettings {
     droneId: droneId,
     flightMode: flightMode,
     cameraTiltDegrees: degrees,
+    cameraFovDegrees: cameraFovDegrees ?? this.cameraFovDegrees,
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
     hudStyle: hudStyle ?? this.hudStyle,
     showCoordinates: showCoordinates ?? this.showCoordinates,
@@ -104,6 +110,7 @@ class SimulationSettings {
       (acceleration, .2, 50.0),
       (deceleration, .2, 50.0),
       (cameraTiltDegrees, 0.0, 80.0),
+      (cameraFovDegrees, 50.0, 140.0),
       (acroThrustToWeight, 1.1, 12.0),
       (acroThrustCurve, 0.0, 1.0),
       (acroMotorTimeConstant, 0.0, .5),
@@ -130,6 +137,7 @@ class SimulationSettings {
       'deceleration': deceleration,
       'flightMode': flightMode.name,
       'cameraTiltDegrees': cameraTiltDegrees,
+      'cameraFovDegrees': cameraFovDegrees,
       'graphicsProfile': graphicsProfile.name,
       'hudStyle': hudStyle.name,
       'showCoordinates': showCoordinates,

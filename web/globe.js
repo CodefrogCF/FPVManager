@@ -874,6 +874,8 @@ function postToFlutter(message) {
         const coordinateToggle=document.getElementById('flight-show-coordinates');
         const cameraButton=document.getElementById('camera-flight'),cameraPanel=document.getElementById('flight-camera');
         const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
+        const cameraFovSlider=document.getElementById('flight-camera-fov'),cameraFovValue=document.getElementById('flight-camera-fov-value');
+        const cameraTiltRow=document.getElementById('flight-camera-tilt-row');
         const graphicsSelect=document.getElementById('flight-graphics-profile');
         const controllerPanel=FPVControllerInput.bindPanel(document,value=>flyer.controllerSettings(value));
         let flightTimeSettings={enabled:false,timeUtc:null};
@@ -895,7 +897,7 @@ function postToFlutter(message) {
                 const saved = { destination: Cesium.Cartesian3.clone(viewer.camera.positionWC),
                     direction: Cesium.Cartesian3.clone(viewer.camera.directionWC),
                     up: Cesium.Cartesian3.clone(viewer.camera.upWC), heading: viewer.camera.heading,
-                    near: viewer.camera.frustum.near, inputs: viewer.scene.screenSpaceCameraController.enableInputs,
+                    near: viewer.camera.frustum.near, fov:viewer.camera.frustum.fov, inputs: viewer.scene.screenSpaceCameraController.enableInputs,
                     collision: viewer.scene.screenSpaceCameraController.enableCollisionDetection,
                     graphics:flightRenderer.captureGraphics(), mapStyle:currentMapStyle };
                 viewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -907,6 +909,7 @@ function postToFlutter(message) {
                 viewer.scene.screenSpaceCameraController.enableInputs = saved.inputs;
                 viewer.scene.screenSpaceCameraController.enableCollisionDetection = saved.collision;
                 viewer.camera.frustum.near = saved.near;
+                viewer.camera.frustum.fov = saved.fov;
                 flightRenderer.restoreGraphics(saved.graphics);
                 if (saved.mapStyle !== currentMapStyle) {
                     viewer.scene.globe.maximumScreenSpaceError = currentMapStyle === 'topographic' ? 1 : 2;
@@ -933,17 +936,21 @@ function postToFlutter(message) {
             hud.hidden=!flying; info.hidden=flying;
             if(!flying){settingsPanel.hidden=true;settingsButton.setAttribute('aria-expanded','false');}
             else {hudSelect.value=state.hudStyle;coordinateToggle.checked=state.showCoordinates===true;flightHud.update(state,viewer.camera.heading);controllerPanel.update(state.controller);}
-            const fpv=mode==='flight'&&state.active&&state.mode!=='gps';
+            const fpv=mode==='flight'&&state.active;
             cameraButton.hidden=!fpv;
             if(!fpv){cameraPanel.hidden=true;cameraButton.setAttribute?.('aria-expanded','false');}
-            if(fpv){cameraSlider.value=String(state.cameraTiltDegrees);cameraValue.textContent=`${state.cameraTiltDegrees}°`;}
+            if(fpv){
+                cameraTiltRow.hidden=state.mode==='gps';
+                cameraSlider.value=String(state.cameraTiltDegrees);cameraValue.textContent=`${state.cameraTiltDegrees}°`;
+                cameraFovSlider.value=String(state.cameraFovDegrees);cameraFovValue.textContent=`${state.cameraFovDegrees}°`;
+            }
             if(mode==='flight'&&state.graphicsProfile)graphicsSelect.value=state.graphicsProfile;
             if(!state.active){disposeGroundControls?.reset();terrainInfo(terrainManager.status());}
             if(entering)viewer.canvas.focus();
             disposeGroundControls?.sync();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
-                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,controller:state.controller}:{})});
+                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,cameraFovDegrees:state.cameraFovDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,controller:state.controller}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
             applyPose:point=>{
@@ -995,6 +1002,7 @@ function postToFlutter(message) {
             cameraPanel.hidden=!cameraPanel.hidden;cameraButton.setAttribute('aria-expanded',String(!cameraPanel.hidden));
         });
         cameraSlider.addEventListener('input',()=>flyer.cameraTilt(Number(cameraSlider.value)));
+        cameraFovSlider.addEventListener('input',()=>flyer.cameraFov(Number(cameraFovSlider.value)));
         graphicsSelect.addEventListener('change',()=>flyer.graphicsProfile(graphicsSelect.value));
         let lastWalkTime=performance.now();
         viewer.scene.preRender.addEventListener(()=>{

@@ -8,8 +8,24 @@ import '../obstacles/swiss_obstacle_provider.dart';
 import '../../core/osint/osint_provider.dart';
 import '../../core/models/route_transfer.dart';
 import '../../core/models/flight_route.dart';
+import '../../core/models/route_planning_settings.dart';
+import '../../core/models/recorded_route_track.dart';
 import 'transfer/route_file_service.dart';
 import '../spots/data/spot_repository.dart';
+
+String _recordingSummary(RecordedRouteTrack track) {
+  final speed = track.samples
+      .map((s) => s.groundSpeedMetersPerSecond)
+      .whereType<double>();
+  final knownAgl = track.samples.where((s) => s.aglMeters != null).length;
+  final speedText = speed.isEmpty
+      ? 'speed unknown'
+      : '${speed.reduce((a, b) => a < b ? a : b).toStringAsFixed(1)}–'
+            '${speed.reduce((a, b) => a > b ? a : b).toStringAsFixed(1)} m/s (3D ground speed)';
+  return 'Simulated recording · ${track.samples.length} timed samples · '
+      'AGL $knownAgl/${track.samples.length} available · $speedText · '
+      '${track.startedAtUtc.toLocal().toString().substring(0, 16)}';
+}
 
 class FlightRoutesScreen extends StatefulWidget {
   const FlightRoutesScreen({
@@ -128,7 +144,7 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
               height: p.height,
               speedMetersPerSecond: p.speedMetersPerSecond,
             ),
-        ]),
+        ], recordedTrack: route.recordedTrack),
         format,
       );
       if (mounted && done) {
@@ -221,10 +237,16 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
           itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
             final route = snapshot.data![index];
+            final recorded = RoutePlanningSettings.decode(route.planningJson)
+                .recordedTrack;
             return ListTile(
               leading: const Icon(Icons.route_outlined),
               title: Text(route.name),
-              subtitle: const Text('Stored on this device'),
+              subtitle: Text(
+                recorded == null
+                    ? 'Stored on this device'
+                    : _recordingSummary(recorded),
+              ),
               trailing: PopupMenuButton<RouteFileFormat>(
                 tooltip: 'Export ${route.name}',
                 enabled: !_transferring,

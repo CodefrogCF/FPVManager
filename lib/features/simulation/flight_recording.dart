@@ -7,6 +7,8 @@ import '../../core/database/repositories/flight_plan_repository.dart';
 import '../../core/geo/altitude_service.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/flight_route.dart';
+import '../../core/models/recorded_route_track.dart';
+import '../../core/models/route_planning_settings.dart';
 
 enum RecordingPhase { idle, recording, paused, stopped }
 
@@ -18,15 +20,27 @@ class RecordedFlightPoint {
     required this.position,
     required this.height,
     this.ground,
+    this.speedMetersPerSecond,
   });
   final int sequence, segment;
   final double seconds, height;
   final Wgs84Coordinate position;
+
+  /// Verified terrain elevation in metres above the WGS84 ellipsoid, if known.
   final double? ground;
+
+  /// Simulator 3D ground speed in m/s; not planned airspeed.
+  final double? speedMetersPerSecond;
   double? get agl => ground == null ? null : height - ground!;
+  DateTime acquiredAt(DateTime recordingStartUtc) => recordingStartUtc
+      .toUtc()
+      .add(Duration(microseconds: (seconds * 1000000).round()));
 
   factory RecordedFlightPoint.parse(Object? raw) {
-    if (raw is! List || raw.length != 7 || raw[0] is! int || raw[1] is! int) {
+    if (raw is! List ||
+        (raw.length != 7 && raw.length != 8) ||
+        raw[0] is! int ||
+        raw[1] is! int) {
       throw const FormatException('Invalid recorded sample');
     }
     double number(int i, double min, double max) {
@@ -41,6 +55,12 @@ class RecordedFlightPoint {
     if (sequence < 1 || sequence > 4096 || segment < 0 || segment > 4096) {
       throw const FormatException('Invalid recorded sequence');
     }
+    final height = number(5, -100000, 100000);
+    final ground = raw[6] == null ? null : number(6, -100000, 100000);
+    // An invalid terrain-relative altitude must never be displayed as AGL.
+    if (ground != null && ground > height) {
+      throw const FormatException('Terrain exceeds recorded altitude');
+    }
     return RecordedFlightPoint(
       sequence: sequence,
       segment: segment,
@@ -49,8 +69,11 @@ class RecordedFlightPoint {
         latitude: number(3, -89.9, 89.9),
         longitude: number(4, -180, 180),
       ),
-      height: number(5, -100000, 100000),
-      ground: raw[6] == null ? null : number(6, -100000, 100000),
+      height: height,
+      ground: ground,
+      speedMetersPerSecond: raw.length == 7 || raw[7] == null
+          ? null
+          : number(7, 0, 200),
     );
   }
 }
@@ -254,14 +277,59 @@ List<RecordedFlightPoint> simplifyRecording(
   if (points.length < 3 || tolerance == 0) return List.unmodifiable(points);
   final vectors = points.map(_ecef).toList();
   final keep = <int>{0, points.length - 1};
-  final ranges = <(int, int)>[(0, points.length - 1)];
+
+  // Unknown terrain or speed is information, not a numeric zero. Preserve
+  // both samples surrounding every validity/segment transition. Otherwise a
+  // long run ending in an unavailable value can defeat simplification.
+  for (var i = 1; i < points.length; i++) {
+    final previous = points[i - 1], current = points[i];
+    if (previous.segment != current.segment ||
+        (previous.ground == null) != (current.ground == null) ||
+        (previous.speedMetersPerSecond == null) !=
+            (current.speedMetersPerSecond == null)) {
+      keep.add(i - 1);
+      keep.add(i);
+    }
+  }
+
+  final anchors = keep.toList()..sort();
+  final ranges = <(int, int)>[
+    for (var i = 1; i < anchors.length; i++) (anchors[i - 1], anchors[i]),
+  ];
   while (ranges.isNotEmpty) {
     final (a, b) = ranges.removeLast();
-    var farthest = -1, maxSquared = tolerance * tolerance;
+    var farthest = -1;
+    var largestError = 1.0;
     for (var i = a + 1; i < b; i++) {
-      final d = _chordDistanceSquared(vectors[i], vectors[a], vectors[b]);
-      if (d > maxSquared) {
-        maxSquared = d;
+      final current = points[i];
+      final first = points[a], last = points[b];
+      final spatialError =
+          _chordDistanceSquared(vectors[i], vectors[a], vectors[b]) /
+          (tolerance * tolerance);
+      final duration = last.seconds - first.seconds;
+      // A directly constructed track may lack strictly increasing timestamps.
+      // Preserve deterministic simplification rather than dividing by zero.
+      final fraction = duration > 0
+          ? ((current.seconds - first.seconds) / duration).clamp(0.0, 1.0)
+          : (i - a) / (b - a);
+      final startSpeed = first.speedMetersPerSecond;
+      final endSpeed = last.speedMetersPerSecond;
+      final speed = current.speedMetersPerSecond;
+      final speedError = speed != null && startSpeed != null && endSpeed != null
+          ? (speed - (startSpeed + (endSpeed - startSpeed) * fraction)).abs() /
+                0.75
+          : 0.0;
+      final aglError =
+          current.agl != null && first.agl != null && last.agl != null
+          ? (current.agl! - (first.agl! + (last.agl! - first.agl!) * fraction))
+                    .abs() /
+                1.0
+          : 0.0;
+      // Pick the *largest* normalized deviation, not simply the last point
+      // exceeding any threshold. Each criterion is independently bounded.
+      final error = math.max(spatialError, math.max(speedError, aglError));
+      if (error > largestError) {
+        largestError = error;
         farthest = i;
       }
     }
@@ -357,6 +425,8 @@ class RecordingRouteSave {
     FlightPlanRepository repository, {
     required String name,
     required List<RouteWaypointInput> points,
+    RecordedFlight? flight,
+    List<RecordedFlightPoint>? recordedPoints,
   }) async {
     if (saving || savedId != null) return savedId;
     if (name.trim().isEmpty || name.trim().length > 120) {
@@ -365,11 +435,36 @@ class RecordingRouteSave {
     if (points.length < 2 || points.length > 1000) {
       throw ArgumentError('A recorded route supports 2–1000 waypoints');
     }
+    RoutePlanningSettings? metadata;
+    if (flight != null && recordedPoints != null) {
+      if (recordedPoints.length != points.length ||
+          recordedPoints.any(
+            (p) => p.segment != recordedPoints.first.segment,
+          )) {
+        throw ArgumentError('Recorded samples must match route waypoints');
+      }
+      final track = RecordedRouteTrack(
+        id: flight.id,
+        startedAtUtc: flight.startedAt.toUtc(),
+        waypointSignature: recordedInputSignature(points),
+        samples: [
+          for (final p in recordedPoints)
+            RecordedTrackSample(
+              seconds: p.seconds,
+              absoluteElevationMeters: p.height,
+              terrainElevationMeters: p.ground,
+              groundSpeedMetersPerSecond: p.speedMetersPerSecond,
+            ),
+        ],
+      );
+      metadata = const RoutePlanningSettings().withRecordedTrack(track);
+    }
     saving = true;
     try {
       return savedId = await repository.saveRoute(
         name: name.trim(),
         notes: 'Created from a simulated flight. Review before real flight.',
+        planning: metadata,
         waypoints: points,
       );
     } finally {

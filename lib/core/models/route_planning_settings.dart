@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'recorded_route_track.dart';
 import 'route_constraints.dart';
 import 'signal_settings.dart';
 import 'scene_time.dart';
@@ -29,6 +30,7 @@ class RoutePlanningSettings {
     this.constraints = const RouteConstraints(),
     this.signal,
     this.sceneTime = const SceneTime(),
+    this.recordedTrack,
   });
   final bool useWind, includeReturn;
   final double windSpeed, windFromDegrees, reservePercent;
@@ -42,6 +44,20 @@ class RoutePlanningSettings {
   final RouteConstraints constraints;
   final SignalSettings? signal;
   final SceneTime sceneTime;
+
+  /// Optional timestamped telemetry for a route created from simulation.
+  final RecordedRouteTrack? recordedTrack;
+
+  RoutePlanningSettings withRecordedTrack(RecordedRouteTrack? track) {
+    final j = jsonDecode(encode()) as Map<String, dynamic>;
+    if (track == null) {
+      j.remove('recordedTrack');
+    } else {
+      track.validate();
+      j['recordedTrack'] = track.toJson();
+    }
+    return RoutePlanningSettings.decode(jsonEncode(j));
+  }
 
   RoutePlanningSettings withSceneTime(SceneTime value) {
     final j = jsonDecode(encode()) as Map<String, dynamic>;
@@ -78,6 +94,7 @@ class RoutePlanningSettings {
     constraints.validate();
     sceneTime.validate();
     signal?.validate();
+    recordedTrack?.validate();
     void range(double n, double low, double high, String name) {
       if (!n.isFinite || n < low || n > high) {
         throw ArgumentError('Invalid $name');
@@ -114,6 +131,7 @@ class RoutePlanningSettings {
     validate();
     final encoded = jsonEncode({
       'version': 1,
+      if (recordedTrack != null) 'recordedTrack': recordedTrack!.toJson(),
       'sceneTime': sceneTime.toJson(),
       'useWind': useWind,
       'windSpeed': windSpeed,
@@ -148,6 +166,9 @@ class RoutePlanningSettings {
         throw const FormatException('Unsupported planning settings');
       }
       final value = RoutePlanningSettings(
+        recordedTrack: j['recordedTrack'] == null
+            ? null
+            : RecordedRouteTrack.fromJson(j['recordedTrack']),
         sceneTime: j['sceneTime'] == null
             ? const SceneTime()
             : SceneTime.fromJson(j['sceneTime'] as Map<String, dynamic>),

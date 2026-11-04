@@ -68,6 +68,8 @@ void main() {
       for (final invalid in [
         const SimulationSettings(cameraTiltDegrees: -1),
         const SimulationSettings(cameraTiltDegrees: 81),
+        const SimulationSettings(cameraFovDegrees: 49),
+        const SimulationSettings(cameraFovDegrees: 141),
         const SimulationSettings(agl: 0),
         const SimulationSettings(maxSpeed: double.nan),
         const SimulationSettings(climbSpeed: 31),
@@ -103,6 +105,11 @@ void main() {
     );
     final tilted = original.withCameraTilt(35);
     expect(tilted.toCommand()['cameraTiltDegrees'], 35);
+    expect(tilted.toCommand()['cameraFovDegrees'], 90);
+    expect(
+      tilted.withCameraTilt(35, cameraFovDegrees: 120).cameraFovDegrees,
+      120,
+    );
     expect(tilted.agl, 45);
     expect(tilted.acroThrustToWeight, 6);
     expect(tilted.acroRollRate, 600);
@@ -421,6 +428,9 @@ void main() {
       final camera = find.byKey(const ValueKey('simulation-cameraTilt'));
       await tester.ensureVisible(camera);
       await tester.enterText(camera, '30');
+      final fov = find.byKey(const ValueKey('simulation-cameraFov'));
+      await tester.ensureVisible(fov);
+      await tester.enterText(fov, '110');
       final graphics = find.byKey(const ValueKey('simulation-graphics'));
       await tester.ensureVisible(graphics);
       await tester.tap(graphics);
@@ -446,6 +456,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(chosen!.agl, 35.5);
       expect(chosen!.cameraTiltDegrees, 30);
+      expect(chosen!.cameraFovDegrees, 110);
       expect(chosen!.graphicsProfile, SimulationGraphicsProfile.performance);
       expect(chosen!.hudStyle, SimulationHudStyle.betaflight);
       expect(chosen!.showCoordinates, true);

@@ -4,6 +4,7 @@ import '../../geo/altitude_service.dart';
 import '../../geo/geo_coordinate_service.dart';
 import '../../models/flight_route.dart';
 import '../../models/route_planning_settings.dart';
+import '../../models/recorded_route_track.dart';
 import '../../models/route_transfer.dart';
 import '../fpv_database.dart';
 import '../repository_validation.dart';
@@ -66,13 +67,33 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
         routes.any((r) => r.points.length < 2 || r.points.length > 1000)) {
       throw ArgumentError('Invalid route import size');
     }
-    final snapshot = [for (final r in routes) ImportedRoute(r.name, r.points)];
+    final snapshot = [
+      for (final r in routes)
+        ImportedRoute(r.name, r.points, recordedTrack: r.recordedTrack),
+    ];
     return _database.transaction(
       () async => [
         for (final r in snapshot)
-          await saveRoute(name: r.name, waypoints: r.points),
+          await saveRoute(
+            name: r.name,
+            waypoints: r.points,
+            planning: r.recordedTrack == null
+                ? null
+                : const RoutePlanningSettings().withRecordedTrack(
+                    _verifiedImportedTrack(r),
+                  ),
+          ),
       ],
     );
+  }
+
+  static RecordedRouteTrack _verifiedImportedTrack(ImportedRoute route) {
+    final track = route.recordedTrack!;
+    if (track.samples.length != route.points.length ||
+        track.waypointSignature != recordedInputSignature(route.points)) {
+      throw const FormatException('Recording no longer matches route');
+    }
+    return track;
   }
 
   @override

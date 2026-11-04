@@ -163,7 +163,7 @@
         <div id="flight-options" hidden aria-label="HUD settings">
             <div id="flight-recording-controls"><output id="flight-recording-status" aria-live="off"></output><button id="pause-recording" type="button" hidden>Pause recording</button><button id="review-recording" type="button" hidden>Review recording</button></div>
             <div id="flight-option-actions"><button id="reset-flight" type="button">Reset</button><button id="camera-flight" type="button" aria-expanded="false" aria-controls="flight-camera">Camera</button></div>
-            <label id="flight-camera" hidden>Camera ↑ <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label>
+            <div id="flight-camera" hidden><label id="flight-camera-tilt-row">Camera ↑ <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label><label>Horizontal FOV <output id="flight-camera-fov-value">90°</output><input id="flight-camera-fov" aria-label="FPV horizontal field of view in degrees" type="range" min="50" max="140" step="1" value="90"></label></div>
             <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
             <label><input id="flight-show-coordinates" type="checkbox">Koordinaten anzeigen</label>
             <label><input id="flight-show-touch" type="checkbox" checked>Touch-Steuerung anzeigen</label>

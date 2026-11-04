@@ -1,5 +1,7 @@
 import '../database/fpv_database.dart' show FlightPlan, Battery;
 import 'drone_profile.dart';
+import 'recorded_route_track.dart';
+import 'route_planning_settings.dart';
 import '../geo/altitude_service.dart';
 import '../geo/geo_coordinate_service.dart';
 
@@ -61,6 +63,40 @@ class RouteWaypoint {
   final double? speedMetersPerSecond;
 }
 
+/// Deterministic link between persisted waypoints and their recording samples.
+/// Removing/reordering/editing waypoints invalidates old replay metadata.
+String recordedInputSignature(Iterable<RouteWaypointInput> points) =>
+    RecordedRouteTrack.signature(
+      points.map(
+        (p) => [
+          p.position.latitude,
+          p.position.longitude,
+          p.height?.meters,
+          _heightKind(p.height),
+          p.speedMetersPerSecond,
+        ],
+      ),
+    );
+
+String recordedSavedSignature(Iterable<RouteWaypoint> points) =>
+    RecordedRouteTrack.signature(
+      points.map(
+        (p) => [
+          p.position.latitude,
+          p.position.longitude,
+          p.height?.meters,
+          _heightKind(p.height),
+          p.speedMetersPerSecond,
+        ],
+      ),
+    );
+
+String? _heightKind(WaypointHeight? height) => switch (height) {
+  AglWaypointHeight() => 'agl',
+  AbsoluteWaypointHeight(:final elevation) => elevation.reference.name,
+  _ => null,
+};
+
 /// One immutable snapshot of route metadata and its ordered waypoints.
 class FlightRoute {
   FlightRoute({
@@ -72,6 +108,22 @@ class FlightRoute {
 
   final FlightPlan plan;
   final List<RouteWaypoint> waypoints;
+
+  /// Null for legacy/planned routes or after any waypoint change.
+  RecordedRouteTrack? get recordedTrack {
+    try {
+      final track = RoutePlanningSettings.decode(plan.planningJson)
+          .recordedTrack;
+      if (track == null ||
+          track.samples.length != waypoints.length ||
+          track.waypointSignature != recordedSavedSignature(waypoints)) {
+        return null;
+      }
+      return track;
+    } on FormatException {
+      return null;
+    }
+  }
 
   /// Alternative packs for this flight; capacities must not be added together.
   final Set<int> batteryIds;

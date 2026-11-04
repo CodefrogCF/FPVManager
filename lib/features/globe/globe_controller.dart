@@ -742,6 +742,8 @@ class GlobeController extends ChangeNotifier {
   String? get simulationMessage => _simulationMessage;
   double? _simulationCameraTiltDegrees;
   double? get simulationCameraTiltDegrees => _simulationCameraTiltDegrees;
+  double? _simulationCameraFovDegrees;
+  double? get simulationCameraFovDegrees => _simulationCameraFovDegrees;
   SimulationGraphicsProfile? _simulationGraphicsProfile;
   SimulationGraphicsProfile? get simulationGraphicsProfile =>
       _simulationGraphicsProfile;
@@ -1931,6 +1933,7 @@ class GlobeController extends ChangeNotifier {
         }
         _simulationPending = data['pending'] as bool;
         final tilt = data['cameraTiltDegrees'];
+        final fov = data['cameraFovDegrees'];
         final graphics = data['graphicsProfile'];
         final profile = SimulationGraphicsProfile.values
             .where((p) => p.name == graphics)
@@ -1947,6 +1950,9 @@ class GlobeController extends ChangeNotifier {
         if (controller != null) _simulationController = controller;
         if (tilt is num && tilt.isFinite && tilt >= 0 && tilt <= 80) {
           _simulationCameraTiltDegrees = tilt.toDouble();
+        }
+        if (fov is num && fov.isFinite && fov >= 50 && fov <= 140) {
+          _simulationCameraFovDegrees = fov.toDouble();
         }
         final reason = data['reason'];
         _simulationMessage = reason is String

@@ -4,6 +4,15 @@
     else root.FPVFlightRendering=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
+    const DEG=Math.PI/180;
+    // Cesium's PerspectiveFrustum.fov denotes the larger field angle.
+    // Convert a horizontal camera setting for portrait canvases.
+    function perspectiveFov(horizontalDegrees,aspect){
+        if(!Number.isFinite(horizontalDegrees)||horizontalDegrees<50||horizontalDegrees>140)throw Error('Invalid horizontal FOV');
+        if(!Number.isFinite(aspect)||aspect<=0)throw Error('Invalid canvas aspect ratio');
+        const horizontal=horizontalDegrees*DEG;
+        return aspect>=1?horizontal:2*Math.atan(Math.tan(horizontal/2)/aspect);
+    }
     const profiles=Object.freeze({
         quality:Object.freeze({resolutionScale:1,msaaSamples:4}),
         balanced:Object.freeze({resolutionScale:.85,msaaSamples:2}),
@@ -49,6 +58,12 @@
                 return viewer.scene.globe.getHeight(location);
             },
             applyPose(point){
+                if(Number.isFinite(point.cameraFovDegrees)&&viewer.camera.frustum){
+                    const frustum=viewer.camera.frustum;
+                    const canvas=viewer.scene.canvas;
+                    const aspect=canvas&&canvas.clientHeight>0?canvas.clientWidth/canvas.clientHeight:frustum.aspectRatio;
+                    frustum.fov=perspectiveFov(point.cameraFovDegrees,aspect||1);
+                }
                 cartesian(point,destination);
                 let orientation=euler;
                 if(point.direction&&point.up){
@@ -67,5 +82,5 @@
             }
         };
     }
-    return {profiles,create};
+    return {profiles,create,perspectiveFov};
 });

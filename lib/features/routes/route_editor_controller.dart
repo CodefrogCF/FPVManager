@@ -137,7 +137,9 @@ class RouteEditorController extends ChangeNotifier {
   void configurePlanning(RoutePlanningSettings value) {
     if (saving || loading || !_loadedSuccessfully) return;
     value.validate();
-    planning = RoutePlanningSettings.decode(value.encode());
+    planning = RoutePlanningSettings.decode(
+      value.withRecordedTrack(planning.recordedTrack).encode(),
+    );
     dirty = true;
     notifyListeners();
     unawaited(syncMap());
@@ -307,6 +309,10 @@ class RouteEditorController extends ChangeNotifier {
     if (newStartSpotId != null) startSpotId = newStartSpotId;
     if (_undo.length > 50) _undo.removeAt(0);
     _points = List.unmodifiable(next);
+    // Recorded timing describes the original track only, never an edited route.
+    if (planning.recordedTrack != null) {
+      planning = planning.withRecordedTrack(null);
+    }
     selectedId = selected;
     moveId = null;
     dirty = true;

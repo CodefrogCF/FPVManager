@@ -7,6 +7,7 @@ import 'package:xml/xml_events.dart';
 import '../../../core/geo/altitude_service.dart';
 import '../../../core/geo/geo_coordinate_service.dart';
 import '../../../core/models/flight_route.dart';
+import '../../../core/models/recorded_route_track.dart';
 import '../../../core/models/route_transfer.dart';
 
 const routeFileMaxBytes = 4 * 1024 * 1024;
@@ -128,7 +129,11 @@ RouteImportPreview decodeRouteFile(Uint8List bytes) {
   final text = utf8.decode(bytes).replaceFirst('\uFEFF', '').trimLeft();
   final warnings = <String>{};
   final routes = <ImportedRoute>[];
-  void add(String name, List<RouteWaypointInput> points) {
+  void add(
+    String name,
+    List<RouteWaypointInput> points, {
+    RecordedRouteTrack? recording,
+  }) {
     if (points.length < 2 ||
         points.length > 1000 ||
         routes.length >= 20 ||
@@ -138,7 +143,14 @@ RouteImportPreview decodeRouteFile(Uint8List bytes) {
         'Use up to 20 routes, 2–1000 points each, and 10000 points per file',
       );
     }
-    routes.add(ImportedRoute(name, points));
+    if (recording != null &&
+        (recording.samples.length != points.length ||
+            recording.waypointSignature != recordedInputSignature(points))) {
+      throw const FormatException(
+        'Recorded flight does not match route waypoints',
+      );
+    }
+    routes.add(ImportedRoute(name, points, recordedTrack: recording));
   }
 
   if (text.startsWith('{')) {
@@ -236,7 +248,13 @@ RouteImportPreview decodeRouteFile(Uint8List bytes) {
             ),
           );
         }
-        add(_name(properties['name'], routes.length + 1), points);
+        add(
+          _name(properties['name'], routes.length + 1),
+          points,
+          recording: meta?['recordedTrack'] == null
+              ? null
+              : RecordedRouteTrack.fromJson(meta!['recordedTrack']),
+        );
       }
     }
   } else if (text.startsWith('<')) {
@@ -330,7 +348,26 @@ RouteImportPreview decodeRouteFile(Uint8List bytes) {
         }
         points.add(p);
       }
-      add(name, points);
+      final routeExtension = children(parent, 'extensions').firstOrNull;
+      final recordingElement = routeExtension?.childElements
+          .where(
+            (e) =>
+                e.name.local == 'recordedTrack' && e.namespaceUri == _namespace,
+          )
+          .firstOrNull;
+      RecordedRouteTrack? recording;
+      if (recordingElement != null) {
+        if (recordingElement.getAttribute('version') != '1' ||
+            recordingElement.innerText.length > 64000) {
+          throw const FormatException(
+            'Unsupported GPX recorded track metadata',
+          );
+        }
+        recording = RecordedRouteTrack.fromJson(
+          jsonDecode(recordingElement.innerText),
+        );
+      }
+      add(name, points, recording: recording);
     }
 
     for (final rte in children(root, 'rte')) {
@@ -367,6 +404,12 @@ Uint8List encodeRouteFile(ImportedRoute route, RouteFileFormat format) {
     throw const FormatException('Export requires 2–1000 waypoints');
   }
   final name = _name(route.name, 1);
+  if (route.recordedTrack case final track?) {
+    if (track.samples.length != route.points.length ||
+        track.waypointSignature != recordedInputSignature(route.points)) {
+      throw const FormatException('Recorded track does not match route');
+    }
+  }
   for (final p in route.points) {
     _point(
       p.position.longitude,
@@ -388,6 +431,8 @@ Uint8List encodeRouteFile(ImportedRoute route, RouteFileFormat format) {
             'fpvmanager': {
               'version': 1,
               'waypoints': route.points.map(_pointMetadata).toList(),
+              if (route.recordedTrack != null)
+                'recordedTrack': route.recordedTrack!.toJson(),
             },
           },
           'geometry': {
@@ -422,6 +467,19 @@ Uint8List encodeRouteFile(ImportedRoute route, RouteFileFormat format) {
           'rte',
           nest: () {
             builder.element('name', nest: name);
+            if (route.recordedTrack != null) {
+              builder.element(
+                'extensions',
+                nest: () {
+                  builder.element(
+                    'recordedTrack',
+                    namespaceUri: _namespace,
+                    attributes: {'version': '1'},
+                    nest: jsonEncode(route.recordedTrack!.toJson()),
+                  );
+                },
+              );
+            }
             for (final p in route.points) {
               builder.element(
                 'rtept',

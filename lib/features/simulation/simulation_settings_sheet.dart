@@ -56,6 +56,9 @@ class _SettingsState extends State<_Settings> {
     'cameraTilt': TextEditingController(
       text: '${widget.initial.cameraTiltDegrees}',
     ),
+    'cameraFov': TextEditingController(
+      text: '${widget.initial.cameraFovDegrees}',
+    ),
     'speed': TextEditingController(text: '${widget.initial.maxSpeed}'),
     'climb': TextEditingController(text: '${widget.initial.climbSpeed}'),
     'acceleration': TextEditingController(
@@ -409,6 +412,15 @@ class _SettingsState extends State<_Settings> {
                         '0° looks along the drone. Positive angles tilt the camera upward relative to the frame. You can also adjust this during flight using Camera.',
                       ),
                     ],
+                    number(
+                      'cameraFov',
+                      'Horizontal FPV field of view (°)',
+                      50,
+                      140,
+                    ),
+                    const Text(
+                      'Horizontal camera view angle; affects the simulator perspective, not flight physics. Default 90°. Adjustable during flight using Camera.',
+                    ),
                     if (_mode == SimulationFlightMode.acro) ...[
                       ExpansionTile(
                         key: const ValueKey('simulation-acro-rates'),
@@ -550,6 +562,12 @@ class _SettingsState extends State<_Settings> {
                               0,
                               80,
                               0,
+                            ),
+                            cameraFovDegrees: parameter(
+                              'cameraFov',
+                              50,
+                              140,
+                              90,
                             ),
                             acroThrustToWeight: parameter(
                               'acroThrustToWeight',

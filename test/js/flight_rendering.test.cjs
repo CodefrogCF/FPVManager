@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {create,profiles}=require('../../web/flight_rendering.js');
+const {create,profiles,perspectiveFov}=require('../../web/flight_rendering.js');
 const {createVectors}=require('../../web/obstacle_layers.js');
 const {createSimulator}=require('../../web/free_flight.js');
 // Use the pinned runtime's actual coordinate/matrix math without a DOM/WebGL.
@@ -20,6 +20,18 @@ function fixture(){
     return {viewer,adapter:create(MathC,viewer),get allocations(){return allocations;},get reference(){return reference;},get last(){return last;},
         get ray(){return ray;},hit:distance=>hitDistance=distance};
 }
+test('horizontal FOV adapts to portrait without mixing camera tilt or changing physics',()=>{
+    assert.ok(Math.abs(perspectiveFov(90,16/9)-Math.PI/2)<1e-12);
+    assert.ok(perspectiveFov(90,9/16)>Math.PI/2);
+    for(const bad of [49,141,Infinity,NaN])assert.throws(()=>perspectiveFov(bad,1));
+    const p=fixture();
+    p.viewer.camera.frustum={fov:Math.PI/3,aspectRatio:16/9};
+    p.adapter.applyPose({longitude:8.4,latitude:46.7,height:1300,heading:0,pitch:0,cameraFovDegrees:110});
+    assert.ok(Math.abs(p.viewer.camera.frustum.fov-110*Math.PI/180)<1e-12);
+    p.viewer.camera.frustum.aspectRatio=9/16;
+    p.adapter.applyPose({longitude:8.4,latitude:46.7,height:1300,heading:0,pitch:0,cameraFovDegrees:90});
+    assert.ok(p.viewer.camera.frustum.fov>Math.PI/2);
+});
 test('graphics profiles apply live and restore the exact prior viewer settings',()=>{
     const p=fixture(),saved=p.adapter.captureGraphics();
     for(const name of Object.keys(profiles)){

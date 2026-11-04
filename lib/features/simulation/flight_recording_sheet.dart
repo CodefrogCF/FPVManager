@@ -81,6 +81,8 @@ class _ReviewState extends State<_Review> {
         widget.repository,
         name: _name.text,
         points: recordingWaypoints(points, agl: agl),
+        flight: widget.flight,
+        recordedPoints: points,
       );
       if (mounted && id != null) Navigator.pop(context, id);
     } catch (_) {
@@ -140,6 +142,11 @@ class _ReviewState extends State<_Review> {
     final heights = selected
         .map((p) => _agl && hasAgl ? p.agl! : p.height)
         .toList();
+    final speeds = [
+      for (final p in selected)
+        if (p.speedMetersPerSecond != null) p.speedMetersPerSecond!,
+    ];
+    final measuredGround = selected.where((p) => p.agl != null).length;
     final colors = Theme.of(context).colorScheme;
     return PopScope(
       canPop: !_working,
@@ -206,6 +213,13 @@ class _ReviewState extends State<_Review> {
                 ),
                 Text(
                   '${distance.toStringAsFixed(0)} m in 3D · ${seconds.toStringAsFixed(1)} s · ${selected.length} samples → ${points.length} waypoints',
+                ),
+                Text(
+                  'Recorded ground speed: ${speeds.isEmpty ? 'unavailable' : '${speeds.reduce(math.min).toStringAsFixed(1)}–${speeds.reduce(math.max).toStringAsFixed(1)} m/s (3D)'} · Terrain samples: $measuredGround/${selected.length}',
+                ),
+                Text(
+                  'UTC start: ${widget.flight.startedAt.toUtc().toIso8601String()} · Per-point elapsed time retained',
+                  style: const TextStyle(fontSize: 12),
                 ),
                 if (_segments[_segment].length > 1) ...[
                   const SizedBox(height: 8),
