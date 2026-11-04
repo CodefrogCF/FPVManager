@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'globe_controller.dart';
 import 'globe_asset_server.dart';
 import 'globe_page_path.dart';
+import 'globe_view_windows.dart';
 import '../offline/offline_map_store_native.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -15,7 +16,7 @@ import '../simulation/navigation_device_input.dart';
 
 /// Native implementation of the FPVManager 3D globe.
 ///
-/// Android and iOS use a native WebView.
+/// Android and iOS use their native WebView. Windows uses Edge WebView2.
 /// Other native platforms display a fallback.
 class GlobeView extends StatefulWidget {
   const GlobeView({
@@ -48,9 +49,19 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
   bool get _supported => Platform.isAndroid || Platform.isIOS;
 
+  // Flutter's VM widget-test runner sets FLUTTER_TEST, including when the
+  // tests run on Windows. Do not initialize native WebView2 in that runner:
+  // its persistent loading animation would prevent pumpAndSettle() from
+  // completing. The regular Windows desktop build still uses WebView2.
+  // See Flutter's defaultTargetPlatform implementation for the same flag.
+  bool get _useWindowsRenderer =>
+      Platform.isWindows && !Platform.environment.containsKey('FLUTTER_TEST');
+
   @override
   void initState() {
     super.initState();
+    // The Windows child owns the renderer protocol and WebView2 lifecycle.
+    if (_useWindowsRenderer) return;
 
     widget.controller.attach(_sendCommand);
     widget.controller.addListener(_onControllerChanged);
@@ -169,6 +180,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(covariant GlobeView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_useWindowsRenderer) return;
     if ((oldWidget.cachedMaps != widget.cachedMaps ||
             oldWidget.cacheRevision != widget.cacheRevision ||
             oldWidget.floatingControls != widget.floatingControls) &&
@@ -188,6 +200,10 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    if (_useWindowsRenderer) {
+      super.dispose();
+      return;
+    }
     _deviceInput?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_onControllerChanged);
@@ -240,6 +256,15 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (_useWindowsRenderer) {
+      return GlobeViewWindows(
+        controller: widget.controller,
+        offline: widget.offline,
+        cachedMaps: widget.cachedMaps,
+        cacheRevision: widget.cacheRevision,
+        floatingControls: widget.floatingControls,
+      );
+    }
     if (!_supported) {
       return const Center(
         child: Text(
