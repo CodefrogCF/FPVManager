@@ -21,17 +21,26 @@ class UasDatasetAssessment {
     if (source['type'] != 'FeatureCollection' || features is! List) {
       throw const FormatException('Invalid UAS feature collection');
     }
-    final renderable = <Object?>[];
+    // Most official features are valid. Allocate a filtered feature list only
+    // when an unusable geometry actually occurs; never duplicate coordinates.
+    List<Object?>? filtered;
+    var validCount = 0;
     var missing = 0;
     var timed = 0;
     final categories = <UasRestrictionCategory, int>{};
-    for (final feature in features) {
+    for (var index = 0; index < features.length; index++) {
+      final feature = features[index];
       if (feature is! Map ||
           feature['type'] != 'Feature' ||
           !_geometry(feature['geometry'])) {
+        // The prefix was already validated; from now on keep only good items.
+        filtered ??= <Object?>[
+          for (var prefix = 0; prefix < index; prefix++) features[prefix],
+        ];
         continue;
       }
-      renderable.add(feature);
+      validCount++;
+      filtered?.add(feature);
       final properties = feature['properties'];
       // Avoid stringifying/copying every GeoJSON property just to count types.
       // Zone selection still retains the original source attributes.
@@ -74,7 +83,7 @@ class UasDatasetAssessment {
         missing++;
       }
     }
-    if (features.isNotEmpty && renderable.isEmpty) {
+    if (features.isNotEmpty && validCount == 0) {
       throw FormatException(
         'None of the ${features.length} UAS features has usable geometry. '
         'The incomplete dataset was not imported.',
@@ -85,12 +94,17 @@ class UasDatasetAssessment {
     final returned = _count(source['numberReturned']);
     final links = source['links'];
     return UasDatasetAssessment._(
-      geoJson: Map.unmodifiable({
-        ...source,
-        'features': List.unmodifiable(renderable),
-      }),
+      // Source is already a parsed object. If all features are usable, the
+      // renderer may consume the very same object without a shallow copy.
+      // Otherwise only a small top-level map and filtered list are created.
+      geoJson: filtered == null
+          ? source
+          : Map.unmodifiable({
+              ...source,
+              'features': List.unmodifiable(filtered),
+            }),
       sourceFeatureCount: features.length,
-      skippedFeatureCount: features.length - renderable.length,
+      skippedFeatureCount: features.length - validCount,
       featuresMissingDetails: missing,
       declaredTotal: total,
       hasNextPage:
@@ -144,37 +158,67 @@ class UasDatasetAssessment {
     return count != null && count >= 0 ? count : null;
   }
 
-  static bool _position(Object? value) =>
-      value is List &&
-      value.length >= 2 &&
-      value[0] is num &&
-      value[1] is num &&
-      (value[0] as num).isFinite &&
-      (value[1] as num).isFinite &&
-      value
-          .skip(2)
-          .every((coordinate) => coordinate is num && coordinate.isFinite) &&
-      (value[0] as num).abs() <= 180 &&
-      (value[1] as num).abs() <= 90;
-
-  static bool _line(Object? value, {bool ring = false}) {
+  static bool _position(Object? value) {
     if (value is! List ||
-        value.length < (ring ? 4 : 2) ||
-        !value.every(_position)) {
+        value.length < 2 ||
+        value[0] is! num ||
+        value[1] is! num) {
       return false;
     }
-    if (!ring) return true;
+    final lon = value[0] as num;
+    final lat = value[1] as num;
+    if (!lon.isFinite || !lat.isFinite || lon.abs() > 180 || lat.abs() > 90) {
+      return false;
+    }
+    // Do not allocate an iterable from skip(2) for every position.
+    for (var i = 2; i < value.length; i++) {
+      final ordinate = value[i];
+      if (ordinate is! num || !ordinate.isFinite) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool _line(Object? value, {bool ring = false}) {
+    if (value is! List || value.length < (ring ? 4 : 2)) {
+      return false;
+    }
+    num? firstLon;
+    num? firstLat;
+    num? secondLon;
+    num? secondLat;
+    var distinct = 0;
+    for (final point in value) {
+      if (!_position(point)) {
+        return false;
+      }
+      if (!ring || distinct >= 3) {
+        continue;
+      }
+      final position = point as List;
+      final lon = position[0] as num;
+      final lat = position[1] as num;
+      if (distinct == 0) {
+        firstLon = lon;
+        firstLat = lat;
+        distinct = 1;
+      } else if (lon != firstLon || lat != firstLat) {
+        if (distinct == 1) {
+          secondLon = lon;
+          secondLat = lat;
+          distinct = 2;
+        } else if (lon != secondLon || lat != secondLat) {
+          distinct = 3;
+        }
+      }
+    }
+    if (!ring) {
+      return true;
+    }
     final first = value.first as List;
     final last = value.last as List;
-    return first[0] == last[0] &&
-        first[1] == last[1] &&
-        value
-                .map(
-                  (p) => ((p[0] as num).toDouble(), (p[1] as num).toDouble()),
-                )
-                .toSet()
-                .length >=
-            3;
+    return distinct >= 3 && first[0] == last[0] && first[1] == last[1];
   }
 
   static bool _polygon(Object? value) =>

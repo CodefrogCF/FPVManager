@@ -122,31 +122,6 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
               'Official validity period',
               officialValidityLabel(dataset?.validity),
             ),
-            if (controller.uasNetworkMetrics case final metrics?)
-              _SafetyDetail('Last GeoJSON HTTP/parse metrics', metrics.summary),
-            if (controller.uasTransferMetrics case final transfer?)
-              _SafetyDetail(
-                'Last Cesium command (incl. acknowledgement)',
-                '${transfer.characters} characters · encode '
-                    '${transfer.encodeTime.inMilliseconds} ms · bridge/renderer '
-                    '${transfer.acknowledgementTime.inMilliseconds} ms',
-              ),
-            if (controller.uasRenderMetrics case final render?) ...[
-              _SafetyDetail(
-                'Cesium GeoJSON load',
-                '${render.loadMs.toStringAsFixed(1)} ms',
-              ),
-              _SafetyDetail(
-                'Cesium datasource attach',
-                '${render.attachMs.toStringAsFixed(1)} ms',
-              ),
-              _SafetyDetail(
-                'First Cesium frame after attach',
-                render.firstFrameMs == null
-                    ? 'Not measured'
-                    : '${render.firstFrameMs!.toStringAsFixed(1)} ms',
-              ),
-            ],
             _SafetyDetail(
               'Rendered features',
               controller.uasDatasetAssessment?.renderedFeatureCount

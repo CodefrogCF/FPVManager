@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 final _dataset = Uri.https(
   'data.geo.admin.ch',
@@ -24,16 +25,20 @@ Future<void> main(List<String> args) async {
   }
   final compressed = !args.contains('--identity');
   final probes = !args.contains('--skip-probes');
-  print('FPVManager #115 diagnostic (local only)');
-  print('UTC: ${DateTime.now().toUtc().toIso8601String()}');
-  print('Host: ${_dataset.host}; request: ${compressed ? "gzip" : "identity"}');
-  print('Connection probes are independent of the following HTTP request.');
+  stdout.writeln('FPVManager #115 diagnostic (local only)');
+  stdout.writeln('UTC: ${DateTime.now().toUtc().toIso8601String()}');
+  stdout.writeln(
+    'Host: ${_dataset.host}; request: ${compressed ? "gzip" : "identity"}',
+  );
+  stdout.writeln(
+    'Connection probes are independent of the following HTTP request.',
+  );
   if (probes) {
     try {
       final timer = Stopwatch()..start();
       final addresses = await InternetAddress.lookup(_dataset.host)
           .timeout(const Duration(seconds: 15));
-      print(
+      stdout.writeln(
         'dns_ms=${timer.elapsedMilliseconds} addresses=${addresses.length}',
       );
       if (addresses.isEmpty) throw StateError('DNS returned no addresses');
@@ -43,16 +48,16 @@ Future<void> main(List<String> args) async {
         443,
         timeout: const Duration(seconds: 15),
       ).timeout(const Duration(seconds: 15));
-      print('tcp_probe_ms=${timer.elapsedMilliseconds}');
+      stdout.writeln('tcp_probe_ms=${timer.elapsedMilliseconds}');
       timer.reset();
       final secure = await SecureSocket.secure(
         socket,
         host: _dataset.host,
       ).timeout(const Duration(seconds: 15));
-      print('tls_probe_ms=${timer.elapsedMilliseconds}');
+      stdout.writeln('tls_probe_ms=${timer.elapsedMilliseconds}');
       secure.destroy();
     } catch (error) {
-      print('connection_probe_failed=${error.runtimeType}');
+      stdout.writeln('connection_probe_failed=${error.runtimeType}');
     }
   }
 
@@ -87,14 +92,14 @@ Future<void> main(List<String> args) async {
       final encoding = response.headers.value(
         HttpHeaders.contentEncodingHeader,
       );
-      print(
+      stdout.writeln(
         'run=${i + 1} status=$status headers_ms=$headersMs '
         'encoding=${encoding ?? "identity"} '
         'declared_wire_bytes=${response.contentLength}',
       );
       if (status == HttpStatus.notModified) {
         await response.drain<void>();
-        print(
+        stdout.writeln(
           'not_modified=true reused_previous_dataset=true '
           'total_ms=${timer.elapsedMilliseconds}',
         );
@@ -136,7 +141,7 @@ Future<void> main(List<String> args) async {
         throw const FormatException('Invalid dataset GeoJSON');
       }
       final parseMs = parseTimer.elapsedMilliseconds;
-      print(
+      stdout.writeln(
         'wire_bytes=$wireBytes decoded_bytes=${decodedBytes.length} '
         'body_ms=$bodyMs decode_parse_ms=$parseMs '
         'total_ms=${timer.elapsedMilliseconds} '
@@ -144,7 +149,7 @@ Future<void> main(List<String> args) async {
       );
       validator = response.headers.value(HttpHeaders.etagHeader);
       if (validator == null) {
-        print('note=no-etag; second request will be a full download');
+        stdout.writeln('note=no-etag; second request will be a full download');
       }
     }
   } catch (error) {

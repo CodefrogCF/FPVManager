@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/features/airspace/uas_dataset_assessment.dart';
 import 'package:fpvmanager/features/airspace/uas_zone_details.dart';
+import 'package:fpvmanager/features/airspace/data/swiss_uas_provider.dart';
 
 import '../../helpers/uas_zone_fixture.dart';
 
@@ -175,6 +178,92 @@ void main() {
       );
       expect(report.renderedFeatureCount, 3);
       expect(report.hasIssues, isFalse);
+    },
+  );
+  test('fully usable source stays identical with no feature-list copy', () {
+    final source = uasFixtureCollection([
+      uasFixtureFeature(),
+      uasFixtureFeature(overrides: {'identifier': 'second'}),
+    ]);
+    final snapshot = jsonEncode(source);
+    final report = UasDatasetAssessment.inspect(source);
+    expect(identical(report.geoJson, source), isTrue);
+    expect(identical(report.geoJson['features'], source['features']), isTrue);
+    expect(report.skippedFeatureCount, 0);
+    expect(jsonEncode(report.geoJson), snapshot);
+  });
+
+  test('mixed geometry filters without modifying the original coordinates', () {
+    final valid = uasFixtureFeature();
+    final source = uasFixtureCollection([
+      {'type': 'Feature', 'geometry': null},
+      valid,
+      {
+        'type': 'Feature',
+        'geometry': {'type': 'Polygon', 'coordinates': []},
+      },
+    ]);
+    final snapshot = jsonEncode(source);
+    final report = UasDatasetAssessment.inspect(source);
+    expect(report.skippedFeatureCount, 2);
+    expect(report.geoJson['features'], [valid]);
+    expect(
+      identical((report.geoJson['features'] as List).single, valid),
+      isTrue,
+    );
+    expect(jsonEncode(source), snapshot);
+  });
+
+  test('ring uniqueness works with repeated vertices without making sets', () {
+    final feature = uasFixtureFeature();
+    final geometry = <String, dynamic>{
+      'type': 'MultiPolygon',
+      'coordinates': [
+        [
+          [
+            [8, 47],
+            [8, 47],
+            [8.1, 47],
+            [8.1, 47.1],
+            [8, 47],
+          ],
+          [
+            [8.02, 47.02],
+            [8.03, 47.02],
+            [8.02, 47.03],
+            [8.02, 47.02],
+          ],
+        ],
+      ],
+    };
+    final source = uasFixtureCollection([
+      {...feature, 'geometry': geometry},
+    ]);
+    expect(UasDatasetAssessment.inspect(source).renderedFeatureCount, 1);
+    geometry['coordinates'] = [
+      [
+        [
+          [8, 47],
+          [8.1, 47],
+          [8.1, 47],
+          [8, 47],
+        ],
+      ],
+    ];
+    expect(() => UasDatasetAssessment.inspect(source), throwsFormatException);
+  });
+
+  test(
+    'Swiss provider reuses validated assessment only for identical data',
+    () {
+      final provider = SwissUasProvider();
+      addTearDown(provider.dispose);
+      final first = uasFixtureCollection([uasFixtureFeature()]);
+      provider.validateData(first);
+      final cached = provider.assessDataset(first);
+      expect(provider.assessDataset(first), same(cached));
+      final second = uasFixtureCollection([uasFixtureFeature()]);
+      expect(provider.assessDataset(second), isNot(same(cached)));
     },
   );
 }

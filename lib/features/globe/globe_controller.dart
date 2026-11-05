@@ -2146,28 +2146,12 @@ class GlobeController extends ChangeNotifier {
           uasDataFreshness == OsintFreshness.fresh) {
         await _send({'type': 'set-uas-zones', 'visible': true});
       } else {
-        final previousNetworkMetrics = uasNetworkMetrics;
-        final fetchClock = Stopwatch()..start();
         final dataset = await _uasProvider.fetch(
           forceRefresh:
               forceRefresh ||
               _uasRejectedDataset != null &&
                   identical(_uasRejectedDataset, _uasProvider.status.dataset),
         );
-        fetchClock.stop();
-        assert(() {
-          final network = uasNetworkMetrics;
-          final didRequest =
-              network != null && !identical(network, previousNetworkMetrics);
-          final adapterTime = didRequest ? network!.totalTime : Duration.zero;
-          debugPrint(
-            '[FPVManager UAS fetch] totalMs=${fetchClock.elapsedMilliseconds}, '
-            'httpAttempt=$didRequest, '
-            'adapterMs=${adapterTime.inMilliseconds}, '
-            'postAdapterMs=${didRequest ? (fetchClock.elapsed - adapterTime).inMilliseconds : 0}',
-          );
-          return true;
-        }());
         if (!current()) return;
         // HTTP 304 returns the same data object with refreshed HTTP/cache
         // metadata. Revalidating it must not resend megabytes or rebuild
@@ -2185,7 +2169,10 @@ class GlobeController extends ChangeNotifier {
         late UasDatasetAssessment assessment;
         final assessmentClock = Stopwatch()..start();
         try {
-          assessment = UasDatasetAssessment.inspect(dataset.data);
+          final provider = _uasProvider;
+          assessment = provider is SwissUasProvider
+              ? provider.assessDataset(dataset.data)
+              : UasDatasetAssessment.inspect(dataset.data);
           _uasRejectedDataset = null;
         } on FormatException {
           _uasRejectedDataset = dataset;
@@ -2218,20 +2205,6 @@ class GlobeController extends ChangeNotifier {
               (transfer.type == 'set-uas-zones' ||
                   transfer.type == 'replace-uas-zones')) {
             _uasLastTransferMetrics = transfer;
-            assert(() {
-              debugPrint(
-                '[FPVManager UAS transfer] '
-                'transport=${transfer.transport}, '
-                'jsonChars=${transfer.characters}, '
-                'payloadChars=${transfer.payloadCharacters}, '
-                'frames=${transfer.frameCount}, '
-                'encodeMs=${transfer.encodeTime.inMilliseconds}, '
-                'compressMs=${transfer.compressionTime.inMilliseconds}, '
-                'dispatchMs=${transfer.dispatchTime.inMilliseconds}, '
-                'ackMs=${transfer.acknowledgementTime.inMilliseconds}',
-              );
-              return true;
-            }());
           }
           _uasDatasetSentToRenderer = true;
           _uasReplaceAfterCacheClear = false;
@@ -2757,16 +2730,6 @@ class GlobeController extends ChangeNotifier {
             expandMs: expandMs.toDouble(),
             transport: transport as String,
           );
-          assert(() {
-            debugPrint(
-              '[FPVManager UAS decode] '
-              'transport=$transport, '
-              'expandMs=${expandMs.toStringAsFixed(1)}, '
-              'parseMs=${decodeMs.toStringAsFixed(1)}, '
-              'chunks=$chunks',
-            );
-            return true;
-          }());
           notifyListeners();
         }
 

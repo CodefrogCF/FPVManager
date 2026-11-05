@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show compute, debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart' show compute, kIsWeb;
 import 'package:http/http.dart' as http;
 
 import 'cached_osint_provider.dart';
@@ -27,7 +27,6 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
     this.requestTimeout = const Duration(seconds: 45),
     this.bodyStallTimeout = const Duration(seconds: 20),
     this.conditionalRequests = true,
-    this.debugDownloadMetrics = false,
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null {
     if (source.coordinateReference != 'EPSG:4326') {
@@ -50,7 +49,6 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
   /// progressing transfer). Never disables the overall request limit.
   final Duration bodyStallTimeout;
   final bool conditionalRequests;
-  final bool debugDownloadMetrics;
   Completer<void>? _abort;
 
   GeoJsonDownloadMetrics? lastDownloadMetrics;
@@ -158,12 +156,6 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
       conditionalRequest: trace.conditional,
       failure: failure,
     );
-    if (debugDownloadMetrics) {
-      assert(() {
-        debugPrint('[FPVManager UAS HTTP] ${lastDownloadMetrics!.summary}');
-        return true;
-      }());
-    }
   }
 
   static String? _validator(String? value) =>
@@ -366,8 +358,9 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
     restartStallTimer();
     unawaited(
       abort.future.then((_) {
-        if (!done.isCompleted)
+        if (!done.isCompleted) {
           fail(const _DownloadCancelled(), StackTrace.current);
+        }
       }),
     );
     try {

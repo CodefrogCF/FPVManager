@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
@@ -560,4 +563,46 @@ void main() {
       'old-generation',
     );
   });
+  test(
+    'streamed UTF-8 SHA-256 matches canonical digest across surrogate boundary',
+    () async {
+      final db = OsintCacheDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final cache = store(db);
+      final note = "${''.padRight(64 * 1024 - 1, 'x')}🐸é€";
+      final raw = OsintDataset<Map<String, dynamic>>(
+        source: source,
+        data: {'type': 'FeatureCollection', 'features': [], 'note': note},
+        fetchedAtUtc: fetched,
+        cacheExpiresAtUtc: fetched.add(const Duration(hours: 1)),
+      );
+      await cache.write(raw);
+      final snapshot = (await db.readSnapshot(source.id, 2 * 1024 * 1024))!;
+      expect(snapshot.$2, sha256.convert(utf8.encode(snapshot.$1)).toString());
+      final restored = (await cache.read(source, fetched))!;
+      expect(restored.data, raw.data);
+    },
+  );
+
+  test(
+    'UTF-8 byte limit rejects oversized replacement without harming cache',
+    () async {
+      final db = OsintCacheDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final cache = store(db, maxBytes: 4096);
+      await cache.write(dataset());
+      final oversize = OsintDataset<Map<String, dynamic>>(
+        source: source,
+        data: {
+          'type': 'FeatureCollection',
+          'features': [],
+          'note': ''.padRight(4096, '€'),
+        },
+        fetchedAtUtc: fetched,
+        cacheExpiresAtUtc: fetched.add(const Duration(hours: 1)),
+      );
+      await expectLater(cache.write(oversize), throwsFormatException);
+      expect((await cache.read(source, fetched))!.data['fixture'], 1);
+    },
+  );
 }

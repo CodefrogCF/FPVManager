@@ -55,7 +55,7 @@ class JsonOsintDatasetStore
     try {
       final record = await database().readSnapshot(source.id, maxBytes);
       if (record == null) return null;
-      if (sha256.convert(utf8.encode(record.$1)).toString() != record.$2) {
+      if (_utf8Checksum(record.$1).checksum != record.$2) {
         throw const FormatException('Cached dataset checksum mismatch');
       }
       final envelope = jsonDecode(record.$1) as Map<String, dynamic>;
@@ -219,14 +219,13 @@ class JsonOsintDatasetStore
       'requiresRevalidation': dataset.requiresRevalidation,
       'lastModified': dataset.httpLastModified,
     });
-    final bytes = utf8.encode(payload);
-    if (bytes.length > maxBytes) {
-      throw const FormatException('Dataset exceeds local cache limit');
-    }
+    // Hash UTF-8 incrementally instead of materializing another ~14 MB
+    // buffer beside the already-serialized GeoJSON envelope.
+    final digest = _utf8Checksum(payload, maxBytes: maxBytes);
     await database().writeSnapshot(
       s.id,
       payload,
-      sha256.convert(bytes).toString(),
+      digest.checksum,
       checked.add(retention),
     );
   }
@@ -276,4 +275,60 @@ class JsonOsintDatasetStore
       database().removeSnapshot(providerId);
   @override
   Future<void> cleanup(DateTime now) => database().cleanSnapshots(now);
+}
+
+/// Streaming UTF-8 checksum with an exact byte cap. This emits the same
+/// SHA-256 as sha256.convert(utf8.encode(input)) without a full-sized
+/// temporary byte array. Chunked encoding also handles non-BMP characters
+/// split across adjacent input chunks.
+({String checksum, int byteLength}) _utf8Checksum(
+  String input, {
+  int? maxBytes,
+}) {
+  final result = _DigestResultSink();
+  final hashSink = sha256.startChunkedConversion(result);
+  final counter = _BoundedHashSink(hashSink, maxBytes);
+  final encoder = utf8.encoder.startChunkedConversion(counter);
+  const batch = 64 * 1024;
+  for (var offset = 0; offset < input.length; offset += batch) {
+    final end = offset + batch < input.length ? offset + batch : input.length;
+    encoder.add(input.substring(offset, end));
+  }
+  encoder.close();
+  final digest = result.value;
+  if (digest == null) {
+    throw StateError('SHA-256 digest not produced');
+  }
+  return (checksum: digest.toString(), byteLength: counter.bytes);
+}
+
+class _DigestResultSink implements Sink<Digest> {
+  Digest? value;
+
+  @override
+  void add(Digest data) => value = data;
+
+  @override
+  void close() {}
+}
+
+class _BoundedHashSink implements Sink<List<int>> {
+  _BoundedHashSink(this._sink, this._maxBytes);
+
+  final Sink<List<int>> _sink;
+  final int? _maxBytes;
+  int bytes = 0;
+
+  @override
+  void add(List<int> chunk) {
+    bytes += chunk.length;
+    final maxBytes = _maxBytes;
+    if (maxBytes != null && bytes > maxBytes) {
+      throw const FormatException('Dataset exceeds local cache limit');
+    }
+    _sink.add(chunk);
+  }
+
+  @override
+  void close() => _sink.close();
 }
