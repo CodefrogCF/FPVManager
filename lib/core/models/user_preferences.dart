@@ -38,6 +38,7 @@ class UserPreferences {
     this.structuresOpacity = 1.0,
     this.tunnelRoutesOpacity = 0.85,
     this.tunnelRoutesVisible = false,
+    this.schematicTunnel3dEnabled = false,
     this.tunnelExplorationEnabled = false,
     this.realisticLighting = false,
     this.navigationBuildings = NavigationEnvironmentMode.inherit,
@@ -65,6 +66,7 @@ class UserPreferences {
   final double avalancheOpacity;
   final bool buildings3dVisible, vegetation3dVisible, realisticLighting;
   final bool structures3dVisible, tunnelRoutesVisible, tunnelExplorationEnabled;
+  final bool schematicTunnel3dEnabled;
   final bool sceneModelCollisionsEnabled;
   final double structuresOpacity, tunnelRoutesOpacity;
   final NavigationEnvironmentMode navigationBuildings, navigationVegetation;
@@ -97,6 +99,7 @@ class UserPreferences {
     double? structuresOpacity,
     double? tunnelRoutesOpacity,
     bool? tunnelRoutesVisible,
+    bool? schematicTunnel3dEnabled,
     bool? tunnelExplorationEnabled,
     bool? realisticLighting,
     NavigationEnvironmentMode? navigationBuildings,
@@ -129,6 +132,8 @@ class UserPreferences {
     structuresOpacity: structuresOpacity ?? this.structuresOpacity,
     tunnelRoutesOpacity: tunnelRoutesOpacity ?? this.tunnelRoutesOpacity,
     tunnelRoutesVisible: tunnelRoutesVisible ?? this.tunnelRoutesVisible,
+    schematicTunnel3dEnabled:
+        schematicTunnel3dEnabled ?? this.schematicTunnel3dEnabled,
     tunnelExplorationEnabled:
         tunnelExplorationEnabled ?? this.tunnelExplorationEnabled,
     realisticLighting: realisticLighting ?? this.realisticLighting,

@@ -43,6 +43,7 @@ final class DriftUserPreferencesRepository
   static const _structuresOpacity = 'map.scene.structures.opacity';
   static const _tunnelRoutesOpacity = 'map.scene.tunnelRoutes.opacity';
   static const _tunnels = 'map.scene.tunnelRoutes';
+  static const _schematicTunnels3d = 'map.scene.schematicTunnels3d';
   static const _exploration = 'map.scene.tunnelExploration';
   static const _lighting = 'map.scene.lighting';
   static const _navigationBuildings = 'navigation.scene.buildings';
@@ -75,6 +76,7 @@ final class DriftUserPreferencesRepository
     _structuresOpacity,
     _tunnelRoutesOpacity,
     _tunnels,
+    _schematicTunnels3d,
     _exploration,
     _lighting,
     _navigationBuildings,
@@ -218,6 +220,10 @@ final class DriftUserPreferencesRepository
         structuresOpacity: structuresOpacity,
         tunnelRoutesOpacity: tunnelRoutesOpacity,
         tunnelRoutesVisible: readBool(_tunnels, defaults.tunnelRoutesVisible),
+        schematicTunnel3dEnabled: readBool(
+          _schematicTunnels3d,
+          defaults.schematicTunnel3dEnabled,
+        ),
         tunnelExplorationEnabled: readBool(
           _exploration,
           defaults.tunnelExplorationEnabled,
@@ -302,6 +308,7 @@ final class DriftUserPreferencesRepository
             _structuresOpacity: snapshot.structuresOpacity.toString(),
             _tunnelRoutesOpacity: snapshot.tunnelRoutesOpacity.toString(),
             _tunnels: snapshot.tunnelRoutesVisible.toString(),
+            _schematicTunnels3d: snapshot.schematicTunnel3dEnabled.toString(),
             _exploration: snapshot.tunnelExplorationEnabled.toString(),
             _lighting: snapshot.realisticLighting.toString(),
             _navigationBuildings: snapshot.navigationBuildings.name,

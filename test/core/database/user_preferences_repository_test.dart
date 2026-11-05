@@ -58,6 +58,7 @@ void main() {
           sceneModelCollisionsEnabled: true,
           structuresOpacity: .65,
           tunnelRoutesVisible: true,
+          schematicTunnel3dEnabled: true,
           tunnelRoutesOpacity: .55,
           tunnelExplorationEnabled: true,
           realisticLighting: true,
@@ -84,6 +85,7 @@ void main() {
       expect(queue.current.sceneModelCollisionsEnabled, isTrue);
       expect(queue.current.structuresOpacity, .65);
       expect(queue.current.tunnelRoutesVisible, isTrue);
+      expect(queue.current.schematicTunnel3dEnabled, isTrue);
       expect(queue.current.tunnelRoutesOpacity, .55);
       expect(queue.current.tunnelExplorationEnabled, isTrue);
       expect(queue.current.realisticLighting, isTrue);
@@ -95,6 +97,7 @@ void main() {
       expect(reopened.sceneModelCollisionsEnabled, isTrue);
       expect(reopened.structuresOpacity, .65);
       expect(reopened.tunnelRoutesVisible, isTrue);
+      expect(reopened.schematicTunnel3dEnabled, isTrue);
       expect(reopened.tunnelRoutesOpacity, .55);
       expect(reopened.tunnelExplorationEnabled, isTrue);
       expect(queue.current.hazardAreasVisible, isTrue);
@@ -108,14 +111,15 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      // 30 FPVManager-owned keys, including the five infrastructure settings
+      // 31 FPVManager-owned keys, including the schematic tunnel setting
       // and the scene model collision setting, plus the unrelated key.
-      expect(rows, hasLength(31));
+      expect(rows, hasLength(32));
       final stored = {for (final row in rows) row.key: row.value};
       expect(stored['map.scene.structures'], 'true');
       expect(stored['map.scene.modelCollisions'], 'true');
       expect(stored['map.scene.structures.opacity'], '0.65');
       expect(stored['map.scene.tunnelRoutes'], 'true');
+      expect(stored['map.scene.schematicTunnels3d'], 'true');
       expect(stored['map.scene.tunnelRoutes.opacity'], '0.55');
       expect(stored['map.scene.tunnelExploration'], 'true');
       expect(
@@ -139,12 +143,13 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(31));
+      expect(await database.select(database.appSettings).get(), hasLength(32));
       final resetToDefaults = await repository.getPreferences();
       expect(resetToDefaults.structures3dVisible, isFalse);
       expect(resetToDefaults.sceneModelCollisionsEnabled, isFalse);
       expect(resetToDefaults.structuresOpacity, 1.0);
       expect(resetToDefaults.tunnelRoutesVisible, isFalse);
+      expect(resetToDefaults.schematicTunnel3dEnabled, isFalse);
       expect(resetToDefaults.tunnelRoutesOpacity, .85);
       expect(resetToDefaults.tunnelExplorationEnabled, isFalse);
       await repository.resetPreferences();

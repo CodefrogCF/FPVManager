@@ -73,6 +73,7 @@ function postToFlutter(message) {
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
     let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
@@ -697,7 +698,8 @@ function postToFlutter(message) {
                 const result=sceneEnvironment.set(command);
                 // The fully enabled 3D infrastructure layer also discovers
                 // schematic tunnel centerlines near the viewed terrain.
-                tunnels?.setAutomatic(command.structures===true);
+                structuresForTunnelScan = command.structures===true;
+                tunnels?.setAutomatic(structuresForTunnelScan || schematicTunnelsEnabled);
                 if(command.modelCollisions!==undefined){
                     modelCollisions?.setEnabled(command.modelCollisions);
                     tunnelVolumes?.setCollisionEnabled(command.modelCollisions);
@@ -706,7 +708,13 @@ function postToFlutter(message) {
                 return result;
             }
             case 'set-tunnel-infrastructure': {
-                if(command.routesVisible===false){tunnelVolumes?.stop();infrastructureClearance?.forgetTunnel();}
+                if(typeof command.autoModels!=='boolean')throw Error('Schematic tunnel option missing');
+                schematicTunnelsEnabled=command.autoModels;
+                tunnelVolumes?.setAutomaticEnabled(schematicTunnelsEnabled);
+                tunnels?.setAutomatic(structuresForTunnelScan || schematicTunnelsEnabled);
+                if(command.routesVisible===false&&!schematicTunnelsEnabled){
+                    tunnelVolumes?.stop();infrastructureClearance?.forgetTunnel();
+                }
                 return tunnels.set(command);
             }
             case 'scan-tunnel-infrastructure': {
@@ -987,7 +995,11 @@ function postToFlutter(message) {
             resources:()=>sceneEnvironment?.resourceStats()??{}
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
-            ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable})
+            ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{
+                isTerrainReady:terrainAvailable,
+                onRoutes:(routes,center)=>{
+                    if(schematicTunnelsEnabled)void tunnelVolumes?.setAutomaticRoutes(routes,center).catch(()=>{});
+                }})
             : null;
         tunnelVolumes = typeof FPVTunnelFlythrough !== 'undefined'
             ? FPVTunnelFlythrough.create(Cesium,viewer,sendToFlutter,{
@@ -1121,7 +1133,7 @@ function postToFlutter(message) {
                 infrastructureClearance?.collision(from,to)===true ? 'bridge' :
                 (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || false,
             terrainCollision:(from,to)=>{
-                if(tunnelVolumes?.flight &&
+                if(tunnelVolumes &&
                     (tunnelVolumes.floorAt(from)!=null||tunnelVolumes.floorAt(to)!=null))return false;
                 return flightRenderer.terrainCollision(from,to);
             },

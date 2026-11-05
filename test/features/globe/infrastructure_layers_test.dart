@@ -18,6 +18,7 @@ void main() {
     expect(defaults.structures3dVisible, false);
     expect(defaults.sceneModelCollisionsEnabled, false);
     expect(defaults.tunnelRoutesVisible, false);
+    expect(defaults.schematicTunnel3dEnabled, false);
     expect(defaults.tunnelExplorationEnabled, false);
     await repository.savePreferences(
       const UserPreferences(
@@ -26,6 +27,7 @@ void main() {
         structures3dVisible: true,
         sceneModelCollisionsEnabled: true,
         tunnelRoutesVisible: true,
+        schematicTunnel3dEnabled: true,
         tunnelExplorationEnabled: true,
         structuresOpacity: .6,
         tunnelRoutesOpacity: .7,
@@ -37,6 +39,7 @@ void main() {
     expect(recovered.structures3dVisible, true);
     expect(recovered.sceneModelCollisionsEnabled, true);
     expect(recovered.tunnelRoutesVisible, true);
+    expect(recovered.schematicTunnel3dEnabled, true);
     expect(recovered.tunnelExplorationEnabled, true);
     expect(recovered.structuresOpacity, .6);
     expect(recovered.tunnelRoutesOpacity, .7);
@@ -102,6 +105,37 @@ void main() {
       await tester.pumpAndSettle();
       expect(globe.structures3dVisible, true);
       expect(peer.commands.last['structures'], true);
+      final schematic = find.widgetWithText(
+        SwitchListTile,
+        '3D-Tunnel automatisch laden (schematisch)',
+      );
+      await tester.ensureVisible(schematic);
+      await tester.tap(schematic);
+      await tester.pumpAndSettle();
+      expect(globe.schematicTunnel3dEnabled, true);
+      expect(peer.commands.last['autoModels'], true);
+      peer.emit({
+        'type': 'tunnel-routes-loaded',
+        'routes': [
+          {
+            'id': 'road:auto:0',
+            'name': 'Auto Tunnel',
+            'kind': 'tunnel',
+            'transport': 'road',
+            'source': 'ch.swisstopo.swisstlm3d-strassen',
+          },
+        ],
+        'incomplete': false,
+      });
+      await tester.pumpAndSettle();
+      expect(globe.tunnelRoutes.single['name'], 'Auto Tunnel');
+      peer.emit({
+        'type': 'tunnel-auto-mesh-status',
+        'count': 1,
+        'active': true,
+      });
+      await tester.pumpAndSettle();
+      expect(globe.schematicTunnelMeshCount, 1);
       final collisions = find.widgetWithText(
         SwitchListTile,
         '3D-Modellkollisionen (experimentell)',

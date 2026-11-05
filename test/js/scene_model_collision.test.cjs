@@ -35,3 +35,25 @@ test('unsupported depth, unloaded layers, terrain-only positions and 2D mode fai
     assert.equal(f.probe.collision(f.a,f.b),false);
     f.probe.dispose();
 });
+
+test('loaded 3D tile side-wall raycast detects a horizontal impact below its roof',()=>{
+    function Cartesian3(x,y,z){this.x=x;this.y=y;this.z=z;}
+    Cartesian3.fromDegrees=(longitude,latitude,height)=>new Cartesian3(longitude*100000,latitude*100000,height);
+    const C={Cartesian3,Ray:class{constructor(origin,direction){this.origin=origin;this.direction=direction;}},
+        Cartographic:{fromDegrees:(longitude,latitude)=>({longitude,latitude})},
+        SceneMode:{SCENE3D:3}};
+    let picks=0;
+    const scene={mode:3,globe:{getHeight:()=>100},sampleHeightSupported:true,sampleHeight:()=>140,
+        pickFromRay:ray=>{picks++;return {object:{content:{tileset:{}}},
+            position:new Cartesian3(ray.origin.x+ray.direction.x,ray.origin.y+ray.direction.y,ray.origin.z+ray.direction.z)};}};
+    const model=FPVSceneModelCollision.create(C,{scene},{hasVisibleModels:()=>true});
+    model.setEnabled(true);
+    const a={longitude:8.2,latitude:46.8,height:113},b={longitude:8.20002,latitude:46.8,height:113};
+    assert.equal(model.collision(a,b),'model','side walls work even when below the model roof');
+    assert.ok(picks>=1&&picks<=3,'raycast budget');
+    scene.pickFromRay=ray=>({object:{name:'unidentified-terrain'},position:ray.origin});
+    assert.equal(model.collision(a,b),false,'unidentified terrain is not a building wall');
+    scene.pickFromRay=ray=>({object:{content:{tileset:{}}},position:new Cartesian3(ray.origin.x+1000,ray.origin.y,ray.origin.z)});
+    assert.equal(model.collision(a,b),false,'out-of-segment hit must not block flight');
+    model.dispose();
+});

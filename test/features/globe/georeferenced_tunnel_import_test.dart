@@ -74,7 +74,7 @@ void main() {
   });
 
   testWidgets(
-    'import is discoverable without tunnel route layer; mesh-only models cannot fly',
+    'optional mesh import remains available alongside automatic 3D tunnels; unverified meshes cannot fly',
     (tester) async {
       final globe = GlobeController();
       addTearDown(globe.dispose);
@@ -96,8 +96,18 @@ void main() {
       await tester.tap(find.text('3D-Umgebung und Himmelslicht'));
       await tester.pumpAndSettle();
       expect(globe.tunnelRoutesVisible, false);
+      // Real tunnel-axis discovery is automatic and does not require an input JSON file.
       expect(
-        find.text('3D-Tunnelmesh / Querschnitte importieren (JSON)'),
+        find.text('3D-Tunnel automatisch laden (schematisch)'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Querschnitt, Portalposition'),
+        findsOneWidget,
+      );
+      // Importing a user-supplied mesh stays available as an optional advanced path.
+      expect(
+        find.text('Optional: eigenes 3D-Tunnelmesh importieren (JSON)'),
         findsOneWidget,
       );
 

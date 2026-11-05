@@ -244,3 +244,43 @@ test('small portal cuts are replaced with full corridor clipping only during sim
     assert.equal(f.viewer.scene.globe.clippingPolygons.length,1,'corridor clipped during underground flight');
     f.service.stop();assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
 });
+
+test('automatic official tunnel axes create bounded simulated 3D mesh, terrain cut and wall collision without JSON',async()=>{
+    const f=fake();
+    f.service.setAutomaticEnabled(true);
+    const route={...source,kind:'tunnel'};
+    const response=await f.service.setAutomaticRoutes([route],{longitude:8.2001,latitude:46.8});
+    assert.equal(response.count,1);
+    assert.equal(f.added.length,1);
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,1);
+    assert.equal(f.service.status().ready,false,'auto scene must not silently start manual flight');
+    assert.equal(f.service.status().autoCount,1);
+    const m=model(),s=m.sections[1];
+    assert.ok(Number.isFinite(f.service.floorAt(point(s))), 'automatic floor overrides terrain only inside a model');
+    assert.equal(f.service.floorAt({...point(s),height:s.floorMetersWgs84+30}),null);
+    // Auto-tunnel collision follows the tunnel opt-in independently of general building collision.
+    assert.equal(f.service.status().collisionEnabled,false);
+    assert.equal(f.service.intersects(point(s),point(s,4)),true,'automatic side wall contacts');
+    assert.equal(f.service.intersects(point(s),point(m.sections[2])),false,'open interior remains flyable');
+    await f.service.setAutomaticRoutes([route],{longitude:8.2001,latitude:46.8});
+    assert.equal(f.added.length,1,'subsequent query replaces primitives rather than leaking them');
+    f.service.setAutomaticEnabled(false);
+    assert.equal(f.added.length,0);
+    assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
+    f.service.dispose();
+});
+
+test('auto pipeline discards stale terrain requests on disable',async()=>{
+    const f=fake();let finish;
+    const delayed=T.create(f.C,f.viewer,()=>{}, {ready:()=>true,
+        sampleTerrain:()=>new Promise(resolve=>{finish=resolve;})});
+    delayed.setAutomaticEnabled(true);
+    const requested=delayed.setAutomaticRoutes([{...source,kind:'tunnel'}],{longitude:8.2,latitude:46.8});
+    await new Promise(r=>setImmediate(r));
+    delayed.setAutomaticEnabled(false);
+    finish([510,510,511,511]);
+    await requested;
+    assert.equal(delayed.status().autoCount,0);
+    assert.equal(f.added.length,0);
+    delayed.dispose();
+});

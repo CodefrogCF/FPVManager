@@ -409,6 +409,11 @@ class GlobeController extends ChangeNotifier {
   double get structuresOpacity => _preferences.structuresOpacity;
   double get tunnelRoutesOpacity => _preferences.tunnelRoutesOpacity;
   bool get tunnelRoutesVisible => _preferences.tunnelRoutesVisible;
+  bool get schematicTunnel3dEnabled => _preferences.schematicTunnel3dEnabled;
+  int _schematicTunnelMeshCount = 0;
+  int get schematicTunnelMeshCount => _schematicTunnelMeshCount;
+  String? _schematicTunnelMeshError;
+  String? get schematicTunnelMeshError => _schematicTunnelMeshError;
   String _tunnelAutoState = 'hidden';
   String get tunnelAutoState => _tunnelAutoState;
   int _tunnelAutoCount = 0;
@@ -484,12 +489,14 @@ class GlobeController extends ChangeNotifier {
   Map<String, dynamic> get _tunnelCommand => {
     'type': 'set-tunnel-infrastructure',
     'routesVisible': tunnelRoutesVisible,
+    'autoModels': schematicTunnel3dEnabled,
     'explorationAllowed': tunnelExplorationEnabled,
     'opacity': tunnelRoutesOpacity,
   };
 
   Future<void> setTunnelInfrastructure({
     bool? routesVisible,
+    bool? autoModels,
     bool? explorationAllowed,
     double? opacity,
   }) async {
@@ -500,11 +507,12 @@ class GlobeController extends ChangeNotifier {
     await _savePreferences(
       _preferences.copyWith(
         tunnelRoutesVisible: routesVisible,
+        schematicTunnel3dEnabled: autoModels,
         tunnelExplorationEnabled: explorationAllowed,
         tunnelRoutesOpacity: opacity,
       ),
     );
-    if (!tunnelRoutesVisible) {
+    if (!tunnelRoutesVisible && !schematicTunnel3dEnabled) {
       _tunnelRoutes = const [];
       _tunnelScanError = null;
       _tunnelExploring = false;
@@ -515,7 +523,10 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> scanTunnelRoutes({int radiusMeters = 600}) async {
-    if (_tunnelScanPending || !tunnelRoutesVisible) return;
+    if (_tunnelScanPending ||
+        (!tunnelRoutesVisible && !schematicTunnel3dEnabled)) {
+      return;
+    }
     if (radiusMeters < 150 || radiusMeters > 1500) {
       throw ArgumentError.value(radiusMeters, 'radiusMeters');
     }
@@ -2439,6 +2450,8 @@ class GlobeController extends ChangeNotifier {
         _tunnelAutoState = 'hidden';
         _tunnelAutoCount = 0;
         _tunnelAutoIncomplete = true;
+        _schematicTunnelMeshCount = 0;
+        _schematicTunnelMeshError = null;
         _selectedInfrastructure = null;
         _tunnelExploring = false;
         _tunnelScanPending = false;
@@ -2464,6 +2477,8 @@ class GlobeController extends ChangeNotifier {
         _tunnelAutoState = 'hidden';
         _tunnelAutoCount = 0;
         _tunnelAutoIncomplete = true;
+        _schematicTunnelMeshCount = 0;
+        _schematicTunnelMeshError = null;
         _tunnelScanPending = false;
         _tunnelExploring = false;
         _tunnelScanError = null;
@@ -2546,6 +2561,46 @@ class GlobeController extends ChangeNotifier {
           _tunnelAutoState = data['state'] as String;
           _tunnelAutoCount = data['count'] as int;
           _tunnelAutoIncomplete = data['incomplete'] as bool;
+          notifyListeners();
+        }
+      case 'tunnel-routes-loaded':
+        final routes = data['routes'];
+        if (routes is List &&
+            routes.length <= 48 &&
+            data['incomplete'] is bool &&
+            (tunnelRoutesVisible || schematicTunnel3dEnabled)) {
+          final checked = <Map<String, dynamic>>[];
+          for (final entry in routes) {
+            if (entry is! Map ||
+                entry['id'] is! String ||
+                (entry['id'] as String).length > 150 ||
+                entry['name'] is! String ||
+                entry['kind'] is! String ||
+                entry['source'] is! String ||
+                !(entry['source'] as String).startsWith('ch.swisstopo.')) {
+              checked.clear();
+              break;
+            }
+            checked.add(Map<String, dynamic>.from(entry));
+          }
+          if (checked.length == routes.length) {
+            _tunnelRoutes = List.unmodifiable(checked);
+            _tunnelScanIncomplete = data['incomplete'] as bool;
+            notifyListeners();
+          }
+        }
+      case 'tunnel-auto-mesh-status':
+        if (data['count'] is int &&
+            data['active'] is bool &&
+            (data['count'] as int) >= 0 &&
+            (data['count'] as int) <= 3) {
+          _schematicTunnelMeshCount = data['count'] as int;
+          _schematicTunnelMeshError = data['error'] is String
+              ? (data['error'] as String).substring(
+                  0,
+                  (data['error'] as String).length.clamp(0, 160),
+                )
+              : null;
           notifyListeners();
         }
       case 'infrastructure-selected':
@@ -2925,7 +2980,10 @@ class GlobeController extends ChangeNotifier {
         await _send(_sceneCommand());
       }
       if (!current()) return;
-      if (forceSettings || tunnelRoutesVisible || tunnelExplorationEnabled) {
+      if (forceSettings ||
+          tunnelRoutesVisible ||
+          schematicTunnel3dEnabled ||
+          tunnelExplorationEnabled) {
         await _send(_tunnelCommand);
       }
       if (!current()) return;

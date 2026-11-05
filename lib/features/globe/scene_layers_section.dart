@@ -111,7 +111,7 @@ class SceneLayersSection extends StatelessWidget {
             ],
           ),
         const Text(
-          'swisstopo-3D-Tiles; bei Aktivierung werden auch nahe Tunnelachsen automatisch gesucht und als schematische Oberflächenlinien dargestellt. Keine verifizierten Tunnelröhren oder Portale.',
+          'swisstopo-3D-Tiles; nahe Tunnelachsen können zusätzlich automatisch eingeblendet werden. Schematische Tunnelröhren werden separat aktiviert.',
         ),
         if (controller.structures3dVisible) ...[
           if (controller.tunnelAutoState == 'loading')
@@ -131,9 +131,36 @@ class SceneLayersSection extends StatelessWidget {
         ],
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
+          title: const Text('3D-Tunnel automatisch laden (schematisch)'),
+          subtitle: const Text(
+            'Lädt nahe Tunnelachsen und Unterführungen aus swissTLM3D und erzeugt '
+            'begrenzt automatisch befliegbare 3D-Röhren (standardmässig ca. 6 × 5 m). '
+            'Verlauf ist aus offiziellen Achsen abgeleitet; Querschnitt, Portalposition '
+            'und Höhe sind NICHT vermessen. Nur Simulation, keine reale Freigabe. '
+            'Online-Verbindung und geeignetes Terrain/3D-Clipping erforderlich.',
+          ),
+          value: controller.schematicTunnel3dEnabled,
+          onChanged: enabled
+              ? (value) => change(
+                  () => controller.setTunnelInfrastructure(autoModels: value),
+                )
+              : null,
+        ),
+        if (controller.schematicTunnel3dEnabled) ...[
+          Text(
+            'Automatisch dargestellte schematische Tunnel: '
+            '${controller.schematicTunnelMeshCount} (maximal 3 pro Kartenausschnitt).',
+          ),
+          if (controller.schematicTunnelMeshError != null)
+            Text('3D-Tunnel: ${controller.schematicTunnelMeshError}'),
+        ],
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
           title: const Text('3D-Modellkollisionen (experimentell)'),
           subtitle: const Text(
-            'Geladene Tunnelmodelle: geometriebasierte Wände, Dach und Boden (auch bei schnellen Bewegungen). Andere 3D-Tiles: nur angenäherte Oberflächenkontakte; nicht geladene Objekte bleiben ungeprüft.',
+            'Schematische Tunnelmodelle: geometriebasierte Innenwände, Dach und Boden. '
+            '3D-Gebäude: optionaler Raycast gegen bereits geladene Wände/Dächer; '
+            'nicht geladene 3D-Tiles und unvollständige Depth-Puffer bleiben ungeprüft.',
           ),
           value: controller.sceneModelCollisionsEnabled,
           onChanged: enabled
@@ -217,7 +244,9 @@ class SceneLayersSection extends StatelessWidget {
                 })
               : null,
           icon: const Icon(Icons.upload_file),
-          label: const Text('3D-Tunnelmesh / Querschnitte importieren (JSON)'),
+          label: const Text(
+            'Optional: eigenes 3D-Tunnelmesh importieren (JSON)',
+          ),
         ),
         const Text(
           'Importierte Meshes: explizites EPSG:4979 / WGS84-Ellipsoid, '
@@ -238,27 +267,29 @@ class SceneLayersSection extends StatelessWidget {
                 )
               : null,
         ),
-        if (controller.tunnelRoutesVisible) ...[
-          Row(
-            children: [
-              const Text('Tunnelachse-Deckkraft'),
-              Expanded(
-                child: Slider(
-                  value: controller.tunnelRoutesOpacity,
-                  min: .2,
-                  max: 1,
-                  divisions: 8,
-                  onChanged: enabled
-                      ? (value) => change(
-                          () => controller.setTunnelInfrastructure(
-                            opacity: value,
-                          ),
-                        )
-                      : null,
+        if (controller.tunnelRoutesVisible ||
+            controller.schematicTunnel3dEnabled) ...[
+          if (controller.tunnelRoutesVisible)
+            Row(
+              children: [
+                const Text('Tunnelachse-Deckkraft'),
+                Expanded(
+                  child: Slider(
+                    value: controller.tunnelRoutesOpacity,
+                    min: .2,
+                    max: 1,
+                    divisions: 8,
+                    onChanged: enabled
+                        ? (value) => change(
+                            () => controller.setTunnelInfrastructure(
+                              opacity: value,
+                            ),
+                          )
+                        : null,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             title: const Text('Schematische Tunnel-Erkundung erlauben'),
@@ -292,7 +323,7 @@ class SceneLayersSection extends StatelessWidget {
               !controller.tunnelScanPending &&
               controller.tunnelScanError == null)
             const Text(
-              'Keine manuell aufgelisteten Tunnelachsen. Bei aktiven 3D-Bauwerken erfolgt eine begrenzte automatische Suche im Kartenbereich; manuelle Suche bleibt verfügbar.',
+              'Noch keine Tunnelachsen aufgelistet. Bei aktivierten schematischen 3D-Tunneln erfolgt eine begrenzte automatische Suche; manuelle Suche bleibt verfügbar.',
             ),
           for (final route in controller.tunnelRoutes)
             ListTile(

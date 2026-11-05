@@ -6,7 +6,7 @@ const road = (n, coords = [[8.3,46.9],[8.3001,46.9001]]) => ({
     type:'Feature',featureId:String(n),geometry:{type:'LineString',coordinates:coords},
     properties:{KUNSTBAUTE:n===1?1000:1100,STRASSENNAME:`Tunnel ${n}`},
 });
-function fixture({respond=()=>({results:[]}), time=()=>2000, getHeight=()=>500, automaticFixture=false}={}){
+function fixture({respond=()=>({results:[]}), time=()=>2000, getHeight=()=>500, automaticFixture=false, onRoutes=()=>{}}={}){
     const events=[], requested=[], drawn=[], positions=[], listeners=new Set(), autoTimers=new Map();
     let nextAutoTimer=0;let cameraLongitude=8.3, cameraLatitude=46.9;
     const moveListeners=new Set();
@@ -27,7 +27,7 @@ function fixture({respond=()=>({results:[]}), time=()=>2000, getHeight=()=>500, 
         scene:{globe:{getHeight,pick:()=>({x:1})},requestRender(){},preRender:{addEventListener(cb){listeners.add(cb);return()=>listeners.delete(cb)}}}};
     const fetcher=async(url,options)=>{requested.push({url,options});return {ok:true,status:200,
         headers:{get:()=>null}, text:async()=>JSON.stringify(respond(new URL(url).searchParams.get('layers')))};};
-    const module=T.create(C,viewer,(type,data)=>events.push({type,...data}),{fetcher,now:time,isTerrainReady:()=>true,
+    const module=T.create(C,viewer,(type,data)=>events.push({type,...data}),{fetcher,onRoutes,now:time,isTerrainReady:()=>true,
         setTimer:automaticFixture?(fn)=>{const id=++nextAutoTimer;autoTimers.set(id,fn);return id;}:setTimeout,
         clearTimer:automaticFixture?(id)=>autoTimers.delete(id):clearTimeout});
     return {module,C,viewer,events,requested,drawn,positions,listeners,autoTimers,moveListeners,
@@ -168,4 +168,20 @@ test('automatic search never invents data when terrain, camera or network is una
     p.module.setAutomatic(false);
     assert.equal(p.autoTimers.size,0);
     p.module.dispose();
+});
+
+
+test('automatic official route scan publishes selectable provenance without requesting a user JSON file',async()=>{
+    const updated=[];
+    const f=fixture({respond:layer=>({results:layer.includes('strassen')?[road(1)]:[]}),
+        onRoutes:(routes,center)=>updated.push({routes,center})});
+    f.module.setAutomatic(true);
+    const found=await f.module.scan({longitude:8.3,latitude:46.9});
+    assert.equal(found.count,1);
+    assert.equal(updated.length,1);
+    assert.equal(updated[0].routes[0].source,T.LAYERS.road);
+    const metadata=f.events.find(event=>event.type==='tunnel-routes-loaded');
+    assert.equal(metadata.routes[0].source,T.LAYERS.road);
+    assert.equal(metadata.routes[0].coordinates,undefined,'bridge event includes only bounded metadata');
+    f.module.dispose();
 });
