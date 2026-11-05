@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/flight_plan_repository.dart';
 import 'route_editor_screen.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
@@ -168,7 +167,19 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
     }
   }
 
-  late Stream<List<FlightPlan>> _routes = widget.repository.watchFlightPlans();
+  late Stream<List<FlightPlanSummary>> _routes = widget.repository
+      .watchFlightPlanSummaries();
+  List<FlightPlanSummary>? _previousRows;
+  final Map<int, Future<String?>> _recordingSummaries = {};
+
+  Future<String?> _recordingFor(int id) async {
+    final plan = await widget.repository.getFlightPlan(id);
+    if (plan == null) return null;
+    final recorded = RoutePlanningSettings.decode(plan.planningJson)
+        .recordedTrack;
+    return recorded == null ? null : _recordingSummary(recorded);
+  }
+
   Future<void> _open([int? id]) => Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (context) => RouteEditorScreen(
@@ -200,7 +211,7 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
             )
           : null,
     ),
-    body: StreamBuilder<List<FlightPlan>>(
+    body: StreamBuilder<List<FlightPlanSummary>>(
       stream: _routes,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -211,7 +222,8 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
                 const Text('Unable to load saved routes.'),
                 TextButton(
                   onPressed: () => setState(
-                    () => _routes = widget.repository.watchFlightPlans(),
+                    () =>
+                        _routes = widget.repository.watchFlightPlanSummaries(),
                   ),
                   child: const Text('Retry'),
                 ),
@@ -232,20 +244,30 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
             ),
           );
         }
+        // Invalidate lazy details only when the database publishes a new list;
+        // ordinary widget rebuilds do not trigger repeated JSON decoding.
+        if (!identical(snapshot.data, _previousRows)) {
+          _previousRows = snapshot.data;
+          _recordingSummaries.clear();
+        }
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 100),
           itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
             final route = snapshot.data![index];
-            final recorded = RoutePlanningSettings.decode(route.planningJson)
-                .recordedTrack;
             return ListTile(
               leading: const Icon(Icons.route_outlined),
               title: Text(route.name),
-              subtitle: Text(
-                recorded == null
-                    ? 'Stored on this device'
-                    : _recordingSummary(recorded),
+              subtitle: FutureBuilder<String?>(
+                future: _recordingSummaries.putIfAbsent(
+                  route.id,
+                  () => _recordingFor(route.id),
+                ),
+                builder: (context, details) => Text(
+                  details.hasError
+                      ? 'Recording details unavailable'
+                      : details.data ?? 'Stored on this device',
+                ),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

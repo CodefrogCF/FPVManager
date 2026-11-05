@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/database/fpv_database.dart';
+import '../../core/database/repositories/flight_plan_repository.dart';
 import 'route_layers_controller.dart';
 
 class RouteLayersSection extends StatefulWidget {
@@ -11,8 +11,8 @@ class RouteLayersSection extends StatefulWidget {
 }
 
 class _RouteLayersSectionState extends State<RouteLayersSection> {
-  late Stream<List<FlightPlan>> _plans = widget.controller.repository
-      .watchFlightPlans();
+  late Stream<List<FlightPlanSummary>> _plans = widget.controller.repository
+      .watchFlightPlanSummaries();
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -43,7 +43,7 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
             child: const Text('Retry route preview'),
           ),
         ],
-        StreamBuilder<List<FlightPlan>>(
+        StreamBuilder<List<FlightPlanSummary>>(
           stream: _plans,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -53,7 +53,8 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
                   const Text('Unable to load saved routes.'),
                   TextButton(
                     onPressed: () => setState(() {
-                      _plans = widget.controller.repository.watchFlightPlans();
+                      _plans = widget.controller.repository
+                          .watchFlightPlanSummaries();
                     }),
                     child: const Text('Retry route list'),
                   ),

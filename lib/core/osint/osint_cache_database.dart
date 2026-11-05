@@ -19,7 +19,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
     ),
   );
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -40,14 +40,21 @@ class OsintCacheDatabase extends GeneratedDatabase {
       );
       await _createSnapshots();
       await _createSnapshotRevalidations();
+      await _createSnapshotRetentionIndex();
       await _createOfflineMaps();
       await _createMobileSites();
     },
     onUpgrade: (_, from, to) async {
-      if (from < 2) await _createSnapshots();
       if (from < 3) await _createOfflineMaps();
       if (from < 4) await _createMobileSites();
       if (from < 5) await _createSnapshotRevalidations();
+      if (from < 6) {
+        // Some older/partial caches do not contain the v2 snapshot table.
+        // Ensure it exists before creating the v6 retention index. Existing
+        // snapshot rows must survive migration without replacement.
+        await _createSnapshots();
+        await _createSnapshotRetentionIndex();
+      }
     },
   );
 
@@ -84,8 +91,15 @@ class OsintCacheDatabase extends GeneratedDatabase {
   }
 
   Future<void> _createSnapshots() => customStatement(
-    'CREATE TABLE osint_snapshots (provider TEXT PRIMARY KEY, '
+    'CREATE TABLE IF NOT EXISTS osint_snapshots (provider TEXT PRIMARY KEY, '
     'envelope TEXT NOT NULL, checksum TEXT NOT NULL, retained_until INTEGER NOT NULL)',
+  );
+
+  /// Retention sweeps must not scan large, still-valid public snapshots.
+  /// The provider primary key continues to serve individual lookups.
+  Future<void> _createSnapshotRetentionIndex() => customStatement(
+    'CREATE INDEX IF NOT EXISTS osint_snapshots_retained_until '
+    'ON osint_snapshots(retained_until)',
   );
 
   Future<void> _createSnapshotRevalidations() => customStatement(

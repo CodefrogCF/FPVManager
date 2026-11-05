@@ -78,11 +78,40 @@ class NativeOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
           [region.id, jsonEncode(region.toJson())],
         );
       }
-      for (final tile in await tiles()) {
-        if (!regions.any((r) => r.includesKey(tile.key))) {
+      if (regions.isEmpty) {
+        // Only public offline tile cache is removed. Personal records live in
+        // the separate FpvDatabase and are never affected by cache eviction.
+        await database.customStatement('DELETE FROM offline_tiles');
+        return;
+      }
+      // Keyset traversal bounds the resident keys and avoids OFFSET scans.
+      // Deleting a batch is safe because the next page starts after the last
+      // examined key, including keys retained by one of the regions.
+      String? afterKey;
+      while (true) {
+        final rows = await database
+            .customSelect(
+              afterKey == null
+                  ? 'SELECT key FROM offline_tiles ORDER BY key LIMIT 256'
+                  : 'SELECT key FROM offline_tiles WHERE key>? '
+                        'ORDER BY key LIMIT 256',
+              variables: afterKey == null ? const [] : [Variable(afterKey)],
+            )
+            .get();
+        if (rows.isEmpty) break;
+        final stale = <String>[];
+        for (final row in rows) {
+          final key = row.read<String>('key');
+          if (!regions.any((r) => r.includesKey(key))) stale.add(key);
+        }
+        afterKey = rows.last.read<String>('key');
+        if (stale.isNotEmpty) {
+          // One indexed delete instead of one database round trip per tile.
+          // The 256 variable cap is safe on older SQLite/wasm engines.
           await database.customStatement(
-            'DELETE FROM offline_tiles WHERE key=?',
-            [tile.key],
+            'DELETE FROM offline_tiles WHERE key IN '
+            '(${List.filled(stale.length, '?').join(',')})',
+            stale,
           );
         }
       }
@@ -124,6 +153,18 @@ class NativeOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
       ),
     );
     if (_ownsDatabase) await database.close();
+  }
+
+  /// Only the keys of terrain tiles are required to describe cached terrain
+  /// availability; image and prepared package entries never enter memory.
+  Future<List<String>> _terrainKeys() async {
+    final rows = await database
+        .customSelect(
+          'SELECT key FROM offline_tiles WHERE key GLOB ?',
+          variables: [Variable('terrain/*')],
+        )
+        .get();
+    return [for (final row in rows) row.read<String>('key')];
   }
 
   Future<({Uint8List bytes, String mime, DateTime fetchedAt})> load(
@@ -197,11 +238,19 @@ class NativeOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
       // Pruning and replacement commit together; any failed write rolls back.
       await setRegions(next);
       final prefix = 'prepared/${package.region.packageId}/';
-      final old = await tiles();
+      // Aggregate in SQLite: package replacement no longer materializes the
+      // complete offline tile catalogue merely to compute its byte budget.
+      final otherBytes =
+          (await database
+                  .customSelect(
+                    'SELECT COALESCE(SUM(byte_size),0) AS bytes FROM offline_tiles '
+                    'WHERE key NOT GLOB ?',
+                    variables: [Variable('$prefix*')],
+                  )
+                  .getSingle())
+              .read<int>('bytes');
       final size =
-          old
-              .where((t) => !t.key.startsWith(prefix))
-              .fold<int>(0, (n, t) => n + t.bytes) +
+          otherBytes +
           package.files.values.fold<int>(0, (n, b) => n + b.length);
       if (size > offlineMapBudget) {
         throw const FormatException('Offline map storage limit reached');
@@ -237,7 +286,7 @@ class NativeOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
         bytes: cacheOnly && key == 'terrain/layer.json'
             ? cachedTerrainMetadata(
                 old.read<Uint8List>('body'),
-                (await tiles()).map((t) => t.key),
+                await _terrainKeys(),
               )
             : cacheOnly && key.endsWith('.terrain')
             ? withoutTerrainMetadata(old.read<Uint8List>('body'))
@@ -287,9 +336,7 @@ class NativeOfflineMapStore implements OfflineMapStorage, PreparedMapStorage {
       DateTime.now().millisecondsSinceEpoch,
       isUtc: true,
     );
-    if (!_closed &&
-        cacheAllowed &&
-        (await regions()).any((r) => r.includesKey(key))) {
+    if (!_closed && cacheAllowed) {
       await database.transaction(() async {
         if (!(await regions()).any((r) => r.includesKey(key))) return;
         final used =

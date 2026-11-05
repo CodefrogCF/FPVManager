@@ -10,6 +10,14 @@ import '../fpv_database.dart';
 import '../repository_validation.dart';
 import 'drone_repository.dart';
 
+/// Lightweight row used in route navigation; large planning/recording JSON
+/// is fetched only when the user needs its detail.
+class FlightPlanSummary {
+  const FlightPlanSummary({required this.id, required this.name});
+  final int id;
+  final String name;
+}
+
 /// Local flight projects. The caller owns the injected database.
 abstract interface class FlightPlanRepository {
   static RouteWaypoint validatePersistedWaypoint(FlightWaypoint row) =>
@@ -27,6 +35,7 @@ abstract interface class FlightPlanRepository {
   Future<FlightPlan?> getFlightPlan(int id);
   Future<List<FlightPlan>> getAllFlightPlans();
   Stream<List<FlightPlan>> watchFlightPlans();
+  Stream<List<FlightPlanSummary>> watchFlightPlanSummaries();
   Future<bool> updateFlightPlan({
     required int id,
     required String name,
@@ -267,6 +276,23 @@ final class DriftFlightPlanRepository implements FlightPlanRepository {
   Stream<List<FlightPlan>> watchFlightPlans() => (_database.select(
     _database.flightPlans,
   )..orderBy([(table) => OrderingTerm.desc(table.id)])).watch();
+
+  @override
+  Stream<List<FlightPlanSummary>> watchFlightPlanSummaries() => _database
+      .customSelect(
+        'SELECT id,name FROM flight_plans ORDER BY id DESC',
+        readsFrom: {_database.flightPlans},
+      )
+      .watch()
+      .map(
+        (rows) => [
+          for (final row in rows)
+            FlightPlanSummary(
+              id: row.read<int>('id'),
+              name: row.read<String>('name'),
+            ),
+        ],
+      );
 
   @override
   Future<bool> updateFlightPlan({
