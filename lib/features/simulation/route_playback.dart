@@ -61,7 +61,7 @@ class RoutePlaybackRequest {
         'longitude': position.longitude,
         'heightMode': mode,
         'heightMeters': ?meters,
-        'speedMetersPerSecond': ?speed
+        'speedMetersPerSecond': ?speed,
       });
     }
     final stored = RoutePlanningSettings.decode(route.plan.planningJson)
