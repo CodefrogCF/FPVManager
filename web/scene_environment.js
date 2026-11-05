@@ -127,6 +127,7 @@
         }
         const removeUpdate=scene.preUpdate.addEventListener(()=>{for(const key of Object.keys(layers))visibility(key);});
         return {
+            hasVisibleModels(){return Object.values(layers).some(l=>l.tileset?.show===true);},
             set(command){
                 if(disposed)return {};
                 for(const key of ['buildings','vegetation','lighting'])if(typeof command[key]!=='boolean')throw Error('Invalid scene preference');
@@ -163,7 +164,7 @@
                     if(['string','number','boolean'].includes(typeof value))
                         props[key]=String(value).slice(0,160);
                 }
-                send('infrastructure-selected',{kind:'structure',source:'ch.swisstopo.swisstlm3d.3d',
+                send('infrastructure-selected',{kind:'structure',datasetSource:'ch.swisstopo.swisstlm3d.3d',
                     attributes:props,mode:'official-3d-tiles',heightReference:'source-geometry'});
                 return true;
             },
@@ -342,11 +343,16 @@
     }
     function create(C, viewer, emit = () => {}, {fetcher = (...args) => fetch(...args),
         now = () => performance.now(), isOnline = () => globalThis.navigator?.onLine !== false,
-        isTerrainReady = () => true} = {}) {
-        let disposed = false, visible = false, allowed = false, items = [], active = null, opacity = .85;
+        isTerrainReady = () => true, setTimer = setTimeout, clearTimer = clearTimeout} = {}) {
+        let disposed = false, visible = false, manualVisible = false, automatic = false, allowed = false, items = [], active = null, opacity = .85;
         let requestController = null, revision = 0, lastRequestAt = -Infinity;
         let dataSource = null, removeFrame = null, pending = false;
+        let autoTimer = null, lastAutoAt = -Infinity, lastAutoCenter = null;
+        let autoState = 'hidden', autoCount = 0, autoIncomplete = true;
         const scene = viewer.scene, camera = viewer.camera;
+        const AUTO_INTERVAL = 20000, AUTO_RADIUS = 900, AUTO_CAMERA_LIMIT = 8000;
+        const cancelAutoTimer = () => { if (autoTimer !== null) { clearTimer(autoTimer); autoTimer = null; } };
+        const removeMoveEnd = camera.moveEnd?.addEventListener?.(() => scheduleAutomaticScan());
         function clearData() {
             if (dataSource) { viewer.dataSources.remove(dataSource, true); dataSource = null; }
             scene.requestRender?.();
@@ -387,15 +393,78 @@
             scene.requestRender?.();
         }
         function clear() { revision++;requestController?.abort();requestController = null;pending = false;stop();items = [];clearData(); }
+        // The official service publishes axes, NOT surveyed tubes or portals.
+        // Discover nearby schematic routes only when the 3D structures layer is enabled.
+        // A viewport scan is bounded, deferred until camera idle, and rate-limited.
+        function automaticCenter() {
+            if (!automatic || disposed || !isOnline() || !camera.getPickRay ||
+                !C.Cartesian2 || !C.Cartographic?.fromCartesian || !C.Math?.toDegrees ||
+                !viewer.canvas || camera.positionCartographic?.height > AUTO_CAMERA_LIMIT) return null;
+            const canvas = viewer.canvas;
+            if (!canvas.clientWidth || !canvas.clientHeight) return null;
+            if (C.SceneMode && scene.mode !== C.SceneMode.SCENE3D) return null;
+            const target = new C.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
+            const ray = camera.getPickRay(target);
+            // Ellipsoid fallback only chooses a search region; it does NOT
+            // manufacture a tunnel portal, elevation or clearance.
+            const hit = (ray && scene.globe.pick?.(ray, scene)) ?? camera.pickEllipsoid?.(target);
+            if (!hit) return null;
+            const center = C.Cartographic.fromCartesian(hit);
+            const longitude = C.Math.toDegrees(center.longitude), latitude = C.Math.toDegrees(center.latitude);
+            try { bounds(longitude, latitude, AUTO_RADIUS); } catch (_) { return null; }
+            return {longitude, latitude};
+        }
+        function publishAutomatic(state, count = autoCount, incomplete = autoIncomplete) {
+            if (state === autoState && count === autoCount && incomplete === autoIncomplete) return;
+            autoState = state; autoCount = count; autoIncomplete = incomplete;
+            emit('tunnel-auto-status', {state, count, incomplete});
+        }
+        function scheduleAutomaticScan() {
+            cancelAutoTimer();
+            if (!automatic || disposed) return;
+            autoTimer = setTimer(() => {
+                autoTimer = null;
+                const center = automaticCenter(), stamp = now();
+                if (!center) {publishAutomatic(isOnline()?'outside':'offline');return;}
+                if (pending || stamp - lastAutoAt < AUTO_INTERVAL) return;
+                if (lastAutoCenter && Math.hypot(
+                    (center.longitude - lastAutoCenter.longitude) * 75000,
+                    (center.latitude - lastAutoCenter.latitude) * 111000) < 350) return;
+                lastAutoAt = stamp;
+                publishAutomatic('loading');
+                scan({...center, radiusMeters:AUTO_RADIUS}).then(result => {
+                    if (!automatic || disposed) return;
+                    lastAutoCenter = center;
+                    publishAutomatic(result.incomplete?'partial':'ready',result.count,result.incomplete);
+                }).catch(() => {
+                    // Keep existing routes on transient failure, never claim
+                    // that a failed source query proves no tunnels exist.
+                    if (automatic && !disposed) publishAutomatic(isOnline()?'failed':'offline');
+                });
+            }, 650);
+        }
+        function updateVisibility() {
+            const next = manualVisible || automatic;
+            if (!next) { if (visible) clear(); visible = false; }
+            else if (!visible) { visible = true; draw(); }
+        }
+        function setAutomatic(enabled) {
+            if (typeof enabled !== 'boolean') throw Error('Invalid automatic tunnel setting');
+            if (disposed || enabled === automatic) return {automatic, visible};
+            automatic = enabled; if (!automatic) {cancelAutoTimer();publishAutomatic('hidden',0,true);}
+            updateVisibility();
+            if (automatic) {publishAutomatic('waiting',0,true);scheduleAutomaticScan();}
+            return {automatic, visible};
+        }
         function set({routesVisible, explorationAllowed, opacity:nextOpacity = opacity} = {}) {
             if (typeof routesVisible !== 'boolean' || typeof explorationAllowed !== 'boolean')
                 throw Error('Invalid tunnel settings');
             if(!Number.isFinite(nextOpacity)||nextOpacity<.2||nextOpacity>1)throw Error('Invalid tunnel opacity');
             if (disposed) return {};
             if (!routesVisible || !explorationAllowed) stop();
-            if (!routesVisible) clear();
-            visible = routesVisible; allowed = explorationAllowed; opacity = nextOpacity;
-            draw();return {visible, explorationAllowed:allowed, count:items.length};
+            manualVisible = routesVisible; allowed = explorationAllowed; opacity = nextOpacity;
+            updateVisibility();
+            draw();return {visible, automatic, explorationAllowed:allowed, count:items.length};
         }
         async function scan({longitude,latitude,radiusMeters = 600} = {},signal) {
             if (disposed || !visible) throw Error('Enable tunnel routes first.');
@@ -498,14 +567,14 @@
             const route=items.find(r=>`fpv-tunnel-${r.id}`===entity.id);
             if(!route)return false;
             emit('infrastructure-selected',{id:route.id,name:route.name,kind:route.kind,transport:route.transport,
-                source:route.source,sourceId:route.sourceId,portalsVerified:false,heightReference:'unavailable'});
+                datasetSource:route.source,sourceId:route.sourceId,portalsVerified:false,heightReference:'unavailable'});
             return true;
         }
-        return {set,scan,focus,explore,stop,pick,
+        return {set,setAutomatic,scan,focus,explore,stop,pick,
             geometry(routeId){const r=routeById(routeId);return {id:r.id,source:r.source,sourceId:r.sourceId,
                 coordinates:r.coordinates.map(pair=>[...pair])};},
-            dispose(){if(disposed)return;clear();disposed=true;},
-            status(){return {visible,allowed,pending,count:items.length,exploring:!!active};}};
+            dispose(){if(disposed)return;cancelAutoTimer();removeMoveEnd?.();clear();disposed=true;},
+            status(){return {visible,automatic,autoState,allowed,pending,count:items.length,exploring:!!active};}};
     }
     return {ENDPOINT,LAYERS,BOUNDS,category,bounds,urlFor,parseIdentify,create};
 });
@@ -520,6 +589,7 @@
     'use strict';
     const R=6378137,DEG=Math.PI/180,MAX_SECTIONS=96,MAX_LENGTH=2200;
     const finite=Number.isFinite;
+    const PROFILES=Object.freeze(['rectangular','vaulted']);
     const xy=(point,origin)=>({x:(point.longitude-origin.longitude)*DEG*R*Math.cos(origin.latitude*DEG),
         y:(point.latitude-origin.latitude)*DEG*R});
     function length(a,b){const p=xy(b,a);return Math.hypot(p.x,p.y);}
@@ -539,7 +609,8 @@
                 widthMeters:s.widthMeters,heightMeters:s.heightMeters};
         });
     }
-    function procedural(route,groundHeights,{widthMeters=6,heightMeters=5}={}){
+    function procedural(route,groundHeights,{widthMeters=6,heightMeters=5,profile='rectangular'}={}){
+        if(!PROFILES.includes(profile))throw Error('Unsupported tunnel cross-section profile.');
         if(!route||!Array.isArray(route.coordinates)||route.coordinates.length<2||
             route.coordinates.length>MAX_SECTIONS||!Array.isArray(groundHeights)||
             route.coordinates.length!==groundHeights.length)throw Error('Unsupported tunnel centerline or terrain profile.');
@@ -560,7 +631,7 @@
         return {version:1,identity:String(route.id||'local').slice(0,150),quality:'simulation-only',
             source:String(route.source||'').slice(0,160),sourceId:String(route.sourceId||'').slice(0,160),
             elevationReference:'WGS84_ELLIPSOID',portalsVerified:false,clearanceVerified:false,
-            label:'SYNTHETIC TUNNEL · SIMULATION ONLY',sections};
+            label:'SYNTHETIC TUNNEL · SIMULATION ONLY',profile,sections};
     }
     // Externally supplied cross-section files are unverified until their
     // provenance has been checked independently. They cannot enable automatic
@@ -569,14 +640,124 @@
         if(!document||document.version!==1||document.elevationReference!=='WGS84_ELLIPSOID'
             ||typeof document.source!=='string'||!document.source.trim()
             ||document.source.length>256)throw Error('Explicit WGS84 elevation and source required.');
+        if(document.profile!==undefined&&!PROFILES.includes(document.profile))
+            throw Error('Unsupported tunnel cross-section profile.');
         return {version:1,identity:String(document.identity||'imported').slice(0,150),
             source:document.source,sourceId:String(document.sourceId||'').slice(0,160),
             quality:'external-unverified',elevationReference:'WGS84_ELLIPSOID',
             portalsVerified:false,clearanceVerified:false,
-            label:'EXTERNAL GEOMETRY · CLEARANCE NOT VERIFIED',sections:validateSections(document.sections)};
+            label:'EXTERNAL GEOMETRY · CLEARANCE NOT VERIFIED',profile:document.profile??'rectangular',
+            sections:validateSections(document.sections)};
+    }
+    /* Version 2 is an explicit, local, georeferenced triangle mesh interchange.
+     * It does NOT parse arbitrary glTF/IFC, infer a datum, or certify accuracy.
+     * WGS84 longitude/latitude/degrees + ellipsoid metres (EPSG:4979) only.
+     * Separate render/collider meshes allow a conservative collision proxy. */
+    const MAX_MESH_VERTICES=8192,MAX_MESH_TRIANGLES=12000;
+    function validateTriMesh(raw,name){
+        if(!raw||!Array.isArray(raw.vertices)||raw.vertices.length<3||
+            raw.vertices.length>MAX_MESH_VERTICES||!Array.isArray(raw.triangles)||
+            raw.triangles.length<1||raw.triangles.length>MAX_MESH_TRIANGLES)
+            throw Error(`${name}: bounded vertices and triangles required.`);
+        const vertices=raw.vertices.map(v=>{
+            if(!Array.isArray(v)||v.length!==3||!v.every(finite)||
+                v[0]<5.8||v[0]>10.7||v[1]<45.6||v[1]>47.9||v[2]<-500||v[2]>9000)
+                throw Error(`${name}: EPSG:4979 [longitude, latitude, ellipsoid height] required.`);
+            return v.slice();
+        });
+        const origin=vertices[0];
+        for(const v of vertices){
+            if(length({longitude:origin[0],latitude:origin[1]},
+                {longitude:v[0],latitude:v[1]})>20000||Math.abs(v[2]-origin[2])>3000)
+                throw Error(`${name}: vertex outside supported 20 km / 3 km local extent.`);
+        }
+        const xyz=vertices.map(v=>ecef(...v));
+        const triangles=raw.triangles.map(t=>{
+            if(!Array.isArray(t)||t.length!==3||t.some(i=>!Number.isInteger(i)||i<0||i>=vertices.length)||
+                new Set(t).size!==3)throw Error(`${name}: invalid triangle index.`);
+            const ab=sub(xyz[t[1]],xyz[t[0]]),ac=sub(xyz[t[2]],xyz[t[0]]);
+            if(norm2(cross(ab,ac))<1e-12)throw Error(`${name}: degenerate triangle.`);
+            return t.slice();
+        });
+        return {vertices,triangles};
+    }
+    function validateClips(value,origin,name){
+        if(value===undefined)return [];
+        if(!Array.isArray(value)||value.length>8)throw Error(`${name}: at most eight clipping polygons.`);
+        return value.map(poly=>{
+            if(!Array.isArray(poly)||poly.length<3||poly.length>24)throw Error(`${name}: polygon has invalid size.`);
+            const vertices=poly.map(p=>{
+                if(!Array.isArray(p)||p.length!==2||!p.every(finite)||p[0]<5.8||p[0]>10.7||
+                    p[1]<45.6||p[1]>47.9||
+                    length({longitude:origin[0],latitude:origin[1]},
+                        {longitude:p[0],latitude:p[1]})>20000)
+                    throw Error(`${name}: invalid WGS84 polygon vertex.`);
+                return p.slice();
+            });
+            let twiceArea=0;for(let i=0;i<vertices.length;i++){
+                const a=xy({longitude:vertices[i][0],latitude:vertices[i][1]},
+                    {longitude:origin[0],latitude:origin[1]});
+                const b=xy({longitude:vertices[(i+1)%vertices.length][0],
+                    latitude:vertices[(i+1)%vertices.length][1]},
+                    {longitude:origin[0],latitude:origin[1]});
+                twiceArea+=a.x*b.y-b.x*a.y;
+            }
+            if(Math.abs(twiceArea)<1)throw Error(`${name}: degenerate clipping polygon.`);
+            return vertices;
+        });
+    }
+    function importGeoreferencedMesh(doc){
+        if(!doc||doc.version!==2||doc.format!=='fpvmanager-georeferenced-trimesh'||
+            doc.coordinateReference!=='EPSG:4979'||doc.elevationReference!=='WGS84_ELLIPSOID'||
+            typeof doc.source!=='string'||!doc.source.trim()||doc.source.length>256)
+            throw Error('Version 2 requires explicit EPSG:4979, ellipsoid height and source.');
+        const visualMesh=validateTriMesh(doc.visualMesh,'Visual mesh');
+        const collisionGeometry=validateTriMesh(doc.collisionMesh,'Collision mesh');
+        // Collision proxies may be simpler but must occupy the same local area.
+        const first=visualMesh.vertices[0];
+        if(collisionGeometry.vertices.some(v=>length({longitude:first[0],latitude:first[1]},
+            {longitude:v[0],latitude:v[1]})>20000||Math.abs(v[2]-first[2])>3000))
+            throw Error('Collision mesh is not colocated with the visual model.');
+        const clipping=doc.terrainClipPolygons;
+        if(clipping!==undefined&&(!clipping||typeof clipping!=='object'||Array.isArray(clipping)))
+            throw Error('Invalid terrain clipping document.');
+        const previewClips=validateClips(clipping?.preview,first,'Preview terrain clipping');
+        const flightClips=validateClips(clipping?.flight,first,'Flight terrain clipping');
+        let entryPose=null;
+        if(doc.entryPose!==undefined){
+            const pose=doc.entryPose;
+            if(!pose||![pose.longitude,pose.latitude,pose.height,pose.headingRadians].every(finite)||
+                Math.abs(pose.headingRadians)>2*Math.PI||
+                length({longitude:first[0],latitude:first[1]},pose)>20000||
+                pose.height<-500||pose.height>9000)
+                throw Error('Invalid explicit entry pose (EPSG:4979/metres/radians).');
+            entryPose={longitude:pose.longitude,latitude:pose.latitude,
+                height:pose.height,heading:pose.headingRadians,ground:pose.height};
+        }
+        let sections=null;
+        if(doc.flightProfile!==undefined){
+            if(!doc.flightProfile||doc.flightProfile.profile!=='rectangular'&&
+                doc.flightProfile.profile!=='vaulted')throw Error('Invalid explicit flight profile.');
+            sections=validateSections(doc.flightProfile.sections);
+        }
+        const canFly=!!entryPose&&!!sections&&flightClips.length>0;
+        const imported={version:2,kind:'georeferenced-trimesh',
+            identity:String(doc.identity||'local-mesh').slice(0,150),
+            source:doc.source,sourceId:String(doc.sourceId||'').slice(0,160),
+            quality:'external-mesh-unverified',label:'GEOREFERENCED MESH · SOURCE NOT VERIFIED',
+            elevationReference:'WGS84_ELLIPSOID',coordinateReference:'EPSG:4979',
+            portalsVerified:false,clearanceVerified:false,
+            visualMesh,collisionGeometry,previewClips,flightClips,entryPose,sections,
+            profile:doc.flightProfile?.profile??null,canFly};
+        if(canFly){
+            if(!inside(imported,entryPose,.25)||collision(imported,entryPose,entryPose,.25))
+                throw Error('Flight entry pose intersects a wall or is outside the explicit tunnel profile.');
+            entryPose.ground=closest(imported,entryPose).floor;
+        }
+        return imported;
     }
     function closest(model,point){
-        if(!model||!point||![point.latitude,point.longitude,point.height].every(finite))return null;
+        if(!model?.sections||!point||![point.latitude,point.longitude,point.height].every(finite))return null;
         const s=model.sections,origin=s[0],p=xy(point,origin);
         let nearest=null;
         for(let i=0;i<s.length-1;i++){
@@ -595,50 +776,63 @@
     function inside(model,point,radius=.25){
         if(!finite(radius)||radius<0||radius>1)return false;
         const p=closest(model,point);if(!p)return false;
-        return p.distance<=p.width/2-radius && point.height>=p.floor+radius &&
-            point.height<=p.floor+p.height-radius &&
+        const half=p.width/2;
+        const roof=model.profile==='vaulted'
+            ? p.height-Math.min(p.height*.45,half)+Math.min(p.height*.45,half)*
+                Math.sqrt(Math.max(0,1-Math.pow(p.lateral/half,2)))
+            : p.height;
+        return p.distance<=half-radius && point.height>=p.floor+radius &&
+            point.height<=p.floor+roof-radius &&
             !(p.segment===0&&p.raw<0) &&
             !(p.segment===model.sections.length-2&&p.raw>1);
     }
-    function collision(model,a,b,radius=.25){
-        if(!model||!a||!b||![a.height,b.height].every(finite))return false;
-        const dist=Math.hypot(length(a,b),b.height-a.height);
-        // Long jumps cannot silently tunnel through a wall.
-        if(dist>100)return true;
-        const steps=Math.max(1,Math.ceil(dist/.3));
-        const initial=inside(model,a,radius);
-        for(let i=1;i<=steps;i++){
-            const t=i/steps,point={longitude:a.longitude+(b.longitude-a.longitude)*t,
-                latitude:a.latitude+(b.latitude-a.latitude)*t,height:a.height+(b.height-a.height)*t};
-            if(inside(model,point,radius))continue;
-            const p=closest(model,point);
-            const portal=p&&p.distance<=p.width/2-radius &&
-                ((p.segment===0&&p.raw<0)||(p.segment===model.sections.length-2&&p.raw>1));
-            if(initial&&!portal)return true;
-            if(!initial&&inside(model,a,radius))return true;
-        }
-        return false;
-    }
     function rings(model){
         const sections=model.sections;
+        const vaulted=model.profile==='vaulted';
         return sections.map((s,i)=>{
             const prev=sections[Math.max(0,i-1)],next=sections[Math.min(sections.length-1,i+1)];
-            const v=xy(next,prev),d=Math.hypot(v.x,v.y),east=-v.y/d,north=v.x/d;
+            const v=xy(next,prev),d=Math.hypot(v.x,v.y);
+            if(d<1e-9)throw Error('Degenerate tunnel cross-section tangent.');
+            const east=-v.y/d,north=v.x/d;
             const lonOffset=m=>m/(R*DEG*Math.cos(s.latitude*DEG)),latOffset=m=>m/(R*DEG);
-            const corner=(sign,up)=>[s.longitude+lonOffset(east*sign*s.widthMeters/2),
-                s.latitude+latOffset(north*sign*s.widthMeters/2),s.floorMetersWgs84+(up?s.heightMeters:0)];
-            return [corner(-1,false),corner(1,false),corner(1,true),corner(-1,true)];
+            const point=(lateral,up)=>[s.longitude+lonOffset(east*lateral),
+                s.latitude+latOffset(north*lateral),s.floorMetersWgs84+up];
+            const half=s.widthMeters/2;
+            if(!vaulted)return [point(-half,0),point(half,0),point(half,s.heightMeters),point(-half,s.heightMeters)];
+            // Interior vaulted profile: flat floor, vertical sidewalls and a
+            // tessellated elliptical arch. The roof is part of the actual
+            // collision mesh, not a loose bounding box or inferred clearance.
+            const rise=Math.min(s.heightMeters*.45,half),spring=s.heightMeters-rise;
+            const ring=[point(-half,0),point(half,0),point(half,spring)];
+            for(let j=1;j<=8;j++){
+                const theta=Math.PI*j/8;
+                ring.push(point(half*Math.cos(theta),spring+rise*Math.sin(theta)));
+            }
+            return ring;
         });
     }
     function geometry(C,model){
+        if(model.kind==='georeferenced-trimesh'){
+            const coords=[];
+            for(const p of model.visualMesh.vertices){
+                const xyz=C.Cartesian3.fromDegrees(p[0],p[1],p[2]);
+                coords.push(xyz.x,xyz.y,xyz.z);
+            }
+            const indices=model.visualMesh.triangles.flat();
+            return new C.Geometry({attributes:{position:new C.GeometryAttribute({
+                componentDatatype:C.ComponentDatatype.DOUBLE,componentsPerAttribute:3,
+                values:new Float64Array(coords)})},indices:new Uint16Array(indices),
+                primitiveType:C.PrimitiveType.TRIANGLES,
+                boundingSphere:C.BoundingSphere.fromVertices(coords)});
+        }
         const ring=rings(model),coords=[],indices=[];
         const put=p=>{const xyz=C.Cartesian3.fromDegrees(p[0],p[1],p[2]);
             coords.push(xyz.x,xyz.y,xyz.z);return coords.length/3-1;};
-        // Four complete surfaces. Cesium closed:false disables backface culling
-        // so the interior renders without doubled coplanar triangles.
-        for(let face=0;face<4;face++)for(let i=0;i<ring.length-1;i++){
-            const a=put(ring[i][face]),b=put(ring[i][(face+1)%4]),
-                c=put(ring[i+1][(face+1)%4]),d=put(ring[i+1][face]);
+        // Open at both ends: no invisible blocking face across either portal.
+        // Double-sided rendering matches the collision triangles exactly.
+        for(let face=0;face<ring[0].length;face++)for(let i=0;i<ring.length-1;i++){
+            const a=put(ring[i][face]),b=put(ring[i][(face+1)%ring[i].length]),
+                c=put(ring[i+1][(face+1)%ring[i+1].length]),d=put(ring[i+1][face]);
             indices.push(a,b,c,a,c,d);
         }
         if(coords.length/3>8000)throw Error('Tunnel mesh vertex budget exceeded.');
@@ -647,36 +841,196 @@
             indices:coords.length/3<65536?new Uint16Array(indices):new Uint32Array(indices),
             primitiveType:C.PrimitiveType.TRIANGLES,boundingSphere:C.BoundingSphere.fromVertices(coords)});
     }
+    // Collision and rendering consume the SAME rings. Every segment carries
+    // an axis-aligned broad-phase box and explicit collision triangles.
+    const collisionCache=new WeakMap();
+    function ecef(lon,lat,h){
+        const phi=lat*DEG,lambda=lon*DEG,sp=Math.sin(phi),cp=Math.cos(phi);
+        const n=R/Math.sqrt(1-(1/298.257223563)*(2-1/298.257223563)*sp*sp);
+        return [(n+h)*cp*Math.cos(lambda),(n+h)*cp*Math.sin(lambda),
+            (n*(1-(1/298.257223563)*(2-1/298.257223563))+h)*sp];
+    }
+    const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+    const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+    const scale=(a,t)=>[a[0]*t,a[1]*t,a[2]*t];
+    const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+    const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+    const norm2=a=>dot(a,a);
+    const clamp01=t=>Math.max(0,Math.min(1,t));
+    function pointTriangleDistance2(p,a,b,c){
+        // Christer Ericson, Real-Time Collision Detection, closest-point regions.
+        const ab=sub(b,a),ac=sub(c,a),ap=sub(p,a),d1=dot(ab,ap),d2=dot(ac,ap);
+        if(d1<=0&&d2<=0)return norm2(ap);
+        const bp=sub(p,b),d3=dot(ab,bp),d4=dot(ac,bp);
+        if(d3>=0&&d4<=d3)return norm2(bp);
+        const vc=d1*d4-d3*d2;
+        if(vc<=0&&d1>=0&&d3<=0){const v=d1/(d1-d3);return norm2(sub(p,add(a,scale(ab,v))));}
+        const cp=sub(p,c),d5=dot(ab,cp),d6=dot(ac,cp);
+        if(d6>=0&&d5<=d6)return norm2(cp);
+        const vb=d5*d2-d1*d6;
+        if(vb<=0&&d2>=0&&d6<=0){const w=d2/(d2-d6);return norm2(sub(p,add(a,scale(ac,w))));}
+        const va=d3*d6-d5*d4;
+        if(va<=0&&(d4-d3)>=0&&(d5-d6)>=0){const w=(d4-d3)/((d4-d3)+(d5-d6));
+            return norm2(sub(p,add(b,scale(sub(c,b),w))));}
+        const denominator=va+vb+vc;
+        if(Math.abs(denominator)<1e-16)return Math.min(norm2(ap),norm2(bp),norm2(cp));
+        const v=vb/denominator,w=vc/denominator;
+        return norm2(sub(p,add(a,add(scale(ab,v),scale(ac,w)))));
+    }
+    function segmentSegmentDistance2(p1,q1,p2,q2){
+        const d1=sub(q1,p1),d2=sub(q2,p2),r=sub(p1,p2),a=norm2(d1),e=norm2(d2);
+        const f=dot(d2,r);let s=0,t=0;
+        if(a<=1e-14&&e<=1e-14)return norm2(r);
+        if(a<=1e-14)t=clamp01(f/e);
+        else {const c=dot(d1,r);
+            if(e<=1e-14)s=clamp01(-c/a);
+            else {const b=dot(d1,d2),denom=a*e-b*b;
+                if(Math.abs(denom)>1e-14)s=clamp01((b*f-c*e)/denom);
+                t=(b*s+f)/e;
+                if(t<0){t=0;s=clamp01(-c/a);}
+                else if(t>1){t=1;s=clamp01((b-c)/a);}
+            }
+        }
+        return norm2(sub(add(p1,scale(d1,s)),add(p2,scale(d2,t))));
+    }
+    function segmentHitsTriangle(p,q,a,b,c){
+        const dir=sub(q,p),edge1=sub(b,a),edge2=sub(c,a),h=cross(dir,edge2);
+        const det=dot(edge1,h);
+        if(Math.abs(det)<1e-12)return false;
+        const inv=1/det,s=sub(p,a),u=dot(s,h)*inv;
+        if(u < -1e-9||u>1+1e-9)return false;
+        const v=dot(dir,cross(s,edge1))*inv;
+        if(v < -1e-9||u+v>1+1e-9)return false;
+        const t=dot(edge2,cross(s,edge1))*inv;
+        return t>=-1e-9&&t<=1+1e-9;
+    }
+    function sweptSphereHitsTriangle(p,q,tri,r2){
+        const [a,b,c]=tri;
+        if(segmentHitsTriangle(p,q,a,b,c))return true;
+        if(pointTriangleDistance2(p,a,b,c)<=r2||pointTriangleDistance2(q,a,b,c)<=r2)return true;
+        return segmentSegmentDistance2(p,q,a,b)<=r2||
+            segmentSegmentDistance2(p,q,b,c)<=r2||segmentSegmentDistance2(p,q,c,a)<=r2;
+    }
+    function collisionMesh(model){
+        let mesh=collisionCache.get(model);
+        if(mesh)return mesh;
+        if(model.kind==='georeferenced-trimesh'){
+            const {vertices,triangles}=model.collisionGeometry;
+            const origin=ecef(...vertices[0]);
+            const local=vertices.map(v=>sub(ecef(...v),origin));
+            const layers=[];
+            // Triangle AABBs are grouped to keep collision work bounded.
+            for(let i=0;i<triangles.length;i+=64){
+                const batch=triangles.slice(i,i+64).map(indices=>indices.map(j=>local[j]));
+                const all=batch.flat();
+                const min=[0,1,2].map(k=>Math.min(...all.map(p=>p[k])));
+                const max=[0,1,2].map(k=>Math.max(...all.map(p=>p[k])));
+                layers.push({min,max,triangles:batch});
+            }
+            const min=[0,1,2].map(k=>Math.min(...layers.map(l=>l.min[k])));
+            const max=[0,1,2].map(k=>Math.max(...layers.map(l=>l.max[k])));
+            mesh={origin,layers,min,max,triangleCount:triangles.length};
+            collisionCache.set(model,mesh);return mesh;
+        }
+        const vertices=rings(model).map(r=>r.map(p=>ecef(p[0],p[1],p[2])));
+        const origin=ecef(model.sections[0].longitude,model.sections[0].latitude,
+            model.sections[0].floorMetersWgs84);
+        const layers=[];
+        for(let i=0;i<vertices.length-1;i++){
+            const a=vertices[i].map(p=>sub(p,origin)),b=vertices[i+1].map(p=>sub(p,origin));
+            const all=a.concat(b),min=[0,1,2].map(k=>Math.min(...all.map(p=>p[k]))),
+                max=[0,1,2].map(k=>Math.max(...all.map(p=>p[k]))),triangles=[];
+            for(let j=0;j<a.length;j++){
+                const k=(j+1)%a.length;
+                triangles.push([a[j],a[k],b[k]],[a[j],b[k],b[j]]);
+            }
+            layers.push({min,max,triangles});
+        }
+        const min=[0,1,2].map(k=>Math.min(...layers.map(l=>l.min[k])));
+        const max=[0,1,2].map(k=>Math.max(...layers.map(l=>l.max[k])));
+        mesh={origin,layers,min,max,triangleCount:layers.reduce((n,l)=>n+l.triangles.length,0)};
+        collisionCache.set(model,mesh);
+        return mesh;
+    }
+    function collision(model,a,b,radius=.25){
+        if(!model||!a||!b||!finite(radius)||radius<0||radius>1||
+            ![a.longitude,a.latitude,a.height,b.longitude,b.latitude,b.height].every(finite))return false;
+        const dist=Math.hypot(length(a,b),b.height-a.height);
+        const mesh=collisionMesh(model),p=sub(ecef(a.longitude,a.latitude,a.height),mesh.origin),
+            q=sub(ecef(b.longitude,b.latitude,b.height),mesh.origin),r2=radius*radius+1e-10;
+        // A long jump is blocked only if its swept AABB approaches THIS model;
+        // unrelated models must not stop replay elsewhere on the globe.
+        if([0,1,2].some(k=>Math.max(p[k],q[k])+radius<mesh.min[k] ||
+            Math.min(p[k],q[k])-radius>mesh.max[k]))return false;
+        if(dist>100)return true;
+        for(const layer of mesh.layers){
+            if([0,1,2].some(k=>Math.max(p[k],q[k])+radius<layer.min[k] ||
+                Math.min(p[k],q[k])-radius>layer.max[k]))continue;
+            if(layer.triangles.some(t=>sweptSphereHitsTriangle(p,q,t,r2)))return true;
+        }
+        return false;
+    }
     function create(C,viewer,emit=()=>{}, {sampleTerrain=async()=>[],ready=()=>true}={}){
-        let model=null,primitive=null,clipping=null,oldClipping=null,flight=false,revision=0,disposed=false,pending=false;
+        let model=null,primitive=null,clipping=null,oldClipping=null,flight=false,collisionEnabled=false,revision=0,disposed=false,pending=false;
         const scene=viewer.scene;
         function publish(error=null){emit('tunnel-model-state',{ready:!!model,flight,pending,
-            quality:model?.quality??null,label:model?.label??null,source:model?.source??null,error});}
+            quality:model?.quality??null,label:model?.label??null,source:model?.source??null,
+            canFly:model?model.kind!=='georeferenced-trimesh'||model.canFly:false,
+            visualTriangles:model?.visualMesh?.triangles.length??null,
+            collisionTriangles:model?.collisionGeometry?.triangles.length??null,error});}
         function stop(){
             ++revision;flight=false;pending=false;model=null;
             if(primitive){scene.primitives.remove(primitive);primitive=null;}
             if(clipping){scene.globe.clippingPolygons=oldClipping;clipping=null;oldClipping=null;}
             scene.requestRender?.();publish();
         }
+        // Idle display cuts only small *synthetic* portal approaches, not an
+        // entire artificial trench through the mountain. During an explicit
+        // simulated fly-through, clip the full synthetic corridor to allow
+        // interior rendering below the loaded terrain surface.
+        function cutFor(next, full){
+            if(next.kind==='georeferenced-trimesh'){
+                const polygons=full?next.flightClips:next.previewClips;
+                if(!polygons.length)return null;
+                return new C.ClippingPolygonCollection({polygons:polygons.map(points=>
+                    new C.ClippingPolygon({positions:points.map(p=>C.Cartesian3.fromDegrees(p[0],p[1],0))}))});
+            }
+            const sections=rings(next),left=sections.map(p=>p[0]),right=sections.map(p=>p[1]);
+            const polygon=positions=>new C.ClippingPolygon({positions:positions.map(p=>
+                C.Cartesian3.fromDegrees(...p))});
+            if(full)return new C.ClippingPolygonCollection({polygons:[polygon([...left,...right.slice().reverse()])]});
+            const approach=(a,b)=>{
+                const lengthMeters=length(next.sections[a],next.sections[b]);
+                const t=Math.min(1,12/lengthMeters);
+                const mid=(x,y)=>x.map((value,index)=>value+(y[index]-value)*t);
+                return polygon([left[a],right[a],mid(right[a],right[b]),mid(left[a],left[b])]);
+            };
+            const last=sections.length-1;
+            return new C.ClippingPolygonCollection({polygons:[approach(0,1),approach(last,last-1)]});
+        }
         function show(next){
             if(disposed)throw Error('Tunnel renderer is disposed.');
-            if(!C.ClippingPolygonCollection?.isSupported?.(scene)||!C.ClippingPolygon||
-                !('clippingPolygons' in scene.globe))throw Error('WebGL2 terrain clipping is not supported on this device.');
-            if(scene.globe.clippingPolygons?.length>0)throw Error('Another terrain clipping layer owns the globe.');
-            const verts=rings(next),left=verts.map(p=>p[0]),right=verts.map(p=>p[1]).reverse();
-            const polygon=new C.ClippingPolygon({positions:[...left,...right].map(p=>C.Cartesian3.fromDegrees(...p))});
-            const cut=new C.ClippingPolygonCollection({polygons:[polygon]});
+            const needsClipping=next.kind!=='georeferenced-trimesh'||next.previewClips.length>0;
+            if(needsClipping&&(!C.ClippingPolygonCollection?.isSupported?.(scene)||!C.ClippingPolygon||
+                !('clippingPolygons' in scene.globe)))
+                throw Error('WebGL2 terrain clipping is not supported on this device.');
+            if(needsClipping&&scene.globe.clippingPolygons?.length>0)
+                throw Error('Another terrain clipping layer owns the globe.');
+            const cut=needsClipping?cutFor(next,false):null;
             const geom=geometry(C,next);
             const instance=new C.GeometryInstance({geometry:geom,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
                 C.Color.fromBytes(75,120,133,255))}});
             const mesh=new C.Primitive({geometryInstances:instance,appearance:new C.PerInstanceColorAppearance({flat:true,
                 translucent:false,closed:false}),asynchronous:false,allowPicking:false});
             const previous=scene.globe.clippingPolygons;
-            try {scene.globe.clippingPolygons=cut;scene.primitives.add(mesh);}
-            catch(err){scene.globe.clippingPolygons=previous;throw err;}
-            oldClipping=previous;clipping=cut;primitive=mesh;model=next;flight=false;
+            try {if(cut)scene.globe.clippingPolygons=cut;scene.primitives.add(mesh);}
+            catch(err){if(cut)scene.globe.clippingPolygons=previous;throw err;}
+            oldClipping=cut?previous:null;clipping=cut;primitive=mesh;model=next;flight=false;
             scene.requestRender?.();publish();return {ready:true,quality:model.quality,modelLabel:model.label,
-                sections:model.sections.length,portalsVerified:false,clearanceVerified:false};
+                sections:model.sections?.length??0,visualTriangles:model.visualMesh?.triangles.length??null,
+                collisionTriangles:model.collisionGeometry?.triangles.length??null,
+                canFly:model.kind!=='georeferenced-trimesh'||model.canFly,
+                portalsVerified:false,clearanceVerified:false};
         }
         async function prepare(route,settings={},signal){
             if(disposed)throw Error('Tunnel renderer disposed.');
@@ -695,22 +1049,53 @@
             } catch(err){if(token===revision){pending=false;publish(String(err.message||err));}throw err;}
             finally{if(token===revision){pending=false;publish();}}
         }
-        function importModel(doc){stop();return show(importSections(doc));}
+        function importModel(doc){
+            const next=doc?.version===2?importGeoreferencedMesh(doc):importSections(doc);
+            stop();return show(next);
+        }
         function firstPose(){
             if(!model)throw Error('Prepare a supported model before flying.');
+            if(model.kind==='georeferenced-trimesh'){
+                if(!model.canFly)throw Error('Mesh flight needs an explicit pose, floor profile and terrain clipping.');
+                return {...model.entryPose};
+            }
             const a=model.sections[0],b=model.sections[1],ahead=xy(b,a);
             return {latitude:a.latitude,longitude:a.longitude,height:a.floorMetersWgs84+model.sections[0].heightMeters*.5,
                 heading:Math.atan2(ahead.x,ahead.y),pitch:0,ground:a.floorMetersWgs84};
         }
-        function activate(){if(!model)throw Error('Tunnel model missing.');flight=true;publish();}
-        function floorAt(point){if(!flight||!model)return null;const near=closest(model,{...point,height:point.height??0});
+        function activate(){
+            if(!model)throw Error('Tunnel model missing.');
+            if(model.kind==='georeferenced-trimesh'&&!model.canFly)
+                throw Error('Mesh flight needs an explicit pose, floor profile and terrain clipping.');
+            if(model.kind!=='georeferenced-trimesh'&&!clipping)
+                throw Error('Tunnel terrain clipping unavailable.');
+            if(!C.ClippingPolygonCollection?.isSupported?.(scene)||!C.ClippingPolygon)
+                throw Error('Terrain clipping unavailable for tunnel flight.');
+            if(!clipping&&scene.globe.clippingPolygons?.length>0)
+                throw Error('Another terrain clipping layer owns the globe.');
+            // The source explicitly supplies clipping geometry for external meshes.
+            const next=cutFor(model,true);
+            if(!next)throw Error('Explicit tunnel flight clipping is missing.');
+            if(!clipping)oldClipping=scene.globe.clippingPolygons;
+            scene.globe.clippingPolygons=next;
+            clipping=next;flight=true;scene.requestRender?.();publish();
+        }
+        function floorAt(point){if(!flight||!model||!model.sections)return null;
+            const near=closest(model,{...point,height:point.height??0});
             if(!near||near.distance>near.width/2+.5)return null;return near.floor;}
-        function intersects(a,b){return flight&&model?collision(model,a,b):false;}
-        return {prepare,importModel,firstPose,activate,floorAt,intersects,
+        function setCollisionEnabled(value){
+            if(typeof value!=='boolean')throw Error('Invalid tunnel mesh collision preference');
+            collisionEnabled=!disposed&&value;return {enabled:collisionEnabled};
+        }
+        function intersects(a,b){return (flight||collisionEnabled)&&model?collision(model,a,b):false;}
+        return {prepare,importModel,firstPose,activate,floorAt,intersects,setCollisionEnabled,
             get flight(){return flight;},get model(){return model;},stop,
-            dispose(){if(disposed)return;stop();disposed=true;},status(){return {ready:!!model,flight,pending,quality:model?.quality??null};}};
+            dispose(){if(disposed)return;stop();disposed=true;},status(){return {ready:!!model,flight,pending,
+                collisionEnabled,quality:model?.quality??null};}};
     }
-    return {procedural,importSections,validateSections,closest,inside,collision,rings,geometry,create,MAX_SECTIONS,MAX_LENGTH};
+    return {procedural,importSections,importGeoreferencedMesh,validateSections,validateTriMesh,
+        closest,inside,collision,collisionMesh,rings,geometry,create,MAX_SECTIONS,MAX_LENGTH,
+        MAX_MESH_VERTICES,MAX_MESH_TRIANGLES};
 });
 
 /* Issue #113: infrastructure-aware advisory geometry checks.
@@ -797,7 +1182,7 @@
         return horizontal === 0 && vertical === 0 ? -radius : outside - radius;
     }
     function tunnelClearance(point, model, radius) {
-        if (!model || !tunnel || !finite(point.height)) return null;
+        if (!model?.sections || !tunnel || !finite(point.height)) return null;
         const near = tunnel.closest(model, point);
         if (!near) return null;
         // Only report contact/near-contact within the displayed model's
@@ -918,8 +1303,14 @@
             if (disposed) return {};
             visible = value;render();return {visible};
         }
+        let collisionEnabled = false;
+        function setCollisionEnabled(value) {
+            if (typeof value !== 'boolean') throw Error('Invalid infrastructure collision preference');
+            collisionEnabled = !disposed && value;
+            return {enabled:collisionEnabled};
+        }
         function collision(a, b, radius = .25) {
-            if (disposed || !visible || !surfaces.length || !a || !b) return false;
+            if (disposed || !(visible || collisionEnabled) || !surfaces.length || !a || !b) return false;
             const probes = Math.min(32, Math.max(1, Math.ceil(distance(a, b) / .25)));
             for (let i = 0; i <= probes; i++) {
                 const t = i / probes, point = {latitude: a.latitude + (b.latitude - a.latitude) * t,
@@ -931,8 +1322,10 @@
         }
         function retainTunnel(model) {
             if (disposed) throw Error('Renderer disposed.');
-            if (!model || !Array.isArray(model.sections) || model.sections.length > 96 ||
-                !model.quality || model.clearanceVerified === true) {
+            if (!model || (!Array.isArray(model.sections) &&
+                    model.kind !== 'georeferenced-trimesh') ||
+                (model.sections?.length??0)>96 || !model.quality ||
+                model.clearanceVerified === true) {
                 throw Error('Unsupported or independently unverified tunnel geometry.');
             }
             // Retain for route *analysis* after the route editor releases its
@@ -941,7 +1334,7 @@
             report = route = null;clearVisual();
         }
         function forgetTunnel() {retainedTunnel = null; report = route = null;clearVisual();}
-        return {replace, assess, setVisible, collision, retainTunnel, forgetTunnel,
+        return {replace, assess, setVisible, setCollisionEnabled, collision, retainTunnel, forgetTunnel,
             hasUnverifiedTunnel: () => !!(getTunnelModel() ?? retainedTunnel),
             status: () => ({surfaceCount: surfaces.length, source, visible, hasReport: !!report,
                 retainedTunnel: !!retainedTunnel}),
@@ -950,4 +1343,56 @@
     }
     return {validateDocument, surfaceClearance, tunnelClearance, analyse, create,
         MAX_SURFACES, MAX_ROUTE, MAX_PROBES};
+});
+
+/* Opt-in, conservative scene-surface collision for the FPV SIMULATOR only.
+ * Cesium sampleHeight is the highest currently rendered surface, not a 3D
+ * collision mesh. Hidden/unloaded tiles and bridge undersides are UNKNOWN.
+ * Never use these results as physical flight clearance. */
+(function(root,factory){
+    const api=factory();
+    if(typeof module==='object'&&module.exports)module.exports.FPVSceneModelCollision=api;
+    else root.FPVSceneModelCollision=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+    'use strict';
+    function create(C,viewer,{hasVisibleModels=()=>false}={}){
+        const scene=viewer.scene;
+        let enabled=false,disposed=false;
+        function setEnabled(value){
+            if(typeof value!=='boolean')throw Error('Invalid 3D collision preference');
+            if(!disposed)enabled=value;
+            return {enabled};
+        }
+        function collision(from,to,radius=.25){
+            if(disposed||!enabled||!hasVisibleModels()||!scene.sampleHeightSupported||
+                typeof scene.sampleHeight!=='function'||typeof scene.globe?.getHeight!=='function'||
+                !C.Cartographic?.fromDegrees||!Number.isFinite(radius)||radius<0||radius>1 ||
+                !from||!to||![from.latitude,from.longitude,from.height,to.latitude,to.longitude,to.height].every(Number.isFinite))return false;
+            if(C.SceneMode&&scene.mode!==C.SceneMode.SCENE3D)return false;
+            const distance=Math.hypot((to.longitude-from.longitude)*75000,
+                (to.latitude-from.latitude)*111000,to.height-from.height);
+            // Work strictly with the loaded scene and at most five bounded
+            // samples per simulation frame. No implicit extra 3D tile fetching.
+            if(distance>15)return false;
+            const probes=Math.min(4,Math.max(1,Math.ceil(distance)));
+            try {
+                for(let i=0;i<=probes;i++){
+                    const t=i/probes, point=C.Cartographic.fromDegrees(
+                        from.longitude+(to.longitude-from.longitude)*t,
+                        from.latitude+(to.latitude-from.latitude)*t);
+                    const top=scene.sampleHeight(point,undefined,.5);
+                    const ground=scene.globe.getHeight(point);
+                    const elevation=from.height+(to.height-from.height)*t;
+                    // Suppress bare terrain hits and elevations significantly
+                    // below the model surface: scene height cannot distinguish
+                    // a bridge underside from open air underneath the deck.
+                    if(Number.isFinite(top)&&Number.isFinite(ground)&&top-ground>2&&
+                        Math.abs(elevation-top)<=Math.max(radius, .35))return 'model';
+                }
+            }catch(_){return false;} // Device without usable depth texture.
+            return false;
+        }
+        return {setEnabled,collision,dispose(){enabled=false;disposed=true;},status(){return {enabled};}};
+    }
+    return {create};
 });

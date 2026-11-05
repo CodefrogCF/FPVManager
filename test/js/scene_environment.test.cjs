@@ -133,6 +133,7 @@ test('official swisstopo infrastructure tileset loads independently, is selectab
     const status=p.manager.pick(pick);
     assert.equal(status,true);
     assert.equal(p.states.at(-1).type,'infrastructure-selected');
+    assert.equal(p.states.at(-1).datasetSource,'ch.swisstopo.swisstlm3d.3d');
     assert.equal(p.states.at(-1).attributes.sourceId,'swiss-5');
     assert.equal(p.manager.pick({}),false);
     p.set({structures:false});

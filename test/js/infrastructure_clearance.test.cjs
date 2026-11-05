@@ -115,3 +115,19 @@ test('retained tunnel model survives editor navigation for analysis but is erase
     assert.equal(service.assess(samples(104.9)).coverage, 'unassessed');
     service.dispose();
 });
+
+test('opt-in imported infrastructure collisions work independently of advisory visibility',()=>{
+    const viewer={scene:{requestRender(){}},entities:{add:x=>x,remove(){}}};
+    const C={Color:{RED:'red',ORANGE:'orange'},Cartesian3:{fromDegreesArrayHeights:x=>x}};
+    const service=I.create(C,viewer);
+    service.replace(base);
+    const a={latitude:46.8,longitude:8.20006,height:110.5};
+    const b={latitude:46.8,longitude:8.20009,height:110.5};
+    assert.equal(service.collision(a,b),false,'hidden advisory models are not active by default');
+    assert.throws(()=>service.setCollisionEnabled('true'),/Invalid/);
+    service.setCollisionEnabled(true);
+    assert.equal(service.collision(a,b),true,'explicit opt-in activates imported model collision');
+    service.setCollisionEnabled(false);
+    assert.equal(service.collision(a,b),false);
+    service.dispose();
+});

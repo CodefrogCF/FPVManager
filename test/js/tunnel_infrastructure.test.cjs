@@ -6,22 +6,33 @@ const road = (n, coords = [[8.3,46.9],[8.3001,46.9001]]) => ({
     type:'Feature',featureId:String(n),geometry:{type:'LineString',coordinates:coords},
     properties:{KUNSTBAUTE:n===1?1000:1100,STRASSENNAME:`Tunnel ${n}`},
 });
-function fixture({respond=()=>({results:[]}), time=()=>2000, getHeight=()=>500}={}){
-    const events=[], requested=[], drawn=[], positions=[], listeners=new Set();
-    const camera={position:{x:1},heading:.3,pitch:-.4,roll:0,
+function fixture({respond=()=>({results:[]}), time=()=>2000, getHeight=()=>500, automaticFixture=false}={}){
+    const events=[], requested=[], drawn=[], positions=[], listeners=new Set(), autoTimers=new Map();
+    let nextAutoTimer=0;let cameraLongitude=8.3, cameraLatitude=46.9;
+    const moveListeners=new Set();
+    const camera={position:{x:1},positionCartographic:{height:500},heading:.3,pitch:-.4,roll:0,
         setView:p=>positions.push(p)};
+    if(automaticFixture){
+        camera.moveEnd={addEventListener:fn=>{moveListeners.add(fn);return ()=>moveListeners.delete(fn)}};
+        camera.getPickRay=()=>({cameraCenter:true});
+    }
     const C={
         CustomDataSource:class{constructor(name){this.name=name;this.entities={items:[],add:i=>this.entities.items.push(i)};}},
         Cartesian3:{fromDegreesArray:a=>a,fromDegrees:(lon,lat,h)=>({lon,lat,h}),clone:p=>({...p})},
-        Cartographic:{fromDegrees:(lon,lat)=>({lon,lat})},
+        Cartographic:{fromDegrees:(lon,lat)=>({lon,lat}),fromCartesian:()=>({longitude:cameraLongitude,latitude:cameraLatitude})},
+        Cartesian2:class{constructor(x,y){this.x=x;this.y=y}},Math:{toDegrees:value=>value},
         Color:{ORANGE:'orange'},PolylineDashMaterialProperty:class{constructor(o){this.options=o}},
     };
-    const viewer={camera,dataSources:{add:d=>drawn.push(d),remove:d=>{const i=drawn.indexOf(d);if(i>=0)drawn.splice(i,1);}},
-        scene:{globe:{getHeight},requestRender(){},preRender:{addEventListener(cb){listeners.add(cb);return()=>listeners.delete(cb)}}}};
+    const viewer={camera,canvas:{clientWidth:800,clientHeight:600},dataSources:{add:d=>drawn.push(d),remove:d=>{const i=drawn.indexOf(d);if(i>=0)drawn.splice(i,1);}},
+        scene:{globe:{getHeight,pick:()=>({x:1})},requestRender(){},preRender:{addEventListener(cb){listeners.add(cb);return()=>listeners.delete(cb)}}}};
     const fetcher=async(url,options)=>{requested.push({url,options});return {ok:true,status:200,
         headers:{get:()=>null}, text:async()=>JSON.stringify(respond(new URL(url).searchParams.get('layers')))};};
-    const module=T.create(C,viewer,(type,data)=>events.push({type,...data}),{fetcher,now:time,isTerrainReady:()=>true});
-    return {module,C,viewer,events,requested,drawn,positions,listeners};
+    const module=T.create(C,viewer,(type,data)=>events.push({type,...data}),{fetcher,now:time,isTerrainReady:()=>true,
+        setTimer:automaticFixture?(fn)=>{const id=++nextAutoTimer;autoTimers.set(id,fn);return id;}:setTimeout,
+        clearTimer:automaticFixture?(id)=>autoTimers.delete(id):clearTimeout});
+    return {module,C,viewer,events,requested,drawn,positions,listeners,autoTimers,moveListeners,
+        moveCenter(lon,lat){cameraLongitude=lon;cameraLatitude=lat},
+        runAutoTimer(){const tasks=[...autoTimers.values()];autoTimers.clear();tasks.forEach(fn=>fn())}};
 }
 test('official object codes and line features preserve provenance without inventing tunnel portals or heights',()=>{
     assert.equal(T.category(1000),'tunnel');assert.equal(T.category('Tunnel'),'tunnel');
@@ -104,4 +115,57 @@ test('official service failure and incomplete coverage never create false no-tun
     const result=await f.module.scan({longitude:8.3,latitude:46.9});
     assert.equal(result.incomplete,true);assert.ok(result.count<=48);
     f.module.dispose();
+});
+
+test('automatic 3D tunnel discovery scans only nearby Swiss terrain after camera idle', async()=>{
+    let timestamp=30000;
+    const p=fixture({automaticFixture:true,time:()=>timestamp,
+        respond:layer=>({results:layer.includes('strassen')?[road(1)]:[]})});
+    assert.equal(p.module.status().visible,false);
+    p.module.setAutomatic(true);
+    assert.equal(p.module.status().automatic,true);
+    assert.equal(p.autoTimers.size,1,'deferred camera-idle discovery');
+    p.runAutoTimer();await tick();await tick();
+    assert.equal(p.requested.length,2,'one bounded request per road/railway layer');
+    assert.equal(p.drawn.length,1);
+    assert.equal(p.events.at(-1).type,'tunnel-auto-status');
+    assert.equal(p.events.at(-1).state,'ready');
+    assert.equal(p.events.at(-1).count,1);
+    assert.equal(p.drawn[0].entities.items.length,3,'one schematic axis and two unverified ends');
+    assert.equal(p.module.status().visible,true);
+    // No requery when merely panning a few metres within the same area.
+    timestamp+=25000;
+    p.viewer.camera.moveEnd.addEventListener(()=>{})(); // registration lifecycle
+    for(const notify of p.moveListeners)notify();
+    p.runAutoTimer();await tick();
+    assert.equal(p.requested.length,2);
+    p.moveCenter(8.34,46.91);
+    for(const notify of p.moveListeners)notify();
+    p.runAutoTimer();await tick();await tick();
+    assert.equal(p.requested.length,4,'new nearby area triggers bounded refresh');
+    p.module.setAutomatic(false);
+    assert.equal(p.module.status().visible,false);
+    assert.equal(p.drawn.length,0);
+    p.module.dispose();assert.equal(p.moveListeners.size,0);
+});
+
+test('manual tunnel layer remains visible after automatic infrastructure is disabled',()=>{
+    const p=fixture({automaticFixture:true});
+    p.module.set({routesVisible:true,explorationAllowed:false});
+    p.module.setAutomatic(true);
+    p.module.setAutomatic(false);
+    assert.equal(p.module.status().visible,true);
+    p.module.set({routesVisible:false,explorationAllowed:false});
+    assert.equal(p.module.status().visible,false);
+    p.module.dispose();
+});
+
+test('automatic search never invents data when terrain, camera or network is unavailable',()=>{
+    const p=fixture({automaticFixture:true});
+    p.viewer.camera.positionCartographic.height=12000;
+    p.module.setAutomatic(true);p.runAutoTimer();
+    assert.equal(p.requested.length,0);
+    p.module.setAutomatic(false);
+    assert.equal(p.autoTimers.size,0);
+    p.module.dispose();
 });

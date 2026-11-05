@@ -16,6 +16,7 @@ void main() {
     final repository = UserPreferencesRepository(db);
     final defaults = await repository.getPreferences();
     expect(defaults.structures3dVisible, false);
+    expect(defaults.sceneModelCollisionsEnabled, false);
     expect(defaults.tunnelRoutesVisible, false);
     expect(defaults.tunnelExplorationEnabled, false);
     await repository.savePreferences(
@@ -23,6 +24,7 @@ void main() {
         buildings3dVisible: false,
         vegetation3dVisible: true,
         structures3dVisible: true,
+        sceneModelCollisionsEnabled: true,
         tunnelRoutesVisible: true,
         tunnelExplorationEnabled: true,
         structuresOpacity: .6,
@@ -33,6 +35,7 @@ void main() {
     expect(recovered.buildings3dVisible, false);
     expect(recovered.vegetation3dVisible, true);
     expect(recovered.structures3dVisible, true);
+    expect(recovered.sceneModelCollisionsEnabled, true);
     expect(recovered.tunnelRoutesVisible, true);
     expect(recovered.tunnelExplorationEnabled, true);
     expect(recovered.structuresOpacity, .6);
@@ -92,13 +95,22 @@ void main() {
       await tester.pumpAndSettle();
       final structures = find.widgetWithText(
         SwitchListTile,
-        'Brücken und 3D-Bauwerke',
+        'Brücken, 3D-Bauwerke und Tunnelachsen',
       );
       await tester.ensureVisible(structures);
       await tester.tap(structures);
       await tester.pumpAndSettle();
       expect(globe.structures3dVisible, true);
       expect(peer.commands.last['structures'], true);
+      final collisions = find.widgetWithText(
+        SwitchListTile,
+        '3D-Modellkollisionen (experimentell)',
+      );
+      await tester.ensureVisible(collisions);
+      await tester.tap(collisions);
+      await tester.pumpAndSettle();
+      expect(globe.sceneModelCollisionsEnabled, true);
+      expect(peer.commands.last['modelCollisions'], true);
       final tunnels = find.widgetWithText(
         SwitchListTile,
         'Tunnelverläufe und Unterführungen',

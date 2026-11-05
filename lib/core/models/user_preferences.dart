@@ -34,6 +34,7 @@ class UserPreferences {
     this.buildings3dVisible = false,
     this.vegetation3dVisible = false,
     this.structures3dVisible = false,
+    this.sceneModelCollisionsEnabled = false,
     this.structuresOpacity = 1.0,
     this.tunnelRoutesOpacity = 0.85,
     this.tunnelRoutesVisible = false,
@@ -64,6 +65,7 @@ class UserPreferences {
   final double avalancheOpacity;
   final bool buildings3dVisible, vegetation3dVisible, realisticLighting;
   final bool structures3dVisible, tunnelRoutesVisible, tunnelExplorationEnabled;
+  final bool sceneModelCollisionsEnabled;
   final double structuresOpacity, tunnelRoutesOpacity;
   final NavigationEnvironmentMode navigationBuildings, navigationVegetation;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
@@ -91,6 +93,7 @@ class UserPreferences {
     bool? buildings3dVisible,
     bool? vegetation3dVisible,
     bool? structures3dVisible,
+    bool? sceneModelCollisionsEnabled,
     double? structuresOpacity,
     double? tunnelRoutesOpacity,
     bool? tunnelRoutesVisible,
@@ -121,6 +124,8 @@ class UserPreferences {
     buildings3dVisible: buildings3dVisible ?? this.buildings3dVisible,
     vegetation3dVisible: vegetation3dVisible ?? this.vegetation3dVisible,
     structures3dVisible: structures3dVisible ?? this.structures3dVisible,
+    sceneModelCollisionsEnabled:
+        sceneModelCollisionsEnabled ?? this.sceneModelCollisionsEnabled,
     structuresOpacity: structuresOpacity ?? this.structuresOpacity,
     tunnelRoutesOpacity: tunnelRoutesOpacity ?? this.tunnelRoutesOpacity,
     tunnelRoutesVisible: tunnelRoutesVisible ?? this.tunnelRoutesVisible,

@@ -62,7 +62,7 @@ function postToFlutter(message) {
         stopNavigation();
         if (!event.persisted) liveRadio?.dispose();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); meteoswissRadar.dispose(); datedImagery.dispose(); terrainManager?.dispose(); bridge.dispose(); }
-        if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose(); tunnelVolumes?.dispose(); infrastructureClearance?.dispose();
+        if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose(); tunnelVolumes?.dispose(); infrastructureClearance?.dispose(); modelCollisions?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) mapLabels?.dispose();
@@ -71,7 +71,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
@@ -181,7 +181,10 @@ function postToFlutter(message) {
         return mapProviders.imagery(style, Boolean(offlineReason()));
     }
 
-    function stopNavigation(reason = null) { tunnels?.stop(); routePlayback?.interrupt(reason); walker?.stop(reason); flyer?.stop(reason); tunnelVolumes?.stop(); }
+    function stopNavigation(reason = null, {preserveTunnel = false} = {}) {
+        tunnels?.stop();routePlayback?.interrupt(reason);walker?.stop(reason);flyer?.stop(reason);
+        if(!preserveTunnel)tunnelVolumes?.stop();
+    }
     function navigationActive() { return flyer?.active || walker?.status().active; }
     function simulationSpawn(command) {
         if (command.latitude != null || command.longitude != null) return {latitude:command.latitude,longitude:command.longitude};
@@ -648,7 +651,12 @@ function postToFlutter(message) {
             case "enter-simulation": {
                 if(routePlayback?.loaded)routePlayback.interrupt();
                 if(flyer.active)return flyer.reconfigure(command,signal);
-                const point = simulationSpawn(command); stopNavigation();
+                const point = simulationSpawn(command);
+                // Preserve a local collision mesh when the user explicitly
+                // enables model contacts in ordinary FPV simulation.
+                const preserveTunnel=tunnelVolumes?.status()?.collisionEnabled===true &&
+                    !tunnelVolumes?.flight;
+                stopNavigation(null,{preserveTunnel});
                 const preview=command.sceneTime??{enabled:false};
                 if(typeof preview.enabled!=='boolean')throw Error('Invalid flight lighting preview');
                 FPVSceneEnvironment.time(preview.timeUtc);
@@ -676,7 +684,18 @@ function postToFlutter(message) {
             case 'query-live-radio-terrain': return liveRadio.sample(command,signal);
             case 'set-live-radio-result': return liveRadio.set(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
-            case 'set-scene-environment': return sceneEnvironment.set(command);
+            case 'set-scene-environment': {
+                const result=sceneEnvironment.set(command);
+                // The fully enabled 3D infrastructure layer also discovers
+                // schematic tunnel centerlines near the viewed terrain.
+                tunnels?.setAutomatic(command.structures===true);
+                if(command.modelCollisions!==undefined){
+                    modelCollisions?.setEnabled(command.modelCollisions);
+                    tunnelVolumes?.setCollisionEnabled(command.modelCollisions);
+                    infrastructureClearance?.setCollisionEnabled(command.modelCollisions);
+                }
+                return result;
+            }
             case 'set-tunnel-infrastructure': {
                 if(command.routesVisible===false){tunnelVolumes?.stop();infrastructureClearance?.forgetTunnel();}
                 return tunnels.set(command);
@@ -702,21 +721,24 @@ function postToFlutter(message) {
                 stopNavigation();
                 const source=tunnels.geometry(command.routeId);
                 const result = await tunnelVolumes.prepare(source,{widthMeters:command.widthMeters??6,
-                    heightMeters:command.heightMeters??5},signal);
+                    heightMeters:command.heightMeters??5,profile:command.profile??'vaulted'},signal);
                 infrastructureClearance?.retainTunnel(tunnelVolumes.model);
                 return result;
             }
             case 'import-tunnel-model': {
                 if(!tunnelVolumes)throw Error('Tunnel renderer unavailable.');
-                stopNavigation();
-                if(JSON.stringify(command.document??{}).length>65536)throw Error('Tunnel file is too large.');
+                // Keep a previously displayed mesh until the new source is
+                // validated. importModel() owns validated replacement.
+                stopNavigation(null,{preserveTunnel:true});
+                if(JSON.stringify(command.document??{}).length>2097152)
+                    throw Error('Tunnel geometry exceeds the 2 MiB transfer limit.');
                 const result = tunnelVolumes.importModel(command.document);
                 infrastructureClearance?.retainTunnel(tunnelVolumes.model);
                 return result;
             }
             case 'remove-tunnel-model': stopNavigation(); infrastructureClearance?.forgetTunnel(); return {};
             case 'enter-tunnel-flight': {
-                if(!tunnelVolumes?.model)throw Error('Generate a bounded simulated tunnel first.');
+                if(!tunnelVolumes?.model)throw Error('Import or create a tunnel model first.');
                 if(!terrainAvailable())throw Error('Detailed terrain is required for virtual tunnel flight.');
                 if(!['gps','angle','acro'].includes(command.flightMode))throw Error('Invalid virtual flight mode.');
                 tunnels?.stop();routePlayback?.interrupt();walker?.stop();flyer?.stop();
@@ -973,6 +995,10 @@ function postToFlutter(message) {
         obstacleVectors = FPVObstacles.createVectors(Cesium,viewer,
             {isTerrainReady:terrainAvailable});
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
+        modelCollisions = typeof FPVSceneModelCollision !== 'undefined'
+            ? FPVSceneModelCollision.create(Cesium,viewer,
+                {hasVisibleModels:()=>sceneEnvironment?.hasVisibleModels?.()===true ||
+                    obstacleVectors?.hasVisibleModels?.()===true}) : null;
         infrastructureClearance = typeof FPVInfrastructureClearance !== 'undefined'
             ? FPVInfrastructureClearance.create(Cesium, viewer, () => tunnelVolumes?.model ?? null)
             : null;
@@ -1078,7 +1104,8 @@ function postToFlutter(message) {
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
-                infrastructureClearance?.collision(from,to)===true ? 'bridge' : false,
+                infrastructureClearance?.collision(from,to)===true ? 'bridge' :
+                (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || false,
             terrainCollision:(from,to)=>{
                 if(tunnelVolumes?.flight &&
                     (tunnelVolumes.floorAt(from)!=null||tunnelVolumes.floorAt(to)!=null))return false;

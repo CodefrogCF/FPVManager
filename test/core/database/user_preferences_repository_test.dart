@@ -22,6 +22,7 @@ void main() {
     expect(defaults.uasZonesFillOpacity, 0.20);
     expect(defaults.savedSpotsVisible, isTrue);
     expect(defaults.obstacleModelsVisible, isFalse);
+    expect(defaults.sceneModelCollisionsEnabled, isFalse);
     expect(defaults.navigationBuildings, NavigationEnvironmentMode.inherit);
     expect(defaults.navigationVegetation, NavigationEnvironmentMode.inherit);
     expect(defaults.overlayOrder, [
@@ -54,6 +55,7 @@ void main() {
           buildings3dVisible: true,
           vegetation3dVisible: true,
           structures3dVisible: true,
+          sceneModelCollisionsEnabled: true,
           structuresOpacity: .65,
           tunnelRoutesVisible: true,
           tunnelRoutesOpacity: .55,
@@ -79,6 +81,7 @@ void main() {
       expect(queue.current.buildings3dVisible, isTrue);
       expect(queue.current.vegetation3dVisible, isTrue);
       expect(queue.current.structures3dVisible, isTrue);
+      expect(queue.current.sceneModelCollisionsEnabled, isTrue);
       expect(queue.current.structuresOpacity, .65);
       expect(queue.current.tunnelRoutesVisible, isTrue);
       expect(queue.current.tunnelRoutesOpacity, .55);
@@ -89,6 +92,7 @@ void main() {
       expect(reopened.navigationBuildings, NavigationEnvironmentMode.disabled);
       expect(reopened.navigationVegetation, NavigationEnvironmentMode.enabled);
       expect(reopened.structures3dVisible, isTrue);
+      expect(reopened.sceneModelCollisionsEnabled, isTrue);
       expect(reopened.structuresOpacity, .65);
       expect(reopened.tunnelRoutesVisible, isTrue);
       expect(reopened.tunnelRoutesOpacity, .55);
@@ -104,11 +108,12 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      // 29 FPVManager-owned keys, including the five infrastructure settings,
-      // plus the unrelated key that must survive snapshots and reset.
-      expect(rows, hasLength(30));
+      // 30 FPVManager-owned keys, including the five infrastructure settings
+      // and the scene model collision setting, plus the unrelated key.
+      expect(rows, hasLength(31));
       final stored = {for (final row in rows) row.key: row.value};
       expect(stored['map.scene.structures'], 'true');
+      expect(stored['map.scene.modelCollisions'], 'true');
       expect(stored['map.scene.structures.opacity'], '0.65');
       expect(stored['map.scene.tunnelRoutes'], 'true');
       expect(stored['map.scene.tunnelRoutes.opacity'], '0.55');
@@ -134,9 +139,10 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(30));
+      expect(await database.select(database.appSettings).get(), hasLength(31));
       final resetToDefaults = await repository.getPreferences();
       expect(resetToDefaults.structures3dVisible, isFalse);
+      expect(resetToDefaults.sceneModelCollisionsEnabled, isFalse);
       expect(resetToDefaults.structuresOpacity, 1.0);
       expect(resetToDefaults.tunnelRoutesVisible, isFalse);
       expect(resetToDefaults.tunnelRoutesOpacity, .85);
@@ -151,6 +157,10 @@ void main() {
         GlobeMapStyle.satellite,
       );
       expect((await repository.getPreferences()).structures3dVisible, isFalse);
+      expect(
+        (await repository.getPreferences()).sceneModelCollisionsEnabled,
+        isFalse,
+      );
       expect((await repository.getPreferences()).tunnelRoutesVisible, isFalse);
       expect(
         (await repository.getPreferences()).tunnelExplorationEnabled,

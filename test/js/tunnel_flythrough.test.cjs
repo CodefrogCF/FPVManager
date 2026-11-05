@@ -158,3 +158,89 @@ test('simulated tunnel impact uses its own contact reason, not a terrain measure
     assert.equal(sim.status().active,true);
     sim.stop();
 });
+
+test('swept sphere contacts the actual wall from outside, not only on leaving the interior',()=>{
+    const m=model(),s=m.sections[1],outside=point(s,4.4),inside=point(s);
+    assert.equal(T.inside(m,outside),false);
+    assert.equal(T.collision(m,outside,inside),true,'outside-to-inside wall crossing');
+    assert.equal(T.collision(m,inside,outside),true,'inside-to-outside wall crossing');
+    assert.equal(T.collision(m,point(s,4.4),point(m.sections[2],4.4)),false,
+        'parallel travel outside model is not a collision');
+});
+
+test('open portal is freely passable on centerline, but sidewall at portal remains solid',()=>{
+    const m=T.importSections({version:1,elevationReference:'WGS84_ELLIPSOID',
+        source:'Fixture cross sections',sections:[
+            {longitude:8.2,latitude:46.8,floorMetersWgs84:500,widthMeters:6,heightMeters:5},
+            {longitude:8.2001,latitude:46.8,floorMetersWgs84:500,widthMeters:6,heightMeters:5},
+            {longitude:8.2002,latitude:46.8,floorMetersWgs84:500,widthMeters:6,heightMeters:5},
+        ]});
+    const entry={longitude:8.19995,latitude:46.8,height:502.5};
+    const inner={longitude:8.20004,latitude:46.8,height:502.5};
+    assert.equal(T.collision(m,entry,inner),false,'open portal along tunnel axis');
+    assert.equal(T.collision(m,inner,entry),false,'open portal exit');
+    assert.equal(T.collision(m,{...entry,latitude:46.800055},inner),true,
+        'crossing the model wall near the portal edge');
+});
+
+test('continuous sweep catches roof, floor and wall even when both endpoints are outside',()=>{
+    const m=model(),s=m.sections[1],floor=s.floorMetersWgs84;
+    assert.equal(T.collision(m,point(s,0,floor+8),point(s,0,floor-4)),true,'roof and floor');
+    assert.equal(T.collision(m,point(s,-7),point(s,7)),true,'both side walls');
+    assert.equal(T.collision(m,point(s,0,floor+8),point(m.sections[2],0,floor+8)),false,
+        'outside, above the roof');
+});
+
+test('vaulted mesh generates tessellated roof with exact shared collision geometry',()=>{
+    const base=model();
+    const vaulted=T.importSections({version:1,elevationReference:'WGS84_ELLIPSOID',
+        profile:'vaulted',source:'Synthetic test profile',sections:base.sections});
+    assert.equal(vaulted.profile,'vaulted');
+    const ring=T.rings(vaulted);
+    assert.ok(ring[0].length>4);
+    assert.equal(ring[0].length,ring[1].length);
+    const f=fake(),rendered=T.geometry(f.C,vaulted),physical=T.collisionMesh(vaulted);
+    assert.equal(rendered.indices.length/3,physical.triangleCount);
+    assert.equal(rendered.indices.length/3,(vaulted.sections.length-1)*ring[0].length*2);
+    const s=vaulted.sections[1],top=s.floorMetersWgs84+s.heightMeters;
+    assert.equal(T.collision(vaulted,point(s,0,top-1.5),point(s,0,top+.2)),true,
+        'arched ceiling contact, not only rectangular AABB');
+    assert.equal(T.collision(vaulted,point(s,2.6,top-0.2),point(s,2.6,top-.2)),false,
+        'air outside curved roof is not a collision');
+    assert.equal(T.inside(vaulted,point(s,2.6,top-.2)),false,'vaulted headroom is narrower');
+    assert.throws(()=>T.importSections({version:1,elevationReference:'WGS84_ELLIPSOID',
+        profile:'unsafe',source:'Fixture',sections:base.sections}),/profile/);
+});
+
+test('scene collision option applies to prepared tunnel meshes outside explicit tunnel flight',async()=>{
+    const f=fake();await f.service.prepare(source,{profile:'vaulted'});
+    const s=f.service.model.sections[1],a=point(s),b=point(s,4);
+    assert.equal(f.service.intersects(a,b),false,'opt-in disabled by default');
+    f.service.setCollisionEnabled(true);
+    assert.equal(f.service.intersects(a,b),true);
+    assert.equal(f.service.intersects(a,{longitude:NaN,latitude:0,height:0}),false); // invalid endpoint is noncolliding
+    f.service.setCollisionEnabled(false);
+    assert.equal(f.service.intersects(a,b),false);
+    f.service.activate();assert.equal(f.service.intersects(a,b),true,'tunnel flight always collides');
+    f.service.stop();assert.equal(f.service.intersects(a,b),false);
+});
+
+test('long replay jumps fail closed near a loaded tunnel but not across distant empty areas',()=>{
+    const m=model(),s=m.sections[1];
+    assert.equal(T.collision(m,
+        {longitude:8.0,latitude:46.8,height:510},
+        {longitude:8.001,latitude:46.8,height:510}),false,
+        'distant teleport is not incorrectly treated as a tunnel impact');
+    assert.equal(T.collision(m,
+        {longitude:8.198,latitude:46.8,height:s.floorMetersWgs84+2},
+        {longitude:8.202,latitude:46.8,height:s.floorMetersWgs84+2}),true,
+        'teleport crossing tunnel geometry is stopped');
+});
+
+test('small portal cuts are replaced with full corridor clipping only during simulated flight',async()=>{
+    const f=fake();await f.service.prepare(source,{profile:'vaulted'});
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,2,'only portal approaches clipped at rest');
+    f.service.activate();
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,1,'corridor clipped during underground flight');
+    f.service.stop();assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
+});

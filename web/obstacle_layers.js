@@ -126,7 +126,7 @@
     function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0)),
         isTerrainReady = () => true, now = () => performance.now(), terrainBatchSize = 128} = {}) {
         let source = null, sourceReady = null, revision = -1, disposed = false;
-        let records = new Map();
+        let records = new Map(), hasLoadedModels = false;
         const heightCache = new Map(), pendingRecords = new Set();
         let terrainProvider = viewer.terrainProvider, heightGeneration = 0;
         const models = Models.create(C,viewer);
@@ -451,7 +451,9 @@
                         next.entities.remove(entity); source.entities.add(entity);
                     }
                     terrain?.dispose(); terrain = heights;
-                    records = nextRecords; selection = ids; committed = true;
+                    records = nextRecords; selection = ids;
+                    hasLoadedModels = [...records.values()].some(record => record.entities.some(entity => !!entity.model));
+                    committed = true;
                 } finally { source.entities.resumeEvents?.(); }
                 setCredit(command.features.length > 0);
                 viewer.scene.requestRender?.();
@@ -463,7 +465,7 @@
                 if (!committed) heights.dispose();
             }
         }
-        return {replace, terrainChanged, pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
+        return {replace, terrainChanged, hasVisibleModels:()=>!disposed && !!source?.show && hasLoadedModels, pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
             dispose() { disposed = true; revision++; for (const stop of listeners) stop?.();
                 terrain?.dispose(); terrain = null;
                 for (const record of pendingRecords) forget(record);

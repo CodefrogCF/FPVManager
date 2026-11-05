@@ -153,3 +153,17 @@ test('broken transfer never reports successful parse timing', async () => {
         assert.equal(measurements.length,0);
     } finally { bridge.dispose(); }
 });
+
+test('infrastructure selection retains dataset provenance without overriding the bridge source', () => {
+    const p = peer();
+    try {
+        p.bridge.emit('infrastructure-selected', {
+            kind: 'tunnel', id: 'road:tunnel:0',
+            datasetSource: 'ch.swisstopo.swisstlm3d-strassen'
+        });
+        assert.equal(p.events.length, 1);
+        assert.equal(p.events[0].source, 'fpvmanager-globe');
+        assert.equal(p.events[0].datasetSource, 'ch.swisstopo.swisstlm3d-strassen');
+        assert.equal(p.events[0].type, 'infrastructure-selected');
+    } finally { p.bridge.dispose(); }
+});

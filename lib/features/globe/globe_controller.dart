@@ -402,9 +402,17 @@ class GlobeController extends ChangeNotifier {
   bool get buildings3dVisible => _preferences.buildings3dVisible;
   bool get vegetation3dVisible => _preferences.vegetation3dVisible;
   bool get structures3dVisible => _preferences.structures3dVisible;
+  bool get sceneModelCollisionsEnabled =>
+      _preferences.sceneModelCollisionsEnabled;
   double get structuresOpacity => _preferences.structuresOpacity;
   double get tunnelRoutesOpacity => _preferences.tunnelRoutesOpacity;
   bool get tunnelRoutesVisible => _preferences.tunnelRoutesVisible;
+  String _tunnelAutoState = 'hidden';
+  String get tunnelAutoState => _tunnelAutoState;
+  int _tunnelAutoCount = 0;
+  int get tunnelAutoCount => _tunnelAutoCount;
+  bool _tunnelAutoIncomplete = true;
+  bool get tunnelAutoIncomplete => _tunnelAutoIncomplete;
   bool get tunnelExplorationEnabled => _preferences.tunnelExplorationEnabled;
   bool get realisticLighting => _preferences.realisticLighting;
   NavigationEnvironmentMode get navigationBuildings =>
@@ -454,10 +462,18 @@ class GlobeController extends ChangeNotifier {
   int _tunnelScanSequence = 0;
   bool _tunnelModelReady = false;
   bool get tunnelModelReady => _tunnelModelReady;
+  bool _tunnelModelCanFly = false;
+  bool get tunnelModelCanFly => _tunnelModelCanFly;
+  int? _tunnelMeshTriangles;
+  int? get tunnelMeshTriangles => _tunnelMeshTriangles;
+  int? _tunnelCollisionTriangles;
+  int? get tunnelCollisionTriangles => _tunnelCollisionTriangles;
   bool _tunnelModelPending = false;
   bool get tunnelModelPending => _tunnelModelPending;
   String? _tunnelModelQuality;
   String? get tunnelModelQuality => _tunnelModelQuality;
+  String? _tunnelModelSource;
+  String? get tunnelModelSource => _tunnelModelSource;
   String? _tunnelModelError;
   String? get tunnelModelError => _tunnelModelError;
   bool _tunnelFlightActive = false;
@@ -561,6 +577,7 @@ class GlobeController extends ChangeNotifier {
     String id, {
     double widthMeters = 6,
     double heightMeters = 5,
+    String profile = 'vaulted',
   }) async {
     if (!_ready || !_terrainAvailable || _tunnelModelPending) {
       throw StateError('Detailed terrain is required for simulated tunnels');
@@ -571,6 +588,9 @@ class GlobeController extends ChangeNotifier {
         heightMeters > 12) {
       throw ArgumentError('Unsupported simulated tunnel dimensions');
     }
+    if (profile != 'vaulted' && profile != 'rectangular') {
+      throw ArgumentError('Unsupported tunnel cross-section profile');
+    }
     _tunnelModelPending = true;
     notifyListeners();
     try {
@@ -579,6 +599,7 @@ class GlobeController extends ChangeNotifier {
         'routeId': id,
         'widthMeters': widthMeters,
         'heightMeters': heightMeters,
+        'profile': profile,
       }, timeout: _bridge.options.terrainTimeout);
     } finally {
       _tunnelModelPending = false;
@@ -587,8 +608,10 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> enterTunnelFlight({String mode = 'gps'}) async {
-    if (!_tunnelModelReady || !{'gps', 'angle', 'acro'}.contains(mode)) {
-      throw StateError('Create a simulated tunnel model first');
+    if (!_tunnelModelReady ||
+        !_tunnelModelCanFly ||
+        !{'gps', 'angle', 'acro'}.contains(mode)) {
+      throw StateError('Tunnel fly-through requires a complete flight profile');
     }
     await _bridge.send({
       'type': 'enter-tunnel-flight',
@@ -600,20 +623,32 @@ class GlobeController extends ChangeNotifier {
     if (!_ready || _tunnelModelPending) {
       throw StateError('Tunnel renderer is not ready');
     }
-    if (document['version'] != 1 ||
-        document['elevationReference'] != 'WGS84_ELLIPSOID' ||
-        document['source'] is! String ||
-        (document['source'] as String).isEmpty ||
-        document['sections'] is! List ||
-        (document['sections'] as List).length > 96) {
+    final source = document['source'];
+    final version = document['version'];
+    if (document['elevationReference'] != 'WGS84_ELLIPSOID' ||
+        source is! String ||
+        source.trim().isEmpty ||
+        source.length > 256 ||
+        !(version == 1 &&
+                document['sections'] is List &&
+                (document['sections'] as List).length <= 96 ||
+            version == 2 &&
+                document['format'] == 'fpvmanager-georeferenced-trimesh' &&
+                document['coordinateReference'] == 'EPSG:4979' &&
+                document['visualMesh'] is Map &&
+                document['collisionMesh'] is Map)) {
       throw const FormatException(
-        'Invalid external tunnel geometry or provenance',
+        'Expected cross sections (v1) or explicitly georeferenced mesh (v2)',
       );
+    }
+    final encodedLength = jsonEncode(document).length;
+    if (encodedLength > 2097152) {
+      throw const FormatException('Tunnel mesh exceeds 2 MiB');
     }
     await _bridge.send({
       'type': 'import-tunnel-model',
       'document': document,
-    }, timeout: _bridge.options.terrainTimeout);
+    }, timeout: _bridge.options.datasetTimeout);
   }
 
   Future<void> removeTunnelModel() => _send({'type': 'remove-tunnel-model'});
@@ -705,6 +740,7 @@ class GlobeController extends ChangeNotifier {
     'buildings': buildings3dVisible,
     'vegetation': vegetation3dVisible,
     'structures': structures3dVisible,
+    'modelCollisions': sceneModelCollisionsEnabled,
     'structuresOpacity': structuresOpacity,
     'lighting': realisticLighting,
     'retry': ?retry,
@@ -714,6 +750,7 @@ class GlobeController extends ChangeNotifier {
     bool? buildings,
     bool? vegetation,
     bool? structures,
+    bool? modelCollisions,
     double? structuresOpacity,
     bool? lighting,
     String? retry,
@@ -732,6 +769,7 @@ class GlobeController extends ChangeNotifier {
     if (buildings != null ||
         vegetation != null ||
         structures != null ||
+        modelCollisions != null ||
         structuresOpacity != null ||
         lighting != null) {
       await _savePreferences(
@@ -739,6 +777,7 @@ class GlobeController extends ChangeNotifier {
           buildings3dVisible: buildings,
           vegetation3dVisible: vegetation,
           structures3dVisible: structures,
+          sceneModelCollisionsEnabled: modelCollisions,
           structuresOpacity: structuresOpacity,
           realisticLighting: lighting,
         ),
@@ -2380,11 +2419,16 @@ class GlobeController extends ChangeNotifier {
         _infrastructureSurfaceCount = 0;
         _tunnelScanSequence++;
         _tunnelRoutes = const [];
+        _tunnelAutoState = 'hidden';
+        _tunnelAutoCount = 0;
+        _tunnelAutoIncomplete = true;
         _selectedInfrastructure = null;
         _tunnelExploring = false;
         _tunnelScanPending = false;
         _tunnelModelReady = _tunnelModelPending = _tunnelFlightActive = false;
-        _tunnelModelQuality = _tunnelModelError = null;
+        _tunnelModelQuality = _tunnelModelError = _tunnelModelSource = null;
+        _tunnelModelCanFly = false;
+        _tunnelMeshTriangles = _tunnelCollisionTriangles = null;
         _tunnelScanError = null;
         _playbackPhase = 'idle';
         _playbackProgress = 0;
@@ -2395,9 +2439,14 @@ class GlobeController extends ChangeNotifier {
         ++_infrastructureRevision;
         _infrastructureSurfaceCount = 0;
         _tunnelModelReady = _tunnelModelPending = _tunnelFlightActive = false;
-        _tunnelModelQuality = _tunnelModelError = null;
+        _tunnelModelQuality = _tunnelModelError = _tunnelModelSource = null;
+        _tunnelModelCanFly = false;
+        _tunnelMeshTriangles = _tunnelCollisionTriangles = null;
         _tunnelScanSequence++;
         _tunnelRoutes = const [];
+        _tunnelAutoState = 'hidden';
+        _tunnelAutoCount = 0;
+        _tunnelAutoIncomplete = true;
         _tunnelScanPending = false;
         _tunnelExploring = false;
         _tunnelScanError = null;
@@ -2459,9 +2508,31 @@ class GlobeController extends ChangeNotifier {
           _labelsState = data['state'] as String;
           notifyListeners();
         }
+      case 'tunnel-auto-status':
+        if ([
+              'hidden',
+              'waiting',
+              'loading',
+              'ready',
+              'partial',
+              'failed',
+              'offline',
+              'outside',
+            ].contains(data['state']) &&
+            data['count'] is int &&
+            (data['count'] as int) >= 0 &&
+            (data['count'] as int) <= 48 &&
+            data['incomplete'] is bool) {
+          _tunnelAutoState = data['state'] as String;
+          _tunnelAutoCount = data['count'] as int;
+          _tunnelAutoIncomplete = data['incomplete'] as bool;
+          notifyListeners();
+        }
       case 'infrastructure-selected':
-        if (data['source'] is String &&
-            (data['source'] as String).startsWith('ch.swisstopo.') &&
+        // `source` identifies the trusted bridge envelope; dataset provenance
+        // must be a separate field or events will fail validation.
+        if (data['datasetSource'] is String &&
+            (data['datasetSource'] as String).startsWith('ch.swisstopo.') &&
             data.length <= 16) {
           _selectedInfrastructure = Map.unmodifiable(data);
           notifyListeners();
@@ -2470,6 +2541,23 @@ class GlobeController extends ChangeNotifier {
         if (data['ready'] is bool && data['flight'] is bool) {
           _tunnelModelReady = data['ready'] as bool;
           _tunnelFlightActive = data['flight'] as bool;
+          // Old renderer versions do not advertise a flight capability.
+          _tunnelModelCanFly = data['canFly'] is bool
+              ? data['canFly'] as bool
+              : _tunnelModelReady &&
+                    data['quality'] != 'external-mesh-unverified';
+          _tunnelMeshTriangles = data['visualTriangles'] is int
+              ? data['visualTriangles'] as int
+              : null;
+          _tunnelCollisionTriangles = data['collisionTriangles'] is int
+              ? data['collisionTriangles'] as int
+              : null;
+          _tunnelModelSource = data['source'] is String
+              ? (data['source'] as String).substring(
+                  0,
+                  (data['source'] as String).length.clamp(0, 256),
+                )
+              : null;
           _tunnelModelQuality = data['quality'] is String
               ? (data['quality'] as String).substring(
                   0,
@@ -2803,6 +2891,7 @@ class GlobeController extends ChangeNotifier {
           buildings3dVisible ||
           vegetation3dVisible ||
           structures3dVisible ||
+          sceneModelCollisionsEnabled ||
           realisticLighting) {
         await _send(_sceneCommand());
       }

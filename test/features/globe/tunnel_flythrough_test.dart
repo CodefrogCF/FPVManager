@@ -88,15 +88,37 @@ void main() {
       await tester.tap(scan);
       await tester.pumpAndSettle();
       expect(globe.tunnelRoutes, hasLength(1));
+      // Tapping an automatically discovered axis can also offer the same
+      // explicit, simulation-only 3D model generation action.
+      peer.emit({
+        'type': 'infrastructure-selected',
+        'id': 'road:tunnel:0',
+        'name': 'Demo Tunnel',
+        'kind': 'tunnel',
+        'datasetSource': 'ch.swisstopo.swisstlm3d-strassen',
+      });
+      await tester.pumpAndSettle();
+      expect(
+        globe.selectedInfrastructure?['datasetSource'],
+        'ch.swisstopo.swisstlm3d-strassen',
+      );
+      expect(
+        find.text('Quelle: ch.swisstopo.swisstlm3d-strassen'),
+        findsOneWidget,
+      );
+      expect(find.text('Aus Achse 3D-Gewölbe simulieren'), findsOneWidget);
       final menu = find.byType(PopupMenuButton<String>);
       await tester.ensureVisible(menu.last);
       await tester.tap(menu.last);
       await tester.pumpAndSettle();
-      final modelOption = find.text('3D-Simulationstunnel erzeugen (fiktiv)');
+      final modelOption = find.text('3D-Gewölbetunnel erzeugen (synthetisch)');
       await tester.tap(modelOption);
       await tester.pumpAndSettle();
       expect(
-        peer.commands.any((c) => c['type'] == 'prepare-tunnel-model'),
+        peer.commands.any(
+          (c) =>
+              c['type'] == 'prepare-tunnel-model' && c['profile'] == 'vaulted',
+        ),
         true,
       );
       expect(globe.tunnelModelReady, true);

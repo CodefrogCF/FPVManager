@@ -39,6 +39,7 @@ final class DriftUserPreferencesRepository
   static const _buildings = 'map.scene.buildings';
   static const _vegetation = 'map.scene.vegetation';
   static const _structures = 'map.scene.structures';
+  static const _sceneModelCollisions = 'map.scene.modelCollisions';
   static const _structuresOpacity = 'map.scene.structures.opacity';
   static const _tunnelRoutesOpacity = 'map.scene.tunnelRoutes.opacity';
   static const _tunnels = 'map.scene.tunnelRoutes';
@@ -70,6 +71,7 @@ final class DriftUserPreferencesRepository
     _buildings,
     _vegetation,
     _structures,
+    _sceneModelCollisions,
     _structuresOpacity,
     _tunnelRoutesOpacity,
     _tunnels,
@@ -209,6 +211,10 @@ final class DriftUserPreferencesRepository
           _structures,
           defaults.structures3dVisible,
         ),
+        sceneModelCollisionsEnabled: readBool(
+          _sceneModelCollisions,
+          defaults.sceneModelCollisionsEnabled,
+        ),
         structuresOpacity: structuresOpacity,
         tunnelRoutesOpacity: tunnelRoutesOpacity,
         tunnelRoutesVisible: readBool(_tunnels, defaults.tunnelRoutesVisible),
@@ -291,6 +297,8 @@ final class DriftUserPreferencesRepository
             _buildings: snapshot.buildings3dVisible.toString(),
             _vegetation: snapshot.vegetation3dVisible.toString(),
             _structures: snapshot.structures3dVisible.toString(),
+            _sceneModelCollisions: snapshot.sceneModelCollisionsEnabled
+                .toString(),
             _structuresOpacity: snapshot.structuresOpacity.toString(),
             _tunnelRoutesOpacity: snapshot.tunnelRoutesOpacity.toString(),
             _tunnels: snapshot.tunnelRoutesVisible.toString(),

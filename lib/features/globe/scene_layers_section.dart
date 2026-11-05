@@ -14,14 +14,14 @@ class SceneLayersSection extends StatelessWidget {
     Future<void> change(Future<void> Function() action) async {
       try {
         await action();
-      } catch (_) {
+      } catch (error) {
         if (context.mounted) {
+          final detail = error.toString();
+          final message = detail.length > 180
+              ? '${detail.substring(0, 180)}…'
+              : detail;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '3D-Einstellung konnte nicht übernommen werden. Bitte erneut versuchen.',
-              ),
-            ),
+            SnackBar(content: Text('3D-Aktion fehlgeschlagen: $message')),
           );
         }
       }
@@ -85,7 +85,7 @@ class SceneLayersSection extends StatelessWidget {
         ),
         layer(
           'structures',
-          'Brücken und 3D-Bauwerke',
+          'Brücken, 3D-Bauwerke und Tunnelachsen',
           controller.structures3dVisible,
           (value) => controller.setSceneEnvironment(structures: value),
         ),
@@ -111,7 +111,36 @@ class SceneLayersSection extends StatelessWidget {
             ],
           ),
         const Text(
-          'Offizielle swisstopo-3D-Tiles; einzelne Brücken oder andere Bauwerke können fehlen. Keine Kollisionsfreigabe.',
+          'swisstopo-3D-Tiles; bei Aktivierung werden auch nahe Tunnelachsen automatisch gesucht und als schematische Oberflächenlinien dargestellt. Keine verifizierten Tunnelröhren oder Portale.',
+        ),
+        if (controller.structures3dVisible) ...[
+          if (controller.tunnelAutoState == 'loading')
+            const LinearProgressIndicator(),
+          Text(switch (controller.tunnelAutoState) {
+            'ready' =>
+              controller.tunnelAutoCount == 0
+                  ? 'Keine Treffer in der begrenzten Abfrage; keine vollständige Tunnelabdeckung.'
+                  : '${controller.tunnelAutoCount} Tunnelachsen im Kartenausschnitt gefunden (schematisch).',
+            'partial' =>
+              '${controller.tunnelAutoCount} Tunnelachsen gefunden; Abdeckung unvollständig.',
+            'failed' => 'Automatische Tunnelabfrage fehlgeschlagen. Manuelle Suche ist möglich.',
+            'offline' => 'Tunnelachsen derzeit offline nicht verfügbar.',
+            'outside' => 'Tunnelachsen nur bei bodennaher Schweizer Kartenansicht automatisch laden.',
+            _ => 'Tunnelachsen werden bei ruhender, bodennaher Schweizer Kartenansicht gesucht.',
+          }),
+        ],
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('3D-Modellkollisionen (experimentell)'),
+          subtitle: const Text(
+            'Geladene Tunnelmodelle: geometriebasierte Wände, Dach und Boden (auch bei schnellen Bewegungen). Andere 3D-Tiles: nur angenäherte Oberflächenkontakte; nicht geladene Objekte bleiben ungeprüft.',
+          ),
+          value: controller.sceneModelCollisionsEnabled,
+          onChanged: enabled
+              ? (value) => change(
+                  () => controller.setSceneEnvironment(modelCollisions: value),
+                )
+              : null,
         ),
         if (controller.selectedInfrastructure != null)
           Card(
@@ -122,7 +151,7 @@ class SceneLayersSection extends StatelessWidget {
                 children: [
                   const Text('Ausgewähltes Infrastrukturobjekt · swisstopo'),
                   Text(
-                    'Quelle: ${controller.selectedInfrastructure!['source']}',
+                    'Quelle: ${controller.selectedInfrastructure!['datasetSource']}',
                   ),
                   if (controller.selectedInfrastructure!['name'] is String)
                     Text('Name: ${controller.selectedInfrastructure!['name']}'),
@@ -139,11 +168,62 @@ class SceneLayersSection extends StatelessWidget {
                   const Text(
                     'Höhenbezug und Modellvollständigkeit nur gemäß Originaldaten; keine Durchflugfreigabe.',
                   ),
+                  if (controller.selectedInfrastructure!['id'] is String &&
+                      {
+                        'tunnel',
+                        'underpass',
+                      }.contains(controller.selectedInfrastructure!['kind']))
+                    TextButton.icon(
+                      onPressed: enabled && !controller.tunnelModelPending
+                          ? () => change(
+                              () => controller.prepareTunnelModel(
+                                controller.selectedInfrastructure!['id']
+                                    as String,
+                              ),
+                            )
+                          : null,
+                      icon: const Icon(Icons.view_in_ar),
+                      label: const Text('Aus Achse 3D-Gewölbe simulieren'),
+                    ),
                 ],
               ),
             ),
           ),
         const Divider(),
+        TextButton.icon(
+          onPressed: enabled && !controller.tunnelModelPending
+              ? () => change(() async {
+                  final file = await openFile(
+                    acceptedTypeGroups: [
+                      const XTypeGroup(
+                        label: 'Georeferenced tunnel mesh or cross sections',
+                        extensions: ['json'],
+                      ),
+                    ],
+                  );
+                  if (file == null) return;
+                  if (await file.length() > 2097152) {
+                    throw const FormatException(
+                      'Tunnel geometry exceeds 2 MiB',
+                    );
+                  }
+                  final data = jsonDecode(await file.readAsString());
+                  if (data is! Map<String, dynamic>) {
+                    throw const FormatException(
+                      'Expected tunnel geometry object',
+                    );
+                  }
+                  await controller.importTunnelModel(data);
+                })
+              : null,
+          icon: const Icon(Icons.upload_file),
+          label: const Text('3D-Tunnelmesh / Querschnitte importieren (JSON)'),
+        ),
+        const Text(
+          'Importierte Meshes: explizites EPSG:4979 / WGS84-Ellipsoid, '
+          'separates Kollisionsmesh und Quelle erforderlich. Keine automatische '
+          'Vermessungs- oder Lichtraumprüfung. GLB/IFC nicht direkt unterstützt.',
+        ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('Tunnelverläufe und Unterführungen'),
@@ -201,37 +281,6 @@ class SceneLayersSection extends StatelessWidget {
             icon: const Icon(Icons.travel_explore),
             label: const Text('Tunnelachsen um Kartenmitte suchen (600 m)'),
           ),
-          TextButton.icon(
-            onPressed: enabled && !controller.tunnelModelPending
-                ? () => change(() async {
-                    final file = await openFile(
-                      acceptedTypeGroups: [
-                        const XTypeGroup(
-                          label: 'Tunnel cross sections',
-                          extensions: ['json'],
-                        ),
-                      ],
-                    );
-                    if (file == null) return;
-                    if (await file.length() > 65536) {
-                      throw const FormatException(
-                        'Tunnel geometry exceeds 64 KiB',
-                      );
-                    }
-                    final data = jsonDecode(await file.readAsString());
-                    if (data is! Map<String, dynamic>) {
-                      throw const FormatException(
-                        'Expected tunnel geometry object',
-                      );
-                    }
-                    await controller.importTunnelModel(data);
-                  })
-                : null,
-            icon: const Icon(Icons.upload_file),
-            label: const Text(
-              '3D-Querschnitte importieren (JSON, nicht verifiziert)',
-            ),
-          ),
           if (controller.tunnelScanPending) const LinearProgressIndicator(),
           if (controller.tunnelScanError != null)
             Text('Abfrage fehlgeschlagen: ${controller.tunnelScanError}'),
@@ -243,7 +292,7 @@ class SceneLayersSection extends StatelessWidget {
               !controller.tunnelScanPending &&
               controller.tunnelScanError == null)
             const Text(
-              'Keine Tunnelachsen geladen. Suche bewusst manuell starten; Offline-Abfrage nicht verfügbar.',
+              'Keine manuell aufgelisteten Tunnelachsen. Bei aktiven 3D-Bauwerken erfolgt eine begrenzte automatische Suche im Kartenbereich; manuelle Suche bleibt verfügbar.',
             ),
           for (final route in controller.tunnelRoutes)
             ListTile(
@@ -283,42 +332,11 @@ class SceneLayersSection extends StatelessWidget {
                     ),
                   const PopupMenuItem(
                     value: 'model',
-                    child: Text('3D-Simulationstunnel erzeugen (fiktiv)'),
+                    child: Text('3D-Gewölbetunnel erzeugen (synthetisch)'),
                   ),
                 ],
               ),
             ),
-          if (controller.tunnelModelPending) const LinearProgressIndicator(),
-          if (controller.tunnelModelError != null)
-            Text('3D-Tunnel: ${controller.tunnelModelError}'),
-          if (controller.tunnelModelReady) ...[
-            Text(
-              controller.tunnelModelQuality == 'simulation-only'
-                  ? 'SIMULATION ONLY: Querschnitt (6 × 5 m) und Portale sind künstlich erzeugt. Keine realen Freiräume oder Zugangsberechtigungen.'
-                  : 'IMPORTIERTE MODELLGEOMETRIE: Provenienz und Lichtraumprofil sind nicht unabhängig verifiziert. Keine reale Durchflugfreigabe.',
-            ),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final mode in const ['gps', 'angle', 'acro'])
-                  OutlinedButton(
-                    onPressed: enabled && !controller.tunnelModelPending
-                        ? () => change(
-                            () => controller.enterTunnelFlight(mode: mode),
-                          )
-                        : null,
-                    child: Text('Durchflug: ${mode.toUpperCase()}'),
-                  ),
-                TextButton.icon(
-                  onPressed: enabled
-                      ? () => change(controller.removeTunnelModel)
-                      : null,
-                  icon: const Icon(Icons.close),
-                  label: const Text('3D-Tunnel entfernen'),
-                ),
-              ],
-            ),
-          ],
           if (controller.tunnelExploring)
             TextButton.icon(
               onPressed: enabled
@@ -333,6 +351,54 @@ class SceneLayersSection extends StatelessWidget {
             Text(controller.tunnelExploreMessage!),
           const Text(
             'Achsenenden sind keine vermessenen Tunnelportale. Keine Angaben zu Hohlraum, Lichtraumprofil, Flughindernissen oder Zugangsberechtigung.',
+          ),
+        ],
+        if (controller.tunnelModelPending) const LinearProgressIndicator(),
+        if (controller.tunnelModelError != null)
+          Text('3D-Tunnel: ${controller.tunnelModelError}'),
+        if (controller.tunnelModelReady) ...[
+          if (controller.tunnelModelSource != null)
+            Text('Modellquelle: ${controller.tunnelModelSource}'),
+          Text(
+            controller.tunnelModelQuality == 'simulation-only'
+                ? 'SIMULATION ONLY: 3D-Gewölbe (6 × 5 m), Portale und Lichtraum sind künstlich erzeugt. Kollisionen sind geometriebasiert nur für dieses Modell; keine realen Freiräume oder Zugangsberechtigungen.'
+                : controller.tunnelModelQuality == 'external-mesh-unverified'
+                ? 'GEOREFERENZIERTES MESH: Sicht- und Kollisionsdreiecke importiert; Herkunft, Datumstransformation und Lichtraum sind nicht unabhängig geprüft. Unterirdische Flächen können ohne explizite Terrain-Ausschnitte verborgen bleiben.'
+                : 'IMPORTIERTE MODELLGEOMETRIE: Provenienz und Lichtraumprofil sind nicht unabhängig verifiziert. Keine reale Durchflugfreigabe.',
+          ),
+          if (controller.tunnelMeshTriangles != null)
+            Text(
+              'Sichtdreiecke: ${controller.tunnelMeshTriangles} · '
+              'Kollisionsdreiecke: ${controller.tunnelCollisionTriangles ?? 0}',
+            ),
+          if (!controller.tunnelModelCanFly)
+            const Text(
+              'Durchflug deaktiviert: Es fehlen geprüfte Angaben zu '
+              'Einstieg, Höhenprofil oder Terrain-Ausschnitten.',
+            ),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final mode in const ['gps', 'angle', 'acro'])
+                OutlinedButton(
+                  onPressed:
+                      enabled &&
+                          !controller.tunnelModelPending &&
+                          controller.tunnelModelCanFly
+                      ? () => change(
+                          () => controller.enterTunnelFlight(mode: mode),
+                        )
+                      : null,
+                  child: Text('Durchflug: ${mode.toUpperCase()}'),
+                ),
+              TextButton.icon(
+                onPressed: enabled
+                    ? () => change(controller.removeTunnelModel)
+                    : null,
+                icon: const Icon(Icons.close),
+                label: const Text('3D-Tunnel entfernen'),
+              ),
+            ],
           ),
         ],
         SwitchListTile.adaptive(
