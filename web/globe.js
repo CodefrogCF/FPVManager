@@ -875,7 +875,9 @@ function postToFlutter(message) {
             stopNavigation();
             if (rendererReady) {
                 terrainManager.networkChanged();
-                sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable() });
+                sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable(),
+                    transport: { gzipBase64: typeof FPVGlobeBridge.supportsGzipBase64 === "function" &&
+                        FPVGlobeBridge.supportsGzipBase64(), transferCredits: true } });
                 sendToFlutter("terrain-status", terrainManager.status());
                 sendToFlutter('terrain-resource-warning',{active:terrainManager.hasWarning});
                 publishObstacleViewport();

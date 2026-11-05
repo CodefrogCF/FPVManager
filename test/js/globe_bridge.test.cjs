@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createBridge } = require('../../web/globe_bridge.js');
 const tick = () => new Promise(resolve => setImmediate(resolve));
+const { gzipSync } = require('node:zlib');
 
 function peer(execute = async () => ({}), overrides = {}) {
     const events = [];
@@ -166,4 +167,146 @@ test('infrastructure selection retains dataset provenance without overriding the
         assert.equal(p.events[0].datasetSource, 'ch.swisstopo.swisstlm3d-strassen');
         assert.equal(p.events[0].type, 'infrastructure-selected');
     } finally { p.bridge.dispose(); }
+});
+
+function sendGzip(bridge, requestId, type, command, overrides = {}) {
+    const raw = JSON.stringify({ version: 1, sessionId: 'page',
+        requestId: String(requestId), type, ...command });
+    const compressed = gzipSync(Buffer.from(raw, 'utf8')).toString('base64');
+    const start = { encoding: 'gzip-base64', commandType: type,
+        length: compressed.length, originalLength: raw.length,
+        originalBytes: Buffer.byteLength(raw, 'utf8'), ...overrides };
+    const send = (kind, extra = {}) => bridge.receive(JSON.stringify({
+        version: 1, sessionId: 'page', requestId: String(requestId), type: kind, ...extra }));
+    send('transfer-start', start);
+    for (let index = 0, offset = 0; offset < compressed.length; index++, offset += 1024) {
+        send('transfer-chunk', { index, data: compressed.slice(offset, offset + 1024) });
+    }
+    send('transfer-complete');
+    return { raw, compressed };
+}
+const settle = async (predicate, milliseconds = 2000) => {
+    for (let i = 0; i < milliseconds / 5; i++) {
+        if (predicate()) return;
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    assert.fail('Timed out waiting for renderer acknowledgement');
+};
+
+test('gzip UAS transfer preserves geometry, attributes and attribution without proxy', async () => {
+    let received = null, metric = null;
+    const events = [];
+    const bridge = createBridge({ sessionId: 'page',
+        send: raw => events.push(JSON.parse(raw)),
+        execute: async command => { received = command; return { accepted: true }; },
+        onTransferParsed: data => { metric = data; } });
+    try {
+        const features = Array.from({ length: 8000 }, (_, i) => ({ type: 'Feature',
+            geometry: { type: 'Point', coordinates: [8.34 + i * 0.00001, 47.1] },
+            properties: { name: 'Zürich / 🎮 ' + i, lowerLimit: 0,
+                source: 'Swiss UAS dataset', note: '\\"\n\t'.repeat(4) } }));
+        const command = { visible: true, geojson: { type: 'FeatureCollection', features },
+            sourceAttribution: 'FOCA, Switzerland ©', downloadedAtUtc: '2026-11-05T12:00:00Z' };
+        const { raw, compressed } = sendGzip(bridge, 1, 'set-uas-zones', command);
+        await settle(() => events.some(event => event.type === 'command-result'));
+        assert.deepEqual(received.geojson, command.geojson);
+        assert.equal(received.sourceAttribution, command.sourceAttribution);
+        assert.equal(received.downloadedAtUtc, command.downloadedAtUtc);
+        assert.equal(metric.transport, 'gzip-base64');
+        assert.ok(Number.isFinite(metric.parseMs) && Number.isFinite(metric.decodeMs));
+        assert.ok(compressed.length * 3 < raw.length, 'compression must reduce bridge bytes');
+        assert.equal(events.at(-1).ok, true);
+    } finally { bridge.dispose(); }
+});
+
+test('gzip transfers are bounded and corrupt payloads cannot execute', async () => {
+    let calls = 0;
+    const events = [];
+    const bridge = createBridge({ sessionId: 'page',
+        send: raw => events.push(JSON.parse(raw)), execute: async () => { calls++; },
+        limits: { frame: 2048, command: 4096, transfers: 2, pending: 4,
+            idleMs: 1000, commandMs: 1000 } });
+    try {
+        const raw = JSON.stringify({ version: 1, sessionId: 'page', requestId: '1',
+            type: 'set-uas-zones', data: 'a'.repeat(100) });
+        const data = gzipSync(raw).toString('base64');
+        const send = (id, type, value = {}) => bridge.receive(JSON.stringify({
+            version: 1, sessionId: 'page', requestId: String(id), type, ...value }));
+        send(1, 'transfer-start', { encoding: 'gzip-base64', commandType: 'set-uas-zones',
+            length: data.length, originalLength: raw.length,
+            originalBytes: 4097 });
+        assert.equal(events.at(-1).ok, false);
+        send(2, 'transfer-start', { encoding: 'gzip-base64', commandType: 'set-uas-zones',
+            length: data.length, originalLength: raw.length,
+            originalBytes: Buffer.byteLength(raw) - 1 });
+        send(2, 'transfer-chunk', { index: 0, data });
+        send(2, 'transfer-complete');
+        await settle(() => events.length >= 2);
+        assert.equal(events.at(-1).ok, false);
+        assert.match(events.at(-1).error, /size|length/i);
+        assert.equal(calls, 0);
+        send(3, 'transfer-start', { encoding: 'gzip-base64', commandType: 'set-map-style',
+            length: data.length, originalLength: raw.length, originalBytes: Buffer.byteLength(raw) });
+        assert.equal(events.at(-1).ok, false);
+    } finally { bridge.dispose(); }
+});
+
+test('cancellation or disposal during asynchronous gzip decoding never executes stale data', async () => {
+    let calls = 0;
+    const events = [];
+    const bridge = createBridge({ sessionId: 'page',
+        send: raw => events.push(JSON.parse(raw)), execute: async () => { calls++; } });
+    const send = (id, type) => bridge.receive(JSON.stringify({
+        version: 1, sessionId: 'page', requestId: String(id), type }));
+    try {
+        sendGzip(bridge, 1, 'set-uas-zones', { data: 'a'.repeat(300000) });
+        send(1, 'cancel-command');
+        await new Promise(resolve => setTimeout(resolve, 70));
+        assert.equal(calls, 0);
+        assert.equal(events.length, 0, 'cancel must suppress obsolete acknowledgements');
+        sendGzip(bridge, 2, 'set-uas-zones', { data: 'a'.repeat(300000) });
+        bridge.dispose();
+        await new Promise(resolve => setTimeout(resolve, 70));
+        assert.equal(calls, 0);
+    } finally { bridge.dispose(); }
+});
+
+test('the existing JSON transport remains supported with no compression APIs', async () => {
+    const events = [], data = [];
+    const bridge = createBridge({ sessionId:'page', send:raw=>events.push(JSON.parse(raw)),
+        execute:async value=>{ data.push(value); } });
+    try {
+        const raw = JSON.stringify({ version:1, sessionId:'page', requestId:'1',
+            type:'set-uas-zones', geojson:{type:'FeatureCollection',features:[]} });
+        for (const [type, payload] of [
+            ['transfer-start', { commandType:'set-uas-zones', length:raw.length }],
+            ['transfer-chunk', {index:0,data:raw}],
+            ['transfer-complete',{}]
+        ]) bridge.receive(JSON.stringify({version:1,sessionId:'page',requestId:'1',type,...payload}));
+        await tick();
+        assert.equal(data[0].geojson.type, 'FeatureCollection');
+        assert.equal(events.at(-1).ok, true);
+    } finally { bridge.dispose(); }
+});
+
+test('negotiated transfer credits enforce an eight-chunk sender window', async () => {
+    const events = [];
+    const bridge = createBridge({ sessionId:'page',
+        send:raw=>events.push(JSON.parse(raw)), execute:async()=>{} });
+    try {
+        const raw = JSON.stringify({version:1,sessionId:'page',requestId:'1',
+            type:'set-uas-zones', data:'a'.repeat(10000)});
+        const send = (type,data={})=>bridge.receive(JSON.stringify({
+            version:1,sessionId:'page',requestId:'1',type,...data}));
+        send('transfer-start',{commandType:'set-uas-zones',length:raw.length,
+            flowControl:true});
+        for(let index=0,off=0;off<raw.length;index++,off+=700) {
+            send('transfer-chunk',{index,data:raw.slice(off,off+700)});
+        }
+        assert.deepEqual(events.filter(event=>event.type==='transfer-credit')
+            .map(event=>event.nextIndex), [16]);
+        send('transfer-complete');
+        await tick();
+        assert.equal(events.at(-1).ok,true);
+    } finally {bridge.dispose();}
 });

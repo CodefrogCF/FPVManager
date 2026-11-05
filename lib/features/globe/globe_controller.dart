@@ -2198,9 +2198,24 @@ class GlobeController extends ChangeNotifier {
         }, timeout: _bridge.options.datasetTimeout);
         if (current()) {
           final transfer = _bridge.lastTransferMetrics;
-          if (transfer?.type == 'set-uas-zones' ||
-              transfer?.type == 'replace-uas-zones') {
+          if (transfer != null &&
+              (transfer.type == 'set-uas-zones' ||
+                  transfer.type == 'replace-uas-zones')) {
             _uasLastTransferMetrics = transfer;
+            assert(() {
+              debugPrint(
+                '[FPVManager UAS transfer] '
+                'transport=${transfer.transport}, '
+                'jsonChars=${transfer.characters}, '
+                'payloadChars=${transfer.payloadCharacters}, '
+                'frames=${transfer.frameCount}, '
+                'encodeMs=${transfer.encodeTime.inMilliseconds}, '
+                'compressMs=${transfer.compressionTime.inMilliseconds}, '
+                'dispatchMs=${transfer.dispatchTime.inMilliseconds}, '
+                'ackMs=${transfer.acknowledgementTime.inMilliseconds}',
+              );
+              return true;
+            }());
           }
           _uasDatasetSentToRenderer = true;
           _uasReplaceAfterCacheClear = false;
@@ -2701,6 +2716,8 @@ class GlobeController extends ChangeNotifier {
         final size = data['characters'];
         final chunks = data['chunkCount'];
         final decodeMs = data['parseMs'];
+        final expandMs = data['decodeMs'] ?? 0;
+        final transport = data['transport'] ?? 'json';
         if ((type == 'set-uas-zones' || type == 'replace-uas-zones') &&
             size is int &&
             size >= 0 &&
@@ -2711,12 +2728,29 @@ class GlobeController extends ChangeNotifier {
             decodeMs is num &&
             decodeMs.isFinite &&
             decodeMs >= 0 &&
-            decodeMs < 600000) {
+            decodeMs < 600000 &&
+            expandMs is num &&
+            expandMs.isFinite &&
+            expandMs >= 0 &&
+            expandMs < 600000 &&
+            (transport == 'json' || transport == 'gzip-base64')) {
           _uasBridgeDecodeMetrics = UasBridgeDecodeMetrics(
             characters: size,
             chunkCount: chunks,
             parseMs: decodeMs.toDouble(),
+            expandMs: expandMs.toDouble(),
+            transport: transport as String,
           );
+          assert(() {
+            debugPrint(
+              '[FPVManager UAS decode] '
+              'transport=$transport, '
+              'expandMs=${expandMs.toStringAsFixed(1)}, '
+              'parseMs=${decodeMs.toStringAsFixed(1)}, '
+              'chunks=$chunks',
+            );
+            return true;
+          }());
           notifyListeners();
         }
 
@@ -3109,14 +3143,18 @@ class UasRenderMetrics {
   final double? firstFrameMs;
 }
 
-/// Renderer-side JSON.parse measurement of a complete UAS transfer.
+/// Renderer-side decompression and JSON.parse timings for a UAS import.
 class UasBridgeDecodeMetrics {
   const UasBridgeDecodeMetrics({
     required this.characters,
     required this.chunkCount,
     required this.parseMs,
+    this.expandMs = 0,
+    this.transport = 'json',
   });
   final int characters;
   final int chunkCount;
   final double parseMs;
+  final double expandMs;
+  final String transport;
 }

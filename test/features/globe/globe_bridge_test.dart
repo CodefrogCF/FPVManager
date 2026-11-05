@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/features/globe/globe_bridge.dart';
@@ -210,6 +211,167 @@ void main() {
       );
     },
   );
+
+  test(
+    'negotiated native gzip reduces frames without changing GeoJSON',
+    () async {
+      bridge.detach();
+      final observed = <Map<String, dynamic>>[];
+      bridge = GlobeBridge(
+        options: const GlobeBridgeOptions(minCompressedCharacters: 1024),
+      );
+      bridge.attach((raw) async {
+        final data = jsonDecode(raw) as Map<String, dynamic>;
+        observed.add(data);
+        if (data['type'] == 'transfer-complete') {
+          final start = observed.first;
+          final chunks = observed.where(
+            (event) => event['type'] == 'transfer-chunk',
+          );
+          final base64Payload = chunks
+              .map((event) => event['data'] as String)
+              .join();
+          final original = utf8.decode(
+            gzip.decode(base64Decode(base64Payload)),
+          );
+          final decoded = jsonDecode(original) as Map<String, dynamic>;
+          expect(decoded['geojson'], isNotNull);
+          expect(decoded['sourceAttribution'], 'Swiss authority / ©');
+          expect(start['originalBytes'], utf8.encode(original).length);
+          expect(start['originalLength'], original.length);
+          answer({
+            'type': start['commandType'],
+            'requestId': start['requestId'],
+          });
+        }
+      });
+      bridge.receive(
+        envelope({
+          'type': 'globe-ready',
+          'transport': {'gzipBase64': true},
+        }),
+      );
+      final geojson = {
+        'type': 'FeatureCollection',
+        'features': List.generate(
+          12000,
+          (index) => {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [8.1, 47.1],
+            },
+            'properties': {'name': 'Swiss UAS $index'},
+          },
+        ),
+      };
+      await bridge.send({
+        'type': 'set-uas-zones',
+        'geojson': geojson,
+        'sourceAttribution': 'Swiss authority / ©',
+      });
+      expect(observed.first['encoding'], 'gzip-base64');
+      expect(bridge.lastTransferMetrics?.transport, 'gzip-base64');
+      expect(bridge.lastTransferMetrics!.frameCount, lessThan(20));
+      expect(
+        bridge.lastTransferMetrics!.payloadCharacters,
+        lessThan(bridge.lastTransferMetrics!.characters ~/ 2),
+      );
+    },
+  );
+
+  test(
+    'no advertised support retains the legacy JSON frame protocol',
+    () async {
+      bridge.detach();
+      final sent = <Map<String, dynamic>>[];
+      bridge = GlobeBridge(
+        options: const GlobeBridgeOptions(
+          chunkCharacters: 1024,
+          minCompressedCharacters: 1024,
+        ),
+      );
+      bridge.attach((raw) async {
+        final frame = jsonDecode(raw) as Map<String, dynamic>;
+        sent.add(frame);
+        if (frame['type'] == 'transfer-complete') {
+          answer({'type': 'set-uas-zones', 'requestId': frame['requestId']});
+        }
+      });
+      ready();
+      await bridge.send({'type': 'set-uas-zones', 'data': '1234' * 2000});
+      expect(sent.first['encoding'], isNull);
+      expect(bridge.lastTransferMetrics?.transport, 'json');
+    },
+  );
+
+  test('cancelling while compression runs does not emit late frames', () async {
+    bridge.detach();
+    final sent = <Map<String, dynamic>>[];
+    bridge = GlobeBridge(
+      options: const GlobeBridgeOptions(minCompressedCharacters: 1024),
+    );
+    bridge.attach(
+      (raw) async => sent.add(jsonDecode(raw) as Map<String, dynamic>),
+    );
+    bridge.receive(
+      envelope({
+        'type': 'globe-ready',
+        'transport': {'gzipBase64': true},
+      }),
+    );
+    final future = bridge.send({
+      'type': 'set-uas-zones',
+      'data': 'A' * 2000000,
+    });
+    final expectFailure = expectLater(future, throwsStateError);
+    bridge.detach();
+    await expectFailure;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(sent.where((value) => value['type'] == 'transfer-start'), isEmpty);
+  });
+
+  test('transfer credit limits in-flight Web postMessage chunks', () async {
+    bridge.detach();
+    final sent = <Map<String, dynamic>>[];
+    var inWindow = 0;
+    bridge = GlobeBridge(
+      options: const GlobeBridgeOptions(
+        chunkCharacters: 256,
+        maxFrameCharacters: 2048,
+      ),
+    );
+    bridge.attach((raw) async {
+      final frame = jsonDecode(raw) as Map<String, dynamic>;
+      sent.add(frame);
+      if (frame['type'] == 'transfer-chunk') {
+        inWindow++;
+        expect(inWindow, lessThanOrEqualTo(8));
+        if (inWindow == 8) {
+          inWindow = 0;
+          bridge.receive(
+            envelope({
+              'type': 'transfer-credit',
+              'requestId': frame['requestId'],
+              'nextIndex': (frame['index'] as int) + 9,
+            }),
+          );
+        }
+      }
+      if (frame['type'] == 'transfer-complete') {
+        answer({'type': 'set-uas-zones', 'requestId': frame['requestId']});
+      }
+    });
+    bridge.receive(
+      envelope({
+        'type': 'globe-ready',
+        'transport': {'transferCredits': true},
+      }),
+    );
+    await bridge.send({'type': 'set-uas-zones', 'data': 'x' * 20000});
+    expect(sent.first['flowControl'], isTrue);
+    expect(bridge.lastTransferMetrics!.transport, 'json');
+  });
 
   test('rejects duplicate and oversize incoming events', () {
     final event = envelope({'type': 'point-selected'});

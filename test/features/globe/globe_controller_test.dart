@@ -54,6 +54,28 @@ void main() {
       mockClient.close();
     });
 
+    test(
+      'UAS transport diagnostics separate inflate, parse and Cesium stages',
+      () {
+        renderer.ready();
+        renderer.emit({
+          'type': 'uas-bridge-decode-metrics',
+          'commandType': 'set-uas-zones',
+          'characters': 2000000,
+          'chunkCount': 4,
+          'transport': 'gzip-base64',
+          'decodeMs': 12.5,
+          'parseMs': 38.2,
+        });
+        final observed = controller.uasBridgeDecodeMetrics;
+        expect(observed, isNotNull);
+        expect(observed!.transport, 'gzip-base64');
+        expect(observed.expandMs, 12.5);
+        expect(observed.parseMs, 38.2);
+        expect(observed.characters, 2000000);
+      },
+    );
+
     test('processes globe-ready event', () {
       controller.handleEvent(
         renderer.encode({
