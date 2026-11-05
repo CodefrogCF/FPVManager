@@ -219,4 +219,40 @@ void main() {
     expect(bridge.receive('[1,2,3]'), isNull);
     expect(bridge.receive('{'), isNull);
   });
+  test('default UAS-sized frames are bounded after JSON escaping', () async {
+    bridge.detach();
+    final sent = <String>[];
+    bridge = GlobeBridge();
+    bridge.attach((raw) async {
+      sent.add(raw);
+      final frame = jsonDecode(raw) as Map<String, dynamic>;
+      if (frame['type'] == 'transfer-complete') {
+        bridge.receive(
+          envelope({
+            'type': 'command-result',
+            'requestId': frame['requestId'],
+            'commandType': 'set-uas-zones',
+            'ok': true,
+            'result': <String, dynamic>{},
+          }),
+        );
+      }
+    });
+    ready('page-1');
+    // Escaped punctuation, Unicode and JSON-special control characters.
+    final difficult = List<String>.filled(30000, '"\n\t\\🎮').join();
+    await bridge.send({'type': 'set-uas-zones', 'data': difficult});
+    expect(sent.every((frame) => frame.length <= 128 * 1024), isTrue);
+    final frames = sent.map((raw) => jsonDecode(raw) as Map<String, dynamic>);
+    final pieces = frames
+        .where((value) => value['type'] == 'transfer-chunk')
+        .toList();
+    expect(pieces.length, greaterThan(1));
+    final combined = pieces.map((value) => value['data'] as String).join();
+    expect((jsonDecode(combined) as Map)['data'], difficult);
+    final metric = bridge.lastTransferMetrics!;
+    expect(metric.frameCount, sent.length);
+    expect(metric.dispatchTime, greaterThanOrEqualTo(Duration.zero));
+    expect(metric.characters, greaterThan(150000));
+  });
 }

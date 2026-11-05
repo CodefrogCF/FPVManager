@@ -100,6 +100,15 @@ class GeoJsonOsintProvider extends CachedOsintProvider<Map<String, dynamic>> {
         previous != null &&
         (etag != null || modified != null)) {
       await response.stream.listen((_) {}).cancel();
+      networkTimer.stop();
+      overallTimer.stop();
+      lastDownloadMetrics = GeoJsonDownloadMetrics(
+        responseBytes: 0,
+        downloadTime: networkTimer.elapsed,
+        parseTime: Duration.zero,
+        totalTime: overallTimer.elapsed,
+        httpStatusCode: 304,
+      );
       return OsintDataset(
         source: previous.source,
         data: previous.data,

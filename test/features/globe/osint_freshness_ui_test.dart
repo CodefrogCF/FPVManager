@@ -86,5 +86,10 @@ void main() {
     expect(controller.uasZonesVisible, isFalse);
     expect(renderer.commands.last['type'], 'set-uas-zones');
     expect(renderer.commands.last['visible'], isFalse);
+    // The hidden Cesium source still exists after cache clearing. The next
+    // import must replace it rather than merely toggling the stale polygons.
+    await controller.setUasZonesVisible(true);
+    expect(renderer.commands.last['type'], 'replace-uas-zones');
+    expect(renderer.commands.last['geojson'], isNotNull);
   });
 }

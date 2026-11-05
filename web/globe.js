@@ -45,7 +45,16 @@ function postToFlutter(message) {
             (type,payload) => sendToFlutter(type,payload))
         : { replace: async () => { throw Error("Dated imagery renderer unavailable"); },
             clear: () => ({}), dispose() {} };
-    const bridge = FPVGlobeBridge.createBridge({ send: postToFlutter, execute: executeCommand });
+    const bridge = FPVGlobeBridge.createBridge({
+        send: postToFlutter,
+        execute: executeCommand,
+        onTransferParsed: measurement => {
+            if (measurement.commandType === 'set-uas-zones' ||
+                measurement.commandType === 'replace-uas-zones') {
+                sendToFlutter('uas-bridge-decode-metrics', measurement);
+            }
+        }
+    });
     bridge.emit("renderer-loading");
     function sendToFlutter(type, payload = {}) { bridge.emit(type, payload); }
     window.addEventListener("pagehide", event => {

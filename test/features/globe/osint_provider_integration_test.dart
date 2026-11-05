@@ -84,4 +84,55 @@ void main() {
       expect(controller.isReady, isTrue);
     },
   );
+  test(
+    'HTTP 304 updates freshness without resending or reparsing UAS zones',
+    () async {
+      var requests = 0;
+      final etagClient = MockClient((request) async {
+        requests++;
+        if (requests > 1) expect(request.headers['If-None-Match'], '"rev1"');
+        if (requests == 2) return http.Response('', 304);
+        return http.Response(
+          '{"type":"FeatureCollection","features":['
+          '{"type":"Feature","geometry":{"type":"Point",'
+          '"coordinates":[8.5,47.3]},"properties":{"name":"Zone"}}]}',
+          200,
+          headers: {'etag': '"rev1"'},
+        );
+      });
+      final localProvider = GeoJsonOsintProvider(
+        source: provider.source,
+        client: etagClient,
+        now: () => now,
+      );
+      final localController = GlobeController(uasProvider: localProvider);
+      final localRenderer = FakeGlobeRenderer(localController)..attach();
+      localRenderer.ready();
+      try {
+        await localController.setUasZonesVisible(true);
+        final imported = localController.uasDisplayedDataset;
+        expect(localRenderer.commands.last['geojson'], isNotNull);
+        now = now.add(const Duration(hours: 2));
+        await localController.refreshUasZones();
+        expect(requests, 2);
+        expect(localRenderer.commands.last['type'], 'set-uas-zones');
+        expect(localRenderer.commands.last.containsKey('geojson'), isFalse);
+        expect(localController.uasDisplayedDataset?.data, same(imported?.data));
+        expect(
+          localController.uasDisplayedDataset?.fetchedAtUtc,
+          imported?.fetchedAtUtc,
+        );
+        expect(localController.uasNetworkMetrics?.httpStatusCode, 304);
+        now = now.add(const Duration(hours: 2));
+        await localController.refreshUasZones();
+        expect(requests, 3);
+        expect(localRenderer.commands.last['type'], 'replace-uas-zones');
+        expect(localController.uasNetworkMetrics?.httpStatusCode, 200);
+      } finally {
+        localController.dispose();
+        localProvider.dispose();
+        etagClient.close();
+      }
+    },
+  );
 }

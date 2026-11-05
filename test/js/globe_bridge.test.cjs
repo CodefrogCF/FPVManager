@@ -110,3 +110,46 @@ test('limits active requests and times out stalled renderer work', async () => {
         assert.match(p.events.at(-1).error, /timed out/);
     } finally { p.bridge.dispose(); }
 });
+
+test('large UAS transfers report local JSON parse metrics without changing the command', async () => {
+    let measurement = null, received = null;
+    const bridge = createBridge({
+        sessionId: 'page',
+        send: () => {},
+        execute: async data => { received = data; },
+        onTransferParsed: data => { measurement = data; }
+    });
+    try {
+        const raw = JSON.stringify({version:1,sessionId:'page',requestId:'1',
+            type:'set-uas-zones', visible:true, geojson:{type:'FeatureCollection',
+                features:[{type:'Feature',geometry:{type:'Point',coordinates:[8.1,47.1]},
+                    properties:{note:'\"\\'.repeat(1000)}}]}});
+        const send = (type, data) => bridge.receive(JSON.stringify({
+            version:1,sessionId:'page',requestId:'1',type,...data}));
+        send('transfer-start', {commandType:'set-uas-zones',length:raw.length});
+        for (let index = 0, start = 0; start < raw.length; index++, start += 512)
+            send('transfer-chunk', {index, data:raw.slice(start,start+512)});
+        send('transfer-complete', {});
+        await tick();
+        assert.equal(received.geojson.features[0].properties.note, '\"\\'.repeat(1000));
+        assert.equal(measurement.commandType, 'set-uas-zones');
+        assert.equal(measurement.characters, raw.length);
+        assert.ok(measurement.chunkCount > 1);
+        assert.ok(Number.isFinite(measurement.parseMs));
+    } finally { bridge.dispose(); }
+});
+
+test('broken transfer never reports successful parse timing', async () => {
+    const measurements = [];
+    const bridge = createBridge({sessionId:'page',send:()=>{},execute:async()=>{},
+        onTransferParsed: value => measurements.push(value)});
+    try {
+        for (const [type, data] of [
+            ['transfer-start',{commandType:'set-uas-zones',length:5}],
+            ['transfer-chunk',{index:0,data:'abcde'}],
+            ['transfer-complete',{}]
+        ]) bridge.receive(JSON.stringify({version:1,sessionId:'page',requestId:'1',type,...data}));
+        await tick();
+        assert.equal(measurements.length,0);
+    } finally { bridge.dispose(); }
+});

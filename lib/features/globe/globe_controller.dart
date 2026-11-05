@@ -1015,6 +1015,9 @@ class GlobeController extends ChangeNotifier {
   }
 
   bool _uasDatasetSentToRenderer = false;
+  // Clearing the local cache hides but does not destroy the Cesium source.
+  // Force the next import to replace that potentially old source.
+  bool _uasReplaceAfterCacheClear = false;
   OsintDataset<Map<String, dynamic>>? _uasDisplayedDataset;
   bool _uasRequestedVisible = false;
   bool _ready = false;
@@ -1299,7 +1302,12 @@ class GlobeController extends ChangeNotifier {
   DateTime? _uasZonesDownloadedAt;
   int? _uasZonesFeatureCount;
   UasRenderMetrics? _uasRenderMetrics;
+  GlobeTransferMetrics? _uasLastTransferMetrics;
+  Duration? _uasAssessmentTime;
+  UasBridgeDecodeMetrics? _uasBridgeDecodeMetrics;
   UasRenderMetrics? get uasRenderMetrics => _uasRenderMetrics;
+  Duration? get uasAssessmentTime => _uasAssessmentTime;
+  UasBridgeDecodeMetrics? get uasBridgeDecodeMetrics => _uasBridgeDecodeMetrics;
   List<SpotMapMarker> _spotMarkers = const [];
   int? _selectedSpotId;
   int _spotMarkerRevision = 0;
@@ -1533,11 +1541,9 @@ class GlobeController extends ChangeNotifier {
       _uasProvider is GeoJsonOsintProvider
       ? _uasProvider.lastDownloadMetrics
       : null;
-  GlobeTransferMetrics? get uasTransferMetrics =>
-      _bridge.lastTransferMetrics?.type == 'set-uas-zones' ||
-          _bridge.lastTransferMetrics?.type == 'replace-uas-zones'
-      ? _bridge.lastTransferMetrics
-      : null;
+
+  /// Last completed UAS import (other globe commands cannot overwrite it).
+  GlobeTransferMetrics? get uasTransferMetrics => _uasLastTransferMetrics;
   OsintProviderState<Map<String, dynamic>> get uasProviderStatus =>
       _uasProvider.status;
   OsintFreshness get uasDataFreshness =>
@@ -1736,6 +1742,10 @@ class GlobeController extends ChangeNotifier {
     _uasDatasetSentToRenderer = false;
     _uasDisplayedDataset = null;
     _uasDatasetAssessment = null;
+    _uasRenderMetrics = null;
+    _uasBridgeDecodeMetrics = null;
+    _uasLastTransferMetrics = null;
+    _uasAssessmentTime = null;
     _uasZonesVisible = false;
     _uasZonesLoading = false;
     _error = null;
@@ -2058,12 +2068,17 @@ class GlobeController extends ChangeNotifier {
     _uasRequestedVisible = false;
     _uasZonesVisible = false;
     _uasDatasetSentToRenderer = false;
+    _uasReplaceAfterCacheClear = true;
     _uasDisplayedDataset = null;
     _uasDatasetAssessment = null;
     _uasRejectedDataset = null;
     _uasZonesDownloadedAt = null;
     _uasZonesFeatureCount = null;
     _uasZonesError = null;
+    _uasLastTransferMetrics = null;
+    _uasAssessmentTime = null;
+    _uasBridgeDecodeMetrics = null;
+    _uasRenderMetrics = null;
     clearSelectedUasZone();
     await _savePreferences(_preferences.copyWith(uasZonesVisible: false));
     notifyListeners();
@@ -2098,16 +2113,41 @@ class GlobeController extends ChangeNotifier {
                   identical(_uasRejectedDataset, _uasProvider.status.dataset),
         );
         if (!current()) return;
+        // HTTP 304 returns the same data object with refreshed HTTP/cache
+        // metadata. Revalidating it must not resend megabytes or rebuild
+        // Cesium entities; the existing source and selection remain intact.
+        if (_uasDatasetSentToRenderer &&
+            _uasRejectedDataset == null &&
+            identical(dataset.data, _uasDisplayedDataset?.data)) {
+          await _send({
+            'type': 'set-uas-zones',
+            'visible': _uasRequestedVisible,
+          });
+          if (current()) _uasDisplayedDataset = dataset;
+          return;
+        }
         late UasDatasetAssessment assessment;
+        final assessmentClock = Stopwatch()..start();
         try {
           assessment = UasDatasetAssessment.inspect(dataset.data);
           _uasRejectedDataset = null;
         } on FormatException {
           _uasRejectedDataset = dataset;
           rethrow;
+        } finally {
+          assessmentClock.stop();
         }
+        if (!current()) return;
+        // Clear import metrics only when a new dataset really needs rendering.
+        _uasAssessmentTime = assessmentClock.elapsed;
+        _uasRenderMetrics = null;
+        _uasBridgeDecodeMetrics = null;
+        _uasLastTransferMetrics = null;
         await _request({
-          'type': forceRefresh || _uasDatasetSentToRenderer
+          'type':
+              forceRefresh ||
+                  _uasDatasetSentToRenderer ||
+                  _uasReplaceAfterCacheClear
               ? 'replace-uas-zones'
               : 'set-uas-zones',
           'visible': _uasRequestedVisible,
@@ -2117,7 +2157,13 @@ class GlobeController extends ChangeNotifier {
               dataset.source.attribution ?? dataset.source.publisher,
         }, timeout: _bridge.options.datasetTimeout);
         if (current()) {
+          final transfer = _bridge.lastTransferMetrics;
+          if (transfer?.type == 'set-uas-zones' ||
+              transfer?.type == 'replace-uas-zones') {
+            _uasLastTransferMetrics = transfer;
+          }
           _uasDatasetSentToRenderer = true;
+          _uasReplaceAfterCacheClear = false;
           _resetUasSelection();
           _uasDisplayedDataset = dataset;
           _uasDatasetAssessment = assessment;
@@ -2561,6 +2607,30 @@ class GlobeController extends ChangeNotifier {
         _uasZonesLoading = false;
         notifyListeners();
 
+      case 'uas-bridge-decode-metrics':
+        final type = data['commandType'];
+        final size = data['characters'];
+        final chunks = data['chunkCount'];
+        final decodeMs = data['parseMs'];
+        if ((type == 'set-uas-zones' || type == 'replace-uas-zones') &&
+            size is int &&
+            size >= 0 &&
+            size <= 64 * 1024 * 1024 &&
+            chunks is int &&
+            chunks > 0 &&
+            chunks <= 65536 &&
+            decodeMs is num &&
+            decodeMs.isFinite &&
+            decodeMs >= 0 &&
+            decodeMs < 600000) {
+          _uasBridgeDecodeMetrics = UasBridgeDecodeMetrics(
+            characters: size,
+            chunkCount: chunks,
+            parseMs: decodeMs.toDouble(),
+          );
+          notifyListeners();
+        }
+
       case 'uas-render-metrics':
         final loadMs = data['loadMs'];
         final attachMs = data['attachMs'];
@@ -2947,4 +3017,16 @@ class UasRenderMetrics {
   final double loadMs;
   final double attachMs;
   final double? firstFrameMs;
+}
+
+/// Renderer-side JSON.parse measurement of a complete UAS transfer.
+class UasBridgeDecodeMetrics {
+  const UasBridgeDecodeMetrics({
+    required this.characters,
+    required this.chunkCount,
+    required this.parseMs,
+  });
+  final int characters;
+  final int chunkCount;
+  final double parseMs;
 }

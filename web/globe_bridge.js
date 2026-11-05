@@ -5,7 +5,7 @@
     const LIMITS = Object.freeze({ frame: 128 * 1024, command: 64 * 1024 * 1024,
         transfers: 2, pending: 32, idleMs: 30000, commandMs: 120000 });
 
-    function createBridge({ send, execute, sessionId, limits = LIMITS }) {
+    function createBridge({ send, execute, sessionId, limits = LIMITS, onTransferParsed = null }) {
         const session = sessionId || root.crypto?.randomUUID?.() ||
             `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const transfers = new Map();
@@ -128,12 +128,21 @@
                     if (!transfer || transfer.received !== transfer.length) {
                         throw new Error("Incomplete transfer");
                     }
+                    const parseStarted = typeof performance !== 'undefined' ? performance.now() : Date.now();
                     const decoded = JSON.parse(transfer.parts.join(""));
                     if (!valid(decoded) || decoded.requestId !== id || decoded.type !== transfer.type ||
                         decoded.type.startsWith("transfer-") || decoded.type === "cancel-command") {
                         throw new Error("Mismatched transferred command");
                     }
+                    const parseMs = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - parseStarted;
+                    const characters = transfer.length;
+                    const chunkCount = transfer.parts.length;
                     release(id);
+                    // Timing is diagnostic only. An observer must never break imports.
+                    if (typeof onTransferParsed === 'function') {
+                        try { onTransferParsed({ commandType: decoded.type, characters, chunkCount, parseMs }); }
+                        catch (_) { /* diagnostic observer is best effort */ }
+                    }
                     void run(decoded).catch(error => result(id, decoded.type, false, error.message));
                     return;
                 }

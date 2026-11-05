@@ -230,6 +230,7 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             label: 'Loaded features',
             value: controller.uasZonesFeatureCount?.toString() ?? '—',
           ),
+          const SizedBox(height: 8),
 
           _InfoRow(
             label: 'Coverage',

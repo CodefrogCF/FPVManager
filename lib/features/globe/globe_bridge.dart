@@ -9,7 +9,9 @@ class GlobeBridgeOptions {
     this.terrainTimeout = const Duration(seconds: 30),
     this.datasetTimeout = const Duration(minutes: 2),
     this.transportTimeout = const Duration(seconds: 10),
-    this.chunkCharacters = 32 * 1024,
+    // Fewer native WebView2 / Android JS calls; dynamically shrink frames
+    // whose escaped JSON would exceed the protocol limit.
+    this.chunkCharacters = 96 * 1024,
     this.maxCommandCharacters = 64 * 1024 * 1024,
     this.maxFrameCharacters = 128 * 1024,
     this.maxPendingRequests = 32,
@@ -31,6 +33,8 @@ class GlobeTransferMetrics {
     required this.characters,
     required this.encodeTime,
     required this.acknowledgementTime,
+    this.dispatchTime = Duration.zero,
+    this.frameCount = 0,
   });
   final String type;
   final int characters;
@@ -39,6 +43,10 @@ class GlobeTransferMetrics {
   /// Includes send/chunk transfer + JavaScript handling + reply, not pure
   /// Cesium render time. Only a renderer-side measurement can separate them.
   final Duration acknowledgementTime;
+
+  /// Time to send all frames; excludes renderer processing and acknowledgement.
+  final Duration dispatchTime;
+  final int frameCount;
 }
 
 class _PendingCommand {
@@ -48,6 +56,8 @@ class _PendingCommand {
   final String session;
   final completer = Completer<Map<String, dynamic>>();
   Timer? timer;
+  Duration dispatchTime = Duration.zero;
+  int frameCount = 0;
 }
 
 /// Protocol v1 transport shared by the Web iframe and native WebView.
@@ -55,7 +65,7 @@ class GlobeBridge {
   GlobeBridge({this.options = const GlobeBridgeOptions()}) {
     if (options.chunkCharacters <= 0 ||
         options.maxCommandCharacters < options.chunkCharacters ||
-        options.maxFrameCharacters < options.chunkCharacters * 2 + 1024 ||
+        options.maxFrameCharacters < options.chunkCharacters + 1024 ||
         options.maxPendingRequests <= 0 ||
         [
           options.commandTimeout,
@@ -207,14 +217,19 @@ class GlobeBridge {
       unawaited(_control(sender, session, 'cancel-command', id));
     });
     final acknowledgement = Stopwatch()..start();
-    unawaited(_dispatch(sender, session, id, type, encoded));
-    return pending.completer.future.then((result) {
+    final dispatched = _dispatch(sender, session, id, type, encoded);
+    return pending.completer.future.then((result) async {
+      // The acknowledgement can arrive synchronously while send() is still
+      // completing. Finish transport measurement before publishing metrics.
+      await dispatched;
       acknowledgement.stop();
       lastTransferMetrics = GlobeTransferMetrics(
         type: type,
         characters: encoded.length,
         encodeTime: encoding.elapsed,
         acknowledgementTime: acknowledgement.elapsed,
+        dispatchTime: pending.dispatchTime,
+        frameCount: pending.frameCount,
       );
       return result;
     });
@@ -247,23 +262,31 @@ class GlobeBridge {
     String type,
     String encoded,
   ) async {
-    Future<void> frame(Map<String, dynamic> payload) async {
+    final request = _pending[id];
+    final dispatch = Stopwatch()..start();
+
+    Future<void> transmit(String value) async {
       if (!_pending.containsKey(id) || _session != session) return;
-      final value = jsonEncode({
-        'version': version,
-        'sessionId': session,
-        'requestId': id,
-        ...payload,
-      });
       if (value.length > options.maxFrameCharacters) {
         throw ArgumentError('Globe frame exceeds transfer limit');
       }
       await sender(value).timeout(options.transportTimeout);
+      if (request != null) request.frameCount++;
     }
+
+    Future<void> frame(Map<String, dynamic> payload) => transmit(
+      jsonEncode({
+        'version': version,
+        'sessionId': session,
+        'requestId': id,
+        ...payload,
+      }),
+    );
 
     try {
       if (encoded.length <= options.chunkCharacters) {
         await sender(encoded).timeout(options.transportTimeout);
+        if (request != null) request.frameCount++;
         return;
       }
       await frame({
@@ -272,25 +295,58 @@ class GlobeBridge {
         'length': encoded.length,
       });
       var index = 0;
-      for (
-        var offset = 0;
-        offset < encoded.length;
-        offset += options.chunkCharacters
-      ) {
+      var offset = 0;
+      while (offset < encoded.length) {
         if (!_pending.containsKey(id) || _session != session) return;
-        final end = (offset + options.chunkCharacters).clamp(0, encoded.length);
-        await frame({
+        final maximum = offset + options.chunkCharacters < encoded.length
+            ? offset + options.chunkCharacters
+            : encoded.length;
+        // Escaping the transferred JSON as a second JSON string increases
+        // frame size. Check the actual frame, not just raw substring length.
+        // Most geometry fits the optimistic bound without a binary search.
+        var end = maximum;
+        final header = {
+          'version': version,
+          'sessionId': session,
+          'requestId': id,
           'type': 'transfer-chunk',
-          'index': index++,
-          'data': encoded.substring(offset, end),
-        });
-        // Yield so renderer errors/cancellation can interrupt a large transfer.
+          'index': index,
+        };
+        String encodeChunk(int until) =>
+            jsonEncode({...header, 'data': encoded.substring(offset, until)});
+        var encodedChunk = encodeChunk(end);
+        if (encodedChunk.length > options.maxFrameCharacters) {
+          var low = offset;
+          var high = end;
+          while (low + 1 < high) {
+            final middle = low + ((high - low) ~/ 2);
+            final candidate = encodeChunk(middle);
+            if (candidate.length <= options.maxFrameCharacters) {
+              low = middle;
+              encodedChunk = candidate;
+            } else {
+              high = middle;
+            }
+          }
+          end = low;
+        }
+        if (end <= offset) {
+          throw ArgumentError('Globe frame cannot fit payload');
+        }
+        // Send the frame we already encoded instead of serializing it again.
+        await transmit(encodedChunk);
+        index++;
+        offset = end;
+        // Allow cancellation, renderer errors and input between frames.
         await Future<void>.delayed(Duration.zero);
       }
       await frame({'type': 'transfer-complete'});
     } catch (error, stack) {
       _fail(id, error, stack);
       await _control(sender, session, 'cancel-command', id);
+    } finally {
+      dispatch.stop();
+      if (request != null) request.dispatchTime = dispatch.elapsed;
     }
   }
 
