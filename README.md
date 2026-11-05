@@ -64,6 +64,7 @@ An iOS runner is not included.
 | Developers | [Contributing, checks and builds](CONTRIBUTING.md) |
 | Developers | [Architecture and storage](docs/architecture.md) |
 | Developers | [Globe bridge](docs/globe_bridge.md) |
+| Developers | [Local-only performance benchmarks and diagnostics](docs/performance_issue_120.md) |
 | Developers | [Bundled renderer assets](docs/cesium_assets.md) |
 
 Report bugs and discuss features in the

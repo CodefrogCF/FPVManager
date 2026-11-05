@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/performance/uas_measurements_2026-11-05.md",
+  "referenceIssue": 47,
+  "measuredDateUtc": "2026-11-05",
+  "status": "historical real-device single runs, not CI pass/fail thresholds",
+  "sourceDataset": "BAZL official GeoJSON EPSG:4326 (dataset revision as measured 2026-11-05)",
+  "datasetBytes": 13494145,
+  "features": 1256,
+  "bridgeFrames": 102,
+  "dataChunks": 100,
+  "measurements": [
+    {
+      "platform": "windows",
+      "renderer": "webview2",
+      "scenario": "uas-cold-http200",
+      "httpStatus": 200,
+      "runCount": 1,
+      "metricsMs": {
+        "httpTotalMs": 3553,
+        "decodeParseMs": 1502,
+        "geojsonAssessmentMs": 308,
+        "jsonEncodeMs": 1102,
+        "bridgeDispatchMs": 4451,
+        "bridgeRoundTripMs": 4451,
+        "jsDecodeMs": 250.6,
+        "cesiumLoadMs": 491,
+        "firstPostRenderMs": 720.2
+      }
+    },
+    {
+      "platform": "web",
+      "renderer": "browser",
+      "scenario": "uas-cold-http200",
+      "httpStatus": 200,
+      "runCount": 1,
+      "metricsMs": {
+        "httpTotalMs": 1840,
+        "decodeParseMs": 220,
+        "geojsonAssessmentMs": 535,
+        "jsonEncodeMs": 328,
+        "bridgeDispatchMs": 2146,
+        "bridgeRoundTripMs": 3597,
+        "jsDecodeMs": 176.4,
+        "cesiumLoadMs": 546.6,
+        "firstPostRenderMs": 678.7
+      }
+    },
+    {
+      "platform": "android",
+      "renderer": "native-webview",
+      "deviceClass": "Galaxy S22 (historical; excluded from current performance target)",
+      "scenario": "uas-cold-http200",
+      "httpStatus": 200,
+      "runCount": 1,
+      "metricsMs": {
+        "httpTotalMs": 28188,
+        "decodeParseMs": 592,
+        "geojsonAssessmentMs": 133,
+        "jsonEncodeMs": 364,
+        "bridgeDispatchMs": 4988,
+        "bridgeRoundTripMs": 4988,
+        "jsDecodeMs": 112.8,
+        "cesiumLoadMs": 487.5,
+        "firstPostRenderMs": 735
+      }
+    },
+    {
+      "platform": "android",
+      "renderer": "native-webview",
+      "deviceClass": "Galaxy S22 (historical; excluded from current performance target)",
+      "scenario": "uas-cold-http200",
+      "httpStatus": 200,
+      "runCount": 1,
+      "metricsMs": { "httpTotalMs": 25959, "bridgeRoundTripMs": 5129 }
+    },
+    {
+      "platform": "windows",
+      "renderer": "webview2",
+      "scenario": "uas-warm-restart-cache",
+      "runCount": 1,
+      "metricsMs": {
+        "geojsonAssessmentMs": 199,
+        "jsonEncodeMs": 720,
+        "bridgeRoundTripMs": 3444,
+        "jsDecodeMs": 225.1,
+        "cesiumLoadMs": 612.6,
+        "firstPostRenderMs": 662.1
+      }
+    },
+    {
+      "platform": "android",
+      "renderer": "native-webview",
+      "deviceClass": "Galaxy S22 (historical; excluded from current performance target)",
+      "scenario": "uas-warm-restart-cache",
+      "runCount": 1,
+      "metricsMs": {
+        "geojsonAssessmentMs": 73,
+        "jsonEncodeMs": 264,
+        "bridgeRoundTripMs": 3689,
+        "jsDecodeMs": 95.5,
+        "cesiumLoadMs": 450.2,
+        "firstPostRenderMs": 646.7
+      }
+    }
+  ],
+  "limitations": [
+    "The benchmark predates issues #114-#119 and is historical only.",
+    "Device/network/thermal conditions were not held constant; only single runs are reported.",
+    "Renderer stage is recorded as jsDecodeMs; source measured renderer JSON decode, not pure JSON.parse.",
+    "Bridge round trip overlaps renderer processing and must not be added to Cesium timing stages.",
+    "First postRender is not GPU completion and response bytes are not equivalent to JSON UTF-16 characters.",
+    "Warm cache restart had no visible HTTP fetch; it is NOT proof that a 304 response occurred.",
+    "Real airspace legality/completeness is never inferred from feature count or benchmark success."
+  ]
+}

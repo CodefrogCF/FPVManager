@@ -51,6 +51,8 @@ jobs:
         run: python -m unittest discover -s test/tool -p 'test_*.py'
       - name: Test renderer protocol, terrain and map interactions
         run: node --test test/js/*.test.cjs
+      - name: Enforce synthetic performance protocol invariants
+        run: node tool/performance_suite.cjs --check
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Test

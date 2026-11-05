@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "description": "Deterministic synthetic protocol invariants, not FPS, wall-time, GPU or memory thresholds.",
+  "bridge": {
+    "features": 18000,
+    "minimumCompressionFrameReductionPct": 30,
+    "minimumJsonCharacters": 100000,
+    "maxGzipToJsonCharactersRatio": 0.9
+  },
+  "scene": {
+    "frames": 10000,
+    "repeatCommands": 100,
+    "stablePhase": {
+      "showWrites": 0,
+      "budgetWrites": 0,
+      "requests": 0,
+      "loads": 0,
+      "removes": 0
+    },
+    "minHeightCrossingShowWrites": 1,
+    "resources": {
+      "resident": 3,
+      "visible": 3,
+      "pending": 0
+    }
+  }
+}

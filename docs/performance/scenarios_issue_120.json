@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Human-operated, reproducible real-device scenarios; not synthetic CI speed thresholds",
+  "scenarios": [
+    {
+      "id": "uas-cold-http200",
+      "precondition": "Same official dataset revision, cleared local UAS dataset cache, cold request confirmed HTTP 200 (not browser disk cache)",
+      "steps": "Restart app, open globe, enable official UAS zones, wait for first Cesium postRender; repeat 5 times with identical network and build",
+      "record": "HTTP bytes/status and stages, 1256 or current actual feature count, bridge round trip, geometry fidelity, p50/p95, memory",
+      "safety": "Do not clear personal flight records; do not infer airspace completeness from a successful import"
+    },
+    {
+      "id": "uas-warm-http304",
+      "precondition": "Same official ETag and retained local dataset; confirm actual HTTP 304 rather than cached 200",
+      "steps": "Refresh the unchanged source without recreating Cesium; repeat 5 times",
+      "record": "HTTP headers/total, cache metadata handling, absence of redundant geometry upload, selection and attribution",
+      "safety": "Mark as not applicable on platforms where 304 cannot be produced"
+    },
+    {
+      "id": "uas-warm-restart-cache",
+      "precondition": "Local UAS cache retained; app process restarted; no new HTTP observed but network state is not assumed offline",
+      "steps": "Fully restart app with previously cached UAS data, enable zones and wait for renderer-ready; five repeats",
+      "record": "Cache load, geometry check, encode, bridge, Cesium import, first postRender, feature count",
+      "safety": "No visible HTTP metrics do not prove HTTP 304 or offline mode"
+    },
+    {
+      "id": "uas-offline-cache",
+      "precondition": "Previously cached UAS snapshot with timestamp, disconnect network without altering local data",
+      "steps": "Restart app offline, open globe and enable cached overlay, repeat 5 times",
+      "record": "Offline load and local parse/bridge durations, stale-data warning, source attribution, interaction",
+      "safety": "Offline snapshots are dated and never certify current restrictions"
+    },
+    {
+      "id": "uas-renderer-reload",
+      "precondition": "UAS geometry loaded and cached, camera and selections recorded in local test notes",
+      "steps": "Force a renderer document reload then wait for globe-ready and UAS restoration, repeat 10 times",
+      "record": "Renderer ready timing, resource counts, reimport count, missing data, state and input restoration",
+      "safety": "Do not mistake an intentional renderer reload for a warm no-reimport scenario"
+    },
+    {
+      "id": "multi-layer-camera",
+      "precondition": "Same location, camera altitude and orientation; terrain, buildings, vegetation, infrastructure, UAS and weather enabled",
+      "steps": "Run the same 60-second camera path in quality, balanced and performance modes, 5 passes per mode; profile only during motion",
+      "record": "Frame pacing p50/p95/max, frames over 33ms, CPU render callback p95, memory and resource counts",
+      "safety": "Never simplify or omit safety-critical geography, altitude references or source credits"
+    },
+    {
+      "id": "multi-layer-simulation",
+      "precondition": "Same map layers, selected FPV simulator profile and reproducible flight/route sequence",
+      "steps": "Simulate the same 60-second path with active overlays and repeat 5 times",
+      "record": "Frame pacing and GC, CPU load, routing/input responsiveness, no duplicate objects or data downloads",
+      "safety": "Different GPU drivers and temperature conditions require separate datasets"
+    },
+    {
+      "id": "navigation-repeat",
+      "precondition": "Known local spots and routes; globe already rendered; network state held constant",
+      "steps": "Switch globe → spots → globe → routes → globe → settings → globe, ten consecutive cycles",
+      "record": "Navigation first-frame time, WebView create/dispose counts, retained camera and data, resource/GC trends",
+      "safety": "A Flutter first-frame measurement is not the entire transition animation"
+    },
+    {
+      "id": "warm-resume",
+      "precondition": "Globe ready, app suspended in background without process termination",
+      "steps": "Background for 15 seconds, restore, verify input/focus and overlays; ten cycles",
+      "record": "App lifecycle and renderer readiness, duplicated resources, subsequent frame pacing",
+      "safety": "Background residence time is not resume latency"
+    },
+    {
+      "id": "cold-start",
+      "precondition": "Application process fully stopped; same cached dataset and OS/browser build",
+      "steps": "Launch the application to first Flutter frame and globe-ready; five fully stopped process runs",
+      "record": "Dart-main to first-frame / first-globe-ready, terrain availability, OS-to-first-frame externally, RSS/GC",
+      "safety": "Dart main start timestamp omits earlier native process/engine startup"
+    },
+    {
+      "id": "sqlite-cache",
+      "precondition": "Synthetic 10000-spot / 10000-tile SQL-pattern dataset; use a separate device snapshot for production end-to-end",
+      "steps": "Run tool/benchmark_sqlite_cache.dart --tiles=10000 --spots=10000 --runs=3; verify migration and recovery tests",
+      "record": "Legacy/bounded prune medians, spot query plan, UI response with real loaded data",
+      "safety": "SQL-pattern microbenchmark does not measure Flutter SQLite/Drift end-to-end"
+    },
+    {
+      "id": "geojson-parse",
+      "precondition": "Synthetic multi-polygons (1256 features) or explicit local official file, never uploaded",
+      "steps": "Run tool/benchmark_uas_memory.dart --features=1256 --runs=5; repeat --worker with same input",
+      "record": "Parse/validation/encode stages and sampled RSS; capture Dart heap/GC separately",
+      "safety": "RSS point samples are not peak heap or guaranteed memory leak evidence"
+    },
+    {
+      "id": "bridge-transfer",
+      "precondition": "Synthetic 18000-feature bridge fixture, no real GPU or WebView",
+      "steps": "Run node tool/benchmark_globe_transfer.cjs or node tool/performance_suite.cjs --check",
+      "record": "Feature count and preservation, frame counts, compression ratio, JS parse time",
+      "safety": "CI performance durations are observational; only correctness invariants are gated"
+    },
+    {
+      "id": "scene-scheduling",
+      "precondition": "Synthetic Cesium tileset property-write fixture, no GPU",
+      "steps": "Run node tool/benchmark_scene_scheduling.cjs 10000",
+      "record": "Stable writes, request counts, resource counts, camera-height crossing updates",
+      "safety": "Never present scheduling microbenchmark as device FPS or GPU memory"
+    }
+  ]
+}
