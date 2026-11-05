@@ -78,6 +78,13 @@ abstract class CachedOsintProvider<T> extends ChangeNotifier
   /// Adapters can reject unusable content before it replaces a disk snapshot.
   void validateData(T data) {}
 
+  /// Only adapters that have verified a genuine not-modified response may
+  /// skip revalidating/re-encoding the same large payload. Default: no.
+  bool reusesCachedPayload(
+    OsintDataset<T>? previous,
+    OsintDataset<T> current,
+  ) => false;
+
   Future<void> loadCached() => _cacheLoad ??= _readPersistentCache();
 
   Future<void> _readPersistentCache() async {
@@ -187,10 +194,24 @@ abstract class CachedOsintProvider<T> extends ChangeNotifier
       final dataset = await download();
       if (_disposed) throw _disposedError();
       _validate(dataset);
-      validateData(dataset.data);
+      final old = _cached;
+      final samePayload = reusesCachedPayload(old, dataset);
+      if (!samePayload) validateData(dataset.data);
       if (persistentCache != null) {
         try {
-          await persistentCache!.write(dataset);
+          final store = persistentCache!;
+          if (samePayload &&
+              old != null &&
+              store is OsintMetadataRefreshStore<T>) {
+            // HTTP 304 only updates timestamps/validators, not ~14 MB of
+            // GeoJSON. A small atomic overlay avoids re-encoding and hashing.
+            await (store as OsintMetadataRefreshStore<T>).updateRevalidation(
+              old,
+              dataset,
+            );
+          } else {
+            await store.write(dataset);
+          }
           _cacheError = null;
         } catch (_) {
           _cacheError = 'Data downloaded, but the local cache could not be saved or cleared.';

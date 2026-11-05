@@ -6,6 +6,15 @@ import 'osint_cache_database.dart';
 import 'osint_dataset.dart';
 import 'osint_source.dart';
 
+/// Optional fast path for a verified HTTP 304 with an identical in-memory
+/// payload. Other stores can keep implementing only [OsintDatasetStore].
+abstract interface class OsintMetadataRefreshStore<T> {
+  Future<void> updateRevalidation(
+    OsintDataset<T> previous,
+    OsintDataset<T> revalidated,
+  );
+}
+
 /// Optional provider-specific persistence. Tiles and terrain never use this API.
 abstract interface class OsintDatasetStore<T> {
   Future<OsintDataset<T>?> read(OsintSource source, DateTime now);
@@ -16,7 +25,10 @@ abstract interface class OsintDatasetStore<T> {
 
 /// JSON adapters must explicitly supply verified storage terms. This is not an
 /// export/redistribution interface; source provenance remains in each envelope.
-class JsonOsintDatasetStore implements OsintDatasetStore<Map<String, dynamic>> {
+class JsonOsintDatasetStore
+    implements
+        OsintDatasetStore<Map<String, dynamic>>,
+        OsintMetadataRefreshStore<Map<String, dynamic>> {
   JsonOsintDatasetStore({
     required this.database,
     required this.storageTerms,
@@ -70,10 +82,64 @@ class JsonOsintDatasetStore implements OsintDatasetStore<Map<String, dynamic>> {
       }
 
       final fetched = date('fetchedAt');
-      final checked = date('checkedAt');
-      final expires = date('expiresAt');
+      var checked = date('checkedAt');
+      var expires = date('expiresAt');
+      var etag = envelope['etag'] as String?;
+      var modified = envelope['lastModified'] as String?;
+      var revalidate = envelope['requiresRevalidation'] == true;
       if (checked.isBefore(fetched) || expires.isBefore(checked)) {
         throw const FormatException('Invalid cached timestamp ordering');
+      }
+      // A tiny checksum-bound metadata overlay avoids rewriting the original
+      // immutable JSON geometry after an HTTP 304. Corrupt overlay metadata
+      // is ignored and deleted: the last verified base snapshot is retained.
+      final overlay = await database().readSnapshotRevalidation(
+        source.id,
+        record.$2,
+      );
+      if (overlay != null) {
+        try {
+          if (overlay.$1.length > 4096 ||
+              sha256.convert(utf8.encode(overlay.$1)).toString() !=
+                  overlay.$2) {
+            throw const FormatException('Revalidation metadata checksum');
+          }
+          final fields = jsonDecode(overlay.$1) as Map<String, dynamic>;
+          if (fields['version'] != 1) {
+            throw const FormatException('Revalidation metadata version');
+          }
+          DateTime overlayDate(String key) {
+            final value = fields[key];
+            if (value is! String || !value.endsWith('Z')) {
+              throw const FormatException('Invalid revalidation UTC timestamp');
+            }
+            return DateTime.parse(value).toUtc();
+          }
+
+          final newChecked = overlayDate('checkedAt');
+          final newExpires = overlayDate('expiresAt');
+          final newEtag = fields['etag'];
+          final newModified = fields['lastModified'];
+          bool validHeader(Object? value) =>
+              value == null ||
+              (value is String &&
+                  value.length <= 1024 &&
+                  !value.contains(RegExp(r'[\r\n]')));
+          if (newChecked.isBefore(checked) ||
+              newExpires.isBefore(newChecked) ||
+              !validHeader(newEtag) ||
+              !validHeader(newModified) ||
+              fields['requiresRevalidation'] is! bool) {
+            throw const FormatException('Invalid revalidation metadata');
+          }
+          checked = newChecked;
+          expires = newExpires;
+          etag = newEtag as String?;
+          modified = newModified as String?;
+          revalidate = fields['requiresRevalidation'] as bool;
+        } catch (_) {
+          await database().clearSnapshotRevalidation(source.id);
+        }
       }
       if (!now.toUtc().isBefore(checked.add(retention))) {
         await remove(source.id);
@@ -109,9 +175,9 @@ class JsonOsintDatasetStore implements OsintDatasetStore<Map<String, dynamic>> {
                     ? null
                     : date('validUntil'),
               ),
-        httpEtag: envelope['etag'] as String?,
-        requiresRevalidation: envelope['requiresRevalidation'] == true,
-        httpLastModified: envelope['lastModified'] as String?,
+        httpEtag: etag,
+        requiresRevalidation: revalidate,
+        httpLastModified: modified,
       );
       return dataset;
     } catch (error) {
@@ -161,6 +227,46 @@ class JsonOsintDatasetStore implements OsintDatasetStore<Map<String, dynamic>> {
       s.id,
       payload,
       sha256.convert(bytes).toString(),
+      checked.add(retention),
+    );
+  }
+
+  @override
+  Future<void> updateRevalidation(
+    OsintDataset<Map<String, dynamic>> previous,
+    OsintDataset<Map<String, dynamic>> revalidated,
+  ) async {
+    if (!identical(previous.data, revalidated.data) ||
+        previous.providerId != revalidated.providerId ||
+        previous.sourceUrl != revalidated.sourceUrl ||
+        previous.fetchedAtUtc != revalidated.fetchedAtUtc ||
+        revalidated.lastCheckedAtUtc == null ||
+        revalidated.lastCheckedAtUtc!.isBefore(
+          previous.lastCheckedAtUtc ?? previous.fetchedAtUtc,
+        )) {
+      throw ArgumentError('Not a valid metadata-only revalidation');
+    }
+    if (!revalidated.persistable) {
+      // A no-store response must still discard the persistent copy.
+      await remove(previous.providerId);
+      return;
+    }
+    final checked = revalidated.lastCheckedAtUtc!;
+    if (revalidated.cacheExpiresAtUtc.isBefore(checked)) {
+      throw ArgumentError('Invalid revalidation cache lifetime');
+    }
+    final payload = jsonEncode({
+      'version': 1,
+      'checkedAt': checked.toIso8601String(),
+      'expiresAt': revalidated.cacheExpiresAtUtc.toIso8601String(),
+      'etag': revalidated.httpEtag,
+      'lastModified': revalidated.httpLastModified,
+      'requiresRevalidation': revalidated.requiresRevalidation,
+    });
+    await database().writeSnapshotRevalidation(
+      previous.providerId,
+      payload,
+      sha256.convert(utf8.encode(payload)).toString(),
       checked.add(retention),
     );
   }

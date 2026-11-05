@@ -2146,12 +2146,28 @@ class GlobeController extends ChangeNotifier {
           uasDataFreshness == OsintFreshness.fresh) {
         await _send({'type': 'set-uas-zones', 'visible': true});
       } else {
+        final previousNetworkMetrics = uasNetworkMetrics;
+        final fetchClock = Stopwatch()..start();
         final dataset = await _uasProvider.fetch(
           forceRefresh:
               forceRefresh ||
               _uasRejectedDataset != null &&
                   identical(_uasRejectedDataset, _uasProvider.status.dataset),
         );
+        fetchClock.stop();
+        assert(() {
+          final network = uasNetworkMetrics;
+          final didRequest =
+              network != null && !identical(network, previousNetworkMetrics);
+          final adapterTime = didRequest ? network!.totalTime : Duration.zero;
+          debugPrint(
+            '[FPVManager UAS fetch] totalMs=${fetchClock.elapsedMilliseconds}, '
+            'httpAttempt=$didRequest, '
+            'adapterMs=${adapterTime.inMilliseconds}, '
+            'postAdapterMs=${didRequest ? (fetchClock.elapsed - adapterTime).inMilliseconds : 0}',
+          );
+          return true;
+        }());
         if (!current()) return;
         // HTTP 304 returns the same data object with refreshed HTTP/cache
         // metadata. Revalidating it must not resend megabytes or rebuild

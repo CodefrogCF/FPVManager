@@ -19,7 +19,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
     ),
   );
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -39,6 +39,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
         'CREATE INDEX obstacles_view ON obstacles(snapshot, category, west, east, south, north)',
       );
       await _createSnapshots();
+      await _createSnapshotRevalidations();
       await _createOfflineMaps();
       await _createMobileSites();
     },
@@ -46,6 +47,7 @@ class OsintCacheDatabase extends GeneratedDatabase {
       if (from < 2) await _createSnapshots();
       if (from < 3) await _createOfflineMaps();
       if (from < 4) await _createMobileSites();
+      if (from < 5) await _createSnapshotRevalidations();
     },
   );
 
@@ -86,6 +88,55 @@ class OsintCacheDatabase extends GeneratedDatabase {
     'envelope TEXT NOT NULL, checksum TEXT NOT NULL, retained_until INTEGER NOT NULL)',
   );
 
+  Future<void> _createSnapshotRevalidations() => customStatement(
+    'CREATE TABLE IF NOT EXISTS osint_snapshot_revalidations('
+    'provider TEXT PRIMARY KEY, base_checksum TEXT NOT NULL, '
+    'metadata TEXT NOT NULL, metadata_checksum TEXT NOT NULL)',
+  );
+
+  Future<(String, String)?> readSnapshotRevalidation(
+    String provider,
+    String baseChecksum,
+  ) async {
+    final row = await customSelect(
+      'SELECT metadata, metadata_checksum FROM osint_snapshot_revalidations '
+      'WHERE provider=? AND base_checksum=?',
+      variables: [Variable(provider), Variable(baseChecksum)],
+    ).getSingleOrNull();
+    return row == null
+        ? null
+        : (row.read<String>('metadata'), row.read<String>('metadata_checksum'));
+  }
+
+  Future<void> clearSnapshotRevalidation(String provider) => customStatement(
+    'DELETE FROM osint_snapshot_revalidations WHERE provider=?',
+    [provider],
+  );
+
+  /// Updates only small HTTP validators/check times, never re-serializes the
+  /// large official dataset. The base snapshot is required and both updates
+  /// commit atomically. Overlay is tied to its checksum to reject old data.
+  Future<void> writeSnapshotRevalidation(
+    String provider,
+    String metadata,
+    String metadataChecksum,
+    DateTime retainedUntil,
+  ) => transaction(() async {
+    final base = await customSelect(
+      'SELECT checksum FROM osint_snapshots WHERE provider=?',
+      variables: [Variable(provider)],
+    ).getSingleOrNull();
+    if (base == null) throw StateError('Missing base OSINT snapshot');
+    await customStatement(
+      'INSERT OR REPLACE INTO osint_snapshot_revalidations VALUES (?,?,?,?)',
+      [provider, base.read<String>('checksum'), metadata, metadataChecksum],
+    );
+    await customStatement(
+      'UPDATE osint_snapshots SET retained_until=? WHERE provider=?',
+      [retainedUntil.millisecondsSinceEpoch, provider],
+    );
+  });
+
   Future<(String, String)?> readSnapshot(String provider, int maxBytes) async {
     final row = await customSelect(
       'SELECT CASE WHEN length(CAST(envelope AS BLOB))<=? THEN envelope END AS payload, '
@@ -105,20 +156,32 @@ class OsintCacheDatabase extends GeneratedDatabase {
     String payload,
     String checksum,
     DateTime retainedUntil,
-  ) => customStatement(
-    'INSERT OR REPLACE INTO osint_snapshots VALUES (?,?,?,?)',
-    [provider, payload, checksum, retainedUntil.millisecondsSinceEpoch],
-  );
+  ) => transaction(() async {
+    await customStatement(
+      'INSERT OR REPLACE INTO osint_snapshots VALUES (?,?,?,?)',
+      [provider, payload, checksum, retainedUntil.millisecondsSinceEpoch],
+    );
+    await clearSnapshotRevalidation(provider);
+  });
 
-  Future<void> removeSnapshot(String provider) => customStatement(
-    'DELETE FROM osint_snapshots WHERE provider=?',
-    [provider],
-  );
+  Future<void> removeSnapshot(String provider) => transaction(() async {
+    await clearSnapshotRevalidation(provider);
+    await customStatement('DELETE FROM osint_snapshots WHERE provider=?', [
+      provider,
+    ]);
+  });
 
-  Future<void> cleanSnapshots(DateTime now) => customStatement(
-    'DELETE FROM osint_snapshots WHERE retained_until<=?',
-    [now.millisecondsSinceEpoch],
-  );
+  Future<void> cleanSnapshots(DateTime now) => transaction(() async {
+    await customStatement(
+      'DELETE FROM osint_snapshots WHERE retained_until<=?',
+      [now.millisecondsSinceEpoch],
+    );
+    await customStatement(
+      'DELETE FROM osint_snapshot_revalidations WHERE NOT EXISTS '
+      '(SELECT 1 FROM osint_snapshots WHERE '
+      'osint_snapshots.provider=osint_snapshot_revalidations.provider)',
+    );
+  });
 
   Future<ObstacleSnapshot?> obstacleSnapshot() async {
     final row = await customSelect(

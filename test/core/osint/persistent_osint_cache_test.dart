@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -381,6 +382,158 @@ void main() {
         ),
       ).dataState,
       OsintDataState.refreshFailed,
+    );
+  });
+
+  test(
+    'HTTP 304 persists only small metadata without rewriting GeoJSON',
+    () async {
+      final db = OsintCacheDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final cache = store(db);
+      var clock = fetched;
+      var calls = 0;
+      final client = MockClient((request) async {
+        calls++;
+        if (calls == 1) {
+          return http.Response(content, 200, headers: {'etag': '"original"'});
+        }
+        expect(request.headers['If-None-Match'], '"original"');
+        return http.Response('', 304, headers: {'etag': '"unchanged"'});
+      });
+      addTearDown(client.close);
+      final provider = GeoJsonOsintProvider(
+        source: source,
+        client: client,
+        now: () => clock,
+        persistentCache: cache,
+      );
+      addTearDown(provider.dispose);
+      final first = await provider.fetch(forceRefresh: true);
+      final before = await db
+          .customSelect(
+            'SELECT envelope, checksum FROM osint_snapshots WHERE provider=?',
+            variables: [Variable(source.id)],
+          )
+          .getSingle();
+      // Block any accidental rewriting of the full JSON field on 304.
+      await db.customStatement(
+        "CREATE TRIGGER protect_geometry BEFORE UPDATE OF envelope ON "
+        "osint_snapshots BEGIN SELECT RAISE(ABORT,'geometry rewrite'); END",
+      );
+      clock = clock.add(const Duration(minutes: 32));
+      final second = await provider.fetch(forceRefresh: true);
+      expect(identical(first.data, second.data), true);
+      expect(provider.status.cacheError, isNull);
+      expect(second.httpEtag, '"unchanged"');
+      expect(second.fetchedAtUtc, first.fetchedAtUtc);
+      expect(second.lastCheckedAtUtc, clock);
+      final after = await db
+          .customSelect(
+            'SELECT envelope, checksum FROM osint_snapshots WHERE provider=?',
+            variables: [Variable(source.id)],
+          )
+          .getSingle();
+      expect(after.read<String>('envelope'), before.read<String>('envelope'));
+      expect(after.read<String>('checksum'), before.read<String>('checksum'));
+      final saved = (await cache.read(source, clock))!;
+      expect(saved.httpEtag, '"unchanged"');
+      expect(saved.lastCheckedAtUtc, clock);
+      expect(saved.data, first.data);
+      expect(saved.source.attribution, 'Fixture credit');
+      expect(calls, 2);
+    },
+  );
+
+  test('full snapshot replacement clears previous 304 metadata', () async {
+    final db = OsintCacheDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = store(db);
+    final first = dataset();
+    await cache.write(first);
+    await cache.updateRevalidation(
+      first,
+      OsintDataset(
+        source: first.source,
+        data: first.data,
+        fetchedAtUtc: first.fetchedAtUtc,
+        lastCheckedAtUtc: fetched.add(const Duration(minutes: 20)),
+        cacheExpiresAtUtc: fetched.add(const Duration(hours: 2)),
+        httpEtag: '"revalidated"',
+      ),
+    );
+    expect((await cache.read(source, fetched))!.httpEtag, '"revalidated"');
+    await cache.write(dataset(number: 22));
+    final saved = (await cache.read(source, fetched))!;
+    expect(saved.data['fixture'], 22);
+    expect(saved.httpEtag, '"v1"');
+    final overlayCount =
+        (await db
+                .customSelect(
+                  'SELECT COUNT(*) AS c FROM osint_snapshot_revalidations',
+                )
+                .getSingle())
+            .read<int>('c');
+    expect(overlayCount, 0);
+  });
+
+  test(
+    'corrupt 304 metadata falls back to the verified base snapshot',
+    () async {
+      final db = OsintCacheDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final cache = store(db);
+      final initial = dataset();
+      await cache.write(initial);
+      await cache.updateRevalidation(
+        initial,
+        OsintDataset(
+          source: initial.source,
+          data: initial.data,
+          fetchedAtUtc: initial.fetchedAtUtc,
+          lastCheckedAtUtc: fetched.add(const Duration(minutes: 30)),
+          cacheExpiresAtUtc: fetched.add(const Duration(hours: 2)),
+          httpEtag: '"revalidated"',
+        ),
+      );
+      await db.customStatement(
+        "UPDATE osint_snapshot_revalidations SET metadata='corrupt'",
+      );
+      final restored = (await cache.read(source, fetched))!;
+      expect(restored.data['fixture'], 1);
+      expect(restored.httpEtag, '"v1"');
+      expect(restored.lastCheckedAtUtc, fetched);
+    },
+  );
+
+  test('failed 304 metadata update keeps last good on-disk GeoJSON', () async {
+    final db = OsintCacheDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = store(db);
+    var calls = 0;
+    final client = MockClient(
+      (_) async => ++calls == 1
+          ? http.Response(content, 200, headers: {'etag': '"a"'})
+          : http.Response('', 304),
+    );
+    addTearDown(client.close);
+    final provider = GeoJsonOsintProvider(
+      source: source,
+      client: client,
+      now: () => fetched,
+      persistentCache: cache,
+    );
+    addTearDown(provider.dispose);
+    await provider.fetch(forceRefresh: true);
+    await db.customStatement(
+      "CREATE TRIGGER block_revalidation BEFORE INSERT ON "
+      "osint_snapshot_revalidations BEGIN SELECT RAISE(ABORT,'fixture'); END",
+    );
+    await provider.fetch(forceRefresh: true);
+    expect(provider.status.cacheError, contains('could not be saved'));
+    expect(
+      (await cache.read(source, fetched))!.data['type'],
+      'FeatureCollection',
     );
   });
 

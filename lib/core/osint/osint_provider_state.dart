@@ -3,7 +3,15 @@ import 'osint_source.dart';
 
 export 'osint_dataset.dart' show OsintFreshness;
 
-enum OsintFailureKind { network, timeout, http, invalidData, disposed, unknown }
+enum OsintFailureKind {
+  network,
+  timeout,
+  http,
+  invalidData,
+  cancelled,
+  disposed,
+  unknown,
+}
 
 class OsintProviderException implements Exception {
   const OsintProviderException({

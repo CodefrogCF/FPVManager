@@ -10,7 +10,14 @@ class SwissUasProvider extends GeoJsonOsintProvider {
     super.cacheDuration,
     super.now,
     super.persistentCache,
-  }) : super(source: defaultSource, conditionalRequests: !kIsWeb);
+  }) : super(
+         source: defaultSource,
+         conditionalRequests: !kIsWeb,
+         // S22 cold downloads were still progressing at the former 45s cap.
+         // Keep an independent 20s inactivity deadline in the streamed adapter.
+         requestTimeout: const Duration(seconds: 120),
+         debugDownloadMetrics: true,
+       );
 
   static final Uri datasetUri = Uri.parse(
     'https://data.geo.admin.ch/ch.bazl.einschraenkungen-drohnen/'
