@@ -502,8 +502,213 @@
             return true;
         }
         return {set,scan,focus,explore,stop,pick,
+            geometry(routeId){const r=routeById(routeId);return {id:r.id,source:r.source,sourceId:r.sourceId,
+                coordinates:r.coordinates.map(pair=>[...pair])};},
             dispose(){if(disposed)return;clear();disposed=true;},
             status(){return {visible,allowed,pending,count:items.length,exploring:!!active};}};
     }
     return {ENDPOINT,LAYERS,BOUNDS,category,bounds,urlFor,parseIdentify,create};
+});
+/* Issue #112: bounded, explicitly SIMULATION-ONLY tunnel geometry. This is not
+ * a surveyed tunnel, a clearance certificate, or permission to enter a site.
+ * Kept in scene_environment.js to use the existing registered Flutter asset. */
+(function(root,factory){
+    const api=factory();
+    if(typeof module==='object'&&module.exports) module.exports.FPVTunnelFlythrough=api;
+    else root.FPVTunnelFlythrough=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+    'use strict';
+    const R=6378137,DEG=Math.PI/180,MAX_SECTIONS=96,MAX_LENGTH=2200;
+    const finite=Number.isFinite;
+    const xy=(point,origin)=>({x:(point.longitude-origin.longitude)*DEG*R*Math.cos(origin.latitude*DEG),
+        y:(point.latitude-origin.latitude)*DEG*R});
+    function length(a,b){const p=xy(b,a);return Math.hypot(p.x,p.y);}
+    function validateSections(sections){
+        if(!Array.isArray(sections)||sections.length<2||sections.length>MAX_SECTIONS)
+            throw Error('Tunnel model requires 2–96 cross sections.');
+        let distance=0;
+        return sections.map((s,i)=>{
+            if(!s||![s.longitude,s.latitude,s.floorMetersWgs84,s.widthMeters,s.heightMeters].every(finite)
+                ||s.longitude<5.8||s.longitude>10.7||s.latitude<45.6||s.latitude>47.9
+                ||s.floorMetersWgs84 < -500||s.floorMetersWgs84>9000
+                ||s.widthMeters<3||s.widthMeters>15||s.heightMeters<3||s.heightMeters>12)
+                throw Error('Invalid tunnel cross section, bounds or elevation reference.');
+            if(i){const step=length(sections[i-1],s);if(step<.5||step>200)throw Error('Unusable tunnel segment length.');
+                distance+=step;if(distance>MAX_LENGTH)throw Error('Tunnel exceeds bounded length.');}
+            return {longitude:s.longitude,latitude:s.latitude,floorMetersWgs84:s.floorMetersWgs84,
+                widthMeters:s.widthMeters,heightMeters:s.heightMeters};
+        });
+    }
+    function procedural(route,groundHeights,{widthMeters=6,heightMeters=5}={}){
+        if(!route||!Array.isArray(route.coordinates)||route.coordinates.length<2||
+            route.coordinates.length>MAX_SECTIONS||!Array.isArray(groundHeights)||
+            route.coordinates.length!==groundHeights.length)throw Error('Unsupported tunnel centerline or terrain profile.');
+        if(![widthMeters,heightMeters].every(finite)||widthMeters<3||widthMeters>15||heightMeters<3||heightMeters>12)
+            throw Error('Simulation dimensions must be within 3–15 m width and 3–12 m height.');
+        const pts=route.coordinates.map((p,i)=>{
+            if(!Array.isArray(p)||p.length<2||![p[0],p[1],groundHeights[i]].every(finite))
+                throw Error('Terrain data missing – no simulated tunnel created.');
+            return {longitude:p[0],latitude:p[1],terrain:groundHeights[i]};
+        });
+        const distances=[0];for(let i=1;i<pts.length;i++)distances.push(distances[i-1]+length(pts[i-1],pts[i]));
+        const total=distances.at(-1);
+        const sections=validateSections(pts.map((p,i)=>({longitude:p.longitude,latitude:p.latitude,
+            // Smooth approach to the simulated underground segment. The endpoints
+            // are synthetic and NOT verified real-world portal elevations.
+            floorMetersWgs84:p.terrain+.6-heightMeters*.75*Math.min(1,distances[i]/12,(total-distances[i])/12),
+            widthMeters,heightMeters})));
+        return {version:1,identity:String(route.id||'local').slice(0,150),quality:'simulation-only',
+            source:String(route.source||'').slice(0,160),sourceId:String(route.sourceId||'').slice(0,160),
+            elevationReference:'WGS84_ELLIPSOID',portalsVerified:false,clearanceVerified:false,
+            label:'SYNTHETIC TUNNEL · SIMULATION ONLY',sections};
+    }
+    // Externally supplied cross-section files are unverified until their
+    // provenance has been checked independently. They cannot enable automatic
+    // replay or assert that published clearance is established.
+    function importSections(document){
+        if(!document||document.version!==1||document.elevationReference!=='WGS84_ELLIPSOID'
+            ||typeof document.source!=='string'||!document.source.trim()
+            ||document.source.length>256)throw Error('Explicit WGS84 elevation and source required.');
+        return {version:1,identity:String(document.identity||'imported').slice(0,150),
+            source:document.source,sourceId:String(document.sourceId||'').slice(0,160),
+            quality:'external-unverified',elevationReference:'WGS84_ELLIPSOID',
+            portalsVerified:false,clearanceVerified:false,
+            label:'EXTERNAL GEOMETRY · CLEARANCE NOT VERIFIED',sections:validateSections(document.sections)};
+    }
+    function closest(model,point){
+        if(!model||!point||![point.latitude,point.longitude,point.height].every(finite))return null;
+        const s=model.sections,origin=s[0],p=xy(point,origin);
+        let nearest=null;
+        for(let i=0;i<s.length-1;i++){
+            const a=xy(s[i],origin),b=xy(s[i+1],origin),dx=b.x-a.x,dy=b.y-a.y,den=dx*dx+dy*dy;
+            const raw=((p.x-a.x)*dx+(p.y-a.y)*dy)/den,t=Math.max(0,Math.min(1,raw));
+            const lateral=((p.x-a.x)*dy-(p.y-a.y)*dx)/Math.sqrt(den);
+            const dist=Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+            if(nearest&&nearest.distance<=dist)continue;
+            const interp=(key)=>s[i][key]+(s[i+1][key]-s[i][key])*t;
+            nearest={distance:dist,lateral,segment:i,t,raw,
+                floor:interp('floorMetersWgs84'),height:interp('heightMeters'),width:interp('widthMeters'),
+                heading:Math.atan2(dx,dy)};
+        }
+        return nearest;
+    }
+    function inside(model,point,radius=.25){
+        if(!finite(radius)||radius<0||radius>1)return false;
+        const p=closest(model,point);if(!p)return false;
+        return p.distance<=p.width/2-radius && point.height>=p.floor+radius &&
+            point.height<=p.floor+p.height-radius &&
+            !(p.segment===0&&p.raw<0) &&
+            !(p.segment===model.sections.length-2&&p.raw>1);
+    }
+    function collision(model,a,b,radius=.25){
+        if(!model||!a||!b||![a.height,b.height].every(finite))return false;
+        const dist=Math.hypot(length(a,b),b.height-a.height);
+        // Long jumps cannot silently tunnel through a wall.
+        if(dist>100)return true;
+        const steps=Math.max(1,Math.ceil(dist/.3));
+        const initial=inside(model,a,radius);
+        for(let i=1;i<=steps;i++){
+            const t=i/steps,point={longitude:a.longitude+(b.longitude-a.longitude)*t,
+                latitude:a.latitude+(b.latitude-a.latitude)*t,height:a.height+(b.height-a.height)*t};
+            if(inside(model,point,radius))continue;
+            const p=closest(model,point);
+            const portal=p&&p.distance<=p.width/2-radius &&
+                ((p.segment===0&&p.raw<0)||(p.segment===model.sections.length-2&&p.raw>1));
+            if(initial&&!portal)return true;
+            if(!initial&&inside(model,a,radius))return true;
+        }
+        return false;
+    }
+    function rings(model){
+        const sections=model.sections;
+        return sections.map((s,i)=>{
+            const prev=sections[Math.max(0,i-1)],next=sections[Math.min(sections.length-1,i+1)];
+            const v=xy(next,prev),d=Math.hypot(v.x,v.y),east=-v.y/d,north=v.x/d;
+            const lonOffset=m=>m/(R*DEG*Math.cos(s.latitude*DEG)),latOffset=m=>m/(R*DEG);
+            const corner=(sign,up)=>[s.longitude+lonOffset(east*sign*s.widthMeters/2),
+                s.latitude+latOffset(north*sign*s.widthMeters/2),s.floorMetersWgs84+(up?s.heightMeters:0)];
+            return [corner(-1,false),corner(1,false),corner(1,true),corner(-1,true)];
+        });
+    }
+    function geometry(C,model){
+        const ring=rings(model),coords=[],indices=[];
+        const put=p=>{const xyz=C.Cartesian3.fromDegrees(p[0],p[1],p[2]);
+            coords.push(xyz.x,xyz.y,xyz.z);return coords.length/3-1;};
+        // Four complete surfaces. Cesium closed:false disables backface culling
+        // so the interior renders without doubled coplanar triangles.
+        for(let face=0;face<4;face++)for(let i=0;i<ring.length-1;i++){
+            const a=put(ring[i][face]),b=put(ring[i][(face+1)%4]),
+                c=put(ring[i+1][(face+1)%4]),d=put(ring[i+1][face]);
+            indices.push(a,b,c,a,c,d);
+        }
+        if(coords.length/3>8000)throw Error('Tunnel mesh vertex budget exceeded.');
+        return new C.Geometry({attributes:{position:new C.GeometryAttribute({componentDatatype:C.ComponentDatatype.DOUBLE,
+            componentsPerAttribute:3,values:new Float64Array(coords)})},
+            indices:coords.length/3<65536?new Uint16Array(indices):new Uint32Array(indices),
+            primitiveType:C.PrimitiveType.TRIANGLES,boundingSphere:C.BoundingSphere.fromVertices(coords)});
+    }
+    function create(C,viewer,emit=()=>{}, {sampleTerrain=async()=>[],ready=()=>true}={}){
+        let model=null,primitive=null,clipping=null,oldClipping=null,flight=false,revision=0,disposed=false,pending=false;
+        const scene=viewer.scene;
+        function publish(error=null){emit('tunnel-model-state',{ready:!!model,flight,pending,
+            quality:model?.quality??null,label:model?.label??null,source:model?.source??null,error});}
+        function stop(){
+            ++revision;flight=false;pending=false;model=null;
+            if(primitive){scene.primitives.remove(primitive);primitive=null;}
+            if(clipping){scene.globe.clippingPolygons=oldClipping;clipping=null;oldClipping=null;}
+            scene.requestRender?.();publish();
+        }
+        function show(next){
+            if(disposed)throw Error('Tunnel renderer is disposed.');
+            if(!C.ClippingPolygonCollection?.isSupported?.(scene)||!C.ClippingPolygon||
+                !('clippingPolygons' in scene.globe))throw Error('WebGL2 terrain clipping is not supported on this device.');
+            if(scene.globe.clippingPolygons?.length>0)throw Error('Another terrain clipping layer owns the globe.');
+            const verts=rings(next),left=verts.map(p=>p[0]),right=verts.map(p=>p[1]).reverse();
+            const polygon=new C.ClippingPolygon({positions:[...left,...right].map(p=>C.Cartesian3.fromDegrees(...p))});
+            const cut=new C.ClippingPolygonCollection({polygons:[polygon]});
+            const geom=geometry(C,next);
+            const instance=new C.GeometryInstance({geometry:geom,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
+                C.Color.fromBytes(75,120,133,255))}});
+            const mesh=new C.Primitive({geometryInstances:instance,appearance:new C.PerInstanceColorAppearance({flat:true,
+                translucent:false,closed:false}),asynchronous:false,allowPicking:false});
+            const previous=scene.globe.clippingPolygons;
+            try {scene.globe.clippingPolygons=cut;scene.primitives.add(mesh);}
+            catch(err){scene.globe.clippingPolygons=previous;throw err;}
+            oldClipping=previous;clipping=cut;primitive=mesh;model=next;flight=false;
+            scene.requestRender?.();publish();return {ready:true,quality:model.quality,modelLabel:model.label,
+                sections:model.sections.length,portalsVerified:false,clearanceVerified:false};
+        }
+        async function prepare(route,settings={},signal){
+            if(disposed)throw Error('Tunnel renderer disposed.');
+            stop();const token=revision;pending=true;publish();
+            try {
+                if(!ready())throw Error('Detailed terrain is unavailable.');
+                if(!route?.coordinates)throw Error('Select an available tunnel axis first.');
+                const points=route.coordinates.map(p=>({longitude:p[0],latitude:p[1]}));
+                if(points.length>MAX_SECTIONS)throw Error('Route too detailed for a bounded model.');
+                signal?.throwIfAborted?.();
+                const heights=await sampleTerrain(points,signal);
+                signal?.throwIfAborted?.();
+                if(token!==revision||disposed)throw Error('Tunnel preparation superseded.');
+                const next=procedural(route,heights,settings);
+                return show(next);
+            } catch(err){if(token===revision){pending=false;publish(String(err.message||err));}throw err;}
+            finally{if(token===revision){pending=false;publish();}}
+        }
+        function importModel(doc){stop();return show(importSections(doc));}
+        function firstPose(){
+            if(!model)throw Error('Prepare a supported model before flying.');
+            const a=model.sections[0],b=model.sections[1],ahead=xy(b,a);
+            return {latitude:a.latitude,longitude:a.longitude,height:a.floorMetersWgs84+model.sections[0].heightMeters*.5,
+                heading:Math.atan2(ahead.x,ahead.y),pitch:0,ground:a.floorMetersWgs84};
+        }
+        function activate(){if(!model)throw Error('Tunnel model missing.');flight=true;publish();}
+        function floorAt(point){if(!flight||!model)return null;const near=closest(model,{...point,height:point.height??0});
+            if(!near||near.distance>near.width/2+.5)return null;return near.floor;}
+        function intersects(a,b){return flight&&model?collision(model,a,b):false;}
+        return {prepare,importModel,firstPose,activate,floorAt,intersects,
+            get flight(){return flight;},get model(){return model;},stop,
+            dispose(){if(disposed)return;stop();disposed=true;},status(){return {ready:!!model,flight,pending,quality:model?.quality??null};}};
+    }
+    return {procedural,importSections,validateSections,closest,inside,collision,rings,geometry,create,MAX_SECTIONS,MAX_LENGTH};
 });

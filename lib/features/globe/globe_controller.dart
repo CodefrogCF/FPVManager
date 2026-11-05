@@ -451,6 +451,16 @@ class GlobeController extends ChangeNotifier {
   Map<String, dynamic>? _selectedInfrastructure;
   Map<String, dynamic>? get selectedInfrastructure => _selectedInfrastructure;
   int _tunnelScanSequence = 0;
+  bool _tunnelModelReady = false;
+  bool get tunnelModelReady => _tunnelModelReady;
+  bool _tunnelModelPending = false;
+  bool get tunnelModelPending => _tunnelModelPending;
+  String? _tunnelModelQuality;
+  String? get tunnelModelQuality => _tunnelModelQuality;
+  String? _tunnelModelError;
+  String? get tunnelModelError => _tunnelModelError;
+  bool _tunnelFlightActive = false;
+  bool get tunnelFlightActive => _tunnelFlightActive;
 
   Map<String, dynamic> get _tunnelCommand => {
     'type': 'set-tunnel-infrastructure',
@@ -544,6 +554,68 @@ class GlobeController extends ChangeNotifier {
 
   Future<void> exitTunnelExploration() =>
       _send({'type': 'exit-tunnel-exploration'});
+
+  /// Creates only an explicitly synthetic tunnel. Axes are not surveyed portals.
+  Future<void> prepareTunnelModel(
+    String id, {
+    double widthMeters = 6,
+    double heightMeters = 5,
+  }) async {
+    if (!_ready || !_terrainAvailable || _tunnelModelPending) {
+      throw StateError('Detailed terrain is required for simulated tunnels');
+    }
+    if (widthMeters < 3 ||
+        widthMeters > 15 ||
+        heightMeters < 3 ||
+        heightMeters > 12) {
+      throw ArgumentError('Unsupported simulated tunnel dimensions');
+    }
+    _tunnelModelPending = true;
+    notifyListeners();
+    try {
+      await _bridge.send({
+        'type': 'prepare-tunnel-model',
+        'routeId': id,
+        'widthMeters': widthMeters,
+        'heightMeters': heightMeters,
+      }, timeout: _bridge.options.terrainTimeout);
+    } finally {
+      _tunnelModelPending = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> enterTunnelFlight({String mode = 'gps'}) async {
+    if (!_tunnelModelReady || !{'gps', 'angle', 'acro'}.contains(mode)) {
+      throw StateError('Create a simulated tunnel model first');
+    }
+    await _bridge.send({
+      'type': 'enter-tunnel-flight',
+      'flightMode': mode,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> importTunnelModel(Map<String, dynamic> document) async {
+    if (!_ready || _tunnelModelPending) {
+      throw StateError('Tunnel renderer is not ready');
+    }
+    if (document['version'] != 1 ||
+        document['elevationReference'] != 'WGS84_ELLIPSOID' ||
+        document['source'] is! String ||
+        (document['source'] as String).isEmpty ||
+        document['sections'] is! List ||
+        (document['sections'] as List).length > 96) {
+      throw const FormatException(
+        'Invalid external tunnel geometry or provenance',
+      );
+    }
+    await _bridge.send({
+      'type': 'import-tunnel-model',
+      'document': document,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> removeTunnelModel() => _send({'type': 'remove-tunnel-model'});
   SceneTime? _simulationSceneTime;
   SceneTime? get simulationSceneTime => _simulationSceneTime;
 
@@ -2182,6 +2254,8 @@ class GlobeController extends ChangeNotifier {
         _selectedInfrastructure = null;
         _tunnelExploring = false;
         _tunnelScanPending = false;
+        _tunnelModelReady = _tunnelModelPending = _tunnelFlightActive = false;
+        _tunnelModelQuality = _tunnelModelError = null;
         _tunnelScanError = null;
         _playbackPhase = 'idle';
         _playbackProgress = 0;
@@ -2189,6 +2263,8 @@ class GlobeController extends ChangeNotifier {
         _resetConnection();
 
       case 'globe-ready':
+        _tunnelModelReady = _tunnelModelPending = _tunnelFlightActive = false;
+        _tunnelModelQuality = _tunnelModelError = null;
         _tunnelScanSequence++;
         _tunnelRoutes = const [];
         _tunnelScanPending = false;
@@ -2257,6 +2333,24 @@ class GlobeController extends ChangeNotifier {
             (data['source'] as String).startsWith('ch.swisstopo.') &&
             data.length <= 16) {
           _selectedInfrastructure = Map.unmodifiable(data);
+          notifyListeners();
+        }
+      case 'tunnel-model-state':
+        if (data['ready'] is bool && data['flight'] is bool) {
+          _tunnelModelReady = data['ready'] as bool;
+          _tunnelFlightActive = data['flight'] as bool;
+          _tunnelModelQuality = data['quality'] is String
+              ? (data['quality'] as String).substring(
+                  0,
+                  (data['quality'] as String).length.clamp(0, 60),
+                )
+              : null;
+          _tunnelModelError = data['error'] is String
+              ? (data['error'] as String).substring(
+                  0,
+                  (data['error'] as String).length.clamp(0, 200),
+                )
+              : null;
           notifyListeners();
         }
       case 'infrastructure-exploration-status':

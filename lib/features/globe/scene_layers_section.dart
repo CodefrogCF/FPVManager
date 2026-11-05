@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import 'globe_controller.dart';
@@ -198,6 +201,37 @@ class SceneLayersSection extends StatelessWidget {
             icon: const Icon(Icons.travel_explore),
             label: const Text('Tunnelachsen um Kartenmitte suchen (600 m)'),
           ),
+          TextButton.icon(
+            onPressed: enabled && !controller.tunnelModelPending
+                ? () => change(() async {
+                    final file = await openFile(
+                      acceptedTypeGroups: [
+                        const XTypeGroup(
+                          label: 'Tunnel cross sections',
+                          extensions: ['json'],
+                        ),
+                      ],
+                    );
+                    if (file == null) return;
+                    if (await file.length() > 65536) {
+                      throw const FormatException(
+                        'Tunnel geometry exceeds 64 KiB',
+                      );
+                    }
+                    final data = jsonDecode(await file.readAsString());
+                    if (data is! Map<String, dynamic>) {
+                      throw const FormatException(
+                        'Expected tunnel geometry object',
+                      );
+                    }
+                    await controller.importTunnelModel(data);
+                  })
+                : null,
+            icon: const Icon(Icons.upload_file),
+            label: const Text(
+              '3D-Querschnitte importieren (JSON, nicht verifiziert)',
+            ),
+          ),
           if (controller.tunnelScanPending) const LinearProgressIndicator(),
           if (controller.tunnelScanError != null)
             Text('Abfrage fehlgeschlagen: ${controller.tunnelScanError}'),
@@ -229,6 +263,8 @@ class SceneLayersSection extends StatelessWidget {
                     await controller.focusTunnelRoute(id, end: true);
                   } else if (action == 'explore') {
                     await controller.exploreTunnelRoute(id);
+                  } else if (action == 'model') {
+                    await controller.prepareTunnelModel(id);
                   }
                 }),
                 itemBuilder: (context) => [
@@ -245,9 +281,44 @@ class SceneLayersSection extends StatelessWidget {
                       value: 'explore',
                       child: Text('Schematische Oberflächen-Erkundung'),
                     ),
+                  const PopupMenuItem(
+                    value: 'model',
+                    child: Text('3D-Simulationstunnel erzeugen (fiktiv)'),
+                  ),
                 ],
               ),
             ),
+          if (controller.tunnelModelPending) const LinearProgressIndicator(),
+          if (controller.tunnelModelError != null)
+            Text('3D-Tunnel: ${controller.tunnelModelError}'),
+          if (controller.tunnelModelReady) ...[
+            Text(
+              controller.tunnelModelQuality == 'simulation-only'
+                  ? 'SIMULATION ONLY: Querschnitt (6 × 5 m) und Portale sind künstlich erzeugt. Keine realen Freiräume oder Zugangsberechtigungen.'
+                  : 'IMPORTIERTE MODELLGEOMETRIE: Provenienz und Lichtraumprofil sind nicht unabhängig verifiziert. Keine reale Durchflugfreigabe.',
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final mode in const ['gps', 'angle', 'acro'])
+                  OutlinedButton(
+                    onPressed: enabled && !controller.tunnelModelPending
+                        ? () => change(
+                            () => controller.enterTunnelFlight(mode: mode),
+                          )
+                        : null,
+                    child: Text('Durchflug: ${mode.toUpperCase()}'),
+                  ),
+                TextButton.icon(
+                  onPressed: enabled
+                      ? () => change(controller.removeTunnelModel)
+                      : null,
+                  icon: const Icon(Icons.close),
+                  label: const Text('3D-Tunnel entfernen'),
+                ),
+              ],
+            ),
+          ],
           if (controller.tunnelExploring)
             TextButton.icon(
               onPressed: enabled

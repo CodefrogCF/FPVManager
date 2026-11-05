@@ -53,7 +53,7 @@ function postToFlutter(message) {
         stopNavigation();
         if (!event.persisted) liveRadio?.dispose();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); meteoswissRadar.dispose(); datedImagery.dispose(); terrainManager?.dispose(); bridge.dispose(); }
-        if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose();
+        if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose(); tunnelVolumes?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) mapLabels?.dispose();
@@ -62,7 +62,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, tunnels = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
@@ -172,7 +172,7 @@ function postToFlutter(message) {
         return mapProviders.imagery(style, Boolean(offlineReason()));
     }
 
-    function stopNavigation(reason = null) { tunnels?.stop(); routePlayback?.interrupt(reason); walker?.stop(reason); flyer?.stop(reason); }
+    function stopNavigation(reason = null) { tunnels?.stop(); routePlayback?.interrupt(reason); walker?.stop(reason); flyer?.stop(reason); tunnelVolumes?.stop(); }
     function navigationActive() { return flyer?.active || walker?.status().active; }
     function simulationSpawn(command) {
         if (command.latitude != null || command.longitude != null) return {latitude:command.latitude,longitude:command.longitude};
@@ -651,6 +651,8 @@ function postToFlutter(message) {
             case "reset-simulation": return routePlayback?.loaded
                 ? routePlayback.control({action:'restart'}) : flyer.reset(signal);
             case 'start-route-playback': {
+                if(tunnelVolumes?.model && tunnelVolumes.model.clearanceVerified!==true)
+                    throw Error('Remove the unverified simulation tunnel before route playback; no safe tunnel clearance is established.');
                 stopNavigation();
                 const preview=command.settings?.sceneTime??{enabled:false};
                 if(typeof preview.enabled!=='boolean')throw Error('Invalid replay lighting preview');
@@ -666,8 +668,12 @@ function postToFlutter(message) {
             case 'set-live-radio-result': return liveRadio.set(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-scene-environment': return sceneEnvironment.set(command);
-            case 'set-tunnel-infrastructure': return tunnels.set(command);
+            case 'set-tunnel-infrastructure': {
+                if(command.routesVisible===false)tunnelVolumes?.stop();
+                return tunnels.set(command);
+            }
             case 'scan-tunnel-infrastructure': {
+                tunnelVolumes?.stop();
                 // Explicit one-shot viewport query: never scan every camera movement.
                 const canvas = activeViewer.canvas;
                 const ray = activeViewer.camera.getPickRay(new Cesium.Cartesian2(
@@ -681,7 +687,42 @@ function postToFlutter(message) {
             }
             case 'focus-tunnel-route': stopNavigation(); return tunnels.focus(command);
             case 'explore-tunnel-route': stopNavigation(); return tunnels.explore(command);
-            case 'exit-tunnel-exploration': tunnels.stop(); return {}; 
+            case 'exit-tunnel-exploration': tunnels.stop(); return {};
+            case 'prepare-tunnel-model': {
+                if(!tunnels||!tunnelVolumes)throw Error('3D tunnel renderer unavailable.');
+                stopNavigation();
+                const source=tunnels.geometry(command.routeId);
+                return await tunnelVolumes.prepare(source,{widthMeters:command.widthMeters??6,
+                    heightMeters:command.heightMeters??5},signal);
+            }
+            case 'import-tunnel-model': {
+                if(!tunnelVolumes)throw Error('Tunnel renderer unavailable.');
+                stopNavigation();
+                if(JSON.stringify(command.document??{}).length>65536)throw Error('Tunnel file is too large.');
+                return tunnelVolumes.importModel(command.document);
+            }
+            case 'remove-tunnel-model': stopNavigation(); return {};
+            case 'enter-tunnel-flight': {
+                if(!tunnelVolumes?.model)throw Error('Generate a bounded simulated tunnel first.');
+                if(!terrainAvailable())throw Error('Detailed terrain is required for virtual tunnel flight.');
+                if(!['gps','angle','acro'].includes(command.flightMode))throw Error('Invalid virtual flight mode.');
+                tunnels?.stop();routePlayback?.interrupt();walker?.stop();flyer?.stop();
+                const spawn=tunnelVolumes.firstPose();
+                try{
+                    const flightPreferences=flyer.status();
+                    await flyer.start({latitude:spawn.latitude,longitude:spawn.longitude,
+                        agl:1,flightMode:command.flightMode,maxSpeed:5,climbSpeed:3,
+                        acceleration:3,deceleration:4,
+                        cameraFovDegrees:flightPreferences.cameraFovDegrees,
+                        cameraTiltDegrees:flightPreferences.cameraTiltDegrees,
+                        hudStyle:flightPreferences.hudStyle,graphicsProfile:flightPreferences.graphicsProfile,
+                        showCoordinates:flightPreferences.showCoordinates},signal);
+                    signal.throwIfAborted();
+                    tunnelVolumes.activate();
+                    flyer.enterTunnel(spawn);
+                    return {active:true,quality:tunnelVolumes.model.quality};
+                }catch(error){flyer?.stop('Tunnel flight stopped');tunnelVolumes.stop();throw error;}
+            }
             case 'set-navigation-environment': return sceneEnvironment.navigation(command);
             case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
@@ -884,6 +925,17 @@ function postToFlutter(message) {
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable})
             : null;
+        tunnelVolumes = typeof FPVTunnelFlythrough !== 'undefined'
+            ? FPVTunnelFlythrough.create(Cesium,viewer,sendToFlutter,{
+                ready:terrainAvailable,
+                sampleTerrain:async(points,signal)=>{
+                    const positions=points.map(p=>Cesium.Cartographic.fromDegrees(p.longitude,p.latitude));
+                    const heights=await terrainManager.sample(provider=>provider.availability
+                        ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
+                        :Cesium.sampleTerrain(provider,12,positions,true),signal);
+                    return heights.map(p=>p.height);
+                }
+            }) : null;
         windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
         globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
         mapLabels = FPVMapLabels.create(Cesium,viewer,sendToFlutter,{cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
@@ -920,7 +972,7 @@ function postToFlutter(message) {
         const cameraAdapter={
             isTerrainReady: terrainAvailable,
             sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal)).heightMeters,
-            renderedHeight: flightRenderer.renderedHeight,
+            renderedHeight: point=>tunnelVolumes?.floorAt(point)??flightRenderer.renderedHeight(point),
             sampleWind: point=>windLayer.sample(point),
             applyGraphics: flightRenderer.applyGraphics,
             captureCamera: () => {
@@ -958,6 +1010,7 @@ function postToFlutter(message) {
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
             if(mode==='flight'){
                 if(!state.active&&!state.pending&&routePlayback?.active)routePlayback.interrupt('Flight simulator stopped');
+                if(!state.active&&!state.pending&&tunnelVolumes?.flight)tunnelVolumes.stop();
                 if(entering)applyFlightTime(requestedFlightTime??undefined);
                 else if(!state.active)sceneEnvironment.setTime({scope:'flight',enabled:false});
                 if(!state.active)windLayer.navigation(null);
@@ -993,7 +1046,12 @@ function postToFlutter(message) {
                     `Look: ${(point.pitch*180/Math.PI).toFixed(0)}°`+(deviceMessage?` | ${deviceMessage}`:'');
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
-            terrainCollision:flightRenderer.terrainCollision,
+            modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true,
+            terrainCollision:(from,to)=>{
+                if(tunnelVolumes?.flight &&
+                    (tunnelVolumes.floorAt(from)!=null||tunnelVolumes.floorAt(to)!=null))return false;
+                return flightRenderer.terrainCollision(from,to);
+            },
             applyPose:point=>{
                 applyCamera(point);
                 flightRecording.observe(point);

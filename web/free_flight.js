@@ -51,7 +51,7 @@
         const axis=(angle,x,y,z)=>({w:Math.cos(angle/2),x:x*Math.sin(angle/2),y:y*Math.sin(angle/2),z:z*Math.sin(angle/2)});
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
-    function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState,sampleWind=()=>null}){
+    function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState,sampleWind=()=>null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
@@ -203,6 +203,17 @@
             reason=null;pose();
         }
         function playbackEnd(){playback=false;clearKeys();brake();reason=null;pose();}
+        // An explicit user action enters validated SIMULATION-ONLY cross sections.
+        // The caller verifies the generated model and owns terrain clipping.
+        function enterTunnel(point){
+            if(!active||pending||playback||!valid(point)||
+                ![point.height,point.heading,point.ground].every(Number.isFinite))
+                throw Error('Cannot enter unsupported simulated tunnel.');
+            clearKeys();brake();position={latitude:point.latitude,longitude:point.longitude};
+            height=point.height;ground=point.ground;heading=point.heading;pitch=roll=0;
+            q=euler(heading,0,0);reason='SIMULATION ONLY – tunnel dimensions are not surveyed';
+            pose();publish();
+        }
         function tick(seconds){
             if(!active||playback)return;
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
@@ -217,6 +228,9 @@
             const dt=Math.min(seconds,.1),travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
+            if(modeledCollision({...position,height},{...endpoint,height:height+travel.up})){
+                brake();reason='Simulated tunnel surface contact: movement stopped';pose();return;
+            }
             if(terrainCollision?.({...position,height},{...endpoint,height:height+travel.up})){
                 brake();reason='Terrain contact: movement stopped';pose();return;
             }
@@ -244,7 +258,7 @@
             if(!active||!spawn)return {};
             return start({...spawn,...config},signal??new AbortController().signal);
         }
-        return {start,stop,reset,tick,status,playbackPose,playbackEnd,get active(){return active;},get flightMode(){return config.flightMode;},
+        return {start,stop,reset,tick,status,playbackPose,playbackEnd,enterTunnel,get active(){return active;},get flightMode(){return config.flightMode;},
             get controller(){return config.controller;},
             controllerSettings(value){
                 config={...config,controller:controller.configuration(value)};clearKeys();
