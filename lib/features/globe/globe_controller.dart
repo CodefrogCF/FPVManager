@@ -30,6 +30,8 @@ import '../mobility/navigation_location.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/controller_settings.dart';
 import '../simulation/flight_recording.dart';
+import '../simulation/route_playback.dart';
+import '../../core/models/flight_route.dart';
 import '../signal/live_radio_controller.dart';
 import '../../core/models/scene_time.dart';
 import '../weather/wind_field.dart';
@@ -777,6 +779,43 @@ class GlobeController extends ChangeNotifier {
     }, timeout: _bridge.options.terrainTimeout);
   }
 
+  /// Runs a saved route only inside Cesium's virtual simulator. No commands
+  /// are ever forwarded to a physical aircraft or controller.
+  Future<void> startRoutePlayback(
+    FlightRoute route,
+    SimulationSettings settings,
+  ) async {
+    if (!_ready || !_terrainAvailable || _simulationPending) {
+      throw StateError('Detailed terrain is required for route playback');
+    }
+    final request = RoutePlaybackRequest(route, settings);
+    await _bridge.send(
+      request.command,
+      timeout: _bridge.options.terrainTimeout,
+    );
+  }
+
+  String _playbackPhase = 'idle';
+  String get playbackPhase => _playbackPhase;
+  double get playbackProgress => _playbackProgress;
+  double _playbackProgress = 0;
+  String? _playbackMessage;
+  String? get playbackMessage => _playbackMessage;
+
+  Future<void> controlRoutePlayback(String action, {double? speed}) async {
+    if (!{'pause', 'resume', 'restart', 'stop', 'speed'}.contains(action)) {
+      throw ArgumentError.value(action, 'action');
+    }
+    if (action == 'speed' && !{.25, .5, 1.0, 2.0, 4.0}.contains(speed)) {
+      throw ArgumentError.value(speed, 'speed');
+    }
+    await _send({
+      'type': 'route-playback-control',
+      'action': action,
+      if (speed != null) 'speed': speed,
+    });
+  }
+
   Future<void> exitSimulation() => _send({'type': 'exit-simulation'});
   Future<void> exitNavigation() async {
     if (_groundViewActive || _groundViewPending) await exitGroundView();
@@ -1372,6 +1411,9 @@ class GlobeController extends ChangeNotifier {
   }
 
   void _resetConnection() {
+    _playbackPhase = 'idle';
+    _playbackProgress = 0;
+    _playbackMessage = 'Renderer disconnected; replay stopped.';
     _labelsState = labelsVisible ? 'loading' : 'off';
     obstacles.rendererLost();
     _situationalSelection = null;
@@ -1834,6 +1876,29 @@ class GlobeController extends ChangeNotifier {
     if (recording.handle(data)) return;
     if (obstacles.handleEvent(data)) return;
     switch (data['type']) {
+      case 'route-playback-state':
+        final phase = data['phase'];
+        if (phase is String &&
+            {
+              'idle',
+              'loading',
+              'playing',
+              'paused',
+              'stopped',
+              'finished',
+            }.contains(phase)) {
+          _playbackPhase = phase;
+          final progress = data['progress'];
+          if (progress is num && progress.isFinite) {
+            _playbackProgress = progress.toDouble().clamp(0.0, 1.0).toDouble();
+          }
+          final reason = data['reason'];
+          _playbackMessage = reason is String
+              ? reason.substring(0, reason.length.clamp(0, 160))
+              : null;
+          notifyListeners();
+        }
+
       case 'flight-radio-position':
         liveRadio.telemetry(data);
       case 'flight-radio-settings-request':
@@ -1980,6 +2045,9 @@ class GlobeController extends ChangeNotifier {
             : 'Route preview unavailable';
         notifyListeners();
       case 'renderer-loading':
+        _playbackPhase = 'idle';
+        _playbackProgress = 0;
+        _playbackMessage = 'Renderer restarted; replay stopped.';
         _resetConnection();
 
       case 'globe-ready':
@@ -1987,6 +2055,8 @@ class GlobeController extends ChangeNotifier {
         obstacles.rendererLost();
         _groundViewActive = _groundViewPending = false;
         _simulationActive = _simulationPending = _navigationFocused = false;
+        _playbackPhase = 'idle';
+        _playbackProgress = 0;
         unawaited(location.suspended(false));
         _simulationMessage = null;
         _groundViewMessage = null;

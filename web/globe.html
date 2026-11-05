@@ -151,6 +151,17 @@
     <div id="look-region"><div id="look-stick" hidden role="group" aria-label="Look or attitude joystick"><div id="look-thumb"></div></div></div>
     <div id="navigation-hud" data-style="goggles" hidden aria-label="Flight simulation HUD">
         <span id="hud-mode">SIM</span>
+        <section id="route-playback" hidden aria-label="Automatic route playback">
+            <output id="route-playback-info" aria-live="off"></output>
+            <progress id="route-playback-progress" value="0" max="1" aria-label="Route playback progress"></progress>
+            <div><button id="route-playback-pause" type="button">Pause</button>
+                <button id="route-playback-restart" type="button">Restart</button>
+                <button id="route-playback-stop" type="button">Stop replay</button>
+                <label>Speed <select id="route-playback-speed" aria-label="Route playback speed">
+                    <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+                    <option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+                </select></label></div>
+        </section>
         <output id="hud-coordinates" hidden aria-live="off" aria-label="Simulated position, WGS84 latitude and longitude" title="WGS84 · Latitude, longitude · Simulated position"></output>
         <svg class="hud-reticle" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h11m14 0h11M20 9v6"/></svg>
         <div id="flight-actions">

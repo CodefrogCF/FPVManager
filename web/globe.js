@@ -62,7 +62,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
@@ -172,7 +172,7 @@ function postToFlutter(message) {
         return mapProviders.imagery(style, Boolean(offlineReason()));
     }
 
-    function stopNavigation(reason = null) { walker?.stop(reason); flyer?.stop(reason); }
+    function stopNavigation(reason = null) { routePlayback?.interrupt(reason); walker?.stop(reason); flyer?.stop(reason); }
     function navigationActive() { return flyer?.active || walker?.status().active; }
     function simulationSpawn(command) {
         if (command.latitude != null || command.longitude != null) return {latitude:command.latitude,longitude:command.longitude};
@@ -637,6 +637,7 @@ function postToFlutter(message) {
             case "set-hazard-areas": await hazardAreas.replace(command,signal); return {};
             case "enter-ground-view": flyer?.stop(); return walker.start(command, signal);
             case "enter-simulation": {
+                if(routePlayback?.loaded)routePlayback.interrupt();
                 if(flyer.active)return flyer.reconfigure(command,signal);
                 const point = simulationSpawn(command); stopNavigation();
                 const preview=command.sceneTime??{enabled:false};
@@ -646,8 +647,19 @@ function postToFlutter(message) {
                 try{return await flyer.start({...command,...point},signal);}
                 finally{if(requestedFlightTime===preview)requestedFlightTime=null;}
             }
-            case "exit-simulation": flyer?.stop(); return {};
-            case "reset-simulation": return flyer.reset(signal);
+            case "exit-simulation": stopNavigation(); return {};
+            case "reset-simulation": return routePlayback?.loaded
+                ? routePlayback.control({action:'restart'}) : flyer.reset(signal);
+            case 'start-route-playback': {
+                stopNavigation();
+                const preview=command.settings?.sceneTime??{enabled:false};
+                if(typeof preview.enabled!=='boolean')throw Error('Invalid replay lighting preview');
+                FPVSceneEnvironment.time(preview.timeUtc);
+                requestedFlightTime=preview;
+                try{return await routePlayback.start(command,signal);}
+                finally{if(requestedFlightTime===preview)requestedFlightTime=null;}
+            }
+            case 'route-playback-control': return routePlayback.control(command);
             case 'flight-recording-control': return flightRecording.control(command);
             case 'set-flight-radio-monitor': return liveRadio.monitor(command);
             case 'query-live-radio-terrain': return liveRadio.sample(command,signal);
@@ -926,6 +938,7 @@ function postToFlutter(message) {
             if(mode==='flight')liveRadio.observe(state,true);
             const entering=state.active&&!lastModes[mode];lastModes[mode]=state.active;
             if(mode==='flight'){
+                if(!state.active&&!state.pending&&routePlayback?.active)routePlayback.interrupt('Flight simulator stopped');
                 if(entering)applyFlightTime(requestedFlightTime??undefined);
                 else if(!state.active)sceneEnvironment.setTime({scope:'flight',enabled:false});
                 if(!state.active)windLayer.navigation(null);
@@ -969,13 +982,44 @@ function postToFlutter(message) {
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
                 flightHud.update(point,viewer.camera.heading);
             },onState:state=>modeState('flight',state)});
+        const playbackPanel=document.getElementById('route-playback');
+        const playbackInfo=document.getElementById('route-playback-info');
+        const playbackPause=document.getElementById('route-playback-pause');
+        const playbackSpeed=document.getElementById('route-playback-speed');
+        const playbackProgress=document.getElementById('route-playback-progress');
+        const formatTime=value=>`${Math.floor(value/60)}:${String(Math.floor(value%60)).padStart(2,'0')}`;
+        const playbackDisplay=state=>{
+            playbackPanel.hidden=!state.loading&&!state.active&&state.phase!=='finished'&&state.phase!=='stopped';
+            playbackPause.disabled=!state.active;
+            playbackPause.textContent=state.phase==='paused'?'Resume':'Pause';
+            playbackProgress.value=state.progress;
+            playbackSpeed.value=String(state.speed);
+            playbackInfo.textContent=state.loading?'Preparing route & terrain…':
+                `${state.recorded?'Recorded':'Planned'} replay · ${state.phase} · ${formatTime(state.seconds)} / ${formatTime(state.duration)}`+
+                (state.assumedHeight?' · assumed AGL':'')+(state.assumedSpeed?(state.recorded?' · speed derived where missing':' · fallback speed'):'');
+        };
+        routePlayback=FPVRoutePlayback.create({simulator:flyer,
+            sampleGround:(points,signal)=>sampleRouteHeights(points,signal),
+            renderedGround:flightRenderer.renderedHeight,
+            emit:sendToFlutter,display:playbackDisplay});
+        const replayCommand=command=>{try{routePlayback.control(command);}catch(error){playbackInfo.textContent=error.message;}};
+        playbackPause.addEventListener('click',()=>replayCommand({action:routePlayback.status().phase==='paused'?'resume':'pause'}));
+        document.getElementById('route-playback-stop').addEventListener('click',()=>replayCommand({action:'stop'}));
+        document.getElementById('route-playback-restart').addEventListener('click',()=>replayCommand({action:'restart'}));
+        playbackSpeed.addEventListener('change',()=>replayCommand({action:'speed',speed:Number(playbackSpeed.value)}));
+        playbackDisplay(routePlayback.status());
+        const playbackBlocking=()=>routePlayback?.active===true;
         const currentAgent=()=>flyer.active?flyer:walker;
         const navigation={status:()=>({active:!!navigationActive(),mode:flyer.active?flyer.flightMode:'ground',controller:flyer.controller}),stop:stopNavigation,
-            key:(...args)=>currentAgent().key(...args),stick:(...args)=>currentAgent().stick(...args),
-            look:(...args)=>currentAgent().look(...args),flightInput:frame=>flyer.flightInput(frame),
-            vertical:v=>{if(flyer.active)flyer.vertical(v);},
-            pause:value=>flyer.pause(value),clearKeys:()=>{walker.clearKeys();flyer.clearKeys();},
-            reset:()=>{if(flyer.active)flyer.reset().catch(()=>{});}};
+            key:(...args)=>{if(!playbackBlocking())currentAgent().key(...args);},
+            stick:(...args)=>{if(!playbackBlocking())currentAgent().stick(...args);},
+            look:(...args)=>{if(!playbackBlocking())currentAgent().look(...args);},
+            flightInput:frame=>{if(!playbackBlocking())flyer.flightInput(frame);},
+            vertical:v=>{if(flyer.active&&!playbackBlocking())flyer.vertical(v);},
+            pause:value=>{if(playbackBlocking())replayCommand({action:value?'pause':'resume'});else flyer.pause(value);},
+            clearKeys:()=>{walker.clearKeys();flyer.clearKeys();},
+            reset:()=>{if(routePlayback?.loaded)replayCommand({action:'restart'});
+                else if(flyer.active)flyer.reset().catch(()=>{});}};
         const controllerInterruptions=[];
         disposeGroundControls=FPVNavigationControls.bindControls(navigation,viewer.canvas,groundPanel,window,document,{
             onFocus:focused=>sendToFlutter('navigation-focus',{focused}),
@@ -989,8 +1033,10 @@ function postToFlutter(message) {
         document.getElementById('flight-show-touch').addEventListener('change',event=>{
             setTouchControls(event.target.checked);sendToFlutter('touch-controls-changed',{visible:touchControlsVisible});
         });
-        document.getElementById('reset-flight').addEventListener('click',()=>flyer.reset().catch(()=>{}));
-        document.getElementById('exit-flight').addEventListener('click',()=>flyer.stop());
+        document.getElementById('reset-flight').addEventListener('click',()=>{
+            if(routePlayback?.loaded)replayCommand({action:'restart'});else flyer.reset().catch(()=>{});
+        });
+        document.getElementById('exit-flight').addEventListener('click',()=>stopNavigation());
         settingsButton.addEventListener('click',()=>{
             settingsPanel.hidden=!settingsPanel.hidden;
             settingsButton.setAttribute('aria-expanded',String(!settingsPanel.hidden));
@@ -1007,7 +1053,8 @@ function postToFlutter(message) {
         let lastWalkTime=performance.now();
         viewer.scene.preRender.addEventListener(()=>{
             const now=performance.now(),seconds=(now-lastWalkTime)/1000;lastWalkTime=now;
-            disposeGroundControls.tick(seconds);walker.tick(seconds);flyer.tick(seconds);
+            disposeGroundControls.tick(seconds);walker.tick(seconds);
+            if(routePlayback?.active)routePlayback.tick(seconds);else flyer.tick(seconds);
         });
         const sampleRouteHeights = async (points, signal) => {
             if (!terrainAvailable()) throw new Error("Detailed terrain is required for the route preview");

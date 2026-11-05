@@ -52,7 +52,7 @@
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
     function createSimulator({sampleHeight,renderedHeight,terrainCollision,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState,sampleWind=()=>null}){
-        let active=false,pending=false,paused=false,operation=0,abort=null,saved=null,spawn=null,position=null;
+        let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
@@ -67,7 +67,7 @@
             const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
@@ -77,7 +77,7 @@
         function pose(){applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
         function stop(message=null){
             const running=active||pending;
-            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;active=pending=paused=false;reason=message;
+            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;active=pending=paused=playback=false;reason=message;
             windInfo=null;wind={north:0,east:0,up:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -188,8 +188,23 @@
             }
             return {north,east,up};
         }
+        function playbackPose(point){
+            if(!active||config.flightMode!=='gps'||!point||
+               !valid(point)||!Number.isFinite(point.height)||
+               !Number.isFinite(point.heading)||!Number.isFinite(point.pitch)||
+               !Number.isFinite(point.speed))throw Error('Invalid replay pose');
+            playback=true;clearKeys();
+            position={latitude:point.latitude,longitude:point.longitude};
+            height=point.height;heading=point.heading;pitch=point.pitch;roll=0;
+            ground=Number.isFinite(point.ground)?point.ground:null;
+            q=euler(heading,-pitch,0);
+            velocity={north:Math.cos(heading)*point.speed*Math.cos(pitch),
+                east:Math.sin(heading)*point.speed*Math.cos(pitch),up:Math.sin(pitch)*point.speed};
+            reason=null;pose();
+        }
+        function playbackEnd(){playback=false;clearKeys();brake();reason=null;pose();}
         function tick(seconds){
-            if(!active)return;
+            if(!active||playback)return;
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
             const floor=renderedHeight(position);ground=Number.isFinite(floor)?floor:null;
             if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
@@ -229,7 +244,7 @@
             if(!active||!spawn)return {};
             return start({...spawn,...config},signal??new AbortController().signal);
         }
-        return {start,stop,reset,tick,status,get active(){return active;},get flightMode(){return config.flightMode;},
+        return {start,stop,reset,tick,status,playbackPose,playbackEnd,get active(){return active;},get flightMode(){return config.flightMode;},
             get controller(){return config.controller;},
             controllerSettings(value){
                 config={...config,controller:controller.configuration(value)};clearKeys();
@@ -259,15 +274,15 @@
                 if(active){pose();publish();}
             },
             reconfigure(command,signal){if(!active||!spawn)throw new Error('No active simulation');return start({...command,...spawn},signal);},
-            look(dx,dy){if(active&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
+            look(dx,dy){if(active&&!playback&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
                 heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},
-            key(key,down){if(down&&active)keys.add(key);else keys.delete(key);},
-            stick(f,r){if(Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
-            flightInput(frame){if(active&&frame&&Number.isFinite(frame.throttle)&&Number.isFinite(frame.yaw)&&Number.isFinite(frame.pitch)&&Number.isFinite(frame.roll)){
+            key(key,down){if(playback)return;if(down&&active)keys.add(key);else keys.delete(key);},
+            stick(f,r){if(!playback&&Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
+            flightInput(frame){if(active&&!playback&&frame&&Number.isFinite(frame.throttle)&&Number.isFinite(frame.yaw)&&Number.isFinite(frame.pitch)&&Number.isFinite(frame.roll)){
                 input.throttle=clamp(frame.throttle,-1,1);input.yaw=clamp(frame.yaw,-1,1);
                 input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);}},
-            vertical(v){if(Number.isFinite(v))vertical=clamp(v,-1,1);},
-            pause(value){if(paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
+            vertical(v){if(!playback&&Number.isFinite(v))vertical=clamp(v,-1,1);},
+            pause(value){if(!playback&&paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};
     }
     return {createSimulator,parameters,distance,bearing,rateCommand};

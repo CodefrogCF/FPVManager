@@ -247,18 +247,30 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
                     ? 'Stored on this device'
                     : _recordingSummary(recorded),
               ),
-              trailing: PopupMenuButton<RouteFileFormat>(
-                tooltip: 'Export ${route.name}',
-                enabled: !_transferring,
-                onSelected: (format) => _export(route.id, format),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: RouteFileFormat.geoJson,
-                    child: Text('Export GeoJSON'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Simulate flight: ${route.name}',
+                    icon: const Icon(Icons.play_circle_outline),
+                    onPressed: _transferring
+                        ? null
+                        : () => Navigator.of(context).pop(route.id),
                   ),
-                  PopupMenuItem(
-                    value: RouteFileFormat.gpx,
-                    child: Text('Export GPX'),
+                  PopupMenuButton<RouteFileFormat>(
+                    tooltip: 'Export ${route.name}',
+                    enabled: !_transferring,
+                    onSelected: (format) => _export(route.id, format),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: RouteFileFormat.geoJson,
+                        child: Text('Export GeoJSON'),
+                      ),
+                      PopupMenuItem(
+                        value: RouteFileFormat.gpx,
+                        child: Text('Export GPX'),
+                      ),
+                    ],
                   ),
                 ],
               ),

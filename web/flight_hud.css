@@ -111,3 +111,16 @@
     #ground-controls[data-mode="flight"] ~ #look-region #look-stick,#ground-controls[data-mode="gps"] ~ #look-region #look-stick { width:84px; }
     #flight-buttons button { height:32px;width:36px; }
 }
+/* Bounded replay controls are interactive without covering the flight viewport. */
+#route-playback { position:absolute;left:max(12px,env(safe-area-inset-left));
+    top:max(57px,calc(env(safe-area-inset-top) + 50px));max-width:min(580px,calc(100vw - 24px));
+    display:grid;gap:5px;padding:8px 10px;border-radius:10px;pointer-events:auto;
+    background:#101820d9;border:1px solid #ffffff4a;font-size:12px; }
+#route-playback[hidden] { display:none; }
+#route-playback-info {max-width:100%;white-space:normal;}
+#route-playback-progress {width:100%;height:7px;accent-color:#4cae7d;}
+#route-playback > div {display:flex;flex-wrap:wrap;align-items:center;gap:5px;}
+#route-playback button,#route-playback select {background:#223b34;border:1px solid #8dac9c;
+    color:#fff;border-radius:6px;padding:5px 7px;cursor:pointer;}
+#route-playback button:disabled {opacity:.45;cursor:default;}
+#route-playback label {display:flex;align-items:center;gap:4px;}

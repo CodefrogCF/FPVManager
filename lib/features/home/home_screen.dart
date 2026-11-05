@@ -798,7 +798,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     final repository = _flightPlanRepository ??=
         widget.flightPlanRepository ??
         FlightPlanRepository(_database ??= FpvDatabase.open());
-    await Navigator.of(context).push<void>(
+    final playbackId = await Navigator.of(context).push<int>(
       MaterialPageRoute(
         builder: (context) => FlightRoutesScreen(
           cachedMaps: _cachedMaps,
@@ -815,6 +815,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ),
     );
     if (mounted) await _globeController.retryLoadingPreferences();
+    if (!mounted || playbackId == null) return;
+    await _runCommand(() async {
+      final route = await repository.getRoute(playbackId);
+      if (route == null) {
+        throw StateError('The selected route no longer exists');
+      }
+      await _globeController.startRoutePlayback(route, _simulationSettings);
+    });
   }
 
   Future<void> _openSpotDetails(int id) async {
@@ -1145,6 +1153,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                       cachedMaps: _cachedMaps,
                       onPressed: _openMapStatus,
                     ),
+                    if (_globeController.playbackPhase == 'loading')
+                      IconButton(
+                        tooltip: 'Cancel route replay preparation',
+                        onPressed: () => _runCommand(
+                          () => _globeController.controlRoutePlayback('stop'),
+                        ),
+                        icon: const Icon(Icons.cancel_outlined),
+                      ),
                     if (_globeController.simulationActive)
                       _mapActions(compact: true),
                   ],
