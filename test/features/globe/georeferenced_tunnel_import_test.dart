@@ -108,7 +108,7 @@ void main() {
         'flight': false,
         'pending': false,
         'quality': 'external-mesh-unverified',
-        'source': 'Local demonstration only',
+        'datasetSource': 'Local demonstration only',
         'canFly': false,
         'visualTriangles': 1,
         'collisionTriangles': 1,

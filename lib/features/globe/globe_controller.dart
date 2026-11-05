@@ -2553,10 +2553,10 @@ class GlobeController extends ChangeNotifier {
           _tunnelCollisionTriangles = data['collisionTriangles'] is int
               ? data['collisionTriangles'] as int
               : null;
-          _tunnelModelSource = data['source'] is String
-              ? (data['source'] as String).substring(
+          _tunnelModelSource = data['datasetSource'] is String
+              ? (data['datasetSource'] as String).substring(
                   0,
-                  (data['source'] as String).length.clamp(0, 256),
+                  (data['datasetSource'] as String).length.clamp(0, 256),
                 )
               : null;
           _tunnelModelQuality = data['quality'] is String

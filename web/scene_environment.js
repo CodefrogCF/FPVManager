@@ -974,7 +974,7 @@
         let model=null,primitive=null,clipping=null,oldClipping=null,flight=false,collisionEnabled=false,revision=0,disposed=false,pending=false;
         const scene=viewer.scene;
         function publish(error=null){emit('tunnel-model-state',{ready:!!model,flight,pending,
-            quality:model?.quality??null,label:model?.label??null,source:model?.source??null,
+            quality:model?.quality??null,label:model?.label??null,datasetSource:model?.source??null,
             canFly:model?model.kind!=='georeferenced-trimesh'||model.canFly:false,
             visualTriangles:model?.visualMesh?.triangles.length??null,
             collisionTriangles:model?.collisionGeometry?.triangles.length??null,error});}
