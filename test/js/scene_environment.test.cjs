@@ -118,3 +118,51 @@ test('sun lighting remains active close to ground for satellite and relief image
  assert.equal(g.nightFadeOutDistance,10000000);assert.equal(g.nightFadeInDistance,50000000);
  assert.equal(g.vertexShadowDarkness,.3);manager.dispose();
 });
+
+test('official swisstopo infrastructure tileset loads independently, is selectable and releases resources',async()=>{
+    const p=fixture();p.set({buildings:false,vegetation:false,structures:true});await flush();
+    assert.equal(p.requests.length,1);
+    assert.match(p.requests[0].url,/ch\.swisstopo\.swisstlm3d\.3d\/v1\/tileset\.json/);
+    const tile=p.primitives[0];assert.equal(tile.show,true);
+    assert.ok(tile.cacheBytes<=16*1024*1024);
+    assert.equal(p.credits.size,1);
+    const selected=[];
+    // The tile selection preserves only metadata actually published by the service.
+    const pick={content:{tileset:tile},getPropertyIds:()=>['sourceId','name'],
+        getProperty:key=>key==='sourceId'?'swiss-5':'Bridge'};
+    const status=p.manager.pick(pick);
+    assert.equal(status,true);
+    assert.equal(p.states.at(-1).type,'infrastructure-selected');
+    assert.equal(p.states.at(-1).attributes.sourceId,'swiss-5');
+    assert.equal(p.manager.pick({}),false);
+    p.set({structures:false});
+    assert.equal(p.primitives.length,0);
+    assert.equal(tile.isDestroyed(),true);
+    assert.equal(p.credits.size,0);
+    p.set({structures:true});await flush();assert.equal(p.requests.length,2);
+    assert.equal(p.primitives.length,1);
+    p.manager.dispose();assert.equal(p.primitives.length,0);
+});
+test('offline, tile errors and renderer disposal keep infrastructure incomplete without inventing geometry',async()=>{
+    const p=fixture(undefined,{cachedOnly:true});p.set({structures:true});await flush();
+    assert.equal(p.primitives.length,0);
+    assert.equal(p.states.at(-1).state,'offline');
+    p.manager.dispose();
+    const q=fixture();q.set({structures:true});await flush();
+    const tile=q.primitives[0];tile.tileFailed.fire();
+    assert.equal(q.states.at(-1).state,'partial');
+    q.manager.dispose();
+    assert.equal(tile.isDestroyed(),true);
+});
+
+
+test('structure transparency is independently configurable and rejects invalid ranges',async()=>{
+ const p=fixture();
+ p.C.Cesium3DTileStyle=class{constructor(style){this.color=style.color}};
+ p.set({structures:true,structuresOpacity:.5});await flush();
+ assert.equal(p.primitives[0].style.color,"color('white', 0.5)");
+ p.set({buildings:true,structures:true,structuresOpacity:.8});await flush();
+ assert.equal(p.primitives[0].style.color,"color('white', 0.8)");
+ assert.throws(()=>p.set({structures:true,structuresOpacity:1.5}));
+ p.manager.dispose();
+});

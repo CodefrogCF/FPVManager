@@ -53,6 +53,11 @@ void main() {
           avalancheOpacity: .4,
           buildings3dVisible: true,
           vegetation3dVisible: true,
+          structures3dVisible: true,
+          structuresOpacity: .65,
+          tunnelRoutesVisible: true,
+          tunnelRoutesOpacity: .55,
+          tunnelExplorationEnabled: true,
           realisticLighting: true,
           navigationBuildings: NavigationEnvironmentMode.disabled,
           navigationVegetation: NavigationEnvironmentMode.enabled,
@@ -73,11 +78,21 @@ void main() {
       expect(queue.current.avalancheOpacity, .4);
       expect(queue.current.buildings3dVisible, isTrue);
       expect(queue.current.vegetation3dVisible, isTrue);
+      expect(queue.current.structures3dVisible, isTrue);
+      expect(queue.current.structuresOpacity, .65);
+      expect(queue.current.tunnelRoutesVisible, isTrue);
+      expect(queue.current.tunnelRoutesOpacity, .55);
+      expect(queue.current.tunnelExplorationEnabled, isTrue);
       expect(queue.current.realisticLighting, isTrue);
       final reopened = await UserPreferencesRepository(database)
           .getPreferences();
       expect(reopened.navigationBuildings, NavigationEnvironmentMode.disabled);
       expect(reopened.navigationVegetation, NavigationEnvironmentMode.enabled);
+      expect(reopened.structures3dVisible, isTrue);
+      expect(reopened.structuresOpacity, .65);
+      expect(reopened.tunnelRoutesVisible, isTrue);
+      expect(reopened.tunnelRoutesOpacity, .55);
+      expect(reopened.tunnelExplorationEnabled, isTrue);
       expect(queue.current.hazardAreasVisible, isTrue);
       expect(queue.current.obstacleModelsVisible, isTrue);
       expect(
@@ -89,7 +104,15 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      expect(rows, hasLength(25));
+      // 29 FPVManager-owned keys, including the five infrastructure settings,
+      // plus the unrelated key that must survive snapshots and reset.
+      expect(rows, hasLength(30));
+      final stored = {for (final row in rows) row.key: row.value};
+      expect(stored['map.scene.structures'], 'true');
+      expect(stored['map.scene.structures.opacity'], '0.65');
+      expect(stored['map.scene.tunnelRoutes'], 'true');
+      expect(stored['map.scene.tunnelRoutes.opacity'], '0.55');
+      expect(stored['map.scene.tunnelExploration'], 'true');
       expect(
         rows.singleWhere((row) => row.key == 'map.outdoor.v1').value,
         '{}',
@@ -111,7 +134,13 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(25));
+      expect(await database.select(database.appSettings).get(), hasLength(30));
+      final resetToDefaults = await repository.getPreferences();
+      expect(resetToDefaults.structures3dVisible, isFalse);
+      expect(resetToDefaults.structuresOpacity, 1.0);
+      expect(resetToDefaults.tunnelRoutesVisible, isFalse);
+      expect(resetToDefaults.tunnelRoutesOpacity, .85);
+      expect(resetToDefaults.tunnelExplorationEnabled, isFalse);
       await repository.resetPreferences();
       expect(
         (await repository.getPreferences()).obstacleModelsVisible,
@@ -120,6 +149,12 @@ void main() {
       expect(
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.satellite,
+      );
+      expect((await repository.getPreferences()).structures3dVisible, isFalse);
+      expect((await repository.getPreferences()).tunnelRoutesVisible, isFalse);
+      expect(
+        (await repository.getPreferences()).tunnelExplorationEnabled,
+        isFalse,
       );
       expect(
         (await database.select(database.appSettings).get()).single.key,

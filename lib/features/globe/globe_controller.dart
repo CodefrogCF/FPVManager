@@ -400,6 +400,11 @@ class GlobeController extends ChangeNotifier {
   final Map<String, String> _sceneLayerStates = {};
   bool get buildings3dVisible => _preferences.buildings3dVisible;
   bool get vegetation3dVisible => _preferences.vegetation3dVisible;
+  bool get structures3dVisible => _preferences.structures3dVisible;
+  double get structuresOpacity => _preferences.structuresOpacity;
+  double get tunnelRoutesOpacity => _preferences.tunnelRoutesOpacity;
+  bool get tunnelRoutesVisible => _preferences.tunnelRoutesVisible;
+  bool get tunnelExplorationEnabled => _preferences.tunnelExplorationEnabled;
   bool get realisticLighting => _preferences.realisticLighting;
   NavigationEnvironmentMode get navigationBuildings =>
       _preferences.navigationBuildings;
@@ -429,6 +434,116 @@ class GlobeController extends ChangeNotifier {
   }
 
   String sceneLayerStatus(String key) => _sceneLayerStates[key] ?? 'hidden';
+
+  List<Map<String, dynamic>> _tunnelRoutes = const [];
+  List<Map<String, dynamic>> get tunnelRoutes =>
+      List.unmodifiable(_tunnelRoutes);
+  String? _tunnelScanError;
+  String? get tunnelScanError => _tunnelScanError;
+  bool _tunnelScanPending = false;
+  bool get tunnelScanPending => _tunnelScanPending;
+  bool _tunnelScanIncomplete = false;
+  bool get tunnelScanIncomplete => _tunnelScanIncomplete;
+  bool _tunnelExploring = false;
+  bool get tunnelExploring => _tunnelExploring;
+  String? _tunnelExploreMessage;
+  String? get tunnelExploreMessage => _tunnelExploreMessage;
+  Map<String, dynamic>? _selectedInfrastructure;
+  Map<String, dynamic>? get selectedInfrastructure => _selectedInfrastructure;
+  int _tunnelScanSequence = 0;
+
+  Map<String, dynamic> get _tunnelCommand => {
+    'type': 'set-tunnel-infrastructure',
+    'routesVisible': tunnelRoutesVisible,
+    'explorationAllowed': tunnelExplorationEnabled,
+    'opacity': tunnelRoutesOpacity,
+  };
+
+  Future<void> setTunnelInfrastructure({
+    bool? routesVisible,
+    bool? explorationAllowed,
+    double? opacity,
+  }) async {
+    if (opacity != null && (!opacity.isFinite || opacity < .2 || opacity > 1)) {
+      throw ArgumentError.value(opacity, 'opacity');
+    }
+    _checkPreferencesEditable();
+    await _savePreferences(
+      _preferences.copyWith(
+        tunnelRoutesVisible: routesVisible,
+        tunnelExplorationEnabled: explorationAllowed,
+        tunnelRoutesOpacity: opacity,
+      ),
+    );
+    if (!tunnelRoutesVisible) {
+      _tunnelRoutes = const [];
+      _tunnelScanError = null;
+      _tunnelExploring = false;
+      _tunnelScanSequence++;
+    }
+    if (_ready) await _send(_tunnelCommand);
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> scanTunnelRoutes({int radiusMeters = 600}) async {
+    if (_tunnelScanPending || !tunnelRoutesVisible) return;
+    if (radiusMeters < 150 || radiusMeters > 1500) {
+      throw ArgumentError.value(radiusMeters, 'radiusMeters');
+    }
+    final seq = ++_tunnelScanSequence;
+    final generation = _connectionGeneration;
+    _tunnelScanPending = true;
+    _tunnelScanError = null;
+    notifyListeners();
+    try {
+      final result = await _request({
+        'type': 'scan-tunnel-infrastructure',
+        'radiusMeters': radiusMeters,
+      }, timeout: const Duration(seconds: 20));
+      if (seq != _tunnelScanSequence ||
+          generation != _connectionGeneration ||
+          _disposed) {
+        return;
+      }
+      final raw = result['routes'];
+      if (raw is! List || raw.length > 48) {
+        throw const FormatException('Invalid tunnel search result');
+      }
+      final parsed = <Map<String, dynamic>>[];
+      for (final item in raw) {
+        if (item is! Map<String, dynamic> ||
+            item['id'] is! String ||
+            (item['id'] as String).length > 150 ||
+            item['name'] is! String ||
+            item['kind'] is! String ||
+            item['source'] is! String) {
+          throw const FormatException('Invalid tunnel route metadata');
+        }
+        parsed.add(item);
+      }
+      _tunnelRoutes = List.unmodifiable(parsed);
+      _tunnelScanIncomplete = result['incomplete'] == true;
+    } catch (error) {
+      if (seq == _tunnelScanSequence && !_disposed) {
+        _tunnelScanError = error.toString();
+        _tunnelRoutes = const [];
+      }
+    } finally {
+      if (seq == _tunnelScanSequence && !_disposed) {
+        _tunnelScanPending = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> focusTunnelRoute(String id, {bool end = false}) =>
+      _send({'type': 'focus-tunnel-route', 'routeId': id, 'end': end});
+
+  Future<void> exploreTunnelRoute(String id) =>
+      _send({'type': 'explore-tunnel-route', 'routeId': id});
+
+  Future<void> exitTunnelExploration() =>
+      _send({'type': 'exit-tunnel-exploration'});
   SceneTime? _simulationSceneTime;
   SceneTime? get simulationSceneTime => _simulationSceneTime;
 
@@ -436,6 +551,8 @@ class GlobeController extends ChangeNotifier {
     'type': 'set-scene-environment',
     'buildings': buildings3dVisible,
     'vegetation': vegetation3dVisible,
+    'structures': structures3dVisible,
+    'structuresOpacity': structuresOpacity,
     'lighting': realisticLighting,
     'retry': ?retry,
   };
@@ -443,18 +560,33 @@ class GlobeController extends ChangeNotifier {
   Future<void> setSceneEnvironment({
     bool? buildings,
     bool? vegetation,
+    bool? structures,
+    double? structuresOpacity,
     bool? lighting,
     String? retry,
   }) async {
     _checkPreferencesEditable();
-    if (retry != null && !['buildings', 'vegetation'].contains(retry)) {
+    if (retry != null &&
+        !['buildings', 'vegetation', 'structures'].contains(retry)) {
       throw ArgumentError('Unknown 3D layer');
     }
-    if (buildings != null || vegetation != null || lighting != null) {
+    if (structuresOpacity != null &&
+        (!structuresOpacity.isFinite ||
+            structuresOpacity < .2 ||
+            structuresOpacity > 1)) {
+      throw ArgumentError.value(structuresOpacity, 'structuresOpacity');
+    }
+    if (buildings != null ||
+        vegetation != null ||
+        structures != null ||
+        structuresOpacity != null ||
+        lighting != null) {
       await _savePreferences(
         _preferences.copyWith(
           buildings3dVisible: buildings,
           vegetation3dVisible: vegetation,
+          structures3dVisible: structures,
+          structuresOpacity: structuresOpacity,
           realisticLighting: lighting,
         ),
       );
@@ -2045,12 +2177,25 @@ class GlobeController extends ChangeNotifier {
             : 'Route preview unavailable';
         notifyListeners();
       case 'renderer-loading':
+        _tunnelScanSequence++;
+        _tunnelRoutes = const [];
+        _selectedInfrastructure = null;
+        _tunnelExploring = false;
+        _tunnelScanPending = false;
+        _tunnelScanError = null;
         _playbackPhase = 'idle';
         _playbackProgress = 0;
         _playbackMessage = 'Renderer restarted; replay stopped.';
         _resetConnection();
 
       case 'globe-ready':
+        _tunnelScanSequence++;
+        _tunnelRoutes = const [];
+        _tunnelScanPending = false;
+        _tunnelExploring = false;
+        _tunnelScanError = null;
+        _tunnelScanIncomplete = false;
+        _selectedInfrastructure = null;
         if (_ready && previousSession == _bridge.session) return;
         obstacles.rendererLost();
         _groundViewActive = _groundViewPending = false;
@@ -2107,8 +2252,26 @@ class GlobeController extends ChangeNotifier {
           _labelsState = data['state'] as String;
           notifyListeners();
         }
+      case 'infrastructure-selected':
+        if (data['source'] is String &&
+            (data['source'] as String).startsWith('ch.swisstopo.') &&
+            data.length <= 16) {
+          _selectedInfrastructure = Map.unmodifiable(data);
+          notifyListeners();
+        }
+      case 'infrastructure-exploration-status':
+        if (data['active'] is bool) {
+          _tunnelExploring = data['active'] as bool;
+          _tunnelExploreMessage = data['message'] is String
+              ? (data['message'] as String).substring(
+                  0,
+                  (data['message'] as String).length.clamp(0, 200),
+                )
+              : null;
+          notifyListeners();
+        }
       case 'scene-layer-status':
-        if (['buildings', 'vegetation'].contains(data['layer']) &&
+        if (['buildings', 'vegetation', 'structures'].contains(data['layer']) &&
             [
               'hidden',
               'loading',
@@ -2390,8 +2553,13 @@ class GlobeController extends ChangeNotifier {
       if (forceSettings ||
           buildings3dVisible ||
           vegetation3dVisible ||
+          structures3dVisible ||
           realisticLighting) {
         await _send(_sceneCommand());
+      }
+      if (!current()) return;
+      if (forceSettings || tunnelRoutesVisible || tunnelExplorationEnabled) {
+        await _send(_tunnelCommand);
       }
       if (!current()) return;
       if (forceSettings || _requestedMapStyle != GlobeMapStyle.satellite) {

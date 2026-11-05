@@ -53,7 +53,7 @@ function postToFlutter(message) {
         stopNavigation();
         if (!event.persisted) liveRadio?.dispose();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); meteoswissRadar.dispose(); datedImagery.dispose(); terrainManager?.dispose(); bridge.dispose(); }
-        if (!event.persisted) sceneEnvironment?.dispose();
+        if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) mapLabels?.dispose();
@@ -62,7 +62,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, tunnels = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
@@ -172,7 +172,7 @@ function postToFlutter(message) {
         return mapProviders.imagery(style, Boolean(offlineReason()));
     }
 
-    function stopNavigation(reason = null) { routePlayback?.interrupt(reason); walker?.stop(reason); flyer?.stop(reason); }
+    function stopNavigation(reason = null) { tunnels?.stop(); routePlayback?.interrupt(reason); walker?.stop(reason); flyer?.stop(reason); }
     function navigationActive() { return flyer?.active || walker?.status().active; }
     function simulationSpawn(command) {
         if (command.latitude != null || command.longitude != null) return {latitude:command.latitude,longitude:command.longitude};
@@ -666,6 +666,22 @@ function postToFlutter(message) {
             case 'set-live-radio-result': return liveRadio.set(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-scene-environment': return sceneEnvironment.set(command);
+            case 'set-tunnel-infrastructure': return tunnels.set(command);
+            case 'scan-tunnel-infrastructure': {
+                // Explicit one-shot viewport query: never scan every camera movement.
+                const canvas = activeViewer.canvas;
+                const ray = activeViewer.camera.getPickRay(new Cesium.Cartesian2(
+                    canvas.clientWidth / 2, canvas.clientHeight / 2));
+                const hit = ray && activeViewer.scene.globe.pick(ray, activeViewer.scene);
+                if (!hit) throw Error('Point the center of the map at Swiss terrain before searching for tunnel axes.');
+                const center = Cesium.Cartographic.fromCartesian(hit);
+                return tunnels.scan({longitude: Cesium.Math.toDegrees(center.longitude),
+                    latitude: Cesium.Math.toDegrees(center.latitude),
+                    radiusMeters: command.radiusMeters ?? 600}, signal);
+            }
+            case 'focus-tunnel-route': stopNavigation(); return tunnels.focus(command);
+            case 'explore-tunnel-route': stopNavigation(); return tunnels.explore(command);
+            case 'exit-tunnel-exploration': tunnels.stop(); return {}; 
             case 'set-navigation-environment': return sceneEnvironment.navigation(command);
             case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
@@ -865,6 +881,9 @@ function postToFlutter(message) {
         activeViewer = viewer;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
             cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
+        tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
+            ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable})
+            : null;
         windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
         globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
         mapLabels = FPVMapLabels.create(Cesium,viewer,sendToFlutter,{cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
@@ -1104,6 +1123,7 @@ function postToFlutter(message) {
                     ? picked.id
                     : picked?.primitive?.id;
 
+                if (sceneEnvironment?.pick?.(picked)) return;
                 const obstacle = obstacleVectors.pick(entity) || hazardAreas.pick(entity);
                 if (obstacle) {
                     selectedPointInfo = null; terrainInfo(terrainManager.status());
@@ -1111,6 +1131,7 @@ function postToFlutter(message) {
                 }
                 sendToFlutter('obstacle-cleared');
                 if (navigationActive() || routeEditor.click(event.position)) return;
+                if (tunnels?.pick(entity)) return;
                 if (situationalLayers.pick(entity)) return;
 
                 const isUasZone =

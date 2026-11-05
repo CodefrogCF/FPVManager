@@ -38,6 +38,11 @@ final class DriftUserPreferencesRepository
   static const _avalancheOpacity = 'map.avalanche.opacity';
   static const _buildings = 'map.scene.buildings';
   static const _vegetation = 'map.scene.vegetation';
+  static const _structures = 'map.scene.structures';
+  static const _structuresOpacity = 'map.scene.structures.opacity';
+  static const _tunnelRoutesOpacity = 'map.scene.tunnelRoutes.opacity';
+  static const _tunnels = 'map.scene.tunnelRoutes';
+  static const _exploration = 'map.scene.tunnelExploration';
   static const _lighting = 'map.scene.lighting';
   static const _navigationBuildings = 'navigation.scene.buildings';
   static const _navigationVegetation = 'navigation.scene.vegetation';
@@ -64,6 +69,11 @@ final class DriftUserPreferencesRepository
     _avalancheOpacity,
     _buildings,
     _vegetation,
+    _structures,
+    _structuresOpacity,
+    _tunnelRoutesOpacity,
+    _tunnels,
+    _exploration,
     _lighting,
     _navigationBuildings,
     _navigationVegetation,
@@ -133,6 +143,14 @@ final class DriftUserPreferencesRepository
           ? defaults.roadsOpacity
           : double.parse(values[_roadsOpacity]!);
       _validateOpacity(roadsOpacity);
+      final structuresOpacity = values[_structuresOpacity] == null
+          ? defaults.structuresOpacity
+          : double.parse(values[_structuresOpacity]!);
+      final tunnelRoutesOpacity = values[_tunnelRoutesOpacity] == null
+          ? defaults.tunnelRoutesOpacity
+          : double.parse(values[_tunnelRoutesOpacity]!);
+      _validateOpacity(structuresOpacity);
+      _validateOpacity(tunnelRoutesOpacity);
       final wmsOpacity = values[_wmsOpacity] == null
           ? defaults.obstacleWmsOpacity
           : double.parse(values[_wmsOpacity]!);
@@ -187,6 +205,17 @@ final class DriftUserPreferencesRepository
           _vegetation,
           defaults.vegetation3dVisible,
         ),
+        structures3dVisible: readBool(
+          _structures,
+          defaults.structures3dVisible,
+        ),
+        structuresOpacity: structuresOpacity,
+        tunnelRoutesOpacity: tunnelRoutesOpacity,
+        tunnelRoutesVisible: readBool(_tunnels, defaults.tunnelRoutesVisible),
+        tunnelExplorationEnabled: readBool(
+          _exploration,
+          defaults.tunnelExplorationEnabled,
+        ),
         realisticLighting: readBool(_lighting, defaults.realisticLighting),
         navigationBuildings: values[_navigationBuildings] == null
             ? defaults.navigationBuildings
@@ -237,6 +266,8 @@ final class DriftUserPreferencesRepository
     _validateOpacity(snapshot.obstacleWmsOpacity);
     _validateOpacity(snapshot.roadsOpacity);
     _validateOpacity(snapshot.avalancheOpacity);
+    _validateOpacity(snapshot.structuresOpacity);
+    _validateOpacity(snapshot.tunnelRoutesOpacity);
     UserPreferences.validateObstacleBuffer(snapshot.obstacleBufferMeters);
     UserPreferences.validateOverlayOrder(snapshot.overlayOrder);
     final updatedAt = DateTime.now().toUtc();
@@ -259,6 +290,11 @@ final class DriftUserPreferencesRepository
             _avalancheOpacity: snapshot.avalancheOpacity.toString(),
             _buildings: snapshot.buildings3dVisible.toString(),
             _vegetation: snapshot.vegetation3dVisible.toString(),
+            _structures: snapshot.structures3dVisible.toString(),
+            _structuresOpacity: snapshot.structuresOpacity.toString(),
+            _tunnelRoutesOpacity: snapshot.tunnelRoutesOpacity.toString(),
+            _tunnels: snapshot.tunnelRoutesVisible.toString(),
+            _exploration: snapshot.tunnelExplorationEnabled.toString(),
             _lighting: snapshot.realisticLighting.toString(),
             _navigationBuildings: snapshot.navigationBuildings.name,
             _navigationVegetation: snapshot.navigationVegetation.name,

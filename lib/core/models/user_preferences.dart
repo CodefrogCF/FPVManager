@@ -33,6 +33,11 @@ class UserPreferences {
     this.avalancheOpacity = .35,
     this.buildings3dVisible = false,
     this.vegetation3dVisible = false,
+    this.structures3dVisible = false,
+    this.structuresOpacity = 1.0,
+    this.tunnelRoutesOpacity = 0.85,
+    this.tunnelRoutesVisible = false,
+    this.tunnelExplorationEnabled = false,
     this.realisticLighting = false,
     this.navigationBuildings = NavigationEnvironmentMode.inherit,
     this.navigationVegetation = NavigationEnvironmentMode.inherit,
@@ -58,6 +63,8 @@ class UserPreferences {
   final bool avalancheVisible;
   final double avalancheOpacity;
   final bool buildings3dVisible, vegetation3dVisible, realisticLighting;
+  final bool structures3dVisible, tunnelRoutesVisible, tunnelExplorationEnabled;
+  final double structuresOpacity, tunnelRoutesOpacity;
   final NavigationEnvironmentMode navigationBuildings, navigationVegetation;
   final bool obstacleWmsVisible, obstacleVectorsVisible;
   final bool obstacleModelsVisible;
@@ -83,6 +90,11 @@ class UserPreferences {
     double? avalancheOpacity,
     bool? buildings3dVisible,
     bool? vegetation3dVisible,
+    bool? structures3dVisible,
+    double? structuresOpacity,
+    double? tunnelRoutesOpacity,
+    bool? tunnelRoutesVisible,
+    bool? tunnelExplorationEnabled,
     bool? realisticLighting,
     NavigationEnvironmentMode? navigationBuildings,
     NavigationEnvironmentMode? navigationVegetation,
@@ -108,6 +120,12 @@ class UserPreferences {
     avalancheOpacity: avalancheOpacity ?? this.avalancheOpacity,
     buildings3dVisible: buildings3dVisible ?? this.buildings3dVisible,
     vegetation3dVisible: vegetation3dVisible ?? this.vegetation3dVisible,
+    structures3dVisible: structures3dVisible ?? this.structures3dVisible,
+    structuresOpacity: structuresOpacity ?? this.structuresOpacity,
+    tunnelRoutesOpacity: tunnelRoutesOpacity ?? this.tunnelRoutesOpacity,
+    tunnelRoutesVisible: tunnelRoutesVisible ?? this.tunnelRoutesVisible,
+    tunnelExplorationEnabled:
+        tunnelExplorationEnabled ?? this.tunnelExplorationEnabled,
     realisticLighting: realisticLighting ?? this.realisticLighting,
     navigationBuildings: navigationBuildings ?? this.navigationBuildings,
     navigationVegetation: navigationVegetation ?? this.navigationVegetation,
