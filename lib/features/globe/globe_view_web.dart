@@ -15,6 +15,7 @@ class GlobeView extends StatefulWidget {
     this.cachedMaps = false,
     this.cacheRevision = 0,
     this.floatingControls = false,
+    this.menuOpen = false,
   });
 
   final GlobeController controller;
@@ -22,6 +23,7 @@ class GlobeView extends StatefulWidget {
   final bool cachedMaps;
   final int cacheRevision;
   final bool floatingControls;
+  final bool menuOpen;
 
   @override
   State<GlobeView> createState() => _GlobeViewState();

@@ -30,6 +30,7 @@ import '../weather/weather_preferences.dart';
 import '../weather/wind_settings_sheet.dart';
 import '../globe/globe_view.dart';
 import '../globe/globe_input_scope.dart';
+import '../globe/desktop_globe_interaction_mode.dart';
 import '../mobility/mobility_screen.dart';
 import '../mobility/mobility_preferences.dart';
 import '../mobility/road_routing.dart';
@@ -264,8 +265,15 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _openAllTools() {
-    setState(() => _allToolsExpanded = true);
-    _scaffoldKey.currentState?.openDrawer();
+    if (_useDesktopWindowsPanels) {
+      setState(() {
+        _allToolsExpanded = true;
+        _drawerOpen = true;
+      });
+    } else {
+      setState(() => _allToolsExpanded = true);
+      _scaffoldKey.currentState?.openDrawer();
+    }
   }
 
   Future<void> _profileLayer(ActivityLayer layer) => switch (layer) {
@@ -401,6 +409,28 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   bool _drawerOpen = false;
+
+  bool get _useDesktopWindowsPanels => desktopGlobeInteractionEnabled;
+
+  void _closeDesktopMenu() {
+    if (!mounted) return;
+    setState(() {
+      _drawerOpen = false;
+      _allToolsExpanded = false;
+    });
+  }
+
+  void _toggleNavigationMenu(BuildContext context) {
+    if (_useDesktopWindowsPanels) {
+      setState(() {
+        _drawerOpen = !_drawerOpen;
+        if (!_drawerOpen) _allToolsExpanded = false;
+      });
+    } else {
+      Scaffold.of(context).openDrawer();
+    }
+  }
+
   Future<void> _openPreflight() async {
     await _leaveGroundView();
     if (!mounted) return;
@@ -1083,30 +1113,55 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         _drawerOpen = open;
         if (!open) _allToolsExpanded = false;
       }),
-      drawer: HomeNavigationDrawer(
-        onGroundRoutes: _openGroundRoutes,
-        onObservations: _openObservations,
-        profile: _profiles?.selected,
-        onProfiles: _openProfiles,
-        onAction: _profileAction,
-        onLayer: _profileLayer,
-        allToolsExpanded: _allToolsExpanded,
-        onSettings: _openSettings,
-        onSpots: _openSpots,
-        onRoutes: _openRoutes,
-        onMobility: _openMobility,
-        onPreflight: _openPreflight,
-        onWeather: _openWeather,
-        onDrones: _openDrones,
-        onBatteries: _openBatteries,
-        onRadio: _openRadioEquipment,
-        onData: _openData,
-      ),
+      drawer: _useDesktopWindowsPanels
+          ? null
+          : HomeNavigationDrawer(
+              onGroundRoutes: _openGroundRoutes,
+              onObservations: _openObservations,
+              profile: _profiles?.selected,
+              onProfiles: _openProfiles,
+              onAction: _profileAction,
+              onLayer: _profileLayer,
+              allToolsExpanded: _allToolsExpanded,
+              onSettings: _openSettings,
+              onSpots: _openSpots,
+              onRoutes: _openRoutes,
+              onMobility: _openMobility,
+              onPreflight: _openPreflight,
+              onWeather: _openWeather,
+              onDrones: _openDrones,
+              onBatteries: _openBatteries,
+              onRadio: _openRadioEquipment,
+              onData: _openData,
+            ),
       body: SafeArea(
         child: GlobeInputScope(
-          enabled: !_drawerOpen,
+          enabled: !_drawerOpen || _useDesktopWindowsPanels,
           child: HomeMapWorkspace(
+            sidePanel: _useDesktopWindowsPanels && _drawerOpen
+                ? HomeNavigationDrawer(
+                    onClose: _closeDesktopMenu,
+                    onGroundRoutes: _openGroundRoutes,
+                    onObservations: _openObservations,
+                    profile: _profiles?.selected,
+                    onProfiles: _openProfiles,
+                    onAction: _profileAction,
+                    onLayer: _profileLayer,
+                    allToolsExpanded: _allToolsExpanded,
+                    onSettings: _openSettings,
+                    onSpots: _openSpots,
+                    onRoutes: _openRoutes,
+                    onMobility: _openMobility,
+                    onPreflight: _openPreflight,
+                    onWeather: _openWeather,
+                    onDrones: _openDrones,
+                    onBatteries: _openBatteries,
+                    onRadio: _openRadioEquipment,
+                    onData: _openData,
+                  )
+                : null,
             globe: GlobeView(
+              menuOpen: _useDesktopWindowsPanels && _drawerOpen,
               floatingControls: true,
               cacheRevision: _mapCacheRevision,
               controller: _globeController,
@@ -1120,7 +1175,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                   children: [
                     IconButton(
                       tooltip: 'Open navigation menu',
-                      onPressed: () => Scaffold.of(context).openDrawer(),
+                      onPressed: () => _toggleNavigationMenu(context),
                       icon: const Icon(Icons.menu),
                     ),
                     if (!_globeController.navigationActive &&

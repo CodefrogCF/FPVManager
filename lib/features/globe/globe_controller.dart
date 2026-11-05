@@ -812,7 +812,7 @@ class GlobeController extends ChangeNotifier {
     await _send({
       'type': 'route-playback-control',
       'action': action,
-      if (speed != null) 'speed': speed,
+      'speed': ?speed,
     });
   }
 

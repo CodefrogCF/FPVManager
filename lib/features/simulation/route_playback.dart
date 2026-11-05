@@ -60,8 +60,8 @@ class RoutePlaybackRequest {
         'latitude': position.latitude,
         'longitude': position.longitude,
         'heightMode': mode,
-        if (meters != null) 'heightMeters': meters,
-        if (speed != null) 'speedMetersPerSecond': speed,
+        'heightMeters': ?meters,
+        'speedMetersPerSecond': ?speed
       });
     }
     final stored = RoutePlanningSettings.decode(route.plan.planningJson)

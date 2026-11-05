@@ -12,8 +12,10 @@ class HomeMapWorkspace extends StatelessWidget {
     required this.navigation,
     required this.actions,
     required this.selection,
+    this.sidePanel,
   });
   final Widget globe, navigation, actions, selection;
+  final Widget? sidePanel;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -69,6 +71,20 @@ class HomeMapWorkspace extends StatelessWidget {
               ),
             ),
           ),
+          if (sidePanel != null)
+            Positioned(
+              top: 8,
+              bottom: 8,
+              left: 8,
+              width: math.max(
+                0.0,
+                math.min(320.0, constraints.maxWidth - 72.0),
+              ),
+              child: KeyedSubtree(
+                key: const ValueKey('desktop-navigation-panel'),
+                child: sidePanel!,
+              ),
+            ),
         ],
       );
     },

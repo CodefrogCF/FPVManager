@@ -22,6 +22,7 @@ class GlobeViewWindows extends StatefulWidget {
     this.cachedMaps = false,
     this.cacheRevision = 0,
     this.floatingControls = false,
+    this.menuOpen = false,
   });
 
   final GlobeController controller;
@@ -29,6 +30,7 @@ class GlobeViewWindows extends StatefulWidget {
   final bool cachedMaps;
   final int cacheRevision;
   final bool floatingControls;
+  final bool menuOpen;
 
   @override
   State<GlobeViewWindows> createState() => _GlobeViewWindowsState();
@@ -142,6 +144,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
       if (_disposed || !mounted) return;
       setState(() => _initialized = true);
       await _webview.loadUrl(server.origin.resolve(_page).toString());
+      if (widget.menuOpen) unawaited(_setMenuFocus(true));
     } catch (error) {
       if (_disposed || !mounted) return;
       setState(() {
@@ -174,9 +177,37 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
     });
   }
 
+  Future<void> _setMenuFocus(bool open) async {
+    if (_disposed || !_initialized) return;
+    try {
+      if (open) {
+        await win.WebviewController.releaseFocus();
+      } else if (mounted && ModalRoute.isCurrentOf(context) == true) {
+        // Do not take focus from a new Flutter page or from a text input.
+        final focusedContext = FocusManager.instance.primaryFocus?.context;
+        final editing =
+            focusedContext?.widget is EditableText ||
+            focusedContext?.findAncestorWidgetOfExactType<EditableText>() !=
+                null;
+        if (!editing) await _webview.focus();
+      }
+    } catch (_) {
+      // Keyboard focus is best-effort while WebView2 is initializing or closing.
+    }
+  }
+
   @override
   void didUpdateWidget(covariant GlobeViewWindows oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.menuOpen != widget.menuOpen) {
+      if (widget.menuOpen) {
+        unawaited(_setMenuFocus(true));
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !widget.menuOpen) unawaited(_setMenuFocus(false));
+        });
+      }
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onControllerChanged);
       oldWidget.controller.detach();

@@ -25,6 +25,7 @@ class HomeNavigationDrawer extends StatelessWidget {
     this.onAction,
     this.onLayer,
     this.allToolsExpanded = false,
+    this.onClose,
   });
   final Future<void> Function() onSpots,
       onRoutes,
@@ -43,6 +44,9 @@ class HomeNavigationDrawer extends StatelessWidget {
   final Future<void> Function(ActivityAction)? onAction;
   final Future<void> Function(ActivityLayer)? onLayer;
   final bool allToolsExpanded;
+
+  /// Non-modal desktop panels close themselves rather than popping the route.
+  final VoidCallback? onClose;
 
   Widget _tool(BuildContext context, ActivityTool tool) => switch (tool) {
     ActivityTool.groundRoutes => _item(
@@ -181,7 +185,11 @@ class HomeNavigationDrawer extends StatelessWidget {
     leading: Icon(icon),
     title: Text(title),
     onTap: () {
-      Navigator.pop(context);
+      if (onClose != null) {
+        onClose!();
+      } else {
+        Navigator.pop(context);
+      }
       unawaited(action());
     },
   );
@@ -202,6 +210,13 @@ class HomeNavigationDrawer extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text('FPVManager'),
+                trailing: onClose == null
+                    ? null
+                    : IconButton(
+                        tooltip: 'Close navigation menu',
+                        onPressed: onClose,
+                        icon: const Icon(Icons.close),
+                      ),
                 subtitle: Text(
                   profile == null
                       ? 'Local flight planning'
