@@ -15,8 +15,10 @@ final _dataset = Uri.https(
 
 Future<void> main(List<String> args) async {
   if (args.any((arg) => !const ['--identity', '--skip-probes'].contains(arg))) {
-    stderr.writeln('Usage: dart run tool/benchmark_uas_http.dart '
-        '[--identity] [--skip-probes]');
+    stderr.writeln(
+      'Usage: dart run tool/benchmark_uas_http.dart '
+      '[--identity] [--skip-probes]',
+    );
     exitCode = 64;
     return;
   }
@@ -31,16 +33,22 @@ Future<void> main(List<String> args) async {
       final timer = Stopwatch()..start();
       final addresses = await InternetAddress.lookup(_dataset.host)
           .timeout(const Duration(seconds: 15));
-      print('dns_ms=${timer.elapsedMilliseconds} addresses=${addresses.length}');
+      print(
+        'dns_ms=${timer.elapsedMilliseconds} addresses=${addresses.length}',
+      );
       if (addresses.isEmpty) throw StateError('DNS returned no addresses');
       timer.reset();
-      final socket = await Socket.connect(addresses.first, 443,
-              timeout: const Duration(seconds: 15))
-          .timeout(const Duration(seconds: 15));
+      final socket = await Socket.connect(
+        addresses.first,
+        443,
+        timeout: const Duration(seconds: 15),
+      ).timeout(const Duration(seconds: 15));
       print('tcp_probe_ms=${timer.elapsedMilliseconds}');
       timer.reset();
-      final secure = await SecureSocket.secure(socket, host: _dataset.host)
-          .timeout(const Duration(seconds: 15));
+      final secure = await SecureSocket.secure(
+        socket,
+        host: _dataset.host,
+      ).timeout(const Duration(seconds: 15));
       print('tls_probe_ms=${timer.elapsedMilliseconds}');
       secure.destroy();
     } catch (error) {
@@ -60,24 +68,36 @@ Future<void> main(List<String> args) async {
       final timer = Stopwatch()..start();
       final request = await client.getUrl(_dataset);
       request.followRedirects = false;
-      request.headers.set(HttpHeaders.acceptHeader,
-          'application/geo+json, application/json');
-      request.headers.set(HttpHeaders.acceptEncodingHeader,
-          compressed ? 'gzip' : 'identity');
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/geo+json, application/json',
+      );
+      request.headers.set(
+        HttpHeaders.acceptEncodingHeader,
+        compressed ? 'gzip' : 'identity',
+      );
       if (validator != null) {
         request.headers.set(HttpHeaders.ifNoneMatchHeader, validator);
       }
-      final response = await request.close().timeout(const Duration(seconds: 50));
+      final response = await request.close().timeout(
+        const Duration(seconds: 50),
+      );
       final headersMs = timer.elapsedMilliseconds;
       final status = response.statusCode;
-      final encoding = response.headers.value(HttpHeaders.contentEncodingHeader);
-      print('run=${i + 1} status=$status headers_ms=$headersMs '
-          'encoding=${encoding ?? "identity"} '
-          'declared_wire_bytes=${response.contentLength}');
+      final encoding = response.headers.value(
+        HttpHeaders.contentEncodingHeader,
+      );
+      print(
+        'run=${i + 1} status=$status headers_ms=$headersMs '
+        'encoding=${encoding ?? "identity"} '
+        'declared_wire_bytes=${response.contentLength}',
+      );
       if (status == HttpStatus.notModified) {
         await response.drain<void>();
-        print('not_modified=true reused_previous_dataset=true '
-            'total_ms=${timer.elapsedMilliseconds}');
+        print(
+          'not_modified=true reused_previous_dataset=true '
+          'total_ms=${timer.elapsedMilliseconds}',
+        );
         continue;
       }
       if (status != HttpStatus.ok) {
@@ -88,12 +108,15 @@ Future<void> main(List<String> args) async {
       const maxBytes = 60 * 1024 * 1024;
       await for (final chunk in response.timeout(const Duration(seconds: 50))) {
         if (bytes.length + chunk.length > maxBytes) {
-          throw const FormatException('Response exceeded diagnostic size limit');
+          throw const FormatException(
+            'Response exceeded diagnostic size limit',
+          );
         }
         bytes.add(chunk);
       }
       final bodyMs = timer.elapsedMilliseconds - headersMs;
-      if (response.contentLength >= 0 && bytes.length != response.contentLength) {
+      if (response.contentLength >= 0 &&
+          bytes.length != response.contentLength) {
         throw const FormatException('Incomplete wire response');
       }
       final wireBytes = bytes.length;
@@ -102,18 +125,23 @@ Future<void> main(List<String> args) async {
           ? gzip.decode(bytes.takeBytes())
           : bytes.takeBytes();
       if (decodedBytes.length > maxBytes) {
-        throw const FormatException('Decoded response exceeded diagnostic limit');
+        throw const FormatException(
+          'Decoded response exceeded diagnostic limit',
+        );
       }
       final decoded = jsonDecode(utf8.decode(decodedBytes));
-      if (decoded is! Map || decoded['type'] != 'FeatureCollection' ||
+      if (decoded is! Map ||
+          decoded['type'] != 'FeatureCollection' ||
           decoded['features'] is! List) {
         throw const FormatException('Invalid dataset GeoJSON');
       }
       final parseMs = parseTimer.elapsedMilliseconds;
-      print('wire_bytes=$wireBytes decoded_bytes=${decodedBytes.length} '
-          'body_ms=$bodyMs decode_parse_ms=$parseMs '
-          'total_ms=${timer.elapsedMilliseconds} '
-          'feature_count=${(decoded['features'] as List).length} retries=0');
+      print(
+        'wire_bytes=$wireBytes decoded_bytes=${decodedBytes.length} '
+        'body_ms=$bodyMs decode_parse_ms=$parseMs '
+        'total_ms=${timer.elapsedMilliseconds} '
+        'feature_count=${(decoded['features'] as List).length} retries=0',
+      );
       validator = response.headers.value(HttpHeaders.etagHeader);
       if (validator == null) {
         print('note=no-etag; second request will be a full download');
