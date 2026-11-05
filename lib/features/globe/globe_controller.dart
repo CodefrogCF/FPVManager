@@ -11,6 +11,7 @@ import '../../core/osint/osint_cache_database.dart';
 import '../../core/osint/osint_dataset_store.dart';
 import '../../core/osint/cached_osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
+import '../../core/performance/app_lifecycle_probe.dart';
 import '../../core/models/user_preferences.dart';
 import '../../core/models/activity_profile.dart';
 import '../../core/models/outdoor_layer.dart';
@@ -1732,6 +1733,7 @@ class GlobeController extends ChangeNotifier {
   }
 
   void rendererLoading() {
+    AppLifecycleProbe.rendererLoading();
     _bridge.endSession();
     _resetConnection();
   }
@@ -2479,6 +2481,9 @@ class GlobeController extends ChangeNotifier {
         _connectionGeneration++;
         _uasOperation++;
         _ready = true;
+        AppLifecycleProbe.rendererReady(
+          terrainAvailable: data['terrainAvailable'] == true,
+        );
         _sceneLayerStates.clear();
         _error = null;
         _terrainAvailable = data['terrainAvailable'] == true;

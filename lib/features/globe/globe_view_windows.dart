@@ -5,7 +5,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart' as win;
 
-import '../../core/geo/geo_coordinate_service.dart';
+import '../../core/performance/app_lifecycle_probe.dart';
+import 'globe_view_status.dart';
 import '../offline/offline_map_store_native.dart';
 import 'globe_asset_server.dart';
 import 'globe_controller.dart';
@@ -57,6 +58,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
   @override
   void initState() {
     super.initState();
+    AppLifecycleProbe.record('windows-webview-created');
     widget.controller.attach(_sendCommand);
     widget.controller.addListener(_onControllerChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -81,6 +83,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
       if (_disposed) return;
 
       await _webview.initialize();
+      AppLifecycleProbe.record('windows-webview-initialized');
       if (_disposed) return;
 
       await _webview.setBackgroundColor(const Color(0xff10140f));
@@ -144,6 +147,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
       if (_disposed || !mounted) return;
       setState(() => _initialized = true);
       await _webview.loadUrl(server.origin.resolve(_page).toString());
+      AppLifecycleProbe.record('windows-document-requested');
       if (widget.menuOpen) unawaited(_setMenuFocus(true));
     } catch (error) {
       if (_disposed || !mounted) return;
@@ -165,15 +169,13 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
 
   void _onControllerChanged() {
     if (!mounted) return;
-    final point = widget.controller.selectedPoint;
+    final next = GlobeViewStatus.fromController(widget.controller);
+    if (next == GlobeViewStatus(coordinates: _coordinates, error: _error)) {
+      return;
+    }
     setState(() {
-      _coordinates = point == null
-          ? null
-          : '${point.latitude.toStringAsFixed(5)}, '
-                '${point.longitude.toStringAsFixed(5)} | '
-                '${point.altitude.toStringAsFixed(1)} m '
-                '(${point.heightReference.label})';
-      _error = widget.controller.error;
+      _coordinates = next.coordinates;
+      _error = next.error;
     });
   }
 
@@ -228,6 +230,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppLifecycleProbe.appState(state);
     if (!_initialized || _disposed) return;
     if (state == AppLifecycleState.paused) widget.controller.suspend();
     if (state == AppLifecycleState.resumed) {
@@ -238,8 +241,12 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
   Future<void> _resumeRenderer() async {
     try {
       await _webview.executeScript('window.FPVManager?.hello();');
+      AppLifecycleProbe.record('windows-resume-hello-sent');
     } catch (_) {
-      if (!_disposed) await _webview.reload();
+      if (!_disposed) {
+        AppLifecycleProbe.record('windows-resume-reload');
+        await _webview.reload();
+      }
     }
   }
 
@@ -249,6 +256,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_onControllerChanged);
     widget.controller.detach();
+    AppLifecycleProbe.record('windows-webview-disposed');
     unawaited(_cleanup());
     super.dispose();
   }

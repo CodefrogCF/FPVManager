@@ -4,8 +4,10 @@ import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
 import 'globe_controller.dart';
+import '../../core/performance/app_lifecycle_probe.dart';
 import 'globe_input_scope.dart';
 import 'globe_page_path.dart';
+import 'globe_view_lifecycle_policy.dart';
 
 class GlobeView extends StatefulWidget {
   const GlobeView({
@@ -58,6 +60,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     super.initState();
 
     widget.controller.attach(_sendCommand);
+    AppLifecycleProbe.record('web-globe-view-created');
     WidgetsBinding.instance.addObserver(this);
 
     _messageListener = ((web.Event event) {
@@ -94,15 +97,29 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   void didUpdateWidget(covariant GlobeView oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.controller != widget.controller ||
-        oldWidget.cachedMaps != widget.cachedMaps ||
-        oldWidget.cacheRevision != widget.cacheRevision ||
-        oldWidget.floatingControls != widget.floatingControls) {
+    final controllerChanged = GlobeViewLifecyclePolicy.reconnectBridge(
+      oldWidget.controller,
+      widget.controller,
+    );
+    if (controllerChanged) {
+      // Cache and view-setting changes must not disconnect the existing
+      // bridge; detaching also resets flight and route playback state.
       oldWidget.controller.detach();
       widget.controller.attach(_sendCommand);
-      // A new controller starts its request/marker IDs from the beginning.
-      // Reload so the renderer creates a fresh protocol session as well.
+    }
+    if (GlobeViewLifecyclePolicy.reloadDocument(
+      controllerChanged: controllerChanged,
+      previousCachedMaps: oldWidget.cachedMaps,
+      cachedMaps: widget.cachedMaps,
+      previousCacheRevision: oldWidget.cacheRevision,
+      cacheRevision: widget.cacheRevision,
+      previousFloatingControls: oldWidget.floatingControls,
+      floatingControls: widget.floatingControls,
+    )) {
+      // Cache changes can require a document reload, but not a second
+      // bridge attachment while the controller instance is unchanged.
       _iframe?.src = _page;
+      AppLifecycleProbe.record('web-iframe-navigation');
     }
   }
 
@@ -118,11 +135,13 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     web.window.removeEventListener('message', _messageListener);
 
     widget.controller.detach();
+    AppLifecycleProbe.record('web-globe-view-disposed');
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppLifecycleProbe.appState(state);
     if (state == AppLifecycleState.resumed) {
       _iframe?.contentWindow?.postMessage(
         'fpvmanager-hello'.toJS,

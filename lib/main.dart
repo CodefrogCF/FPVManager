@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 
+import 'core/performance/app_lifecycle_probe.dart';
 import 'core/theme/app_theme.dart';
 import 'features/home/home_screen.dart';
 export 'features/home/home_screen.dart' show FPVHomeScreen;
 
 void main() {
+  AppLifecycleProbe.start();
   WidgetsFlutterBinding.ensureInitialized();
+  if (AppLifecycleProbe.enabled) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLifecycleProbe.record('first-flutter-frame');
+    });
+  }
   runApp(const FPVManagerApp());
 }
 
 class FPVManagerApp extends StatelessWidget {
   const FPVManagerApp({super.key});
+
+  static final _routeObserver = AppLifecycleRouteObserver();
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +29,7 @@ class FPVManagerApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
+      navigatorObservers: [if (AppLifecycleProbe.enabled) _routeObserver],
       home: const FPVHomeScreen(),
     );
   }

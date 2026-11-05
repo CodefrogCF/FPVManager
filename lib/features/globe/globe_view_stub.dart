@@ -10,7 +10,8 @@ import 'globe_asset_server.dart';
 import 'globe_page_path.dart';
 import 'globe_view_windows.dart';
 import '../offline/offline_map_store_native.dart';
-import '../../core/geo/geo_coordinate_service.dart';
+import '../../core/performance/app_lifecycle_probe.dart';
+import 'globe_view_status.dart';
 import '../../core/theme/app_theme.dart';
 import '../simulation/navigation_device_input.dart';
 
@@ -65,6 +66,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     // The Windows child owns the renderer protocol and WebView2 lifecycle.
     if (_useWindowsRenderer) return;
 
+    AppLifecycleProbe.record('native-globe-view-created');
     widget.controller.attach(_sendCommand);
     widget.controller.addListener(_onControllerChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -92,6 +94,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   }
 
   Future<void> _initializeGlobe() async {
+    AppLifecycleProbe.record('native-webview-initialization');
     try {
       final server = await GlobeAssetServer.start(
         offlineCache: NativeOfflineMapStore(),
@@ -163,6 +166,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
       });
 
       await controller.loadRequest(server.origin.resolve(_page));
+      AppLifecycleProbe.record('native-document-requested');
     } catch (error) {
       if (!mounted) return;
 
@@ -211,6 +215,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     widget.controller.removeListener(_onControllerChanged);
     widget.controller.detach();
     unawaited(_assetServer?.close() ?? Future<void>.value());
+    AppLifecycleProbe.record('native-globe-view-disposed');
     super.dispose();
   }
 
@@ -226,20 +231,19 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
           widget.controller.navigationFocused &&
           widget.controller.isReady,
     );
-    final point = widget.controller.selectedPoint;
+    final next = GlobeViewStatus.fromController(widget.controller);
+    if (next == GlobeViewStatus(coordinates: _coordinates, error: _error)) {
+      return;
+    }
     setState(() {
-      _coordinates = point == null
-          ? null
-          : '${point.latitude.toStringAsFixed(5)}, '
-                '${point.longitude.toStringAsFixed(5)} | '
-                '${point.altitude.toStringAsFixed(1)} m '
-                '(${point.heightReference.label})';
-      _error = widget.controller.error;
+      _coordinates = next.coordinates;
+      _error = next.error;
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppLifecycleProbe.appState(state);
     if (!_supported) return;
     if (state != AppLifecycleState.resumed) _deviceInput?.setEnabled(false);
     if (state == AppLifecycleState.paused) widget.controller.suspend();
@@ -251,8 +255,12 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
   Future<void> _resumeRenderer() async {
     try {
       await _controller?.runJavaScript('window.FPVManager?.hello();');
+      AppLifecycleProbe.record('native-resume-hello-sent');
     } catch (_) {
-      if (mounted) await _controller?.reload();
+      if (mounted) {
+        AppLifecycleProbe.record('native-resume-reload');
+        await _controller?.reload();
+      }
     }
   }
 
