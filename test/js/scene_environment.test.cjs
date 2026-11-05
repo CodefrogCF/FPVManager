@@ -167,3 +167,55 @@ test('structure transparency is independently configurable and rejects invalid r
  assert.throws(()=>p.set({structures:true,structuresOpacity:1.5}));
  p.manager.dispose();
 });
+
+test('camera preUpdate and repeated scene commands avoid redundant 3D setters and render requests',async()=>{
+    const p=fixture();let draws=0;
+    p.viewer.scene.requestRender=()=>{draws++;};
+    p.set({buildings:true,structures:true});await flush();
+    const buildings=p.primitives[0],structures=p.primitives[1];
+    const originalBuildingShow=buildings.show,originalStructuresShow=structures.show;
+    // Proxy the Cesium property setters to catch redundant assignments.
+    const counters=new Map();
+    for(const tileset of [buildings,structures]){
+        let value=tileset.show,showWrites=0,detail=tileset.maximumScreenSpaceError,detailWrites=0;
+        Object.defineProperty(tileset,'show',{configurable:true,get:()=>value,set:newValue=>{showWrites++;value=newValue;}});
+        Object.defineProperty(tileset,'maximumScreenSpaceError',{configurable:true,get:()=>detail,set:newValue=>{detailWrites++;detail=newValue;}});
+        counters.set(tileset,()=>({showWrites,detailWrites}));
+    }
+    const before=draws;
+    for(let n=0;n<1000;n++)p.viewer.scene.preUpdate.fire();
+    for(let n=0;n<50;n++)p.set({buildings:true,structures:true});
+    assert.equal(draws,before,'unchanged settings do not schedule new frames');
+    for(const tile of [buildings,structures])assert.deepEqual(counters.get(tile)(),{showWrites:0,detailWrites:0});
+    p.viewer.camera.positionCartographic.height=30000;
+    p.viewer.scene.preUpdate.fire();p.viewer.scene.preUpdate.fire();
+    for(const tile of [buildings,structures])assert.equal(counters.get(tile)().showWrites,1);
+    p.viewer.camera.positionCartographic.height=1000;
+    p.viewer.scene.preUpdate.fire();
+    for(const tile of [buildings,structures])assert.equal(counters.get(tile)().showWrites,2);
+    assert.equal(buildings.show,originalBuildingShow);
+    assert.equal(structures.show,originalStructuresShow);
+    p.manager.performance('quality');p.manager.performance('quality');
+    assert.equal(counters.get(buildings)().detailWrites,1);
+    assert.equal(counters.get(structures)().detailWrites,0,'structure precision is unchanged between these profiles');
+    assert.equal(p.manager.resourceStats().resident,2);
+    assert.equal(p.manager.resourceStats().visible,2);
+    p.manager.dispose();assert.equal(p.manager.resourceStats().resident,0);
+});
+
+test('structure alpha style is changed only when explicitly needed and selection remains intact',async()=>{
+    const p=fixture();let styles=0;
+    p.C.Cesium3DTileStyle=class{constructor(options){styles++;this.options=options;}};
+    p.set({structures:true,structuresOpacity:.6});await flush();
+    const model=p.primitives[0];
+    assert.equal(styles,1);
+    for(let n=0;n<20;n++)p.set({structures:true,structuresOpacity:.6});
+    assert.equal(styles,1);
+    p.manager.performance('quality');assert.equal(styles,1);
+    p.set({structures:true,structuresOpacity:.8});assert.equal(styles,2);
+    assert.equal(model.style.options.color,"color('white', 0.8)");
+    const result=p.manager.pick({content:{tileset:model},getPropertyIds:()=>['identifier'],getProperty:()=>123});
+    assert.equal(result,true);
+    assert.equal(p.states.at(-1).datasetSource,'ch.swisstopo.swisstlm3d.3d');
+    p.manager.dispose();assert.equal(styles,2);
+});

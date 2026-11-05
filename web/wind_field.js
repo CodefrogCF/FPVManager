@@ -140,7 +140,9 @@
         const removeUpdate=viewer.scene.preUpdate.addEventListener(()=>{
             if(disposed)return;
             if(navigation&&(!anchor||Math.abs(navigation.latitude-anchor.latitude)>30/111320||Math.abs(navigation.longitude-anchor.longitude)>30/111320||Math.abs(navigation.agl-anchor.agl)>10))dirty=true;
-            if(dirty)rebuild();publish();controls();collection.show=!!(visible&&fresh()&&entries.length&&isTerrainReady());
+            if(dirty)rebuild();publish();controls();
+            const shouldShow=!!(visible&&fresh()&&entries.length&&isTerrainReady());
+            if(collection.show!==shouldShow)collection.show=shouldShow;
             const clock=elapsed();if(!collection.show){lastMotion=null;return;}if(clock-lastDraw<50)return;lastDraw=clock;
             const dt=lastMotion===null?0:Math.max(0,(clock-lastMotion)/1000);lastMotion=clock;
             for(const e of entries){
@@ -197,7 +199,8 @@
             navigation(point){const next=point&&[point.latitude,point.longitude,point.agl].every(Number.isFinite)?point:null;
                 if(!next&&navigation||next&&!navigation)dirty=true;navigation=next;},
             terrainChanged(){terrain.clear();dirty=true;},
-            performance(value){if(!Object.hasOwn(density,value))throw Error('Invalid wind graphics profile');profile=value;dirty=true;},
+            performance(value){if(!Object.hasOwn(density,value))throw Error('Invalid wind graphics profile');
+                if(profile!==value){profile=value;dirty=true;}},
             dispose(){if(disposed)return;disposed=true;removeTerrain();removeUpdate();force?.removeEventListener('change',flagsFromUi);arrows?.removeEventListener('change',flagsFromUi);button?.removeEventListener('click',requestSettings);
                 terrain.clear();entries=[];if(credited)credits?.removeStaticCredit(credit);viewer.scene.primitives.remove(collection);const legend=doc?.getElementById('wind-legend');if(legend)legend.hidden=true;}
         };

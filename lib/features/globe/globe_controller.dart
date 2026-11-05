@@ -1929,6 +1929,16 @@ class GlobeController extends ChangeNotifier {
     return _send({'type': 'reset-camera'});
   }
 
+  /// On-demand frame pacing measurements. Off until `start`; no per-frame
+  /// Flutter messages or location collection. `stop` detaches JS listeners.
+  /// CPU callback timings are not actual GPU execution times.
+  Future<Map<String, dynamic>> scenePerformance({String action = 'snapshot'}) {
+    if (!{'start', 'stop', 'snapshot'}.contains(action)) {
+      throw ArgumentError.value(action, 'action');
+    }
+    return _request({'type': 'scene-performance', 'action': action});
+  }
+
   Future<void> reloadRenderer() => _send({'type': 'reload-renderer'});
 
   Future<void> retryTerrain() async {

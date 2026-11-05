@@ -92,3 +92,13 @@ test('a moving or climbing flight viewport preserves glyphs that remain inside t
     assert.ok(Math.abs(arrow.positions[0].x-position.x-1)<1e-6);assert.equal(arrow.positions[0].z,position.z);
     p.layer.dispose();
 });
+
+
+test('hidden wind overlay does not continuously write Cesium visibility or allocate glyphs',()=>{
+    const p=renderer(),collection=p.lines();let show=collection.show,writes=0;
+    Object.defineProperty(collection,'show',{configurable:true,get:()=>show,set:value=>{show=value;writes++;}});
+    for(let i=0;i<1000;i++)p.frame(16);
+    p.layer.performance('balanced');p.frame(16);
+    assert.equal(writes,0);assert.equal(collection.lines.length,0);
+    p.layer.dispose();assert.equal(p.update.listeners.size,0);
+});

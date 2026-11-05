@@ -50,6 +50,7 @@ void main() {
         'free_flight.js',
         'flight_hud.js',
         'flight_rendering.js',
+        'scene_performance.js',
         'route_editor.js',
         'obstacle_layers.js',
         'obstacle_models.js',

@@ -62,6 +62,7 @@ function postToFlutter(message) {
         stopNavigation();
         if (!event.persisted) liveRadio?.dispose();
         if (!event.persisted) { situationalLayers?.dispose(); obstacleWms?.dispose(); obstacleVectors?.dispose(); hazardAreas?.dispose(); disposeGroundControls?.(); routeEditor?.dispose(); routeOverlays?.dispose(); signalAnalysis?.dispose(); weatherOverlay.dispose(); meteoswissRadar.dispose(); datedImagery.dispose(); terrainManager?.dispose(); bridge.dispose(); }
+        if (!event.persisted) scenePerformance?.dispose();
         if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose(); tunnelVolumes?.dispose(); infrastructureClearance?.dispose(); modelCollisions?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
@@ -71,7 +72,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
-    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
+    let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let mapLabels = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
@@ -615,6 +616,14 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case 'scene-performance': {
+                // Explicit developer diagnostics only; does not update UI or
+                // send per-frame events over the Flutter bridge.
+                if(command.action==='start')scenePerformance.start();
+                else if(command.action==='stop')scenePerformance.stop();
+                else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
+                return scenePerformance.snapshot();
+            }
             case "set-road-navigation": return roadNavigation.set(command);
             case "set-rendering-paused": {
                 if(typeof command.paused!=='boolean')throw new Error('Invalid render loop state');
@@ -974,6 +983,9 @@ function postToFlutter(message) {
         activeViewer = viewer;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
             cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
+        scenePerformance = FPVScenePerformance.create(viewer,{
+            resources:()=>sceneEnvironment?.resourceStats()??{}
+        });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable})
             : null;

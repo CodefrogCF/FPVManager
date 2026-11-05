@@ -29,7 +29,7 @@
         const credit=new C.Credit('3D buildings / vegetation / infrastructure · © swisstopo',true);
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
-            phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null}]));
+            phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null,appliedOpacity:null}]));
         let disposed=false,lighting=false,profile='balanced',credited=false,appliedTime=null,structuresOpacity=1;
         let navigating=false;
         const mapLayers={buildings:false,vegetation:false,structures:false},navigationLayers={buildings:null,vegetation:null};
@@ -52,20 +52,40 @@
                 cullRequestsWhileMoving:true,foveatedScreenSpaceError:true,showCreditsOnScreen:true};
         }
         function applyStructureStyle(){
-            const tileset=layers.structures.tileset;
-            if(!tileset||!C.Cesium3DTileStyle)return;
+            const layer=layers.structures,tileset=layer.tileset;
+            if(!tileset||!C.Cesium3DTileStyle||layer.appliedOpacity===structuresOpacity)return false;
             tileset.style=structuresOpacity>=1 ? undefined :
                 new C.Cesium3DTileStyle({color:`color('white', ${structuresOpacity})`});
+            layer.appliedOpacity=structuresOpacity;
+            return true;
+        }
+        // Cesium setters can invalidate tile traversal even if a value is unchanged.
+        // Keep profile refreshes idempotent and preserve the existing source geometry.
+        function applyBudget(key){
+            const l=layers[key];if(!l.tileset)return false;
+            let changed=false;
+            for(const [name,value] of Object.entries(options(key))){
+                // `show` belongs to visibility(), not the immutable load budget.
+                // Reapplying show:false on every preference change caused a hidden
+                // then visible transition and extra Cesium tile traversals.
+                if(name==='show'||l.tileset[name]===value)continue;
+                l.tileset[name]=value;changed=true;
+            }
+            return changed;
         }
         function visibility(key){
-            const l=layers[key];if(!l.tileset)return;
+            const l=layers[key];if(!l.tileset)return false;
             const height=viewer.camera.positionCartographic.height;
-            l.tileset.show=l.requested&&height<(key==='vegetation'?12000:25000);
+            const show=l.requested&&height<(key==='vegetation'?12000:25000);
+            if(l.tileset.show===show)return false;
+            l.tileset.show=show;
+            return true;
         }
         function release(l){
             clearTimer(l.timer);l.timer=null;
-            l.revision++;for(const remove of l.removers)remove();l.removers=[];
+            l.revision++;l.pending=null;for(const remove of l.removers)remove();l.removers=[];
             if(l.tileset){scene.primitives.remove(l.tileset);l.tileset=null;}
+            l.appliedOpacity=null;
         }
         function load(key){
             const l=layers[key];if(disposed||l.pending||l.tileset||!l.requested)return;
@@ -78,7 +98,7 @@
             },timeoutMs);
             l.pending=Promise.resolve().then(()=>C.Cesium3DTileset.fromUrl(urls[key]??sources[key],options(key))).then(tileset=>{
                 if(!current()||timedOut){if(!tileset.isDestroyed())tileset.destroy();return;}
-                Object.assign(tileset,options(key));l.tileset=tileset;scene.primitives.add(tileset);if(key==='structures')applyStructureStyle();visibility(key);
+                l.tileset=tileset;applyBudget(key);scene.primitives.add(tileset);if(key==='structures')applyStructureStyle();visibility(key);
                 l.phase=isOnline()?'ready':'offline';publish(key);
                 l.removers.push(tileset.tileFailed.addEventListener(()=>{if(!current())return;l.failed=true;l.phase=isOnline()?'partial':'offline';publish(key);}));
                 l.removers.push(tileset.loadProgress.addEventListener((pending,processing)=>{
@@ -114,18 +134,25 @@
             scene.requestRender();
         }
         function applyLayers(retry){
+            let changed=false;
             for(const key of Object.keys(layers)){
-                const l=layers[key];l.requested=navigating?(navigationLayers[key]??mapLayers[key]):mapLayers[key];
+                const l=layers[key];
+                const requested=navigating?(navigationLayers[key]??mapLayers[key]):mapLayers[key];
+                if(l.requested!==requested){l.requested=requested;changed=true;}
                 if(retry===key || (key==='structures'&&!l.requested&&(l.tileset||l.pending))){
-                    release(l);l.pending=null;if(!l.requested)l.phase='hidden';
+                    release(l);l.pending=null;changed=true;if(!l.requested)l.phase='hidden';
                 }
-                if(l.tileset)Object.assign(l.tileset,options(key));
+                if(applyBudget(key))changed=true;
                 if(l.requested&&!l.tileset&&!l.pending&&(l.phase!=='failed'||retry===key))load(key);
-                visibility(key);publish(key);
+                if(visibility(key))changed=true;publish(key);
             }
-            credits();scene.requestRender();
+            credits();if(changed)scene.requestRender();
         }
-        const removeUpdate=scene.preUpdate.addEventListener(()=>{for(const key of Object.keys(layers))visibility(key);});
+        const removeUpdate=scene.preUpdate.addEventListener(()=>{
+            // Only crossing a camera-height threshold changes model visibility.
+            // Do not repeatedly write `show` or request another frame.
+            for(const key of Object.keys(layers))visibility(key);
+        });
         return {
             hasVisibleModels(){return Object.values(layers).some(l=>l.tileset?.show===true);},
             set(command){
@@ -133,7 +160,10 @@
                 for(const key of ['buildings','vegetation','lighting'])if(typeof command[key]!=='boolean')throw Error('Invalid scene preference');
                 if(command.structures!==undefined&&typeof command.structures!=='boolean')throw Error('Invalid structures preference');
                 if(command.structuresOpacity!==undefined&&(!Number.isFinite(command.structuresOpacity)||command.structuresOpacity<.2||command.structuresOpacity>1))throw Error('Invalid structures opacity');
-                if(command.structuresOpacity!==undefined){structuresOpacity=command.structuresOpacity;applyStructureStyle();}
+                if(command.structuresOpacity!==undefined){
+                    structuresOpacity=command.structuresOpacity;
+                    if(applyStructureStyle())scene.requestRender();
+                }
                 if(command.retry!==undefined&&command.retry!==null&&!Object.hasOwn(layers,command.retry))throw Error('Invalid scene layer retry');
                 lighting=command.lighting;applyTime();
                 for(const key of Object.keys(layers))mapLayers[key]=key==='structures'?(command.structures??mapLayers.structures):command[key];
@@ -187,9 +217,28 @@
                 applyTime();return {};
             },
             performance(value='balanced'){
-                if(!Object.hasOwn(budgets,value))throw Error('Unknown scene graphics profile');profile=value;
-                for(const key of Object.keys(layers))if(layers[key].tileset)Object.assign(layers[key].tileset,options(key));
-                for(const key of Object.keys(layers))visibility(key);
+                if(!Object.hasOwn(budgets,value))throw Error('Unknown scene graphics profile');
+                if(profile===value)return;
+                profile=value;
+                let changed=false;
+                for(const key of Object.keys(layers)){
+                    if(applyBudget(key)||visibility(key))changed=true;
+                }
+                if(changed)scene.requestRender();
+            },
+            resourceStats(){
+                let resident=0,visible=0,pending=0,estimatedTilesetBytes=0;
+                for(const l of Object.values(layers)){
+                    if(l.pending)pending++;
+                    if(!l.tileset)continue;
+                    resident++;
+                    if(l.tileset.show)visible++;
+                    const bytes=l.tileset.totalMemoryUsageInBytes;
+                    if(Number.isFinite(bytes)&&bytes>=0)estimatedTilesetBytes+=bytes;
+                }
+                // Cesium's tileset estimate excludes terrain, imagery, weather,
+                // application geometry and other GPU allocations.
+                return {resident,visible,pending,estimatedTilesetBytes};
             },
             dispose(){
                 if(disposed)return;disposed=true;removeUpdate();
