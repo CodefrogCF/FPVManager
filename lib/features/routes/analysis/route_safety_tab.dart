@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -163,6 +166,135 @@ class RouteSafetyTab extends StatelessWidget {
             'Approximate metric distances use the Swiss LV95 projection. 3D values use original source elevations '
             'converted to the terrain ellipsoid reference, not adjusted display geometry. The 30 m AGL preview is never a checked altitude.',
           ),
+        ],
+        const Divider(),
+        Text(
+          '3D Infrastructure Clearance (advisory)',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text(
+            'Assess modeled bridges, supports and tunnel walls',
+          ),
+          subtitle: const Text(
+            'Opt-in. Only available local surface geometry is inspected; 3D Tiles alone do not prove clearance.',
+          ),
+          value: s.infrastructureEnabled,
+          onChanged: s.loading ? null : s.setInfrastructureEnabled,
+        ),
+        if (s.infrastructureEnabled) ...[
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text('Approximate drone radius'),
+              DropdownButton<double>(
+                value: s.droneRadiusMeters,
+                items: const [0.15, 0.25, 0.5, 1.0, 2.0]
+                    .map((v) => DropdownMenuItem(value: v, child: Text('$v m')))
+                    .toList(),
+                onChanged: s.loading
+                    ? null
+                    : (v) {
+                        if (v != null) s.setDroneRadiusMeters(v);
+                      },
+              ),
+            ],
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Show 3D Infrastructure Clearance findings on map',
+            ),
+            value: s.infrastructureLayerVisible,
+            onChanged: s.setInfrastructureLayerVisible,
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Import local bridge/support geometry (JSON)'),
+            onPressed: s.loading
+                ? null
+                : () async {
+                    try {
+                      final file = await openFile(
+                        acceptedTypeGroups: [
+                          const XTypeGroup(
+                            label: 'Infrastructure geometry',
+                            extensions: ['json'],
+                          ),
+                        ],
+                      );
+                      if (file == null) return;
+                      if (await file.length() > 65536) {
+                        throw const FormatException(
+                          'Maximum geometry size: 64 KiB',
+                        );
+                      }
+                      final value = jsonDecode(await file.readAsString());
+                      if (value is! Map<String, dynamic>) {
+                        throw const FormatException(
+                          'Expected a geometry JSON object',
+                        );
+                      }
+                      await c.editor.globe.importInfrastructureGeometry(value);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Local geometry loaded. Re-run Check current route. Source claims remain unverified.',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Infrastructure import failed: $e'),
+                        ),
+                      );
+                    }
+                  },
+          ),
+          Text(
+            'Local bridge/support surfaces: ${c.editor.globe.infrastructureSurfaceCount}. Imported dimensions are not independently verified.',
+          ),
+          if (s.infrastructureError != null) Text(s.infrastructureError!),
+          if (s.infrastructure case final report?) ...[
+            Text(
+              'Examined up to ${report.checkedSamples} model samples; ${report.unknownHeightSamples} unknown-altitude probes.',
+            ),
+            if (report.processingLimited)
+              const Text(
+                'Processing limit reached; additional route sections were not evaluated.',
+              ),
+            Text(report.message),
+            if (report.findings.isEmpty)
+              const Text(
+                'No conflict found in the available local models. Infrastructure clearance remains unassessed elsewhere.',
+              ),
+            for (final hit in report.findings)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  hit.modelContact ? Icons.warning_amber : Icons.info_outline,
+                ),
+                title: Text(
+                  '${hit.modelContact ? "Model contact" : "Model proximity"}: ${hit.name}',
+                ),
+                subtitle: Text(
+                  'Segment ${segments([hit.segment])} · simulated separation ${hit.clearanceMeters.toStringAsFixed(2)} m\n'
+                  '${hit.kind} · ${hit.quality} · ${hit.source} / ${hit.sourceId}\n'
+                  'Model geometry only; not real-world flight clearance.',
+                ),
+                onTap: hit.segment < c.editor.points.length
+                    ? () => c.editor.select(c.editor.points[hit.segment].key)
+                    : null,
+              ),
+          ] else
+            const Text(
+              'No current infrastructure assessment. Use Check current route.',
+            ),
         ],
         const Divider(),
         Text(

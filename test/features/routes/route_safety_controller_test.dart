@@ -202,6 +202,58 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+  test('infrastructure checks are optional and changing drone size invalidates results', () async {
+    expect(safety.infrastructureEnabled, isFalse);
+    await safety.calculate(analysis());
+    expect(safety.infrastructure, isNull);
+    safety.setInfrastructureEnabled(true);
+    expect(safety.infrastructureEnabled, isTrue);
+    expect(safety.hasResult, isFalse);
+    safety.setDroneRadiusMeters(.5);
+    expect(safety.droneRadiusMeters, .5);
+    expect(() => safety.setDroneRadiusMeters(0), throwsArgumentError);
+    safety.setInfrastructureEnabled(false);
+    expect(safety.infrastructure, isNull);
+  });
+
+  testWidgets('checks tab exposes infrastructure opt-in and model disclaimer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final c = RouteAnalysisController(editor);
+    addTearDown(c.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: RouteSafetyTab(controller: c)),
+      ),
+    );
+    final scroll = find.descendant(
+      of: find.byType(RouteSafetyTab),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('3D Infrastructure Clearance (advisory)'),
+      200,
+      scrollable: scroll,
+    );
+    final toggle = find.widgetWithText(
+      SwitchListTile,
+      'Assess modeled bridges, supports and tunnel walls',
+    );
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pump();
+    expect(c.safety.infrastructureEnabled, isTrue);
+    expect(
+      find.textContaining('3D Tiles alone do not prove clearance.'),
+      findsWidgets,
+    );
+  });
+
   test('route edits and cancellation reject late source replies', () async {
     waitForUas = Completer<void>();
     final pending = safety.calculate(analysis());

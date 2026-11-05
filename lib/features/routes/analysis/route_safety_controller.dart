@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import '../../obstacles/obstacle_models.dart';
 import '../../obstacles/obstacle_proximity.dart';
 import '../../obstacles/swiss_obstacle_heights.dart';
 import '../route_editor_controller.dart';
+import '../../globe/infrastructure_clearance.dart';
 import 'route_analysis.dart';
 import 'route_rule_check.dart';
 
@@ -21,6 +23,11 @@ class RouteSafetyController extends ChangeNotifier {
   final RouteEditorController editor;
   Object? _points, _settings, _uas, _obstacles;
   Object? _uasState, _obstacleState;
+  int _infrastructureRevision = 0;
+  bool infrastructureEnabled = false, infrastructureLayerVisible = true;
+  double droneRadiusMeters = 0.25;
+  InfrastructureClearanceReport? infrastructure;
+  String? infrastructureError;
   Set<Object> _categories = {};
   double _buffer = 0;
   int _operation = 0;
@@ -35,6 +42,9 @@ class RouteSafetyController extends ChangeNotifier {
     ...?rules?.findings.map((f) => f.segment),
     ...?airspace?.intersections.expand((hit) => hit.geometry.segmentIndices),
     ...?proximity?.hits.map((h) => h.segment),
+    ...?infrastructure?.findings
+        .where((f) => f.modelContact)
+        .map((f) => f.segment),
   };
   void _remember() {
     _points = editor.points;
@@ -47,6 +57,7 @@ class RouteSafetyController extends ChangeNotifier {
     _obstacleState = (o.update, o.error, o.dataState);
     _categories = Set.of(editor.globe.obstacles.categories);
     _buffer = editor.globe.obstacles.bufferMeters;
+    _infrastructureRevision = editor.globe.infrastructureRevision;
   }
 
   void _changed() {
@@ -55,6 +66,7 @@ class RouteSafetyController extends ChangeNotifier {
         !identical(_points, editor.points) ||
         !identical(_settings, editor.planning) ||
         _buffer != editor.globe.obstacles.bufferMeters ||
+        _infrastructureRevision != editor.globe.infrastructureRevision ||
         !setEquals(_categories, editor.globe.obstacles.categories);
     final sourceChanged =
         !identical(_uas, editor.globe.uasProvider.status.dataset) ||
@@ -70,6 +82,40 @@ class RouteSafetyController extends ChangeNotifier {
     }
   }
 
+  void setInfrastructureEnabled(bool enabled) {
+    if (infrastructureEnabled == enabled) return;
+    infrastructureEnabled = enabled;
+    cancel();
+    if (!enabled) {
+      // No persisted inspection result can be mistaken for current clearance.
+      unawaited(
+        editor.globe
+            .showInfrastructureClearance(false)
+            .catchError((Object _) {}),
+      );
+    }
+  }
+
+  void setInfrastructureLayerVisible(bool visible) {
+    if (infrastructureLayerVisible == visible) return;
+    infrastructureLayerVisible = visible;
+    unawaited(
+      editor.globe
+          .showInfrastructureClearance(visible && infrastructureEnabled)
+          .catchError((Object _) {}),
+    );
+    if (!_disposed) notifyListeners();
+  }
+
+  void setDroneRadiusMeters(double radius) {
+    if (!radius.isFinite || radius < 0.05 || radius > 2) {
+      throw ArgumentError('Drone bounding radius must be 0.05–2 m');
+    }
+    if (droneRadiusMeters == radius) return;
+    droneRadiusMeters = radius;
+    cancel();
+  }
+
   void cancel() {
     ++_operation;
     loading = false;
@@ -77,6 +123,8 @@ class RouteSafetyController extends ChangeNotifier {
     airspace = null;
     proximity = null;
     snapshot = null;
+    infrastructure = null;
+    infrastructureError = null;
     airspaceError = null;
     obstacleError = null;
     obstacleStatus = null;
@@ -166,6 +214,52 @@ class RouteSafetyController extends ChangeNotifier {
       obstacleError = 'Obstacle proximity unavailable. No obstacle clearance has been assessed.';
     }
     if (!current()) return;
+    InfrastructureClearanceReport? infrastructureResult;
+    if (infrastructureEnabled) {
+      try {
+        final profile = analysis.profile;
+        // The bridge protocol has a bounded request frame. Long routes remain
+        // explicitly incomplete rather than being treated as obstacle-free.
+        final stride = math.max(1, (profile.length / 510).ceil());
+        final selected = <InfrastructureRoutePoint>[
+          for (var i = 0; i < profile.length; i += stride)
+            InfrastructureRoutePoint(
+              latitude: profile[i].sample.position.latitude,
+              longitude: profile[i].sample.position.longitude,
+              heightMetersWgs84: profile[i].altitude,
+              segment: profile[i].sample.segment,
+            ),
+        ];
+        if (selected.length < 512 &&
+            profile.length > 1 &&
+            (selected.last.latitude != profile.last.sample.position.latitude ||
+                selected.last.longitude !=
+                    profile.last.sample.position.longitude)) {
+          selected.add(
+            InfrastructureRoutePoint(
+              latitude: profile.last.sample.position.latitude,
+              longitude: profile.last.sample.position.longitude,
+              heightMetersWgs84: profile.last.altitude,
+              segment: profile.last.sample.segment,
+            ),
+          );
+        }
+        infrastructureResult = await editor.globe.queryInfrastructureClearance(
+          selected,
+          droneRadiusMeters: droneRadiusMeters,
+          truncated: stride > 1,
+        );
+        if (!current()) return;
+        await editor.globe.showInfrastructureClearance(
+          infrastructureLayerVisible,
+        );
+        if (!current()) return;
+      } catch (_) {
+        if (!current()) return;
+        infrastructureError = '3D infrastructure assessment unavailable. No clearance was established.';
+      }
+    }
+    if (!current()) return;
     if (uas != null &&
         !identical(
           uas.datasetIdentity,
@@ -177,6 +271,7 @@ class RouteSafetyController extends ChangeNotifier {
     rules = calculated;
     airspace = uas;
     proximity = obstacles;
+    infrastructure = infrastructureResult;
     snapshot = checked;
     loading = false;
     notifyListeners();

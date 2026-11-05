@@ -712,3 +712,242 @@
     }
     return {procedural,importSections,validateSections,closest,inside,collision,rings,geometry,create,MAX_SECTIONS,MAX_LENGTH};
 });
+
+/* Issue #113: infrastructure-aware advisory geometry checks.
+ * swisstopo 3D Tiles are rendered independently; their presence does not
+ * expose surveyed collision meshes or prove that every bridge is assessed.
+ * External cross-section input is NEVER promoted to verified status merely
+ * because its metadata claims to be surveyed. */
+(function (root, factory) {
+    const tunnel = typeof module === 'object' && module.exports
+        ? module.exports.FPVTunnelFlythrough : root.FPVTunnelFlythrough;
+    const api = factory(tunnel);
+    if (typeof module === 'object' && module.exports) module.exports.FPVInfrastructureClearance = api;
+    else root.FPVInfrastructureClearance = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (tunnel) {
+    'use strict';
+    const R = 6378137, DEG = Math.PI / 180;
+    const MAX_SURFACES = 48, MAX_SECTIONS = 24, MAX_ROUTE = 512, MAX_PROBES = 1024;
+    const finite = Number.isFinite;
+    const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+    function distance(a, b) {
+        const lat = (a.latitude + b.latitude) / 2 * DEG;
+        return Math.hypot((b.longitude - a.longitude) * DEG * R * Math.cos(lat),
+            (b.latitude - a.latitude) * DEG * R);
+    }
+    function local(point, origin) {
+        return {x: (point.longitude - origin.longitude) * DEG * R * Math.cos(origin.latitude * DEG),
+            y: (point.latitude - origin.latitude) * DEG * R};
+    }
+    function validateDocument(document) {
+        if (!document || document.version !== 1 || document.elevationReference !== 'WGS84_ELLIPSOID' ||
+            typeof document.source !== 'string' || !document.source.trim() || document.source.length > 240 ||
+            !Array.isArray(document.surfaces) || document.surfaces.length > MAX_SURFACES)
+            throw Error('A bounded source and WGS84-ellipsoid infrastructure document are required.');
+        const seen = new Set(), quality = ['surveyed', 'derived', 'approximate', 'unknown'];
+        const surfaces = document.surfaces.map((raw, index) => {
+            if (!raw || !['deck', 'support'].includes(raw.kind) || typeof raw.id !== 'string' ||
+                !/^[a-zA-Z0-9_:.\-]{1,80}$/.test(raw.id) || seen.has(raw.id))
+                throw Error('Invalid or duplicated infrastructure surface ID.');
+            seen.add(raw.id);
+            if (!finite(raw.bottomMetersWgs84) || !finite(raw.topMetersWgs84) ||
+                raw.topMetersWgs84 <= raw.bottomMetersWgs84 ||
+                raw.bottomMetersWgs84 < -500 || raw.topMetersWgs84 > 9000)
+                throw Error('Surface heights must be explicit WGS84-ellipsoid meters.');
+            const points = raw.kind === 'deck' ? raw.centerline : [raw.center];
+            if (!Array.isArray(points) || points.length < (raw.kind === 'deck' ? 2 : 1) ||
+                points.length > MAX_SECTIONS || !points.every(p => p && finite(p.longitude) && finite(p.latitude) &&
+                p.longitude >= 5.8 && p.longitude <= 10.7 && p.latitude >= 45.6 && p.latitude <= 47.9))
+                throw Error('Invalid Swiss geographic geometry.');
+            const width = raw.kind === 'deck' ? raw.widthMeters : raw.radiusMeters * 2;
+            if (!finite(width) || width < .2 || width > 80 ||
+                (raw.kind === 'deck' && points.some((p, i) => i > 0 &&
+                    (distance(points[i - 1], p) < .5 || distance(points[i - 1], p) > 200))))
+                throw Error('Surface dimensions or geometry exceed budget.');
+            return Object.freeze({id: raw.id, kind: raw.kind,
+                name: typeof raw.name === 'string' ? raw.name.slice(0, 100) : `Surface ${index + 1}`,
+                bottomMetersWgs84: raw.bottomMetersWgs84, topMetersWgs84: raw.topMetersWgs84,
+                widthMeters: width, centerline: points.map(p => ({longitude: p.longitude, latitude: p.latitude})),
+                // A local import cannot independently certify surveyed accuracy.
+                quality: 'external-unverified', claimedQuality: quality.includes(raw.quality) ? raw.quality : 'unknown',
+                source: document.source.slice(0, 240), sourceId: String(raw.sourceId ?? raw.id).slice(0, 100)});
+        });
+        return Object.freeze({source: document.source, quality: 'external-unverified', surfaces});
+    }
+    function corridor(point, surface) {
+        let best = Infinity;
+        const line = surface.centerline;
+        for (let i = 1; i < line.length; i++) {
+            const origin = line[i - 1], a = {x: 0, y: 0}, b = local(line[i], origin), p = local(point, origin);
+            const len2 = b.x * b.x + b.y * b.y;
+            const t = len2 > 0 ? clamp((p.x * b.x + p.y * b.y) / len2, 0, 1) : 0;
+            best = Math.min(best, Math.hypot(p.x - (a.x + b.x * t), p.y - (a.y + b.y * t)));
+        }
+        if (surface.kind === 'support') best = distance(point, line[0]);
+        return best;
+    }
+    function surfaceClearance(point, surface, radius) {
+        if (!point || !finite(point.height)) return null;
+        const horizontal = Math.max(0, corridor(point, surface) - surface.widthMeters / 2);
+        const vertical = point.height < surface.bottomMetersWgs84 ? surface.bottomMetersWgs84 - point.height :
+            point.height > surface.topMetersWgs84 ? point.height - surface.topMetersWgs84 : 0;
+        const outside = Math.hypot(horizontal, vertical);
+        // If the drone centre is inside the represented volume, negative
+        // clearance is an overlap. Otherwise subtract its bounding radius.
+        return horizontal === 0 && vertical === 0 ? -radius : outside - radius;
+    }
+    function tunnelClearance(point, model, radius) {
+        if (!model || !tunnel || !finite(point.height)) return null;
+        const near = tunnel.closest(model, point);
+        if (!near) return null;
+        // Only report contact/near-contact within the displayed model's
+        // footprint, not an imaginary nationwide tunnel obstacle.
+        if (near.distance > near.width / 2 + 2 + radius ||
+            point.height < near.floor - 2 - radius ||
+            point.height > near.floor + near.height + 2 + radius) return null;
+        const wall = near.width / 2 - near.distance;
+        const floor = point.height - near.floor;
+        const ceiling = near.floor + near.height - point.height;
+        const clearance = Math.min(wall, floor, ceiling) - radius;
+        return clearance;
+    }
+    function analyse(input, surfaces = [], model = null, {radiusMeters = .25} = {}) {
+        if (!input || !Array.isArray(input.samples) || input.samples.length < 2 ||
+            input.samples.length > MAX_ROUTE || !finite(radiusMeters) || radiusMeters < .05 || radiusMeters > 2 ||
+            input.samples.some(p => !p || !finite(p.latitude) || !finite(p.longitude) ||
+                Math.abs(p.latitude) > 90 || Math.abs(p.longitude) > 180 ||
+                (p.height !== null && p.height !== undefined && !finite(p.height)) ||
+                !Number.isInteger(p.segment) || p.segment < 0 || p.segment > 1000))
+            throw Error('Invalid or unbounded route clearance samples.');
+        if (!Array.isArray(surfaces) || surfaces.length > MAX_SURFACES)
+            throw Error('Unbounded infrastructure geometry.');
+        const hits = new Map();
+        let used = 0, unknown = 0, clipped = Boolean(input.truncated), assessed = 0;
+        const samples = input.samples;
+        outer: for (let i = 0; i < samples.length - 1; i++) {
+            const a = samples[i], b = samples[i + 1], horizontal = distance(a, b);
+            const count = Math.max(1, Math.ceil(horizontal / 2));
+            for (let step = 0; step < count; step++) {
+                if (++used > MAX_PROBES) {clipped = true; break outer;}
+                const t = step / count;
+                const point = {longitude: a.longitude + (b.longitude - a.longitude) * t,
+                    latitude: a.latitude + (b.latitude - a.latitude) * t,
+                    height: a.height == null || b.height == null ? null : a.height + (b.height - a.height) * t};
+                if (point.height === null) {unknown++; continue;}
+                for (const surface of surfaces) {
+                    const clearance = surfaceClearance(point, surface, radiusMeters);
+                    assessed++;
+                    if (clearance > 2) continue;
+                    const key = `${a.segment}:${surface.id}`;
+                    const earlier = hits.get(key);
+                    if (!earlier || clearance < earlier.clearanceMeters) hits.set(key, {
+                        segment: a.segment, kind: surface.kind, id: surface.id, name: surface.name,
+                        source: surface.source, sourceId: surface.sourceId, quality: surface.quality,
+                        claimedQuality: surface.claimedQuality,
+                        clearanceMeters: clearance, status: clearance <= 0 ? 'model-contact' : 'near-model'});
+                }
+                const tunnelMargin = tunnelClearance(point, model, radiusMeters);
+                if (tunnelMargin !== null && tunnelMargin <= 2) {
+                    assessed++;
+                    const key = `${a.segment}:tunnel`;
+                    const earlier = hits.get(key);
+                    if (!earlier || tunnelMargin < earlier.clearanceMeters) hits.set(key, {
+                        segment: a.segment, kind: 'tunnel', id: String(model.identity || 'tunnel'),
+                        name: 'Modeled tunnel interior', source: String(model.source || 'local'),
+                        sourceId: String(model.sourceId || ''), quality: model.quality || 'unknown',
+                        claimedQuality: 'unknown', clearanceMeters: tunnelMargin,
+                        status: tunnelMargin <= 0 ? 'model-contact' : 'near-model'});
+                }
+            }
+        }
+        if (used < MAX_PROBES) {
+            const last = samples.at(-1);
+            if (last.height == null) unknown++;
+        }
+        const findings = [...hits.values()].sort((a, b) => a.segment - b.segment || a.clearanceMeters - b.clearanceMeters);
+        if (findings.length > 80) clipped = true;
+        return {findings: findings.slice(0, 80), checkedSamples: Math.min(used, MAX_PROBES),
+            unknownHeightSamples: unknown, modelCount: surfaces.length + (model ? 1 : 0),
+            incomplete: true, processingLimited: clipped, // Published 3D Tiles are NOT fully surveyed for collisions.
+            coverage: surfaces.length || model ? 'local-models-only' : 'unassessed',
+            message: 'No nationwide or complete bridge underside coverage; 3D Tiles visualisation does not establish obstacle clearance.',
+            assessedComparisons: assessed};
+    }
+    function create(C, viewer, getTunnelModel = () => null) {
+        let surfaces = [], source = null, visual = null, visible = false, report = null, route = null, disposed = false;
+        let retainedTunnel = null;
+        const scene = viewer.scene;
+        function clearVisual() {
+            if (visual) {visual.forEach(v => viewer.entities.remove(v));visual = null;}
+            scene.requestRender?.();
+        }
+        function render() {
+            clearVisual();
+            if (!visible || !report || !route || !C || !viewer.entities) return;
+            visual = [];
+            const escape = value => String(value).replace(/[&<>"']/g, c => ({
+                '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+            }[c]));
+            for (const hit of report.findings.slice(0, 80)) {
+                const i = route.findIndex(p => p.segment === hit.segment);
+                if (i < 0 || !route[i] || !route[i + 1]) continue;
+                const a = route[i], b = route[i + 1];
+                if (a.height == null || b.height == null) continue;
+                visual.push(viewer.entities.add({name: `Infrastructure advisory: ${hit.name}`,
+                    description: `${escape(hit.status)}; ${escape(hit.quality)}. NOT proof of clearance. Source: ${escape(hit.source)} / ${escape(hit.sourceId)}`,
+                    polyline: {positions: C.Cartesian3.fromDegreesArrayHeights([
+                        a.longitude, a.latitude, a.height, b.longitude, b.latitude, b.height]),
+                        width: 5, material: hit.clearanceMeters <= 0 ? C.Color.RED : C.Color.ORANGE}}));
+            }
+            scene.requestRender?.();
+        }
+        function replace(document) {
+            if (disposed) throw Error('Infrastructure renderer disposed.');
+            const next = validateDocument(document);
+            surfaces = next.surfaces;source = next.source;report = null;route = null;clearVisual();
+            return {count: surfaces.length, quality: next.quality, source};
+        }
+        function assess(input) {
+            if (disposed) throw Error('Infrastructure renderer disposed.');
+            route = input.samples;
+            report = analyse(input, surfaces, getTunnelModel() ?? retainedTunnel, {radiusMeters: input.radiusMeters});
+            render();return report;
+        }
+        function setVisible(value) {
+            if (typeof value !== 'boolean') throw Error('Expected infrastructure clearance visibility');
+            if (disposed) return {};
+            visible = value;render();return {visible};
+        }
+        function collision(a, b, radius = .25) {
+            if (disposed || !visible || !surfaces.length || !a || !b) return false;
+            const probes = Math.min(32, Math.max(1, Math.ceil(distance(a, b) / .25)));
+            for (let i = 0; i <= probes; i++) {
+                const t = i / probes, point = {latitude: a.latitude + (b.latitude - a.latitude) * t,
+                    longitude: a.longitude + (b.longitude - a.longitude) * t,
+                    height: a.height + (b.height - a.height) * t};
+                if (surfaces.some(s => surfaceClearance(point, s, radius) <= 0)) return true;
+            }
+            return false;
+        }
+        function retainTunnel(model) {
+            if (disposed) throw Error('Renderer disposed.');
+            if (!model || !Array.isArray(model.sections) || model.sections.length > 96 ||
+                !model.quality || model.clearanceVerified === true) {
+                throw Error('Unsupported or independently unverified tunnel geometry.');
+            }
+            // Retain for route *analysis* after the route editor releases its
+            // clipping mesh. Does not enable physical fly-through or terrain clipping.
+            retainedTunnel = model;
+            report = route = null;clearVisual();
+        }
+        function forgetTunnel() {retainedTunnel = null; report = route = null;clearVisual();}
+        return {replace, assess, setVisible, collision, retainTunnel, forgetTunnel,
+            hasUnverifiedTunnel: () => !!(getTunnelModel() ?? retainedTunnel),
+            status: () => ({surfaceCount: surfaces.length, source, visible, hasReport: !!report,
+                retainedTunnel: !!retainedTunnel}),
+            dispose() {if (disposed) return;clearVisual();surfaces = [];retainedTunnel = null;
+                report = route = null;disposed = true;}};
+    }
+    return {validateDocument, surfaceClearance, tunnelClearance, analyse, create,
+        MAX_SURFACES, MAX_ROUTE, MAX_PROBES};
+});

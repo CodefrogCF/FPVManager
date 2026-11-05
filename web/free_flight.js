@@ -193,6 +193,11 @@
                !valid(point)||!Number.isFinite(point.height)||
                !Number.isFinite(point.heading)||!Number.isFinite(point.pitch)||
                !Number.isFinite(point.speed))throw Error('Invalid replay pose');
+            if(playback && position && modeledCollision({...position,height},
+                {latitude:point.latitude,longitude:point.longitude,height:point.height})) {
+                clearKeys();brake();reason='Simulated infrastructure model contact; replay paused';
+                pose();return false;
+            }
             playback=true;clearKeys();
             position={latitude:point.latitude,longitude:point.longitude};
             height=point.height;heading=point.heading;pitch=point.pitch;roll=0;
@@ -200,7 +205,7 @@
             q=euler(heading,-pitch,0);
             velocity={north:Math.cos(heading)*point.speed*Math.cos(pitch),
                 east:Math.sin(heading)*point.speed*Math.cos(pitch),up:Math.sin(pitch)*point.speed};
-            reason=null;pose();
+            reason=null;pose();return true;
         }
         function playbackEnd(){playback=false;clearKeys();brake();reason=null;pose();}
         // An explicit user action enters validated SIMULATION-ONLY cross sections.
@@ -228,8 +233,10 @@
             const dt=Math.min(seconds,.1),travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
-            if(modeledCollision({...position,height},{...endpoint,height:height+travel.up})){
-                brake();reason='Simulated tunnel surface contact: movement stopped';pose();return;
+            const modeledContact=modeledCollision({...position,height},{...endpoint,height:height+travel.up});
+            if(modeledContact){
+                brake();reason=modeledContact==='bridge' ? 'Simulated bridge or support surface contact: movement stopped' :
+                    'Simulated tunnel surface contact: movement stopped';pose();return;
             }
             if(terrainCollision?.({...position,height},{...endpoint,height:height+travel.up})){
                 brake();reason='Terrain contact: movement stopped';pose();return;

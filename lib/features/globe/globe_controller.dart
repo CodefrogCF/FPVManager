@@ -24,6 +24,7 @@ import '../../core/osint/geojson_osint_provider.dart';
 import '../obstacles/obstacle_map_controller.dart';
 import '../obstacles/swiss_obstacle_provider.dart';
 import 'globe_bridge.dart';
+import 'infrastructure_clearance.dart';
 import 'route_map_state.dart';
 import 'globe_location_controller.dart';
 import '../mobility/navigation_location.dart';
@@ -616,6 +617,86 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> removeTunnelModel() => _send({'type': 'remove-tunnel-model'});
+
+  int _infrastructureRevision = 0;
+  int get infrastructureRevision => _infrastructureRevision;
+  int _infrastructureSurfaceCount = 0;
+  int get infrastructureSurfaceCount => _infrastructureSurfaceCount;
+
+  /// Session-local external geometry. Source claims are not an independent
+  /// verification of bridge dimensions or real-world clearance.
+  Future<void> importInfrastructureGeometry(
+    Map<String, dynamic> document,
+  ) async {
+    if (!_ready || _disposed) throw StateError('Globe not ready');
+    if (document['version'] != 1 ||
+        document['elevationReference'] != 'WGS84_ELLIPSOID' ||
+        document['source'] is! String ||
+        document['surfaces'] is! List ||
+        (document['surfaces'] as List).length > 48) {
+      throw const FormatException('Unsupported infrastructure geometry input');
+    }
+    final result = await _request({
+      'type': 'import-infrastructure-clearance',
+      'document': document,
+    }, timeout: _bridge.options.terrainTimeout);
+    if (result['count'] is! int) {
+      throw const FormatException(
+        'Invalid infrastructure import acknowledgement',
+      );
+    }
+    _infrastructureSurfaceCount = result['count'] as int;
+    ++_infrastructureRevision;
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> showInfrastructureClearance(bool visible) async {
+    if (!_ready || _disposed) return;
+    await _send({
+      'type': 'set-infrastructure-clearance-layer',
+      'visible': visible,
+    });
+  }
+
+  /// Only sampled WGS84 ellipsoidal heights are accepted. Missing elevations
+  /// remain null; neither absent geometry nor no findings imply clearance.
+  Future<InfrastructureClearanceReport> queryInfrastructureClearance(
+    List<InfrastructureRoutePoint> points, {
+    double droneRadiusMeters = 0.25,
+    bool truncated = false,
+  }) async {
+    if (points.length < 2 ||
+        points.length > 512 ||
+        !droneRadiusMeters.isFinite ||
+        droneRadiusMeters < 0.05 ||
+        droneRadiusMeters > 2 ||
+        points.any(
+          (p) =>
+              !p.latitude.isFinite ||
+              !p.longitude.isFinite ||
+              p.latitude.abs() > 90 ||
+              p.longitude.abs() > 180 ||
+              (p.heightMetersWgs84 != null && !p.heightMetersWgs84!.isFinite) ||
+              p.segment < 0 ||
+              p.segment > 1000,
+        )) {
+      throw ArgumentError('Invalid bounded infrastructure route');
+    }
+    final revision = _infrastructureRevision;
+    final result = await _request({
+      'type': 'query-infrastructure-clearance',
+      'samples': [for (final p in points) p.toJson()],
+      'radiusMeters': droneRadiusMeters,
+      'truncated': truncated,
+    }, timeout: _bridge.options.terrainTimeout);
+    if (!_ready || _disposed || revision != _infrastructureRevision) {
+      throw StateError(
+        'Infrastructure data or renderer changed during assessment',
+      );
+    }
+    return InfrastructureClearanceReport.fromJson(result);
+  }
+
   SceneTime? _simulationSceneTime;
   SceneTime? get simulationSceneTime => _simulationSceneTime;
 
@@ -2249,6 +2330,8 @@ class GlobeController extends ChangeNotifier {
             : 'Route preview unavailable';
         notifyListeners();
       case 'renderer-loading':
+        ++_infrastructureRevision;
+        _infrastructureSurfaceCount = 0;
         _tunnelScanSequence++;
         _tunnelRoutes = const [];
         _selectedInfrastructure = null;
@@ -2263,6 +2346,8 @@ class GlobeController extends ChangeNotifier {
         _resetConnection();
 
       case 'globe-ready':
+        ++_infrastructureRevision;
+        _infrastructureSurfaceCount = 0;
         _tunnelModelReady = _tunnelModelPending = _tunnelFlightActive = false;
         _tunnelModelQuality = _tunnelModelError = null;
         _tunnelScanSequence++;

@@ -262,7 +262,10 @@
                 frame.ground=terrain;frame.height=terrain+frame.aglTarget;
             }
             time=nextTime;reason=null;
-            simulator.playbackPose(frame);
+            if(simulator.playbackPose(frame)===false){
+                phase='paused';reason='Simulated infrastructure collision detected; replay paused.';
+                simulator.playbackEnd();publish(true);return;
+            }
             if(time>=flight.duration){phase='finished';simulator.playbackEnd();}
             publish(time>=flight.duration);
         }
