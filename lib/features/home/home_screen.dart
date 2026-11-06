@@ -94,6 +94,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   ActivityMapDefaults? _pendingProfileDefaults;
   bool _applyingProfile = false;
   bool _allToolsExpanded = false;
+  // Reuse the caller-owned database when preferences are injected.
+  // Only create and later close a database when this screen owns it.
   FpvDatabase get _planningDatabase {
     final repository = widget.preferencesRepository;
     return repository is DriftUserPreferencesRepository
@@ -161,7 +163,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             ActivityProfilesRepository(
               preferences is DriftUserPreferencesRepository
                   ? preferences.database
-                  : _database ??= FpvDatabase.open(),
+                  : _planningDatabase,
             ),
       );
       _profiles!.addListener(_onProfilesChanged);
@@ -259,7 +261,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       _preferencesStarted = true;
       await _globeController.initializePreferences(
         widget.preferencesRepository ??
-            UserPreferencesRepository(_database ??= FpvDatabase.open()),
+            UserPreferencesRepository(_planningDatabase),
       );
     }
   }
@@ -327,7 +329,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   Future<void> _openData() async {
     await _leaveGroundView();
     if (!mounted) return;
-    final database = _database ??= FpvDatabase.open();
+    final database = _planningDatabase;
     try {
       await _globeController.setRenderingPaused(true);
     } catch (_) {
@@ -434,7 +436,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   Future<void> _openPreflight() async {
     await _leaveGroundView();
     if (!mounted) return;
-    final database = _database ??= FpvDatabase.open();
+    final database = _planningDatabase;
     await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => PreflightScreen(database: database)),
@@ -474,7 +476,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       final flight = _globeController.recording.snapshot();
       final repository = _flightPlanRepository ??=
           widget.flightPlanRepository ??
-          FlightPlanRepository(_database ??= FpvDatabase.open());
+          FlightPlanRepository(_planningDatabase);
       final routeId = await showFlightRecordingReview(
         context,
         flight: flight,
@@ -495,13 +497,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             repository: repository,
             cachedMaps: _cachedMaps,
             spots: _spotRepository ??=
-                widget.spotRepository ??
-                SpotRepository(_database ??= FpvDatabase.open()),
+                widget.spotRepository ?? SpotRepository(_planningDatabase),
             obstacleProvider: _globeController.obstacles.provider,
             uasProvider: _globeController.uasProvider,
             preferencesRepository:
                 widget.preferencesRepository ??
-                UserPreferencesRepository(_database ??= FpvDatabase.open()),
+                UserPreferencesRepository(_planningDatabase),
           ),
         ),
       );
@@ -515,7 +516,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   Future<void> _openMobility({int? initialSpotId, int initialTab = 0}) async {
     await _leaveGroundView();
     if (!mounted) return;
-    final database = _database ??= FpvDatabase.open();
+    final database = _planningDatabase;
     final point = _globeController.selectedPoint;
     await Navigator.push<void>(
       context,
@@ -542,7 +543,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       unawaited(
         _globeController.initializePreferences(
           widget.preferencesRepository ??
-              UserPreferencesRepository(_database ??= FpvDatabase.open()),
+              UserPreferencesRepository(_planningDatabase),
         ),
       );
     }
@@ -568,8 +569,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     final settings = await showSimulationSettings(
       context,
       repository: _droneRepository ??=
-          widget.droneRepository ??
-          DroneRepository(_database ??= FpvDatabase.open()),
+          widget.droneRepository ?? DroneRepository(_planningDatabase),
       initial: _simulationSettings.withCameraTilt(
         _globeController.simulationCameraTiltDegrees ??
             _simulationSettings.cameraTiltDegrees,
@@ -597,8 +597,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       radioControls: LiveRadioLauncher(
         globe: _globeController,
         spots: _spotRepository ??=
-            widget.spotRepository ??
-            SpotRepository(_database ??= FpvDatabase.open()),
+            widget.spotRepository ?? SpotRepository(_planningDatabase),
       ),
     );
     if (settings == null || !mounted) return;
@@ -626,8 +625,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         context,
         _globeController,
         spots: _spotRepository ??=
-            widget.spotRepository ??
-            SpotRepository(_database ??= FpvDatabase.open()),
+            widget.spotRepository ?? SpotRepository(_planningDatabase),
       );
     } finally {
       _radioSheetOpen = false;
@@ -662,7 +660,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     final routes = _routeLayers ??= RouteLayersController(
       repository: _flightPlanRepository ??=
           widget.flightPlanRepository ??
-          FlightPlanRepository(_database ??= FpvDatabase.open()),
+          FlightPlanRepository(_planningDatabase),
       globe: _globeController,
     );
     return showMapPanel<void>(
@@ -737,7 +735,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   Future<void> _openWeather() async {
     await _leaveGroundView();
     if (!mounted) return;
-    final database = _database ??= FpvDatabase.open();
+    final database = _planningDatabase;
     final spotRepository = _spotRepository ??=
         widget.spotRepository ?? SpotRepository(database);
     final droneRepository = _droneRepository ??=
@@ -761,8 +759,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await _leaveGroundView();
     if (!mounted) return;
     final repository = _droneRepository ??=
-        widget.droneRepository ??
-        DroneRepository(_database ??= FpvDatabase.open());
+        widget.droneRepository ?? DroneRepository(_planningDatabase);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => DronesScreen(repository: repository),
@@ -774,8 +771,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await _leaveGroundView();
     if (!mounted) return;
     final repository = _batteryRepository ??=
-        widget.batteryRepository ??
-        BatteryRepository(_database ??= FpvDatabase.open());
+        widget.batteryRepository ?? BatteryRepository(_planningDatabase);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => BatteriesScreen(repository: repository),
@@ -788,7 +784,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     if (!mounted) return;
     final repository = _radioEquipmentRepository ??=
         widget.radioEquipmentRepository ??
-        RadioEquipmentRepository(_database ??= FpvDatabase.open());
+        RadioEquipmentRepository(_planningDatabase);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => RadioEquipmentScreen(repository: repository),
@@ -826,21 +822,19 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await _leaveGroundView();
     if (!mounted) return;
     final repository = _flightPlanRepository ??=
-        widget.flightPlanRepository ??
-        FlightPlanRepository(_database ??= FpvDatabase.open());
+        widget.flightPlanRepository ?? FlightPlanRepository(_planningDatabase);
     final playbackId = await Navigator.of(context).push<int>(
       MaterialPageRoute(
         builder: (context) => FlightRoutesScreen(
           cachedMaps: _cachedMaps,
           repository: repository,
           spots: _spotRepository ??=
-              widget.spotRepository ??
-              SpotRepository(_database ??= FpvDatabase.open()),
+              widget.spotRepository ?? SpotRepository(_planningDatabase),
           obstacleProvider: _globeController.obstacles.provider,
           uasProvider: _globeController.uasProvider,
           preferencesRepository:
               widget.preferencesRepository ??
-              UserPreferencesRepository(_database ??= FpvDatabase.open()),
+              UserPreferencesRepository(_planningDatabase),
         ),
       ),
     );
@@ -925,8 +919,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     if (_spotsSubscription != null) return;
 
     final repository = _spotRepository ??=
-        widget.spotRepository ??
-        SpotRepository(_database ??= FpvDatabase.open());
+        widget.spotRepository ?? SpotRepository(_planningDatabase);
 
     _spotsSubscription = repository.watchMapSpots().listen(
       (spots) {
@@ -1096,7 +1089,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       unawaited(
         _globeController.initializePreferences(
           widget.preferencesRepository ??
-              UserPreferencesRepository(_database ??= FpvDatabase.open()),
+              UserPreferencesRepository(_planningDatabase),
         ),
       );
     }
