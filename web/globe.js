@@ -617,6 +617,11 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case 'tunnel-runtime-diagnostics': {
+                // Explicit local snapshot: never broadcast tunnel identities,
+                // flight positions, or rejection reasons as automatic telemetry.
+                return tunnelVolumes?.diagnostics()??{active:false,count:0};
+            }
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
@@ -1004,6 +1009,7 @@ function postToFlutter(message) {
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{
                 isTerrainReady:terrainAvailable,
+                isSimulating:()=>flyer?.active===true,
                 onRoutes:(routes,center)=>{
                     if(schematicTunnelsEnabled)void tunnelVolumes?.setAutomaticRoutes(routes,center).catch(()=>{});
                 }})
@@ -1064,6 +1070,13 @@ function postToFlutter(message) {
             isTerrainReady: terrainAvailable,
             sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal)).heightMeters,
             renderedHeight: point=>tunnelVolumes?.floorAt(point)??flightRenderer.renderedHeight(point),
+            onSurfaceDiscontinuity: ({position,previousGround,nextGround,height})=>
+                // At artificial segment limits the terrain probe can jump to
+                // mountain height BEFORE the next 1.8-km mesh is committed.
+                // Do not treat that height as the flight floor, regardless of
+                // whether previousGround already holds the same stale value.
+                Number.isFinite(nextGround)&&height<nextGround+.5&&
+                tunnelVolumes?.artificialBoundaryNear(position)===true,
             sampleWind: point=>windLayer.sample(point),
             applyGraphics: flightRenderer.applyGraphics,
             captureCamera: () => {
@@ -1146,11 +1159,17 @@ function postToFlutter(message) {
                 (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || false,
             terrainCollision:(from,to)=>{
                 if(tunnelVolumes &&
-                    (tunnelVolumes.floorAt(from)!=null||tunnelVolumes.floorAt(to)!=null))return false;
+                    (tunnelVolumes.floorAt(from)!=null||tunnelVolumes.floorAt(to)!=null||
+                    tunnelVolumes.artificialBoundaryNear(from)||
+                    tunnelVolumes.artificialBoundaryNear(to)))return false;
                 return flightRenderer.terrainCollision(from,to);
             },
             applyPose:point=>{
                 applyCamera(point);
+                // Prefetch the next source-aligned window before a long tunnel
+                // reaches its artificial mesh boundary. No live Overpass calls.
+                const target=tunnelVolumes?.flightCoverageTarget(point);
+                if(target)void tunnels?.prefetchFlight(target).catch(()=>{});
                 flightRecording.observe(point);
                 liveRadio.observe(point);
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;

@@ -6,7 +6,7 @@ import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
 
-enum SimulationGraphicsProfile { quality, balanced, performance }
+enum SimulationGraphicsProfile { quality, balanced, performance, compatibility }
 
 enum SimulationHudStyle { goggles, betaflight }
 

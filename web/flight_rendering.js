@@ -16,7 +16,8 @@
     const profiles=Object.freeze({
         quality:Object.freeze({resolutionScale:1,msaaSamples:4}),
         balanced:Object.freeze({resolutionScale:.85,msaaSamples:2}),
-        performance:Object.freeze({resolutionScale:.75,msaaSamples:1})
+        performance:Object.freeze({resolutionScale:.75,msaaSamples:1}),
+        compatibility:Object.freeze({resolutionScale:.65,msaaSamples:1})
     });
     // Retain recently viewed terrain and its attached imagery for return turns.
     // Cesium's LRU target counts tiles, not bytes; tiles needed by the current

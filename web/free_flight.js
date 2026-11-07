@@ -35,7 +35,7 @@
             if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`Invalid flight ${key}`);
         }
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
-        if(!['quality','balanced','performance'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
+        if(!['quality','balanced','performance','compatibility'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
         if(!['goggles','betaflight'].includes(p.hudStyle))throw new Error('Unknown flight HUD style');
         if(typeof p.showCoordinates!=='boolean')throw new Error('Invalid HUD coordinate visibility');
         return p;
@@ -51,7 +51,9 @@
         const axis=(angle,x,y,z)=>({w:Math.cos(angle/2),x:x*Math.sin(angle/2),y:y*Math.sin(angle/2),z:z*Math.sin(angle/2)});
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
-    function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,isTerrainReady,onState,sampleWind=()=>null}){
+    function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,
+        onSurfaceDiscontinuity=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,
+        isTerrainReady,onState,sampleWind=()=>null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
@@ -222,7 +224,16 @@
         function tick(seconds){
             if(!active||playback)return;
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
-            const floor=renderedHeight({...position,height});ground=Number.isFinite(floor)?floor:null;
+            const previousGround=ground;
+            const floor=renderedHeight({...position,height});
+            // A missing synthetic segment can suddenly expose mountain terrain
+            // hundreds of metres above the drone. Never teleport the drone to
+            // that surface: retain its pose and wait for the next tunnel window.
+            if(Number.isFinite(floor)&&height<floor+.5&&onSurfaceDiscontinuity({
+                position:{...position},height,previousGround,nextGround:floor})){
+                brake();reason='Tunnel continuation loading: movement paused';pose();return;
+            }
+            ground=Number.isFinite(floor)?floor:null;
             if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
             windInfo=sampleWind({...position,agl:ground==null?NaN:height-ground});
             const validWind=windInfo?.available&&['north','east','up'].every(k=>Number.isFinite(windInfo[k])&&Math.abs(windInfo[k])<=100);
@@ -243,7 +254,7 @@
                 brake();reason='Terrain contact: movement stopped';pose();return;
             }
             const steps=Math.max(1,Math.ceil(horizontal/.5));
-            let next=null,nextHeight=height,nextGround=null,contact=false;
+            let next=null,nextHeight=height,nextGround=null,contact=false,waitingForTunnel=false;
             for(let i=1;i<=steps;i++){
                 const fraction=i/steps,p=i===steps?endpoint:move(position,travel.north*fraction,travel.east*fraction);
                 if(!valid(p)){brake();reason='Supported latitude limit reached';pose();return;}
@@ -253,13 +264,19 @@
                 const h=p===position?floor:renderedHeight({...p,height:z});
                 if(!Number.isFinite(h)){brake();ground=null;reason='Movement paused: terrain tiles not loaded';pose();return;}
                 if(z<h+.5){
+                    if(onSurfaceDiscontinuity({position:{...p},height:z,
+                        previousGround:nextGround??floor,nextGround:h})){
+                        waitingForTunnel=true;contact=true;break;
+                    }
                     if(horizontal<.001){next=p;nextHeight=h+.5;nextGround=h;}
                     contact=true;break;
                 }
                 next=p;nextHeight=z;nextGround=h;
             }
             if(next){position=next;height=nextHeight;ground=nextGround;}
-            if(contact){brake();reason='Terrain contact: movement stopped';}else reason=null;
+            if(contact){brake();reason=waitingForTunnel ?
+                'Tunnel continuation loading: movement paused':
+                'Terrain contact: movement stopped';}else reason=null;
             pose();
         }
         async function reset(signal){
@@ -281,7 +298,7 @@
                 config={...config,showCoordinates:value};if(active){pose();publish();}
             },
             graphicsProfile(profile){
-                if(!['quality','balanced','performance'].includes(profile))throw new Error('Unknown flight graphics profile');
+                if(!['quality','balanced','performance','compatibility'].includes(profile))throw new Error('Unknown flight graphics profile');
                 if(active)applyGraphics?.(profile);
                 config={...config,graphicsProfile:profile};if(active)publish();
             },

@@ -1,0 +1,126 @@
+/* Flight telemetry stays clear of the sticks and of Cesium's source credits. */
+#navigation-hud {
+    --hud-shadow: 0 1px 2px #000, 0 0 4px #000, 1px 0 1px #000, -1px 0 1px #000;
+    position:absolute;inset:0;z-index:22;pointer-events:none;
+    color:#fff;font:500 14px/1.2 Roboto,Arial,sans-serif;text-shadow:var(--hud-shadow);
+    font-variant-numeric:tabular-nums;
+}
+#navigation-hud[hidden],#navigation-hud [hidden] { display:none; }
+#ground-controls[data-mode="flight"],#ground-controls[data-mode="gps"] {
+    bottom:max(125px,calc(env(safe-area-inset-bottom) + 110px));
+}
+#ground-controls[data-mode="flight"] ~ #look-region #look-stick,
+#ground-controls[data-mode="gps"] ~ #look-region #look-stick {
+    bottom:max(140px,calc(env(safe-area-inset-bottom) + 125px));
+}
+#hud-mode { position:absolute;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));
+    font-size:12px;letter-spacing:.08em; }
+.hud-reticle { display:none;position:absolute;top:50%;left:50%;width:40px;height:24px;
+    transform:translate(-50%,-50%);fill:none;stroke:#fff;stroke-width:2;filter:drop-shadow(1px 1px 1px #000); }
+#hud-coordinates { position:absolute;top:34px;left:max(14px,env(safe-area-inset-left));max-width:calc(100% - 28px);
+    font:11px/1.3 "Courier New",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+[data-style="betaflight"] .hud-reticle { display:block; }
+#flight-actions { position:absolute;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));display:flex;gap:6px; }
+#flight-actions button,#flight-options button { pointer-events:auto;cursor:pointer;touch-action:manipulation;
+    border:1px solid #ffffff45;background:#10182080;color:#fff;border-radius:10px; }
+#flight-actions button { width:44px;height:44px;font-size:22px;line-height:1; }
+#flight-actions svg { width:22px;height:22px;vertical-align:middle; }
+#record-flight { color:#ff9b94; }
+#record-flight[data-recording="recording"] { background:#631e2580;border-color:#ff9b94; }
+#record-flight[data-recording="paused"] { color:#ffe1a0; }
+#flight-recording-controls { display:flex;flex-wrap:wrap;gap:8px;font-size:12px; }
+#flight-recording-controls output { width:100%;color:#c2c9bd; }
+#flight-recording-controls button { padding:6px;min-height:36px;font:inherit; }
+#navigation-hud button:focus-visible,#navigation-hud select:focus-visible,#navigation-hud input:focus-visible {
+    outline:2px solid #a0d39a;outline-offset:2px;
+}
+#flight-options { position:absolute;top:60px;right:max(8px,env(safe-area-inset-right));width:248px;
+    box-sizing:border-box;max-width:calc(100vw - 16px);max-height:calc(100% - 130px);overflow:auto;
+    padding:12px;border:1px solid #ffffff45;border-radius:12px;background:#101820ed;
+    color:#fff;text-shadow:none;pointer-events:auto;box-shadow:0 6px 24px #0005; }
+#flight-options label { display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px; }
+#flight-options select { min-width:0;max-width:160px;border:1px solid #ffffff65;border-radius:6px;
+    color:#fff;background:#1e292b;padding:6px 4px;font:inherit; }
+#flight-option-actions { display:flex;gap:8px; }
+#flight-option-actions button { min-height:40px;padding:6px 12px;font:inherit; }
+#flight-camera label { flex-wrap:wrap; }
+#flight-camera-angle,#flight-camera-fov { width:100%;accent-color:#a0d39a; }
+#navigation-device { display:block;margin-top:10px;font-size:12px;color:#c2c9bd; }
+#navigation-device:empty { display:none; }
+#flight-controller { margin-top:14px;font-size:12px; }
+#flight-wind { margin-top:14px;font-size:12px; }
+#flight-wind summary { min-height:32px;line-height:32px;cursor:pointer; }
+#flight-wind button { min-height:36px;margin-top:8px;padding:6px; }
+#flight-wind label { justify-content:start; }
+#wind-legend { position:absolute;top:90px;left:8px;z-index:15;max-width:min(300px,calc(100% - 24px));
+    background:#101820ce;color:#fff;border-radius:8px;padding:8px;font:12px/1.4 Arial,sans-serif;pointer-events:none; }
+#wind-legend[hidden] { display:none; }
+#flight-time { margin-top:14px;font-size:12px; }
+#flight-time summary { min-height:32px;line-height:32px;cursor:pointer; }
+#flight-time-fixed { flex-direction:column;align-items:stretch; }
+#flight-time-fixed[hidden] { display:none; }
+#flight-time-value { min-width:0;width:100%;box-sizing:border-box;padding:6px;border:1px solid #ffffff65;
+    border-radius:6px;background:transparent;color:inherit;color-scheme:dark; }
+#flight-time-error { display:block;margin-top:6px;color:#ffe1a0; }
+#flight-controller summary { min-height:32px;line-height:32px;cursor:pointer; }
+#flight-controller p { color:#c2c9bd;line-height:1.45; }
+#flight-controller .controller-reverse { justify-content:start;margin-top:4px; }
+#hud-warning { position:absolute;bottom:126px;left:50%;transform:translateX(-50%);width:max-content;
+    max-width:calc(100% - 32px);box-sizing:border-box;padding:6px 10px;background:#38280ce0;
+    border-radius:6px;color:#ffe1a0;font-size:12px;text-align:center; }
+#flight-readout { position:absolute;bottom:max(38px,calc(env(safe-area-inset-bottom) + 30px));left:50%;transform:translateX(-50%);
+    width:min(620px,calc(100% - 24px));box-sizing:border-box; }
+.hud-secondary { display:flex;justify-content:center;gap:20px;font-size:12px;margin-bottom:8px;color:#e2e5e8; }
+.hud-secondary { flex-wrap:wrap;row-gap:4px; }
+#hud-live-radio { pointer-events:auto;border:1px solid #ffffff65;border-radius:5px;background:#10182080;color:#e2e5e8;font:inherit;padding:2px 5px;cursor:pointer; }
+#hud-live-radio[data-state="obstructed"] { color:#ffc48a; }
+#hud-live-radio[data-state="fresnelIntrusion"] { color:#e6c3ff; }
+#hud-live-radio[data-state="noSampledObstruction"] { color:#9be7e8; }
+#flight-radio { margin-top:14px;font-size:12px; }
+#flight-radio button { min-height:36px;padding:6px;margin-top:8px; }
+#flight-radio output { display:block;margin-top:6px; }
+.hud-telemetry { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
+    padding:10px 8px;border-radius:12px;background:linear-gradient(0deg,#10182075,#10182010); }
+.hud-metric { display:flex;flex-direction:column;align-items:center;justify-content:end;gap:4px;min-width:0; }
+.hud-label { font-size:10px;letter-spacing:.09em;color:#e2e5e8;white-space:nowrap; }
+.hud-value { display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:23px;font-weight:600; }
+.hud-value small { font-size:11px;font-weight:400; }
+.hud-home-icon { width:17px;height:17px;display:inline-block;flex-shrink:0; }
+#hud-home-arrow { transform-origin:center; }
+#hud-home-marker { font-size:12px;width:17px;text-align:center;border:1px solid #fff9;border-radius:50%;line-height:17px; }
+#navigation-hud[data-style="betaflight"] { font-family:"Courier New",monospace;font-weight:700;
+    text-shadow:1px 1px 0 #000,-1px 1px 0 #000,1px -1px 0 #000,-1px -1px 0 #000; }
+[data-style="betaflight"] .hud-telemetry { background:none;border-radius:0;gap:12px 36px;
+    grid-template-columns:repeat(2,minmax(0,1fr));padding:0 4px; }
+[data-style="betaflight"] .hud-metric { flex-direction:row;gap:8px;align-items:baseline;justify-content:start; }
+[data-style="betaflight"] .hud-metric:nth-child(even) { justify-content:end; }
+[data-style="betaflight"] .hud-label { font-size:12px;letter-spacing:0;color:#fff; }
+[data-style="betaflight"] .hud-value { font:700 20px/1.2 "Courier New",monospace; }
+[data-style="betaflight"] .hud-secondary { margin-bottom:10px;color:#fff;letter-spacing:.04em; }
+@media(max-width:480px) {
+    .hud-value { font-size:18px;gap:3px; }
+    .hud-label { font-size:9px;letter-spacing:.03em; }
+    .hud-telemetry { gap:4px;padding:8px 0; }
+    [data-style="betaflight"] .hud-telemetry { gap:10px 8px; }
+    [data-style="betaflight"] .hud-value { font-size:17px; }
+    [data-style="betaflight"] .hud-label { font-size:10px; }
+}
+@media(max-height:450px) {
+    #hud-warning { bottom:114px; }
+    #ground-controls[data-mode="flight"] [data-stick],#ground-controls[data-mode="gps"] [data-stick] { width:84px; }
+    #ground-controls[data-mode="flight"] ~ #look-region #look-stick,#ground-controls[data-mode="gps"] ~ #look-region #look-stick { width:84px; }
+    #flight-buttons button { height:32px;width:36px; }
+}
+/* Bounded replay controls are interactive without covering the flight viewport. */
+#route-playback { position:absolute;left:max(12px,env(safe-area-inset-left));
+    top:max(57px,calc(env(safe-area-inset-top) + 50px));max-width:min(580px,calc(100vw - 24px));
+    display:grid;gap:5px;padding:8px 10px;border-radius:10px;pointer-events:auto;
+    background:#101820d9;border:1px solid #ffffff4a;font-size:12px; }
+#route-playback[hidden] { display:none; }
+#route-playback-info {max-width:100%;white-space:normal;}
+#route-playback-progress {width:100%;height:7px;accent-color:#4cae7d;}
+#route-playback > div {display:flex;flex-wrap:wrap;align-items:center;gap:5px;}
+#route-playback button,#route-playback select {background:#223b34;border:1px solid #8dac9c;
+    color:#fff;border-radius:6px;padding:5px 7px;cursor:pointer;}
+#route-playback button:disabled {opacity:.45;cursor:default;}
+#route-playback label {display:flex;align-items:center;gap:4px;}

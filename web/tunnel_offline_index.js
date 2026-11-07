@@ -52,12 +52,23 @@
         if(document.routes.length>120000||Object.keys(document.tiles).length>2000)
             throw Error('Bundled tunnel index exceeds memory budget');
         for(const r of document.routes){
-            if(!Array.isArray(r)||r.length!==6||!Number.isSafeInteger(r[0])||r[0]<1||
+            if(!Array.isArray(r)||![6,7,8].includes(r.length)||!Number.isSafeInteger(r[0])||r[0]<1||
                 !Number.isInteger(r[1])||r[1]<0||r[1]>1000||
                 !['tunnel','underpass'].includes(r[2])||!['road','railway'].includes(r[3])||
                 typeof r[4]!=='string'||r[4].length>120||!Array.isArray(r[5])||
                 r[5].length<2||r[5].length>512||!r[5].every(validPoint))
                 throw Error('Invalid coordinates or metadata in bundled tunnel index');
+            if(r.length>=7){
+                const approaches=r[6];
+                if(!Array.isArray(approaches)||approaches.length!==2||
+                    !approaches.every(path=>path===null||
+                        (Array.isArray(path)&&path.length===5&&path.every(validPoint))))
+                    throw Error('Invalid connected-road approach geometry in tunnel index');
+                if(r.length===8 && (!Array.isArray(r[7])||r[7].length!==2 ||
+                    !r[7].every((kind,i)=>kind===null ||
+                        (approaches[i]!==null && ['road','bridge'].includes(kind)))))
+                    throw Error('Invalid road/bridge approach metadata in tunnel index');
+            }
         }
         for(const [tile,ids] of Object.entries(document.tiles)){
             if(!/^-?\d+:-?\d+$/.test(tile)||!Array.isArray(ids)||ids.length>12000||
@@ -85,9 +96,20 @@
             for(const tile of cells(box))for(const idx of document.tiles[tile]||[])found.add(idx);
             const routes=[];
             for(const idx of found){
-                const [osmId,part,kind,transport,name,coordinates]=document.routes[idx];
+                const [osmId,part,kind,transport,name,coordinates,roadApproaches,roadApproachKinds]=document.routes[idx];
+                // Old generated indices inferred a 3D tunnel from every
+                // grade-separated highway/railway bridge crossing. A free
+                // bridge has open space underneath and must not fabricate
+                // a surrounding tube. Filter legacy synthetic records too,
+                // so the old binary index is safe until it is rebuilt.
+                if(osmId>=1e12 && name==='Possible underpass (OSM bridge crossing)')continue;
                 if(!intersects(coordinates,box))continue;
                 routes.push({id:`osm:${osmId}:${part}`,name,kind,transport,coordinates,
+                    // Present only when a genuinely connected road way was
+                    // found during offline index generation; never extrapolate
+                    // a made-up 'real road' from the mapped tunnel line.
+                    roadApproaches:roadApproaches||null,
+                    roadApproachKinds:roadApproachKinds||null,
                     endpointsVerified:false,heightReference:'unavailable',
                     source:document.source,sourceId:`way/${osmId}`});
             }

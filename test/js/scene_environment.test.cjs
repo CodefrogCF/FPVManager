@@ -219,3 +219,28 @@ test('structure alpha style is changed only when explicitly needed and selection
     assert.equal(p.states.at(-1).datasetSource,'ch.swisstopo.swisstlm3d.3d');
     p.manager.dispose();assert.equal(styles,2);
 });
+
+test('building roofs and facades use an optional Cesium surface shader only on detailed profiles',async()=>{
+    const actual=require('../../web/cesium/index.cjs');
+    const p=fixture();
+    p.C.CustomShader=actual.CustomShader;
+    p.C.VaryingType=actual.VaryingType;
+    p.C.UniformType=actual.UniformType;
+    p.set({buildings:true});await flush();
+    const building=p.primitives[0];
+    const detailed=building.customShader;
+    assert.ok(detailed instanceof actual.CustomShader,'Cesium 3D building tiles receive an optional CustomShader');
+    assert.match(detailed.fragmentShaderText,/roofDetail/);
+    assert.match(detailed.fragmentShaderText,/wallDetail/);
+    assert.equal(detailed.uniforms.u_fpv_detail.value,.50);
+    p.manager.performance('quality');
+    assert.equal(building.customShader,detailed,'detail level changes without reloading 3D Tiles');
+    assert.equal(detailed.uniforms.u_fpv_detail.value,.85);
+    p.manager.performance('compatibility');
+    assert.equal(building.customShader,undefined,'compatibility leaves the source materials untouched');
+    p.manager.performance('performance');
+    assert.equal(building.customShader,undefined);
+    p.manager.performance('balanced');
+    assert.ok(building.customShader instanceof actual.CustomShader);
+    p.manager.dispose();
+});

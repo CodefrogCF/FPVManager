@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+    <title>FPVManager – 3D Globe Prototype</title>
+
+    <script>
+    window.CESIUM_BASE_URL =
+        "./cesium/";
+    </script>
+
+    <script src="cesium/Cesium.js"></script>
+
+    <link rel="stylesheet"
+        href="cesium/Widgets/widgets.css">
+
+    <style>
+    :root {
+        --map-surface: rgba(16, 20, 15, .92);
+        --map-text: #e0e4db;
+        --map-accent: #a0d39a;
+        --map-outline: #424940;
+        --stick-fill: rgba(160, 211, 154, .10);
+        --stick-thumb: rgba(160, 211, 154, .32);
+    }
+    @media (prefers-color-scheme: light) {
+        :root {
+            --map-surface: rgba(247, 251, 241, .94);
+            --map-text: #181d17;
+            --map-accent: #3b693a;
+            --map-outline: #c2c9bd;
+        }
+    }
+    html, body, #globe {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #10140f;
+        font-family: Roboto, Arial, sans-serif;
+    }
+
+    #info {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        z-index: 10;
+        padding: 12px 16px;
+        background: var(--map-surface);
+        color: var(--map-text);
+        border: 1px solid var(--map-outline);
+        border-radius: 12px;
+        font-size: 13px;
+        pointer-events: none;
+        max-width: 350px;
+    }
+
+    #weather-legend {
+        position: absolute; bottom: max(12px, env(safe-area-inset-bottom));
+        right: max(10px, env(safe-area-inset-right)); z-index: 18;
+        max-width: min(400px, 76vw); padding: 7px 10px;
+        background: var(--map-surface); color: var(--map-text);
+        border: 1px solid var(--map-outline); border-radius: 12px;
+        font-size: 12px; line-height: 1.45; pointer-events: none;
+    }
+    #weather-legend[hidden], #radar-legend[hidden] { display: none; }
+    #radar-legend { position:absolute;bottom:120px;right:12px;z-index:18;max-width:350px;padding:7px 10px;border:1px solid var(--map-outline);border-radius:12px;background:var(--map-surface);color:var(--map-text);font-size:12px;pointer-events:none; }
+    #map-compass { position:absolute;top:12px;right:12px;z-index:22;width:44px;height:44px;
+        border:1px solid var(--map-outline);border-radius:50%;background:var(--map-surface);
+        color:var(--map-text);box-shadow:0 2px 6px #0004;cursor:pointer;touch-action:manipulation; }
+    #map-compass[hidden] { display:none; }
+    #map-compass:focus-visible { outline:2px solid var(--map-accent);outline-offset:2px; }
+    #map-compass svg { width:28px;height:28px;display:block;margin:auto; }
+    #map-compass [data-compass-needle] { transform-origin:16px 16px; }
+    #map-compass .compass-north { fill:#e75c54; }
+    #info { max-width:min(350px,calc(100vw - 100px)); }
+    .floating-map-chrome #info { top:68px;left:8px;right:auto;max-width:min(350px,calc(100vw - 88px)); }
+    .floating-map-chrome #map-compass { top:68px;right:8px; }
+    .floating-map-chrome #wind-legend { top:154px; }
+    .floating-map-chrome #hud-mode { left:16px;top:68px; }
+    .floating-map-chrome #hud-coordinates { left:16px;top:86px; }
+    @media (min-width:480px) {
+        .floating-map-chrome #hud-mode { left:168px;top:14px; }
+        .floating-map-chrome #hud-coordinates { left:168px;top:34px;max-width:calc(100% - 328px); }
+    }
+    #ground-controls { position: absolute; left: max(16px, env(safe-area-inset-left));
+        bottom: max(74px, calc(env(safe-area-inset-bottom) + 58px)); z-index: 20; }
+    #ground-controls[hidden] { display: none; }
+    #look-region { position:absolute;inset:0;pointer-events:none;z-index:21; }
+    #look-stick { position:absolute;right:max(16px,env(safe-area-inset-right));
+        bottom:max(89px,calc(env(safe-area-inset-bottom) + 73px));width:clamp(92px,20vw,116px);aspect-ratio:1;border-radius:50%;
+        border:1px solid #ffffff66;background:var(--stick-fill);pointer-events:auto;touch-action:none;user-select:none; }
+    #look-stick[hidden] { display:none; }
+    #look-thumb { position:absolute;left:33%;top:33%;width:34%;height:34%;border-radius:50%;
+        border:1px solid #ffffff88;background:var(--stick-thumb);box-sizing:border-box; }
+    #flight-buttons { display:flex;gap:6px;justify-content:center;margin-bottom:8px; }
+    #flight-buttons[hidden] { display:none; }
+    #flight-buttons button { width:42px;height:38px;border-radius:16px;border:1px solid #ffffff66;
+        background:var(--stick-fill);color:var(--map-text);font-size:22px;touch-action:none; }
+    [data-stick] { width: clamp(92px, 20vw, 116px); aspect-ratio: 1; border-radius: 50%;
+        border: 1px solid #ffffff66; background: var(--stick-fill); touch-action: none;
+        user-select: none; position: relative; box-shadow: 0 0 0 1px #10140f55; }
+    [data-stick-thumb] { position: absolute; width: 34%; height: 34%; left: 33%; top: 33%;
+        border-radius: 50%; background: var(--stick-thumb); border: 1px solid #ffffff88;
+        box-sizing: border-box; pointer-events: none; }
+    #ground-controls::after { content: 'Move'; display: block; text-align: center;
+        color: #ffffffb3; font-size: 11px; margin-top: 4px; pointer-events: none; }
+    #ground-controls[data-mode="flight"]::after { content:'Throttle / Yaw'; }
+    #look-stick::after { content:'Look';position:absolute;top:calc(100% + 5px);left:0;right:0;text-align:center;color:#ffffffb3;font-size:11px;pointer-events:none; }
+    #ground-controls[data-mode="flight"] ~ #look-region #look-stick::after { content:'Pitch / Roll'; }
+    @media (max-width: 480px) { #info { top: 8px; left: 8px; right: 8px;
+        padding: 8px 10px; right:66px; max-width: none; font-size: 12px; } }
+
+    /* Keep source notices readable over imagery and allow narrow screens to wrap. */
+    #globe .cesium-widget-credits {
+        box-sizing: border-box;
+        max-width: 100%;
+        padding: 4px 6px;
+        background: var(--map-surface);
+        color: var(--map-text);
+        font-size: 12px;
+        line-height: 1.4;
+    }
+    #globe .cesium-widget-credits a { color: var(--map-accent); }
+    </style>
+    <link rel="stylesheet" href="flight_hud.css">
+</head>
+
+<body>
+    <div id="globe"></div>
+    <button id="map-compass" type="button" aria-label="Nach Norden ausrichten" title="Nach Norden ausrichten">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><g data-compass-needle>
+            <path class="compass-north" d="M16 2 L22 17 L16 14 L10 17 Z"/>
+            <path fill="currentColor" d="M16 30 L10 15 L16 18 L22 15 Z"/>
+        </g></svg>
+    </button>
+    <div id="weather-legend" hidden role="status" aria-live="polite"></div>
+    <div id="radar-legend" hidden role="status" aria-live="polite"></div>
+    <div id="wind-legend" hidden role="status" aria-live="polite"></div>
+    <div id="info">FPVManager – Loading 3D terrain...</div>
+    <div id="ground-controls" hidden aria-label="Movement controls">
+        <div id="flight-buttons" hidden><button data-vertical="1" aria-label="Climb">↑</button><button data-vertical="-1" aria-label="Descend">↓</button></div>
+        <div data-stick role="group" aria-label="Movement joystick. Drag to move; WASD and arrow keys also move.">
+            <div data-stick-thumb></div>
+        </div>
+    </div>
+    <div id="look-region"><div id="look-stick" hidden role="group" aria-label="Look or attitude joystick"><div id="look-thumb"></div></div></div>
+    <div id="navigation-hud" data-style="goggles" hidden aria-label="Flight simulation HUD">
+        <span id="hud-mode">SIM</span>
+        <section id="route-playback" hidden aria-label="Automatic route playback">
+            <output id="route-playback-info" aria-live="off"></output>
+            <progress id="route-playback-progress" value="0" max="1" aria-label="Route playback progress"></progress>
+            <div><button id="route-playback-pause" type="button">Pause</button>
+                <button id="route-playback-restart" type="button">Restart</button>
+                <button id="route-playback-stop" type="button">Stop replay</button>
+                <label>Speed <select id="route-playback-speed" aria-label="Route playback speed">
+                    <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+                    <option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+                </select></label></div>
+        </section>
+        <output id="hud-coordinates" hidden aria-live="off" aria-label="Simulated position, WGS84 latitude and longitude" title="WGS84 · Latitude, longitude · Simulated position"></output>
+        <svg class="hud-reticle" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h11m14 0h11M20 9v6"/></svg>
+        <div id="flight-actions">
+            <button id="record-flight" type="button" title="Record simulated flight" aria-label="Record simulated flight" aria-pressed="false">●</button>
+            <button id="settings-flight" type="button" title="HUD settings" aria-label="HUD settings" aria-expanded="false" aria-controls="flight-options">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#101820"/><circle cx="15" cy="17" r="3" fill="#101820"/></svg>
+            </button>
+            <button id="exit-flight" type="button" title="Exit flight" aria-label="Exit flight">×</button>
+        </div>
+        <div id="flight-options" hidden aria-label="HUD settings">
+            <div id="flight-recording-controls"><output id="flight-recording-status" aria-live="off"></output><button id="pause-recording" type="button" hidden>Pause recording</button><button id="review-recording" type="button" hidden>Review recording</button></div>
+            <div id="flight-option-actions"><button id="reset-flight" type="button">Reset</button><button id="camera-flight" type="button" aria-expanded="false" aria-controls="flight-camera">Camera</button></div>
+            <div id="flight-camera" hidden><label id="flight-camera-tilt-row">Camera ↑ <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label><label>Horizontal FOV <output id="flight-camera-fov-value">90°</output><input id="flight-camera-fov" aria-label="FPV horizontal field of view in degrees" type="range" min="50" max="140" step="1" value="90"></label></div>
+            <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
+            <label><input id="flight-show-coordinates" type="checkbox">Koordinaten anzeigen</label>
+            <label><input id="flight-show-touch" type="checkbox" checked>Touch-Steuerung anzeigen</label>
+            <label id="flight-graphics">Graphics <select id="flight-graphics-profile" aria-label="Flight graphics profile"><option value="quality">Quality</option><option value="balanced">Balanced</option><option value="performance">Performance</option></select></label>
+            <details id="flight-controller"><summary>External controller</summary>
+                <label>Type <select id="controller-layout" aria-label="Controller type"><option value="gamepad">Standard gamepad</option><option value="radio">USB radio / Tango 2</option></select></label>
+                <label>Zero gas <select id="controller-zero" aria-label="Zero-throttle stick position"><option value="bottom">0% · stick bottom</option><option value="center">50% · stick centre</option></select></label>
+                <div id="controller-channels" hidden>
+                    <p>Channels depend on the radio model and operating system. Check each direction before flying. Used channels swap automatically.</p>
+                    <label>Roll <select id="controller-roll-axis" aria-label="Radio roll channel"></select></label><label class="controller-reverse"><input id="controller-roll-reverse" type="checkbox">Reverse roll</label>
+                    <label>Pitch <select id="controller-pitch-axis" aria-label="Radio pitch channel"></select></label><label class="controller-reverse"><input id="controller-pitch-reverse" type="checkbox">Reverse pitch</label>
+                    <label>Throttle <select id="controller-throttle-axis" aria-label="Radio throttle channel"></select></label><label class="controller-reverse"><input id="controller-throttle-reverse" type="checkbox">Reverse throttle</label>
+                    <label>Yaw <select id="controller-yaw-axis" aria-label="Radio yaw channel"></select></label><label class="controller-reverse"><input id="controller-yaw-reverse" type="checkbox">Reverse yaw</label>
+                </div>
+                <p>Angle/Acro external inputs only. Reconnect with zero throttle and other sticks centred. Touch/keyboard controls stay the same.</p>
+                <output id="controller-last-interruption" aria-live="polite"></output>
+            </details>
+            <details id="flight-time"><summary>Sonnen- und Mondzeit</summary>
+                <label>Zeit <select id="flight-time-mode"><option value="map">Kartenbeleuchtung</option><option value="now">Jetzt</option><option value="fixed">Datum und Uhrzeit</option></select></label>
+                <label id="flight-time-fixed" hidden>Geräte-Zeitzone <input id="flight-time-value" type="datetime-local" min="1900-01-01T00:00" max="2100-12-31T23:59"></label>
+                <output id="flight-time-error" aria-live="polite"></output>
+            </details>
+            <details id="flight-wind"><summary>Wind</summary>
+                <output id="flight-wind-status">Keine Winddaten geladen</output>
+                <label><input id="flight-wind-force" type="checkbox">Wind berücksichtigen</label>
+                <label><input id="flight-wind-arrows" type="checkbox">3D-Pfeile</label>
+                <button id="wind-flight" type="button">Quelle und Prognose wählen</button>
+            </details>
+            <span id="navigation-device"></span>
+            <details id="flight-radio"><summary>Radio link preview</summary>
+                <label><input id="flight-radio-enabled" type="checkbox">Enable live preview</label>
+                <output id="flight-radio-status">Disabled</output>
+                <button id="configure-flight-radio" type="button">Transmitter and details</button>
+            </details>
+        </div>
+        <span id="hud-warning" hidden role="status" aria-live="polite"></span>
+        <div id="flight-readout" role="group" aria-label="Flight telemetry">
+            <div class="hud-secondary"><span>V <span id="hud-vertical">—</span> m/s</span><span id="hud-throttle-readout">THR <span id="hud-throttle">—</span>%</span><span id="hud-wind-readout" hidden>WIND <span id="hud-wind">—</span></span><button id="hud-live-radio" type="button" hidden>LOS: ?</button></div>
+            <div class="hud-telemetry">
+                <div class="hud-metric"><span class="hud-label">SPEED</span><span class="hud-value"><span id="hud-speed">—</span><small>km/h</small></span></div>
+                <div class="hud-metric" title="Height above terrain at the current position"><span class="hud-label">AGL</span><span class="hud-value"><span id="hud-agl">—</span><small>m</small></span></div>
+                <div class="hud-metric" title="Height above the ground at the spawn point"><span class="hud-label">H START</span><span class="hud-value"><span id="hud-height">—</span><small>m</small></span></div>
+                <div class="hud-metric" title="Horizontal distance and direction to the spawn point"><span class="hud-label">D HOME</span><span class="hud-value">
+                    <svg id="hud-home-arrow" class="hud-home-icon" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Direction home" hidden><path d="M12 2 21 21 12 16 3 21Z"/></svg>
+                    <span id="hud-home-marker" hidden aria-label="At the home point">H</span><span id="hud-distance">—</span><small id="hud-distance-unit">m</small></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="globe_bridge.js"></script>
+    <script src="terrain_service.js"></script>
+    <script src="map_providers.js"></script>
+    <script src="controller_input.js"></script>
+    <script src="navigation_controls.js"></script>
+    <script src="ground_navigation.js"></script>
+    <script src="free_flight.js"></script>
+    <script src="flight_recording.js"></script>
+    <script src="flight_hud.js"></script>
+    <script src="flight_rendering.js"></script>
+    <script src="scene_environment.js"></script>
+    <script src="wind_field.js"></script>
+    <script src="globe_positions.js"></script>
+    <script src="map_labels.js"></script>
+    <script src="route_editor.js"></script>
+    <script src="signal_analysis.js"></script>
+    <script src="live_radio.js"></script>
+    <script src="obstacle_models.js"></script>
+    <script src="obstacle_layers.js"></script>
+    <script src="situational_layers.js"></script>
+    <script src="road_navigation.js"></script>
+    <script src="map_compass.js"></script>
+    <script src="uas_zone_styles.js"></script>
+    <script src="weather_overlay.js"></script>
+    <script src="meteo_radar_overlay.js"></script>
+    <script src="dated_imagery_overlay.js"></script>
+    <script src="offline_map_client.js"></script>
+    <script src="globe.js"></script>
+</body>
+</html>

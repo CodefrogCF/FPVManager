@@ -9,6 +9,8 @@ For testing without pyosmium/network:
   python tool/build_ch_tunnel_index.py --osm-xml test/tool/fixtures/ch_tunnels.osm
 
 The app loads the generated asset locally and sends no coordinates to Overpass.
+Only explicitly tagged tunnel/covered ways become tunnel meshes; ordinary
+grade-separated traffic beneath bridges remains unobstructed.
 The exported OSM-derived dataset is subject to ODbL 1.0; see attribution.
 """
 from __future__ import annotations
@@ -16,6 +18,7 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from datetime import datetime, timezone
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -37,9 +40,12 @@ def classified(tags: dict[str, str]):
     if not transport:
         return None
     tunnel = tags.get('tunnel', '').lower()
-    if tunnel in ('yes', 'building_passage', 'avalanche_protector'):
+    if tunnel in ('yes', 'true', '1'):
         return ('tunnel', transport)
-    if tags.get('covered', '').lower() == 'yes':
+    # Covered passages and avalanche galleries are not necessarily below
+    # terrain. Treating them as underground bores caused their 3D geometry to
+    # fail the roof-under-terrain test and silently disappear.
+    if tunnel in ('building_passage', 'avalanche_protector') or tags.get('covered', '').lower() in ('yes', 'arcade', 'colonnade'):
         return ('underpass', transport)
     return None
 
@@ -66,12 +72,120 @@ def tile_key(lon, lat):
     return f'{math.floor((lon - WEST) / STEP)}:{math.floor((lat - SOUTH) / STEP)}'
 
 
+def _metres(a, b):
+    """Approximate short-range metres for OSM approach routing (< 30 m)."""
+    east = (b[0] - a[0]) * 111320 * math.cos(math.radians(a[1]))
+    north = (b[1] - a[1]) * 111320
+    return (east, north)
+
+
+def _interpolate_approach(points, distances=(4, 8, 12, 16, 20)):
+    """Return five points along an actual connected road, no straight extrapolation."""
+    cumulative = [0.0]
+    for i in range(1, len(points)):
+        delta = _metres(points[i - 1], points[i])
+        cumulative.append(cumulative[-1] + math.hypot(*delta))
+    if cumulative[-1] < distances[-1] - .1:
+        return None
+    samples = []
+    for distance in distances:
+        for i in range(1, len(cumulative)):
+            if cumulative[i] + .1 < distance:
+                continue
+            span = cumulative[i] - cumulative[i - 1]
+            if span < .01:
+                continue
+            t = max(0, min(1, (distance - cumulative[i - 1]) / span))
+            a, b = points[i - 1], points[i]
+            samples.append([round(a[0] + (b[0] - a[0]) * t, 7),
+                            round(a[1] + (b[1] - a[1]) * t, 7)])
+            break
+    return samples if len(samples) == len(distances) else None
+
+
+def attach_connected_road_approaches(tunnel_ways, road_ways):
+    """Attach 4/8/12/16/20 m approach paths at shared OSM nodes.
+
+    Only connected, untagged same-transport ways qualify; nearby roads,
+    overpasses, roofs and unrelated crossings do NOT establish a road floor.
+    A branching junction with nearly equal candidates is treated as ambiguous.
+    """
+    endpoints = defaultdict(list)
+    for i, row in enumerate(tunnel_ways):
+        if len(row) < 4 or not row[3] or len(row[3]) < 2:
+            continue
+        coords = row[2]
+        transport = 'road' if row[1].get('highway') else 'railway'
+        endpoints[row[3][0]].append((i, 0, transport, coords[0], coords[1]))
+        endpoints[row[3][-1]].append((i, 1, transport, coords[-1], coords[-2]))
+    candidates = defaultdict(list)
+    for road_id, tags, coords, node_ids in road_ways:
+        if not node_ids or len(coords) < 2:
+            continue
+        transport = 'road' if tags.get('highway') else 'railway' if tags.get('railway') else None
+        if not transport or tags.get('tunnel') or tags.get('covered') in ('yes', 'arcade', 'colonnade'):
+            continue
+        for j, node in enumerate(node_ids):
+            if node not in endpoints:
+                continue
+            directions = []
+            if j < len(coords) - 1:
+                directions.append(coords[j:])
+            if j > 0:
+                directions.append(list(reversed(coords[:j + 1])))
+            for index, end, tunnel_transport, portal, inner in endpoints[node]:
+                if transport != tunnel_transport:
+                    continue
+                outward = _metres(inner, portal)
+                magnitude = math.hypot(*outward)
+                if magnitude < .5:
+                    continue
+                for direction in directions:
+                    sampled = _interpolate_approach(direction)
+                    if sampled is None:
+                        continue
+                    vector = _metres(portal, sampled[0])
+                    length = math.hypot(*vector)
+                    if length < 2:
+                        continue
+                    alignment = (outward[0] * vector[0] + outward[1] * vector[1]) / (magnitude * length)
+                    if alignment < .78:
+                        continue
+                    # A connected bridge deck is a valid portal approach,
+                    # but its height must be sampled from visible 3D geometry,
+                    # NOT from the bare terrain below the bridge.
+                    on_bridge = str(tags.get('bridge', '')).lower() not in ('', 'no', 'false', '0')
+                    candidates[index, end].append((alignment, int(road_id), sampled,
+                                                    'bridge' if on_bridge else 'road'))
+    augmented = []
+    for i, row in enumerate(tunnel_ways):
+        approaches = []
+        kinds = []
+        for end in (0, 1):
+            choices = sorted(candidates[i, end], key=lambda c: (-c[0], c[1]))
+            # An ambiguous road fork is not evidence for a specific approach.
+            if not choices or (len(choices) > 1 and choices[0][0] - choices[1][0] < .035):
+                approaches.append(None)
+                kinds.append(None)
+            else:
+                approaches.append(choices[0][2])
+                kinds.append(choices[0][3])
+        augmented.append((*row[:3], approaches, kinds))
+    return augmented
+
+
+
+
+
 def index_from_ways(ways, snapshot_date_utc):
     entries = []
     tiles = defaultdict(set)
     seen = set()
     skipped = 0
-    for way_id, tags, coordinates in ways:
+    for row in ways:
+        way_id, tags, coordinates = row[:3]
+        approaches = row[3] if len(row) > 3 else None
+        approach_kinds = row[4] if len(row) > 4 else None
         recognized = classified(tags)
         if not recognized or not isinstance(way_id, int) or way_id <= 0:
             continue
@@ -86,7 +200,22 @@ def index_from_ways(ways, snapshot_date_utc):
             seen.add((way_id, i))
             coords = [[round(p[0], 7), round(p[1], 7)] for p in chunk]
             index = len(entries)
-            entries.append([way_id, i, kind, transport, name, coords])
+            entry = [way_id, i, kind, transport, name, coords]
+            # Optional v1 extension: five actual ROAD positions for each true
+            # source-way endpoint; never attach them to artificial split ends.
+            if approaches and any(approaches):
+                road_approaches = [approaches[0] if i == 0 else None,
+                                   approaches[1] if i == math.ceil((len(coordinates) - 1) / (MAX_POINTS_PER_PART - 1)) - 1 else None]
+                if any(road_approaches):
+                    entry.append(road_approaches)
+                    # Optional v1 trailing metadata. Legacy 6/7-field
+                    # records stay readable by all existing installations.
+                    if approach_kinds:
+                        types = [approach_kinds[0] if road_approaches[0] else None,
+                                 approach_kinds[1] if road_approaches[1] else None]
+                        if 'bridge' in types:
+                            entry.append(types)
+            entries.append(entry)
             # Each route is registered in all intersecting tile envelopes.
             # JS further tests the real polyline against the viewport.
             minx, maxx = min(p[0] for p in coords), max(p[0] for p in coords)
@@ -137,7 +266,8 @@ def pbf_ways(path, location_index='auto'):
     class Reader(osmium.SimpleHandler):
         def way(self, way):
             tags = dict(way.tags)
-            if not classified(tags):
+            wanted = bool(classified(tags))
+            if not wanted:
                 return
             coords = []
             try:
@@ -147,7 +277,7 @@ def pbf_ways(path, location_index='auto'):
                     coords.append([node.location.lon, node.location.lat])
             except (ValueError, RuntimeError):
                 return
-            rows.append((int(way.id), tags, coords))
+            rows.append((int(way.id), tags, coords, [int(n.ref) for n in way.nodes]))
     reader = Reader()
     # mmap stores are not available in all Windows pyosmium wheels. Select
     # from the types actually compiled into the running binary, and remove any
@@ -156,7 +286,31 @@ def pbf_ways(path, location_index='auto'):
         index = choose_location_index(osmium.index.map_types(), temp_dir, location_index)
         print(f'Osmium location index: {index.split(",", 1)[0]}', flush=True)
         reader.apply_file(str(path), locations=True, idx=index)
-    return rows
+    # A second pass inspects only ways connected through a shared OSM node.
+    # This is deliberately done at RELEASE PREPARATION, never on a phone.
+    endpoint_ids = {r[3][end] for r in rows for end in (0, -1) if r[3]}
+    roads = []
+    class RoadReader(osmium.SimpleHandler):
+        def way(self, way):
+            tags = dict(way.tags)
+            if not tags.get('highway') and not tags.get('railway'):
+                return
+            if classified(tags):
+                return
+            for_approach = any(int(n.ref) in endpoint_ids for n in way.nodes)
+            if not for_approach:
+                return
+            try:
+                coords = [[n.location.lon, n.location.lat] for n in way.nodes]
+            except (ValueError, RuntimeError):
+                return
+            row = (int(way.id), tags, coords, [int(n.ref) for n in way.nodes])
+            roads.append(row)
+    with tempfile.TemporaryDirectory(prefix='fpvmanager-osmium-roads-', dir=path.parent) as temp_dir:
+        index = choose_location_index(osmium.index.map_types(), temp_dir, location_index)
+        road_reader = RoadReader()
+        road_reader.apply_file(str(path), locations=True, idx=index)
+    return attach_connected_road_approaches(rows, roads)
 
 
 def xml_ways(path):
@@ -164,15 +318,22 @@ def xml_ways(path):
     root = ElementTree.parse(path).getroot()
     nodes = {int(n.attrib['id']): (float(n.attrib['lon']), float(n.attrib['lat']))
              for n in root.findall('node')}
+    tagged, roads = [], []
     for way in root.findall('way'):
         tags = {tag.attrib['k']: tag.attrib['v'] for tag in way.findall('tag')}
-        if not classified(tags):
+        if not classified(tags) and not (tags.get('highway') or tags.get('railway')):
             continue
+        refs = [int(n.attrib['ref']) for n in way.findall('nd')]
         try:
-            coords = [nodes[int(n.attrib['ref'])] for n in way.findall('nd')]
+            coords = [nodes[ref] for ref in refs]
         except KeyError:
             continue
-        yield int(way.attrib['id']), tags, coords
+        row = (int(way.attrib['id']), tags, coords, refs)
+        if classified(tags):
+            tagged.append(row)
+        else:
+            roads.append(row)
+    yield from attach_connected_road_approaches(tagged, roads)
 
 
 def download(path):

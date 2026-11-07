@@ -249,6 +249,15 @@ test('fallback ignores untagged streets, rejects malformed geometry and preserve
     assert.throws(()=>T.parseOsm({results:[]}));
 });
 
+test('OSM covered passages do not get misclassified as buried tunnels',()=>{
+    const elements=['building_passage','avalanche_protector','yes'].map((tag,i)=>({
+        type:'way',id:111+i,tags:{highway:'residential',tunnel:tag},
+        geometry:[{lon:8.3+i*.001,lat:46.9},{lon:8.3001+i*.001,lat:46.9}],
+    }));
+    const parsed=T.parseOsm({elements});
+    assert.deepEqual(parsed.routes.map(r=>r.kind),['underpass','underpass','tunnel']);
+});
+
 test('automatic tunnel snapshot can reuse scanned axes without an additional request',async()=>{
     const f=fixture({respond:layer=>({results:layer.includes('strassen')?[road(1)]:[]})});
     f.module.setAutomatic(true);

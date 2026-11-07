@@ -412,7 +412,7 @@ class GlobeController extends ChangeNotifier {
   bool get schematicTunnel3dEnabled => _preferences.schematicTunnel3dEnabled;
   int _schematicTunnelMeshCount = 0;
   int get schematicTunnelMeshCount => _schematicTunnelMeshCount;
-  int _schematicTunnelMeshBudget = 32;
+  int _schematicTunnelMeshBudget = 56;
   int get schematicTunnelMeshBudget => _schematicTunnelMeshBudget;
   int _schematicTunnelConsidered = 0;
   int get schematicTunnelConsidered => _schematicTunnelConsidered;
@@ -1962,6 +1962,11 @@ class GlobeController extends ChangeNotifier {
     return _request({'type': 'scene-performance', 'action': action});
   }
 
+  /// Local, on-demand tunnel diagnostics. Contains public OSM way IDs and
+  /// bounded schematic section endpoints; no automatic upload or tracking.
+  Future<Map<String, dynamic>> tunnelDiagnostics() =>
+      _request({'type': 'tunnel-runtime-diagnostics'});
+
   Future<void> reloadRenderer() => _send({'type': 'reload-renderer'});
 
   Future<void> retryTerrain() async {
@@ -2614,9 +2619,9 @@ class GlobeController extends ChangeNotifier {
         if (data['count'] is int &&
             data['active'] is bool &&
             (data['count'] as int) >= 0 &&
-            (data['count'] as int) <= 64) {
+            (data['count'] as int) <= 96) {
           if (data['budget'] is int &&
-              [16, 24, 32, 64].contains(data['budget'])) {
+              [10, 16, 28, 56, 96].contains(data['budget'])) {
             _schematicTunnelMeshBudget = data['budget'] as int;
           }
           if (data['considered'] is int &&

@@ -141,7 +141,7 @@ class SceneLayersSection extends StatelessWidget {
             'Index im Build fehlt, wird ersatzweise die bisherige '
             'Online-Suche versucht; dabei geht der Kartenausschnitt an '
             'die jeweiligen Dienste. Das Grafikprofil begrenzt gleichzeitig '
-            'gerenderte Röhren auf 16 bis 64 (normal 32, hohe Qualität 64). '
+            'gerenderte Röhren auf 10 bis 96 (Balanced 56, Quality 96). '
             'Die Modelle werden in kleinen Gruppen nachgeladen (ca. 6 × 5 m). Querschnitt, Portale und Höhen sind '
             'NICHT vermessen. Nur Simulation, keine reale Freigabe. '
             'Für die Geländeöffnung ist Terrain/3D-Clipping erforderlich.',

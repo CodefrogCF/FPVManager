@@ -354,13 +354,17 @@ class _SettingsState extends State<_Settings> {
                           value: SimulationGraphicsProfile.performance,
                           child: Text('Performance · 75% resolution'),
                         ),
+                        DropdownMenuItem(
+                          value: SimulationGraphicsProfile.compatibility,
+                          child: Text('Compatibility · simple materials'),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value != null) setState(() => _graphics = value);
                       },
                     ),
                     const Text(
-                      'Graphics affect image sharpness and smoothing. Terrain detail and flight physics stay the same. Adjustable during flight using Graphics.',
+                      'Quality and Balanced add procedural surface detail to schematic tunnels and 3D buildings. Performance and Compatibility use simple materials. Terrain detail and flight physics stay unchanged.',
                     ),
                     if (_error != null) Text(_error!),
                     ControllerSettingsFields(
