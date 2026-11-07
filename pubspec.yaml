@@ -3,7 +3,7 @@ description: "Open-source FPV flight planning and situational awareness app with
 
 publish_to: 'none'
 
-version: 0.12.0+12
+version: 0.11.0+11
 
 environment:
   sdk: ^3.13.0
@@ -109,6 +109,9 @@ flutter:
     - web/flight_hud.css
     - web/flight_rendering.js
     - web/scene_environment.js
+    - web/tunnel_offline_index.js
+    - web/data/tunnels/ch_tunnels_v1.json
+    - web/data/tunnels/ODBL_NOTICE.txt
     - web/scene_performance.js
     - web/wind_field.js
     - web/route_editor.js

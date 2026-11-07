@@ -709,9 +709,15 @@ function postToFlutter(message) {
             }
             case 'set-tunnel-infrastructure': {
                 if(typeof command.autoModels!=='boolean')throw Error('Schematic tunnel option missing');
+                const previouslyEnabled=schematicTunnelsEnabled;
                 schematicTunnelsEnabled=command.autoModels;
                 tunnelVolumes?.setAutomaticEnabled(schematicTunnelsEnabled);
-                tunnels?.setAutomatic(structuresForTunnelScan || schematicTunnelsEnabled);
+                const cached=(!previouslyEnabled&&schematicTunnelsEnabled) ? tunnels?.snapshot?.() : null;
+                // Reuse existing official/OSM axes when the 3D switch is turned
+                // on after the structure layer has already scanned the area.
+                if(cached?.routes?.length)void tunnelVolumes?.setAutomaticRoutes(cached.routes,cached.center).catch(()=>{});
+                tunnels?.setAutomatic(structuresForTunnelScan || schematicTunnelsEnabled,
+                    !!(cached && !cached.routes.length));
                 if(command.routesVisible===false&&!schematicTunnelsEnabled){
                     tunnelVolumes?.stop();infrastructureClearance?.forgetTunnel();
                 }
@@ -982,7 +988,8 @@ function postToFlutter(message) {
             const height=viewer.scene.globe.getHeight.bind(viewer.scene.globe);
             viewer.scene.globe.getHeight=point=>mapProviders.containsTerrainPoint(point.longitude*180/Math.PI,point.latitude*180/Math.PI)?height(point):undefined;
         }
-        const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);}});
+        const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);
+            tunnelVolumes?.setPerformanceProfile?.(value);}});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}),
             {isTerrainReady:terrainAvailable,onActive:active=>{sceneEnvironment?.navigationActive(active);mapLabels?.navigation(active);}});
@@ -1004,6 +1011,7 @@ function postToFlutter(message) {
         tunnelVolumes = typeof FPVTunnelFlythrough !== 'undefined'
             ? FPVTunnelFlythrough.create(Cesium,viewer,sendToFlutter,{
                 ready:terrainAvailable,
+                isSimulating:()=>flyer?.active===true,
                 sampleTerrain:async(points,signal)=>{
                     const positions=points.map(p=>Cesium.Cartographic.fromDegrees(p.longitude,p.latitude));
                     const heights=await terrainManager.sample(provider=>provider.availability
@@ -1130,6 +1138,10 @@ function postToFlutter(message) {
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
+                // A surface-height approximation must not fill the interior of
+                // an explicitly modeled synthetic tube. Its geometric walls,
+                // floor and ceiling are still tested by intersects() above.
+                tunnelVolumes?.segmentInside(from,to)===true ? false :
                 infrastructureClearance?.collision(from,to)===true ? 'bridge' :
                 (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || false,
             terrainCollision:(from,to)=>{

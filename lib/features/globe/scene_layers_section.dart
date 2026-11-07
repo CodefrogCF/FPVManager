@@ -111,7 +111,7 @@ class SceneLayersSection extends StatelessWidget {
             ],
           ),
         const Text(
-          'swisstopo-3D-Tiles; nahe Tunnelachsen können zusätzlich automatisch eingeblendet werden. Schematische Tunnelröhren werden separat aktiviert.',
+          'Bauwerke aus swisstopo-3D-Tiles. Tunnelachsen werden getrennt aus dem vorbereiteten OSM-Offlineindex geladen und optional als schematische 3D-Röhren dargestellt.',
         ),
         if (controller.structures3dVisible) ...[
           if (controller.tunnelAutoState == 'loading')
@@ -119,25 +119,32 @@ class SceneLayersSection extends StatelessWidget {
           Text(switch (controller.tunnelAutoState) {
             'ready' =>
               controller.tunnelAutoCount == 0
-                  ? 'Keine Treffer in der begrenzten Abfrage; keine vollständige Tunnelabdeckung.'
+                  ? 'Keine im lokalen Index erfassten Tunnel im Kartenausschnitt. Datenabdeckung möglicherweise unvollständig.'
                   : '${controller.tunnelAutoCount} Tunnelachsen im Kartenausschnitt gefunden (schematisch).',
             'partial' =>
               '${controller.tunnelAutoCount} Tunnelachsen gefunden; Abdeckung unvollständig.',
-            'failed' => 'Automatische Tunnelabfrage fehlgeschlagen. Manuelle Suche ist möglich.',
+            'failed' => 'Tunnelindex konnte nicht geladen werden. Quelle und Build-Daten prüfen.',
             'offline' => 'Tunnelachsen derzeit offline nicht verfügbar.',
             'outside' => 'Tunnelachsen nur bei bodennaher Schweizer Kartenansicht automatisch laden.',
-            _ => 'Tunnelachsen werden bei ruhender, bodennaher Schweizer Kartenansicht gesucht.',
+            _ => 'Tunnelachsen werden automatisch für den nahen sichtbaren Kartenausschnitt gesucht.',
           }),
+          if (controller.tunnelAutoMessage != null)
+            Text('Tunnel-Datenquelle: ${controller.tunnelAutoMessage}'),
         ],
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('3D-Tunnel automatisch laden (schematisch)'),
           subtitle: const Text(
-            'Lädt nahe Tunnelachsen und Unterführungen aus swissTLM3D und erzeugt '
-            'begrenzt automatisch befliegbare 3D-Röhren (standardmässig ca. 6 × 5 m). '
-            'Verlauf ist aus offiziellen Achsen abgeleitet; Querschnitt, Portalposition '
-            'und Höhe sind NICHT vermessen. Nur Simulation, keine reale Freigabe. '
-            'Online-Verbindung und geeignetes Terrain/3D-Clipping erforderlich.',
+            'Lädt Tunnel- und Unterführungsachsen aus dem vorbereiteten '
+            'Schweizer Offlineindex (© OpenStreetMap contributors, ODbL). '
+            'Im normalen Betrieb keine Online-Tunnelabfrage. Wenn der '
+            'Index im Build fehlt, wird ersatzweise die bisherige '
+            'Online-Suche versucht; dabei geht der Kartenausschnitt an '
+            'die jeweiligen Dienste. Das Grafikprofil begrenzt gleichzeitig '
+            'gerenderte Röhren auf 16 bis 64 (normal 32, hohe Qualität 64). '
+            'Die Modelle werden in kleinen Gruppen nachgeladen (ca. 6 × 5 m). Querschnitt, Portale und Höhen sind '
+            'NICHT vermessen. Nur Simulation, keine reale Freigabe. '
+            'Für die Geländeöffnung ist Terrain/3D-Clipping erforderlich.',
           ),
           value: controller.schematicTunnel3dEnabled,
           onChanged: enabled
@@ -146,11 +153,31 @@ class SceneLayersSection extends StatelessWidget {
                 )
               : null,
         ),
+        if (controller.tunnelRoutes.any(
+          (route) => route['source'] == 'OpenStreetMap (Overpass fallback)',
+        ))
+          const Text(
+            '© OpenStreetMap contributors (ODbL) · '
+            'openstreetmap.org/copyright',
+          ),
         if (controller.schematicTunnel3dEnabled) ...[
           Text(
             'Automatisch dargestellte schematische Tunnel: '
-            '${controller.schematicTunnelMeshCount} (maximal 3 pro Kartenausschnitt).',
+            '${controller.schematicTunnelMeshCount} von maximal '
+            '${controller.schematicTunnelMeshBudget} (Grafikprofil).',
           ),
+          if (controller.schematicTunnelSkipped > 0)
+            Text(
+              'Nicht modellierbare Tunnelabschnitte: '
+              '${controller.schematicTunnelSkipped} von '
+              '${controller.schematicTunnelConsidered} erfassten Achsen.',
+            ),
+          if (controller.schematicTunnelMeshCount > 0)
+            Text(
+              'Terrain-Aussparungen: '
+              '${controller.schematicTunnelClipped}. Weitere sichtbare Röhren '
+              'sind ggf. vom Gelände verdeckt.',
+            ),
           if (controller.schematicTunnelMeshError != null)
             Text('3D-Tunnel: ${controller.schematicTunnelMeshError}'),
         ],
@@ -158,9 +185,12 @@ class SceneLayersSection extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: const Text('3D-Modellkollisionen (experimentell)'),
           subtitle: const Text(
-            'Schematische Tunnelmodelle: geometriebasierte Innenwände, Dach und Boden. '
-            '3D-Gebäude: optionaler Raycast gegen bereits geladene Wände/Dächer; '
-            'nicht geladene 3D-Tiles und unvollständige Depth-Puffer bleiben ungeprüft.',
+            'Schematische Tunnel: geometriebasierte Kollision an Wänden, Decke und Boden. '
+            'Geladene 3D-Modelle: gedrosselte Kollision nahe der sichtbaren '
+            'Oberfläche (nicht der gesamte Raum bis zum Boden). Brücken-'
+            'Unterseiten bleiben frei, soweit keine modellierten Bauteile '
+            'berührt werden. KEINE exakte Wandkollision. Unbekannte '
+            'oder nicht geladene Geometrie bleibt ungeprüft. Nur Simulation.',
           ),
           value: controller.sceneModelCollisionsEnabled,
           onChanged: enabled
@@ -176,7 +206,9 @@ class SceneLayersSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Ausgewähltes Infrastrukturobjekt · swisstopo'),
+                  const Text(
+                    'Ausgewähltes Infrastrukturobjekt · Quellenangabe unten',
+                  ),
                   Text(
                     'Quelle: ${controller.selectedInfrastructure!['datasetSource']}',
                   ),
@@ -257,7 +289,7 @@ class SceneLayersSection extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: const Text('Tunnelverläufe und Unterführungen'),
           subtitle: const Text(
-            'swissTLM3D Verkehrsachsen · schematischer Verlauf auf der Geländeoberfläche, keine Tunnelröhre.',
+            'swissTLM3D oder OpenStreetMap-Fallback · schematischer Verlauf auf der Geländeoberfläche, keine Tunnelröhre.',
           ),
           value: controller.tunnelRoutesVisible,
           onChanged: enabled
@@ -330,7 +362,7 @@ class SceneLayersSection extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(route['name'] as String),
               subtitle: Text(
-                '${route['transport']} · ${route['kind']} · swisstopo · Portalhöhen unbekannt',
+                '${route['transport']} · ${route['kind']} · ${route['source']} · Portalhöhen unbekannt',
               ),
               isThreeLine: false,
               trailing: PopupMenuButton<String>(

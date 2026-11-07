@@ -130,6 +130,24 @@ void main() {
       await tester.pumpAndSettle();
       expect(globe.tunnelRoutes.single['name'], 'Auto Tunnel');
       peer.emit({
+        'type': 'tunnel-routes-loaded',
+        'routes': [
+          {
+            'id': 'osm:123:0',
+            'name': 'OSM Tunnel',
+            'kind': 'tunnel',
+            'transport': 'road',
+            'source': 'OpenStreetMap (Overpass fallback)',
+          },
+        ],
+        'incomplete': true,
+      });
+      await tester.pumpAndSettle();
+      expect(
+        globe.tunnelRoutes.single['source'],
+        'OpenStreetMap (Overpass fallback)',
+      );
+      peer.emit({
         'type': 'tunnel-auto-mesh-status',
         'count': 1,
         'active': true,

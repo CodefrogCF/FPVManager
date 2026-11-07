@@ -281,11 +281,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
     const ENDPOINT = 'https://api3.geo.admin.ch/rest/services/ech/MapServer/identify';
+    const OSM_ENDPOINT = 'https://overpass.private.coffee/api/interpreter';
+    const OSM_BACKUP_ENDPOINT = 'https://overpass-api.de/api/interpreter';
     const LAYERS = Object.freeze({
         road: 'ch.swisstopo.swisstlm3d-strassen',
         railway: 'ch.swisstopo.swisstlm3d-eisenbahnnetz'
     });
-    const MAX_FEATURES = 48, MAX_VERTICES = 4096, MAX_RESPONSE = 1024 * 1024;
+    const MAX_FEATURES = 160, MAX_VERTICES = 4096, MAX_RESPONSE = 2 * 1024 * 1024;
     const BOUNDS = Object.freeze({west: 5.8, east: 10.7, south: 45.6, north: 47.9});
     const label = value => String(value ?? '').trim().slice(0, 120);
     function category(value, transport = 'road') {
@@ -317,6 +319,55 @@
             returnGeometry: 'true', layers: `all:${LAYERS[transport]}`,
         });
         return `${ENDPOINT}?${p}`;
+    }
+    // Explicit OSM tunnel/covered tags are queried server-side; official
+    // swissTLM3D identify remains available as a fallback.
+    // A tightly bounded Overpass query is the preferred automatic search;
+    // the GeoAdmin identify endpoint can truncate road features before tunnel
+    // filtering. No search happens unless tunnel discovery is enabled.
+    function osmUrlFor(box, endpoint = OSM_ENDPOINT) {
+        if (!Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite))
+            throw Error('Invalid OpenStreetMap search bounds');
+        const [west,south,east,north] = box;
+        const bbox = `${south},${west},${north},${east}`;
+        const query = `[out:json][timeout:12][maxsize:67108864];(`+
+            `way["highway"]["tunnel"~"^(yes|building_passage|avalanche_protector)$"](${bbox});`+
+            `way["railway"]["tunnel"~"^(yes|building_passage|avalanche_protector)$"](${bbox});`+
+            `way["highway"]["covered"="yes"](${bbox});`+
+            `way["railway"]["covered"="yes"](${bbox});`+
+            `);out geom;`;
+        if(![OSM_ENDPOINT,OSM_BACKUP_ENDPOINT].includes(endpoint))throw Error('Unknown OSM service');
+        return `${endpoint}?data=${encodeURIComponent(query)}`;
+    }
+    function parseOsm(json) {
+        if (!json || !Array.isArray(json.elements)) throw Error('Invalid OpenStreetMap tunnel response');
+        const routes=[], seen=new Set();let vertexCount=0;
+        let incomplete=json.elements.length>200;
+        for(const element of json.elements.slice(0,201)){
+            if(routes.length>=MAX_FEATURES){incomplete=true;break;}
+            if(element?.type!=='way'||!Number.isSafeInteger(element.id)||!element.tags ||
+                (!element.tags.highway&&!element.tags.railway))continue;
+            const tags=element.tags;
+            const recognized=['yes','building_passage','avalanche_protector'].includes(tags.tunnel);
+            const covered=tags.covered==='yes';
+            if(!recognized&&!covered)continue;
+            const kind=recognized?'tunnel':'underpass';
+            if(!Array.isArray(element.geometry)||element.geometry.length>MAX_VERTICES){incomplete=true;continue;}
+            const coordinates=element.geometry.map(point=>(
+                Number.isFinite(point?.lon)&&Number.isFinite(point?.lat)&&
+                point.lon>=BOUNDS.west&&point.lon<=BOUNDS.east&&
+                point.lat>=BOUNDS.south&&point.lat<=BOUNDS.north?
+                    [point.lon,point.lat]:null));
+            if(coordinates.length<2||!coordinates.every(Boolean)){incomplete=true;continue;}
+            if(vertexCount+coordinates.length>MAX_VERTICES){incomplete=true;break;}
+            const id=`osm:${element.id}:0`;if(seen.has(id))continue;
+            seen.add(id);vertexCount+=coordinates.length;
+            const transport=tags.railway?'railway':'road';
+            routes.push({id,name:label(tags.name)||`${transport==='road'?'Road':'Railway'} ${kind}`,
+                kind,transport,coordinates,endpointsVerified:false,heightReference:'unavailable',
+                source:'OpenStreetMap (Overpass fallback)',sourceId:`way/${element.id}`});
+        }
+        return {routes,incomplete};
     }
     function vertices(geometry) {
         if (!geometry || typeof geometry !== 'object') return [];
@@ -366,7 +417,7 @@
         return {routes: result, incomplete};
     }
     async function limitedJson(response, signal) {
-        if (!response?.ok) throw Error(`Official swissTLM3D request failed (${response?.status ?? 'network'}).`);
+        if (!response?.ok) throw Error(`Tunnel data request failed (${response?.status ?? 'network'}).`);
         if (Number(response.headers?.get?.('content-length') ?? 0) > MAX_RESPONSE)
             throw Error('Official feature response exceeds memory budget.');
         if (response.body?.getReader) {
@@ -392,23 +443,51 @@
     }
     function create(C, viewer, emit = () => {}, {fetcher = (...args) => fetch(...args),
         onRoutes = () => {}, now = () => performance.now(), isOnline = () => globalThis.navigator?.onLine !== false,
-        isTerrainReady = () => true, setTimer = setTimeout, clearTimer = clearTimeout} = {}) {
+        isTerrainReady = () => true, setTimer = setTimeout, clearTimer = clearTimeout,
+        osmFallback = true, requestTimeoutMs = 7000,
+        offlineIndex = globalThis.FPVTunnelOfflineIndex?.create?.() ?? null} = {}) {
         let disposed = false, visible = false, manualVisible = false, automatic = false, allowed = false, items = [], active = null, opacity = .85;
-        let requestController = null, revision = 0, lastRequestAt = -Infinity;
+        let requestController = null, revision = 0, lastRequestAt = -Infinity, lastOsmAt = -Infinity;
         let dataSource = null, removeFrame = null, pending = false;
         let autoTimer = null, lastAutoAt = -Infinity, lastAutoCenter = null;
-        let autoState = 'hidden', autoCount = 0, autoIncomplete = true;
+        let autoState = 'hidden', autoCount = 0, autoIncomplete = true, autoMessage = null;
         const scene = viewer.scene, camera = viewer.camera;
-        const AUTO_INTERVAL = 20000, AUTO_RADIUS = 900, AUTO_CAMERA_LIMIT = 8000;
+        const AUTO_INTERVAL = 15000, AUTO_RADIUS = 900, AUTO_CAMERA_LIMIT = 8000;
+        const SCAN_CACHE_MS = 5 * 60 * 1000, EMPTY_CACHE_MS = 25000, SCAN_CACHE_LIMIT = 12;
+        // Per-provider budgets: one stalled Overpass request must not cancel
+        // all fallback services. Overall cancellation is reserved for dispose.
+        const SOURCE_TIMEOUT_MS = Number.isInteger(requestTimeoutMs) &&
+            requestTimeoutMs >= 10 && requestTimeoutMs <= 30000 ? requestTimeoutMs : 7000;
+        let rescanAfterPending = false;
+        const scanCache = new Map();
+        const cachedScanKey = (box, preferTagged) =>
+            `${preferTagged?'tagged':'official'}:${box.map(v=>Math.round(v*250)/250).join(',')}`;
+        const cachedRoutes = key => {
+            const cached=scanCache.get(key);
+            if(!cached)return null;
+            const ttl=cached.data.items?.length ? SCAN_CACHE_MS : EMPTY_CACHE_MS;
+            if(now()-cached.time>ttl){scanCache.delete(key);return null;}
+            // Make the ordering LRU, so revisiting an area does not cause extra traffic.
+            scanCache.delete(key);scanCache.set(key,cached);return cached;
+        };
+        const storeRoutes = (key,data) => {
+            scanCache.delete(key);scanCache.set(key,{time:now(),data});
+            while(scanCache.size>SCAN_CACHE_LIMIT)scanCache.delete(scanCache.keys().next().value);
+        };
         const cancelAutoTimer = () => { if (autoTimer !== null) { clearTimer(autoTimer); autoTimer = null; } };
         const removeMoveEnd = camera.moveEnd?.addEventListener?.(() => scheduleAutomaticScan());
         function clearData() {
-            if (dataSource) { viewer.dataSources.remove(dataSource, true); dataSource = null; }
+            if (!dataSource) return;
+            viewer.dataSources.remove(dataSource, true);
+            dataSource = null;
             scene.requestRender?.();
         }
         function draw() {
             clearData();
-            if (!visible || !items.length) return;
+            // Tunnel routes must remain discoverable for automatic 3D tubes
+            // when the independent centerline overlay is switched OFF.
+            // "automatic" controls discovery, never line visibility.
+            if (!manualVisible || !items.length) return;
             const source = dataSource = new C.CustomDataSource('FPVManager swissTLM3D tunnel centerlines (schematic surface trace)');
             for (const route of items) {
                 source.entities.add({ id:`fpv-tunnel-${route.id}`, name:route.name,
@@ -441,12 +520,12 @@
             emit('infrastructure-exploration-status', {active:false, message});
             scene.requestRender?.();
         }
-        function clear() { revision++;requestController?.abort();requestController = null;pending = false;stop();items = [];onRoutes([],null);clearData(); }
+        function clear() { revision++;requestController?.abort();requestController = null;pending = false;rescanAfterPending=false;stop();items = [];onRoutes([],null);clearData(); }
         // The official service publishes axes, NOT surveyed tubes or portals.
         // Discover nearby schematic routes only when the 3D structures layer is enabled.
         // A viewport scan is bounded, deferred until camera idle, and rate-limited.
         function automaticCenter() {
-            if (!automatic || disposed || !isOnline() || !camera.getPickRay ||
+            if (!automatic || disposed || !camera.getPickRay ||
                 !C.Cartesian2 || !C.Cartographic?.fromCartesian || !C.Math?.toDegrees ||
                 !viewer.canvas || camera.positionCartographic?.height > AUTO_CAMERA_LIMIT) return null;
             const canvas = viewer.canvas;
@@ -460,13 +539,28 @@
             if (!hit) return null;
             const center = C.Cartographic.fromCartesian(hit);
             const longitude = C.Math.toDegrees(center.longitude), latitude = C.Math.toDegrees(center.latitude);
-            try { bounds(longitude, latitude, AUTO_RADIUS); } catch (_) { return null; }
-            return {longitude, latitude};
+            let box=bounds(longitude, latitude, AUTO_RADIUS);
+            // Query the actually visible area at close zoom, not only a fixed
+            // circle around its middle. Cap each axis to a 1.5-km half-span to
+            // protect public providers and the mobile 3D renderer.
+            const rectangle=camera.computeViewRectangle?.(scene.globe.ellipsoid);
+            if(rectangle&&[rectangle.west,rectangle.south,rectangle.east,rectangle.north].every(Number.isFinite)){
+                const west=C.Math.toDegrees(rectangle.west), east=C.Math.toDegrees(rectangle.east);
+                const south=C.Math.toDegrees(rectangle.south), north=C.Math.toDegrees(rectangle.north);
+                if(west<east&&south<north){
+                    const envelope=bounds(longitude,latitude,1500);
+                    box=[Math.max(envelope[0],west),Math.max(envelope[1],south),
+                        Math.min(envelope[2],east),Math.min(envelope[3],north)];
+                    if(box[0]>=box[2]||box[1]>=box[3])box=envelope;
+                }
+            }
+            return {longitude, latitude, box};
         }
-        function publishAutomatic(state, count = autoCount, incomplete = autoIncomplete) {
-            if (state === autoState && count === autoCount && incomplete === autoIncomplete) return;
-            autoState = state; autoCount = count; autoIncomplete = incomplete;
-            emit('tunnel-auto-status', {state, count, incomplete});
+        function publishAutomatic(state,count=autoCount,incomplete=autoIncomplete,message=null){
+            const detail=typeof message==='string'?message.slice(0,160):null;
+            if(state===autoState&&count===autoCount&&incomplete===autoIncomplete&&detail===autoMessage)return;
+            autoState=state;autoCount=count;autoIncomplete=incomplete;autoMessage=detail;
+            emit('tunnel-auto-status',{state,count,incomplete,message:detail});
         }
         function scheduleAutomaticScan() {
             cancelAutoTimer();
@@ -474,21 +568,25 @@
             autoTimer = setTimer(() => {
                 autoTimer = null;
                 const center = automaticCenter(), stamp = now();
-                if (!center) {publishAutomatic(isOnline()?'outside':'offline');return;}
-                if (pending || stamp - lastAutoAt < AUTO_INTERVAL) return;
-                if (lastAutoCenter && Math.hypot(
-                    (center.longitude - lastAutoCenter.longitude) * 75000,
-                    (center.latitude - lastAutoCenter.latitude) * 111000) < 350) return;
+                if (!center) {publishAutomatic('outside');return;}
+                if (pending) {rescanAfterPending = true;return;}
+                if (stamp - lastAutoAt < AUTO_INTERVAL) return;
+                if (lastAutoCenter &&
+                    cachedScanKey(center.box,true)===cachedScanKey(lastAutoCenter.box,true) &&
+                    cachedRoutes(cachedScanKey(center.box,true)))return;
                 lastAutoAt = stamp;
                 publishAutomatic('loading');
-                scan({...center, radiusMeters:AUTO_RADIUS}).then(result => {
+                scan({...center, radiusMeters:AUTO_RADIUS, preferTagged:true, viewportBox:center.box}).then(result => {
                     if (!automatic || disposed) return;
                     lastAutoCenter = center;
-                    publishAutomatic(result.incomplete?'partial':'ready',result.count,result.incomplete);
-                }).catch(() => {
+                    publishAutomatic(result.incomplete?'partial':'ready',result.count,result.incomplete,
+                        result.localIndex ? `Lokaler OSM-Tunnelindex (Stand: ${String(result.snapshotDateUtc).slice(0,10)}; © OpenStreetMap contributors)` :
+                        result.failedLayers?.length ? result.failedLayers.join('; ') : null);
+                }).catch(error => {
                     // Keep existing routes on transient failure, never claim
                     // that a failed source query proves no tunnels exist.
-                    if (automatic && !disposed) publishAutomatic(isOnline()?'failed':'offline');
+                    if (automatic && !disposed) publishAutomatic('failed',
+                        autoCount,true,String(error.message||error));
                 });
             }, 650);
         }
@@ -497,9 +595,17 @@
             if (!next) { if (visible) clear(); visible = false; }
             else if (!visible) { visible = true; draw(); }
         }
-        function setAutomatic(enabled) {
-            if (typeof enabled !== 'boolean') throw Error('Invalid automatic tunnel setting');
-            if (disposed || enabled === automatic) return {automatic, visible};
+        function setAutomatic(enabled, refresh = false) {
+            if (typeof enabled !== 'boolean' || typeof refresh !== 'boolean')
+                throw Error('Invalid automatic tunnel setting');
+            if (disposed) return {automatic, visible};
+            if (enabled === automatic) {
+                if (enabled && refresh && !pending) {
+                    lastAutoCenter = null;lastAutoAt = -Infinity;
+                    scheduleAutomaticScan();
+                }
+                return {automatic, visible};
+            }
             automatic = enabled; if (!automatic) {cancelAutoTimer();publishAutomatic('hidden',0,true);}
             updateVisibility();
             if (automatic) {publishAutomatic('waiting',0,true);scheduleAutomaticScan();}
@@ -515,11 +621,27 @@
             updateVisibility();
             draw();return {visible, automatic, explorationAllowed:allowed, count:items.length};
         }
-        async function scan({longitude,latitude,radiusMeters = 600} = {},signal) {
+        async function scan({longitude,latitude,radiusMeters = 600,preferTagged = false,viewportBox = null} = {},signal) {
             if (disposed || !visible) throw Error('Enable tunnel routes first.');
-            if (!isOnline()) throw Error('Official tunnel data requires a connection; no offline routes are cached.');
-            const box = bounds(longitude, latitude, radiusMeters);
+            if (!isOnline() && !offlineIndex) throw Error('No bundled tunnel index and no online tunnel source.');
+            const area = bounds(longitude, latitude, radiusMeters);
+            const box = Array.isArray(viewportBox)&&viewportBox.length===4&&
+                viewportBox.every(Number.isFinite)&&viewportBox[0]<viewportBox[2]&&
+                viewportBox[1]<viewportBox[3]&&
+                viewportBox[0]>=bounds(longitude,latitude,1500)[0]&&
+                viewportBox[1]>=bounds(longitude,latitude,1500)[1]&&
+                viewportBox[2]<=bounds(longitude,latitude,1500)[2]&&
+                viewportBox[3]<=bounds(longitude,latitude,1500)[3] ? viewportBox : area;
             if (pending) throw Error('Tunnel request already running.');
+            const cacheKey=cachedScanKey(box,preferTagged);
+            const previous=cachedRoutes(cacheKey);
+            if(previous){
+                const cached=previous.data;
+                items=cached.items;draw();onRoutes(items,{longitude,latitude});
+                emit('infrastructure-scan-status',{count:items.length,incomplete:cached.incomplete});
+                emit('tunnel-routes-loaded',{routes:cached.routes,incomplete:cached.incomplete});
+                return {...cached.data,bbox:box,fromCache:true};
+            }
             if (now() - lastRequestAt < 1500) throw Error('Please wait before requesting another area.');
             lastRequestAt = now(); pending = true;
             stop();
@@ -527,36 +649,115 @@
             requestController?.abort();
             const local = new AbortController(); requestController = local;
             const abort = () => local.abort();signal?.addEventListener('abort',abort,{once:true});
-            const timeout = setTimeout(() => local.abort(), 12000);
+            // Timeouts MUST belong to individual requests. A single 12s
+            // AbortController previously poisoned the backup endpoint and the
+            // official fallback after the first slow Overpass request.
+            async function fetchSource(url) {
+                if(local.signal.aborted)throw Error('Tunnel request cancelled.');
+                const child=new AbortController();let timedOut=false;
+                const cancel=()=>child.abort();
+                local.signal.addEventListener('abort',cancel,{once:true});
+                const timer=setTimeout(()=>{timedOut=true;child.abort();},SOURCE_TIMEOUT_MS);
+                try{
+                    const response=await fetcher(url,{signal:child.signal});
+                    return await limitedJson(response,child.signal);
+                }catch(error){
+                    if(local.signal.aborted)throw Error('Tunnel request cancelled.');
+                    if(timedOut)throw Error(`Timeout after ${SOURCE_TIMEOUT_MS} ms`);
+                    throw error;
+                }finally{
+                    clearTimeout(timer);
+                    local.signal.removeEventListener('abort',cancel);
+                }
+            }
             try {
-                const routes = [], sources = [], failed = [];
-                let incomplete = false;
-                for (const transport of Object.keys(LAYERS)) {
-                    if (local.signal.aborted) throw Error('Tunnel request cancelled.');
-                    try {
-                        const response = await fetcher(urlFor(box, transport), {signal: local.signal});
-                        const decoded = parseIdentify(await limitedJson(response,local.signal),transport);
-                        routes.push(...decoded.routes); sources.push(LAYERS[transport]);
-                        incomplete ||= decoded.incomplete;
-                    } catch (error) {
-                        if (local.signal.aborted) throw error;
-                        failed.push(`${transport}: ${String(error.message || error).slice(0,100)}`);
+                const routes=[],sources=[],failed=[];
+                let incomplete=false,localIndexReady=false,localSnapshot=null;
+                // The prepared Swiss dataset is authoritative for local
+                // discovery: do not contact Overpass/GeoAdmin on every camera
+                // move. An empty local match is a legitimate empty viewport.
+                if(offlineIndex){
+                    try{
+                        const localData=await offlineIndex.query(box);
+                        if(token!==revision || disposed || local.signal.aborted)
+                            throw Error('Tunnel request superseded.');
+                        routes.push(...localData.routes);
+                        sources.push(localData.source);
+                        incomplete=localData.incomplete;
+                        localIndexReady=true;
+                        localSnapshot=localData.snapshotDateUtc;
+                    }catch(error){
+                        if(local.signal.aborted)throw Error('Tunnel request cancelled.');
+                        failed.push(`Bundled offline index: ${String(error.message||error).slice(0,130)}`);
+                        if(!isOnline())throw Error(`Offline tunnel catalogue unavailable: ${String(error.message||error)}`);
+                    }
+                }
+                const requestOsm=async()=>{
+                    if(!osmFallback)return;
+                    // Prefer directly filtered tagged ways for automatic viewport scans:
+                    // GeoAdmin identify has a 200-feature ceiling before filtering.
+                    for(const endpoint of [OSM_ENDPOINT,OSM_BACKUP_ENDPOINT]){
+                        if(local.signal.aborted)throw Error('Tunnel request cancelled.');
+                        try{
+                            const decoded=parseOsm(await fetchSource(osmUrlFor(box,endpoint)));
+                            routes.push(...decoded.routes);sources.push('OpenStreetMap (Overpass fallback)');
+                            incomplete ||= decoded.incomplete;
+                            return;
+                        }catch(error){
+                            if(local.signal.aborted)throw error;
+                            failed.push(`${new URL(endpoint).host}: ${String(error.message||error).slice(0,100)}`);
+                        }
+                    }
+                };
+                const requestOfficial=async()=>{
+                    for(const transport of Object.keys(LAYERS)){
+                        if(local.signal.aborted)throw Error('Tunnel request cancelled.');
+                        try{
+                            const decoded=parseIdentify(await fetchSource(urlFor(box,transport)),transport);
+                            routes.push(...decoded.routes);sources.push(LAYERS[transport]);
+                            incomplete ||= decoded.incomplete;
+                        }catch(error){
+                            if(local.signal.aborted)throw error;
+                            failed.push(`${transport}: ${String(error.message||error).slice(0,100)}`);
+                        }
+                    }
+                };
+                if(!localIndexReady){
+                    if(preferTagged){
+                        await requestOsm();
+                        if(!routes.length)await requestOfficial();
+                    }else{
+                        await requestOfficial();
+                        if(!routes.length)await requestOsm();
                     }
                 }
                 if (token !== revision || disposed || local.signal.aborted) throw Error('Tunnel request superseded.');
-                if (!sources.length) throw Error('No supported official tunnel feature service responded.');
-                incomplete ||= failed.length > 0 || routes.length > MAX_FEATURES;
-                items = routes.slice(0,MAX_FEATURES);draw();
+                if (!sources.length) throw Error('Tunnel sources unavailable: '+
+                    (failed.length ? failed.join('; ').slice(0,220) : 'no source responded'));
+                incomplete ||= (!localIndexReady && failed.length > 0) ||
+                    routes.length > MAX_FEATURES || (!localIndexReady && !routes.length);
+                // Exact duplicate IDs are common when a provider retries. Never
+                // render two meshes for the same way / axis segment.
+                const ids=new Set();
+                items=routes.filter(route=>{if(ids.has(route.id))return false;ids.add(route.id);return true;})
+                    .slice(0,MAX_FEATURES);draw();
                 onRoutes(items,{longitude,latitude});
                 const data = {count:items.length, incomplete, queriedAtUtc:new Date().toISOString(),
-                    sourceLayers:sources, failedLayers:failed, bbox:box,
+                    sourceLayers:sources, failedLayers:localIndexReady?[]:failed, bbox:box,
+                    localIndex:localIndexReady, snapshotDateUtc:localSnapshot,
                     routes:items.map(({coordinates,...details})=>({...details, vertexCount:coordinates.length}))};
                 emit('infrastructure-scan-status',{count:items.length,incomplete});
                 emit('tunnel-routes-loaded',{routes:data.routes,incomplete});
+                storeRoutes(cacheKey,{items,routes:data.routes,incomplete,data});
                 return data;
             } finally {
-                clearTimeout(timeout);signal?.removeEventListener('abort',abort);
-                if (token === revision){pending = false;requestController = null;}
+                signal?.removeEventListener('abort',abort);
+                if (token === revision){
+                    pending = false;requestController = null;
+                    // A camera move during an active request should not leave
+                    // the newly visible area permanently undiscovered.
+                    if(rescanAfterPending){rescanAfterPending=false;lastAutoAt=-Infinity;scheduleAutomaticScan();}
+                }
             }
         }
         function routeById(routeId) {
@@ -622,12 +823,14 @@
             return true;
         }
         return {set,setAutomatic,scan,focus,explore,stop,pick,
+            snapshot(){return {routes:items.map(r=>({...r,coordinates:r.coordinates.map(p=>[...p])})),
+                center:lastAutoCenter && {...lastAutoCenter}};},
             geometry(routeId){const r=routeById(routeId);return {id:r.id,source:r.source,sourceId:r.sourceId,
                 coordinates:r.coordinates.map(pair=>[...pair])};},
             dispose(){if(disposed)return;cancelAutoTimer();removeMoveEnd?.();clear();disposed=true;},
             status(){return {visible,automatic,autoState,allowed,pending,count:items.length,exploring:!!active};}};
     }
-    return {ENDPOINT,LAYERS,BOUNDS,category,bounds,urlFor,parseIdentify,create};
+    return {ENDPOINT,OSM_ENDPOINT,OSM_BACKUP_ENDPOINT,LAYERS,BOUNDS,category,bounds,urlFor,osmUrlFor,parseIdentify,parseOsm,create};
 });
 /* Issue #112: bounded, explicitly SIMULATION-ONLY tunnel geometry. This is not
  * a surveyed tunnel, a clearance certificate, or permission to enter a site.
@@ -644,6 +847,92 @@
     const xy=(point,origin)=>({x:(point.longitude-origin.longitude)*DEG*R*Math.cos(origin.latitude*DEG),
         y:(point.latitude-origin.latitude)*DEG*R});
     function length(a,b){const p=xy(b,a);return Math.hypot(p.x,p.y);}
+    // Pair only nearly coextensive carriageways. OSM may represent each
+    // direction by a separate way, but independent bores must stay separate.
+    // This never modifies the original offline centreline source data.
+    function mergeParallelRoutes(entries){
+        // Stable ordering is important: the same two OSM carriageways must
+        // retain the same mesh identity after a viewport/tile refresh.
+        entries=entries.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+        const used=new Set(),result=[];let merged=0;
+        const cache=new WeakMap();
+        const geometry=route=>{
+            if(cache.has(route))return cache.get(route);
+            const coordinates=route.coordinates;
+            if(!Array.isArray(coordinates)||coordinates.length<2)return null;
+            const cumulative=[0];
+            for(let i=1;i<coordinates.length;i++){
+                const a={longitude:coordinates[i-1][0],latitude:coordinates[i-1][1]},
+                    b={longitude:coordinates[i][0],latitude:coordinates[i][1]};
+                cumulative.push(cumulative.at(-1)+length(a,b));
+            }
+            if(cumulative.at(-1)<12)return null;
+            const at=t=>{
+                const distance=t*cumulative.at(-1);let i=0;
+                while(i<cumulative.length-2&&cumulative[i+1]<distance)i++;
+                const fraction=(distance-cumulative[i])/(cumulative[i+1]-cumulative[i]||1);
+                return coordinates[i].map((v,k)=>v+(coordinates[i+1][k]-v)*fraction);
+            };
+            const result={length:cumulative.at(-1),at};cache.set(route,result);return result;
+        };
+        const metres=(p,q)=>xy({longitude:q[0],latitude:q[1]},
+            {longitude:p[0],latitude:p[1]});
+        const generic=name=>!name||/^(?:road|railway|rail) (?:tunnel|underpass)$/i.test(name);
+        const pair=(a,b)=>{
+            if(a.route.kind!==b.route.kind||a.route.transport!=='road'||b.route.transport!=='road')return null;
+            const nameA=a.route.name,nameB=b.route.name;
+            if(nameA&&nameB&&nameA!==nameB&&!(generic(nameA)&&generic(nameB)))return null;
+            const ag=geometry(a.route),bg=geometry(b.route);
+            if(!ag||!bg||Math.abs(ag.length-bg.length)>Math.max(20,Math.max(ag.length,bg.length)*.26))return null;
+            const direction=metres(ag.at(0),ag.at(1)),norm=Math.hypot(direction.x,direction.y);
+            if(norm<12)return null;
+            const ab=metres(bg.at(0),bg.at(1)),bn=Math.hypot(ab.x,ab.y);
+            if(bn<12||Math.abs((direction.x*ab.x+direction.y*ab.y)/(norm*bn))<.97)return null;
+            const reversed=direction.x*ab.x+direction.y*ab.y<0;
+            const offsets=[],alongOffsets=[];
+            // OSM often starts the two directional ways several metres apart
+            // along the road. Allow that displacement only when the actual
+            // longitudinal overlap remains substantial (no merging at junctions).
+            const maxAlong=Math.min(22,Math.min(ag.length,bg.length)*.24);
+            for(const t of [0,.2,.4,.6,.8,1]){
+                const delta=metres(ag.at(t),bg.at(reversed?1-t:t));
+                const along=(delta.x*direction.x+delta.y*direction.y)/norm;
+                const lateral=(direction.x*delta.y-direction.y*delta.x)/norm;
+                if(Math.abs(along)>maxAlong||Math.abs(lateral)<1.2||Math.abs(lateral)>7.5)return null;
+                offsets.push(lateral);alongOffsets.push(along);
+            }
+            if(Math.min(...offsets)*Math.max(...offsets)<=0||
+                Math.max(...offsets)-Math.min(...offsets)>2.4||
+                Math.abs(alongOffsets[0]-alongOffsets.at(-1))>maxAlong)return null;
+            const separation=offsets.reduce((sum,v)=>sum+Math.abs(v),0)/offsets.length;
+            return {ag,bg,reversed,separation};
+        };
+        for(let i=0;i<entries.length;i++){
+            if(used.has(i))continue;
+            let best=null;
+            for(let j=i+1;j<entries.length;j++){
+                if(used.has(j))continue;
+                const found=pair(entries[i],entries[j]);
+                if(found&&(!best||found.separation<best.details.separation))best={j,details:found};
+            }
+            if(!best){result.push(entries[i]);continue;}
+            const a=entries[i],b=entries[best.j],{ag,bg,reversed,separation}=best.details;
+            const count=Math.min(MAX_SECTIONS,Math.max(4,a.route.coordinates.length,b.route.coordinates.length));
+            const coordinates=Array.from({length:count},(_,k)=>{
+                const t=k/(count-1),p=ag.at(t),q=bg.at(reversed?1-t:t);
+                return [(p[0]+q[0])/2,(p[1]+q[1])/2];
+            });
+            const identity=`merged:${a.id}+${b.id}`;
+            const widthMeters=Math.min(15,Math.max(6,separation+6));
+            const route={...a.route,id:identity,sourceId:`${a.route.sourceId}|${b.route.sourceId}`,
+                coordinates,widthMeters,mergedRouteIds:[a.id,b.id],
+                partial:Boolean(a.route.partial||b.route.partial)};
+            result.push({id:identity,key:`${identity}:${count}:${coordinates[0].join(',')}:`+
+                coordinates.at(-1).join(','),route});
+            used.add(best.j);merged++;
+        }
+        return {entries:result,merged};
+    }
     function validateSections(sections){
         if(!Array.isArray(sections)||sections.length<2||sections.length>MAX_SECTIONS)
             throw Error('Tunnel model requires 2–96 cross sections.');
@@ -660,7 +949,8 @@
                 widthMeters:s.widthMeters,heightMeters:s.heightMeters};
         });
     }
-    function procedural(route,groundHeights,{widthMeters=6,heightMeters=5,profile='rectangular'}={}){
+    function procedural(route,groundHeights,{widthMeters=6,heightMeters=5,profile='rectangular',
+        portalApproachHeights=[],globalEndpointHeights=[],portalContextHeights=[]}={}){
         if(!PROFILES.includes(profile))throw Error('Unsupported tunnel cross-section profile.');
         if(!route||!Array.isArray(route.coordinates)||route.coordinates.length<2||
             route.coordinates.length>MAX_SECTIONS||!Array.isArray(groundHeights)||
@@ -674,15 +964,112 @@
         });
         const distances=[0];for(let i=1;i<pts.length;i++)distances.push(distances[i-1]+length(pts[i-1],pts[i]));
         const total=distances.at(-1);
+        // A tagged OSM way is a 2D centreline, not a surveyed floor profile.
+        // Approach heights come from terrain just OUTSIDE each endpoint rather
+        // than the potentially cliff-cut cell at the centreline endpoint.
+        const approach=Array.isArray(portalApproachHeights)?portalApproachHeights:[];
+        const anchor=(terrain,near,far)=>{
+            const candidates=[near,far].filter(h=>finite(h)&&Math.abs(h-terrain)<=6);
+            if(!candidates.length)return terrain;
+            if(candidates.length===1)return candidates[0];
+            if(Math.abs(candidates[0]-candidates[1])>2)
+                return candidates.reduce((best,h)=>Math.abs(h-terrain)<Math.abs(best-terrain)?h:best);
+            return .7*candidates[0]+.3*candidates[1];
+        };
+        const portalInset=.1,cover=.65;
+        let firstFloor=anchor(pts[0].terrain,approach[0],approach[1])-portalInset;
+        let lastFloor=anchor(pts.at(-1).terrain,approach[2],approach[3])-portalInset;
+        // Viewport windows are NOT real tunnel portals. When a long OSM way
+        // is cropped around the camera, anchor its grade at the ORIGINAL way
+        // ends rather than draping synthetic cropped 'portals' on the mountaintop.
+        if(route.partial&&route.profileTotalDistance>total&&
+            Array.isArray(globalEndpointHeights)&&globalEndpointHeights.length===2&&
+            globalEndpointHeights.every(finite)){
+            const [start,end]=globalEndpointHeights,full=route.profileTotalDistance;
+            const grade=(end-start)/full;
+            if(Math.abs(grade)>.25)throw Error('Original tunnel way has implausible endpoint grade.');
+            firstFloor=start+grade*route.profileStartDistance-portalInset;
+            lastFloor=firstFloor+grade*total;
+        }
+        if(Math.abs(lastFloor-firstFloor)>Math.max(8,total*.25))
+            throw Error('Tunnel endpoint elevations imply an implausible schematic grade.');
+        const base=distances.map(d=>firstFloor+(lastFloor-firstFloor)*d/total);
+        // A covered road/underpass is not an elevated viaduct. The published
+        // 2D way alone cannot justify a floating slab many metres above the
+        // sampled ground; avoid drawing one when there is no viable grade.
+        if(route.kind==='underpass'&&pts.some((p,i)=>i>0&&i<pts.length-1&&
+            base[i]-p.terrain>4))
+            throw Error('Covered route appears elevated above the terrain.');
+        if(pts.some((p,i)=>i>0&&i<pts.length-1&&base[i]-p.terrain>40))
+            throw Error('Tunnel terrain depression exceeds the supported schematic elevation range.');
+        // A roof that protrudes through the ground is not an underground
+        // tunnel. Limit inward corrections by an approximate road grade;
+        // reject impossible hill/valley profiles instead of drawing sky tubes.
+        const subsurface=route.kind==='tunnel'&&total>=45;
+        const raw=base.map((floor,i)=>{
+            if(!subsurface||i===0||i===pts.length-1)return floor;
+            const distanceToEnd=Math.min(distances[i],total-distances[i]);
+            if(distanceToEnd<8)return floor;
+            const roofCap=pts[i].terrain-heightMeters-cover;
+            const constrained=Math.min(floor,roofCap);
+            const gradeLimit=.16*distanceToEnd;
+            if(floor-constrained>gradeLimit+1.5)
+                throw Error('Tunnel roof cannot fit below terrain at a plausible road grade.');
+            return Math.max(floor-gradeLimit,constrained);
+        });
+        const floors=raw.map((value,i)=>i===0?firstFloor:
+            i===raw.length-1?lastFloor:
+                .20*raw[i-1]+.60*value+.20*raw[i+1]);
+        // Smoothing must never re-expose a previously buried roof.
+        if(subsurface)for(let i=1;i<pts.length-1;i++){
+            if(Math.min(distances[i],total-distances[i])<8)continue;
+            const cap=pts[i].terrain-heightMeters-cover;
+            if(floors[i]>cap){
+                if(base[i]-cap> .16*Math.min(distances[i],total-distances[i])+1.5)
+                    throw Error('Schematic tunnel would emerge above the terrain.');
+                floors[i]=cap;
+            }
+        }
+        if(subsurface)for(let i=1;i<floors.length;i++){
+            if(Math.abs(floors[i]-floors[i-1])>length(pts[i-1],pts[i])*.22+1)
+                throw Error('Schematic tunnel grade changes too abruptly for the sampled terrain.');
+        }
+        // Cut only portal approaches with evidence of surrounding hillside.
+        // Short covered streets/underpasses should not excavate the surface.
+        const portalClipMask=[0,1].map(end=>{
+            if(route.partial||route.kind!=='tunnel'||total<20)return false;
+            const near=end===0?1:pts.length-2;
+            const d=end===0?distances[near]:total-distances[near];
+            if(d>40||pts[near].terrain<floors[near]+heightMeters+.1)return false;
+            // Cesium terrain clipping has NO vertical limit. An outline over
+            // a ravine can cut a deep vertical column. Only create idle cuts
+            // where the sampled ground is consistent across the portal width
+            // and along the outside approach. Otherwise keep the terrain intact;
+            // the active simulator still clips a short local flight corridor.
+            const a=approach.slice(end*2,end*2+2);
+            const lateral=portalContextHeights.slice(end*2,end*2+2);
+            // Automated clipping fails closed if any requested evidence is
+            // missing; unlike an ordinary procedural unit fixture, production
+            // sampling provides arrays containing null on unavailable tiles.
+            if(approach.length>=4){
+                if(a.length!==2||!a.every(finite)||Math.abs(a[0]-a[1])>2.1||
+                    Math.abs(a[0]-pts[end===0?0:pts.length-1].terrain)>3.5)return false;
+            }
+            if(portalContextHeights.length>=4){
+                if(lateral.length!==2||!lateral.every(finite))return false;
+                const center=pts[end===0?0:pts.length-1].terrain;
+                if(Math.abs(lateral[0]-lateral[1])>2.5||
+                    lateral.some(h=>Math.abs(h-center)>4))return false;
+            }
+            return true;
+        });
         const sections=validateSections(pts.map((p,i)=>({longitude:p.longitude,latitude:p.latitude,
-            // Smooth approach to the simulated underground segment. The endpoints
-            // are synthetic and NOT verified real-world portal elevations.
-            floorMetersWgs84:p.terrain+.6-heightMeters*.75*Math.min(1,distances[i]/12,(total-distances[i])/12),
-            widthMeters,heightMeters})));
+            floorMetersWgs84:floors[i],widthMeters,heightMeters})));
         return {version:1,identity:String(route.id||'local').slice(0,150),quality:'simulation-only',
             source:String(route.source||'').slice(0,160),sourceId:String(route.sourceId||'').slice(0,160),
             elevationReference:'WGS84_ELLIPSOID',portalsVerified:false,clearanceVerified:false,
-            label:'SYNTHETIC TUNNEL · SIMULATION ONLY',profile,sections};
+            label:'SYNTHETIC TUNNEL · SIMULATION ONLY',profile,sections,portalClipMask,
+            mergedRouteIds:Array.isArray(route.mergedRouteIds)?route.mergedRouteIds.slice():undefined};
     }
     // Externally supplied cross-section files are unverified until their
     // provenance has been checked independently. They cannot enable automatic
@@ -892,6 +1279,69 @@
             indices:coords.length/3<65536?new Uint16Array(indices):new Uint32Array(indices),
             primitiveType:C.PrimitiveType.TRIANGLES,boundingSphere:C.BoundingSphere.fromVertices(coords)});
     }
+    // Visual-only face materials. The geometry used for collision remains
+    // exactly the same ring triangulation. Decorative markings never collide.
+    function surfaceGeometries(C,model){
+        if(model.kind==='georeferenced-trimesh')return [{geometry:geometry(C,model),color:[75,120,133,255]}];
+        const sections=rings(model),faces=sections[0].length;
+        const groups=[[],[],[],[],[]]; // floor, walls, ceiling, centre stripe, safety stripe
+        const point=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+        const addQuad=(group,a,b,c,d)=>group.push([a,b,c],[a,c,d]);
+        for(let i=0;i<sections.length-1;i++){
+            const a=sections[i],b=sections[i+1];
+            for(let f=0;f<faces;f++){
+                const target=f===0?groups[0]:(f===1||f===faces-1)?groups[1]:groups[2];
+                addQuad(target,a[f],a[(f+1)%faces],b[(f+1)%faces],b[f]);
+            }
+            // Repeated short lane dashes: a procedural road pattern that
+            // remains readable in a moving FPV camera without image textures.
+            const span=length(model.sections[i],model.sections[i+1]);
+            const dash=Math.min(4,Math.max(0,span-1.5));
+            for(let d=.75;dash>=.8&&d+dash<span;d+=15){
+                const at=t=>{
+                    const l=point(a[0],b[0],t),r=point(a[1],b[1],t);
+                    const left=point(l,r,.487),right=point(l,r,.513);
+                    left[2]+=.025;right[2]+=.025;
+                    return [left,right];
+                };
+                const start=at(d/span),end=at((d+dash)/span);
+                addQuad(groups[3],start[0],start[1],end[1],end[0]);
+            }
+            // Wall-base bands make roll orientation obvious without a texture
+            // image, network request, or changing the collision surface.
+            for(const side of [1,faces-1]){
+                const low=side===1?1:0,up=side===1?2:faces-1;
+                const lowA=a[low],lowB=b[low],highA=a[up],highB=b[up];
+                const w0=point(lowA,highA,.13),w1=point(lowA,highA,.17);
+                const w2=point(lowB,highB,.17),w3=point(lowB,highB,.13);
+                // Shift the decorative band 2 cm into the open tunnel to
+                // prevent z-fighting with the collidable wall surface.
+                const shift=(p,section)=>{
+                    const centre=point(section[0],section[1],.5);
+                    p[0]+=(centre[0]-p[0])*.007;
+                    p[1]+=(centre[1]-p[1])*.007;
+                };
+                shift(w0,a);shift(w1,a);shift(w2,b);shift(w3,b);
+                addQuad(groups[4],w0,w1,w2,w3);
+            }
+        }
+        const colors=[[48,54,60,255],[170,177,173,255],[103,113,119,255],
+            [236,213,126,255],[233,219,160,255]];
+        return groups.flatMap((triangles,i)=>{
+            if(!triangles.length)return [];
+            const values=[],indices=[];
+            for(const tri of triangles){
+                for(const p of tri){const xyz=C.Cartesian3.fromDegrees(p[0],p[1],p[2]);
+                    indices.push(values.length/3);values.push(xyz.x,xyz.y,xyz.z);}
+            }
+            const geom=new C.Geometry({attributes:{position:new C.GeometryAttribute({
+                componentDatatype:C.ComponentDatatype.DOUBLE,componentsPerAttribute:3,
+                values:new Float64Array(values)})},indices:new Uint16Array(indices),
+                primitiveType:C.PrimitiveType.TRIANGLES,
+                boundingSphere:C.BoundingSphere.fromVertices(values)});
+            return [{geometry:geom,color:colors[i],kind:['road','walls','ceiling','marking','wall-band'][i]}];
+        });
+    }
     // Collision and rendering consume the SAME rings. Every segment carries
     // an axis-aligned broad-phase box and explicit collision triangles.
     const collisionCache=new WeakMap();
@@ -1021,50 +1471,177 @@
         }
         return false;
     }
-    function create(C,viewer,emit=()=>{}, {sampleTerrain=async()=>[],ready=()=>true}={}){
+    function create(C,viewer,emit=()=>{}, {sampleTerrain=async()=>[],ready=()=>true,
+        isSimulating=()=>false,now=()=>Date.now()}={}){
         let model=null,primitive=null,clipping=null,oldClipping=null,flight=false,collisionEnabled=false,revision=0,disposed=false,pending=false;
         const scene=viewer.scene;
-        // Nearby official centerlines are only the position reference. Automatic
-        // tubes are SYNTHETIC, capped to three displayed models in one viewport.
-        let autoEnabled=false,autoRevision=0,autoModels=[],autoClipping=null,autoPrevious=null;
-        const AUTO_LIMIT=3;
+        // Display budgets govern only *resident* geometry, not discovery.  The
+        // complete viewport candidates can contain routes without valid terrain.
+        // Never truncate candidates before validating them.
+        const AUTO_BUDGETS=Object.freeze({quality:64,balanced:32,performance:16,navigation:24});
+        const AUTO_BATCH=3, AUTO_CLIP_BUDGET=8;
+        let autoProfile='balanced',autoEnabled=false,autoRevision=0,autoModels=[],autoClipping=null,autoPrevious=null;
+        let autoClipIdentity=null,lastClipCheck=-Infinity;
+        let lastAutoSignature=null,autoInFlightSignature=null,autoCompletedAt=-Infinity;
+        let autoPortals=null,lastRequestedRoutes=null,lastRequestedCenter=null;
+        let autoDiagnostics={considered:0,skipped:0,reason:null,clipped:0};
+        const currentBudget=()=>AUTO_BUDGETS[autoProfile];
         function publishAutomatic(error=null){
             emit('tunnel-auto-mesh-status',{count:autoModels.length,active:autoEnabled,
-                quality:'simulation-only',error});
+                quality:'simulation-only',budget:currentBudget(),considered:autoDiagnostics.considered,
+                skipped:autoDiagnostics.skipped,clipped:autoDiagnostics.clipped,
+                error:error??autoDiagnostics.reason});
         }
         function createPrimitive(next){
-            const geom=geometry(C,next);
-            const instance=new C.GeometryInstance({geometry:geom,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
-                C.Color.fromBytes(75,120,133,255))}});
-            return new C.Primitive({geometryInstances:instance,appearance:new C.PerInstanceColorAppearance({flat:true,
+            // Keep the collision triangle mesh unchanged. Draw the synthetic
+            // tunnel with separate face materials and built-in road markings;
+            // a single Cesium primitive batches all instances on mobile.
+            const surfaces=next.kind==='georeferenced-trimesh'
+                ? [{geometry:geometry(C,next),color:[75,120,133,255]}]
+                : surfaceGeometries(C,next);
+            const instances=surfaces.map(surface=>new C.GeometryInstance({
+                geometry:surface.geometry,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
+                    C.Color.fromBytes(...surface.color))}}));
+            return new C.Primitive({geometryInstances:instances,appearance:new C.PerInstanceColorAppearance({flat:true,
                 translucent:false,closed:false}),asynchronous:false,allowPicking:false});
         }
         function releaseAutoClipping(){
             if(autoClipping && scene.globe.clippingPolygons===autoClipping)
                 scene.globe.clippingPolygons=autoPrevious;
-            autoClipping=null;autoPrevious=null;
+            autoClipping=null;autoPrevious=null;autoClipIdentity=null;
+            autoDiagnostics.clipped=0;
+        }
+        function releaseAutoPortals(){
+            if(autoPortals){scene.primitives.remove(autoPortals);autoPortals=null;}
+        }
+        // Centerline endpoints are NOT surveyed portals. Mark the two open
+        // ends visually without introducing a collision cap across the opening.
+        function updateAutoPortals(){
+            releaseAutoPortals();
+            if(!autoModels.length||!C.PolylineCollection||!C.Material?.fromType)return;
+            let collection=null;
+            try{
+                collection=new C.PolylineCollection();
+                const material=C.Material.fromType('Color',{color:C.Color.fromBytes(255,174,44,255)});
+                for(const entry of autoModels){
+                    const cross=rings(entry.model);
+                    for(const ring of [cross[0],cross.at(-1)]){
+                        const positions=[...ring,ring[0]].map(p=>C.Cartesian3.fromDegrees(...p));
+                        collection.add({positions,width:3,material});
+                    }
+                }
+                scene.primitives.add(collection);autoPortals=collection;
+            }catch(_){if(collection)scene.primitives.remove(collection);}
+        }
+        // The auto preview must NOT excavate a trench along the entire source
+        // centerline. Only bounded portal approaches are visible at rest. During
+        // FPV flight one nearby tube may temporarily own a corridor cut, so
+        // loaded terrain cannot occlude the simulated interior. No geometry is
+        // promoted to verified real-world clearance by this visual cut.
+        function portalClip(next,atEnd){
+            const ring=rings(next),last=ring.length-1;
+            const i=atEnd?last:0,j=atEnd?last-1:1;
+            const distance=Math.max(.01,length(next.sections[i],next.sections[j]));
+            const t=Math.min(1,1.5/distance);
+            const a=ring[i],b=ring[j];
+            const lerp=(x,y)=>[x[0]+(y[0]-x[0])*t,x[1]+(y[1]-x[1])*t];
+            // Slightly narrower than the nominal roof footprint to avoid
+            // cutting broad rectangles into steep slopes.
+            const narrower=pair=>[pair[0][0]+(pair[1][0]-pair[0][0])*.12,
+                pair[0][1]+(pair[1][1]-pair[0][1])*.12];
+            const startLeft=narrower([a[0],a[1]]),startRight=narrower([a[1],a[0]]);
+            const endLeft=narrower([b[0],b[1]]),endRight=narrower([b[1],b[0]]);
+            const nearLeft=lerp(startLeft,endLeft),nearRight=lerp(startRight,endRight);
+            return [startLeft,startRight,nearRight,nearLeft];
+        }
+        function clipPolygon(points){
+            return new C.ClippingPolygon({positions:points.map(p=>
+                C.Cartesian3.fromDegrees(p[0],p[1],0))});
+        }
+        function activeFlightEntry(){
+            if(!isSimulating())return null;
+            const camera=viewer.camera?.positionCartographic;
+            if(!camera || ![camera.longitude,camera.latitude,camera.height].every(finite))return null;
+            const p={longitude:camera.longitude/DEG,latitude:camera.latitude/DEG,height:camera.height};
+            for(const entry of autoModels){
+                if(!nearEntry(entry,p,p))continue;
+                const section=closest(entry.model,p);
+                if(section && section.distance<=section.width/2+1 &&
+                    p.height>=section.floor-1 && p.height<=section.floor+section.height+1)
+                    return entry;
+            }
+            return null;
         }
         function updateAutoClipping(){
             if(disposed||!autoEnabled||flight||model||!autoModels.length)return;
             if(!C.ClippingPolygonCollection?.isSupported?.(scene)||!C.ClippingPolygon||
                 !('clippingPolygons' in scene.globe))return;
-            if(autoClipping && scene.globe.clippingPolygons===autoClipping)releaseAutoClipping();
-            // Do not replace clipping owned by an unrelated terrain overlay.
+            const flightEntry=activeFlightEntry();
+            const preview=autoModels.filter(entry=>entry.model.portalClipMask?.some(Boolean))
+                .slice(0,Math.floor(AUTO_CLIP_BUDGET/2));
+            const camera=viewer.camera?.positionCartographic;
+            const flightPoint=camera&&{longitude:camera.longitude/DEG,
+                latitude:camera.latitude/DEG,height:camera.height};
+            const flightNear=flightEntry&&flightPoint?closest(flightEntry.model,flightPoint):null;
+            const flightSegment=flightNear?.segment??0;
+            const distances=flightEntry?.model.sections.map(()=>0)??[];
+            if(flightEntry)for(let i=1;i<distances.length;i++)
+                distances[i]=distances[i-1]+length(flightEntry.model.sections[i-1],flightEntry.model.sections[i]);
+            const progress=flightNear ? distances[flightSegment]+flightNear.t*
+                (distances[flightSegment+1]-distances[flightSegment]) : 0;
+            const identity=flightEntry?`flight:${flightEntry.key}:${Math.floor(progress/12)}`:
+                `portals:${preview.map(e=>e.key).join('|')}`;
+            if(autoClipping&&scene.globe.clippingPolygons===autoClipping&&autoClipIdentity===identity)return;
+            if(autoClipping&&scene.globe.clippingPolygons===autoClipping)releaseAutoClipping();
+            // Another layer's clipping retains exclusive ownership.
             if(scene.globe.clippingPolygons?.length>0)return;
-            const polygons=autoModels.map(({model:next})=>{
-                const cross=rings(next),left=cross.map(p=>p[0]),right=cross.map(p=>p[1]);
-                return new C.ClippingPolygon({positions:[...left,...right.reverse()].map(p=>
-                    C.Cartesian3.fromDegrees(p[0],p[1],0))});
-            });
-            const next=new C.ClippingPolygonCollection({polygons});
-            autoPrevious=scene.globe.clippingPolygons;
-            autoClipping=next;scene.globe.clippingPolygons=next;
-            scene.requestRender?.();
+            try{
+                const polygons=flightEntry ? [(()=>{
+                    const r=rings(flightEntry.model);
+                    // Clip only a short window around the simulation camera.
+                    // Interpolate its ends even when source vertices are 90 m
+                    // apart, instead of excavating entire long segments.
+                    const start=Math.max(0,progress-12),end=Math.min(distances.at(-1),progress+18);
+                    const at=d=>{
+                        let i=0;while(i<distances.length-2&&distances[i+1]<d)i++;
+                        const step=distances[i+1]-distances[i];
+                        const t=step>0?(d-distances[i])/step:0;
+                        return r[i].map((point,j)=>point.map((value,k)=>
+                            value+(r[i+1][j][k]-value)*t));
+                    };
+                    const cut=[at(start)];
+                    for(let i=1;i<distances.length-1;i++)
+                        if(distances[i]>start&&distances[i]<end)cut.push(r[i]);
+                    cut.push(at(end));
+                    return clipPolygon([...cut.map(x=>x[0]),...cut.slice().reverse().map(x=>x[1])]);
+                })()] : preview.flatMap(({model:next})=>[
+                    ...(next.portalClipMask?.[0]?[clipPolygon(portalClip(next,false))]:[]),
+                    ...(next.portalClipMask?.[1]?[clipPolygon(portalClip(next,true))]:[])]);
+                if(!polygons.length){releaseAutoClipping();return;}
+                const collection=new C.ClippingPolygonCollection({polygons});
+                autoPrevious=scene.globe.clippingPolygons;
+                autoClipping=collection;autoClipIdentity=identity;
+                scene.globe.clippingPolygons=collection;
+                autoDiagnostics.clipped=polygons.length;
+                scene.requestRender?.();
+            }catch(error){
+                releaseAutoClipping();
+                autoDiagnostics.reason=`Terrain clipping: ${String(error.message||error).slice(0,115)}`;
+            }
         }
+        const removeAutoClipFrame=scene.preUpdate?.addEventListener?.(()=>{
+            if(!autoEnabled||!autoModels.length||model||disposed)return;
+            const instant=now();if(instant-lastClipCheck<400)return;
+            lastClipCheck=instant;
+            updateAutoClipping();
+        });
         function clearAuto(){
-            ++autoRevision;releaseAutoClipping();
+            ++autoRevision;lastAutoSignature=null;autoInFlightSignature=null;
+            autoCompletedAt=-Infinity;releaseAutoClipping();releaseAutoPortals();
             for(const entry of autoModels)scene.primitives.remove(entry.primitive);
-            autoModels=[];scene.requestRender?.();publishAutomatic();
+            autoModels=[];lastRequestedRoutes=null;lastRequestedCenter=null;
+            autoDiagnostics={considered:0,skipped:0,reason:null,clipped:0};
+            scene.requestRender?.();publishAutomatic();
         }
         // Sample a maximum 1.5 km window of an official line near the camera;
         // artificial clip endpoints are never advertised as surveyed portals.
@@ -1095,72 +1672,243 @@
                 const a=raw[i-1],b=raw[i],d=length({longitude:a[0],latitude:a[1]},
                     {longitude:b[0],latitude:b[1]});
                 if(d<.5)continue;
-                const steps=Math.max(1,Math.ceil(d/90));
+                const steps=Math.max(1,Math.ceil(d/35));
                 if(sampled.length+steps>MAX_SECTIONS)return null;
                 for(let k=1;k<=steps;k++)sampled.push([a[0]+(b[0]-a[0])*k/steps,
                     a[1]+(b[1]-a[1])*k/steps]);
             }
             if(sampled.length<2)return null;
-            return {...route,coordinates:sampled,partial:lo>0||hi<coordinates.length-1};
+            // Preserve the original source-way span for underground grading.
+            // Artificially cropped endpoints are never treated as portals.
+            let before=0,whole=0;
+            for(let i=1;i<coordinates.length;i++){
+                const segment=length({longitude:coordinates[i-1][0],latitude:coordinates[i-1][1]},
+                    {longitude:coordinates[i][0],latitude:coordinates[i][1]});
+                if(i<=lo)before+=segment;
+                whole+=segment;
+            }
+            return {...route,coordinates:sampled,partial:lo>0||hi<coordinates.length-1,
+                originalEndpoints:[coordinates[0],coordinates.at(-1)],
+                profileStartDistance:before,profileTotalDistance:whole};
+        }
+        function candidateDistance(route,center){
+            if(!center)return 0;
+            let closestDistance=Infinity;
+            for(const p of route.coordinates||[]){
+                const distance=length({longitude:p[0],latitude:p[1]},center);
+                if(distance<closestDistance)closestDistance=distance;
+            }
+            return closestDistance;
+        }
+        function routeSignature(route){
+            const coords=route.coordinates;
+            return `${route.id}:${coords.length}:${coords[0].join(',')}:${coords.at(-1).join(',')}`;
+        }
+        function entryBounds(next){
+            const sections=next.sections;
+            const lons=sections.map(s=>s.longitude),lats=sections.map(s=>s.latitude);
+            return {west:Math.min(...lons)-.0001,east:Math.max(...lons)+.0001,
+                south:Math.min(...lats)-.0001,north:Math.max(...lats)+.0001};
+        }
+        function nearEntry(entry,a,b){
+            if(![a?.longitude,a?.latitude,b?.longitude,b?.latitude].every(finite))return false;
+            const box=entry.bounds;
+            return Math.max(a.longitude,b.longitude)>=box.west&&
+                Math.min(a.longitude,b.longitude)<=box.east&&
+                Math.max(a.latitude,b.latitude)>=box.south&&
+                Math.min(a.latitude,b.latitude)<=box.north;
+        }
+        // Use already rendered terrain tiles wherever possible. Only the
+        // missing points require the (potentially slow) provider query.
+        function portalApproaches(route){
+            const points=route.coordinates;
+            const outside=(atEnd,metres)=>{
+                const a=atEnd?points.at(-1):points[0],b=atEnd?points.at(-2):points[1];
+                const heading=xy({longitude:a[0],latitude:a[1]},
+                    {longitude:b[0],latitude:b[1]});
+                const distance=Math.hypot(heading.x,heading.y)||1;
+                return {longitude:a[0]-heading.x/distance*metres/(R*DEG*Math.cos(a[1]*DEG)),
+                    latitude:a[1]-heading.y/distance*metres/(R*DEG)};
+            };
+            return [outside(false,3),outside(false,9),outside(true,3),outside(true,9)];
+        }
+        function portalCrossSlopes(route){
+            const points=route.coordinates,width=Math.min(15,route.widthMeters||6);
+            return [false,true].flatMap(end=>{
+                const a=end?points.at(-1):points[0],b=end?points.at(-2):points[1];
+                const segment=xy({longitude:b[0],latitude:b[1]},
+                    {longitude:a[0],latitude:a[1]});
+                const magnitude=Math.hypot(segment.x,segment.y)||1;
+                const offset=width/2+1;
+                return [-offset,offset].map(side=>({
+                    longitude:a[0]-segment.y/magnitude*side/(R*DEG*Math.cos(a[1]*DEG)),
+                    latitude:a[1]+segment.x/magnitude*side/(R*DEG)
+                }));
+            });
+        }
+        async function elevations(routeBatch){
+            const allPoints=routeBatch.flatMap(entry=>[...entry.route.coordinates.map(p=>
+                ({longitude:p[0],latitude:p[1]})),...portalApproaches(entry.route),
+                ...portalCrossSlopes(entry.route),
+                ...(entry.route.partial?(entry.route.originalEndpoints||[]).map(p=>
+                    ({longitude:p[0],latitude:p[1]})):[])]);
+            const heights=allPoints.map(p=>{
+                try{
+                    const result=scene.globe.getHeight?.(C.Cartographic.fromDegrees(p.longitude,p.latitude));
+                    return finite(result)?result:null;
+                }catch(_){return null;}
+            });
+            const missing=[];
+            for(let i=0;i<heights.length;i++)if(heights[i]===null)missing.push(i);
+            let terrainError=null;
+            if(missing.length){
+                try{
+                    const sampled=await sampleTerrain(missing.map(i=>allPoints[i]));
+                    if(Array.isArray(sampled))for(let j=0;j<missing.length;j++){
+                        if(finite(sampled[j]))heights[missing[j]]=sampled[j];
+                    }
+                }catch(error){terrainError=String(error.message||error);}
+            }
+            return {heights,terrainError};
         }
         async function setAutomaticRoutes(routes,center){
-            const token=++autoRevision;
             if(disposed||!autoEnabled)return {count:autoModels.length};
-            if(!Array.isArray(routes)||routes.length>48)throw Error('Invalid automatic tunnel routes');
-            if(!ready()||!C.ClippingPolygonCollection?.isSupported?.(scene)){
-                clearAuto();publishAutomatic('Terrain or clipping is unavailable');return {count:0};
+            if(!Array.isArray(routes)||routes.length>160)throw Error('Invalid automatic tunnel routes');
+            lastRequestedRoutes=routes;lastRequestedCenter=center;
+            const budget=currentBudget();
+            const resident=new Set(autoModels.flatMap(e=>e.model.mergedRouteIds||[e.id]));
+            const rank=r=>candidateDistance(r,center)-(resident.has(r.id)?24:0);
+            const ranked=routes.filter(r=>(r?.kind==='tunnel'||r?.kind==='underpass')&&
+                Array.isArray(r.coordinates)&&r.coordinates.length>=2).slice().sort((a,b)=>
+                    rank(a)-rank(b)||String(a.id).localeCompare(String(b.id)));
+            const eligible=[];let skipped=routes.length-ranked.length;
+            for(const route of ranked){
+                const bounded=boundedRoute(route,center);
+                if(!bounded){skipped++;continue;}
+                eligible.push({id:route.id,route:bounded,key:routeSignature(bounded)});
             }
-            const ranked=routes.filter(r=>r?.kind==='tunnel'||r?.kind==='underpass').slice()
-                .sort((a,b)=>{
-                    if(!center)return 0;
-                    const dist=r=>Math.min(...r.coordinates.map(p=>length({longitude:p[0],latitude:p[1]},center)));
-                    return dist(a)-dist(b);
-                }).slice(0,AUTO_LIMIT);
-            const candidates=ranked.map(route=>({id:route.id,bounded:boundedRoute(route,center)}))
-                .filter(entry=>entry.bounded);
-            const points=candidates.flatMap(entry=>entry.bounded.coordinates.map(p=>(
-                {longitude:p[0],latitude:p[1]})));
-            const pendingModels=[];
-            if(points.length){
-                let heights;
-                try{heights=await sampleTerrain(points);}catch(error){
-                    if(token===autoRevision)publishAutomatic(String(error.message||error));
-                    return {count:autoModels.length};
+            const grouped=mergeParallelRoutes(eligible);
+            const candidates=grouped.entries;
+            // Even an empty candidate list is specific to a geographic
+            // vicinity; do not keep distant meshes because two areas share
+            // the same empty-route signature.
+            const cell=center&&[center.longitude,center.latitude].every(finite)
+                ?`${Math.round(center.longitude*500)}:${Math.round(center.latitude*500)}`:'none';
+            const signature=`${autoProfile}|${cell}|${candidates.map(e=>e.key).join('|')}`;
+            // Repeated cached scans used to cancel active terrain requests and
+            // restart a multi-batch rebuild, causing tunnels to disappear.
+            if(signature===autoInFlightSignature)
+                return {count:autoModels.length,pending:true};
+            if(signature===lastAutoSignature&&now()-autoCompletedAt<20000)
+                return {count:autoModels.length,reused:true};
+            const token=++autoRevision;
+            autoInFlightSignature=signature;
+            const previous=new Map(autoModels.map(entry=>[entry.key,entry]));
+            const previousById=new Map(autoModels.map(entry=>[entry.id,entry]));
+            const closeEnough=(old,entry)=>{
+                if(!old||![center?.longitude,center?.latitude].every(finite))return false;
+                const point=old.model.sections[Math.floor(old.model.sections.length/2)];
+                const nearestOld=Math.min(...old.model.sections.map(s=>length(s,center)));
+                const nearestNew=Math.min(...entry.route.coordinates.map(p=>length(
+                    {longitude:p[0],latitude:p[1]},point)));
+                return nearestOld<350&&nearestNew<65;
+            };
+            const chosen=[],added=[];
+            const errors=new Map();
+            const note=reason=>errors.set(reason,(errors.get(reason)||0)+1);
+            let sampleFailed=0;
+            // Retain existing geometry while preparing the new viewport. A
+            // superseding camera move cancels any staged, not-yet-committed meshes.
+            for(let i=0;i<candidates.length&&chosen.length<budget;i+=AUTO_BATCH){
+                if(token!==autoRevision||disposed){
+                    for(const entry of added)scene.primitives.remove(entry.primitive);
+                    if(token===autoRevision)autoInFlightSignature=null;
+                    return {count:autoModels.length,cancelled:true};
                 }
-                if(disposed||token!==autoRevision)return {count:autoModels.length};
-                if(!Array.isArray(heights)||heights.length!==points.length){
-                    publishAutomatic('Incomplete elevation data for tunnel model');
-                    return {count:autoModels.length};
+                const batch=candidates.slice(i,i+AUTO_BATCH);
+                const cachedFor=entry=>previous.get(entry.key)??
+                    (closeEnough(previousById.get(entry.id),entry)?previousById.get(entry.id):null);
+                const pending=batch.filter(entry=>!cachedFor(entry));
+                let result={heights:[],terrainError:null};
+                if(pending.length)result=await elevations(pending);
+                if(token!==autoRevision||disposed){
+                    for(const entry of added)scene.primitives.remove(entry.primitive);
+                    if(token===autoRevision)autoInFlightSignature=null;
+                    return {count:autoModels.length,cancelled:true};
                 }
+                if(result.terrainError){sampleFailed++;note(`Terrain: ${result.terrainError.slice(0,95)}`);}
                 let offset=0;
-                for(const entry of candidates){
-                    const size=entry.bounded.coordinates.length;
-                    const terrain=heights.slice(offset,offset+size);offset+=size;
+                for(const entry of batch){
+                    if(chosen.length>=budget)break;
+                    const cached=cachedFor(entry);
+                    if(cached){chosen.push({...cached,key:entry.key,lastSeenAt:now()});continue;}
+                    const positions=entry.route.coordinates;
+                    const heights=result.heights.slice(offset,offset+positions.length);
+                    const approaches=result.heights.slice(offset+positions.length,offset+positions.length+4);
+                    const lateral=result.heights.slice(offset+positions.length+4,offset+positions.length+8);
+                    const originalHeights=entry.route.partial?
+                        result.heights.slice(offset+positions.length+8,offset+positions.length+10):[];
+                    offset+=positions.length+8+(entry.route.partial?2:0);
+                    if(heights.length!==positions.length||heights.some(h=>!finite(h))){
+                        skipped++;note('No usable terrain elevations');continue;
+                    }
                     try{
-                        const next=procedural(entry.bounded,terrain,
-                            {widthMeters:6,heightMeters:5,profile:'vaulted'});
-                        pendingModels.push({id:entry.id,model:next});
-                    }catch(_){/* No invented elevation where the official terrain is missing. */}
+                        const next=procedural(entry.route,heights,
+                            {widthMeters:entry.route.widthMeters||6,heightMeters:5,profile:'vaulted',
+                                portalApproachHeights:approaches,portalContextHeights:lateral,
+                                globalEndpointHeights:originalHeights});
+                        const primitive=createPrimitive(next);
+                        scene.primitives.add(primitive);
+                        const created={id:entry.id,key:entry.key,model:next,primitive,
+                        bounds:entryBounds(next),lastSeenAt:now()};
+                        added.push(created);chosen.push(created);
+                    }catch(error){skipped++;note(`Geometry: ${String(error.message||error).slice(0,95)}`);}
                 }
+                // Cesium primitive construction is synchronous; yield after
+                // at most three objects to keep user input responsive.
+                if(i+AUTO_BATCH<candidates.length&&chosen.length<budget)
+                    await new Promise(resolve=>setTimeout(resolve,0));
             }
-            if(disposed||token!==autoRevision)return {count:autoModels.length};
-            const added=[];
-            try{
-                for(const entry of pendingModels){
-                    const primitive=createPrimitive(entry.model);
-                    scene.primitives.add(primitive);
-                    added.push({...entry,primitive});
-                }
-            }catch(error){
+            if(token!==autoRevision||disposed){
                 for(const entry of added)scene.primitives.remove(entry.primitive);
-                publishAutomatic(String(error.message||error));return {count:autoModels.length};
+                if(token===autoRevision)autoInFlightSignature=null;
+                return {count:autoModels.length,cancelled:true};
             }
-            releaseAutoClipping();
-            for(const entry of autoModels)scene.primitives.remove(entry.primitive);
-            autoModels=added;
+            // A viewport-tile boundary can temporarily omit a previously
+            // visible way. Keep nearby resident geometry for a brief grace
+            // period rather than blinking the mesh and its portal guides.
+            if(center&&[center.longitude,center.latitude].every(finite)&&chosen.length<budget){
+                const used=new Set(chosen.map(e=>e.primitive));
+                for(const entry of autoModels){
+                    if(chosen.length>=budget)break;
+                    if(used.has(entry.primitive)||now()-(entry.lastSeenAt??0)>20000)continue;
+                    if(Math.min(...entry.model.sections.map(s=>length(s,center)))>260)continue;
+                    chosen.push(entry);used.add(entry.primitive);
+                }
+            }
+            releaseAutoClipping();releaseAutoPortals();
+            const keep=new Set(chosen.map(entry=>entry.primitive));
+            for(const entry of autoModels)if(!keep.has(entry.primitive))scene.primitives.remove(entry.primitive);
+            autoModels=chosen;lastAutoSignature=signature;autoCompletedAt=now();
+            autoInFlightSignature=null;
             for(const entry of autoModels)entry.primitive.show=!model||entry.id!==model.identity;
-            updateAutoClipping();scene.requestRender?.();publishAutomatic();
-            return {count:autoModels.length};
+            const firstError=errors.entries().next().value;
+            autoDiagnostics={considered:routes.length,skipped,clipped:0,
+                reason:firstError?`${firstError[0]} (${firstError[1]}×)`:
+                    (!autoModels.length&&candidates.length?'Unable to create tunnel geometry':null),
+                merged:grouped.merged};
+            updateAutoPortals();updateAutoClipping();scene.requestRender?.();publishAutomatic();
+            return {count:autoModels.length,considered:routes.length,skipped,sampleFailed,merged:grouped.merged};
+        }
+        function setPerformanceProfile(value){
+            if(!Object.hasOwn(AUTO_BUDGETS,value))throw Error('Unknown tunnel graphics profile');
+            if(autoProfile===value)return {budget:currentBudget(),count:autoModels.length};
+            autoProfile=value;
+            if(autoEnabled&&lastRequestedRoutes)
+                void setAutomaticRoutes(lastRequestedRoutes,lastRequestedCenter).catch(error=>
+                    publishAutomatic(`Tunnel profile: ${String(error.message||error).slice(0,100)}`));
+            else publishAutomatic();
+            return {budget:currentBudget(),count:autoModels.length};
         }
         function setAutomaticEnabled(value){
             if(typeof value!=='boolean')throw Error('Invalid schematic 3D tunnel preference');
@@ -1292,22 +2040,46 @@
             if(typeof value!=='boolean')throw Error('Invalid tunnel mesh collision preference');
             collisionEnabled=!disposed&&value;return {enabled:collisionEnabled};
         }
+        function segmentInside(a,b){
+            // Only exempt generic surface-height approximations when both ends
+            // are demonstrably inside the same bounded synthetic hollow tube.
+            // Wall/floor/ceiling mesh collision is still checked separately.
+            if(flight&&model)return inside(model,a)&&inside(model,b);
+            return autoEnabled&&autoModels.some(entry=>nearEntry(entry,a,b)&&
+                inside(entry.model,a)&&inside(entry.model,b));
+        }
         function intersects(a,b){
             if(flight&&model)return collision(model,a,b);
             // Opting into simulated 3D tunnels also enables their geometry
             // collision: there must not be invisible pass-through walls.
-            if(autoEnabled&&autoModels.some(entry=>collision(entry.model,a,b)))return true;
+            if(autoEnabled&&autoModels.some(entry=>nearEntry(entry,a,b)&&collision(entry.model,a,b)))return true;
             return collisionEnabled&&!!model&&collision(model,a,b);
         }
-        return {prepare,importModel,firstPose,activate,floorAt,intersects,setCollisionEnabled,
-            setAutomaticEnabled,setAutomaticRoutes,
+        function diagnostics(){
+            // Local, read-only developer snapshot; no network, telemetry or
+            // absolute recorded flight positions. Names and OSM way IDs are
+            // publicly sourced. Keep this bounded on low-memory devices.
+            return {profile:autoProfile,active:autoEnabled,budget:currentBudget(),
+                count:autoModels.length,skipped:autoDiagnostics.skipped,
+                error:autoDiagnostics.reason,clipped:autoDiagnostics.clipped,
+                entries:autoModels.slice(0,64).map(entry=>({id:entry.id,
+                    members:entry.model.mergedRouteIds||[entry.id],
+                    sections:entry.model.sections.length,
+                    floorEnds:entry.model.sections.length?[
+                        entry.model.sections[0].floorMetersWgs84,
+                        entry.model.sections.at(-1).floorMetersWgs84]:[],
+                    previewClips:entry.model.portalClipMask||[],
+                    visible:entry.primitive.show!==false}))};
+        }
+        return {prepare,importModel,firstPose,activate,floorAt,intersects,segmentInside,setCollisionEnabled,
+            setAutomaticEnabled,setAutomaticRoutes,setPerformanceProfile,diagnostics,
             get flight(){return flight;},get model(){return model;},stop,
-            dispose(){if(disposed)return;stop();clearAuto();disposed=true;},status(){return {ready:!!model,flight,pending,
+            dispose(){if(disposed)return;stop();clearAuto();removeAutoClipFrame?.();disposed=true;},status(){return {ready:!!model,flight,pending,
                 collisionEnabled,autoEnabled,autoCount:autoModels.length,quality:model?.quality??null};}};
     }
     return {procedural,importSections,importGeoreferencedMesh,validateSections,validateTriMesh,
-        closest,inside,collision,collisionMesh,rings,geometry,create,MAX_SECTIONS,MAX_LENGTH,
-        MAX_MESH_VERTICES,MAX_MESH_TRIANGLES};
+        closest,inside,collision,collisionMesh,rings,geometry,surfaceGeometries,create,MAX_SECTIONS,MAX_LENGTH,
+        MAX_MESH_VERTICES,MAX_MESH_TRIANGLES,mergeParallelRoutes};
 });
 
 /* Issue #113: infrastructure-aware advisory geometry checks.
@@ -1557,99 +2329,65 @@
         MAX_SURFACES, MAX_ROUTE, MAX_PROBES};
 });
 
-/* Opt-in, conservative scene-surface collision for the FPV SIMULATOR only.
- * Cesium sampleHeight is the highest currently rendered surface, not a 3D
- * collision mesh. Hidden/unloaded tiles and bridge undersides are UNKNOWN.
- * Never use these results as physical flight clearance. */
+/* Mobile-safe, opt-in model-envelope collision for simulation only.
+ * In Cesium, pickFromRay() may perform an additional scene render and can
+ * stall the WebGL thread on every sim tick. Never invoke it in the hot loop.
+ * This is a bounded height-based approximation for loaded 3D models, NOT an
+ * exact wall mesh or a safety/clearance result. Exact CPU triangle collision
+ * remains available for FPVManager's own synthetic tunnel geometry. */
 (function(root,factory){
     const api=factory();
     if(typeof module==='object'&&module.exports)module.exports.FPVSceneModelCollision=api;
     else root.FPVSceneModelCollision=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
-    function create(C,viewer,{hasVisibleModels=()=>false}={}){
+    const MIN_INTERVAL_MS=350,MAX_INTERVAL_MS=2500;
+    function create(C,viewer,{hasVisibleModels=()=>false,now=()=>performance.now()}={}){
         const scene=viewer.scene;
-        let enabled=false,disposed=false;
+        let enabled=false,disposed=false,nextSampleAt=-Infinity,lastSampleMs=0,samples=0;
         function setEnabled(value){
             if(typeof value!=='boolean')throw Error('Invalid 3D collision preference');
-            if(!disposed)enabled=value;
+            if(!disposed){enabled=value;nextSampleAt=-Infinity;}
             return {enabled};
-        }
-        function rayHitIsModel(hit){
-            const picked=hit?.object;
-            if(!picked)return false;
-            if(picked.content?.tileset || picked.tileset || picked.primitive?.tileset ||
-                picked.primitive?.content?.tileset)return true;
-            if(C.Cesium3DTileFeature && picked instanceof C.Cesium3DTileFeature)return true;
-            if(C.Model && (picked instanceof C.Model || picked.primitive instanceof C.Model))return true;
-            if(C.Cesium3DTileset && (picked instanceof C.Cesium3DTileset ||
-                picked.primitive instanceof C.Cesium3DTileset))return true;
-            return false;
-        }
-        function raycastWall(from,to,radius){
-            if(typeof scene.pickFromRay!=='function'||typeof C.Cartesian3?.fromDegrees!=='function'||
-                typeof C.Cartesian3!=='function'||typeof C.Ray!=='function')return false;
-            const a=C.Cartesian3.fromDegrees(from.longitude,from.latitude,from.height);
-            const b=C.Cartesian3.fromDegrees(to.longitude,to.latitude,to.height);
-            const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z,dist=Math.hypot(dx,dy,dz);
-            if(dist<.01||dist>15)return false;
-            const direction=new C.Cartesian3(dx/dist,dy/dist,dz/dist);
-            // Three rays at most. Explicit small swept-sphere approximation,
-            // not a promise of guaranteed collision with unloaded features.
-            const upNorm=Math.hypot(a.x,a.y,a.z);
-            const up=[a.x/upNorm,a.y/upNorm,a.z/upNorm];
-            const side=[direction.y*up[2]-direction.z*up[1],
-                direction.z*up[0]-direction.x*up[2],direction.x*up[1]-direction.y*up[0]];
-            const sideNorm=Math.hypot(...side);
-            const probes=[[0,0,0]];
-            if(radius>.05&&sideNorm>.1){
-                probes.push(side.map(v=>v*radius/sideNorm));
-                probes.push(side.map(v=>-v*radius/sideNorm));
-            }
-            for(const offset of probes){
-                const origin=new C.Cartesian3(a.x+offset[0],a.y+offset[1],a.z+offset[2]);
-                const found=scene.pickFromRay(new C.Ray(origin,direction),[],.1);
-                if(!rayHitIsModel(found)||!found.position)continue;
-                const hitDistance=Math.hypot(found.position.x-origin.x,
-                    found.position.y-origin.y,found.position.z-origin.z);
-                if(hitDistance<=dist+radius+.05)return true;
-            }
-            return false;
         }
         function collision(from,to,radius=.25){
             if(disposed||!enabled||!hasVisibleModels()||
-                !C.Cartographic?.fromDegrees||!Number.isFinite(radius)||radius<0||radius>1 ||
-                !from||!to||![from.latitude,from.longitude,from.height,to.latitude,to.longitude,to.height].every(Number.isFinite))return false;
+                !C.Cartographic?.fromDegrees||!Number.isFinite(radius)||radius<0||radius>1||
+                !from||!to||![from.latitude,from.longitude,from.height,
+                    to.latitude,to.longitude,to.height].every(Number.isFinite))return false;
             if(C.SceneMode&&scene.mode!==C.SceneMode.SCENE3D)return false;
             const distance=Math.hypot((to.longitude-from.longitude)*75000,
                 (to.latitude-from.latitude)*111000,to.height-from.height);
-            // Work strictly with the loaded scene and at most five bounded
-            // samples per simulation frame. No implicit extra 3D tile fetching.
             if(distance>15)return false;
-            try {
-                if(raycastWall(from,to,radius))return 'model';
-            }catch(_){/* Depth raycasting unsupported: height fallback remains optional. */}
             if(!scene.sampleHeightSupported||typeof scene.sampleHeight!=='function'||
                 typeof scene.globe?.getHeight!=='function')return false;
-            const probes=Math.min(4,Math.max(1,Math.ceil(distance)));
-            try {
-                for(let i=0;i<=probes;i++){
-                    const t=i/probes, point=C.Cartographic.fromDegrees(
-                        from.longitude+(to.longitude-from.longitude)*t,
-                        from.latitude+(to.latitude-from.latitude)*t);
-                    const top=scene.sampleHeight(point,undefined,.5);
-                    const ground=scene.globe.getHeight(point);
-                    const elevation=from.height+(to.height-from.height)*t;
-                    // Suppress bare terrain hits and elevations significantly
-                    // below the model surface: scene height cannot distinguish
-                    // a bridge underside from open air underneath the deck.
-                    if(Number.isFinite(top)&&Number.isFinite(ground)&&top-ground>2&&
-                        Math.abs(elevation-top)<=Math.max(radius, .35))return 'model';
-                }
-            }catch(_){return false;} // Device without usable depth texture.
+            const time=now();
+            if(time<nextSampleAt)return false;
+            // Reserve the slot before the potentially expensive synchronous call.
+            nextSampleAt=time+MIN_INTERVAL_MS;
+            const point=C.Cartographic.fromDegrees(to.longitude,to.latitude);
+            try{
+                const top=scene.sampleHeight(point,undefined,.5);
+                const ground=scene.globe.getHeight(point);
+                const sampled=now();lastSampleMs=Math.max(0,sampled-time);samples++;
+                // Adaptive cooldown protects slow mobile GPUs; one depth probe
+                // at most, never per-frame raycasts or a full path sweep.
+                nextSampleAt=sampled+Math.min(MAX_INTERVAL_MS,
+                    Math.max(MIN_INTERVAL_MS,lastSampleMs*12));
+                // A single sampled top height is NOT a solid volume. In
+                // particular, a bridge deck must not block the empty space
+                // between terrain and its underside. Restrict this uncertain
+                // approximation to near the measured top surface only.
+                // Vertical walls below a roof are NOT resolved by this probe.
+                const surfaceBand=Math.max(0.8,radius+0.6);
+                if(Number.isFinite(top)&&Number.isFinite(ground)&&top-ground>2&&
+                    to.height>ground+radius &&
+                    to.height>=top-surfaceBand && to.height<=top+radius)return 'model';
+            }catch(_){nextSampleAt=now()+MAX_INTERVAL_MS;}
             return false;
         }
-        return {setEnabled,collision,dispose(){enabled=false;disposed=true;},status(){return {enabled};}};
+        return {setEnabled,collision,dispose(){enabled=false;disposed=true;},
+            status(){return {enabled,samples,lastSampleMs,approximate:true};}};
     }
     return {create};
 });

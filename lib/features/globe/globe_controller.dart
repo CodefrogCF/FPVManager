@@ -412,6 +412,14 @@ class GlobeController extends ChangeNotifier {
   bool get schematicTunnel3dEnabled => _preferences.schematicTunnel3dEnabled;
   int _schematicTunnelMeshCount = 0;
   int get schematicTunnelMeshCount => _schematicTunnelMeshCount;
+  int _schematicTunnelMeshBudget = 32;
+  int get schematicTunnelMeshBudget => _schematicTunnelMeshBudget;
+  int _schematicTunnelConsidered = 0;
+  int get schematicTunnelConsidered => _schematicTunnelConsidered;
+  int _schematicTunnelSkipped = 0;
+  int get schematicTunnelSkipped => _schematicTunnelSkipped;
+  int _schematicTunnelClipped = 0;
+  int get schematicTunnelClipped => _schematicTunnelClipped;
   String? _schematicTunnelMeshError;
   String? get schematicTunnelMeshError => _schematicTunnelMeshError;
   String _tunnelAutoState = 'hidden';
@@ -420,6 +428,8 @@ class GlobeController extends ChangeNotifier {
   int get tunnelAutoCount => _tunnelAutoCount;
   bool _tunnelAutoIncomplete = true;
   bool get tunnelAutoIncomplete => _tunnelAutoIncomplete;
+  String? _tunnelAutoMessage;
+  String? get tunnelAutoMessage => _tunnelAutoMessage;
   bool get tunnelExplorationEnabled => _preferences.tunnelExplorationEnabled;
   bool get realisticLighting => _preferences.realisticLighting;
   NavigationEnvironmentMode get navigationBuildings =>
@@ -546,7 +556,7 @@ class GlobeController extends ChangeNotifier {
         return;
       }
       final raw = result['routes'];
-      if (raw is! List || raw.length > 48) {
+      if (raw is! List || raw.length > 160) {
         throw const FormatException('Invalid tunnel search result');
       }
       final parsed = <Map<String, dynamic>>[];
@@ -2450,6 +2460,7 @@ class GlobeController extends ChangeNotifier {
         _tunnelAutoState = 'hidden';
         _tunnelAutoCount = 0;
         _tunnelAutoIncomplete = true;
+        _tunnelAutoMessage = null;
         _schematicTunnelMeshCount = 0;
         _schematicTunnelMeshError = null;
         _selectedInfrastructure = null;
@@ -2477,6 +2488,7 @@ class GlobeController extends ChangeNotifier {
         _tunnelAutoState = 'hidden';
         _tunnelAutoCount = 0;
         _tunnelAutoIncomplete = true;
+        _tunnelAutoMessage = null;
         _schematicTunnelMeshCount = 0;
         _schematicTunnelMeshError = null;
         _tunnelScanPending = false;
@@ -2556,17 +2568,23 @@ class GlobeController extends ChangeNotifier {
             ].contains(data['state']) &&
             data['count'] is int &&
             (data['count'] as int) >= 0 &&
-            (data['count'] as int) <= 48 &&
+            (data['count'] as int) <= 160 &&
             data['incomplete'] is bool) {
           _tunnelAutoState = data['state'] as String;
           _tunnelAutoCount = data['count'] as int;
           _tunnelAutoIncomplete = data['incomplete'] as bool;
+          _tunnelAutoMessage = data['message'] is String
+              ? (data['message'] as String).substring(
+                  0,
+                  (data['message'] as String).length.clamp(0, 160),
+                )
+              : null;
           notifyListeners();
         }
       case 'tunnel-routes-loaded':
         final routes = data['routes'];
         if (routes is List &&
-            routes.length <= 48 &&
+            routes.length <= 160 &&
             data['incomplete'] is bool &&
             (tunnelRoutesVisible || schematicTunnel3dEnabled)) {
           final checked = <Map<String, dynamic>>[];
@@ -2577,7 +2595,10 @@ class GlobeController extends ChangeNotifier {
                 entry['name'] is! String ||
                 entry['kind'] is! String ||
                 entry['source'] is! String ||
-                !(entry['source'] as String).startsWith('ch.swisstopo.')) {
+                !((entry['source'] as String).startsWith('ch.swisstopo.') ||
+                    entry['source'] == 'OpenStreetMap (Overpass fallback)' ||
+                    entry['source'] ==
+                        'OpenStreetMap (Geofabrik Switzerland extract)')) {
               checked.clear();
               break;
             }
@@ -2593,7 +2614,26 @@ class GlobeController extends ChangeNotifier {
         if (data['count'] is int &&
             data['active'] is bool &&
             (data['count'] as int) >= 0 &&
-            (data['count'] as int) <= 3) {
+            (data['count'] as int) <= 64) {
+          if (data['budget'] is int &&
+              [16, 24, 32, 64].contains(data['budget'])) {
+            _schematicTunnelMeshBudget = data['budget'] as int;
+          }
+          if (data['considered'] is int &&
+              (data['considered'] as int) >= 0 &&
+              (data['considered'] as int) <= 160) {
+            _schematicTunnelConsidered = data['considered'] as int;
+          }
+          if (data['skipped'] is int &&
+              (data['skipped'] as int) >= 0 &&
+              (data['skipped'] as int) <= 160) {
+            _schematicTunnelSkipped = data['skipped'] as int;
+          }
+          if (data['clipped'] is int &&
+              (data['clipped'] as int) >= 0 &&
+              (data['clipped'] as int) <= 8) {
+            _schematicTunnelClipped = data['clipped'] as int;
+          }
           _schematicTunnelMeshCount = data['count'] as int;
           _schematicTunnelMeshError = data['error'] is String
               ? (data['error'] as String).substring(

@@ -131,3 +131,17 @@ test('opt-in imported infrastructure collisions work independently of advisory v
     assert.equal(service.collision(a,b),false);
     service.dispose();
 });
+
+test('bridge volume blocks only deck and real supports, never the void below its underside',()=>{
+    const v={scene:{requestRender(){}},entities:{add:x=>x,remove(){}}};
+    const svc=I.create(null,v);
+    svc.replace(base);svc.setCollisionEnabled(true);
+    const path=(y,z)=>({latitude:46.8,longitude:y,height:z});
+    assert.equal(svc.collision(path(8.20002,105),path(8.20005,105)),false,
+        'free space beneath a deck is navigable');
+    assert.equal(svc.collision(path(8.20006,111),path(8.20009,111)),true,
+        'deck thickness is solid');
+    assert.equal(svc.collision(path(8.20008,100),path(8.20008,105)),true,
+        'a real pier remains solid');
+    svc.dispose();
+});

@@ -222,7 +222,7 @@
         function tick(seconds){
             if(!active||playback)return;
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
-            const floor=renderedHeight(position);ground=Number.isFinite(floor)?floor:null;
+            const floor=renderedHeight({...position,height});ground=Number.isFinite(floor)?floor:null;
             if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
             windInfo=sampleWind({...position,agl:ground==null?NaN:height-ground});
             const validWind=windInfo?.available&&['north','east','up'].every(k=>Number.isFinite(windInfo[k])&&Math.abs(windInfo[k])<=100);
@@ -249,9 +249,9 @@
                 if(!valid(p)){brake();reason='Supported latitude limit reached';pose();return;}
                 // Vertical-only movement reuses the floor sampled above. The
                 // ray sweep and every <=0.5 m horizontal probe stay in place.
-                const h=p===position?floor:renderedHeight(p);
-                if(!Number.isFinite(h)){brake();ground=null;reason='Movement paused: terrain tiles not loaded';pose();return;}
                 const z=height+travel.up*fraction;
+                const h=p===position?floor:renderedHeight({...p,height:z});
+                if(!Number.isFinite(h)){brake();ground=null;reason='Movement paused: terrain tiles not loaded';pose();return;}
                 if(z<h+.5){
                     if(horizontal<.001){next=p;nextHeight=h+.5;nextGround=h;}
                     contact=true;break;

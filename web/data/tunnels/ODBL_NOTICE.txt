@@ -1,0 +1,13 @@
+FPVManager bundled Swiss tunnel centerlines
+
+Data: © OpenStreetMap contributors (https://www.openstreetmap.org/copyright)
+Source extract: © Geofabrik GmbH (https://download.geofabrik.de/europe/switzerland.html)
+Derived dataset license: Open Database License 1.0 (ODbL)
+https://opendatacommons.org/licenses/odbl/1-0/
+
+Only ways explicitly tagged as tunnel or covered road/rail corridors are
+included. This derived dataset is distributed independently of FPVManager's
+application source code. Tunnel interiors, sections, portal positions, and
+clearances are synthetic and not surveyed. Not for real-world flight safety.
+
+Reproduce: python tool/build_ch_tunnel_index.py --download

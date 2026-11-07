@@ -34,8 +34,8 @@ function fake(){
 test('synthetic tunnel has bounded sections, no surveyed clearance and portal elevation is synthetic',()=>{
     const m=model();assert.equal(m.quality,'simulation-only');assert.equal(m.portalsVerified,false);
     assert.equal(m.clearanceVerified,false);assert.equal(m.elevationReference,'WGS84_ELLIPSOID');
-    assert.equal(m.sections[0].floorMetersWgs84,510.6);
-    assert.ok(m.sections[1].floorMetersWgs84<510.6);
+    assert.equal(m.sections[0].floorMetersWgs84,509.9);
+    assert.ok(m.sections[1].floorMetersWgs84>=m.sections[0].floorMetersWgs84);
     assert.equal(T.rings(m).length,4);
     assert.equal(T.rings(m)[1].length,4);
     assert.ok(m.label.includes('SIMULATION ONLY'));
@@ -252,7 +252,7 @@ test('automatic official tunnel axes create bounded simulated 3D mesh, terrain c
     const response=await f.service.setAutomaticRoutes([route],{longitude:8.2001,latitude:46.8});
     assert.equal(response.count,1);
     assert.equal(f.added.length,1);
-    assert.equal(f.viewer.scene.globe.clippingPolygons.length,1);
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,'flat covered roads must not excavate unnecessary portals');
     assert.equal(f.service.status().ready,false,'auto scene must not silently start manual flight');
     assert.equal(f.service.status().autoCount,1);
     const m=model(),s=m.sections[1];
@@ -283,4 +283,369 @@ test('auto pipeline discards stale terrain requests on disable',async()=>{
     assert.equal(delayed.status().autoCount,0);
     assert.equal(f.added.length,0);
     delayed.dispose();
+});
+
+test('automatic tunnel budget selects 32 normally and 64 in quality; clipping stays bounded to eight',async()=>{
+    const f=fake();
+    const service=T.create(f.C,f.viewer,()=>{}, {ready:()=>true,
+        sampleTerrain:async points=>points.map(()=>510)});
+    service.setAutomaticEnabled(true);
+    const routes=Array.from({length:68},(_,i)=>({...source,kind:'tunnel',id:`osm:dynamic:${i}`,
+        coordinates:[[8.2+i*.00003,46.8],[8.20007+i*.00003,46.8]]}));
+    const first=await service.setAutomaticRoutes(routes,{longitude:8.2,latitude:46.8});
+    assert.equal(first.count,32);
+    assert.equal(service.status().autoCount,32);
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,'flat-road previews need no terrain holes');
+    assert.equal(f.added.length,32);
+    service.setPerformanceProfile('quality');
+    // setPerformanceProfile schedules the rebuild on an async terrain path.
+    for(let i=0;i<100&&service.status().autoCount<64;i++)await new Promise(r=>setTimeout(r,4));
+    assert.equal(service.status().autoCount,64);
+    assert.equal(f.added.length,64,'reused meshes are not duplicated');
+    service.dispose();assert.equal(f.added.length,0);
+});
+
+test('invalid first ranked route cannot starve valid nearby tunnel and reports a reason',async()=>{
+    const f=fake();f.C.ClippingPolygonCollection.isSupported=()=>false;
+    const events=[];
+    const service=T.create(f.C,f.viewer,(type,data)=>events.push({type,data}), {
+        sampleTerrain:async points=>points.map(p=>p.longitude<8.2?NaN:510),ready:()=>false,
+    });
+    service.setAutomaticEnabled(true);
+    const broken={...source,id:'missing-terrain',kind:'tunnel',
+        coordinates:[[8.199,46.8],[8.1991,46.8]]};
+    const good={...source,id:'valid',kind:'tunnel'};
+    const result=await service.setAutomaticRoutes([broken,good],{longitude:8.199,latitude:46.8});
+    assert.equal(result.count,1);
+    assert.equal(result.skipped,1);
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
+        'clipping remains untouched if WebGL support is missing');
+    const status=events.filter(e=>e.type==='tunnel-auto-mesh-status').at(-1).data;
+    assert.match(status.error,/No usable terrain/);
+    assert.equal(status.count,1);
+    service.dispose();
+});
+
+test('scene-resident terrain avoids redundant network heights and viewport reuses meshes',async()=>{
+    const f=fake();let requests=0;
+    f.C.Cartographic={fromDegrees:(longitude,latitude)=>({longitude,latitude})};
+    f.viewer.scene.globe.getHeight=()=>510;
+    const service=T.create(f.C,f.viewer,()=>{}, {sampleTerrain:async()=>{requests++;throw Error('Unexpected network');}});
+    service.setAutomaticEnabled(true);
+    const r={...source,kind:'tunnel'};
+    await service.setAutomaticRoutes([r],{longitude:8.2,latitude:46.8});
+    const first=f.added[0];
+    await service.setAutomaticRoutes([r],{longitude:8.2,latitude:46.8});
+    assert.equal(requests,0);
+    assert.equal(f.added[0],first);
+    assert.equal(f.added.length,1);
+    service.setAutomaticEnabled(false);
+    assert.equal(f.added.length,0);
+    service.dispose();
+});
+
+test('failed terrain sampling does not leave the 3D tunnel status silently at zero',async()=>{
+    const f=fake(),events=[];
+    const service=T.create(f.C,f.viewer,(type,data)=>events.push({type,data}), {
+        sampleTerrain:async()=>{throw Error('terrain source temporarily unavailable');}
+    });
+    service.setAutomaticEnabled(true);
+    const result=await service.setAutomaticRoutes([{...source,kind:'tunnel'}]);
+    assert.equal(result.count,0);
+    const status=events.filter(e=>e.type==='tunnel-auto-mesh-status').at(-1).data;
+    assert.equal(status.skipped,1);
+    assert.match(status.error,/terrain/i);
+    service.dispose();
+});
+
+test('portal guides are optional rendering only and are disposed together with mesh',async()=>{
+    const f=fake();
+    f.C.Material={fromType:(_type,config)=>config};
+    f.C.PolylineCollection=class{constructor(){this.lines=[];}add(line){this.lines.push(line);}};
+    f.service.setAutomaticEnabled(true);
+    await f.service.setAutomaticRoutes([{...source,kind:'tunnel'}]);
+    assert.equal(f.added.length,2,'one tunnel primitive, one shared portal collection');
+    const portal=f.added.find(p=>p.lines);
+    assert.equal(portal.lines.length,2,'open ends shown, never capped by geometry');
+    f.service.dispose();
+    assert.equal(f.added.length,0);
+});
+
+test('schematic route stays underground through a mountain instead of following the hilltop',()=>{
+    const route={...source,kind:'tunnel'};
+    const m=T.procedural(route,[1000,1140,1160,1000],{widthMeters:6,heightMeters:5,profile:'vaulted'});
+    assert.ok(Math.abs(m.sections[0].floorMetersWgs84-999.9)<.001);
+    assert.ok(Math.abs(m.sections.at(-1).floorMetersWgs84-999.9)<.001);
+    assert.ok(m.sections[1].floorMetersWgs84<1010,'tube must not climb to the intermediate terrain surface');
+    assert.ok(m.sections[2].floorMetersWgs84<1010,'no floating tunnel across the hillside');
+    const mid=point(m.sections[1]);
+    assert.ok(T.inside(m,mid));
+    assert.equal(T.collision(m,mid,point(m.sections[2])),false,'open interior remains unobstructed');
+});
+
+test('auto preview clips only portals, flight clips one nearby corridor and returns to preview',async()=>{
+    const f=fake();f.service.dispose();
+    let flying=false,clock=1000,frame=null;
+    f.viewer.camera={positionCartographic:null};
+    f.viewer.scene.preUpdate={addEventListener(fn){frame=fn;return ()=>{frame=null;}}};
+    const service=T.create(f.C,f.viewer,()=>{}, {isSimulating:()=>flying,now:()=>clock,
+        sampleTerrain:async points=>points.map(()=>1100)});
+    service.setAutomaticEnabled(true);
+    assert.equal((await service.setAutomaticRoutes([{...source,kind:'tunnel'}],
+        {longitude:8.2001,latitude:46.8})).count,1);
+    const preview=f.viewer.scene.globe.clippingPolygons;
+    assert.equal(preview.length,0,'no terrain cut around flat road at rest');
+    const p=source.coordinates[1],m=T.procedural(source,[1100,1100,1100,1100],{profile:'vaulted'});
+    f.viewer.camera.positionCartographic={longitude:p[0]*Math.PI/180,latitude:p[1]*Math.PI/180,
+        height:m.sections[1].floorMetersWgs84+2};
+    flying=true;clock+=500;frame();
+    const flight=f.viewer.scene.globe.clippingPolygons;
+    assert.equal(flight.length,1,'only the relevant tunnel is opened for active flight');
+    assert.ok(flight.polygons[0].positions.length>4);
+    flying=false;clock+=500;frame();
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,'returns to no clipping after flight');
+    service.dispose();
+    assert.equal(frame,null,'preUpdate listener is released');
+    assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
+});
+
+test('FPV flight receives altitude-aware tunnel floor probes and does not collide with the terrain above it',async()=>{
+    const f=fake(); f.service.setAutomaticEnabled(true);
+    const r={...source,kind:'tunnel'};
+    const svc=T.create(f.C,f.viewer,()=>{}, {
+        sampleTerrain:async points=>points.map((_,i)=>[1000,1200,1200,1000][i])});
+    svc.setAutomaticEnabled(true);
+    await svc.setAutomaticRoutes([r],{longitude:8.2001,latitude:46.8});
+    const model=T.procedural(r,[1000,1200,1200,1000],{widthMeters:6,heightMeters:5,profile:'vaulted'});
+    const sample=[];
+    const sim=F.createSimulator({sampleHeight:async()=>1000,
+        renderedHeight:p=>{sample.push(p);return svc.floorAt(p)??1200;},
+        modeledCollision:(a,b)=>svc.intersects(a,b),
+        terrainCollision:(a,b)=>!(svc.floorAt(a)!=null||svc.floorAt(b)!=null),
+        captureCamera:()=>({heading:Math.PI/2}),restoreCamera:()=>{},applyPose:()=>{},
+        isTerrainReady:()=>true,onState:()=>{}});
+    await sim.start({latitude:r.coordinates[0][1],longitude:r.coordinates[0][0],agl:2,flightMode:'gps'},
+        new AbortController().signal);
+    sim.key('w',true);
+    for(let i=0;i<15;i++)sim.tick(.1);
+    assert.ok(sample.length>0);
+    assert.ok(sample.every(p=>Number.isFinite(p.height)),'every terrain probe carries the current flight elevation');
+    assert.ok(sim.status().position.longitude>r.coordinates[0][0], 'flight advances toward tunnel interior');
+    assert.equal(sim.status().reason,null,'mountain surface must not block valid tunnel passage');
+    const a=point(model.sections[1]);
+    assert.equal(svc.segmentInside(a,point(model.sections[2])),true);
+    assert.equal(svc.segmentInside(a,point(model.sections[2],5)),false,'outside must not disable normal collision checks');
+    sim.stop();svc.dispose();f.service.dispose();
+});
+
+test('steep terrain keeps both portal floor elevations anchored and smooths interior',()=>{
+    const r={...source,kind:'tunnel'};
+    const ground=[1250,1251,1420,1250];
+    const m=T.procedural(r,ground,{widthMeters:6,heightMeters:5,profile:'vaulted'});
+    assert.ok(Math.abs(m.sections[0].floorMetersWgs84-1249.9)<1e-5);
+    assert.ok(Math.abs(m.sections.at(-1).floorMetersWgs84-1249.9)<1e-5);
+    assert.ok(m.sections.every(s=>Number.isFinite(s.floorMetersWgs84)));
+    assert.equal(T.inside(m,point(m.sections[1])),true);
+});
+
+test('procedural road has distinct floor walls roof and visual-only orientation markings',()=>{
+    const f=fake(),m=T.procedural({...source,kind:'tunnel'},[510,515,516,510],{profile:'vaulted'});
+    const layers=T.surfaceGeometries(f.C,m);
+    assert.deepEqual(layers.map(l=>l.kind),['road','walls','ceiling','marking','wall-band']);
+    assert.equal(new Set(layers.map(l=>l.color.join(','))).size,5);
+    assert.ok(layers.every(l=>l.geometry.indices.length>0));
+    assert.equal(T.collisionMesh(m).triangleCount,T.geometry(f.C,m).indices.length/3,
+        'decoration must not introduce new collision surfaces');
+});
+
+test('automatic tunnel portal footprints stay short and floor materials are batched',async()=>{
+    const f=fake();f.service.setAutomaticEnabled(true);
+    await f.service.setAutomaticRoutes([{...source,kind:'tunnel'}],{longitude:8.2001,latitude:46.8});
+    const primitive=f.added.find(p=>p.geometryInstances);
+    assert.ok(primitive);
+    assert.equal(primitive.geometryInstances.length,5,'one primitive, five visually distinct material groups');
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
+        'non-buried preview must not cut roads or fields');
+    f.service.dispose();
+});
+
+
+test('implausible gorge crossings do not become floating tunnel meshes',()=>{
+    assert.throws(()=>T.procedural({...source,kind:'tunnel'},[1250,900,1420,1250],
+        {profile:'vaulted'}),/terrain depression/i);
+});
+
+test('two close parallel OSM carriageways become one wider synthetic passage',async()=>{
+    const a={id:'osm:101:0',name:'Bodenstrasse',kind:'underpass',transport:'road',
+        source:'OpenStreetMap',sourceId:'way/101',coordinates:[[8.2,46.8],[8.201,46.8]]};
+    const b={...a,id:'osm:102:0',sourceId:'way/102',
+        coordinates:[[8.201,46.800036],[8.2,46.800036]]};
+    const grouped=T.mergeParallelRoutes([a,b].map(route=>({id:route.id,key:route.id,route})));
+    assert.equal(grouped.merged,1);
+    assert.equal(grouped.entries.length,1);
+    const combined=grouped.entries[0].route;
+    assert.ok(combined.widthMeters>9&&combined.widthMeters<12);
+    assert.equal(combined.mergedRouteIds.length,2);
+    assert.ok(combined.coordinates[0][1]>a.coordinates[0][1]&&
+        combined.coordinates[0][1]<b.coordinates[0][1]);
+    const f=fake();const service=T.create(f.C,f.viewer,()=>{}, {
+        sampleTerrain:async points=>points.map(()=>500)});
+    service.setAutomaticEnabled(true);
+    const result=await service.setAutomaticRoutes([a,b],{longitude:8.2005,latitude:46.8});
+    assert.equal(result.count,1,'both roadways share a single visible tunnel');
+    assert.equal(result.merged,1);
+    assert.equal(f.added.filter(entry=>entry.geometryInstances).length,1);
+    service.dispose();
+});
+
+test('independent parallel bores, diverging lanes and crossings are never fused',()=>{
+    const base={id:'a',name:'Road tunnel',kind:'tunnel',transport:'road',
+        coordinates:[[8.2,46.8],[8.201,46.8]]};
+    const pair=(b)=>T.mergeParallelRoutes([base,{...base,id:'b',...b}]
+        .map(route=>({id:route.id,key:route.id,route})));
+    assert.equal(pair({coordinates:[[8.2,46.80009],[8.201,46.80009]]}).merged,0,
+        'separate bores more than 7.5 metres apart stay separate');
+    assert.equal(pair({coordinates:[[8.2,46.80003],[8.201,46.80015]]}).merged,0,
+        'diverging centerlines should not be blended');
+    assert.equal(pair({coordinates:[[8.2005,46.7995],[8.2005,46.8005]]}).merged,0,
+        'crossing tracks are not parallel carriageways');
+    assert.equal(pair({name:'Other tunnel',coordinates:[[8.2,46.80003],[8.201,46.80003]]}).merged,0,
+        'explicit different names do not get combined');
+});
+
+test('portal floors anchor to nearby approach heights rather than cliff-edge samples',()=>{
+    const r={...source,kind:'underpass'};
+    const m=T.procedural(r,[500,504,504,500],{profile:'vaulted',
+        portalApproachHeights:[502,502.4,501.3,501.6]});
+    assert.ok(Math.abs(m.sections[0].floorMetersWgs84-502.02)<.05);
+    assert.ok(Math.abs(m.sections.at(-1).floorMetersWgs84-501.29)<.05);
+    assert.equal(m.portalClipMask[0],false,'a shallow underpass does not excavate its approach');
+});
+
+test('long flat tagged tunnel is rejected instead of floating above the terrain',()=>{
+    const route={id:'flat',kind:'tunnel',transport:'road',coordinates:
+        [[8.2,46.8],[8.20032,46.8],[8.20064,46.8],[8.20096,46.8]]};
+    assert.throws(()=>T.procedural(route,[500,500,500,500],{heightMeters:5,profile:'vaulted'}),
+        /roof cannot fit below terrain/i);
+});
+
+test('covered mountain tunnel has roof beneath ground and local portal clipping',()=>{
+    const route={id:'mountain',kind:'tunnel',transport:'road',coordinates:
+        [[8.2,46.8],[8.20032,46.8],[8.20064,46.8],[8.20096,46.8]]};
+    const m=T.procedural(route,[500,515,515,500],{heightMeters:5,profile:'vaulted'});
+    assert.deepEqual(m.portalClipMask,[true,true]);
+    assert.ok(m.sections[1].floorMetersWgs84+5+.65 <= 515);
+    assert.ok(m.sections[2].floorMetersWgs84+5+.65 <= 515);
+    const f=fake();const svc=T.create(f.C,f.viewer,()=>{}, {
+        sampleTerrain:async points=>points.map(p=>p.longitude>8.2002&&p.longitude<8.20076?515:500)});
+    svc.setAutomaticEnabled(true);
+    return svc.setAutomaticRoutes([route]).then(result=>{
+        assert.equal(result.count,1);
+        assert.equal(f.viewer.scene.globe.clippingPolygons.length,2,
+            'only plausible mountainside portals are clipped');
+        svc.dispose();
+    });
+});
+
+test('cropped alpine tunnel uses remote original endpoint grade, not mountain-top crop ends',async()=>{
+    const coordinates=Array.from({length:42},(_,i)=>[8.2+i*.0007,46.8]);
+    const route={id:'long-alpine',name:'Alpine tunnel',kind:'tunnel',transport:'road',coordinates};
+    const f=fake(),svc=T.create(f.C,f.viewer,()=>{}, {
+        sampleTerrain:async points=>points.map(p=>(p.longitude<=8.201||p.longitude>=8.227)?1000:1450)});
+    svc.setAutomaticEnabled(true);
+    const result=await svc.setAutomaticRoutes([route],{longitude:8.214,latitude:46.8});
+    assert.equal(result.count,1,'cropped mountain segment remains renderable');
+    const inside={longitude:8.214,latitude:46.8,height:1002};
+    assert.ok(svc.floorAt(inside)!==null,'floor follows the real endpoints beneath the mountain');
+    assert.equal(svc.floorAt({...inside,height:1452}),null,
+        'rendered terrain above the tube is not treated as a tunnel floor');
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
+        'artificial crop boundaries never excavate portals');
+    svc.dispose();
+});
+
+test('repeated matching viewport scans cannot cancel a pending tunnel terrain query',async()=>{
+    const f=fake();let finish,calls=0;
+    const svc=T.create(f.C,f.viewer,()=>{}, {sampleTerrain:points=>{
+        calls++;return new Promise(resolve=>{finish=()=>resolve(points.map(()=>510));});
+    }});
+    svc.setAutomaticEnabled(true);
+    const route={...source,kind:'tunnel'};
+    const first=svc.setAutomaticRoutes([route],{longitude:8.2001,latitude:46.8});
+    await new Promise(r=>setImmediate(r));
+    const duplicate=await svc.setAutomaticRoutes([route],{longitude:8.2001,latitude:46.8});
+    assert.equal(duplicate.pending,true,'identical request reuses in-flight work');
+    assert.equal(calls,1,'no redundant terrain request');
+    finish();
+    assert.equal((await first).count,1);
+    assert.equal(f.added.filter(p=>p.geometryInstances).length,1);
+    svc.dispose();
+});
+
+test('small viewport movement and brief missing index tile retain the resident primitive',async()=>{
+    const f=fake(),svc=T.create(f.C,f.viewer,()=>{}, {
+        sampleTerrain:async points=>points.map(()=>510)});
+    svc.setAutomaticEnabled(true);
+    const r={...source,kind:'tunnel'};
+    await svc.setAutomaticRoutes([r],{longitude:8.2001,latitude:46.8});
+    const primitive=f.added[0];
+    const moved={...r,coordinates:r.coordinates.map(p=>[p[0]+.00001,p[1]])};
+    assert.equal((await svc.setAutomaticRoutes([moved],{longitude:8.20011,latitude:46.8})).count,1);
+    assert.equal(f.added[0],primitive,'small viewport resampling keeps mesh and collision model');
+    assert.equal((await svc.setAutomaticRoutes([],{longitude:8.20011,latitude:46.8})).count,1,
+        'short empty tile scan should not make a nearby model blink');
+    assert.equal(f.added[0],primitive);
+    assert.equal((await svc.setAutomaticRoutes([],{longitude:8.24,latitude:46.8})).count,0,
+        'out-of-range models must be released');
+    svc.dispose();
+});
+
+test('slightly offset parallel OSM carriageways merge deterministically',()=>{
+    const a={id:'osm:300:0',name:'A1',kind:'underpass',transport:'road',
+        coordinates:[[8.2,46.8],[8.201,46.8]]};
+    const b={...a,id:'osm:301:0',coordinates:[[8.20109,46.800036],[8.20009,46.800036]]};
+    const build=routes=>T.mergeParallelRoutes(routes.map(route=>({id:route.id,key:route.id,route})));
+    const ab=build([a,b]),ba=build([b,a]);
+    assert.equal(ab.merged,1);
+    assert.equal(ba.merged,1);
+    assert.equal(ab.entries[0].id,ba.entries[0].id,'source discovery order does not change mesh identity');
+    assert.ok(ab.entries[0].route.widthMeters>8);
+});
+
+test('dangerous sideways cliff relief disables only portal preview cuts, not the tunnel volume',()=>{
+    const route={id:'cliff',kind:'tunnel',transport:'road',coordinates:
+        [[8.2,46.8],[8.20032,46.8],[8.20064,46.8],[8.20096,46.8]]};
+    const m=T.procedural(route,[500,515,515,500],{
+        profile:'vaulted',portalApproachHeights:[500,500,500,500],
+        portalContextHeights:[500,509,500,500]});
+    assert.deepEqual(m.portalClipMask,[false,true],
+        'steep portal cut disabled; stable portal may still be clipped');
+    assert.ok(T.inside(m,point(m.sections[1])),'geometry and collision remain intact');
+});
+
+test('unavailable portal-side terrain never authorizes a deep idle clipping column',()=>{
+    const route={id:'cliff',kind:'tunnel',transport:'road',coordinates:
+        [[8.2,46.8],[8.20032,46.8],[8.20064,46.8],[8.20096,46.8]]};
+    const m=T.procedural(route,[500,515,515,500],{
+        profile:'vaulted',portalApproachHeights:[500,500,500,500],
+        portalContextHeights:[null,500,500,500]});
+    assert.deepEqual(m.portalClipMask,[false,true]);
+});
+
+test('underpass that floats high above a valley is not fabricated from 2D roads',()=>{
+    const route={id:'raised',kind:'underpass',transport:'road',coordinates:
+        [[8.2,46.8],[8.20032,46.8],[8.20064,46.8],[8.20096,46.8]]};
+    assert.throws(()=>T.procedural(route,[500,470,470,500],{profile:'vaulted'}),/elevated/);
+});
+
+test('local developer diagnostic snapshot reports stable geometry identities without telemetry',async()=>{
+    const f=fake();f.service.setAutomaticEnabled(true);
+    await f.service.setAutomaticRoutes([{...source,kind:'tunnel'}]);
+    const detail=f.service.diagnostics();
+    assert.equal(detail.count,1);
+    assert.equal(detail.entries.length,1);
+    assert.deepEqual(detail.entries[0].members,[source.id]);
+    assert.equal(typeof detail.entries[0].previewClips[0],'boolean');
+    assert.ok(!('flightPosition' in detail));
+    f.service.dispose();
 });
