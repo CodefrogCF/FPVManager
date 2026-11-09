@@ -13,6 +13,18 @@
     // swissTLM3D object catalogue, TLM_STRASSE_KUNSTBAUTE_CD:
     // bridge, bridge with gallery, covered bridge, bridge with steps, footbridge.
     const BRIDGE_CODES=new Set([200,300,400,450,600]);
+    const afterFrame=signal=>new Promise(resolve=>{
+        // Offscreen picks can synchronously wait for the GPU. Let a visible
+        // frame finish before each one rather than chaining zero-delay tasks.
+        let frame=null,timer=null;
+        const finish=()=>{if(frame!==null)globalThis.cancelAnimationFrame?.(frame);clearTimeout(timer);
+            signal?.removeEventListener('abort',finish);resolve();};
+        if(signal?.aborted){finish();return;}
+        const defer=()=>{frame=null;timer=setTimeout(finish,0);};
+        signal?.addEventListener('abort',finish,{once:true});
+        if(typeof globalThis.requestAnimationFrame==='function')frame=globalThis.requestAnimationFrame(defer);
+        else defer();
+    });
     const finite=Number.isFinite;
     const valid=p=>p&&finite(p.longitude)&&finite(p.latitude)&&p.longitude>=5.8&&p.longitude<=10.7&&
         p.latitude>=45.6&&p.latitude<=47.9;
@@ -93,7 +105,7 @@
     }
     function create(C,viewer,{getDeckTileset,fetcher=(...args)=>fetch(...args),cachedOnly=false,
         isOnline=()=>globalThis.navigator?.onLine!==false,now=()=>Date.now(),
-        yieldBatch=()=>new Promise(resolve=>setTimeout(resolve,0))}={}){
+        yieldBatch=afterFrame}={}){
         const scene=viewer.scene;let disposed=false,cache=null,nativeCache=null,pending=null,controller=null,retryAt=-Infinity;
         function exclusions(selected){
             const result=[],collection=scene.primitives;
@@ -146,7 +158,7 @@
             const routes=await roads(center,signal),excluded=exclusions(selected),bridges=[];
             // A caller may start discovery from preUpdate. Cesium ray picking
             // renders an offscreen pass and must run after that frame unwinds.
-            await yieldBatch();signal?.throwIfAborted?.();
+            await yieldBatch(signal);signal?.throwIfAborted?.();
             const candidates=routes.map(route=>{const tools=lineTools(route.coordinates);return {route,tools,near:tools.nearest(center)};})
                 .filter(p=>p.near.gap<=RADIUS+100&&p.tools.total>=24&&p.tools.total<=20000)
                 .sort((a,b)=>a.near.gap-b.near.gap).slice(0,32);
@@ -155,7 +167,7 @@
                 signal?.throwIfAborted?.();
                 if(++probes>96)return null;
                 const result=pick(point,selected,excluded);
-                if(probes%4===0)await yieldBatch();
+                await yieldBatch(signal);
                 signal?.throwIfAborted?.();
                 return result;
             };

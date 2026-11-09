@@ -1055,8 +1055,9 @@ function postToFlutter(message) {
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
         modelCollisions = typeof FPVSceneModelCollision !== 'undefined'
             ? FPVSceneModelCollision.create(Cesium,viewer,
-                {hasVisibleModels:()=>sceneEnvironment?.hasVisibleModels?.()===true ||
-                    obstacleVectors?.hasVisibleModels?.()===true}) : null;
+                {hasVisibleModels:()=>flyer?.active===true&&(
+                    sceneEnvironment?.hasVisibleModels?.()===true ||
+                    obstacleVectors?.hasVisibleModels?.()===true)}) : null;
         infrastructureClearance = typeof FPVInfrastructureClearance !== 'undefined'
             ? FPVInfrastructureClearance.create(Cesium, viewer, () => tunnelVolumes?.model ?? null)
             : null;

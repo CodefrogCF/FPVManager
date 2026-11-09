@@ -162,6 +162,52 @@ test('Angle self-level, gravity, inertia, drag, speed limits and frame time are 
     assert.ok(distance(before,c.model.status().position)<=1.51);
     c.model.tick(NaN);assert.ok(Number.isFinite(c.model.status().height));
 });
+test('a delayed rendered frame discards unseen flight time and resumes without a catch-up jump',async()=>{
+    for(const flightMode of ['gps','angle','acro']){
+        for(const delay of [.08,.25,2]){
+            const delayed=setup(),reference=setup();
+            for(const p of [delayed,reference]){
+                await start(p,{flightMode,agl:1000,acroRollRate:900,acroPitchRate:900,acroYawRate:900});
+                input(p.model,{throttle:.6,roll:.7,pitch:.4,yaw:.3});
+                p.model.stick(.6,.2);advance(p.model,.5);
+            }
+            delayed.model.tick(delay);reference.model.tick(1/60);
+            for(const key of ['position','height','attitude','speed'])
+                assert.deepEqual(delayed.model.status()[key],reference.model.status()[key],`${flightMode} after ${delay}s gap: ${key}`);
+            // The omitted wall time must never be paid back on later frames.
+            for(let i=0;i<3;i++){delayed.model.tick(1/60);reference.model.tick(1/60);}
+            assert.deepEqual(delayed.model.status().position,reference.model.status().position);
+            assert.deepEqual(delayed.model.status().attitude,reference.model.status().attitude);
+        }
+    }
+});
+test('ordinary 20 Hz frames keep their full timestep and a stall still sweeps every physical contact',async()=>{
+    const slow=setup(),fine=setup();
+    for(const p of [slow,fine]){await start(p,{flightMode:'gps',agl:500});p.model.stick(1,0);}
+    advance(slow.model,3,20);advance(fine.model,3,240);
+    assert.ok(distance(slow.model.status().position,fine.model.status().position)<1e-6);
+    assert.ok(Math.abs(slow.model.status().speed-fine.model.status().speed)<1e-10);
+    const sweeps=[],blocked=setup({modeledCollision:(from,to)=>{sweeps.push({from,to});return true;}});
+    await start(blocked,{flightMode:'acro',agl:500});input(blocked.model,{throttle:1,pitch:1});
+    const before=blocked.model.status();blocked.model.tick(.5);
+    assert.equal(sweeps.length,1);assert.deepEqual(blocked.model.status().position,before.position);
+    assert.equal(blocked.model.status().height,before.height);assert.match(blocked.model.status().reason,/contact/);
+});
+test('20 Hz timing jitter does not trigger stall recovery or slow the simulated flight',async()=>{
+    const jittered=setup(),regular=setup();
+    for(const p of [jittered,regular]){await start(p,{flightMode:'gps',agl:500});p.model.stick(1,0);}
+    for(let i=0;i<40;i++){
+        jittered.model.tick(.049);jittered.model.tick(.051);
+        regular.model.tick(.05);regular.model.tick(.05);
+    }
+    assert.ok(distance(jittered.model.status().position,regular.model.status().position)<1e-6);
+    assert.ok(Math.abs(jittered.model.status().speed-regular.model.status().speed)<1e-10);
+    // A genuine stall at this slower frame rate still resumes with <=33 ms,
+    // rather than accepting either its wall time or the prior 51 ms frame.
+    jittered.model.tick(.08);regular.model.tick(1/30);
+    assert.ok(distance(jittered.model.status().position,regular.model.status().position)<1e-6);
+    assert.ok(Math.abs(jittered.model.status().speed-regular.model.status().speed)<1e-10);
+});
 test('Acro retains attitude on release, crosses inverted flight and has continuous orthonormal camera axes',async()=>{
     const p=setup();await start(p,{flightMode:'acro',agl:500});input(p.model,{roll:1});advance(p.model,1.1);
     assert.ok(p.poses.at(-1).up.up<-.9,'Acro must pass through inverted roll');

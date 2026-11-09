@@ -9,6 +9,16 @@
     const R=6378137,DEG=Math.PI/180,RADIUS=600,MAX_BYTES=2*1024*1024;
     const ENDPOINTS=['https://overpass.private.coffee/api/interpreter','https://overpass-api.de/api/interpreter'];
     const BUDGETS={quality:128,balanced:96,performance:48,compatibility:24,navigation:64};
+    const afterFrame=signal=>new Promise(resolve=>{
+        let frame=null,timer=null;
+        const finish=()=>{if(frame!==null)globalThis.cancelAnimationFrame?.(frame);clearTimeout(timer);
+            signal?.removeEventListener('abort',finish);resolve();};
+        if(signal?.aborted){finish();return;}
+        const defer=()=>{frame=null;timer=setTimeout(finish,0);};
+        signal?.addEventListener('abort',finish,{once:true});
+        if(typeof globalThis.requestAnimationFrame==='function')frame=globalThis.requestAnimationFrame(defer);
+        else defer();
+    });
     const finite=Number.isFinite;
     const distance=(a,b)=>Math.hypot((a.longitude-b.longitude)*DEG*R*Math.cos((a.latitude+b.latitude)*DEG/2),
         (a.latitude-b.latitude)*DEG*R);
@@ -196,13 +206,13 @@
     }
     function create(C,viewer,{sampleTerrain=async()=>[],ready=()=>true,cachedOnly=false,
         isOnline=()=>globalThis.navigator?.onLine!==false,getDeckTileset=null,discoverBridges=null,disposeDiscovery=()=>{},
-        fetcher=(...args)=>fetch(...args),now=()=>Date.now()}={}){
+        fetcher=(...args)=>fetch(...args),now=()=>Date.now(),yieldBatch=afterFrame}={}){
         const scene=viewer.scene;
         let enabled=false,structuresEnabled=false,disposed=false,profile='balanced',opacity=1,revision=0,controller=null;
         const sourceSets=new Map();
         let primitive=null,supports=[],cache=null,pending=null,pendingCenter=null,lastCenter=null,lastRefreshAt=-Infinity;
         let lastFrameAt=-Infinity,error=null,retryAt=-Infinity,credited=false;
-        let sourceQuery=null;
+        let sourceQuery=null,drawSignature=null;
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const sourceCredits=C.Credit?{
             osm:new C.Credit('Bridge supports · © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',true),
@@ -229,7 +239,7 @@
             quality:'simulation-only',error,supports:supports.map(p=>({...p}))});
         function clear(){
             if(primitive){scene.primitives.remove(primitive);primitive=null;}
-            supports=[];credits(false);scene.requestRender?.();
+            supports=[];drawSignature=null;credits(false);scene.requestRender?.();
         }
         function focus(){
             const canvas=scene.canvas||viewer.canvas,camera=viewer.camera;
@@ -307,6 +317,8 @@
         }
         function draw(next){
             if(!next.length){clear();return;}
+            const signature=JSON.stringify([opacity,next.map(p=>[p.id,p.longitude,p.latitude,p.bottom,p.top,p.radius])]);
+            if(primitive&&signature===drawSignature){supports=next;credits(true);return;}
             if(!C.CylinderGeometry||!C.GeometryInstance||!C.Primitive||!C.Transforms?.eastNorthUpToFixedFrame||
                 !C.PerInstanceColorAppearance||!C.ColorGeometryInstanceAttribute)return;
             const color=C.Color.fromBytes(137,139,133,Math.round(opacity*255));
@@ -320,34 +332,49 @@
                 shadows:C.ShadowMode?.DISABLED});
             scene.primitives.add(nextPrimitive);
             if(primitive)scene.primitives.remove(primitive);
-            primitive=nextPrimitive;supports=next;credits(true);scene.requestRender?.();
+            primitive=nextPrimitive;supports=next;drawSignature=signature;credits(true);scene.requestRender?.();
         }
         async function deckSamples(candidates,excluded,signal){
-            const groups=candidates.map(p=>p.probes.map(q=>{
-                if(!scene.sampleHeight)return null;
-                try{return scene.sampleHeight(C.Cartographic.fromDegrees(q.longitude,q.latitude),excluded,.7);}
-                catch(_){return null;}
-            }));
+            const groups=candidates.map(()=>[]);
+            for(let i=0;i<candidates.length;i++){
+                const p=candidates[i];
+                // Discovery has already classified and sampled these heights
+                // against the selected native tileset. Re-picking every pier's
+                // three neighbours would repeat up to 384 GPU passes in quality.
+                if(p.profileMethod==='loaded-native-road'&&finite(p.deckMetersWgs84))continue;
+                for(const q of p.probes){
+                    if(!scene.sampleHeight){groups[i].push(null);continue;}
+                    await yieldBatch(signal);signal.throwIfAborted?.();
+                    if(disposed||!enabled||!ready())return groups;
+                    try{groups[i].push(scene.sampleHeight(C.Cartographic.fromDegrees(q.longitude,q.latitude),excluded,.7));}
+                    catch(_){groups[i].push(null);}
+                }
+            }
             const missing=[];
             for(let i=0;i<candidates.length;i++)if(!finite(candidates[i].deckMetersWgs84)&&
                 !finite(candidates[i].heightMeters)&&groups[i].some(value=>!finite(value)))missing.push(i);
             if(missing.length&&scene.sampleHeightMostDetailed&&(!getDeckTileset||getDeckTileset())){
-                let timer,abort;
-                try{
-                    const positions=missing.flatMap(i=>candidates[i].probes.map(q=>
-                        C.Cartographic.fromDegrees(q.longitude,q.latitude)));
-                    const sampled=await Promise.race([
-                        scene.sampleHeightMostDetailed(positions,excluded,.7),
-                        new Promise((_,reject)=>{
-                            timer=setTimeout(()=>reject(Error('Bridge deck sampling timed out')),8000);
-                            abort=()=>reject(Error('Bridge deck sampling cancelled'));
-                            signal.addEventListener('abort',abort,{once:true});
-                        })
-                    ]);
-                    for(let j=0;j<missing.length;j++)for(let k=0;k<3;k++)
-                        if(finite(sampled?.[j*3+k]?.height))groups[missing[j]][k]=sampled[j*3+k].height;
-                }catch(_){/* explicit source profiles still remain usable */}
-                finally{clearTimeout(timer);if(abort)signal.removeEventListener('abort',abort);}
+                // Cesium's most-detailed sampler also performs picking. Keep
+                // each request to one pier instead of a scene-wide GPU burst.
+                const deadline=Date.now()+8000;
+                for(const i of missing){
+                    await yieldBatch(signal);signal.throwIfAborted?.();
+                    if(disposed||!enabled||!ready()||Date.now()>=deadline)break;
+                    let timer,abort;
+                    try{
+                        const positions=candidates[i].probes.map(q=>C.Cartographic.fromDegrees(q.longitude,q.latitude));
+                        const sampled=await Promise.race([
+                            scene.sampleHeightMostDetailed(positions,excluded,.7),
+                            new Promise((_,reject)=>{
+                                timer=setTimeout(()=>reject(Error('Bridge deck sampling timed out')),Math.max(1,deadline-Date.now()));
+                                abort=()=>reject(Error('Bridge deck sampling cancelled'));
+                                signal.addEventListener('abort',abort,{once:true});
+                            })
+                        ]);
+                        for(let k=0;k<3;k++)if(finite(sampled?.[k]?.height))groups[i][k]=sampled[k].height;
+                    }catch(_){/* explicit source profiles still remain usable */}
+                    finally{clearTimeout(timer);if(abort)signal.removeEventListener('abort',abort);}
+                }
             }
             return groups;
         }

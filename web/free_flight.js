@@ -58,6 +58,7 @@
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
+        let lastFrameSeconds=1/60;
         let wind={north:0,east:0,up:0},windInfo=null;
         const keys=new Set();
         // Self-centring sticks: Acro uses only the upper half for motor command.
@@ -79,7 +80,7 @@
         function pose(){applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
         function stop(message=null){
             const running=active||pending;
-            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;active=pending=paused=playback=false;reason=message;
+            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;lastFrameSeconds=1/60;active=pending=paused=playback=false;reason=message;
             windInfo=null;wind={north:0,east:0,up:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -241,7 +242,14 @@
             if(windInfo?.available&&!validWind)windInfo={enabled:true,available:false,reason:'invalid'};
             if(paused){pose();return;}
             if(!Number.isFinite(seconds)||seconds<=0)return;
-            const dt=Math.min(seconds,.1),travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
+            // A delayed rendered image must not replay a long interval of an
+            // unseen stick command in one jump. Keep ordinary rendered steps
+            // through 75 ms, including timing jitter near 20 Hz,
+            // but discard a stalled frame's excess time without a catch-up
+            // backlog. The resumed step remains no larger than a 30 Hz frame.
+            const dt=seconds>.075 ? Math.min(lastFrameSeconds,1/30) : seconds;
+            if(seconds<=.075)lastFrameSeconds=seconds;
+            const travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
             const modeledContact=modeledCollision({...position,height},{...endpoint,height:height+travel.up});

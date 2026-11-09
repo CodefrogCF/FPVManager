@@ -21,6 +21,7 @@ function fixture(options={}){
         latitude:ORIGIN.latitude*Math.PI/180,height:700}},scene:{preUpdate,primitives:collection,globe:{},
         sampleHeight:(p,omit)=>{excluded.push(omit.slice());return typeof deck==='function'?deck(p):deck;},requestRender(){}}};
     const manager=B.create(C,viewer,{now:()=>clock,ready:()=>terrainReady,
+        yieldBatch:async()=>{},
         fetcher:async(url,args)=>{fetches.push({url,args});return {ok:true,json:async()=>({elements:[way()]})};},
         sampleTerrain:async(points,signal)=>{samples.push({points,signal});return points.map(()=>500);},...options});
     return {C,viewer,manager,primitives,fetches,samples,excluded,preUpdate,
@@ -216,9 +217,49 @@ test('confirmed native bridge profiles produce supports without waiting for Over
     try{
         const state=await p.manager.refresh(ORIGIN);
         assert.equal(discoveries,1);assert.equal(state.count,5);assert.equal(p.fetches.length,0);
+        assert.equal(p.excluded.length,0,'confirmed native heights do not trigger redundant resident deck GPU picks');
         assert.ok(state.supports.every(p=>p.source==='swisstopo 3D'&&p.heightMethod==='loaded-native-deck'));
     }finally{p.manager.dispose();}
     assert.equal(disposed,1);
+});
+
+test('quality deck verification permits at most one resident GPU pick per yielded frame',async()=>{
+    const bridges=Array.from({length:5},(_,i)=>({...way(i+1),geometry:[point(-600),point(600)].map(p=>
+        ({lon:p.lon,lat:p.lat+i*.0001}))}));
+    let frame=0;const picks=new Map();
+    const p=fixture({yieldBatch:async()=>{frame++;},
+        fetcher:async()=>({ok:true,json:async()=>({elements:bridges})})});
+    p.viewer.scene.sampleHeight=()=>{picks.set(frame,(picks.get(frame)||0)+1);return 532.6;};
+    p.manager.performance('quality');p.manager.setEnabled(true);
+    try{
+        const state=await p.manager.refresh(ORIGIN);
+        assert.equal(state.count,128);assert.equal([...picks.values()].reduce((a,b)=>a+b,0),384);
+        assert.equal(Math.max(...picks.values()),1,'384 quality probes cannot run as one synchronous GPU burst');
+        assert.equal(picks.has(0),false,'the first offscreen pick also waits for the visible frame');
+    }finally{p.manager.dispose();}
+});
+
+test('unchanged refreshed supports retain their primitive and changed geometry still rebuilds',async()=>{
+    const p=fixture();p.manager.setEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);const first=p.primitives[0];
+        p.setClock(13000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.primitives[0],first,'a cached bridge refresh need not rebuild and upload all pier geometry');
+        p.setDeck(533.6);p.setClock(16000);await p.manager.refresh(ORIGIN);
+        assert.notEqual(p.primitives[0],first);assert.equal(p.primitives.length,1);
+        assert.ok(p.manager.status().supports.every(s=>s.top===533.5));
+    }finally{p.manager.dispose();}
+});
+
+test('disabling supports between deferred GPU probes cancels the remaining burst',async()=>{
+    let frames=0,p;
+    p=fixture({yieldBatch:async()=>{if(++frames===3)p.manager.setEnabled(false);}});
+    p.manager.setEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,2);assert.equal(p.primitives.length,0);
+        assert.equal(p.manager.status().pending,false);
+    }finally{p.manager.dispose();}
 });
 
 test('hiding structures discards a late native discovery result',async()=>{

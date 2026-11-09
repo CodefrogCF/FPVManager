@@ -86,3 +86,34 @@ test('failed official requests back off while model readiness can still recover'
         assert.equal((await f.manager.discover(center)).bridges.length,0);assert.equal(requests,1);}
     finally{f.manager.dispose();}
 });
+
+test('native bridge discovery performs no more than one offscreen pick per rendered frame',async()=>{
+    let frame=0;const picks=new Map(),f=setup({yieldBatch:async()=>{frame++;}});
+    f.viewer.scene.pickFromRay=()=>{picks.set(frame,(picks.get(frame)||0)+1);return {
+        object:{tileset:f.selected,getProperty:key=>({KUNSTBAUTE:200,UUID:fixture.nativeFeature.UUID})[key]},
+        position:{height:1450}};};
+    try{
+        const state=await f.manager.discover(center);
+        assert.equal(state.bridges.length,1);assert.ok(picks.size>20);
+        assert.equal(Math.max(...picks.values()),1);assert.equal(picks.has(0),false);
+    }finally{f.manager.dispose();}
+});
+
+test('production native scheduling waits for animation frames and cancellation releases a suspended frame',async()=>{
+    const oldRequest=globalThis.requestAnimationFrame,oldCancel=globalThis.cancelAnimationFrame;
+    let requested=0,cancelled=0;
+    globalThis.requestAnimationFrame=()=>++requested;
+    globalThis.cancelAnimationFrame=()=>cancelled++;
+    const f=setup({yieldBatch:undefined}),abort=new AbortController();
+    try{
+        const operation=f.manager.discover(center,abort.signal);
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(requested,1);assert.equal(f.rays.length,0);
+        abort.abort();await assert.rejects(operation,{name:'AbortError'});
+        assert.equal(cancelled,1);assert.equal(f.rays.length,0);
+    }finally{
+        f.manager.dispose();
+        if(oldRequest===undefined)delete globalThis.requestAnimationFrame;else globalThis.requestAnimationFrame=oldRequest;
+        if(oldCancel===undefined)delete globalThis.cancelAnimationFrame;else globalThis.cancelAnimationFrame=oldCancel;
+    }
+});

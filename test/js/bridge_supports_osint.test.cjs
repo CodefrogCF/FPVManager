@@ -18,6 +18,7 @@ function fixture(options={}){
             add:p=>{primitives.push(p);return p;},remove:p=>{const i=primitives.indexOf(p);if(i>=0)primitives.splice(i,1);}},
             preUpdate:{addEventListener:f=>{listeners.add(f);return()=>listeners.delete(f);}},requestRender(){}}};
     const manager=B.create(C,viewer,{cachedOnly:true,getDeckTileset:()=>null,
+        yieldBatch:async()=>{},
         fetcher:async(...args)=>{requests.push(args);throw Error('Unexpected request');},
         sampleTerrain:async points=>points.map(()=>500),...options});
     return {manager,viewer,primitives,requests};
@@ -87,9 +88,10 @@ test('missing resident bridge tiles can be resolved by bounded most-detailed sam
     const f=fixture({cachedOnly:false,getDeckTileset:()=>({}),fetcher:async()=>({ok:true,json:async()=>({elements:[
         {type:'way',id:1,tags:{bridge:'yes',highway:'primary'},geometry:[at(-72),at(72)].map(a=>({lon:a[0],lat:a[1]}))}]})})});
     f.viewer.scene.sampleHeight=()=>undefined;let calls=0;
-    f.viewer.scene.sampleHeightMostDetailed=async positions=>{calls++;return positions.map(p=>({...p,height:532.6}));};
+    f.viewer.scene.sampleHeightMostDetailed=async positions=>{calls++;assert.equal(positions.length,3);
+        return positions.map(p=>({...p,height:532.6}));};
     try{f.manager.setEnabled(true);await f.manager.refresh(center);
-        assert.equal(calls,1);assert.equal(f.manager.status().count,5);
+        assert.equal(calls,5,'most-detailed work is bounded to one pier per request');assert.equal(f.manager.status().count,5);
     }finally{f.manager.dispose();}
 });
 

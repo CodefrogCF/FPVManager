@@ -1854,30 +1854,32 @@
         const floor=spec.floor+(along<0?approachGrade:grade)*along,up=point.height-floor;
         return up>=(allowFloorContact?-radius:radius)&&up<=roof-radius?floor:null;
     }
-    function rings(model){
+    function ringAt(model,i){
         const sections=model.sections;
         const vaulted=model.profile==='vaulted';
-        return sections.map((s,i)=>{
-            const prev=sections[Math.max(0,i-1)],next=sections[Math.min(sections.length-1,i+1)];
-            const v=xy(next,prev),d=Math.hypot(v.x,v.y);
-            if(d<1e-9)throw Error('Degenerate tunnel cross-section tangent.');
-            const east=-v.y/d,north=v.x/d;
-            const lonOffset=m=>m/(R*DEG*Math.cos(s.latitude*DEG)),latOffset=m=>m/(R*DEG);
-            const point=(lateral,up)=>[s.longitude+lonOffset(east*lateral),
-                s.latitude+latOffset(north*lateral),s.floorMetersWgs84+up];
-            const half=s.widthMeters/2;
-            if(!vaulted)return [point(-half,0),point(half,0),point(half,s.heightMeters),point(-half,s.heightMeters)];
-            // Interior vaulted profile: flat floor, vertical sidewalls and a
-            // tessellated elliptical arch. The roof is part of the actual
-            // collision mesh, not a loose bounding box or inferred clearance.
-            const rise=Math.min(s.heightMeters*.45,half),spring=s.heightMeters-rise;
-            const ring=[point(-half,0),point(half,0),point(half,spring)];
-            for(let j=1;j<=8;j++){
-                const theta=Math.PI*j/8;
-                ring.push(point(half*Math.cos(theta),spring+rise*Math.sin(theta)));
-            }
-            return ring;
-        });
+        const s=sections[i];
+        const prev=sections[Math.max(0,i-1)],next=sections[Math.min(sections.length-1,i+1)];
+        const v=xy(next,prev),d=Math.hypot(v.x,v.y);
+        if(d<1e-9)throw Error('Degenerate tunnel cross-section tangent.');
+        const east=-v.y/d,north=v.x/d;
+        const lonOffset=m=>m/(R*DEG*Math.cos(s.latitude*DEG)),latOffset=m=>m/(R*DEG);
+        const point=(lateral,up)=>[s.longitude+lonOffset(east*lateral),
+            s.latitude+latOffset(north*lateral),s.floorMetersWgs84+up];
+        const half=s.widthMeters/2;
+        if(!vaulted)return [point(-half,0),point(half,0),point(half,s.heightMeters),point(-half,s.heightMeters)];
+        // Interior vaulted profile: flat floor, vertical sidewalls and a
+        // tessellated elliptical arch. The roof is part of the actual
+        // collision mesh, not a loose bounding box or inferred clearance.
+        const rise=Math.min(s.heightMeters*.45,half),spring=s.heightMeters-rise;
+        const ring=[point(-half,0),point(half,0),point(half,spring)];
+        for(let j=1;j<=8;j++){
+            const theta=Math.PI*j/8;
+            ring.push(point(half*Math.cos(theta),spring+rise*Math.sin(theta)));
+        }
+        return ring;
+    }
+    function rings(model){
+        return model.sections.map((_,i)=>ringAt(model,i));
     }
     // Subtract the other bore's convex interior from each lining polygon at a
     // real junction. The same fragments feed rendering AND collision, so a
@@ -2066,11 +2068,17 @@
         }
         const colors=[[48,54,60,255],[170,177,173,255],[103,113,119,255],
             [236,213,126,255],[233,219,160,255]];
+        // Adjacent triangles share the same source ring/stripe points. Keep
+        // their flat-shaded output vertices separate, but transform each
+        // source point once instead of repeating Earth-coordinate trig for
+        // every triangle corner. This preserves the exact draw arrays.
+        const worldPoints=new Map();
         return groups.flatMap((triangles,i)=>{
             if(!triangles.length)return [];
             const values=[],indices=[];
             for(const tri of triangles){
-                for(const p of tri){const xyz=C.Cartesian3.fromDegrees(p[0],p[1],p[2]);
+                for(const p of tri){let xyz=worldPoints.get(p);
+                    if(!xyz){xyz=C.Cartesian3.fromDegrees(p[0],p[1],p[2]);worldPoints.set(p,xyz);}
                     indices.push(values.length/3);values.push(xyz.x,xyz.y,xyz.z);}
             }
             const geom=new C.Geometry({attributes:{position:new C.GeometryAttribute({
@@ -2176,10 +2184,10 @@
     // It is a local schematic rock/concrete transition, not reconstructed terrain.
     function portalSurroundGeometries(C,model){
         if(!model?.sections||model.kind!=='tunnel')return [];
-        const outlines=rings(model),surfaces=[];
+        const surfaces=[];
         for(const end of [0,1]){
             if(model.portalEnds?.[end]===false)continue; // never cap a tiled window
-            const i=end===0?0:outlines.length-1,inner=outlines[i],s=model.sections[i];
+            const i=end===0?0:model.sections.length-1,inner=ringAt(model,i),s=model.sections[i];
             const next=model.sections[end===0?1:i-1];
             const tangent=xy(next,s),distance=Math.hypot(tangent.x,tangent.y);
             if(distance<.5)continue;
@@ -2699,8 +2707,24 @@
         }
         return false;
     }
+    function yieldSceneFrame(){
+        return new Promise(resolve=>{
+            if(typeof globalThis.requestAnimationFrame!=='function'){setTimeout(resolve,0);return;}
+            let completed=false,frame=null;
+            const finish=()=>{
+                if(completed)return;completed=true;clearTimeout(fallback);
+                if(frame!==null)globalThis.cancelAnimationFrame?.(frame);
+                resolve();
+            };
+            // The extra task runs after the browser's render callbacks, so
+            // Cesium and input get an actual frame between geometry builds.
+            // A background/hidden WebView must still finish or cancel work.
+            const fallback=setTimeout(finish,50);
+            frame=globalThis.requestAnimationFrame(()=>setTimeout(finish,0));
+        });
+    }
     function create(C,viewer,emit=()=>{}, {sampleTerrain=async()=>[],ready=()=>true,
-        isSimulating=()=>false,getDeckTileset=null,now=()=>Date.now()}={}){
+        isSimulating=()=>false,getDeckTileset=null,now=()=>Date.now(),yieldToFrame=yieldSceneFrame}={}){
         let model=null,primitive=null,clipping=null,oldClipping=null,flight=false,collisionEnabled=false,revision=0,disposed=false,pending=false;
         const scene=viewer.scene;
         // Display budgets govern only *resident* geometry, not discovery.  The
@@ -2856,10 +2880,9 @@
                 collection=new C.PolylineCollection();
                 const material=C.Material.fromType('Color',{color:C.Color.fromBytes(255,174,44,255)});
                 for(const entry of autoModels){
-                    const cross=rings(entry.model);
                     for(const end of [0,1]){
                         if(entry.model.portalEnds?.[end]===false)continue;
-                        const ring=end===0?cross[0]:cross.at(-1);
+                        const ring=ringAt(entry.model,end===0?0:entry.model.sections.length-1);
                         const positions=[...ring,ring[0]].map(p=>C.Cartesian3.fromDegrees(...p));
                         collection.add({positions,width:3,material});
                     }
@@ -3461,13 +3484,14 @@
             let sampleFailed=0;
             // Retain existing geometry while preparing the new viewport. A
             // superseding camera move cancels any staged, not-yet-committed meshes.
-            for(let i=0;i<candidates.length&&chosen.length<budget;i+=AUTO_BATCH){
+            const batchSize=isSimulating()?1:AUTO_BATCH;
+            for(let i=0;i<candidates.length&&chosen.length<budget;i+=batchSize){
                 if(token!==autoRevision||disposed){
                     for(const entry of added)scene.primitives.remove(entry.primitive);
                     if(token===autoRevision)autoInFlightSignature=null;
                     return {count:autoModels.length,cancelled:true};
                 }
-                const batch=candidates.slice(i,i+AUTO_BATCH);
+                const batch=candidates.slice(i,i+batchSize);
                 const cachedFor=entry=>{
                     const direct=previous.get(entry.key);
                     const near=previousById.get(entry.id);
@@ -3566,10 +3590,14 @@
                             chosen.push({...resident,key:entry.key,lastSeenAt:now(),bridgeHeightCheckedAt:now()});
                     }
                 }
-                // Cesium primitive construction is synchronous; yield after
-                // at most three objects to keep user input responsive.
-                if(i+AUTO_BATCH<candidates.length&&chosen.length<budget)
-                    await new Promise(resolve=>setTimeout(resolve,0));
+                // Each full tunnel window has synchronous CPU geometry and
+                // first-update GPU work. During flight admit one new model
+                // per render opportunity; three timer-driven builds in one
+                // task used to create large intermittent frame spikes.
+                if(i+batchSize<candidates.length&&chosen.length<budget&&pending.length){
+                    if(isSimulating())await yieldToFrame();
+                    else await new Promise(resolve=>setTimeout(resolve,0));
+                }
             }
             if(token!==autoRevision||disposed){
                 for(const entry of added)scene.primitives.remove(entry.primitive);
@@ -3625,10 +3653,48 @@
                     chosen.unshift({...occupied,bridgeHeightCheckedAt:now()});pinnedForFlight=true;
                 }
             }
-            for(const entry of attachJunctionOpenings(chosen)){
-                const replacement=createPrimitive(entry.model);
-                scene.primitives.add(replacement);scene.primitives.remove(entry.primitive);
-                entry.primitive=replacement;
+            // Plan junction cuts on copies. While a render is yielded, the
+            // resident collider and its rendered lining must retain the same
+            // openings; superseding requests may discard all staged copies.
+            const junctionPlan=chosen.map(entry=>({...entry,model:{...entry.model}}));
+            for(const planned of attachJunctionOpenings(junctionPlan)){
+                if(isSimulating())await yieldToFrame();
+                if(token!==autoRevision||disposed){
+                    for(const entry of added)scene.primitives.remove(entry.primitive);
+                    if(token===autoRevision)autoInFlightSignature=null;
+                    return {count:autoModels.length,cancelled:true};
+                }
+                const index=junctionPlan.indexOf(planned),entry=chosen[index];
+                const replacement=createPrimitive(planned.model);
+                scene.primitives.add(replacement);
+                const staged=added.findIndex(other=>other.primitive===entry.primitive);
+                if(staged>=0){scene.primitives.remove(entry.primitive);added.splice(staged,1);}
+                const updated={...entry,model:planned.model,primitive:replacement};
+                added.push(updated);chosen[index]=updated;
+            }
+            const occupiedStagedEntry=()=>{
+                if(!isSimulating())return null;
+                const camera=viewer.camera?.positionCartographic;
+                if(!camera||![camera.longitude,camera.latitude,camera.height].every(finite))return null;
+                const point={longitude:camera.longitude/DEG,latitude:camera.latitude/DEG,height:camera.height};
+                return added.find(entry=>!collisionCache.has(entry.model)&&nearEntry(entry,point,point)&&
+                    inside(entry.model,point))||null;
+            };
+            if(occupiedStagedEntry()){
+                // A new occupied window otherwise creates its entire triangle
+                // cache in the next physics collision query. Prepare just that
+                // final corridor in a separate frame slot before committing;
+                // distant viewport tunnels retain their lazy collision cache.
+                await yieldToFrame();
+                if(token!==autoRevision||disposed){
+                    for(const entry of added)scene.primitives.remove(entry.primitive);
+                    if(token===autoRevision)autoInFlightSignature=null;
+                    return {count:autoModels.length,cancelled:true};
+                }
+                // The pilot can move during the yield. Warm at most one
+                // currently occupied staged model, after all junction cuts.
+                const occupied=occupiedStagedEntry();
+                if(occupied)collisionMesh(occupied.model);
             }
             releaseAutoPortals();
             const keep=new Set(chosen.map(entry=>entry.primitive));
@@ -4302,52 +4368,84 @@
     else root.FPVSceneModelCollision=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
-    const MIN_INTERVAL_MS=350,MAX_INTERVAL_MS=2500;
-    function create(C,viewer,{hasVisibleModels=()=>false,now=()=>performance.now()}={}){
+    const MIN_INTERVAL_MS=350,MAX_INTERVAL_MS=2500,MAX_CACHE_AGE_MS=500;
+    function create(C,viewer,{hasVisibleModels=()=>false,now=()=>performance.now(),
+        setTimer=setTimeout,clearTimer=clearTimeout}={}){
         const scene=viewer.scene;
         let enabled=false,disposed=false,nextSampleAt=-Infinity,lastSampleMs=0,samples=0;
+        let requested=null,cached=null,timer=null;
+        const horizontalDistance=(a,b)=>Math.hypot((a.longitude-b.longitude)*111320*
+            Math.cos((a.latitude+b.latitude)*Math.PI/360),(a.latitude-b.latitude)*111320);
+        function supported(){
+            return !disposed&&enabled&&hasVisibleModels()&&C.Cartographic?.fromDegrees&&
+                (!C.SceneMode||scene.mode===C.SceneMode.SCENE3D)&&scene.sampleHeightSupported&&
+                typeof scene.sampleHeight==='function'&&typeof scene.globe?.getHeight==='function';
+        }
+        function sample(){
+            timer=null;
+            const target=requested;requested=null;
+            if(!target||!supported()||now()<nextSampleAt)return;
+            const time=now();nextSampleAt=time+MIN_INTERVAL_MS;
+            try{
+                const point=C.Cartographic.fromDegrees(target.longitude,target.latitude);
+                const top=scene.sampleHeight(point,undefined,.5),ground=scene.globe.getHeight(point);
+                const sampled=now();lastSampleMs=Math.max(0,sampled-time);samples++;
+                nextSampleAt=sampled+Math.min(MAX_INTERVAL_MS,
+                    Math.max(MIN_INTERVAL_MS,lastSampleMs*12));
+                cached=Number.isFinite(top)&&Number.isFinite(ground)?
+                    {...target,top,ground,at:sampled}:null;
+            }catch(_){cached=null;nextSampleAt=now()+MAX_INTERVAL_MS;}
+        }
+        // Depth reads can force an offscreen scene render and a GPU readback.
+        // The simulation only consumes a nearby, recent result. Coalesce all
+        // requests made by its collision sweeps, then sample after the visible
+        // frame has completed and control/input has had a chance to run.
+        function schedule(){
+            if(timer!==null||!requested||!supported()||now()<nextSampleAt)return;
+            timer=setTimer(sample,0);
+        }
+        const removePost=scene.postRender?.addEventListener?.(schedule);
         function setEnabled(value){
             if(typeof value!=='boolean')throw Error('Invalid 3D collision preference');
-            if(!disposed){enabled=value;nextSampleAt=-Infinity;}
+            if(!disposed){
+                enabled=value;nextSampleAt=-Infinity;requested=cached=null;
+                if(timer!==null){clearTimer(timer);timer=null;}
+            }
             return {enabled};
         }
         function collision(from,to,radius=.25){
-            if(disposed||!enabled||!hasVisibleModels()||
-                !C.Cartographic?.fromDegrees||!Number.isFinite(radius)||radius<0||radius>1||
+            if(!supported()||!Number.isFinite(radius)||radius<0||radius>1||
                 !from||!to||![from.latitude,from.longitude,from.height,
                     to.latitude,to.longitude,to.height].every(Number.isFinite))return false;
-            if(C.SceneMode&&scene.mode!==C.SceneMode.SCENE3D)return false;
             const distance=Math.hypot((to.longitude-from.longitude)*75000,
                 (to.latitude-from.latitude)*111000,to.height-from.height);
             if(distance>15)return false;
-            if(!scene.sampleHeightSupported||typeof scene.sampleHeight!=='function'||
-                typeof scene.globe?.getHeight!=='function')return false;
             const time=now();
-            if(time<nextSampleAt)return false;
-            // Reserve the slot before the potentially expensive synchronous call.
-            nextSampleAt=time+MIN_INTERVAL_MS;
-            const point=C.Cartographic.fromDegrees(to.longitude,to.latitude);
-            try{
-                const top=scene.sampleHeight(point,undefined,.5);
-                const ground=scene.globe.getHeight(point);
-                const sampled=now();lastSampleMs=Math.max(0,sampled-time);samples++;
-                // Adaptive cooldown protects slow mobile GPUs; one depth probe
-                // at most, never per-frame raycasts or a full path sweep.
-                nextSampleAt=sampled+Math.min(MAX_INTERVAL_MS,
-                    Math.max(MIN_INTERVAL_MS,lastSampleMs*12));
-                // A single sampled top height is NOT a solid volume. In
-                // particular, a bridge deck must not block the empty space
-                // between terrain and its underside. Restrict this uncertain
-                // approximation to near the measured top surface only.
-                // Vertical walls below a roof are NOT resolved by this probe.
-                const surfaceBand=Math.max(0.8,radius+0.6);
-                if(Number.isFinite(top)&&Number.isFinite(ground)&&top-ground>2&&
-                    to.height>ground+radius &&
-                    to.height>=top-surfaceBand && to.height<=top+radius)return 'model';
-            }catch(_){nextSampleAt=now()+MAX_INTERVAL_MS;}
+            if(time>=nextSampleAt){
+                requested={latitude:to.latitude,longitude:to.longitude};
+                // Headless/minimal consumers without a Cesium event still get
+                // a deferred probe; never fall back to a synchronous query.
+                if(!removePost)schedule();
+            }
+            // Never spread one sampled roof/deck across a valley or reuse it
+            // after its bounded lifetime. This remains an approximate top
+            // surface test; the open volume below a bridge is not solid.
+            if(cached&&!cached.contactReported&&time-cached.at<=MAX_CACHE_AGE_MS&&horizontalDistance(cached,to)<=.75){
+                const {top,ground}=cached,surfaceBand=Math.max(.8,radius+.6);
+                if(top-ground>2&&to.height>ground+radius&&
+                    to.height>=top-surfaceBand&&to.height<=top+radius){
+                    // Preserve the existing one-contact-per-probe policy. A
+                    // cached uncertain surface must not repeatedly brake every
+                    // recovery step and trap a drone that starts on that band.
+                    cached.contactReported=true;return 'model';
+                }
+            }
             return false;
         }
-        return {setEnabled,collision,dispose(){enabled=false;disposed=true;},
+        return {setEnabled,collision,dispose(){
+            enabled=false;disposed=true;requested=cached=null;removePost?.();
+            if(timer!==null){clearTimer(timer);timer=null;}
+        },
             status(){return {enabled,samples,lastSampleMs,approximate:true};}};
     }
     return {create};

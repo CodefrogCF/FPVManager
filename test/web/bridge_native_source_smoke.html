@@ -34,7 +34,11 @@
         sphere:selected.boundingSphere,rootTransform:selected.root.computedTransform}));}
     while(!loaded||!selected.tilesLoaded||!Number.isFinite(scene.globe.getHeight(C.Cartographic.fromDegrees(8.052147,46.295329))));
     await frame();await frame();
-    let requests=0;
+    let requests=0,frameId=0,frameTicket;
+    const rayFrames=new Map(),originalPick=scene.pickFromRay.bind(scene);
+    const countFrame=()=>{frameId++;frameTicket=requestAnimationFrame(countFrame);};
+    frameTicket=requestAnimationFrame(countFrame);
+    scene.pickFromRay=(...args)=>{rayFrames.set(frameId,(rayFrames.get(frameId)||0)+1);return originalPick(...args);};
     const source=FPVBridgeSource.create(C,viewer,{getDeckTileset:()=>selected,fetcher:async url=>{
         requests++;check(String(url).includes('swisstlm3d-strassen'),'Discovery requests the official road axis');
         return {ok:true,json:async()=>fixture.identify};}});
@@ -44,6 +48,9 @@
     check(native.bridges[0].coordinates.length>20,'Native deck yields a continuous bounded elevation profile');
     const heights=native.bridges[0].coordinates.map(p=>p.height);
     check(Math.min(...heights)>1425&&Math.max(...heights)<1475,'Deck heights come from the original transformed Draco mesh');
+    check(Math.max(...rayFrames.values())===1,'Native GPU discovery performs at most one pick per animation frame');
+    let supportDeckPicks=0;const originalSample=scene.sampleHeight.bind(scene);
+    scene.sampleHeight=(...args)=>{supportDeckPicks++;return originalSample(...args);};
     const manager=FPVBridgeSupports.create(C,viewer,{getDeckTileset:()=>selected,
         sampleTerrain:async points=>points.map(()=>1350),discoverBridges:source.discover,
         fetcher:async()=>{throw Error('Native bridge must not depend on Overpass');}});
@@ -52,10 +59,14 @@
     check(state.count>20,'Production support manager adds visible piers to the actual native Ganter bridge');
     check(state.supports.every(p=>p.bottom===1349.7&&p.top>1425&&p.top<1475),'All support foundations and heads meet the test ground and native deck');
     check(requests===1,'An explicit refresh at the same position reuses the native profile');
+    check(supportDeckPicks===0,'Confirmed native profile avoids redundant resident GPU deck sampling');
     await frame();await frame();check(errors.length===0,'Native tile decoding, ray picking and pier geometry render without errors');
     document.getElementById('status').textContent='PASS: native Ganter bridge has visible supports';
     window.__nativeBridgeSmoke={state:'passed',count:state.count,requests,sourceId:native.bridges[0].sourceId,
-        deckRange:[Math.min(...heights),Math.max(...heights)],supports:state.supports};
+        deckRange:[Math.min(...heights),Math.max(...heights)],supports:state.supports,
+        discoveryPickCount:[...rayFrames.values()].reduce((a,b)=>a+b,0),
+        maxDiscoveryPicksPerFrame:Math.max(...rayFrames.values()),supportDeckPicks};
+    cancelAnimationFrame(frameTicket);
     window.addEventListener('pagehide',()=>{manager.dispose();source.dispose();viewer.destroy();},{once:true});
 })().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;
     window.__nativeBridgeSmoke={state:'failed',error:String(error.stack||error)};});
