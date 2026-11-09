@@ -1,6 +1,9 @@
 /* Bounded forecast samples; independent variables share one explicit valid time. */
 (function(root){
     'use strict';
+    const Credits=typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders;
+    const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c),
+        weatherCredits:C=>[new C.Credit('<a href="https://open-meteo.com/">Open-Meteo</a> · CC BY 4.0',true)]};
     const definitions={
         wind:{label:'Wind 10 m',units:'m/s',legend:'grün <3 · gelb 3–7 · orange 7–12 · rot ≥12'},
         precipitation:{label:'Niederschlagssumme 1 h',units:'mm',legend:'cyan <0.2 · blau 0.2–1 · violett 1–3 · purpur ≥3'},
@@ -26,8 +29,19 @@
             (command.kind==='temperature'?(c.value< -100||c.value>70):c.value<0)||(command.kind==='cloudCover'&&c.value>100))throw new Error('Invalid weather grid sample');
     }
     function create(C,viewerFn,{now=()=>Date.now(),timers=globalThis}={}){
-        const records=new Map();let disposed=false,previous=null,credit=null,creditViewer=null;
+        const records=new Map();let disposed=false,previous=null,sourceCredits=[],creditViewer=null;
         const expired=c=>c.expiresAtUtc!=null&&Date.parse(c.expiresAtUtc)<=now();
+        function syncCredits(viewer=viewerFn()){
+            const needed=!disposed&&viewer&&[...records.values()].some(r=>r.viewer===viewer&&r.command&&!expired(r.command));
+            if(creditViewer&&(!needed||creditViewer!==viewer)){
+                for(const credit of sourceCredits)creditApi.releaseStaticCredit(creditViewer.cesiumWidget?.creditDisplay,credit);
+                sourceCredits=[];creditViewer=null;
+            }
+            if(needed&&!creditViewer&&C.Credit){
+                creditViewer=viewer;sourceCredits=creditApi.weatherCredits(C);
+                for(const credit of sourceCredits)creditApi.retainStaticCredit(viewer.cesiumWidget?.creditDisplay,credit);
+            }
+        }
         function legend(){
             const element=typeof document==='undefined'?null:document.getElementById('weather-legend');if(!element)return;
             const commands=[...records.values()].map(r=>r.command).filter(Boolean);
@@ -35,7 +49,7 @@
             element.textContent=commands.length?'Open-Meteo · Prognoseraster · CC BY 4.0\n'+commands.map(c=>`${definitions[c.kind].label} (${definitions[c.kind].units}) · ${c.timestampUtc}${expired(c)?' · ABGELAUFEN, ausgeblendet':''}\n${definitions[c.kind].legend} · ${c.gridSpacingMeters/1000} km Stichproben; ${c.missingSamples??0} fehlend`).join('\n')+'\nModellpunkte, keine gemessenen 3D-Wolken oder native Rasterauflösung.':'';
             if(element.style){element.style.maxHeight='104px';element.style.overflow='auto';element.style.whiteSpace='pre-line';}
         }
-        function clock(){for(const r of records.values())r.source.show=!!r.command&&!expired(r.command);legend();viewerFn()?.scene.requestRender();}
+        function clock(){for(const r of records.values())r.source.show=!!r.command&&!expired(r.command);syncCredits();legend();viewerFn()?.scene.requestRender();}
         const timer=timers.setInterval(clock,15000);timer?.unref?.();
         async function replace(command){
             validate(command);if(disposed)throw new Error('Weather overlay is disposed');
@@ -58,14 +72,14 @@
                         gridLatitudeDegrees:command.gridSpacingLatitudeDegrees,gridLongitudeDegrees:command.gridSpacingLongitudeDegrees}});
             }
             record.command=command;previous=command;record.source.show=!expired(command);
-            if(C.Credit&&creditViewer!==viewer){if(credit)creditViewer?.cesiumWidget?.creditDisplay?.removeStaticCredit(credit);creditViewer=viewer;credit=new C.Credit('<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · CC BY 4.0',true);viewer.cesiumWidget?.creditDisplay?.addStaticCredit(credit);}
+            syncCredits(viewer);
             legend();viewer.scene.requestRender();return {sampleCount:record.source.entities.values.length};
         }
         function clear(kind){
             for(const [id,r]of records)if(kind==null||kind===id){r.revision++;r.command=null;r.source.entities.removeAll();r.source.show=false;}
-            previous=[...records.values()].map(r=>r.command).filter(Boolean).at(-1)??null;legend();viewerFn()?.scene.requestRender();return {};
+            previous=[...records.values()].map(r=>r.command).filter(Boolean).at(-1)??null;syncCredits();legend();viewerFn()?.scene.requestRender();return {};
         }
-        function dispose(){disposed=true;clear();timers.clearInterval(timer);for(const r of records.values()){r.viewer.dataSources.remove(r.source,true);if(credit)r.viewer.cesiumWidget?.creditDisplay?.removeStaticCredit(credit);}records.clear();creditViewer?.cesiumWidget?.creditDisplay?.removeStaticCredit(credit);credit=null;creditViewer=null;}
+        function dispose(){if(disposed)return;disposed=true;clear();timers.clearInterval(timer);for(const r of records.values())r.viewer.dataSources.remove(r.source,true);records.clear();}
         return {replace,clear,dispose,get current(){return previous;},get activeKinds(){return [...records].filter(([,r])=>r.command).map(([k])=>k);}};
     }
     root.FPVWeatherOverlay={create,validate,rgb,definitions};

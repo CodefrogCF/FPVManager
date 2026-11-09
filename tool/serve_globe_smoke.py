@@ -71,7 +71,9 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlsplit(self.path).path
         with LOCK:
             mode = MODE
-        if path == '/prepared-storage-smoke':
+        if path == '/map-menus-smoke':
+            self.reply((ROOT/'test/web/map_menus_smoke.html').read_bytes(),'text/html; charset=utf-8')
+        elif path == '/prepared-storage-smoke':
             self.reply((ROOT/'test/web/prepared_storage_smoke.html').read_bytes(),'text/html; charset=utf-8')
         elif path == '/prepared-storage-test.js':
             self.reply((ROOT/'.dart_tool/prepared-storage-test.js').read_bytes(),'application/javascript')

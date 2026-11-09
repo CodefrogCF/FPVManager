@@ -39,7 +39,7 @@ class MapLayersSheet extends StatelessWidget {
 
     Widget page(String key, Widget child) => SingleChildScrollView(
       key: PageStorageKey(key),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       child: child,
     );
     return SafeArea(
@@ -54,18 +54,19 @@ class MapLayersSheet extends StatelessWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.layers_outlined),
-                title: const Text('Map Layers'),
+                title: const Text('Karte & Ansicht'),
+                dense: true,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (onOpenSettings != null)
                       IconButton(
-                        tooltip: 'App-Einstellungen',
+                        tooltip: 'Allgemeine Einstellungen',
                         onPressed: onOpenSettings,
                         icon: const Icon(Icons.settings_outlined),
                       ),
                     IconButton(
-                      tooltip: 'Close',
+                      tooltip: 'Schließen',
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close),
                     ),
@@ -74,7 +75,7 @@ class MapLayersSheet extends StatelessWidget {
               ),
               if (controller.preferencesLoading) ...[
                 const LinearProgressIndicator(),
-                const Text('Loading saved map preferences...'),
+                const Text('Karteneinstellungen werden geladen …'),
                 const SizedBox(height: 12),
               ],
               if (controller.preferencesError != null) ...[
@@ -93,14 +94,14 @@ class MapLayersSheet extends StatelessWidget {
                                   ? controller.retryLoadingPreferences
                                   : controller.retrySavingPreferences,
                             ),
-                      child: const Text('Retry'),
+                      child: const Text('Erneut versuchen'),
                     ),
                     if (controller.preferencesLoadFailed)
                       TextButton(
                         onPressed: controller.preferencesLoading
                             ? null
                             : () => execute(controller.resetPreferences),
-                        child: const Text('Reset map preferences'),
+                        child: const Text('Karteinstellungen zurücksetzen'),
                       ),
                   ],
                 ),
@@ -110,9 +111,9 @@ class MapLayersSheet extends StatelessWidget {
               const TabBar(
                 isScrollable: true,
                 tabs: [
-                  Tab(text: 'Map'),
-                  Tab(text: 'Airspace'),
-                  Tab(text: 'Obstacles'),
+                  Tab(text: 'Karte'),
+                  Tab(text: 'Luftraum'),
+                  Tab(text: 'Hindernisse'),
                   Tab(text: 'OSINT'),
                 ],
               ),
@@ -142,7 +143,7 @@ class MapLayersSheet extends StatelessWidget {
                       'map-situational',
                       situationalControls ??
                           const Text(
-                            'Open Mobility & OSINT to load independent information layers.',
+                            'Weitere Datenebenen unter Mobilität & OSINT laden.',
                           ),
                     ),
                   ],

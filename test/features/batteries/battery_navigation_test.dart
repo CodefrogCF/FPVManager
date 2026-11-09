@@ -34,7 +34,7 @@ void main() {
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Equipment'),
+        find.text('Ausrüstung'),
         160,
         scrollable: find
             .descendant(
@@ -43,10 +43,10 @@ void main() {
             )
             .first,
       );
-      await tester.tap(find.text('Equipment'));
+      await tester.tap(find.text('Ausrüstung'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Battery inventory'));
-      await tester.tap(find.text('Battery inventory'));
+      await tester.ensureVisible(find.text('Akkus'));
+      await tester.tap(find.text('Akkus'));
       await tester.pumpAndSettle();
       expect(find.text('Stored pack'), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));

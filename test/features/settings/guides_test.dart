@@ -57,6 +57,9 @@ void main() {
         find.byKey(const ValueKey('simulation-agl')),
         '45',
       );
+      await tester.ensureVisible(find.text('Hilfe & Hinweise'));
+      await tester.tap(find.text('Hilfe & Hinweise'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(
         find.text('Kurzhilfe: Steuerung und Simulation'),
       );
@@ -77,7 +80,7 @@ void main() {
       await tester.tap(find.text('Übernehmen'));
       await tester.pumpAndSettle();
       expect(result, isNotNull);
-      expect(find.text('Spawn in map'), findsNothing);
+      expect(find.text('Flug starten'), findsNothing);
     },
   );
 }

@@ -408,7 +408,9 @@ class GlobeController extends ChangeNotifier {
       _preferences.sceneModelCollisionsEnabled;
   double get structuresOpacity => _preferences.structuresOpacity;
   double get tunnelRoutesOpacity => _preferences.tunnelRoutesOpacity;
-  bool get tunnelRoutesVisible => _preferences.tunnelRoutesVisible;
+  // Retired overlays remain readable in older preference snapshots, but must
+  // never reappear without controls after restoring or changing a profile.
+  bool get tunnelRoutesVisible => false;
   bool get schematicTunnel3dEnabled => _preferences.schematicTunnel3dEnabled;
   int _schematicTunnelMeshCount = 0;
   int get schematicTunnelMeshCount => _schematicTunnelMeshCount;
@@ -430,7 +432,7 @@ class GlobeController extends ChangeNotifier {
   bool get tunnelAutoIncomplete => _tunnelAutoIncomplete;
   String? _tunnelAutoMessage;
   String? get tunnelAutoMessage => _tunnelAutoMessage;
-  bool get tunnelExplorationEnabled => _preferences.tunnelExplorationEnabled;
+  bool get tunnelExplorationEnabled => false;
   bool get realisticLighting => _preferences.realisticLighting;
   NavigationEnvironmentMode get navigationBuildings =>
       _preferences.navigationBuildings;
@@ -516,9 +518,9 @@ class GlobeController extends ChangeNotifier {
     _checkPreferencesEditable();
     await _savePreferences(
       _preferences.copyWith(
-        tunnelRoutesVisible: routesVisible,
+        tunnelRoutesVisible: false,
         schematicTunnel3dEnabled: autoModels,
-        tunnelExplorationEnabled: explorationAllowed,
+        tunnelExplorationEnabled: false,
         tunnelRoutesOpacity: opacity,
       ),
     );
@@ -533,10 +535,9 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<void> scanTunnelRoutes({int radiusMeters = 600}) async {
-    if (_tunnelScanPending ||
-        (!tunnelRoutesVisible && !schematicTunnel3dEnabled)) {
-      return;
-    }
+    // An explicit catalogue search remains available in the advanced tools;
+    // it does not enable the retired axis overlay or surface exploration.
+    if (_tunnelScanPending) return;
     if (radiusMeters < 150 || radiusMeters > 1500) {
       throw ArgumentError.value(radiusMeters, 'radiusMeters');
     }

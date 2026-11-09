@@ -150,7 +150,7 @@ void main() {
     expect(settings.toCommand()['acroRateExpo'], 0);
   });
 
-  test('Acro physics settings preserve independent parameters and compute level-hover throttle', () {
+  test('Acro-Physik settings preserve independent parameters and compute level-hover throttle', () {
     const physics = SimulationSettings(
       flightMode: SimulationFlightMode.acro,
       acroThrustToWeight: 6,
@@ -402,7 +402,7 @@ void main() {
         find.byType(DropdownButtonFormField<SimulationFlightMode>),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Acro · Mode 2, rate control').last);
+      await tester.tap(find.text('Acro · freie Drehraten').last);
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(DropdownButtonFormField<int>));
       await tester.tap(find.byType(DropdownButtonFormField<int>));
@@ -417,31 +417,37 @@ void main() {
       await tester.ensureVisible(find.byType(TextFormField).first);
       await tester.enterText(find.byType(TextFormField).first, '0');
       await tester.scrollUntilVisible(
-        find.text('Spawn in map'),
+        find.text('Flug starten'),
         250,
         scrollable: find.byType(Scrollable).last,
       );
-      await tester.tap(find.text('Spawn in map'));
+      await tester.tap(find.text('Flug starten'));
       await tester.pumpAndSettle();
       expect(chosen, isNull);
       fields.first.controller!.text = '35,5';
+      await tester.ensureVisible(find.text('Kamera & HUD'));
+      await tester.tap(find.text('Kamera & HUD'));
+      await tester.pumpAndSettle();
       final camera = find.byKey(const ValueKey('simulation-cameraTilt'));
       await tester.ensureVisible(camera);
       await tester.enterText(camera, '30');
       final fov = find.byKey(const ValueKey('simulation-cameraFov'));
       await tester.ensureVisible(fov);
       await tester.enterText(fov, '110');
+      await tester.ensureVisible(find.text('Grafik & Tageszeit'));
+      await tester.tap(find.text('Grafik & Tageszeit'));
+      await tester.pumpAndSettle();
       final graphics = find.byKey(const ValueKey('simulation-graphics'));
       await tester.ensureVisible(graphics);
       await tester.tap(graphics);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Performance · 75% resolution').last);
+      await tester.tap(find.text('Performance').last);
       await tester.pumpAndSettle();
       final hud = find.byKey(const ValueKey('simulation-hud'));
       await tester.ensureVisible(hud);
       await tester.tap(hud);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Betaflight · classic OSD').last);
+      await tester.tap(find.text('Betaflight').last);
       await tester.pumpAndSettle();
       final coordinates = find.widgetWithText(
         SwitchListTile,
@@ -451,8 +457,8 @@ void main() {
       expect(tester.widget<SwitchListTile>(coordinates).value, false);
       await tester.tap(coordinates);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Spawn in map'));
-      await tester.tap(find.text('Spawn in map'));
+      await tester.ensureVisible(find.text('Flug starten'));
+      await tester.tap(find.text('Flug starten'));
       await tester.pumpAndSettle();
       expect(chosen!.agl, 35.5);
       expect(chosen!.cameraTiltDegrees, 30);
@@ -496,20 +502,20 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Estimated level hover: 50%'), findsOneWidget);
-      await tester.ensureVisible(find.text('Acro physics'));
-      await tester.tap(find.text('Acro physics'));
+      expect(find.textContaining('Schwebeschätzung: 50 %'), findsOneWidget);
+      await tester.ensureVisible(find.text('Acro-Physik'));
+      await tester.tap(find.text('Acro-Physik'));
       await tester.pumpAndSettle();
       final thrust = find.byKey(
         const ValueKey('simulation-acroThrustToWeight'),
       );
       await tester.ensureVisible(thrust);
       await tester.enterText(thrust, '0');
-      await tester.ensureVisible(find.text('Acro physics'));
-      await tester.tap(find.text('Acro physics'));
+      await tester.ensureVisible(find.text('Acro-Physik'));
+      await tester.tap(find.text('Acro-Physik'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Spawn in map'));
-      await tester.tap(find.text('Spawn in map'));
+      await tester.ensureVisible(find.text('Flug starten'));
+      await tester.tap(find.text('Flug starten'));
       await tester.pumpAndSettle();
       expect(chosen, isNull);
       expect(
@@ -532,8 +538,8 @@ void main() {
         await tester.ensureVisible(field);
         await tester.enterText(field, entry.$2);
       }
-      await tester.ensureVisible(find.text('Spawn in map'));
-      await tester.tap(find.text('Spawn in map'));
+      await tester.ensureVisible(find.text('Flug starten'));
+      await tester.tap(find.text('Flug starten'));
       await tester.pumpAndSettle();
       expect(chosen!.acroThrustToWeight, 6);
       expect(chosen!.acroThrustCurve, .4);
@@ -546,7 +552,7 @@ void main() {
   );
 
   testWidgets(
-    'Acro rates validate collapsed fields, accept decimal comma and remain adjustable before the next flight',
+    'Acro-Drehraten validate collapsed fields, accept decimal comma and remain adjustable before the next flight',
     (tester) async {
       tester.view.physicalSize = const Size(400, 700);
       tester.view.devicePixelRatio = 1;
@@ -578,17 +584,17 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Acro rates'));
-      await tester.tap(find.text('Acro rates'));
+      await tester.ensureVisible(find.text('Acro-Drehraten'));
+      await tester.tap(find.text('Acro-Drehraten'));
       await tester.pumpAndSettle();
       final roll = find.byKey(const ValueKey('simulation-acroRollRate'));
       await tester.ensureVisible(roll);
       await tester.enterText(roll, '0');
-      await tester.ensureVisible(find.text('Acro rates'));
-      await tester.tap(find.text('Acro rates'));
+      await tester.ensureVisible(find.text('Acro-Drehraten'));
+      await tester.tap(find.text('Acro-Drehraten'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Spawn in map'));
-      await tester.tap(find.text('Spawn in map'));
+      await tester.ensureVisible(find.text('Flug starten'));
+      await tester.tap(find.text('Flug starten'));
       await tester.pumpAndSettle();
       expect(chosen, isNull);
       expect(
@@ -610,8 +616,8 @@ void main() {
         await tester.ensureVisible(field);
         await tester.enterText(field, entry.$2);
       }
-      await tester.ensureVisible(find.text('Spawn in map'));
-      await tester.tap(find.text('Spawn in map'));
+      await tester.ensureVisible(find.text('Flug starten'));
+      await tester.tap(find.text('Flug starten'));
       await tester.pumpAndSettle();
       expect(chosen!.acroRollRate, 600);
       expect(chosen!.acroPitchRate, 420);
@@ -619,16 +625,19 @@ void main() {
       expect(chosen!.acroRateExpo, .4);
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Acro rates'));
-      await tester.tap(find.text('Acro rates'));
+      await tester.ensureVisible(find.text('Acro-Drehraten'));
+      await tester.tap(find.text('Acro-Drehraten'));
       await tester.pumpAndSettle();
       expect(tester.widget<TextFormField>(roll).controller!.text, '600.0');
+      await tester.ensureVisible(find.text('Kamera & HUD'));
+      await tester.tap(find.text('Kamera & HUD'));
+      await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('simulation-cameraTilt')),
         findsOneWidget,
       );
-      await tester.ensureVisible(find.byTooltip('Close simulation settings'));
-      await tester.tap(find.byTooltip('Close simulation settings'));
+      await tester.ensureVisible(find.byTooltip('Flugeinstellungen schließen'));
+      await tester.tap(find.byTooltip('Flugeinstellungen schließen'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
@@ -666,9 +675,14 @@ void main() {
         );
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+        if (source == SimulationFlightMode.gps) {
+          await tester.ensureVisible(find.text('Flugeigenschaften'));
+          await tester.tap(find.text('Flugeigenschaften'));
+          await tester.pumpAndSettle();
+        }
         if (source == SimulationFlightMode.acro) {
-          await tester.ensureVisible(find.text('Acro physics'));
-          await tester.tap(find.text('Acro physics'));
+          await tester.ensureVisible(find.text('Acro-Physik'));
+          await tester.tap(find.text('Acro-Physik'));
           await tester.pumpAndSettle();
         }
         final invalid = find.byKey(
@@ -688,14 +702,14 @@ void main() {
           find
               .text(
                 target == SimulationFlightMode.acro
-                    ? 'Acro · Mode 2, rate control'
-                    : 'GPS · assisted movement',
+                    ? 'Acro · freie Drehraten'
+                    : 'GPS · unterstützt',
               )
               .last,
         );
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Spawn in map'));
-        await tester.tap(find.text('Spawn in map'));
+        await tester.ensureVisible(find.text('Flug starten'));
+        await tester.tap(find.text('Flug starten'));
         await tester.pumpAndSettle();
         expect(chosen!.flightMode, target);
         expect(chosen!.validate, returnsNormally);
@@ -724,10 +738,68 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Drone profiles unavailable'), findsOneWidget);
-    expect(find.textContaining('No selected point'), findsOneWidget);
-    await tester.tap(find.byTooltip('Close simulation settings'));
+    expect(
+      find.textContaining('Drohnenprofile nicht verfügbar'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Start unter der Kartenmitte'), findsOneWidget);
+    await tester.tap(find.byTooltip('Flugeinstellungen schließen'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'compact flight settings keep the action reachable and details opt-in on mobile',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      for (final size in [const Size(320, 640), const Size(800, 360)]) {
+        tester.view.physicalSize = size;
+        SimulationSettings? chosen;
+        await tester.pumpWidget(
+          MaterialApp(
+            key: ValueKey(size),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(1.5)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    chosen = await showSimulationSettings(
+                      context,
+                      repository: _Drones(),
+                      hasSelection: true,
+                    );
+                  },
+                  child: const Text('Open compact settings'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open compact settings'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('simulation-cameraFov')),
+          findsNothing,
+        );
+        expect(find.byKey(const ValueKey('simulation-graphics')), findsNothing);
+        expect(
+          find.text('Flug starten').hitTestable(),
+          findsOneWidget,
+          reason:
+              'the primary action does not require scrolling through details',
+        );
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Flug starten'));
+        await tester.pumpAndSettle();
+        expect(chosen, isNotNull);
+        expect(chosen!.validate, returnsNormally);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
 }

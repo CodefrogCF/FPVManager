@@ -41,7 +41,7 @@ class SituationalLayersSection extends StatelessWidget {
       children: [
         OutdoorLayersSection(globe: globe),
         const Text(
-          'Independent information layers. Raster layers send the viewed area to geo.admin.ch. The SLF bulletin is retrieved as a national dataset without your location. Published information may be incomplete or outdated; it does not establish flight or ground access permission.',
+          'Zusätzliche Datenebenen · Angaben können unvollständig oder veraltet sein.',
         ),
         for (final layer in [
           (
@@ -68,7 +68,7 @@ class SituationalLayersSection extends StatelessWidget {
             title: Text(layer.name),
             value: globe.situationalVisible(layer.id),
             subtitle: Text(
-              '${layer.source} · Switzerland / Liechtenstein\nTiles: ${globe.situationalStatus(layer.id) ?? "off"} · source publication/validity: unknown. Tile loading is not verification of freshness.',
+              '${layer.source} · ${globe.situationalStatus(layer.id) ?? "off"}',
             ),
             onChanged: (visible) => _set(context, {
               'id': layer.id,
@@ -97,23 +97,34 @@ class SituationalLayersSection extends StatelessWidget {
                 child: const Text('Retry tiles'),
               ),
           ],
-          TextButton.icon(
-            onPressed: () => launchUrl(
-              Uri.parse(
-                'https://api3.geo.admin.ch/rest/services/api/MapServer/${layer.code}/legend',
+          if (globe.situationalVisible(layer.id))
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                Uri.parse(
+                  'https://api3.geo.admin.ch/rest/services/api/MapServer/${layer.code}/legend',
+                ),
+                mode: LaunchMode.externalApplication,
               ),
-              mode: LaunchMode.externalApplication,
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Official legend & source'),
             ),
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Official legend & source'),
-          ),
         ],
         WildfirePreventionSection(globe: globe, initialCenter: initialCenter),
         MobileSitesSection(globe: globe, initialCenter: initialCenter),
         DroughtConditionSection(globe: globe),
         DatedImagerySection(globe: globe, initialCenter: initialCenter),
-        const Text(
-          'Aerodrome data is a planning reference, not the operational AIP or a list of public access rights. Wildfire data does not replace local orders. No confidential emergency data or live responder layer is used.',
+        const ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Text('Quellen & Grenzen'),
+          children: [
+            Text(
+              'Rasterkarten senden den Kartenausschnitt an geo.admin.ch. '
+              'Das SLF-Bulletin wird ohne Standort als nationaler Datensatz geladen. '
+              'Ladedaten bestätigen keine amtliche Gültigkeit. Flugplatzdaten '
+              'ersetzen nicht das AIP; Brandgefahrenkarten ersetzen keine lokalen '
+              'Anordnungen. Die Ebenen erteilen keine Flug- oder Zugangsfreigabe.',
+            ),
+          ],
         ),
         AvalancheLayersSection(globe: globe),
         for (final id in [

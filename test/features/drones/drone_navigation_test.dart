@@ -28,21 +28,21 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Map actions'));
+      await tester.tap(find.byTooltip('Kartenaktionen'));
       await tester.pumpAndSettle();
       // Weather and device location work independently of globe readiness.
-      expect(find.text('Map layers'), findsOneWidget);
+      expect(find.text('Karte & Ansicht'), findsOneWidget);
       final menuItems = tester.widgetList<PopupMenuItem<dynamic>>(
         find.byWidgetPredicate((widget) => widget is PopupMenuItem),
       );
       final simulationItem = tester.widget<PopupMenuItem<dynamic>>(
         find.ancestor(
-          of: find.text('Spawn in map · simulated flight'),
+          of: find.text('Flugsimulator'),
           matching: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
         ),
       );
       expect(simulationItem.enabled, isFalse);
-      expect(find.text('Weather intelligence'), findsOneWidget);
+      expect(find.text('Wetter'), findsOneWidget);
       expect(find.text('Standortanzeige'), findsOneWidget);
       expect(find.text('Einstellungen'), findsOneWidget);
       expect(menuItems.where((item) => item.enabled), hasLength(3));
@@ -51,7 +51,7 @@ void main() {
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Equipment'),
+        find.text('Ausrüstung'),
         160,
         scrollable: find
             .descendant(
@@ -60,10 +60,10 @@ void main() {
             )
             .first,
       );
-      await tester.tap(find.text('Equipment'));
+      await tester.tap(find.text('Ausrüstung'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Drone profiles'));
-      await tester.tap(find.text('Drone profiles'));
+      await tester.ensureVisible(find.text('Drohnen'));
+      await tester.tap(find.text('Drohnen'));
       await tester.pumpAndSettle();
       expect(find.text('Existing profile'), findsOneWidget);
       expect(find.text('Add drone'), findsOneWidget);

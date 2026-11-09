@@ -1,8 +1,10 @@
 (function(root,factory){
-    const api=factory();
+    const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders);
     if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVWindField=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits){
     'use strict';
+    const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c),
+        weatherCredits:C=>[new C.Credit('<a href="https://open-meteo.com/">Open-Meteo</a> · CC BY 4.0 · interpolated wind',true)]};
     const rad=Math.PI/180,R=6378137,eccentricitySquared=6.6943799901413165e-3,zero=Object.freeze({north:0,east:0,up:0});
     const vector=l=>({north:-l.speedMs*Math.cos(l.fromDegrees*rad),east:-l.speedMs*Math.sin(l.fromDegrees*rad)});
     function field(raw){
@@ -54,7 +56,7 @@
         const collection=new C.PolylineCollection();viewer.scene.primitives.add(collection);collection.show=false;
         const palette=['#61dea5','#ffe080','#ffab66','#ff797b'];
         const terrain=new Map(),location=new C.Cartographic();
-        const credit=new C.Credit('<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · CC BY 4.0 · interpolated wind',true);
+        const sourceCredits=creditApi.weatherCredits(C);
         const credits=viewer.cesiumWidget?.creditDisplay;let credited=false;
         let data=null,visible=false,affectFlight=false,disposed=false,dirty=true,terrainMissing=false,entries=[],navigation=null,anchor=null,profile='balanced',lastDraw=-Infinity,lastTerrain=0,status=null;
         let windowBounds=null,groundGrid=null,lastMotion=null;
@@ -69,7 +71,8 @@
             if(uiData===data&&uiVisible===visible&&uiForce===affectFlight&&uiNav===nav&&uiFresh===valid)return;
             uiData=data;uiVisible=visible;uiForce=affectFlight;uiNav=nav;uiFresh=valid;
             const needed=!!(fresh()&&(visible||affectFlight&&navigation));
-            if(needed!==credited){credited=needed;if(needed)credits?.addStaticCredit(credit);else credits?.removeStaticCredit(credit);}
+            if(needed!==credited){credited=needed;for(const credit of sourceCredits)
+                if(needed)creditApi.retainStaticCredit(credits,credit);else creditApi.releaseStaticCredit(credits,credit);}
             const status=doc?.getElementById('flight-wind-status'),force=doc?.getElementById('flight-wind-force'),arrows=doc?.getElementById('flight-wind-arrows');
             if(force)force.checked=affectFlight;if(arrows)arrows.checked=visible;
             const time=data?new Date(data.validAtUtc).toLocaleString(undefined,{dateStyle:'short',timeStyle:'short'}):'';
@@ -202,7 +205,7 @@
             performance(value){if(!Object.hasOwn(density,value))throw Error('Invalid wind graphics profile');
                 if(profile!==value){profile=value;dirty=true;}},
             dispose(){if(disposed)return;disposed=true;removeTerrain();removeUpdate();force?.removeEventListener('change',flagsFromUi);arrows?.removeEventListener('change',flagsFromUi);button?.removeEventListener('click',requestSettings);
-                terrain.clear();entries=[];if(credited)credits?.removeStaticCredit(credit);viewer.scene.primitives.remove(collection);const legend=doc?.getElementById('wind-legend');if(legend)legend.hidden=true;}
+                terrain.clear();entries=[];if(credited)for(const credit of sourceCredits)creditApi.releaseStaticCredit(credits,credit);viewer.scene.primitives.remove(collection);const legend=doc?.getElementById('wind-legend');if(legend)legend.hidden=true;}
         };
     }
     return {field,sample,create};

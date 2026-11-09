@@ -1,0 +1,75 @@
+<!doctype html><html lang="de"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kompakte Kartenmenüs</title>
+<style>html,body{margin:0;height:100%;background:#10140f;color:#e0e4db;font:14px Arial}
+h1{font-size:15px;margin:0;padding:12px}iframe{border:0;width:100%;height:calc(100% - 42px);display:block}</style>
+<h1 id="status">Kartenmenüs werden geprüft …</h1>
+<iframe id="map" title="Globus mit kompakten Menüs" src="/globe.html?offline=1&amp;chrome=floating"></iframe>
+<script>
+window.__mapMenuSmoke={state:'running'};
+(async()=>{
+    const frame=document.getElementById('map'),checks=[];
+    const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    const check=(condition,message)=>{checks.push({message,passed:!!condition});if(!condition)throw Error(message);};
+    await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+    const w=frame.contentWindow,d=w.document;
+    let viewer;
+    for(let i=0;i<100;i++){
+        try{viewer=w.eval('activeViewer');}catch{}
+        if(viewer)break;await delay(100);
+    }
+    check(viewer,'Production globe starts offline without remote providers');
+    const C=w.Cesium,P=w.FPVMapProviders,display=viewer.cesiumWidget.creditDisplay;
+    // Explicit fixture sources test attribution layout; no remote data is
+    // claimed for this synthetic grid scene or its background.
+    display.addStaticCredit(new C.Credit(P.defaultImagery.satellite.source.attribution,false));
+    display.addStaticCredit(new C.Credit('© swisstopo',false));
+    display.addStaticCredit(new C.Credit('<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>',true));
+    display.addStaticCredit(new C.Credit('Fixture: mandatory',true));
+    viewer.scene.requestRender();await delay(400);
+    const credits=display.container,expand=credits.querySelector('.cesium-credit-expand-link');
+    check(expand?.textContent==='Quellen','Sources are one short, persistent native control');
+    check(credits.textContent.includes('OpenStreetMap')&&credits.textContent.includes('Fixture: mandatory'),
+        'Mandatory on-screen provider notices remain visible');
+    check(!credits.textContent.includes('Planet'),'Full satellite wording no longer covers the map');
+    const creditHeight=credits.getBoundingClientRect().height;
+    check(creditHeight<=64,'Collapsed sources fit into at most two compact lines');
+    check(!credits.querySelector('img[src*="ion-credit"]'),'Optional default ion branding is not drawn for direct-provider data');
+    expand.click();await delay(100);
+    const dialog=display.viewport.querySelector('.cesium-credit-lightbox');
+    check(dialog?.getAttribute('aria-label')==='Quellen und Lizenzen','Native source dialog has a localized accessible name');
+    check(dialog.textContent.includes('Includes material © (2016-2018) Planet. All rights reserved'),
+        'Unabridged satellite third-party copyright remains reachable');
+    check(dialog.textContent.includes('CNES')&&dialog.textContent.includes('CesiumJS'),'Data and renderer acknowledgments remain available');
+    check(dialog.getBoundingClientRect().width<=w.innerWidth,'Source dialog fits the mobile viewport');
+    const close=dialog.querySelector('.cesium-credit-lightbox-close');
+    check(d.activeElement===close,'Opening sources focuses its close control');
+    close.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await delay(50);
+    check(expand.getAttribute('aria-expanded')==='false','Escape closes source details');
+    d.getElementById('navigation-hud').hidden=false;
+    d.getElementById('settings-flight').click();
+    const panel=d.getElementById('flight-options');
+    check(!panel.hidden,'Production flight settings button opens the compact menu');
+    const groups=[...panel.querySelectorAll(':scope > details')];
+    check(groups.length===5&&groups.every(group=>!group.open),'Flight settings start with five closed topic groups');
+    d.querySelector('#flight-graphics-options > summary').click();
+    check(d.getElementById('flight-graphics-profile').getBoundingClientRect().height>0,'Graphics profile remains reachable');
+    d.querySelector('#flight-display > summary').click();
+    check(!d.getElementById('flight-graphics-options').open,'Opening another topic releases mobile screen space');
+    d.getElementById('camera-flight').click();
+    check(!d.getElementById('flight-camera').hidden,'Camera tilt and FOV retain their working expansion');
+    check(panel.getBoundingClientRect().right<=w.innerWidth,'Flight menu fits the narrow viewport');
+    check(d.documentElement.scrollWidth<=w.innerWidth,'The mobile menu has no horizontal page overflow');
+    expand.click();await delay(50);
+    const bounds=dialog.getBoundingClientRect();
+    check(dialog.contains(d.elementFromPoint(bounds.left+20,bounds.top+20)),
+        'Source details appear above flight menus and remain clickable');
+    close.click();
+    d.getElementById('flight-display').open=false;
+    document.getElementById('status').textContent='PASS · kompakte Quellen und Flugmenüs';
+    window.__mapMenuSmoke={state:'passed',creditHeight,checks};
+})().catch(error=>{
+    document.getElementById('status').textContent='FAIL: '+error.message;
+    window.__mapMenuSmoke={state:'failed',error:String(error.stack||error)};
+});
+</script></html>

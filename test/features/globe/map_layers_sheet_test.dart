@@ -83,9 +83,13 @@ void main() {
       status(visible: true);
       await tester.pump();
       expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+      await tester.ensureVisible(find.text('Daten & Quellen'));
+      await tester.tap(find.text('Daten & Quellen'));
+      await tester.pumpAndSettle();
       expect(find.text('42'), findsOneWidget);
       expect(find.text('2026-10-19 08:00 UTC'), findsOneWidget);
 
+      await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pump();
       status(visible: false);
@@ -193,6 +197,9 @@ void main() {
       );
       status(visible: true);
       await tester.pump();
+      await tester.ensureVisible(find.text('Daten & Quellen'));
+      await tester.tap(find.text('Daten & Quellen'));
+      await tester.pumpAndSettle();
       expect(find.text('Alternative airspace'), findsOneWidget);
       expect(find.text('Fixture terms'), findsOneWidget);
       expect(find.text('example.invalid'), findsOneWidget);
@@ -238,6 +245,66 @@ void main() {
       );
       expect(controller.isReady, isTrue);
       await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
+    'central map hub keeps common controls short and advanced tunnel tools closed',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 740);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: MapLayersSheet(controller: controller)),
+        ),
+      );
+      expect(find.text('Karte & Ansicht'), findsOneWidget);
+      expect(find.text('Gespeicherte Spots'), findsOneWidget);
+      expect(find.text('Tunnel in der Nähe suchen'), findsNothing);
+      expect(find.text('Terrain-Aussparungen:'), findsNothing);
+      await tester.ensureVisible(find.text('3D & Licht'));
+      await tester.tap(find.text('3D & Licht'));
+      await tester.pumpAndSettle();
+      final automatic = find.widgetWithText(
+        SwitchListTile,
+        '3D-Tunnel automatisch laden',
+      );
+      await tester.ensureVisible(automatic);
+      await tester.tap(automatic);
+      await tester.pumpAndSettle();
+      expect(controller.schematicTunnel3dEnabled, isTrue);
+      expect(commands.last['autoModels'], isTrue);
+      expect(find.text('Tunnel in der Nähe suchen'), findsNothing);
+      expect(find.text('Tunnelverläufe und Unterführungen'), findsNothing);
+      expect(find.text('Schematische Tunnel-Erkundung erlauben'), findsNothing);
+      await tester.ensureVisible(find.text('Tunnelwerkzeuge'));
+      await tester.tap(find.text('Tunnelwerkzeuge'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tunnel in der Nähe suchen'), findsOneWidget);
+      expect(find.text('Tunnelachsen anzeigen'), findsNothing);
+      expect(find.text('Achsen-Erkundung erlauben'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'airspace status and failures stay visible while source metadata is collapsed',
+    (tester) async {
+      await openSheet(tester);
+      status(visible: true, error: 'Dataset import failed');
+      await tester.pump();
+      expect(find.text('Dataset import failed'), findsOneWidget);
+      expect(find.text('Official validity'), findsOneWidget);
+      expect(find.text('Amtliche Quellen & Sicherheit'), findsOneWidget);
+      expect(find.text('Metadata'), findsNothing);
+      expect(find.text('Provider'), findsNothing);
+      await tester.ensureVisible(find.text('Daten & Quellen'));
+      await tester.tap(find.text('Daten & Quellen'));
+      await tester.pumpAndSettle();
+      expect(find.text('Metadata'), findsOneWidget);
+      expect(find.text('Provider'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 }

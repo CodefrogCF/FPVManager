@@ -66,7 +66,7 @@ void main() {
         await tester.tap(settingsTile);
         await tester.pumpAndSettle();
         expect(find.byType(AppSettingsScreen), findsOneWidget);
-        expect(find.text('Darstellung und Karte'), findsOneWidget);
+        expect(find.text('Karte & Ansicht'), findsOneWidget);
         await tester.pageBack();
         await tester.pumpAndSettle();
         expect(tester.element(find.byType(GlobeView)), same(globeElement));

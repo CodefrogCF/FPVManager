@@ -40,10 +40,7 @@ void main() {
         'heightReference': 'wgs84Ellipsoid',
       });
       await tester.pump();
-      var terrainAction = await openMapActionMenu(
-        tester,
-        'Query terrain elevation',
-      );
+      var terrainAction = await openMapActionMenu(tester, 'Geländehöhe');
       expect(
         tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
         isTrue,
@@ -79,10 +76,7 @@ void main() {
       expect(find.textContaining('3D terrain unavailable.'), findsOneWidget);
       await tester.tap(find.byTooltip('Close map status'));
       await tester.pumpAndSettle();
-      terrainAction = await openMapActionMenu(
-        tester,
-        'Query terrain elevation',
-      );
+      terrainAction = await openMapActionMenu(tester, 'Geländehöhe');
       expect(
         tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
         isFalse,

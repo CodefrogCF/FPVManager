@@ -74,16 +74,12 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('3D-Umgebung und Himmelslicht'));
+      await tester.tap(find.text('3D & Licht'));
       await tester.pumpAndSettle();
-      final tunnels = find.widgetWithText(
-        SwitchListTile,
-        'Tunnelverläufe und Unterführungen',
-      );
-      await tester.ensureVisible(tunnels);
-      await tester.tap(tunnels);
+      await tester.ensureVisible(find.text('Tunnelwerkzeuge'));
+      await tester.tap(find.text('Tunnelwerkzeuge'));
       await tester.pumpAndSettle();
-      final scan = find.text('Tunnelachsen um Kartenmitte suchen (600 m)');
+      final scan = find.text('Tunnel in der Nähe suchen');
       await tester.ensureVisible(scan);
       await tester.tap(scan);
       await tester.pumpAndSettle();
@@ -123,7 +119,7 @@ void main() {
       );
       expect(globe.tunnelModelReady, true);
       expect(globe.tunnelModelQuality, 'simulation-only');
-      expect(find.textContaining('SIMULATION ONLY'), findsWidgets);
+      expect(find.textContaining('Nur Simulation'), findsWidgets);
       final fly = find.text('Durchflug: GPS');
       await tester.ensureVisible(fly);
       await tester.tap(fly);

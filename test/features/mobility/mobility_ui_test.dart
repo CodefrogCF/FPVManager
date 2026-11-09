@@ -210,8 +210,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Retry tiles'), findsOneWidget);
       expect(
-        find.textContaining('source publication/validity: unknown'),
+        find.textContaining('Angaben können unvollständig oder veraltet sein'),
         findsWidgets,
+      );
+      await tester.ensureVisible(find.text('Quellen & Grenzen'));
+      await tester.tap(find.text('Quellen & Grenzen'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Ladedaten bestätigen keine amtliche Gültigkeit'),
+        findsOneWidget,
       );
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();

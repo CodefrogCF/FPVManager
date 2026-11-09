@@ -1,8 +1,9 @@
 (function (root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./obstacle_models.js'));
-    else root.FPVObstacles = factory(root.FPVObstacleModels);
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (Models) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./obstacle_models.js'),require('./map_providers.js'));
+    else root.FPVObstacles = factory(root.FPVObstacleModels,root.FPVMapProviders);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (Models,Credits) {
     'use strict';
+    const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const WMS = Object.freeze({url: 'https://wms.geo.admin.ch/',
         layer: 'ch.bazl.luftfahrthindernis', bounds: [3.329595,44.074747,14.278255,49.200438],
         legend: 'https://api3.geo.admin.ch/static/images/legends/ch.bazl.luftfahrthindernis_de.png'});
@@ -74,7 +75,7 @@
                     parameters: {service:'WMS', version:'1.3.0', transparent:true, format:'image/png', styles:'default',...definition.parameters},
                     crs:'EPSG:3857', tilingScheme:scheme, rectangle:C.Rectangle.fromDegrees(...definition.bounds),
                     enablePickFeatures:false, maximumLevel:definition.maximumLevel??19,
-                    credit:new C.Credit(attribution, true)});
+                    credit:new C.Credit(attribution, !(definition===WMS&&attribution==='BAZL / FOCA · geo.admin.ch'))});
                 const requestImage = provider.requestImage.bind(provider);
                 provider.requestImage = (x,y,level,request) => {
                     if (disposed || generation !== revision) return undefined;
@@ -134,12 +135,12 @@
         if (!Number.isInteger(terrainBatchSize) || terrainBatchSize < 1 || terrainBatchSize > 512) throw new Error('Invalid terrain batch size');
         let terrain = null, terrainEpoch = 0;
         let selection = new Map();
-        const credit = new C.Credit('BAZL / FOCA · Skyguide · geo.admin.ch · CHGeo2004 © swisstopo', true);
+        const credit = new C.Credit('<a href="https://www.bazl.admin.ch/de/luftfahrthindernisdaten-schweiz" target="_blank" rel="noopener">BAZL / Skyguide · Luftfahrthindernisse</a>', false);
         let credited = false;
         function setCredit(visible) {
             const display = viewer.cesiumWidget?.creditDisplay;
-            if (visible && !credited) { display?.addStaticCredit(credit); credited = true; }
-            if (!visible && credited) { display?.removeStaticCredit(credit); credited = false; }
+            if (visible && !credited) { creditApi.retainStaticCredit(display,credit); credited = true; }
+            if (!visible && credited) { creditApi.releaseStaticCredit(display,credit); credited = false; }
         }
         const colors = {powerLines:'#ff6b50', cableways:'#f6c445', masts:'#55d5ff', other:'#dc9aff', unknown:'#eeeeee'};
         function remove(s) { if (s) viewer.dataSources.remove(s, true); }
@@ -479,12 +480,12 @@
     }
     function createHazards(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0))} = {}) {
         let source = null, staged = null, revision = -1, disposed = false, selection = new Map();
-        const credit = new C.Credit('Advisory areas from BAZL / FOCA · Skyguide · geo.admin.ch',true);
+        const credit = new C.Credit('Schutzgebiete · BAZL / Skyguide · geo.admin.ch',false);
         let credited=false;
         function setCredit(visible) {
             const display=viewer.cesiumWidget?.creditDisplay;
-            if(visible&&!credited){display?.addStaticCredit(credit);credited=true;}
-            if(!visible&&credited){display?.removeStaticCredit(credit);credited=false;}
+            if(visible&&!credited){creditApi.retainStaticCredit(display,credit);credited=true;}
+            if(!visible&&credited){creditApi.releaseStaticCredit(display,credit);credited=false;}
         }
         const remove = s => { if (s) viewer.dataSources.remove(s,true); };
         async function replace(command, signal) {

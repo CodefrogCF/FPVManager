@@ -1,6 +1,7 @@
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVMapLabels=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders);if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVMapLabels=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits){
     'use strict';
+    const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const sources={place:'ch.swisstopo.swissnames3d',street:'ch.swisstopo.amtliches-strassenverzeichnis'};
     const valid=(lat,lon)=>Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180;
     function normalize(raw,kind,bounds){
@@ -37,13 +38,13 @@
         const scene=viewer.scene,canvas=viewer.canvas,collection=new C.LabelCollection({scene});scene.primitives.add(collection);collection.show=false;
         let navigating=false;
         const cache=new Map(),heights=new Map(),pool=[],position=new C.Cartographic();
-        const credit=new C.Credit('Orts-/Straßennamen · © swisstopo · swissNAMES3D / amtliches Strassenverzeichnis',true);
+        const credit=new C.Credit('© swisstopo',false);
         const credits=viewer.cesiumWidget?.creditDisplay;
         let requested=false,disposed=false,credited=false,controller=null,revision=0,timer=null,records=[],dirty=false,lastKey=null,lastDraw=0,state='off',retryAt=0;
         function publish(next){if(state===next)return;state=next;emit('labels-layer-status',{state});}
         function permitted(){return !cachedOnly&&online();}
         function stop(){revision++;controller?.abort();controller=null;timers.clearTimeout(timer);timer=null;}
-        function creditState(){const show=requested&&permitted();if(show===credited)return;credited=show;if(show)credits?.addStaticCredit(credit);else credits?.removeStaticCredit(credit);}
+        function creditState(){const show=requested&&permitted();if(show===credited)return;credited=show;if(show)creditApi.retainStaticCredit(credits,credit);else creditApi.releaseStaticCredit(credits,credit);}
         function viewport(){
             let center=viewer.camera.positionCartographic;
             try{const ray=viewer.camera.getPickRay?.(new C.Cartesian2((canvas.clientWidth||800)/2,(canvas.clientHeight||600)/2));
@@ -125,7 +126,7 @@
         return {navigation(active){navigating=active;dirty=true;},set(command){if(typeof command.visible!=='boolean')throw Error('Invalid label visibility');requested=command.visible;
             if(!requested){stop();collection.show=false;publish('off');creditState();return {};}
             void load(command.retry===true);return {};},networkChanged(){if(requested)void load(true);},
-            dispose(){if(disposed)return;disposed=true;stop();removeChanged();removeRender();removeTerrain();cache.clear();heights.clear();if(credited)credits?.removeStaticCredit(credit);scene.primitives.remove(collection);}};
+            dispose(){if(disposed)return;disposed=true;stop();removeChanged();removeRender();removeTerrain();cache.clear();heights.clear();if(credited)creditApi.releaseStaticCredit(credits,credit);scene.primitives.remove(collection);}};
     }
     return {create,normalize,url,sources};
 });

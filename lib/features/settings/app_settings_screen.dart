@@ -21,6 +21,7 @@ class AppSettingsScreen extends StatelessWidget {
     required this.onData,
     this.section,
     this.onProfiles,
+    this.onMapLayers,
   });
   final GlobeController globe;
   final Future<void> Function() onFlightSettings,
@@ -29,7 +30,7 @@ class AppSettingsScreen extends StatelessWidget {
       onAirspace,
       onData;
   final AppSettingsSection? section;
-  final Future<void> Function()? onProfiles;
+  final Future<void> Function()? onProfiles, onMapLayers;
 
   Future<void> _run(
     BuildContext context,
@@ -59,6 +60,7 @@ class AppSettingsScreen extends StatelessWidget {
     onData: onData,
     section: value,
     onProfiles: onProfiles,
+    onMapLayers: onMapLayers,
   );
   Widget _link(
     BuildContext context,
@@ -76,11 +78,11 @@ class AppSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const titles = {
-      AppSettingsSection.display: 'Darstellung und Karte',
-      AppSettingsSection.controls: 'Steuerung',
+      AppSettingsSection.display: 'Karte & Ansicht',
+      AppSettingsSection.controls: 'Flug & Bedienung',
       AppSettingsSection.navigation: 'Navigation',
-      AppSettingsSection.sources: 'Datenquellen und Zugänge',
-      AppSettingsSection.dataPrivacy: 'Offline und Datenschutz',
+      AppSettingsSection.sources: 'Datenquellen',
+      AppSettingsSection.dataPrivacy: 'Offline & Daten',
     };
     return Scaffold(
       appBar: AppBar(
@@ -117,12 +119,14 @@ class AppSettingsScreen extends StatelessWidget {
                               : () => globe.preferencesLoadFailed
                                     ? globe.retryLoadingPreferences()
                                     : globe.retrySavingPreferences(),
-                          child: const Text('Retry'),
+                          child: const Text('Erneut versuchen'),
                         ),
                         if (globe.preferencesLoadFailed)
                           TextButton(
                             onPressed: globe.resetPreferences,
-                            child: const Text('Reset map preferences'),
+                            child: const Text(
+                              'Karteneinstellungen zurücksetzen',
+                            ),
                           ),
                       ],
                     ),
@@ -148,16 +152,21 @@ class AppSettingsScreen extends StatelessWidget {
                             Icons.privacy_tip_outlined,
                         },
                         titles[value]!,
-                        () => Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(builder: (_) => _section(value)),
-                        ),
+                        value == AppSettingsSection.display &&
+                                onMapLayers != null
+                            ? onMapLayers!
+                            : () => Navigator.push<void>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => _section(value),
+                                ),
+                              ),
                       ),
                     const Divider(),
                     _link(
                       context,
                       Icons.menu_book_outlined,
-                      'Guides und Hilfe',
+                      'Hilfe',
                       () => Navigator.push<void>(
                         context,
                         MaterialPageRoute(builder: (_) => const GuidesScreen()),
@@ -165,7 +174,15 @@ class AppSettingsScreen extends StatelessWidget {
                     ),
                   ],
                   if (section == AppSettingsSection.display)
-                    MapDisplaySection(controller: globe),
+                    if (onMapLayers != null)
+                      _link(
+                        context,
+                        Icons.layers_outlined,
+                        'Karte & Ansicht',
+                        onMapLayers!,
+                      )
+                    else
+                      MapDisplaySection(controller: globe),
                   if (section == AppSettingsSection.navigation)
                     NavigationEnvironmentSection(settings: globe),
                   if (section == AppSettingsSection.controls) ...[
@@ -183,7 +200,7 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.flight_outlined,
-                      'Flug- und Controller-Einstellungen',
+                      'Flugsimulator & Controller',
                       onFlightSettings,
                       subtitle: 'Für die nächste Simulation',
                     ),
@@ -199,20 +216,31 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.traffic_outlined,
-                      'Verkehrsdaten und ASTRA-Zugänge',
+                      'Verkehr & Zugänge',
                       onTraffic,
                     ),
                     _link(
                       context,
                       Icons.cloud_outlined,
-                      'Wetter und Anbieter',
+                      'Wetteranbieter',
                       onWeather,
                     ),
                     _link(
                       context,
                       Icons.shield_outlined,
-                      'Luftraum und offizielle Quellen',
+                      'Luftraumquellen',
                       onAirspace,
+                    ),
+                    _link(
+                      context,
+                      Icons.description_outlined,
+                      'Open-Source-Lizenzen',
+                      () async {
+                        showLicensePage(
+                          context: context,
+                          applicationName: 'FPVManager',
+                        );
+                      },
                     ),
                     const GuideLink(GuideTopic.freshness),
                     const GuideLink(GuideTopic.privacy),
@@ -221,7 +249,7 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.storage_outlined,
-                      'Offline-Karten und persönliche Daten',
+                      'Offline-Karten & Daten',
                       onData,
                     ),
                     const GuideLink(GuideTopic.offline),

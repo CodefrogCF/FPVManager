@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<Finder> openMapActionMenu(WidgetTester tester, String label) async {
-  await tester.tap(find.byTooltip('Map actions'));
+  await tester.tap(find.byTooltip('Kartenaktionen'));
   await tester.pumpAndSettle();
   return find.ancestor(
     of: find.text(label),

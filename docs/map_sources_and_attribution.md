@@ -27,8 +27,8 @@ SPOT imagery in neighbouring countries. Its product documentation also requires:
 
 > Includes material © (2016-2018) Planet. All rights reserved
 
-Retain the full satellite notices whenever Satellite is selected; the app does
-not classify individual tile footprints. Topographic and Relief use their own
+Retain the full satellite notices in the reachable sources dialog whenever
+Satellite is selected; the app does not classify individual tile footprints. Topographic and Relief use their own
 credits. Relief is hillshade, not a separate height model. The local diagnostic
 grid/ellipsoid is not swisstopo imagery or measured terrain.
 
@@ -81,14 +81,31 @@ before distributing data or adding services.
 
 ## Credits and packaged notices
 
-`web/map_providers.js` supplies on-screen imagery/terrain credits. Keep them
-readable in all styles, including narrow layouts and fallback states. Published
+`web/map_providers.js` supplies imagery/terrain credits through Cesium's native
+**Quellen** control. The [swisstopo attribution FAQ](https://www.swisstopo.admin.ch/en/faq-free-geodata)
+expressly accepts a linked central sources list in a dynamic map. Complete
+SWISSIMAGE/CNES/Spot/NPOC/Planet wording is retained in that dialog. Cache-help
+text is kept in Offline settings rather than repeated in the copyright line.
+Shared static credits retain all active layer owners until the last owner
+releases them. Unknown providers' mandatory screen credits are not collapsed.
+Linked **© OpenStreetMap** stays visible whenever OSM tunnel or support geometry
+is displayed, following the [OSMF attribution guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines).
+Open-Meteo stays linked on screen; its CC-BY link and processing notice are in
+the dialog. Keep the sources control and remaining notices readable in all
+styles, including narrow layouts and fallback states. Published
 map screenshots must retain the applicable credits or show them beside the image.
 UAS attribution comes from the displayed dataset's source descriptor.
 
-Preserve bundled `web/cesium/LICENSE.md`, `web/cesium/ThirdParty.json`, embedded
-notices and the upstream logo. CesiumJS uses Apache-2.0; its dependencies retain
-their own terms. See [renderer assets](cesium_assets.md) for update instructions.
+Preserve bundled `web/cesium/LICENSE.md`, `web/cesium/ThirdParty.json` and embedded
+notices. CesiumJS uses Apache-2.0; its dependencies retain their own terms. The
+current app uses direct provider URLs rather than ion assets. Only the optional
+default renderer logo is removed via `CreditDisplay.cesiumCredit`; CesiumJS and
+Apache-2.0 remain acknowledged in the sources dialog. Actual ion credits keep
+Cesium's native handling; `usesIon:true` preserves the default logo at startup.
+See [Cesium's usage guide](https://cesium.com/learn/ion/content-usage-and-attribution-guide/)
+and [official clarification for direct provider use](https://community.cesium.com/t/i-am-not-sure-if-i-am-using-cesium-ion/38283).
+Open-source package notices are available from Einstellungen → Datenquellen →
+Open-Source-Lizenzen. See [renderer assets](cesium_assets.md) for bundle updates.
 
 Source references: [layer configuration](https://api3.geo.admin.ch/rest/services/api/MapServer/layersConfig?lang=en),
 [WMTS capabilities](https://wmts.geo.admin.ch/EPSG/3857/1.0.0/WMTSCapabilities.xml?lang=en),

@@ -124,7 +124,7 @@ function assertSatelliteCredit(provider) {
         'Includes material © (2016-2018) Planet. All rights reserved']) {
         assert.ok(provider.credit.html.includes(name), `Missing attribution: ${name}`);
     }
-    assert.equal(provider.credit.showOnScreen, true);
+    assert.equal(provider.credit.showOnScreen, false);
 }
 
 test('ground camera uses a local obstacle viewport independent of the ellipsoid horizon',async () => {
@@ -164,13 +164,13 @@ test('zone inspection preserves source values and marks every display limit with
     assert.equal(named.attributes.name.length, 200);
 });
 
-test('startup and style changes retain complete visible source credits', async () => {
+test('startup and style changes retain full source notices in the native source popover', async () => {
     const page = await renderer();
     assertSatelliteCredit(page.imagery[0]);
     for (const style of ['topographic', 'relief', 'satellite']) {
         page.context.setMapStyle(style);
         const provider = page.imagery.at(-1);
-        assert.equal(provider.credit.showOnScreen, true);
+        assert.equal(provider.credit.showOnScreen, false);
         if (style === 'satellite') assertSatelliteCredit(provider);
         else {
             assert.equal(provider.credit.html, '© swisstopo');
@@ -180,11 +180,11 @@ test('startup and style changes retain complete visible source credits', async (
     assert.throws(() => page.context.setMapStyle('unknown'), /Unknown map style/);
 });
 
-test('terrain has an explicit visible credit even without metadata attribution', async () => {
+test('terrain retains an explicit source credit even without metadata attribution', async () => {
     const page = await renderer();
     assert.equal(page.terrain.length, 1);
     assert.equal(page.terrain[0].credit.html, '© swisstopo');
-    assert.equal(page.terrain[0].credit.showOnScreen, true);
+    assert.equal(page.terrain[0].credit.showOnScreen, false);
 });
 
 test('terrain failure preserves imagery attribution on the flat fallback', async () => {
@@ -212,8 +212,10 @@ test('replacing imagery and terrain adapters needs no renderer or map UI edits',
     assert.equal(page.imagery[0].url, 'https://example.invalid/{z}/{x}/{y}.png');
     assert.equal(page.imagery[0].maximumLevel, 10);
     assert.equal(page.imagery[0].credit.html, 'Fixture &lt;source&gt; &amp; contributors');
+    assert.equal(page.imagery[0].credit.showOnScreen,true,'unknown provider screen requirements are preserved');
     assert.equal(page.terrain[0].url, 'https://example.invalid/terrain/');
     assert.equal(page.terrain[0].credit.html, page.imagery[0].credit.html);
+    assert.equal(page.terrain[0].credit.showOnScreen,true);
     assert.throws(() => page.context.setMapStyle('toString'), /Unknown map style/);
 });
 

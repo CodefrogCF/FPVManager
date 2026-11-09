@@ -1,9 +1,10 @@
 (function(root,factory){
-    const api=factory();
+    const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVSceneEnvironment=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits){
     'use strict';
+    const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const sources=Object.freeze({
         buildings:'https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json',
         vegetation:'https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/tileset.json',
@@ -56,7 +57,7 @@
             lightingIn:scene.globe.lightingFadeInDistance,lightingOut:scene.globe.lightingFadeOutDistance,
             nightIn:scene.globe.nightFadeInDistance,nightOut:scene.globe.nightFadeOutDistance,
             ambient:scene.globe.vertexShadowDarkness};
-        const credit=new C.Credit('3D buildings / vegetation / infrastructure · © swisstopo',true);
+        const credit=new C.Credit('© swisstopo',false);
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
             phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null,appliedOpacity:null,detailShader:null}]));
@@ -73,14 +74,15 @@
         function credits(){
             const needed=Object.values(layers).some(l=>l.requested);
             if(needed===credited)return;credited=needed;
-            if(needed)creditDisplay?.addStaticCredit(credit);else creditDisplay?.removeStaticCredit(credit);
+            if(needed)creditApi.retainStaticCredit(creditDisplay,credit);else creditApi.releaseStaticCredit(creditDisplay,credit);
         }
         function options(key){
             const b=budgets[navigating?'navigation':profile],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
             return {show:false,maximumScreenSpaceError:structures?Math.max(24,b[0]):b[trees?1:0],cacheBytes:(structures?Math.min(16,b[2]):b[trees?3:2])*mb,
                 maximumCacheOverflowBytes:b[4]*mb,shadows:C.ShadowMode.DISABLED,
                 preloadWhenHidden:false,preloadFlightDestinations:false,loadSiblings:false,
-                cullRequestsWhileMoving:true,foveatedScreenSpaceError:true,showCreditsOnScreen:true};
+                cullRequestsWhileMoving:true,foveatedScreenSpaceError:true,
+                ...(urls[key]===sources[key]?{}:{showCreditsOnScreen:true})};
         }
         function applyStructureStyle(){
             const layer=layers.structures,tileset=layer.tileset;
@@ -393,7 +395,7 @@
                 if(disposed)return;disposed=true;removeUpdate();
                 bridgeSupports?.dispose?.();
                 for(const l of Object.values(layers))release(l);
-                if(credited)creditDisplay?.removeStaticCredit(credit);
+                if(credited)creditApi.releaseStaticCredit(creditDisplay,credit);
             }
         };
     }
@@ -2738,8 +2740,24 @@
         let lastAutoSignature=null,autoInFlightSignature=null,autoCompletedAt=-Infinity;
         let autoPortals=null,lastRequestedRoutes=null,lastRequestedCenter=null;
         let autoDiagnostics={considered:0,skipped:0,reason:null,clipped:0};
+        const attributionApi=(typeof module==='object'&&module.exports?require('./map_providers.js'):globalThis.FPVMapProviders)??{
+            retainStaticCredit:(display,credit)=>display?.addStaticCredit?.(credit),
+            releaseStaticCredit:(display,credit)=>display?.removeStaticCredit?.(credit)};
+        const creditDisplay=viewer.cesiumWidget?.creditDisplay;
+        const osmCredit=C.Credit?new C.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true):null;
+        let osmCredited=false;
+        function syncTunnelCredits(){
+            const usesOsm=value=>/OpenStreetMap|\bOSM\b/i.test(String(value?.source||''));
+            const needed=!!osmCredit&&(usesOsm(model)||(autoEnabled&&autoModels.some(entry=>
+                usesOsm(entry.model)||usesOsm(entry.fullSourceRoute))));
+            if(needed===osmCredited)return;
+            osmCredited=needed;
+            if(needed)attributionApi?.retainStaticCredit(creditDisplay,osmCredit);
+            else attributionApi?.releaseStaticCredit(creditDisplay,osmCredit);
+        }
         const currentBudget=()=>AUTO_BUDGETS[autoProfile];
         function publishAutomatic(error=null){
+            syncTunnelCredits();
             emit('tunnel-auto-mesh-status',{count:autoModels.length,active:autoEnabled,
                 quality:'simulation-only',budget:currentBudget(),considered:autoDiagnostics.considered,
                 skipped:autoDiagnostics.skipped,clipped:autoDiagnostics.clipped,
@@ -3730,7 +3748,7 @@
             return {active:autoEnabled,count:autoModels.length};
         }
 
-        function publish(error=null){emit('tunnel-model-state',{ready:!!model,flight,pending,
+        function publish(error=null){syncTunnelCredits();emit('tunnel-model-state',{ready:!!model,flight,pending,
             quality:model?.quality??null,label:model?.label??null,datasetSource:model?.source??null,
             canFly:model?model.kind!=='georeferenced-trimesh'||model.canFly:false,
             visualTriangles:model?.visualMesh?.triangles.length??null,

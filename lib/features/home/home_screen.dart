@@ -558,6 +558,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           onAirspace: () => _openMapLayers(initialTab: MapLayerTab.airspace),
           onData: _openData,
           onProfiles: _openProfiles,
+          onMapLayers: _openMapLayers,
         ),
       ),
     );
@@ -670,7 +671,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         controller: _globeController,
         onOpenSettings: () {
           Navigator.pop(context);
-          unawaited(_openSettings(section: AppSettingsSection.display));
+          unawaited(_openSettings());
         },
         routeControls: RouteLayersSection(controller: routes),
         situationalControls: SituationalLayersSection(

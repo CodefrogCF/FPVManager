@@ -11,15 +11,29 @@ const route=(id,points,kind='underpass')=>({id,name:id,kind,transport:'road',sou
 const routes=Array.from({length:4},(_,i)=>route(`bore-${i}`,[coordinate(i*100),coordinate(i*100+40)]));
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(options={}){
-    const items=[],builds=[];
+    const items=[],builds=[],credits=new Set();
     class Primitive{constructor(value){Object.assign(this,value);builds.push(this);}destroy(){this.destroyed=true;}}
     const C={...Actual,Primitive,PolylineCollection:null,MaterialAppearance:null};
-    const viewer={scene:{globe:{getHeight:()=>500},primitives:{add:p=>{items.push(p);return p;},remove:p=>{
+    const viewer={cesiumWidget:{creditDisplay:{addStaticCredit:c=>credits.add(c),removeStaticCredit:c=>credits.delete(c)}},
+        scene:{globe:{getHeight:()=>500},primitives:{add:p=>{items.push(p);return p;},remove:p=>{
         const index=items.indexOf(p);if(index>=0){items.splice(index,1);p.destroy?.();return true;}return false;}},requestRender(){}}};
     const service=T.create(C,viewer,()=>{},{sampleTerrain:async points=>points.map(()=>500),isSimulating:()=>true,...options});
     service.setPerformanceProfile('performance');service.setAutomaticEnabled(true);
-    return {service,items,builds,viewer};
+    return {service,items,builds,viewer,credits};
 }
+
+test('automatic OSM tunnel attribution stays visible and shares ownership with bridge supports',async()=>{
+    const P=require('../../web/map_providers.js'),f=fixture(),display=f.viewer.cesiumWidget.creditDisplay;
+    const bridgeCredit=new Actual.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true);
+    const osm={...routes[0],source:'OpenStreetMap / Geofabrik'};
+    try{
+        await f.service.setAutomaticRoutes([osm],pose(20));
+        assert.equal(f.credits.size,1);assert.equal([...f.credits][0].showOnScreen,true);
+        P.retainStaticCredit(display,bridgeCredit);assert.equal(f.credits.size,1);
+        f.service.setAutomaticEnabled(false);assert.equal(f.credits.size,1,'bridge still owns the shared source');
+        P.releaseStaticCredit(display,bridgeCredit);assert.equal(f.credits.size,0);
+    }finally{f.service.dispose();}
+});
 
 test('flight loads retain all requested tunnels while admitting one full mesh per rendered opportunity',async()=>{
     const perFrame=[];let previous=0,f;

@@ -26,7 +26,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Flight routes'));
+      await tester.tap(find.text('Flugrouten'));
       await tester.pumpAndSettle();
       expect(find.text('Ridge'), findsOneWidget);
       expect(find.text('Valley'), findsOneWidget);

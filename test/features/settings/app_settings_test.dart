@@ -61,10 +61,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Einstellungen'));
       await tester.pumpAndSettle();
-      expect(find.text('Darstellung und Karte'), findsOneWidget);
-      expect(find.text('Datenquellen und Zugänge'), findsOneWidget);
+      expect(find.text('Karte & Ansicht'), findsOneWidget);
+      expect(find.text('Datenquellen'), findsOneWidget);
       expect(globe.isReady, false);
-      await tester.tap(find.text('Guides und Hilfe'));
+      await tester.tap(find.text('Hilfe'));
       await tester.pumpAndSettle();
       expect(find.text('Offline-Karten und Backups'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -79,18 +79,16 @@ void main() {
         ..ready();
       await tester.runAsync(() => globe.initializePreferences(preferences));
       await tester.pumpWidget(screen());
-      await tester.tap(find.text('Darstellung und Karte'));
+      await tester.tap(find.text('Karte & Ansicht'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Orts- und Straßennamen'));
       await tester.tap(find.text('Orts- und Straßennamen'));
       await tester.pumpAndSettle();
       expect(globe.labelsVisible, true);
       expect(globe.roadsVisible, false);
-      await tester.ensureVisible(
-        find.text('Kurzhilfe: Karte und Beschriftungen'),
-      );
+      await tester.ensureVisible(find.text('Hilfe zur Karte'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Kurzhilfe: Karte und Beschriftungen'));
+      await tester.tap(find.text('Hilfe zur Karte'));
       await tester.pumpAndSettle();
       expect(find.text('Orientierung'), findsOneWidget);
       await tester.pageBack();
@@ -134,13 +132,13 @@ void main() {
         find.textContaining('Unable to load map preferences'),
         findsOneWidget,
       );
-      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Erneut versuchen'), findsOneWidget);
       await tester.runAsync(
         () => db.customStatement(
           "UPDATE app_settings SET value='true' WHERE key='map.labels.visible'",
         ),
       );
-      await tester.tap(find.text('Retry'));
+      await tester.tap(find.text('Erneut versuchen'));
       await tester.pumpAndSettle();
       expect(globe.labelsVisible, true);
       expect(globe.preferencesError, isNull);
@@ -178,9 +176,9 @@ void main() {
             ),
           ),
         );
-        await tester.tap(find.text('Datenquellen und Zugänge'));
+        await tester.tap(find.text('Datenquellen'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Verkehrsdaten und ASTRA-Zugänge'));
+        await tester.tap(find.text('Verkehr & Zugänge'));
         await tester.pumpAndSettle();
         await tester.scrollUntilVisible(
           find.text('Kurzhilfe: Datenschutz und API-Zugänge'),
@@ -198,4 +196,47 @@ void main() {
       expect(traffic, 2);
     },
   );
+  testWidgets(
+    'map settings use the shared hub without a second set of switches',
+    (tester) async {
+      var opened = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AppSettingsScreen(
+            globe: globe,
+            onFlightSettings: noop,
+            onWeather: noop,
+            onTraffic: noop,
+            onAirspace: noop,
+            onData: noop,
+            onMapLayers: () async {
+              opened++;
+            },
+          ),
+        ),
+      );
+      expect(find.byType(SwitchListTile), findsNothing);
+      await tester.tap(find.text('Karte & Ansicht'));
+      await tester.pumpAndSettle();
+      expect(opened, 1);
+      expect(find.byType(AppSettingsScreen), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsNothing);
+    },
+  );
+  testWidgets('open-source notices remain reachable from data sources', (
+    tester,
+  ) async {
+    await tester.pumpWidget(screen(section: AppSettingsSection.sources));
+    await tester.scrollUntilVisible(
+      find.text('Open-Source-Lizenzen'),
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Open-Source-Lizenzen'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LicensePage), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(AppSettingsScreen), findsOneWidget);
+  });
 }

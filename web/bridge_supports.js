@@ -1,11 +1,12 @@
 /* Bounded synthetic supports for explicitly mapped bridge decks. The source
  * deck stays untouched; pier spacing is illustrative, not surveyed engineering. */
 (function(root,factory){
-    const api=factory();
+    const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVBridgeSupports=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits){
     'use strict';
+    const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const R=6378137,DEG=Math.PI/180,RADIUS=600,MAX_BYTES=2*1024*1024;
     const ENDPOINTS=['https://overpass.private.coffee/api/interpreter','https://overpass-api.de/api/interpreter'];
     const BUDGETS={quality:128,balanced:96,performance:48,compatibility:24,navigation:64};
@@ -215,9 +216,9 @@
         let sourceQuery=null,drawSignature=null;
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const sourceCredits=C.Credit?{
-            osm:new C.Credit('Bridge supports · © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',true),
-            aviation:new C.Credit('Schematic bridge supports · BAZL / FOCA · Skyguide',true),
-            native:new C.Credit('Schematic bridge supports · © swisstopo',true)
+            osm:new C.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true),
+            aviation:new C.Credit('<a href="https://www.bazl.admin.ch/de/luftfahrthindernisdaten-schweiz" target="_blank" rel="noopener">BAZL / Skyguide · Luftfahrthindernisse</a>',false),
+            native:new C.Credit('© swisstopo',false)
         }:{};
         const activeCredits=new Set();
         function credits(show){
@@ -228,10 +229,10 @@
                 if(/swisstopo/i.test(support.source||''))needed.add('native');
             }
             for(const key of activeCredits)if(!needed.has(key)){
-                creditDisplay?.removeStaticCredit(sourceCredits[key]);activeCredits.delete(key);
+                creditApi.releaseStaticCredit(creditDisplay,sourceCredits[key]);activeCredits.delete(key);
             }
             for(const key of needed)if(sourceCredits[key]&&!activeCredits.has(key)){
-                creditDisplay?.addStaticCredit(sourceCredits[key]);activeCredits.add(key);
+                creditApi.retainStaticCredit(creditDisplay,sourceCredits[key]);activeCredits.add(key);
             }
         }
         const status=()=>({enabled:enabled&&!disposed,count:supports.length,pending:!!pending,

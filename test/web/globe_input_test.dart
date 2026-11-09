@@ -95,7 +95,7 @@ void main() {
         find.byType(DropdownButtonFormField<SimulationFlightMode>),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Acro · Mode 2, rate control').last);
+      await tester.tap(find.text('Acro · freie Drehraten').last);
       await tester.pumpAndSettle();
       expect(frame.style.pointerEvents, 'none');
       await tester.enterText(
@@ -109,7 +109,7 @@ void main() {
             .text,
         '45',
       );
-      await tester.tap(find.byTooltip('Close simulation settings'));
+      await tester.tap(find.byTooltip('Flugeinstellungen schließen'));
       await tester.pumpAndSettle();
       expect(frame.style.pointerEvents, 'auto');
       expect(frame.tabIndex, 0);

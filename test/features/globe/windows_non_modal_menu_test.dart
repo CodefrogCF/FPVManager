@@ -196,12 +196,12 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('FPV Spots'));
+    await tester.tap(find.text('Gespeicherte Orte'));
     await tester.pump();
     expect(closes, 1);
     expect(opened, 1);
     expect(find.byType(HomeMapWorkspace), findsOneWidget);
-    await tester.tap(find.byTooltip('Close navigation menu'));
+    await tester.tap(find.byTooltip('Menü schließen'));
     expect(closes, 2);
   });
 
@@ -252,7 +252,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byTooltip('Map actions'));
+    await tester.tap(find.byTooltip('Kartenaktionen'));
     await tester.pumpAndSettle();
     expect(find.byType(MenuAnchor), findsOneWidget);
     expect(find.text('Einstellungen'), findsOneWidget);

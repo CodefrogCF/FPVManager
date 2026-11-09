@@ -67,6 +67,7 @@ function postToFlutter(message) {
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) mapLabels?.dispose();
+        if (!event.persisted) mapCredits?.dispose();
     });
     let rendererReady = false;
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null;
@@ -74,7 +75,7 @@ function postToFlutter(message) {
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
-    let mapLabels = null;
+    let mapLabels = null, mapCredits = null;
     let touchControlsVisible=true;
     function setTouchControls(visible){
         if(typeof visible!=='boolean')throw Error('Invalid touch visibility');
@@ -973,7 +974,9 @@ function postToFlutter(message) {
         });
         await terrainManager.retry();
 
+        FPVMapProviders.prepareCredits?.(Cesium,{usesIon:window.FPVMapProviderConfig?.usesIon===true});
         const viewer = new Cesium.Viewer("globe", {
+            creditViewport: document.body,
             baseLayerPicker: false,
             baseLayer: new Cesium.ImageryLayer(imageryProvider),
             terrainProvider: terrainManager.provider,
@@ -988,6 +991,7 @@ function postToFlutter(message) {
             selectionIndicator: false
         });
 
+        mapCredits=FPVMapProviders.configureCredits?.(Cesium,viewer)??null;
         viewer.scene.globe.depthTestAgainstTerrain = true;
         if(window.FPVMapProviderConfig?.prepared){
             const height=viewer.scene.globe.getHeight.bind(viewer.scene.globe);

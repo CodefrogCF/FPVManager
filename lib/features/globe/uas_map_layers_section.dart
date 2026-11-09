@@ -86,10 +86,6 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('AIRSPACE', style: Theme.of(context).textTheme.labelLarge),
-
-          const Divider(height: 24),
-
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.shield_outlined),
@@ -149,8 +145,8 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             children: [
               Expanded(
                 child: Text(
-                  'DATA SOURCE',
-                  style: Theme.of(context).textTheme.labelLarge,
+                  'Datenstand',
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
               IconButton(
@@ -166,21 +162,6 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               ),
             ],
           ),
-
-          TextButton.icon(
-            onPressed: () => showAirspaceSafetyPanel(context, controller),
-            icon: const Icon(Icons.verified_user_outlined),
-            label: const Text('Airspace safety & official sources'),
-          ),
-          const SizedBox(height: 8),
-
-          _InfoRow(label: 'Provider', value: source.publisher),
-
-          _InfoRow(
-            label: 'Licence',
-            value: source.licenseName ?? 'Not declared in source metadata',
-          ),
-
           _InfoRow(
             label: 'Update',
             value: controller.uasZonesLoading
@@ -193,76 +174,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 ? 'Not loaded'
                 : 'Loaded',
           ),
-
-          _InfoRow(
-            label: 'Downloaded',
-            value: _formatDownloadTime(controller.uasZonesDownloadedAt),
-          ),
           _InfoRow(
             label: 'Data status',
             value: controller.uasDisplayedStatus.dataState.label,
           ),
-          _InfoRow(
-            label: 'Source checked',
-            value: displayed?.lastCheckedAtUtc == null
-                ? 'Not checked by this adapter'
-                : _formatDownloadTime(displayed!.lastCheckedAtUtc),
-          ),
-          _InfoRow(
-            label: 'Published',
-            value: displayed?.publishedAtUtc == null
-                ? 'Not supplied by this dataset'
-                : _formatDownloadTime(displayed!.publishedAtUtc),
-          ),
-          const Text(
-            'Cached data is not verified current airspace information. Check official sources before flight.',
-          ),
-          if (provider.cacheError != null) Text(provider.cacheError!),
-          TextButton.icon(
-            onPressed: controller.isReady && controller.canClearUasCache
-                ? () => _execute(controller.clearUasCache)
-                : null,
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Clear UAS dataset cache'),
-          ),
-
-          _InfoRow(
-            label: 'Loaded features',
-            value: controller.uasZonesFeatureCount?.toString() ?? '—',
-          ),
-          const SizedBox(height: 8),
-
-          _InfoRow(
-            label: 'Coverage',
-            value: assessment == null
-                ? 'Not assessed'
-                : assessment.hasIssues
-                ? 'Limited / incomplete data'
-                : 'Not independently verified',
-          ),
-          if (assessment != null) ...[
-            _InfoRow(
-              label: 'Source features',
-              value: assessment.sourceFeatureCount.toString(),
-            ),
-            if (assessment.skippedFeatureCount > 0)
-              _InfoRow(
-                label: 'Not displayed',
-                value: assessment.skippedFeatureCount.toString(),
-              ),
-            for (final issue in assessment.issues)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(issue),
-              ),
-          ],
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'A successful download does not establish complete airspace coverage. Other restrictions may apply.',
-            ),
-          ),
-
           _InfoRow(
             label: 'Cache status',
             value: switch (controller.uasDataFreshness) {
@@ -272,7 +187,6 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               OsintFreshness.clockSkew => 'Device clock precedes download',
             },
           ),
-
           _InfoRow(
             label: 'Official validity',
             value: switch (validity) {
@@ -282,30 +196,109 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               OsintValidity.expired => 'Declared period expired',
             },
           ),
-          if (displayed?.validity?.fromUtc != null)
-            _InfoRow(
-              label: 'Valid from',
-              value: _formatDownloadTime(displayed!.validity!.fromUtc),
-            ),
-          if (displayed?.validity?.untilUtc != null)
-            _InfoRow(
-              label: 'Valid until',
-              value: _formatDownloadTime(displayed!.validity!.untilUtc),
-            ),
+          _InfoRow(
+            label: 'Coverage',
+            value: assessment == null
+                ? 'Not assessed'
+                : assessment.hasIssues
+                ? 'Limited / incomplete data'
+                : 'Not independently verified',
+          ),
+          if (assessment != null && assessment.issues.isNotEmpty)
+            Text(assessment.issues.first),
+          const Text(
+            'Weitere Einschränkungen möglich. Vor dem Flug amtliche Quellen prüfen.',
+          ),
+          TextButton.icon(
+            onPressed: () => showAirspaceSafetyPanel(context, controller),
+            icon: const Icon(Icons.verified_user_outlined),
+            label: const Text('Amtliche Quellen & Sicherheit'),
+          ),
+          ExpansionTile(
+            key: const PageStorageKey('map-airspace-source-details'),
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Daten & Quellen'),
+            children: [
+              _InfoRow(label: 'Provider', value: source.publisher),
 
-          _InfoRow(label: 'Source', value: source.dataUri.host),
-          _InfoRow(label: 'Metadata', value: source.metadataUri.toString()),
-          if (source.licenseUri != null)
-            _InfoRow(
-              label: 'Licence terms',
-              value: source.licenseUri.toString(),
-            ),
-          if (displayed?.httpLastModified != null)
-            _InfoRow(
-              label: 'HTTP modified',
-              value: displayed!.httpLastModified!,
-            ),
+              _InfoRow(
+                label: 'Licence',
+                value: source.licenseName ?? 'Not declared in source metadata',
+              ),
 
+              _InfoRow(
+                label: 'Downloaded',
+                value: _formatDownloadTime(controller.uasZonesDownloadedAt),
+              ),
+              _InfoRow(
+                label: 'Source checked',
+                value: displayed?.lastCheckedAtUtc == null
+                    ? 'Not checked by this adapter'
+                    : _formatDownloadTime(displayed!.lastCheckedAtUtc),
+              ),
+              _InfoRow(
+                label: 'Published',
+                value: displayed?.publishedAtUtc == null
+                    ? 'Not supplied by this dataset'
+                    : _formatDownloadTime(displayed!.publishedAtUtc),
+              ),
+              if (provider.cacheError != null) Text(provider.cacheError!),
+              TextButton.icon(
+                onPressed: controller.isReady && controller.canClearUasCache
+                    ? () => _execute(controller.clearUasCache)
+                    : null,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Clear UAS dataset cache'),
+              ),
+
+              _InfoRow(
+                label: 'Loaded features',
+                value: controller.uasZonesFeatureCount?.toString() ?? '—',
+              ),
+              const SizedBox(height: 8),
+
+              if (assessment != null) ...[
+                _InfoRow(
+                  label: 'Source features',
+                  value: assessment.sourceFeatureCount.toString(),
+                ),
+                if (assessment.skippedFeatureCount > 0)
+                  _InfoRow(
+                    label: 'Not displayed',
+                    value: assessment.skippedFeatureCount.toString(),
+                  ),
+                for (final issue in assessment.issues.skip(1))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(issue),
+                  ),
+              ],
+
+              if (displayed?.validity?.fromUtc != null)
+                _InfoRow(
+                  label: 'Valid from',
+                  value: _formatDownloadTime(displayed!.validity!.fromUtc),
+                ),
+              if (displayed?.validity?.untilUtc != null)
+                _InfoRow(
+                  label: 'Valid until',
+                  value: _formatDownloadTime(displayed!.validity!.untilUtc),
+                ),
+
+              _InfoRow(label: 'Source', value: source.dataUri.host),
+              _InfoRow(label: 'Metadata', value: source.metadataUri.toString()),
+              if (source.licenseUri != null)
+                _InfoRow(
+                  label: 'Licence terms',
+                  value: source.licenseUri.toString(),
+                ),
+              if (displayed?.httpLastModified != null)
+                _InfoRow(
+                  label: 'HTTP modified',
+                  value: displayed!.httpLastModified!,
+                ),
+            ],
+          ),
           if (controller.uasZonesError != null || provider.error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -314,19 +307,6 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-
-          const SizedBox(height: 16),
-
-          Text(
-            'Geographical UAS zones may restrict '
-            'drone operations. The download time '
-            'does not represent the official '
-            'dataset publication date. '
-            'Cache age and HTTP Last-Modified do not establish official validity. '
-            'Always verify current flight '
-            'restrictions using official sources.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
         ],
       );
     },

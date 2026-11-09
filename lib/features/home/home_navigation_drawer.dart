@@ -101,19 +101,9 @@ class HomeNavigationDrawer extends StatelessWidget {
       title: Text(tool.label),
       leading: const Icon(Icons.flight_outlined),
       children: [
-        _item(context, Icons.flight_outlined, 'Drone profiles', onDrones),
-        _item(
-          context,
-          Icons.battery_full_outlined,
-          'Battery inventory',
-          onBatteries,
-        ),
-        _item(
-          context,
-          Icons.settings_input_antenna,
-          'Radio & video equipment',
-          onRadio,
-        ),
+        _item(context, Icons.flight_outlined, 'Drohnen', onDrones),
+        _item(context, Icons.battery_full_outlined, 'Akkus', onBatteries),
+        _item(context, Icons.settings_input_antenna, 'Funk & Video', onRadio),
       ],
     ),
   };
@@ -122,10 +112,7 @@ class HomeNavigationDrawer extends StatelessWidget {
     if (onProfiles != null)
       _item(context, Icons.person_outline, profile!.name, onProfiles!),
     if (!allToolsExpanded) ...[
-      const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('Dein Arbeitsbereich'),
-      ),
+      const Padding(padding: EdgeInsets.all(16), child: Text('Arbeitsbereich')),
       for (final tool in profile!.tools) _tool(context, tool),
       if (onLayer != null && profile!.layers.isNotEmpty)
         ExpansionTile(
@@ -151,13 +138,19 @@ class HomeNavigationDrawer extends StatelessWidget {
       children: [
         for (final tool in ActivityTool.values) _tool(context, tool),
         if (onAction != null)
-          for (final action in ActivityAction.values)
-            _item(
-              context,
-              Icons.map_outlined,
-              action.label,
-              () => onAction!(action),
-            ),
+          ExpansionTile(
+            leading: const Icon(Icons.map_outlined),
+            title: const Text('Kartenaktionen'),
+            children: [
+              for (final action in ActivityAction.values)
+                _item(
+                  context,
+                  Icons.map_outlined,
+                  action.label,
+                  () => onAction!(action),
+                ),
+            ],
+          ),
         if (onLayer != null)
           ExpansionTile(
             title: const Text('Alle Kartenebenen'),
@@ -213,13 +206,13 @@ class HomeNavigationDrawer extends StatelessWidget {
                 trailing: onClose == null
                     ? null
                     : IconButton(
-                        tooltip: 'Close navigation menu',
+                        tooltip: 'Menü schließen',
                         onPressed: onClose,
                         icon: const Icon(Icons.close),
                       ),
                 subtitle: Text(
                   profile == null
-                      ? 'Local flight planning'
+                      ? 'Karte und Aktivitäten'
                       : 'Karte und Aktivitäten',
                 ),
               ),
@@ -235,30 +228,30 @@ class HomeNavigationDrawer extends StatelessWidget {
                   ),
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text('Plan & explore'),
+                  child: Text('Planen & Entdecken'),
                 ),
-                _item(context, Icons.bookmark_outline, 'FPV Spots', onSpots),
-                _item(context, Icons.route_outlined, 'Flight routes', onRoutes),
+                _item(
+                  context,
+                  Icons.bookmark_outline,
+                  'Gespeicherte Orte',
+                  onSpots,
+                ),
+                _item(context, Icons.route_outlined, 'Flugrouten', onRoutes),
                 if (onMobility != null)
                   _item(
                     context,
                     Icons.travel_explore,
-                    'Mobility & OSINT',
+                    'Navigation & OSINT',
                     onMobility!,
                   ),
                 if (onPreflight != null)
                   _item(
                     context,
                     Icons.checklist,
-                    'Preflight & Telemetry',
+                    'Flugvorbereitung',
                     onPreflight!,
                   ),
-                _item(
-                  context,
-                  Icons.cloud_outlined,
-                  'Weather & spot suitability',
-                  onWeather,
-                ),
+                _item(context, Icons.cloud_outlined, 'Wetter', onWeather),
                 const Divider(indent: 16, endIndent: 16),
                 if (onGroundRoutes != null)
                   _item(context, Icons.hiking, 'Bodenrouten', onGroundRoutes!),
@@ -272,25 +265,19 @@ class HomeNavigationDrawer extends StatelessWidget {
                 ExpansionTile(
                   key: const PageStorageKey('equipment-navigation'),
                   leading: const Icon(Icons.flight_outlined),
-                  title: const Text('Equipment'),
-                  subtitle: const Text('Drones, batteries & radio'),
+                  title: const Text('Ausrüstung'),
                   children: [
-                    _item(
-                      context,
-                      Icons.flight_outlined,
-                      'Drone profiles',
-                      onDrones,
-                    ),
+                    _item(context, Icons.flight_outlined, 'Drohnen', onDrones),
                     _item(
                       context,
                       Icons.battery_full_outlined,
-                      'Battery inventory',
+                      'Akkus',
                       onBatteries,
                     ),
                     _item(
                       context,
                       Icons.settings_input_antenna,
-                      'Radio & video equipment',
+                      'Funk & Video',
                       onRadio,
                     ),
                   ],
@@ -307,7 +294,7 @@ class HomeNavigationDrawer extends StatelessWidget {
                   _item(
                     context,
                     Icons.storage_outlined,
-                    'Offline & personal data',
+                    'Offline & Daten',
                     onData!,
                   ),
                 ],

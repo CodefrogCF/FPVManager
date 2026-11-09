@@ -20,8 +20,13 @@ void main() {
         ),
       );
 
-      expect(find.text('AIRSPACE'), findsOneWidget);
-      expect(find.text('DATA SOURCE'), findsOneWidget);
+      expect(find.text('Datenstand'), findsOneWidget);
+      expect(find.text('Amtliche Quellen & Sicherheit'), findsOneWidget);
+      expect(find.text('Loaded features'), findsNothing);
+      expect(find.text('Official validity'), findsOneWidget);
+      await tester.ensureVisible(find.text('Daten & Quellen'));
+      await tester.tap(find.text('Daten & Quellen'));
+      await tester.pumpAndSettle();
       expect(find.text('Loaded features'), findsOneWidget);
       expect(find.text('Coverage'), findsOneWidget);
       expect(find.text('Cache status'), findsOneWidget);

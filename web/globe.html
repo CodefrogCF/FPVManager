@@ -115,17 +115,33 @@
     @media (max-width: 480px) { #info { top: 8px; left: 8px; right: 8px;
         padding: 8px 10px; right:66px; max-width: none; font-size: 12px; } }
 
-    /* Keep source notices readable over imagery and allow narrow screens to wrap. */
+    /* Required inline notices remain readable; longer sources use Cesium's
+       native accessible lightbox rather than covering the mobile map. */
     #globe .cesium-widget-credits {
         box-sizing: border-box;
         max-width: 100%;
-        padding: 4px 6px;
+        padding: 0 6px;
         background: var(--map-surface);
         color: var(--map-text);
-        font-size: 12px;
+        border-radius: 8px 8px 0 0;
+        font-size: 11px;
         line-height: 1.4;
+        z-index: 30;
     }
     #globe .cesium-widget-credits a { color: var(--map-accent); }
+    #globe .cesium-credit-expand-link { line-height: 32px; padding: 0 8px;
+        font-size: 12px; font-weight: 600; cursor: pointer; }
+    #globe .cesium-credit-logoContainer img { max-height: 20px; max-width: 100px; width: auto; }
+    body .cesium-credit-lightbox-overlay { position: fixed; inset: 0; z-index: 100; }
+    body .cesium-credit-lightbox { box-sizing: border-box; max-width: min(560px,calc(100vw - 24px));
+        height: auto; max-height: calc(100dvh - 48px); overflow: auto; border-radius: 14px;
+        background: var(--map-surface); color: var(--map-text); font: 13px/1.5 Roboto,Arial,sans-serif; }
+    body .cesium-credit-lightbox a { color: var(--map-accent); overflow-wrap: anywhere; }
+    body .cesium-credit-lightbox-close { min-width: 44px; min-height: 44px; line-height: 44px; text-align: center; }
+    body .cesium-credit-lightbox-title { padding-right: 44px; }
+    body .cesium-credit-lightbox li { margin: 8px 0; }
+    .cesium-credit-expand-link:focus-visible,.cesium-credit-lightbox a:focus-visible {
+        outline: 2px solid var(--map-accent); outline-offset: 2px; }
     </style>
     <link rel="stylesheet" href="flight_hud.css">
 </head>
@@ -166,49 +182,55 @@
         <svg class="hud-reticle" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12h11m14 0h11M20 9v6"/></svg>
         <div id="flight-actions">
             <button id="record-flight" type="button" title="Record simulated flight" aria-label="Record simulated flight" aria-pressed="false">●</button>
-            <button id="settings-flight" type="button" title="HUD settings" aria-label="HUD settings" aria-expanded="false" aria-controls="flight-options">
+            <button id="settings-flight" type="button" title="Flugeinstellungen" aria-label="Flugeinstellungen" aria-expanded="false" aria-controls="flight-options">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#101820"/><circle cx="15" cy="17" r="3" fill="#101820"/></svg>
             </button>
             <button id="exit-flight" type="button" title="Exit flight" aria-label="Exit flight">×</button>
         </div>
-        <div id="flight-options" hidden aria-label="HUD settings">
+        <div id="flight-options" hidden aria-label="Flugeinstellungen">
+            <strong class="flight-options-title">Flugeinstellungen</strong>
             <div id="flight-recording-controls"><output id="flight-recording-status" aria-live="off"></output><button id="pause-recording" type="button" hidden>Pause recording</button><button id="review-recording" type="button" hidden>Review recording</button></div>
-            <div id="flight-option-actions"><button id="reset-flight" type="button">Reset</button><button id="camera-flight" type="button" aria-expanded="false" aria-controls="flight-camera">Camera</button></div>
-            <div id="flight-camera" hidden><label id="flight-camera-tilt-row">Camera ↑ <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label><label>Horizontal FOV <output id="flight-camera-fov-value">90°</output><input id="flight-camera-fov" aria-label="FPV horizontal field of view in degrees" type="range" min="50" max="140" step="1" value="90"></label></div>
-            <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
-            <label><input id="flight-show-coordinates" type="checkbox">Koordinaten anzeigen</label>
-            <label><input id="flight-show-touch" type="checkbox" checked>Touch-Steuerung anzeigen</label>
-            <label id="flight-graphics">Graphics <select id="flight-graphics-profile" aria-label="Flight graphics profile"><option value="quality">Quality</option><option value="balanced">Balanced</option><option value="performance">Performance</option><option value="compatibility">Compatibility · basic materials</option></select></label>
-            <details id="flight-controller"><summary>External controller</summary>
-                <label>Type <select id="controller-layout" aria-label="Controller type"><option value="gamepad">Standard gamepad</option><option value="radio">USB radio / Tango 2</option></select></label>
-                <label>Zero gas <select id="controller-zero" aria-label="Zero-throttle stick position"><option value="bottom">0% · stick bottom</option><option value="center">50% · stick centre</option></select></label>
+            <details id="flight-display" name="flight-options-group"><summary>Kamera &amp; Anzeige</summary>
+                <button id="camera-flight" type="button" aria-expanded="false" aria-controls="flight-camera">Kamera einstellen</button>
+                <div id="flight-camera" hidden><label id="flight-camera-tilt-row">Neigung <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label><label>Sichtfeld <output id="flight-camera-fov-value">90°</output><input id="flight-camera-fov" aria-label="FPV horizontal field of view in degrees" type="range" min="50" max="140" step="1" value="90"></label></div>
+                <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
+                <label><input id="flight-show-coordinates" type="checkbox">Koordinaten</label>
+                <label><input id="flight-show-touch" type="checkbox" checked>Touch-Steuerung</label>
+            </details>
+            <details id="flight-graphics-options" name="flight-options-group"><summary>Grafik &amp; Licht</summary>
+            <label id="flight-graphics">Grafik <select id="flight-graphics-profile" aria-label="Flight graphics profile"><option value="quality">Quality</option><option value="balanced">Balanced</option><option value="performance">Performance</option><option value="compatibility">Kompatibilität</option></select></label>
+            <div id="flight-time">
+                <label>Zeit <select id="flight-time-mode"><option value="map">Wie Karte</option><option value="now">Jetzt</option><option value="fixed">Datum und Uhrzeit</option></select></label>
+                <label id="flight-time-fixed" hidden>Lokale Zeit <input id="flight-time-value" type="datetime-local" min="1900-01-01T00:00" max="2100-12-31T23:59"></label>
+                <output id="flight-time-error" aria-live="polite"></output>
+            </div>
+            </details>
+            <details id="flight-controller" name="flight-options-group"><summary>Controller</summary>
+                <label>Typ <select id="controller-layout" aria-label="Controller type"><option value="gamepad">Gamepad</option><option value="radio">USB-Funke / Tango 2</option></select></label>
+                <label>Nullgas <select id="controller-zero" aria-label="Zero-throttle stick position"><option value="bottom">Stick unten</option><option value="center">Stick mittig</option></select></label>
                 <div id="controller-channels" hidden>
-                    <p>Channels depend on the radio model and operating system. Check each direction before flying. Used channels swap automatically.</p>
+                    <p>Vor dem Flug Kanäle und Richtungen prüfen.</p>
                     <label>Roll <select id="controller-roll-axis" aria-label="Radio roll channel"></select></label><label class="controller-reverse"><input id="controller-roll-reverse" type="checkbox">Reverse roll</label>
                     <label>Pitch <select id="controller-pitch-axis" aria-label="Radio pitch channel"></select></label><label class="controller-reverse"><input id="controller-pitch-reverse" type="checkbox">Reverse pitch</label>
                     <label>Throttle <select id="controller-throttle-axis" aria-label="Radio throttle channel"></select></label><label class="controller-reverse"><input id="controller-throttle-reverse" type="checkbox">Reverse throttle</label>
                     <label>Yaw <select id="controller-yaw-axis" aria-label="Radio yaw channel"></select></label><label class="controller-reverse"><input id="controller-yaw-reverse" type="checkbox">Reverse yaw</label>
                 </div>
-                <p>Angle/Acro external inputs only. Reconnect with zero throttle and other sticks centred. Touch/keyboard controls stay the same.</p>
+                <p>Angle/Acro: Mit Nullgas und zentrierten Sticks verbinden.</p>
                 <output id="controller-last-interruption" aria-live="polite"></output>
             </details>
-            <details id="flight-time"><summary>Sonnen- und Mondzeit</summary>
-                <label>Zeit <select id="flight-time-mode"><option value="map">Kartenbeleuchtung</option><option value="now">Jetzt</option><option value="fixed">Datum und Uhrzeit</option></select></label>
-                <label id="flight-time-fixed" hidden>Geräte-Zeitzone <input id="flight-time-value" type="datetime-local" min="1900-01-01T00:00" max="2100-12-31T23:59"></label>
-                <output id="flight-time-error" aria-live="polite"></output>
-            </details>
-            <details id="flight-wind"><summary>Wind</summary>
+            <details id="flight-wind" name="flight-options-group"><summary>Wind</summary>
                 <output id="flight-wind-status">Keine Winddaten geladen</output>
                 <label><input id="flight-wind-force" type="checkbox">Wind berücksichtigen</label>
                 <label><input id="flight-wind-arrows" type="checkbox">3D-Pfeile</label>
                 <button id="wind-flight" type="button">Quelle und Prognose wählen</button>
             </details>
             <span id="navigation-device"></span>
-            <details id="flight-radio"><summary>Radio link preview</summary>
-                <label><input id="flight-radio-enabled" type="checkbox">Enable live preview</label>
-                <output id="flight-radio-status">Disabled</output>
-                <button id="configure-flight-radio" type="button">Transmitter and details</button>
+            <details id="flight-radio" name="flight-options-group"><summary>Funkvorschau</summary>
+                <label><input id="flight-radio-enabled" type="checkbox">Live-Vorschau</label>
+                <output id="flight-radio-status">Aus</output>
+                <button id="configure-flight-radio" type="button">Sender &amp; Details</button>
             </details>
+            <div id="flight-option-actions"><button id="reset-flight" type="button">Flug zurücksetzen</button></div>
         </div>
         <span id="hud-warning" hidden role="status" aria-live="polite"></span>
         <div id="flight-readout" role="group" aria-label="Flight telemetry">

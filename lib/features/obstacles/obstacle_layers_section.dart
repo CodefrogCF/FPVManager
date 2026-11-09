@@ -57,8 +57,9 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           'Swiss aviation obstacles',
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        const Text(obstacleCoverageNotice),
-        const GuideLink(GuideTopic.obstacles),
+        const Text(
+          'Nur veröffentlichte Hindernisse · fehlende Objekte möglich.',
+        ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('Published obstacles · WMS'),
@@ -140,7 +141,7 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           contentPadding: EdgeInsets.zero,
           title: const Text('Selectable obstacles · 3D vector'),
           subtitle: const Text(
-            'Full official KMZ · stored locally after import',
+            'Amtlicher Datensatz · nach Import offline verfügbar.',
           ),
           value: controller.vectorsVisible,
           onChanged: enabled
@@ -152,7 +153,7 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
             contentPadding: EdgeInsets.zero,
             title: const Text('3D obstacle models'),
             subtitle: const Text(
-              'Published height above ground · schematic shape, width and heading',
+              'Veröffentlichte Höhe · Form und Breite geschätzt.',
             ),
             value: controller.modelsVisible,
             onChanged: enabled
@@ -163,7 +164,7 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           contentPadding: EdgeInsets.zero,
           title: const Text('Highlight hazard areas'),
           subtitle: const Text(
-            'Advisory horizontal buffers · independent of UAS restrictions',
+            'Planungshilfe · keine Freigabe oder Abstandsprüfung.',
           ),
           value: controller.hazardsVisible,
           onChanged: enabled
@@ -187,9 +188,6 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
                   }),
                 )
               : null,
-        ),
-        const Text(
-          'Cyan buffers are planning aids, not legal separation or vertical clearance.',
         ),
         if (busy) const LinearProgressIndicator(),
         Text(controller.provider.progress),
@@ -226,17 +224,6 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
           Text(
-            '${snapshot.count} imported objects · ${snapshot.skipped} unsupported records',
-          ),
-          Text(
-            'Source updated: ${snapshot.sourceUpdated?.toIso8601String() ?? 'unknown'}',
-          ),
-          Text(
-            'Published: ${snapshot.metadata['datasetPublishedAt'] ?? 'unknown'} UTC',
-          ),
-          Text('Retrieved: ${snapshot.fetchedAt.toIso8601String()}'),
-          Text('Metadata checked: ${snapshot.checkedAt.toIso8601String()}'),
-          Text(
             'Local cache: ${dataset!.freshnessAt(DateTime.now()).name} · source validity: '
             '${dataset.validity?.at(DateTime.now()).name ?? OsintValidity.unknown.name}',
           ),
@@ -245,9 +232,6 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
             Text(
               'Published validity: ${snapshot.metadata['datasetValidFrom'] ?? '?'} → ${snapshot.metadata['datasetValidTo'] ?? '?'} UTC',
             ),
-          const Text(
-            'Cached vectors reopen offline. Published coverage is incomplete; offline imagery and terrain are not included.',
-          ),
         ],
         TextButton.icon(
           onPressed: enabled && !busy ? controller.refreshVectors : null,
@@ -258,17 +242,39 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
                 : 'Check source for updates',
           ),
         ),
-        const Text(
-          'Absolute source heights: LN02. Elevated display: CHGeo2004 + HTRANS to the '
-          'ETRS89 ellipsoid, used as a WGS84 approximation. Unknown line/area elevations are shown only as a ground marker at their first source vertex. '
-          'Isolated point obstacles with an official AGL height are displayed at that exact height above the currently rendered terrain; their visualized absolute top may differ from the surveyed LN02 top. '
-          'Extra KML label points on lines/polygons are not drawn as obstacles. '
-          'Cable vertices matching published masts follow the same terrain-adjusted mast tops, with interpolated display corrections between supports. '
-          'Other geometry retains source absolute elevations. Cable sag is not reconstructed; route checks use original source geometry.',
-        ),
-        SelectableText(
-          SwissObstacleProvider.obstacleSource.metadataUri.toString(),
-          style: Theme.of(context).textTheme.bodySmall,
+        ExpansionTile(
+          key: const PageStorageKey('map-obstacle-source-details'),
+          tilePadding: EdgeInsets.zero,
+          title: const Text('Daten & Höhenbezug'),
+          children: [
+            if (snapshot != null) ...[
+              Text(
+                '${snapshot.count} imported objects · ${snapshot.skipped} unsupported records',
+              ),
+              Text(
+                'Source updated: ${snapshot.sourceUpdated?.toIso8601String() ?? 'unknown'}',
+              ),
+              Text(
+                'Published: ${snapshot.metadata['datasetPublishedAt'] ?? 'unknown'} UTC',
+              ),
+              Text('Retrieved: ${snapshot.fetchedAt.toIso8601String()}'),
+              Text('Metadata checked: ${snapshot.checkedAt.toIso8601String()}'),
+            ],
+            const Text(
+              'Absolute source heights: LN02. Elevated display: CHGeo2004 + HTRANS to the '
+              'ETRS89 ellipsoid, used as a WGS84 approximation. Unknown line/area elevations are shown only as a ground marker at their first source vertex. '
+              'Isolated point obstacles with an official AGL height are displayed at that exact height above the currently rendered terrain; their visualized absolute top may differ from the surveyed LN02 top. '
+              'Extra KML label points on lines/polygons are not drawn as obstacles. '
+              'Cable vertices matching published masts follow the same terrain-adjusted mast tops, with interpolated display corrections between supports. '
+              'Other geometry retains source absolute elevations. Cable sag is not reconstructed; route checks use original source geometry.',
+            ),
+            SelectableText(
+              SwissObstacleProvider.obstacleSource.metadataUri.toString(),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const Text(obstacleCoverageNotice),
+            const GuideLink(GuideTopic.obstacles),
+          ],
         ),
         const Divider(height: 32),
       ],

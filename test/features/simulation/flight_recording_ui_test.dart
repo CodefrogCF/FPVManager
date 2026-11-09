@@ -59,9 +59,9 @@ void main() {
       await tester.pumpAndSettle();
       globe.rendererLoading();
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Map actions'));
+      await tester.tap(find.byTooltip('Kartenaktionen'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Review flight recording'));
+      await tester.tap(find.text('Flugaufzeichnung'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save as route'));
       await tester.pumpAndSettle();

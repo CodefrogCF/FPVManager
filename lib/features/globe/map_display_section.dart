@@ -33,11 +33,6 @@ class MapDisplaySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const GuideLink(GuideTopic.map),
-        Text('BASE MAP', style: Theme.of(context).textTheme.labelLarge),
-
-        const SizedBox(height: 12),
-
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<GlobeMapStyle>(
@@ -69,28 +64,25 @@ class MapDisplaySection extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 12),
 
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('Orts- und Straßennamen'),
-          subtitle: const Text('Reine Textbeschriftung · © swisstopo'),
           value: controller.labelsVisible,
           onChanged: controller.canEditPreferences
               ? (value) => execute(() => controller.setMapLabels(value))
               : null,
         ),
-        if (controller.labelsVisible) ...[
+        if (controller.labelsVisible && controller.labelsState != 'ready') ...[
           Text(switch (controller.labelsState) {
             'loading' => 'Beschriftungen werden geladen …',
-            'partial' =>
-              'Auswahl verfügbar · Quell- oder Darstellungsgrenze erreicht.',
-            'offline' => 'Beschriftungen offline nicht verfügbar; kein Online-Ersatzabruf.',
+            'partial' => 'Beschriftungen teilweise verfügbar.',
+            'offline' => 'Beschriftungen offline nicht verfügbar.',
             'zoomIn' => 'Für Beschriftungen näher heranzoomen.',
-            'outside' =>
-              'Beschriftungsquelle für die Schweiz und Liechtenstein.',
-            'failed' => 'Beschriftungsabruf fehlgeschlagen. Geladene Namen bleiben erhalten.',
-            _ => 'Ortsnamen; Straßennamen im Nahbereich. Keine vollständige Wegabdeckung.',
+            'outside' => 'Nur Schweiz und Liechtenstein.',
+            'failed' => 'Neue Beschriftungen konnten nicht geladen werden.',
+            _ => '',
           }, style: Theme.of(context).textTheme.bodySmall),
           if (controller.labelsState == 'failed')
             TextButton.icon(
@@ -104,7 +96,6 @@ class MapDisplaySection extends StatelessWidget {
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           title: const Text('Straßen und Wege'),
-          subtitle: const Text('swissTLM3D · © swisstopo'),
           value: controller.roadsVisible,
           onChanged: controller.isReady && controller.canEditPreferences
               ? (visible) =>
@@ -142,75 +133,9 @@ class MapDisplaySection extends StatelessWidget {
               label: const Text('Straßen-Layer erneut laden'),
             ),
         ],
-        const SizedBox(height: 16),
-        SceneLayersSection(controller: controller),
-        WindControlsLauncher(globe: controller),
-        const SizedBox(height: 16),
-        Text(
-          'OVERLAY ORDER · FRONT TO BACK',
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Terrain and the base map stay below these overlays.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        for (final overlay in controller.overlayOrder.reversed)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              overlay == GlobeOverlay.savedSpots
-                  ? Icons.place_outlined
-                  : Icons.shield_outlined,
-            ),
-            title: Text(
-              overlay == GlobeOverlay.savedSpots ? 'Saved spots' : 'UAS zones',
-            ),
-            subtitle: Text(
-              overlay == GlobeOverlay.savedSpots
-                  ? 'Local library'
-                  : source.publisher,
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip:
-                      'Bring ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} forward',
-                  onPressed:
-                      controller.isReady &&
-                          controller.canEditPreferences &&
-                          overlay != controller.overlayOrder.last
-                      ? () => execute(
-                          () => controller.setOverlayOrder(
-                            controller.overlayOrder.reversed.toList(),
-                          ),
-                        )
-                      : null,
-                  icon: const Icon(Icons.arrow_upward),
-                ),
-                IconButton(
-                  tooltip:
-                      'Send ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} backward',
-                  onPressed:
-                      controller.isReady &&
-                          controller.canEditPreferences &&
-                          overlay != controller.overlayOrder.first
-                      ? () => execute(
-                          () => controller.setOverlayOrder(
-                            controller.overlayOrder.reversed.toList(),
-                          ),
-                        )
-                      : null,
-                  icon: const Icon(Icons.arrow_downward),
-                ),
-              ],
-            ),
-          ),
-
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Show saved spots'),
+          title: const Text('Gespeicherte Spots'),
           value: controller.savedSpotsVisible,
           onChanged: controller.isReady && controller.canEditPreferences
               ? (visible) =>
@@ -219,10 +144,78 @@ class MapDisplaySection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        if (routeControls != null) ...[
-          const Divider(height: 32),
-          routeControls!,
-        ],
+        SceneLayersSection(controller: controller),
+        WindControlsLauncher(globe: controller),
+        ExpansionTile(
+          key: const PageStorageKey('map-overlay-order'),
+          tilePadding: EdgeInsets.zero,
+          title: const Text('Reihenfolge der Ebenen'),
+          subtitle: const Text('Vorne nach hinten'),
+          children: [
+            for (final overlay in controller.overlayOrder.reversed)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  overlay == GlobeOverlay.savedSpots
+                      ? Icons.place_outlined
+                      : Icons.shield_outlined,
+                ),
+                title: Text(
+                  overlay == GlobeOverlay.savedSpots
+                      ? 'Saved spots'
+                      : 'UAS zones',
+                ),
+                subtitle: Text(
+                  overlay == GlobeOverlay.savedSpots
+                      ? 'Local library'
+                      : source.publisher,
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip:
+                          'Bring ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} forward',
+                      onPressed:
+                          controller.isReady &&
+                              controller.canEditPreferences &&
+                              overlay != controller.overlayOrder.last
+                          ? () => execute(
+                              () => controller.setOverlayOrder(
+                                controller.overlayOrder.reversed.toList(),
+                              ),
+                            )
+                          : null,
+                      icon: const Icon(Icons.arrow_upward),
+                    ),
+                    IconButton(
+                      tooltip:
+                          'Send ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} backward',
+                      onPressed:
+                          controller.isReady &&
+                              controller.canEditPreferences &&
+                              overlay != controller.overlayOrder.first
+                          ? () => execute(
+                              () => controller.setOverlayOrder(
+                                controller.overlayOrder.reversed.toList(),
+                              ),
+                            )
+                          : null,
+                      icon: const Icon(Icons.arrow_downward),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        if (routeControls != null)
+          ExpansionTile(
+            key: const PageStorageKey('map-route-layers'),
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Flugrouten'),
+            children: [routeControls!],
+          ),
+        const GuideLink(GuideTopic.map, label: 'Hilfe zur Karte'),
       ],
     );
   }

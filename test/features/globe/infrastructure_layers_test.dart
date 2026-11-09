@@ -94,11 +94,11 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('3D-Umgebung und Himmelslicht'));
+      await tester.tap(find.text('3D & Licht'));
       await tester.pumpAndSettle();
       final structures = find.widgetWithText(
         SwitchListTile,
-        'Brücken, 3D-Bauwerke und Tunnelachsen',
+        'Brücken und Bauwerke',
       );
       await tester.ensureVisible(structures);
       await tester.tap(structures);
@@ -107,7 +107,7 @@ void main() {
       expect(peer.commands.last['structures'], true);
       final schematic = find.widgetWithText(
         SwitchListTile,
-        '3D-Tunnel automatisch laden (schematisch)',
+        '3D-Tunnel automatisch laden',
       );
       await tester.ensureVisible(schematic);
       await tester.tap(schematic);
@@ -154,6 +154,9 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(globe.schematicTunnelMeshCount, 1);
+      await tester.ensureVisible(find.text('Tunnelwerkzeuge'));
+      await tester.tap(find.text('Tunnelwerkzeuge'));
+      await tester.pumpAndSettle();
       final collisions = find.widgetWithText(
         SwitchListTile,
         '3D-Modellkollisionen (experimentell)',
@@ -163,16 +166,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(globe.sceneModelCollisionsEnabled, true);
       expect(peer.commands.last['modelCollisions'], true);
-      final tunnels = find.widgetWithText(
-        SwitchListTile,
-        'Tunnelverläufe und Unterführungen',
-      );
-      await tester.ensureVisible(tunnels);
-      await tester.tap(tunnels);
-      await tester.pumpAndSettle();
-      expect(globe.tunnelRoutesVisible, true);
-      expect(peer.commands.last['type'], 'set-tunnel-infrastructure');
-      final scan = find.text('Tunnelachsen um Kartenmitte suchen (600 m)');
+      expect(find.text('Tunnelachsen anzeigen'), findsNothing);
+      expect(find.text('Achsen-Erkundung erlauben'), findsNothing);
+      final scan = find.text('Tunnel in der Nähe suchen');
       await tester.ensureVisible(scan);
       await tester.tap(scan);
       await tester.pumpAndSettle();

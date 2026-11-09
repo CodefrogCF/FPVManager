@@ -134,7 +134,7 @@ void main() {
             image.dispose();
           });
         }
-        await tester.tap(find.byTooltip('Map layers'));
+        await tester.tap(find.byTooltip('Karte & Ansicht'));
         await tester.pumpAndSettle();
         expect(find.byType(MapLayersSheet), findsOneWidget);
         final panel = tester.getRect(

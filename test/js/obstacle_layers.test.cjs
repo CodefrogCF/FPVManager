@@ -154,7 +154,7 @@ test('WMS uses capabilities-verified transparent EPSG:3857 parameters and separa
     assert.equal(provider.crs,'EPSG:3857');assert.equal(provider.parameters.version,'1.3.0');
     assert.equal(provider.parameters.transparent,true);assert.equal(provider.parameters.styles,'default');
     assert.deepEqual(provider.rectangle,WMS.bounds);assert.equal(provider.enablePickFeatures,false);
-    assert.ok(provider.credit.html.includes('BAZL'));assert.equal(provider.credit.onScreen,true);
+    assert.ok(provider.credit.html.includes('BAZL'));assert.equal(provider.credit.onScreen,false);
     // Changing the base layer leaves the obstacle layer present and unchanged.
     p.viewer.imageryLayers.remove(base);p.viewer.imageryLayers.add({base:'topographic'});
     p.wms.set({visible:true,opacity:.2});assert.equal(p.providers.length,1);assert.equal(p.layers[0].alpha,.2);

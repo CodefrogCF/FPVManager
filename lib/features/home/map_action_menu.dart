@@ -81,7 +81,7 @@ class MapActionMenu extends StatelessWidget {
           GlobeLocationButton(controller: controller.location),
         if (!compact && _show(ActivityAction.layers))
           IconButton(
-            tooltip: 'Map layers',
+            tooltip: 'Karte & Ansicht',
             onPressed: controller.isReady ? onLayers : null,
             icon: Icon(
               Icons.layers_outlined,
@@ -117,36 +117,64 @@ class MapActionMenu extends StatelessWidget {
         _MapAction.allTools => Future<void>.sync(() => onAllTools?.call()),
       };
 
+  IconData _icon(_MapAction action) => switch (action) {
+    _MapAction.home => Icons.home_outlined,
+    _MapAction.coordinates => Icons.search,
+    _MapAction.location => Icons.my_location,
+    _MapAction.touchControls => Icons.gamepad_outlined,
+    _MapAction.terrain => Icons.height,
+    _MapAction.layers => Icons.layers_outlined,
+    _MapAction.weather => Icons.cloud_outlined,
+    _MapAction.simulation => Icons.flight_takeoff,
+    _MapAction.recording => Icons.route_outlined,
+    _MapAction.exitNavigation => Icons.public,
+    _MapAction.settings => Icons.settings_outlined,
+    _MapAction.allTools => Icons.apps,
+  };
+
   List<_MenuEntry> _entries() => [
-    if (controller.recording.hasSamples)
+    if (_show(ActivityAction.search))
       _MenuEntry(
-        _MapAction.recording,
-        'Review flight recording',
-        enabled: !controller.recording.busy,
+        _MapAction.coordinates,
+        'Ort suchen',
+        enabled: controller.isReady,
       ),
-    if (compact && controller.navigationActive)
-      const _MenuEntry(_MapAction.exitNavigation, 'Return to globe'),
+    if (_show(ActivityAction.location))
+      const _MenuEntry(_MapAction.location, 'Standortanzeige'),
+    if (_show(ActivityAction.layers))
+      _MenuEntry(
+        _MapAction.layers,
+        'Karte & Ansicht',
+        enabled: controller.isReady,
+      ),
+    if (_show(ActivityAction.weather))
+      const _MenuEntry(_MapAction.weather, 'Wetter'),
+    if (_show(ActivityAction.terrain))
+      _MenuEntry(
+        _MapAction.terrain,
+        'Geländehöhe',
+        enabled:
+            controller.isReady &&
+            controller.terrainAvailable &&
+            controller.selectedPoint != null &&
+            controller.selectedUasZone == null,
+      ),
+    const _MenuEntry.divider(),
     if (_show(ActivityAction.simulation) || controller.simulationActive)
       _MenuEntry(
         _MapAction.simulation,
-        controller.simulationActive
-            ? 'Flight simulation settings'
-            : 'Spawn in map · simulated flight',
+        controller.simulationActive ? 'Flug einstellen' : 'Flugsimulator',
         enabled:
             controller.isReady &&
             controller.terrainAvailable &&
             !controller.simulationPending,
       ),
-    if (_show(ActivityAction.layers))
-      _MenuEntry(_MapAction.layers, 'Map layers', enabled: controller.isReady),
-    if (_show(ActivityAction.search))
+    if (controller.recording.hasSamples)
       _MenuEntry(
-        _MapAction.coordinates,
-        'Ort oder Koordinaten suchen',
-        enabled: controller.isReady,
+        _MapAction.recording,
+        'Flugaufzeichnung',
+        enabled: !controller.recording.busy,
       ),
-    if (_show(ActivityAction.location))
-      const _MenuEntry(_MapAction.location, 'Standortanzeige'),
     if (controller.navigationActive)
       _MenuEntry(
         _MapAction.touchControls,
@@ -155,29 +183,23 @@ class MapActionMenu extends StatelessWidget {
             : 'Touch-Steuerung anzeigen',
         enabled: controller.canEditPreferences,
       ),
-    if (_show(ActivityAction.terrain))
-      _MenuEntry(
-        _MapAction.terrain,
-        'Query terrain elevation',
-        enabled:
-            controller.isReady &&
-            controller.terrainAvailable &&
-            controller.selectedPoint != null &&
-            controller.selectedUasZone == null,
-      ),
-    if (_show(ActivityAction.weather))
-      const _MenuEntry(_MapAction.weather, 'Weather intelligence'),
+    if (compact && controller.navigationActive)
+      const _MenuEntry(_MapAction.exitNavigation, 'Zur Karte'),
+    const _MenuEntry.divider(),
     if (onSettings != null)
       const _MenuEntry(_MapAction.settings, 'Einstellungen'),
     if (preferredActions != null && onAllTools != null)
       const _MenuEntry(_MapAction.allTools, 'Alle Werkzeuge'),
-    const _MenuEntry.divider(),
     if (_show(ActivityAction.home))
-      _MenuEntry(_MapAction.home, 'Home', enabled: controller.isReady),
+      _MenuEntry(
+        _MapAction.home,
+        'Karte zurücksetzen',
+        enabled: controller.isReady,
+      ),
   ];
 
   Widget _mobileActions(BuildContext context) => PopupMenuButton<_MapAction>(
-    tooltip: 'Map actions',
+    tooltip: 'Kartenaktionen',
     onSelected: (action) => unawaited(_dispatch(context, action)),
     itemBuilder: (_) => [
       for (final entry in _entries())
@@ -187,7 +209,13 @@ class MapActionMenu extends StatelessWidget {
           PopupMenuItem<_MapAction>(
             value: entry.action,
             enabled: entry.enabled,
-            child: Text(entry.label),
+            child: Row(
+              children: [
+                Icon(_icon(entry.action!)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(entry.label)),
+              ],
+            ),
           ),
     ],
   );
@@ -204,11 +232,12 @@ class MapActionMenu extends StatelessWidget {
             onPressed: entry.enabled
                 ? () => unawaited(_dispatch(context, entry.action!))
                 : null,
+            leadingIcon: Icon(_icon(entry.action!)),
             child: Text(entry.label),
           ),
     ],
     builder: (context, menu, child) => IconButton(
-      tooltip: 'Map actions',
+      tooltip: 'Kartenaktionen',
       onPressed: () => menu.isOpen ? menu.close() : menu.open(),
       icon: const Icon(Icons.more_vert),
     ),

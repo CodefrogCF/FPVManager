@@ -58,11 +58,11 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('External controller'));
+      await tester.tap(find.text('Controller'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('controller-layout')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('USB radio · Tango 2 / custom').last);
+      await tester.tap(find.text('USB-Fernsteuerung').last);
       await tester.pumpAndSettle();
       expect(chosen!.throttleZero, ControllerThrottleZero.bottom);
       expect(
@@ -77,13 +77,13 @@ void main() {
       await tester.ensureVisible(roll);
       await tester.tap(roll);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel 3').last);
+      await tester.tap(find.text('Kanal 3').last);
       await tester.pumpAndSettle();
       expect(chosen!.rollAxis, 2);
       expect(chosen!.throttleAxis, 0);
       expect(chosen!.validate, returnsNormally);
-      await tester.ensureVisible(find.bySemanticsLabel('Reverse roll'));
-      await tester.tap(find.bySemanticsLabel('Reverse roll'));
+      await tester.ensureVisible(find.bySemanticsLabel('Roll umkehren'));
+      await tester.tap(find.bySemanticsLabel('Roll umkehren'));
       await tester.pumpAndSettle();
       expect(chosen!.invertRoll, true);
       expect(tester.takeException(), isNull);

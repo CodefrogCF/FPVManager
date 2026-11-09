@@ -350,11 +350,11 @@ void main() {
         find.textContaining('Unable to load map preferences'),
         findsOneWidget,
       );
-      final spots = find.widgetWithText(SwitchListTile, 'Show saved spots');
+      final spots = find.widgetWithText(SwitchListTile, 'Gespeicherte Spots');
       expect(tester.widget<SwitchListTile>(spots).onChanged, isNull);
       expect(controlled.writes, 0);
       controlled.failReads = false;
-      await tester.tap(find.text('Reset map preferences'));
+      await tester.tap(find.text('Karteinstellungen zurücksetzen'));
       await tester.pumpAndSettle();
       expect(tester.widget<SwitchListTile>(spots).onChanged, isNotNull);
       expect(
@@ -379,7 +379,7 @@ void main() {
       expect(controller.savedSpotsVisible, isFalse);
       expect((await repository.getPreferences()).savedSpotsVisible, isTrue);
       controlled.failWrites = false;
-      await tester.tap(find.text('Retry'));
+      await tester.tap(find.text('Erneut versuchen'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Map changes are not saved'), findsNothing);
       expect((await repository.getPreferences()).savedSpotsVisible, isFalse);
@@ -400,7 +400,7 @@ void main() {
           home: Scaffold(body: MapLayersSheet(controller: controller)),
         ),
       );
-      expect(find.text('Loading saved map preferences...'), findsOneWidget);
+      expect(find.text('Karteneinstellungen werden geladen …'), findsOneWidget);
       expect(
         tester
             .widget<SegmentedButton<GlobeMapStyle>>(
@@ -412,6 +412,9 @@ void main() {
       controlled.readGate!.complete();
       await loading;
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Reihenfolge der Ebenen'));
+      await tester.tap(find.text('Reihenfolge der Ebenen'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.byTooltip('Bring UAS zones forward'));
       await tester.tap(find.byTooltip('Bring UAS zones forward'));
       await tester.pumpAndSettle();
@@ -419,7 +422,7 @@ void main() {
         (await repository.getPreferences()).overlayOrder.last,
         GlobeOverlay.uasZones,
       );
-      final spots = find.widgetWithText(SwitchListTile, 'Show saved spots');
+      final spots = find.widgetWithText(SwitchListTile, 'Gespeicherte Spots');
       await tester.ensureVisible(spots);
       await tester.tap(spots);
       await tester.pumpAndSettle();

@@ -107,14 +107,14 @@ void main() {
       );
       point(46.7);
       await tester.pumpAndSettle();
-      await selectMapAction(tester, 'Query terrain elevation');
+      await selectMapAction(tester, 'Geländehöhe');
       answer();
       await tester.pumpAndSettle();
       expect(find.byType(TerrainInformationDialog), findsOneWidget);
       expect(find.text('550.0 m · WGS84 ellipsoid'), findsOneWidget);
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
-      await selectMapAction(tester, 'Query terrain elevation');
+      await selectMapAction(tester, 'Geländehöhe');
       point(47);
       answer();
       await tester.pumpAndSettle();
@@ -159,10 +159,7 @@ void main() {
         }),
       );
       await tester.pump();
-      var terrainAction = await openMapActionMenu(
-        tester,
-        'Query terrain elevation',
-      );
+      var terrainAction = await openMapActionMenu(tester, 'Geländehöhe');
       expect(
         tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
         isTrue,
@@ -178,10 +175,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Saved Spot B'), findsOneWidget);
-      terrainAction = await openMapActionMenu(
-        tester,
-        'Query terrain elevation',
-      );
+      terrainAction = await openMapActionMenu(tester, 'Geländehöhe');
       expect(
         tester.widget<PopupMenuItem<dynamic>>(terrainAction).enabled,
         isFalse,
@@ -190,7 +184,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('FPV Spots'));
+      await tester.tap(find.text('Gespeicherte Orte'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add Spot'));
       await tester.pumpAndSettle();

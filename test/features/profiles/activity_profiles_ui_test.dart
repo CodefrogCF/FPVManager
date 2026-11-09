@@ -225,7 +225,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Wandern'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Map actions'));
+      await tester.tap(find.byTooltip('Kartenaktionen'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Alle Werkzeuge'));
       await tester.pumpAndSettle();

@@ -94,7 +94,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('3D-Umgebung und Himmelslicht'));
+      await tester.tap(find.text('3D & Licht'));
       await tester.pumpAndSettle();
       final buildings = find.widgetWithText(SwitchListTile, 'Gebäude');
       await tester.ensureVisible(buildings);

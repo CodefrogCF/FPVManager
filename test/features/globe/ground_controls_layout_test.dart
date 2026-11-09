@@ -47,7 +47,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       final spawn = find.byTooltip('Spawn here'),
-          menu = find.byTooltip('Map actions');
+          menu = find.byTooltip('Kartenaktionen');
       expect(find.text('Spawn here'), findsNothing);
       expect(
         tester.getRect(spawn).right,
@@ -86,7 +86,7 @@ void main() {
       peer.emit({'type': 'simulation-state', 'active': true, 'pending': false});
       await tester.pumpAndSettle();
       expect(tester.getRect(find.byType(GlobeView)).bottom, 568);
-      await selectMapAction(tester, 'Return to globe');
+      await selectMapAction(tester, 'Zur Karte');
       expect(peer.commands.last['type'], 'exit-simulation');
       peer.emit({
         'type': 'simulation-state',

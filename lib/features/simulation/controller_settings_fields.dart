@@ -48,26 +48,26 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     maintainState: true,
-    title: const Text('External controller'),
+    title: const Text('Controller'),
     subtitle: Text(
       _zero == ControllerThrottleZero.bottom
-          ? 'Zero throttle: stick bottom (0%)'
-          : 'Zero throttle: stick centre (50%)',
+          ? 'Gas null: unten (0 %)'
+          : 'Gas null: Mitte (50 %)',
     ),
     children: [
       DropdownButtonFormField<ControllerLayout>(
         key: const ValueKey('controller-layout'),
         initialValue: _layout,
         isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Controller type'),
+        decoration: const InputDecoration(labelText: 'Controllertyp'),
         items: const [
           DropdownMenuItem(
             value: ControllerLayout.gamepad,
-            child: Text('Standard gamepad'),
+            child: Text('Gamepad'),
           ),
           DropdownMenuItem(
             value: ControllerLayout.radio,
-            child: Text('USB radio · Tango 2 / custom'),
+            child: Text('USB-Fernsteuerung'),
           ),
         ],
         onChanged: (value) {
@@ -86,17 +86,15 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
         key: const ValueKey('controller-throttle-zero'),
         initialValue: _zero,
         isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Zero-throttle stick position',
-        ),
+        decoration: const InputDecoration(labelText: 'Gas-Nullstellung'),
         items: const [
           DropdownMenuItem(
             value: ControllerThrottleZero.bottom,
-            child: Text('0% · bottom (RC radio)'),
+            child: Text('0 % · unten (Fernsteuerung)'),
           ),
           DropdownMenuItem(
             value: ControllerThrottleZero.center,
-            child: Text('50% · centre (gamepad)'),
+            child: Text('50 % · Mitte (Gamepad)'),
           ),
         ],
         onChanged: (value) {
@@ -107,11 +105,11 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
         },
       ),
       const Text(
-        'External inputs in Angle/Acro: bottom zero uses the full stick travel; centre zero uses only the upper half. Touch and keyboard keep their existing controls. Connect or resume with zero throttle and the other sticks centred.',
+        'Angle/Acro: Null unten nutzt den ganzen Gasweg; Null in der Mitte nur die obere Hälfte. Zum Verbinden oder Fortsetzen Gas auf null, übrige Sticks zentrieren.',
       ),
       if (_layout == ControllerLayout.radio) ...[
         const Text(
-          'Starting assignment: roll, pitch, throttle, yaw on channels 1–4. USB channel order depends on the radio model and operating system. Assign four different channels and reverse directions as needed. No radio switches are mapped to Reset or Exit.',
+          'Roll, Pitch, Gas und Yaw benötigen vier verschiedene USB-Kanäle. Zuordnung und Richtung hängen von Fernsteuerung und Betriebssystem ab. Schalter lösen weder Zurücksetzen noch Beenden aus.',
         ),
         for (var i = 0; i < 4; i++)
           Row(
@@ -126,13 +124,10 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
                   ),
                   items: [
                     for (var a = 0; a < 16; a++)
-                      DropdownMenuItem(
-                        value: a,
-                        child: Text('Channel ${a + 1}'),
-                      ),
+                      DropdownMenuItem(value: a, child: Text('Kanal ${a + 1}')),
                   ],
                   validator: (_) => _axes.toSet().length != 4
-                      ? 'Choose different channels'
+                      ? 'Verschiedene Kanäle wählen'
                       : null,
                   onChanged: (value) {
                     if (value != null) {
@@ -148,14 +143,13 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
               ),
               Checkbox(
                 value: _invert[i],
-                semanticLabel:
-                    'Reverse ${['roll', 'pitch', 'throttle', 'yaw'][i]}',
+                semanticLabel: '${['Roll', 'Pitch', 'Gas', 'Yaw'][i]} umkehren',
                 onChanged: (value) {
                   setState(() => _invert[i] = value ?? false);
                   _change();
                 },
               ),
-              const Text('Reverse'),
+              const Text('Umkehren'),
             ],
           ),
       ],
