@@ -1,0 +1,63 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Model portal aperture smoke</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:19px;margin:12px}#viewer{height:68vh}pre{padding:12px;white-space:pre-wrap}</style>
+<h1 id="status">Running actual glTF model portal checks…</h1><div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script><script src="/cesium/Cesium.js"></script><script src="/scene_environment.js"></script>
+<script>
+'use strict';
+const C=Cesium,T=FPVTunnelFlythrough,E=FPVSceneEnvironment,output=document.getElementById('log');
+const check=(v,m)=>{if(!v)throw Error(m);output.textContent+='PASS: '+m+'\n';};
+window.__modelPortalSmoke={state:'running'};
+(async()=>{
+ const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,geocoder:false,homeButton:false,
+  sceneModePicker:false,navigationHelpButton:false,animation:false,timeline:false,fullscreenButton:false,infoBox:false,
+  terrainProvider:new C.EllipsoidTerrainProvider(),contextOptions:{webgl:{preserveDrawingBuffer:true,alpha:false}}});
+ const scene=viewer.scene;scene.globe.show=false;scene.skyBox.show=false;scene.skyAtmosphere.show=false;
+ scene.sun.show=false;scene.moon.show=false;scene.fog.enabled=false;scene.backgroundColor=C.Color.fromBytes(16,24,32);
+ const failures=[];scene.renderError.addEventListener((_,e)=>failures.push(String(e)));
+ const enu=C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(8.6,46.7,500));
+ const world=(x,y,z)=>C.Matrix4.multiplyByPoint(enu,new C.Cartesian3(x,y,z),new C.Cartesian3());
+ const positions=[],normals=[],indices=[];
+ function quad(vertices,normal){const start=positions.length/3;positions.push(...vertices.flat());
+  normals.push(...Array.from({length:4},()=>normal).flat());indices.push(start,start+1,start+2,start,start+2,start+3);}
+ const fixtures=[{center:[-12,0,4],cut:true},{center:[12,12,6.4],cut:true},{center:[28,0,4],cut:false},
+  {center:[-12,-5,.2],cut:false,road:true}];
+ for(const f of fixtures){const [x,y,z]=f.center;
+  quad(f.road?[[x-3,y-3,z],[x+3,y-3,z],[x+3,y+3,z],[x-3,y+3,z]]:
+   [[x-2,y,z-3],[x+2,y,z-3],[x+2,y,z+3],[x-2,y,z+3]],f.road?[0,0,1]:[0,-1,0]);}
+ const p=new Float32Array(positions),n=new Float32Array(normals),i=new Uint16Array(indices),bytes=new Uint8Array(p.byteLength+n.byteLength+i.byteLength);
+ bytes.set(new Uint8Array(p.buffer));bytes.set(new Uint8Array(n.buffer),p.byteLength);bytes.set(new Uint8Array(i.buffer),p.byteLength+n.byteLength);
+ let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
+ const gltf={asset:{version:'2.0'},extensionsUsed:['KHR_materials_unlit'],scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],
+  buffers:[{uri:'data:application/octet-stream;base64,'+btoa(binary),byteLength:bytes.length}],
+  bufferViews:[{buffer:0,byteOffset:0,byteLength:p.byteLength},{buffer:0,byteOffset:p.byteLength,byteLength:n.byteLength},
+   {buffer:0,byteOffset:p.byteLength+n.byteLength,byteLength:i.byteLength}],
+  accessors:[{bufferView:0,componentType:5126,count:positions.length/3,type:'VEC3',min:[-15,-8,.2],max:[30,12,9.4]},
+   {bufferView:1,componentType:5126,count:normals.length/3,type:'VEC3'},{bufferView:2,componentType:5123,count:indices.length,type:'SCALAR'}],
+  meshes:[{primitives:[{attributes:{POSITION:0,NORMAL:1},indices:2,material:0}]}],
+  materials:[{pbrMetallicRoughness:{baseColorFactor:[.15,.85,.3,1],metallicFactor:0,roughnessFactor:1},doubleSided:true,extensions:{KHR_materials_unlit:{}}}]};
+ const model=scene.primitives.add(await C.Model.fromGltfAsync({gltf,modelMatrix:enu,upAxis:C.Axis.Z,forwardAxis:C.Axis.X}));
+ const eye=world(7,-65,34),target=world(7,0,3.8);
+ viewer.camera.setView({destination:eye,orientation:{direction:C.Cartesian3.normalize(C.Cartesian3.subtract(target,eye,new C.Cartesian3()),new C.Cartesian3()),
+  up:C.Matrix4.multiplyByPointAsVector(enu,new C.Cartesian3(0,0,1),new C.Cartesian3())}});
+ const frame=()=>new Promise(resolve=>{const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();});
+ for(let k=0;k<60&&!model.ready;k++)await frame();await frame();await frame();
+ async function pixels(){await frame();if(failures.length)throw Error(failures.join('; '));
+  const bitmap=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+  const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+  const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0);bitmap.close();
+  return fixtures.map(f=>{const pt=C.SceneTransforms.worldToWindowCoordinates(scene,world(...f.center));
+   const rgba=Array.from(ctx.getImageData(Math.round(pt.x*canvas.width/viewer.canvas.clientWidth),Math.round(pt.y*canvas.height/viewer.canvas.clientHeight),1,1).data);
+   return {rgba,green:rgba[1]>rgba[0]*1.8&&rgba[1]>rgba[2]*1.3&&rgba[1]>70};});}
+ const before=await pixels();check(before.every(p=>p.green),'All real glTF walls and the road render before clipping');
+ const specs=[-12,12].map((x,index)=>{const point=C.Cartographic.fromCartesian(world(x,0,0));return {
+  longitude:C.Math.toDegrees(point.longitude),latitude:C.Math.toDegrees(point.latitude),floor:500,
+  forward:{east:0,north:1},halfWidth:4,before:8,after:26,below:1,above:8,shape:'rectangular',grade:index?.2:0};});
+ model.customShader=new C.CustomShader(E.modelPortalShaderOptions(C,specs,null,viewer.camera.viewMatrix));
+ await frame();await frame();const after=await pixels();
+ fixtures.forEach((f,index)=>check(after[index].green===!f.cut,f.road?'Horizontal road in aperture survives':
+  f.cut?`Model wall in portal ${index+1} is removed`:'Model wall outside apertures survives'));
+ check(!failures.length,'Production model CustomShader compiles without rendering errors');
+ window.__modelPortalSmoke={state:'passed',before,after};document.getElementById('status').textContent='PASS: multiple model portals clear; sloping opening and flat road preserved';
+})().catch(e=>{window.__modelPortalSmoke={state:'failed',error:String(e.stack||e)};document.getElementById('status').textContent='FAIL: '+e;output.textContent+='\n'+String(e.stack||e);});
+</script></html>

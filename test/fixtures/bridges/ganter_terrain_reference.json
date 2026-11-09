@@ -1,0 +1,178 @@
+{
+  "source": "ch.swisstopo.terrain.3d",
+  "sourceUrl": "https://3d.geo.admin.ch/ch.swisstopo.terrain.3d/v1/",
+  "sampledAtUtc": "2026-11-08T13:04:38Z",
+  "method": "Cesium 1.145.0 CesiumTerrainProvider.fromUrl + sampleTerrainMostDetailed at native Ganter deck stations",
+  "deckSourceUrl": "https://3d.geo.admin.ch/ch.swisstopo.swisstlm3d.3d/v1/20260520/6/31/9.b3dm",
+  "deckMethod": "Native feature KUNSTBAUTE 200, original Draco geometry and transforms, actual scene.pickFromRay / sampleHeight",
+  "nativeFeatureUuid": "{5D51F25F-57AC-4574-9E4F-29BD4E724CCE}",
+  "attribution": "\u00a9 swisstopo",
+  "note": "Reference elevations are in the same Cartesian/cartographic height coordinate used by the two Cesium renderers. No additional geoid offset was applied. Support station spacing is illustrative, not surveyed pier positions. Terrain may change after this capture.",
+  "gapRangeMeters": [
+    8.101899108088674,
+    147.67279045127566
+  ],
+  "samples": [
+    {
+      "longitude": 8.048421917568264,
+      "latitude": 46.29785158496096,
+      "ground": 1420.5768629719737,
+      "deck": 1433.2254197354,
+      "gap": 12.648556763426313
+    },
+    {
+      "longitude": 8.048757861665834,
+      "latitude": 46.29776620680818,
+      "ground": 1413.0051021888437,
+      "deck": 1434.285629869319,
+      "gap": 21.280527680475416
+    },
+    {
+      "longitude": 8.049075291968407,
+      "latitude": 46.297652263732516,
+      "ground": 1402.7056181557787,
+      "deck": 1435.8190651146886,
+      "gap": 33.11344695890989
+    },
+    {
+      "longitude": 8.049366036863354,
+      "latitude": 46.29750838471526,
+      "ground": 1386.2656519951774,
+      "deck": 1437.1063151729231,
+      "gap": 50.84066317774568
+    },
+    {
+      "longitude": 8.049628044944798,
+      "latitude": 46.29733985987599,
+      "ground": 1359.755447189002,
+      "deck": 1438.7790615698232,
+      "gap": 79.02361438082107
+    },
+    {
+      "longitude": 8.049866189657505,
+      "latitude": 46.29715496590587,
+      "ground": 1339.2578674767424,
+      "deck": 1440.1184562899557,
+      "gap": 100.86058881321333
+    },
+    {
+      "longitude": 8.050099665687432,
+      "latitude": 46.29696713890872,
+      "ground": 1308.168186868807,
+      "deck": 1441.4484425578219,
+      "gap": 133.2802556890149
+    },
+    {
+      "longitude": 8.050333175863063,
+      "latitude": 46.296779332662794,
+      "ground": 1295.0607954068832,
+      "deck": 1442.733585858159,
+      "gap": 147.67279045127566
+    },
+    {
+      "longitude": 8.050565616076241,
+      "latitude": 46.29659089665473,
+      "ground": 1308.4532216527684,
+      "deck": 1443.9782889998712,
+      "gap": 135.52506734710278
+    },
+    {
+      "longitude": 8.05079772107977,
+      "latitude": 46.296402262825346,
+      "ground": 1322.9664128262689,
+      "deck": 1445.1872597659158,
+      "gap": 122.22084693964689
+    },
+    {
+      "longitude": 8.051031872167819,
+      "latitude": 46.29621484102565,
+      "ground": 1340.8436789824843,
+      "deck": 1446.5607852765352,
+      "gap": 105.71710629405084
+    },
+    {
+      "longitude": 8.051266560418615,
+      "latitude": 46.29602773896306,
+      "ground": 1357.8883722376709,
+      "deck": 1447.9338407479236,
+      "gap": 90.0454685102527
+    },
+    {
+      "longitude": 8.051500865014642,
+      "latitude": 46.29584040826898,
+      "ground": 1364.9686801398439,
+      "deck": 1449.3144154984222,
+      "gap": 84.3457353585784
+    },
+    {
+      "longitude": 8.051734404082996,
+      "latitude": 46.29565262201854,
+      "ground": 1383.260230936957,
+      "deck": 1450.7068675318055,
+      "gap": 67.44663659484854
+    },
+    {
+      "longitude": 8.051973194707797,
+      "latitude": 46.29546809835184,
+      "ground": 1398.0505362425838,
+      "deck": 1452.199268547944,
+      "gap": 54.14873230536023
+    },
+    {
+      "longitude": 8.052230381205067,
+      "latitude": 46.295295977797245,
+      "ground": 1402.6232870798856,
+      "deck": 1453.5707835701498,
+      "gap": 50.94749649026426
+    },
+    {
+      "longitude": 8.05251744901944,
+      "latitude": 46.295148553518615,
+      "ground": 1412.8627143953595,
+      "deck": 1455.1002872758797,
+      "gap": 42.23757288052025
+    },
+    {
+      "longitude": 8.052830333176397,
+      "latitude": 46.29502823829207,
+      "ground": 1418.661057555614,
+      "deck": 1456.4992206009956,
+      "gap": 37.838163045381634
+    },
+    {
+      "longitude": 8.053166113058442,
+      "latitude": 46.294942343884784,
+      "ground": 1433.4266212436874,
+      "deck": 1458.5307056697304,
+      "gap": 25.104084426043073
+    },
+    {
+      "longitude": 8.053515091842916,
+      "latitude": 46.29488787921415,
+      "ground": 1440.9417596163066,
+      "deck": 1460.4177313703701,
+      "gap": 19.475971754063494
+    },
+    {
+      "longitude": 8.053871590912637,
+      "latitude": 46.29486735863,
+      "ground": 1442.6955653216214,
+      "deck": 1462.2997076631057,
+      "gap": 19.60414234148425
+    },
+    {
+      "longitude": 8.05422875072819,
+      "latitude": 46.29488063967188,
+      "ground": 1454.0058879699918,
+      "deck": 1464.8242616766727,
+      "gap": 10.818373706680859
+    },
+    {
+      "longitude": 8.05458055021603,
+      "latitude": 46.29492607811935,
+      "ground": 1458.9168829934033,
+      "deck": 1467.018782101492,
+      "gap": 8.101899108088674
+    }
+  ]
+}

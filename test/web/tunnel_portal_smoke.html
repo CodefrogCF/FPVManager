@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>FPVManager slope-aware tunnel aperture smoke</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:19px;margin:12px}#viewer{height:68vh;width:100%}pre{white-space:pre-wrap;padding:12px;margin:0}button{margin:0 12px 10px;padding:7px 12px}</style>
+<h1 id="status">Running actual Cesium tunnel aperture smoke…</h1>
+<button id="toggle" disabled>Show all fixture faces</button>
+<div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script>
+<script src="/cesium/Cesium.js"></script><script src="/scene_environment.js"></script>
+<script>
+'use strict';
+// Synthetic ECEF quads deliberately isolate the exact fragment shader used on
+// Globe terrain. Only its transparent retained color is changed to green, so
+// surviving faces can be measured against the dark background. No terrain or
+// imagery service, access token, inferred road data or mocked WebGL is used.
+const C=Cesium,T=FPVTunnelFlythrough,output=document.getElementById('log');
+const check=(v,m)=>{if(!v)throw Error(m);output.textContent+='PASS: '+m+'\n';};
+window.__portalSmoke={state:'running'};
+(async()=>{
+    const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,
+        geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,
+        animation:false,timeline:false,fullscreenButton:false,infoBox:false,selectionIndicator:false,
+        terrainProvider:new C.EllipsoidTerrainProvider(),
+        contextOptions:{webgl:{preserveDrawingBuffer:true,alpha:false}}});
+    window.portalSmokeViewer=viewer;
+    const scene=viewer.scene;scene.globe.show=false;scene.skyBox.show=false;
+    scene.skyAtmosphere.show=false;scene.sun.show=false;scene.moon.show=false;
+    scene.backgroundColor=C.Color.fromBytes(16,24,32);scene.fog.enabled=false;
+    const failures=[];scene.renderError.addEventListener((_scene,error)=>failures.push(String(error)));
+    const spec={longitude:8.6,latitude:46.7,floor:500,forward:{east:0,north:1},
+        halfWidth:7.5,before:8,after:26,below:0,above:8,shape:'rectangular',roofRise:0};
+    const aperture=T.slopeClipMaterial(C,spec);
+    check(!!aperture,'Public aperture helper creates an actual Cesium Material');
+    const visibleSource=T.SLOPE_CLIP_MATERIAL_SOURCE.replace(
+        'material.alpha = 0.0;',
+        'material.diffuse = vec3(0.15, 0.85, 0.30); material.alpha = 1.0;');
+    check(visibleSource!==T.SLOPE_CLIP_MATERIAL_SOURCE,
+        'Fixture changes only retained-face color; production discard code is identical');
+    const masked=new C.Material({fabric:{type:'FPVPortalSmokeMasked',
+        uniforms:aperture.uniforms,source:visibleSource},translucent:false});
+    const baseline=new C.Material({fabric:{type:'FPVPortalSmokeBaseline',source:`
+        czm_material czm_getMaterial(czm_materialInput materialInput) {
+            czm_material m=czm_getDefaultMaterial(materialInput);
+            m.diffuse=vec3(0.15,0.85,0.30);m.alpha=1.0;return m;
+        }`},translucent:false});
+    const origin=C.Cartesian3.fromDegrees(spec.longitude,spec.latitude,spec.floor);
+    const enu=C.Transforms.eastNorthUpToFixedFrame(origin);
+    const world=(east,north,up)=>C.Matrix4.multiplyByPoint(enu,new C.Cartesian3(east,north,up),new C.Cartesian3());
+    const fixtures=[{x:-6,slope:0,clipped:false},{x:-2,slope:50,clipped:false},
+        {x:2,slope:75,clipped:true},{x:6,slope:89,clipped:true},
+        {x:10,slope:89,clipped:false,outside:true}];
+    const primitives=[];
+    for(const f of fixtures){
+        const angle=f.slope*Math.PI/180,coords=[];
+        for(const [side,along] of [[-1,-1],[1,-1],[1,1],[-1,1]]){
+            const p=world(f.x+side*1.25,along*3*Math.cos(angle),3.8+along*3*Math.sin(angle));
+            coords.push(p.x,p.y,p.z);
+        }
+        const normal=C.Matrix4.multiplyByPointAsVector(enu,
+            new C.Cartesian3(0,-Math.sin(angle),Math.cos(angle)),new C.Cartesian3());
+        const geometry=new C.Geometry({attributes:{
+            position:new C.GeometryAttribute({componentDatatype:C.ComponentDatatype.DOUBLE,
+                componentsPerAttribute:3,values:new Float64Array(coords)}),
+            normal:new C.GeometryAttribute({componentDatatype:C.ComponentDatatype.FLOAT,
+                componentsPerAttribute:3,values:new Float32Array(Array.from({length:4},()=>[normal.x,normal.y,normal.z]).flat())}),
+            st:new C.GeometryAttribute({componentDatatype:C.ComponentDatatype.FLOAT,
+                componentsPerAttribute:2,values:new Float32Array([0,0,1,0,1,1,0,1])})},
+            indices:new Uint16Array([0,1,2,0,2,3]),primitiveType:C.PrimitiveType.TRIANGLES,
+            boundingSphere:C.BoundingSphere.fromVertices(coords)});
+        const p=scene.primitives.add(new C.Primitive({asynchronous:false,
+            geometryInstances:new C.GeometryInstance({geometry}),
+            appearance:new C.MaterialAppearance({material:baseline,flat:true,faceForward:true,translucent:false,closed:false})}));
+        primitives.push(p);f.center=world(f.x,0,3.8);
+    }
+    const eye=world(2,-38,24),target=world(2,0,3.8);
+    const direction=C.Cartesian3.normalize(C.Cartesian3.subtract(target,eye,new C.Cartesian3()),new C.Cartesian3());
+    const up=C.Matrix4.multiplyByPointAsVector(enu,new C.Cartesian3(0,0,1),new C.Cartesian3());
+    viewer.camera.setView({destination:eye,orientation:{direction,up}});
+    const frame=()=>new Promise(resolve=>{
+        const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();
+    });
+    await frame();await frame();
+    const pixels=async()=>{
+        await frame();
+        if(failures.length)throw Error(failures.join('; '));
+        const bitmap=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+        const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+        const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0);bitmap.close();
+        return fixtures.map(f=>{
+            const p=C.SceneTransforms.worldToWindowCoordinates(scene,f.center);
+            const x=Math.round(p.x*canvas.width/viewer.canvas.clientWidth);
+            const y=Math.round(p.y*canvas.height/viewer.canvas.clientHeight);
+            const rgba=Array.from(ctx.getImageData(x,y,1,1).data);
+            return {slope:f.slope,outside:!!f.outside,rgba,green:rgba[1]>rgba[0]*1.8&&rgba[1]>rgba[2]*1.3&&rgba[1]>70};
+        });
+    };
+    const before=await pixels();
+    check(before.every(p=>p.green),'All five synthetic faces render before clipping');
+    for(const p of primitives)p.appearance.material=masked;
+    await frame();await frame();const after=await pixels();
+    fixtures.forEach((f,i)=>check(after[i].green===!f.clipped,
+        f.outside?'89° face outside aperture remains visible':
+        `${f.slope}° face ${f.clipped?'is removed':'remains visible'} inside aperture`));
+    const vaultedAperture=T.slopeClipMaterial(C,{...spec,shape:'vaulted',roofRise:3});
+    const vaulted=new C.Material({fabric:{type:'FPVPortalSmokeVaulted',
+        uniforms:vaultedAperture.uniforms,source:visibleSource},translucent:false});
+    for(const p of primitives)p.appearance.material=vaulted;
+    await frame();await frame();const vaultedAfter=await pixels();
+    check(fixtures.every((f,i)=>vaultedAfter[i].green===!f.clipped),
+        'Vaulted roof facets preserve the same slope and aperture boundaries');
+    for(const p of primitives)p.appearance.material=masked;
+    // Exercise Cesium's actual GlobeFS integration too. With no imagery or
+    const secondOrigin=C.Cartographic.fromCartesian(world(10,0,0));
+    const secondSpec={...spec,longitude:C.Math.toDegrees(secondOrigin.longitude),
+        latitude:C.Math.toDegrees(secondOrigin.latitude),halfWidth:2};
+    const multiAperture=T.slopeClipMaterial(C,[spec,secondSpec]);
+    const multiSource=T.SLOPE_CLIP_MATERIAL_SOURCE.replace(T.portalClipShaderSource({count:1}),
+        T.portalClipShaderSource({count:2})).replace('material.alpha = 0.0;',
+        'material.diffuse = vec3(0.15, 0.85, 0.30); material.alpha = 1.0;');
+    const multiple=new C.Material({fabric:{type:'FPVPortalSmokeMultiple',uniforms:multiAperture.uniforms,source:multiSource},translucent:false});
+    for(const p of primitives)p.appearance.material=multiple;
+    await frame();await frame();const multipleAfter=await pixels();
+    check(multipleAfter[0].green&&multipleAfter[1].green&&multipleAfter.slice(2).every(p=>!p.green),
+        'Two independent apertures remove their own steep walls while preserving flat and ordinary slopes');
+    // lighting, the transparent material must leave the globe's blue base
+    // color intact. This also compiles the production source without the
+    // fixture's retained-face color modification.
+    for(const p of primitives)p.show=false;
+    scene.globe.show=true;scene.globe.enableLighting=false;
+    scene.globe.baseColor=C.Color.fromBytes(40,100,180);scene.globe.material=multiAperture;
+    viewer.camera.setView({destination:C.Cartesian3.fromDegrees(spec.longitude,spec.latitude,1500),
+        orientation:{heading:0,pitch:-Math.PI/2,roll:0}});
+    const globeDeadline=performance.now()+20000;
+    do {await frame();if(performance.now()>globeDeadline)throw Error('Globe material tile timeout');}
+    while(!scene.globe.tilesLoaded);
+    await frame();await frame();
+    if(failures.length)throw Error(failures.join('; '));
+    const globeBitmap=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+    const globeCanvas=document.createElement('canvas');globeCanvas.width=globeBitmap.width;
+    globeCanvas.height=globeBitmap.height;const globeContext=globeCanvas.getContext('2d');
+    globeContext.drawImage(globeBitmap,0,0);globeBitmap.close();
+    const globeColor=Array.from(globeContext.getImageData(
+        Math.floor(globeCanvas.width/2),Math.floor(globeCanvas.height/2),1,1).data);
+    check(globeColor[2]>90&&globeColor[2]>globeColor[1]&&globeColor[1]>globeColor[0],
+        'Production material compiles in GlobeFS and retains the blue ground base color');
+    scene.globe.material=undefined;scene.globe.show=false;
+    for(const p of primitives)p.show=true;
+    viewer.camera.setView({destination:eye,orientation:{direction,up}});
+    await frame();await frame();
+    check(!failures.length,'No actual Cesium shader compilation or render error');
+    output.textContent+='\nLeft to right: 0°, 50°, 75°, 89° inside; 89° outside.\n';
+    let enabled=true;const toggle=document.getElementById('toggle');toggle.disabled=false;
+    toggle.onclick=()=>{enabled=!enabled;for(const p of primitives)p.appearance.material=enabled?masked:baseline;
+        toggle.textContent=enabled?'Show all fixture faces':'Enable slope-aware aperture';scene.requestRender();};
+    window.__portalSmoke={state:'passed',before,after,vaultedAfter,multipleAfter,globeColor};
+    document.getElementById('status').textContent='PASS: horizontal ground retained; only steep faces inside aperture removed';
+})().catch(error=>{
+    window.__portalSmoke={state:'failed',error:String(error.stack||error)};
+    document.getElementById('status').textContent='FAIL: '+error;
+    output.textContent+='\n'+String(error.stack||error);
+});
+</script></html>

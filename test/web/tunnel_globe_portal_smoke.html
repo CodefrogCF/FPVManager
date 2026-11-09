@@ -1,0 +1,159 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Real Globe terrain portal regression</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:19px;margin:12px}#viewer{height:68vh}pre{padding:12px;white-space:pre-wrap}</style>
+<h1 id="status">Running real Globe cliff portal checks…</h1><div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script><script src="/cesium/Cesium.js"></script><script src="/scene_environment.js"></script><script src="/flight_rendering.js"></script>
+<script>
+'use strict';
+const C=Cesium,T=FPVTunnelFlythrough,output=document.getElementById('log');
+const check=(value,message)=>{if(!value)throw Error(message);output.textContent+='PASS: '+message+'\n';};
+window.__globePortalSmoke={state:'running'};
+(async()=>{
+ const longitude=8.6,latitude=46.7,floor=500,metersPerDegree=6378137*Math.PI/180;
+ const tilingScheme=new C.GeographicTilingScheme({rectangle:C.Rectangle.fromDegrees(
+  longitude-.0015,latitude-.0015,longitude+.0015,latitude+.0015),numberOfLevelZeroTilesX:1,numberOfLevelZeroTilesY:1});
+ const provider=new C.CustomHeightmapTerrainProvider({width:129,height:129,tilingScheme,
+  callback(x,y,level){
+   const rectangle=tilingScheme.tileXYToRectangle(x,y,level),buffer=new Float32Array(129*129);
+   for(let row=0;row<129;row++)for(let column=0;column<129;column++){
+    const lat=rectangle.north+(rectangle.south-rectangle.north)*row/128;
+    const lon=rectangle.west+(rectangle.east-rectangle.west)*column/128;
+    const east=(C.Math.toDegrees(lon)-longitude)*metersPerDegree*Math.cos(C.Math.toRadians(latitude));
+    const north=(C.Math.toDegrees(lat)-latitude)*metersPerDegree;
+    // Two real heightmap cliffs share one portal: the right half lies 20 m
+    // inside its opening and exercises the full bounded excavation depth.
+    const cliff=east>0?20:0;
+    buffer[row*129+column]=floor+(north>=cliff?30:0);
+   }
+   return buffer;
+  }});
+ // This deliberately bounded local fixture uses its root tile at full mesh
+ // resolution; it still follows the actual GlobeSurfaceTile draw pipeline.
+ provider.getLevelMaximumGeometricError=()=>.01;
+ const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,geocoder:false,homeButton:false,
+  sceneModePicker:false,navigationHelpButton:false,animation:false,timeline:false,fullscreenButton:false,
+  infoBox:false,selectionIndicator:false,terrainProvider:provider,
+  contextOptions:{webgl:{preserveDrawingBuffer:true,alpha:false}}});
+ window.globePortalSmokeViewer=viewer;
+ const scene=viewer.scene;scene.skyBox.show=false;scene.skyAtmosphere.show=false;
+ scene.sun.show=false;scene.moon.show=false;scene.fog.enabled=false;
+ scene.backgroundColor=C.Color.fromBytes(16,24,32);scene.globe.enableLighting=false;
+ scene.globe.baseColor=C.Color.fromBytes(40,180,70);scene.globe.showGroundAtmosphere=false;
+ scene.globe.depthTestAgainstTerrain=true;scene.screenSpaceCameraController.enableCollisionDetection=false;
+ const errors=[];scene.renderError.addEventListener((_,error)=>errors.push(String(error)));
+ const enu=C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(longitude,latitude,floor));
+ const world=(x,y,z)=>C.Matrix4.multiplyByPoint(enu,new C.Cartesian3(x,y,z),new C.Cartesian3());
+ const spec={longitude,latitude,floor,forward:{east:0,north:1},halfWidth:6,before:8,after:26,
+  below:1.1,above:8,shape:'rectangular',roofRise:0,grade:0};
+ function camera(x=0,y=-55,z=18,targetY=7,targetZ=4){
+  const eye=world(x,y,z),target=world(0,targetY,targetZ);
+  viewer.camera.setView({destination:eye,orientation:{
+   direction:C.Cartesian3.normalize(C.Cartesian3.subtract(target,eye,new C.Cartesian3()),new C.Cartesian3()),
+   up:C.Matrix4.multiplyByPointAsVector(enu,new C.Cartesian3(0,0,1),new C.Cartesian3())}});
+ }
+ camera();
+ const frame=()=>new Promise(resolve=>{const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();});
+ const deadline=performance.now()+20000;
+ do {await frame();if(performance.now()>deadline)throw Error('Heightmap Globe tile timeout');}
+ while(!scene.globe.tilesLoaded);
+ await frame();await frame();
+ check(scene.globe._surface._tilesToRender.some(tile=>tile.data?.renderedMesh),
+  'Fixture renders an actual HeightmapTerrainData Globe tile');
+ const globeCommands=scene.globe._surface._tileProvider._drawCommands;
+ check(globeCommands.length>0,'Actual Globe draw commands exist');
+ // Locate actual rasterized cliff surfaces at a low aperture height. Terrain
+ // cell placement differs from ENU metres by ellipsoid projection and grade.
+ function cliffPoint(x,cliffY,height){
+  let low=cliffY-4,high=cliffY+2;
+  for(let iteration=0;iteration<35;iteration++){
+   const y=(low+high)/2,point=C.Cartographic.fromCartesian(world(x,y,0));
+   const h=scene.globe.getHeight(point);
+   if(h===undefined)throw Error('Cliff terrain sample unavailable');
+   if(h<floor+height)low=y;else high=y;
+  }
+  return world(x,(low+high)/2,height);
+ }
+ let fixtures=[{name:'near portal cliff',point:cliffPoint(-3,0,4),cut:true},
+  {name:'cliff 20 m inside portal',point:cliffPoint(3,20,4),cut:true},
+  {name:'cliff beside aperture',point:cliffPoint(-12,0,4),cut:false},
+  {name:'horizontal approach road',point:world(-3,-14,0),cut:false},
+  {name:'horizontal road within depth of aperture',point:world(3,9,0),cut:false},
+  {name:'rock above aperture roof',point:cliffPoint(-3,0,13),cut:false},
+  {name:'upper far cliff above level roof',point:cliffPoint(3,20,10),cut:false}];
+ async function pixels(){
+  await frame();if(errors.length)throw Error(errors.join('; '));
+  const bitmap=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+  const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+  const context=canvas.getContext('2d');context.drawImage(bitmap,0,0);bitmap.close();
+  return fixtures.map(fixture=>{
+   const point=C.SceneTransforms.worldToWindowCoordinates(scene,fixture.point);
+   const rgba=Array.from(context.getImageData(Math.round(point.x*canvas.width/viewer.canvas.clientWidth),
+    Math.round(point.y*canvas.height/viewer.canvas.clientHeight),1,1).data);
+   return {name:fixture.name,rgba,green:rgba[1]>rgba[0]*1.8&&rgba[1]>rgba[2]*1.4&&rgba[1]>70};
+  });
+ }
+ const before=await pixels();check(before.every(pixel=>pixel.green),'All genuine terrain cliff, roof and road samples render before clipping');
+ // Cesium's Globe scans even GLSL comments for /slope/ and then silently
+ // skips a material when the terrain has no encoded vertex normals.
+ const legacy=T.slopeClipMaterial(C,spec);
+ const oldMaterial=new C.Material({fabric:{type:'FPVLegacyGlobeComment',uniforms:legacy.uniforms,
+  source:T.SLOPE_CLIP_MATERIAL_SOURCE+'\n// ordinary slopes always survive\n'},translucent:false});
+ scene.globe.material=oldMaterial;
+ await frame();await frame();const oldAfter=await pixels();
+ check(oldAfter.slice(0,2).every(pixel=>pixel.green),'Regression reproduced: old comment disables the material and leaves both Globe cliffs blocking portal');
+ const material=T.slopeClipMaterial(C,spec,viewer.camera.viewMatrix);scene.globe.material=material;
+ scene.preUpdate.addEventListener(()=>T.updateSlopeClipMaterial(C,material,viewer.camera.viewMatrix));
+ await frame();await frame();const after=await pixels();
+ fixtures.forEach((fixture,index)=>check(after[index].green===!fixture.cut,
+  fixture.cut?fixture.name+' clears in production Globe material':fixture.name+' remains intact'));
+ scene.globe.material=legacy;await frame();await frame();const legacyAfter=await pixels();
+ check(legacyAfter.slice(0,2).every(pixel=>!pixel.green),'ECEF camera origin also works once the Globe shader is enabled');
+ scene.globe.material=material;camera(0,-53,18,7,4);await frame();await frame();const moved=await pixels();
+ fixtures.forEach((fixture,index)=>check(moved[index].green===!fixture.cut,
+  'After camera movement: '+fixture.name+(fixture.cut?' stays clear':' survives')));
+ const graded=T.slopeClipMaterial(C,{...spec,grade:.2},viewer.camera.viewMatrix);
+ scene.globe.material=graded;await frame();await frame();const gradedAfter=await pixels();
+ check(!gradedAfter.at(-1).green,'A 20% road grade raises the far aperture roof and clears its upper cliff');
+ check(gradedAfter[3].green&&gradedAfter[4].green,'The graded opening still preserves both horizontal road samples');
+ check(gradedAfter[2].green&&gradedAfter[5].green,'The graded opening retains side rock and the near roof');
+ // Draw the actual production tunnel, including its procedural walls, roof,
+ // road markings and portal surrounds. The exterior view must still see
+ // through the mouth when the terrain aperture is enabled.
+ scene.globe.material=undefined;
+ const service=T.create(C,viewer,()=>{},{now:()=>0});
+ service.importModel({version:1,elevationReference:'WGS84_ELLIPSOID',source:'Real terrain shell fixture',
+  profile:'rectangular',sections:[0,15,30,45].map(north=>{
+   const point=C.Cartographic.fromCartesian(world(0,north,0));
+   return {longitude:C.Math.toDegrees(point.longitude),latitude:C.Math.toDegrees(point.latitude),
+    floorMetersWgs84:floor,widthMeters:12,heightMeters:8};
+  })});
+ await frame();await frame();const shellMaterial=scene.globe.material;
+ scene.globe.material=undefined;await frame();await frame();const shellBefore=await pixels();
+ check(shellBefore[0].green&&shellBefore[1].green,'Genuine cliff occludes the production tunnel shell before clipping');
+ scene.globe.material=shellMaterial;await frame();await frame();const shellAfter=await pixels();
+ check(!shellAfter[0].green&&!shellAfter[1].green,'Production tunnel shell and surrounds leave the cleared portal open from outside');
+ check(shellAfter[2].green&&shellAfter[5].green,'Production shell clipping still retains surrounding rock and roof');
+ // Cesium's terrain ray still sees the original triangles after their visual
+ // fragments disappear. Exercise the same adapter used by ordinary FPV flight.
+ service.activate();
+ const pose=(x,y,z)=>{const p=C.Cartographic.fromCartesian(world(x,y,z));return {
+  longitude:C.Math.toDegrees(p.longitude),latitude:C.Math.toDegrees(p.latitude),height:p.height};};
+ const from=pose(-3,-6,3),to=pose(-3,3,3),lip=pose(-3,-.25,3);
+ const rawFlight=FPVFlightRendering.create(C,viewer);
+ const flight=FPVFlightRendering.create(C,viewer,{terrainPassage:service.segmentInside});
+ check(rawFlight.terrainCollision(from,to),'Original Globe ray still hits the visually removed portal cliff');
+ check(scene.globe.getHeight(C.Cartographic.fromDegrees(lip.longitude,lip.latitude))>lip.height,
+  'Original height sampler still returns the raised cliff just before the source endpoint');
+ check(Math.abs(service.floorAt(lip)-floor)<.05,
+  'Production tunnel floor covers the bounded approach before the source endpoint');
+ check(service.segmentInside(from,to)&&!flight.terrainCollision(from,to),
+  'Production flight adapter crosses the cleared approach into the tunnel without an invisible terrain impact');
+ const sideFrom=pose(-12,-6,3),sideTo=pose(-12,3,3);
+ check(service.floorAt(sideFrom)===null&&!service.segmentInside(sideFrom,sideTo)&&
+  flight.terrainCollision(sideFrom,sideTo),'Rock outside the portal keeps its actual terrain collision');
+ check(!errors.length,'No shader or rendering errors in the actual Globe pipeline');
+ window.__globePortalSmoke={state:'passed',before,oldAfter,after,legacyAfter,moved,gradedAfter,shellBefore,shellAfter};
+ document.getElementById('status').textContent='PASS: actual terrain portal opens from outside; horizontal road and roof survive';
+})().catch(error=>{window.__globePortalSmoke={state:'failed',error:String(error.stack||error)};
+ document.getElementById('status').textContent='FAIL: '+error;output.textContent+='\n'+String(error.stack||error);});
+</script></html>

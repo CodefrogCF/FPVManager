@@ -6,6 +6,27 @@ class Event{
     fire(...v){for(const f of this.listeners)f(...v);}
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('bridge supports follow infrastructure visibility, opacity, graphics profile and disposal',async()=>{
+    const values={enabled:false,opacity:1,profile:'balanced',refresh:0,disposed:false};
+    const bridgeSupports={setEnabled:v=>{values.enabled=v;},setOpacity:v=>{values.opacity=v;},
+        performance:v=>{values.profile=v;},refresh:()=>{values.refresh++;},dispose:()=>{values.disposed=true;}};
+    const f=fixture(null,{bridgeSupports});
+    f.set({structures:true,structuresOpacity:.6});await flush();
+    assert.equal(values.enabled,true);
+    assert.equal(values.opacity,.6);
+    assert.equal(values.refresh,1);
+    assert.equal(f.manager.structuresTileset(),f.primitives[0]);
+    f.viewer.camera.positionCartographic.height=30000;f.viewer.scene.preUpdate.fire();
+    assert.equal(values.enabled,false);
+    f.viewer.camera.positionCartographic.height=1000;f.viewer.scene.preUpdate.fire();
+    assert.equal(values.enabled,true);
+    f.manager.performance('performance');assert.equal(values.profile,'performance');
+    f.manager.navigationActive(true);assert.equal(values.profile,'navigation');
+    f.manager.navigationActive(false);assert.equal(values.profile,'performance');
+    f.set({structures:false});assert.equal(values.enabled,false);
+    f.manager.dispose();assert.equal(values.disposed,true);
+});
 function fixture(loader,options={}){
     const requests=[],states=[],primitives=[],credits=new Set(),timers=new Map();let nextTimer=0;
     const C={JulianDate:{clone:x=>({...x}),fromIso8601:value=>({value})},ClockStep:{SYSTEM_CLOCK:2},SunLight:class{},Credit:class{},ShadowMode:{DISABLED:0},
@@ -242,5 +263,36 @@ test('building roofs and facades use an optional Cesium surface shader only on d
     assert.equal(building.customShader,undefined);
     p.manager.performance('balanced');
     assert.ok(building.customShader instanceof actual.CustomShader);
+    p.manager.dispose();
+});
+
+test('loaded structures and building walls follow shared tunnel apertures and release masks independently of detail',async()=>{
+    const actual=require('../../web/cesium/index.cjs');let specs=[],clock=0;
+    const p=fixture(null,{getTunnelApertures:()=>specs,now:()=>clock});
+    for(const name of ['CustomShader','UniformType','VaryingType','Cartesian3','Cartesian4','Matrix4','EncodedCartesian3',
+        'ClippingPlane','ClippingPlaneCollection','Transforms'])p.C[name]=actual[name];
+    p.set({buildings:true,structures:true});await flush();
+    p.viewer.camera.viewMatrix=actual.Matrix4.clone(actual.Matrix4.IDENTITY);
+    const buildings=p.primitives[0],structures=p.primitives[1];
+    assert.equal(structures.customShader,undefined);
+    specs=[{longitude:8.6,latitude:46.7,floor:500,forward:{east:0,north:1},halfWidth:3.5,
+        before:8,after:26,below:1,above:6,shape:'rectangular',grade:.1}];
+    clock=500;p.viewer.scene.preUpdate.fire();
+    assert.ok(structures.customShader instanceof actual.CustomShader);
+    assert.match(buildings.customShader.fragmentShaderText,/fpvBuildingDetail/);
+    assert.match(buildings.customShader.fragmentShaderText,/fpvPortalClips/);
+    const shader=structures.customShader;
+    specs=[{...specs[0],grade:.15}];clock=1000;p.viewer.scene.preUpdate.fire();
+    assert.equal(structures.customShader,shader,'only uniforms change while the mask layout is stable');
+    assert.equal(shader.uniforms.fpvApertureRoof.value.w,.15);
+    const before=actual.Cartesian3.clone(shader.uniforms.fpvApertureOriginHigh.value);
+    p.viewer.camera.viewMatrix=actual.Matrix4.fromTranslation(new actual.Cartesian3(-100,0,0));
+    p.viewer.scene.preUpdate.fire();
+    assert.ok(Math.abs(shader.uniforms.fpvApertureOriginHigh.value.x-(before.x-100))<1e-6,
+        'model aperture eye coordinates track camera changes without rebuilding geometry');
+    p.manager.performance('compatibility');
+    assert.ok(buildings.customShader instanceof actual.CustomShader,'floor-preserving clipping survives lightweight graphics');
+    specs=[];clock=1500;p.viewer.scene.preUpdate.fire();
+    assert.equal(structures.customShader,undefined);assert.equal(buildings.customShader,undefined);
     p.manager.dispose();
 });

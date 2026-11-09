@@ -23,7 +23,7 @@
     // Cesium's LRU target counts tiles, not bytes; tiles needed by the current
     // frame may exceed it. Keep preloading and terrain detail unchanged.
     const flightTileCacheSize=512;
-    function create(C,viewer,{onProfile=()=>{}}={}){
+    function create(C,viewer,{onProfile=()=>{},terrainPassage=()=>false}={}){
         // Each result stays private to this adapter. Cesium copies camera
         // poses; no retained scene geometry refers to these scratch objects.
         const destination=new C.Cartesian3(),transform=new C.Matrix4(),direction=new C.Cartesian3(),up=new C.Cartesian3();
@@ -74,6 +74,10 @@
                 view.orientation=orientation;viewer.camera.setView(view);
             },
             terrainCollision(from,to){
+                // Globe.pick tests the original terrain triangles, including
+                // fragments discarded by a portal material. Only a bounded
+                // modeled passage may exempt those invisible fragments.
+                if(terrainPassage(from,to)===true)return false;
                 cartesian(from,a);cartesian(to,b);
                 const length=C.Cartesian3.distance(a,b);if(length<.001)return false;
                 C.Cartesian3.subtract(b,a,rayDirection);C.Cartesian3.normalize(rayDirection,rayDirection);

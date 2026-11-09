@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>FPVManager bridge pillar smoke</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:#fff;font:15px system-ui}h1{font-size:19px;margin:12px}p{margin:8px 12px}#viewer{height:68vh;width:100%}pre{white-space:pre-wrap;padding:12px;margin:0}button{margin:0 12px 10px;padding:7px 12px}</style>
+<h1 id="status">Running actual Cesium bridge pillar smoke…</h1>
+<p>Synthetic bridge deck and 500 m terrain. Pillars are schematic additions; no live map data.</p>
+<button id="toggle" disabled>Hide bridge pillars</button>
+<div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script>
+<script src="/cesium/Cesium.js"></script><script src="/bridge_supports.js"></script>
+<script>
+'use strict';
+const C=Cesium,output=document.getElementById('log');
+const check=(value,message)=>{if(!value)throw Error(message);output.textContent+='PASS: '+message+'\n';};
+window.__bridgeSmoke={state:'running'};
+(async()=>{
+    const terrain=new C.CustomHeightmapTerrainProvider({width:16,height:16,
+        callback:()=>new Float32Array(16*16).fill(500)});
+    const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,
+        geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,
+        animation:false,timeline:false,fullscreenButton:false,infoBox:false,selectionIndicator:false,
+        terrainProvider:terrain,contextOptions:{webgl:{preserveDrawingBuffer:true,alpha:false}}});
+    window.bridgeSmokeViewer=viewer;
+    const scene=viewer.scene,failures=[];
+    scene.renderError.addEventListener((_scene,error)=>failures.push(String(error)));
+    scene.globe.enableLighting=false;scene.globe.baseColor=C.Color.fromBytes(50,100,60);
+    scene.globe.depthTestAgainstTerrain=true;scene.globe.maximumScreenSpaceError=8;scene.skyBox.show=false;
+    scene.skyAtmosphere.show=false;scene.sun.show=false;scene.moon.show=false;scene.fog.enabled=false;
+    scene.backgroundColor=C.Color.fromBytes(16,24,32);
+    const longitude=8.6,latitude=46.7,roadLength=144,roadWidth=10,deckTop=532.6;
+    const origin=C.Cartesian3.fromDegrees(longitude,latitude,500);
+    const enu=C.Transforms.eastNorthUpToFixedFrame(origin);
+    const world=(east,north,up)=>C.Matrix4.multiplyByPoint(enu,new C.Cartesian3(east,north,up),new C.Cartesian3());
+    const coordinate=(east,north)=>{
+        const point=C.Cartographic.fromCartesian(world(east,north,0));
+        return {lon:C.Math.toDegrees(point.longitude),lat:C.Math.toDegrees(point.latitude)};
+    };
+    function box(center,dimensions,color,id){
+        const matrix=C.Matrix4.multiplyByTranslation(enu,center,new C.Matrix4());
+        return scene.primitives.add(new C.Primitive({asynchronous:false,
+            geometryInstances:new C.GeometryInstance({id,modelMatrix:matrix,
+                geometry:C.BoxGeometry.fromDimensions({dimensions,
+                    vertexFormat:C.PerInstanceColorAppearance.VERTEX_FORMAT}),
+                attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(color)}}),
+            appearance:new C.PerInstanceColorAppearance({translucent:false,closed:true})}));
+    }
+    const deck=box(new C.Cartesian3(0,0,deckTop-500-.6),
+        new C.Cartesian3(roadWidth,roadLength,1.2),C.Color.fromBytes(90,130,175),'synthetic-bridge-deck');
+    // A separate flat road beneath the bridge gives an obvious reference:
+    // ground and road must remain intact when the new pillar layer is active.
+    box(new C.Cartesian3(0,6,.12),new C.Cartesian3(80,7,.2),
+        C.Color.fromBytes(95,100,103),'synthetic-horizontal-road');
+    const a=coordinate(0,-roadLength/2),b=coordinate(0,roadLength/2);
+    const response={elements:[{type:'way',id:99123,
+        tags:{bridge:'yes',highway:'secondary',name:'Synthetic viaduct'},geometry:[a,b]}]};
+    const requests=[],terrainProbes=[];
+    const frame=()=>new Promise(resolve=>{
+        const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();
+    });
+    const eye=world(125,-160,80),target=world(0,0,15);
+    const direction=C.Cartesian3.normalize(C.Cartesian3.subtract(target,eye,new C.Cartesian3()),new C.Cartesian3());
+    const up=C.Matrix4.multiplyByPointAsVector(enu,new C.Cartesian3(0,0,1),new C.Cartesian3());
+    viewer.camera.setView({destination:eye,orientation:{direction,up}});
+    const deadline=performance.now()+25000;
+    // Readiness belongs to this local test site. tilesLoaded describes every
+    // visible globe tile and may keep refining unrelated horizon terrain.
+    const groundReady=()=>{
+        const height=scene.globe.getHeight(C.Cartographic.fromDegrees(longitude,latitude));
+        return Number.isFinite(height)&&Math.abs(height-500)<.2;
+    };
+    do {await frame();if(performance.now()>deadline)throw Error('Local synthetic terrain or bridge render timeout');}
+    while(!groundReady()||!deck.ready);
+    await frame();await frame();
+    check(scene.sampleHeightSupported,'Actual Cesium depth sampling is available');
+    const probe=scene.sampleHeight(C.Cartographic.fromDegrees(longitude,latitude),undefined,.4);
+    check(Number.isFinite(probe)&&Math.abs(probe-deckTop)<.35,
+        'Actual scene depth returns the visible bridge deck rather than the terrain below');
+    const originalMaterial=scene.globe.material,originalPolygons=scene.globe.clippingPolygons,
+        originalPlanes=scene.globe.clippingPlanes;
+    async function groundPixels(){
+        await frame();
+        const bitmap=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+        const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+        const context=canvas.getContext('2d');context.drawImage(bitmap,0,0);bitmap.close();
+        return [world(-35,-25,0),world(-25,6,.22)].map(point=>{
+            const pixel=C.SceneTransforms.worldToWindowCoordinates(scene,point);
+            return Array.from(context.getImageData(Math.round(pixel.x*canvas.width/viewer.canvas.clientWidth),
+                Math.round(pixel.y*canvas.height/viewer.canvas.clientHeight),1,1).data);
+        });
+    }
+    const groundBefore=await groundPixels();
+    const sampleTerrain=async points=>{
+        terrainProbes.push(...points);
+        const sampled=await C.sampleTerrain(terrain,12,points.map(point=>
+            C.Cartographic.fromDegrees(point.longitude,point.latitude)),true);
+        return sampled.map(point=>point.height);
+    };
+    const fetcher=async url=>{
+        requests.push(String(url));
+        return {ok:true,json:async()=>response,text:async()=>JSON.stringify(response)};
+    };
+    // The manager calls below exercise the public production API. Geometry,
+    // depth probes and drawing use bundled Cesium, without a mocked renderer.
+    const beforeCount=scene.primitives.length;
+    const manager=FPVBridgeSupports.create(C,viewer,{sampleTerrain,ready:()=>true,fetcher});
+    window.bridgeSmokeManager=manager;
+    manager.setEnabled(true);
+    await manager.refresh({longitude,latitude});
+    const result=manager.status();
+    check(result.count>0&&scene.primitives.length>beforeCount,
+        'Synthetic tagged bridge produces actual Cesium pillar geometry');
+    check(requests.length>0&&terrainProbes.length>0,
+        'Bridge discovery uses the injected fixture and foundations query the detailed terrain provider');
+    check(Array.isArray(result.supports)&&result.supports.length===result.count,
+        'Public diagnostics report every generated support');
+    check(result.supports.every(s=>s.bottom>=499&&s.bottom<=500.1),
+        'Every pillar foundation reaches the 500 m provider terrain');
+    check(result.supports.every(s=>s.top>deckTop-3&&s.top<=deckTop+.25),
+        'Every pillar head meets the actual visible bridge deck');
+    check(scene.globe.material===originalMaterial&&scene.globe.clippingPolygons===originalPolygons&&
+        scene.globe.clippingPlanes===originalPlanes,'Bridge pillars retain all horizontal ground and road clipping state');
+    await frame();await frame();
+    const groundAfter=await groundPixels();
+    check(groundBefore.every((before,i)=>before.every((value,k)=>Math.abs(value-groundAfter[i][k])<8)),
+        'Actual rendered ground and horizontal road pixels remain unchanged');
+    check(!failures.length,'No actual Cesium geometry, shader or render failure');
+    manager.setEnabled(false);await frame();
+    check(scene.primitives.length===beforeCount,
+        'Disabling bridge pillars releases their geometry while retaining the original deck and road');
+    manager.setEnabled(true);await manager.refresh({longitude,latitude});
+    await frame();await frame();
+    check(manager.status().count>0,'Pillars can be re-enabled without rebuilding original bridge geometry');
+    manager.dispose();scene.primitives.remove(deck);
+    // Screenshot regression: the BAZL bridge is an elevated obstacle line,
+    // not a resident swisstopo deck mesh. Its cached source profile must work.
+    const sourceFeature={id:'cached-bazl-bridge',sourceType:'BRIDGE',parts:[{
+        kind:'LineString',elevated:true,coordinates:[[a.lon,a.lat,deckTop],[b.lon,b.lat,deckTop]]}]};
+    const line=scene.primitives.add(new C.PolylineCollection());
+    line.add({positions:sourceFeature.parts[0].coordinates.map(p=>C.Cartesian3.fromDegrees(...p)),
+        width:6,material:C.Material.fromType('Color',{color:C.Color.fromCssColorString('#dc9aff')})});
+    const sourceOptions={sourceId:'aviation-obstacles',visible:true,elevationReference:'WGS84_ELLIPSOID',source:'BAZL aviation obstacles'};
+    let sourceRequests=0;
+    const sourceManager=FPVBridgeSupports.create(C,viewer,{sampleTerrain,ready:()=>true,cachedOnly:true,
+        getDeckTileset:()=>null,fetcher:async()=>{sourceRequests++;throw Error('Unexpected network');}});
+    sourceManager.setSourceFeatures([sourceFeature],sourceOptions);
+    const sourceResult=await sourceManager.refresh({longitude,latitude});
+    check(sourceResult.count===5,'Cached BAZL bridge line receives five visible pillars without a deck mesh');
+    check(sourceResult.supports.every(p=>p.heightMethod==='source-profile-estimate'&&Math.abs(p.top-(deckTop-.1))<.01),
+        'Pillar heads follow the published BAZL height profile, explicitly marked as estimates');
+    check(sourceRequests===0,'Cached OSINT profile needs no Overpass request');
+    sourceManager.setEnabled(false);
+    check(sourceManager.status().count===5,'Visible BAZL source keeps its pillars when swisstopo structures are off');
+    sourceManager.setSourceFeatures([],{...sourceOptions,visible:false});
+    check(sourceManager.status().count===0,'Hiding the BAZL source removes its pillars');
+    sourceManager.setSourceFeatures([sourceFeature],sourceOptions);await sourceManager.refresh({longitude,latitude});
+    await frame();await frame();const sourceGround=await groundPixels();
+    check(groundBefore.every((before,i)=>before.every((value,k)=>Math.abs(value-sourceGround[i][k])<8)),
+        'OSINT-derived pillars preserve the rendered ground and road');
+    const toggle=document.getElementById('toggle');let enabled=true;toggle.disabled=false;
+    toggle.onclick=async()=>{
+        try{
+            enabled=!enabled;sourceManager.setSourceFeatures(enabled?[sourceFeature]:[],{...sourceOptions,visible:enabled});
+            if(enabled)await sourceManager.refresh({longitude,latitude});
+            toggle.textContent=enabled?'Hide bridge pillars':'Show bridge pillars';scene.requestRender();
+        }catch(error){document.getElementById('status').textContent='FAIL: '+error;}
+    };
+    window.addEventListener('pagehide',()=>{sourceManager.dispose();viewer.destroy();},{once:true});
+    window.__bridgeSmoke={state:'passed',count:result.count,supports:result.supports,
+        osintCount:sourceResult.count,osintSupports:sourceResult.supports,
+        terrainProbes:terrainProbes.length,requests:requests.length,deckHeight:probe,groundBefore,groundAfter};
+    document.getElementById('status').textContent='PASS: bridge pillars from loaded decks and cached BAZL source profiles; ground remains intact';
+})().catch(error=>{
+    window.__bridgeSmoke={state:'failed',error:String(error.stack||error)};
+    document.getElementById('status').textContent='FAIL: '+error;
+    output.textContent+='\n'+String(error.stack||error);
+});
+</script></html>

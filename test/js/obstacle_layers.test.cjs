@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {WMS,createWms,createVectors,createHazards} = require('../../web/obstacle_layers.js');
 const {Request,RequestState,DistanceDisplayCondition,ShadowMode} = require('../../web/cesium/index.cjs');
 
-function setup({image = () => Promise.resolve({}), yieldBatch,
+function setup({image = () => Promise.resolve({}), yieldBatch, onFeatures,
     terrainReady = () => true, groundHeight = () => undefined} = {}) {
     const layers = [],sources = [],events = [],providers = [];
     let clock = 0, heightCalls = 0;
@@ -38,7 +38,7 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
         camera:{changed:camera,moveEnd:event()},
         scene:{primitives:{primitiveAdded:event()},preRender,globe:{tileLoadProgressEvent:tiles,getHeight:p=>{heightCalls++;return groundHeight(p);}},requestRender() {}}};
     const wms = createWms(C,viewer,(type,payload) => events.push({type,...payload}),{timeoutMs:20});
-    const vectors = createVectors(C,viewer,{yieldBatch,isTerrainReady:terrainReady,now:()=>clock});
+    const vectors = createVectors(C,viewer,{yieldBatch,onFeatures,isTerrainReady:terrainReady,now:()=>clock});
     return {C,viewer,layers,sources,events,providers,wms,vectors,preRender,tiles,camera,
         get heightCalls(){return heightCalls;},frame(ms=16){clock+=ms;preRender.fire();},
         refine(){tiles.fire();clock+=201;preRender.fire();}};
@@ -46,6 +46,19 @@ function setup({image = () => Promise.resolve({}), yieldBatch,
 const tick = () => new Promise(r => setImmediate(r));
 const line = {id:'source-id',category:'powerLines',parts:[{kind:'LineString',elevated:true,
     coordinates:[[8,46,550],[8.01,46.01,560]]}]};
+
+test('bridge consumers receive only committed obstacle batches and are cleared on disposal',async()=>{
+    const published=[];let release;
+    const p=setup({onFeatures:features=>published.push(features),yieldBatch:()=>new Promise(resolve=>release=resolve)});
+    const bridge={...line,id:'bridge',category:'other',sourceType:'BRIDGE'};
+    await p.vectors.replace({revision:1,features:[bridge]});
+    assert.deepEqual(published,[[bridge]]);
+    const pending=p.vectors.replace({revision:2,features:Array.from({length:81},(_,i)=>({...bridge,id:`bridge-${i}`}))});
+    await tick();assert.equal(typeof release,'function');
+    await p.vectors.replace({revision:3,features:[]});release();await pending;
+    assert.deepEqual(published,[[bridge],[]],'superseded staging never becomes a support source');
+    p.vectors.dispose();assert.deepEqual(published.at(-1),[]);
+});
 
 test('optional models use exactly the published AGL at cached terrain base and retain picking',async () => {
     let ground=500;

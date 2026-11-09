@@ -109,6 +109,8 @@ flutter:
     - web/flight_hud.css
     - web/flight_rendering.js
     - web/scene_environment.js
+    - web/bridge_supports.js
+    - web/bridge_source.js
     - web/tunnel_offline_index.js
     - web/data/tunnels/ch_tunnels_v1.json
     - web/data/tunnels/ODBL_NOTICE.txt

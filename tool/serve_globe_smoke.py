@@ -105,6 +105,24 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/interaction_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/flight-smoke':
             self.reply((ROOT / 'test/web/flight_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/tunnel-portal-smoke':
+            self.reply((ROOT / 'test/web/tunnel_portal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/tunnel-model-portal-smoke':
+            self.reply((ROOT / 'test/web/tunnel_model_portal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/tunnel-globe-portal-smoke':
+            self.reply((ROOT / 'test/web/tunnel_globe_portal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/tunnel-wall-opacity-smoke':
+            self.reply((ROOT / 'test/web/tunnel_wall_opacity_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/tunnel-bridge-portal-smoke':
+            self.reply((ROOT / 'test/web/tunnel_bridge_portal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/bridge-supports-smoke':
+            self.reply((ROOT / 'test/web/bridge_supports_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/bridge-native-source-smoke':
+            self.reply((ROOT / 'test/web/bridge_native_source_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path in {'/fixtures/bridges/tileset.json', '/fixtures/bridges/ganter_native_deck.json',
+                      '/fixtures/bridges/ganter_native_deck.b3dm'}:
+            mime = 'application/json' if path.endswith('.json') else 'application/octet-stream'
+            self.reply((ROOT / 'test/fixtures/bridges' / path.rsplit('/', 1)[1]).read_bytes(), mime)
         elif path == '/wind-smoke':
             self.reply((ROOT / 'test/web/wind_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/map-controls-smoke':

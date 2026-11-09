@@ -157,15 +157,17 @@
             if (disposed || state !== "ready") throw new Error("Detailed terrain data unavailable");
             const sampledProvider = provider, sampledGeneration = generation;
             try {
+                // Background scans have no command signal; provider changes
+                // still cancel them through the mandatory generation signal.
                 const result = await bounded(() => work(sampledProvider), sampleTimeoutMs,
-                    [sampledGeneration.signal, commandSignal]);
-                commandSignal.throwIfAborted();
+                    [sampledGeneration.signal, ...(commandSignal ? [commandSignal] : [])]);
+                commandSignal?.throwIfAborted();
                 if (disposed || generation !== sampledGeneration || state !== "ready") {
                     throw new Error("Terrain changed during the request");
                 }
                 return result;
             } catch (error) {
-                commandSignal.throwIfAborted();
+                commandSignal?.throwIfAborted();
                 // A missing profile tile or a timed-out height query does not
                 // invalidate already rendered terrain in the rest of the view.
                 throw error;

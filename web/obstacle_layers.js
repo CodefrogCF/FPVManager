@@ -124,7 +124,8 @@
     }
 
     function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0)),
-        isTerrainReady = () => true, now = () => performance.now(), terrainBatchSize = 128} = {}) {
+        isTerrainReady = () => true, now = () => performance.now(), terrainBatchSize = 128,
+        onFeatures = () => {}} = {}) {
         let source = null, sourceReady = null, revision = -1, disposed = false;
         let records = new Map(), hasLoadedModels = false;
         const heightCache = new Map(), pendingRecords = new Set();
@@ -456,6 +457,9 @@
                     committed = true;
                 } finally { source.entities.resumeEvents?.(); }
                 setCredit(command.features.length > 0);
+                // Consumers see only the atomically committed source batch,
+                // never cancelled or superseded staging data.
+                onFeatures(command.features);
                 viewer.scene.requestRender?.();
             } finally {
                 for (const record of created) {
@@ -470,6 +474,7 @@
                 terrain?.dispose(); terrain = null;
                 for (const record of pendingRecords) forget(record);
                 pendingRecords.clear(); records.clear(); models.dispose(); heightCache.clear();
+                onFeatures([]);
                 remove(source); source = null; selection.clear(); setCredit(false); }};
     }
     function createHazards(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0))} = {}) {

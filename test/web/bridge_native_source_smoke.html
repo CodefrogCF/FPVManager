@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Native Ganter bridge supports</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:white;font:15px system-ui}h1{font-size:19px;margin:12px}p{margin:12px}#viewer{height:70vh}pre{white-space:pre-wrap;padding:12px}</style>
+<h1 id="status">Checking the native Ganter bridge…</h1>
+<p>Original pink swissTLM3D bridge deck and grey border. Ground is a synthetic 1350 m test surface. Added support positions are schematic.</p>
+<div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script>
+<script src="/cesium/Cesium.js"></script><script src="/bridge_source.js"></script><script src="/bridge_supports.js"></script>
+<script>
+'use strict';window.__nativeBridgeSmoke={state:'running'};
+(async()=>{
+    const C=Cesium,log=document.getElementById('log'),errors=[];
+    const check=(value,message)=>{if(!value)throw Error(message);log.textContent+='PASS: '+message+'\n';};
+    const fixture=await (await fetch('/fixtures/bridges/ganter_native_deck.json')).json();
+    const terrain=new C.CustomHeightmapTerrainProvider({width:16,height:16,callback:()=>new Float32Array(256).fill(1350)});
+    const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,geocoder:false,homeButton:false,
+        sceneModePicker:false,navigationHelpButton:false,animation:false,timeline:false,fullscreenButton:false,
+        infoBox:false,selectionIndicator:false,terrainProvider:terrain,contextOptions:{webgl:{preserveDrawingBuffer:true}}});
+    window.nativeBridgeViewer=viewer;const scene=viewer.scene;
+    scene.renderError.addEventListener((_scene,error)=>errors.push(String(error)));
+    scene.globe.baseColor=C.Color.fromBytes(65,95,67);scene.globe.enableLighting=false;scene.globe.depthTestAgainstTerrain=true;
+    scene.skyBox.show=false;scene.skyAtmosphere.show=false;scene.sun.show=false;scene.moon.show=false;scene.fog.enabled=false;
+    const selected=await C.Cesium3DTileset.fromUrl('/fixtures/bridges/tileset.json',{maximumScreenSpaceError:1,
+        cullRequestsWhileMoving:false,cullWithChildrenBounds:false,skipLevelOfDetail:false});
+    selected.tileFailed.addEventListener(error=>errors.push(JSON.stringify(error)));
+    let loaded=0;selected.tileLoad.addEventListener(()=>loaded++);
+    scene.primitives.add(selected);
+    viewer.camera.lookAt(C.Cartesian3.fromDegrees(8.0515,46.2961,1445),new C.HeadingPitchRange(.35,-.48,1200));
+    const frame=()=>new Promise(resolve=>{const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();});
+    const deadline=performance.now()+25000;
+    do{await frame();if(performance.now()>deadline)throw Error('Native bridge tile render timed out '+JSON.stringify({loaded,errors,
+        cameraHeight:viewer.camera.positionCartographic.height,rootContentState:selected.root._contentState,
+        sphere:selected.boundingSphere,rootTransform:selected.root.computedTransform}));}
+    while(!loaded||!selected.tilesLoaded||!Number.isFinite(scene.globe.getHeight(C.Cartographic.fromDegrees(8.052147,46.295329))));
+    await frame();await frame();
+    let requests=0;
+    const source=FPVBridgeSource.create(C,viewer,{getDeckTileset:()=>selected,fetcher:async url=>{
+        requests++;check(String(url).includes('swisstlm3d-strassen'),'Discovery requests the official road axis');
+        return {ok:true,json:async()=>fixture.identify};}});
+    const native=await source.discover(fixture.center);
+    check(native.bridges.length===1,'Actual native 3D bridge metadata classifies the unclassified official road axis ('+JSON.stringify({loaded,errors})+')');
+    check(native.bridges[0].sourceId===fixture.nativeFeature.UUID,'Picked native feature is the reported Ganter bridge');
+    check(native.bridges[0].coordinates.length>20,'Native deck yields a continuous bounded elevation profile');
+    const heights=native.bridges[0].coordinates.map(p=>p.height);
+    check(Math.min(...heights)>1425&&Math.max(...heights)<1475,'Deck heights come from the original transformed Draco mesh');
+    const manager=FPVBridgeSupports.create(C,viewer,{getDeckTileset:()=>selected,
+        sampleTerrain:async points=>points.map(()=>1350),discoverBridges:source.discover,
+        fetcher:async()=>{throw Error('Native bridge must not depend on Overpass');}});
+    window.nativeBridgeManager=manager;manager.setEnabled(true);
+    const state=await manager.refresh(fixture.center);
+    check(state.count>20,'Production support manager adds visible piers to the actual native Ganter bridge');
+    check(state.supports.every(p=>p.bottom===1349.7&&p.top>1425&&p.top<1475),'All support foundations and heads meet the test ground and native deck');
+    check(requests===1,'An explicit refresh at the same position reuses the native profile');
+    await frame();await frame();check(errors.length===0,'Native tile decoding, ray picking and pier geometry render without errors');
+    document.getElementById('status').textContent='PASS: native Ganter bridge has visible supports';
+    window.__nativeBridgeSmoke={state:'passed',count:state.count,requests,sourceId:native.bridges[0].sourceId,
+        deckRange:[Math.min(...heights),Math.max(...heights)],supports:state.supports};
+    window.addEventListener('pagehide',()=>{manager.dispose();source.dispose();viewer.destroy();},{once:true});
+})().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;
+    window.__nativeBridgeSmoke={state:'failed',error:String(error.stack||error)};});
+</script></html>

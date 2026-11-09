@@ -6,20 +6,36 @@ const {createSimulator}=require('../../web/free_flight.js');
 const scope={console,setTimeout,clearTimeout,URL,TextDecoder,TextEncoder,atob,btoa,
     TransformStream,ReadableStream,WritableStream,AbortController,Blob};scope.global=scope;
 const C=vm.runInNewContext(fs.readFileSync(require.resolve('../../web/cesium/Cesium.js'),'utf8')+';Cesium',scope);
-function fixture(){
-    let allocations=0,reference=null,last=null,ray=null,hitDistance=null;
+function fixture(options={}){
+    let allocations=0,reference=null,last=null,ray=null,hitDistance=null,picks=0;
     const MathC={...C};
     for(const name of ['Cartesian3','Cartographic','Matrix4','Ray'])MathC[name]=class extends C[name]{constructor(...args){super(...args);allocations++;}};
     const viewer={resolutionScale:.95,scene:{msaaSamples:8,requestRender(){},globe:{ellipsoid:C.Ellipsoid.WGS84,
         tileCacheSize:100,preloadAncestors:true,preloadSiblings:false,maximumScreenSpaceError:2,
         getHeight:position=>position.latitude*100,
-        pick:value=>{ray=value;if(hitDistance==null)return;return C.Cartesian3.add(value.origin,C.Cartesian3.multiplyByScalar(value.direction,hitDistance,new C.Cartesian3()),new C.Cartesian3());}}},
+        pick:value=>{picks++;ray=value;if(hitDistance==null)return;return C.Cartesian3.add(value.origin,C.Cartesian3.multiplyByScalar(value.direction,hitDistance,new C.Cartesian3()),new C.Cartesian3());}}},
         camera:{setView(value){reference=value;last={position:C.Cartesian3.clone(value.destination),
             direction:value.orientation.direction&&C.Cartesian3.clone(value.orientation.direction),
             up:value.orientation.up&&C.Cartesian3.clone(value.orientation.up),heading:value.orientation.heading};}}};
-    return {viewer,adapter:create(MathC,viewer),get allocations(){return allocations;},get reference(){return reference;},get last(){return last;},
+    return {viewer,adapter:create(MathC,viewer,options),get allocations(){return allocations;},get reference(){return reference;},get last(){return last;},get picks(){return picks;},
         get ray(){return ray;},hit:distance=>hitDistance=distance};
 }
+
+test('only an explicitly modeled passage exempts terrain triangles hidden by a portal material',()=>{
+    let passage=false;
+    const p=fixture({terrainPassage:()=>passage}),from={longitude:8.4,latitude:46.7,height:502},
+        to={...from,height:503};
+    p.hit(.5);
+    assert.equal(p.adapter.terrainCollision(from,to),true,'normal terrain ray contact is retained');
+    const calls=p.picks;
+    passage=true;
+    assert.equal(p.adapter.terrainCollision(from,to),false,'a clipped portal does not retain an invisible terrain bulkhead');
+    assert.equal(p.picks,calls,'bounded exemption avoids an unnecessary unmodified terrain ray');
+    passage=false;
+    assert.equal(p.adapter.terrainCollision(from,to),true,'leaving the modeled passage restores terrain collision');
+    passage='true';
+    assert.equal(p.adapter.terrainCollision(from,to),true,'only a confirmed boolean passage can exempt contact');
+});
 test('horizontal FOV adapts to portrait without mixing camera tilt or changing physics',()=>{
     assert.ok(Math.abs(perspectiveFov(90,16/9)-Math.PI/2)<1e-12);
     assert.ok(perspectiveFov(90,9/16)>Math.PI/2);

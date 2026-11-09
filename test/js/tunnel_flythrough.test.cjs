@@ -2,6 +2,9 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
 const F=require('../../web/free_flight.js');
+const ActualCesium=require('../../web/cesium/index.cjs');
+for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])
+    globalThis[name]??=class {};
 const source={id:'road:101:0',source:'ch.swisstopo.swisstlm3d-strassen',sourceId:'101',
     coordinates:[[8.2,46.8],[8.20007,46.8],[8.20014,46.8],[8.20021,46.8]]};
 const model=()=>T.procedural(source,[510,510,511,511],{widthMeters:6,heightMeters:5});
@@ -12,8 +15,14 @@ function fake(){
     class Geometry{constructor(options){Object.assign(this,options);}}
     class GeometryAttribute{constructor(options){Object.assign(this,options);}}
     class Primitive{constructor(options){Object.assign(this,options);}}
+    class Cartesian3 extends ActualCesium.Cartesian3 {
+        static fromDegrees(lon,lat,h=0){return new Cartesian3(lon*1000,lat*1000,h);}
+    }
     const C={
-        Cartesian3:{fromDegrees:(lon,lat,h=0)=>({x:lon*1000,y:lat*1000,z:h})},
+        Cartesian3,Cartesian4:ActualCesium.Cartesian4,EncodedCartesian3:ActualCesium.EncodedCartesian3,
+        Cartographic:{fromDegrees:(longitude,latitude)=>({longitude,latitude})},
+        Transforms:ActualCesium.Transforms,ClippingPlane:ActualCesium.ClippingPlane,
+        ClippingPlaneCollection:ActualCesium.ClippingPlaneCollection,Material:ActualCesium.Material,
         Geometry,GeometryAttribute,Primitive,
         GeometryInstance:class{constructor(options){Object.assign(this,options)}},
         ComponentDatatype:{DOUBLE:1},PrimitiveType:{TRIANGLES:4},
@@ -77,7 +86,8 @@ test('activate and stop restore existing terrain clipping and release the model'
     const f=fake();const result=await f.service.prepare(source,{widthMeters:6,heightMeters:5});
     assert.equal(result.quality,'simulation-only');
     assert.equal(f.added.length,1);
-    assert.notEqual(f.viewer.scene.globe.clippingPolygons,f.old);
+    assert.ok(f.viewer.scene.globe.material,'slope-aware aperture installed');
+    assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
     assert.equal(f.service.status().ready,true);
     const spawn=f.service.firstPose();assert.ok(spawn.height>spawn.ground);
     f.service.activate();
@@ -86,11 +96,12 @@ test('activate and stop restore existing terrain clipping and release the model'
     f.service.stop();assert.equal(f.service.status().ready,false);
     assert.equal(f.added.length,0);assert.equal(f.removed.length,1);
     assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
+    assert.equal(f.viewer.scene.globe.material,undefined);
     assert.equal(f.service.floorAt(spawn),null);
     f.service.dispose();
 });
 test('terrain clipping unsupported or already owned by another layer fails closed',async()=>{
-    const f=fake();f.C.ClippingPolygonCollection.isSupported=()=>false;
+    const f=fake();f.viewer.scene.context={webgl2:false};
     await assert.rejects(f.service.prepare(source),/not supported/);
     assert.equal(f.added.length,0);assert.equal(f.service.status().ready,false);
     const q=fake();q.viewer.scene.globe.clippingPolygons={length:1};
@@ -237,11 +248,12 @@ test('long replay jumps fail closed near a loaded tunnel but not across distant 
         'teleport crossing tunnel geometry is stopped');
 });
 
-test('small portal cuts are replaced with full corridor clipping only during simulated flight',async()=>{
+test('prepared tunnel keeps horizontal terrain intact during preview and simulated flight',async()=>{
     const f=fake();await f.service.prepare(source,{profile:'vaulted'});
-    assert.equal(f.viewer.scene.globe.clippingPolygons.length,2,'only portal approaches clipped at rest');
+    assert.ok(f.viewer.scene.globe.material,'slope-aware portal aperture');
+    assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
     f.service.activate();
-    assert.equal(f.viewer.scene.globe.clippingPolygons.length,1,'corridor clipped during underground flight');
+    assert.equal(f.viewer.scene.globe.clippingPolygons,f.old,'no full-height corridor excavation');
     f.service.stop();assert.equal(f.viewer.scene.globe.clippingPolygons,f.old);
 });
 
@@ -326,7 +338,7 @@ test('invalid first ranked route cannot starve valid nearby tunnel and reports a
     service.dispose();
 });
 
-test('scene-resident terrain avoids redundant network heights and viewport reuses meshes',async()=>{
+test('scene-resident axis terrain is reused but road probes request a consistent detailed profile',async()=>{
     const f=fake();let requests=0;
     f.C.Cartographic={fromDegrees:(longitude,latitude)=>({longitude,latitude})};
     f.viewer.scene.globe.getHeight=()=>510;
@@ -336,7 +348,7 @@ test('scene-resident terrain avoids redundant network heights and viewport reuse
     await service.setAutomaticRoutes([r],{longitude:8.2,latitude:46.8});
     const first=f.added[0];
     await service.setAutomaticRoutes([r],{longitude:8.2,latitude:46.8});
-    assert.equal(requests,0);
+    assert.equal(requests,1,'road approach LOD is refreshed once, then resident mesh is reused');
     assert.equal(f.added[0],first);
     assert.equal(f.added.length,1);
     service.setAutomaticEnabled(false);
@@ -399,9 +411,9 @@ test('auto preview clips only portals, flight clips one nearby corridor and retu
     f.viewer.camera.positionCartographic={longitude:p[0]*Math.PI/180,latitude:p[1]*Math.PI/180,
         height:m.sections[1].floorMetersWgs84+2};
     flying=true;clock+=500;frame();
-    const flight=f.viewer.scene.globe.clippingPolygons;
-    assert.equal(flight.length,1,'only the relevant tunnel is opened for active flight');
-    assert.ok(flight.polygons[0].positions.length>4);
+    const flight=f.viewer.scene.globe.material;
+    assert.ok(flight,'only the relevant tunnel receives a slope-aware aperture');
+    assert.equal(f.viewer.scene.globe.clippingPolygons.length,0);
     flying=false;clock+=500;frame();
     assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,'returns to no clipping after flight');
     service.dispose();
@@ -463,7 +475,7 @@ test('automatic tunnel portal footprints stay short and floor materials are batc
     await f.service.setAutomaticRoutes([{...source,kind:'tunnel'}],{longitude:8.2001,latitude:46.8});
     const primitive=f.added.find(p=>p.geometryInstances);
     assert.ok(primitive);
-    assert.equal(primitive.geometryInstances.length,5,'one primitive, five visually distinct material groups');
+    assert.equal(primitive.geometryInstances.length,7,'five material groups plus two hollow portal surrounds');
     assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
         'non-buried preview must not cut roads or fields');
     f.service.dispose();
@@ -557,8 +569,8 @@ test('covered mountain tunnel has roof beneath ground and local portal clipping'
     svc.setAutomaticEnabled(true);
     return svc.setAutomaticRoutes([route]).then(result=>{
         assert.equal(result.count,1);
-        assert.equal(f.viewer.scene.globe.clippingPolygons.length,2,
-            'only plausible mountainside portals are clipped');
+        assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
+            'portal clipping never creates unbounded terrain polygons');
         svc.dispose();
     });
 });
@@ -1091,8 +1103,9 @@ test('bridge-to-cliff portal uses clipped vertical bounds and restores owned glo
     const bridgeModel=T.procedural(route,[1000,1000,1000,1000],{profile:'vaulted'});
     assert.equal(T.boundedClipSpec(bridgeModel,0).before,10,
         'a bridge-to-tunnel road has a slightly longer, height-bounded approach notch');
-    assert.equal(f.viewer.scene.globe.clippingPlanes.length,11,
-        'one height-bounded opening replaces the unbounded rock cut');
+    assert.equal(f.viewer.scene.globe.clippingPlanes,previous,
+        'native plane clipping never removes road fragments');
+    assert.ok(f.viewer.scene.globe.material instanceof C.Material);
     assert.equal(svc.diagnostics().boundedApertureActive,true);
     assert.equal(f.viewer.scene.globe.clippingPolygons,oldPolygons);
     svc.dispose();
@@ -1127,7 +1140,8 @@ test('active tunnel flight replaces long vertical polygon cut with a moving boun
     svc.setAutomaticEnabled(true);
     await svc.setAutomaticRoutes([{...source,kind:'tunnel'}],
         {longitude:8.2001,latitude:46.8});
-    assert.equal(svc.diagnostics().boundedAperturePlanes,11);
+    assert.equal(svc.diagnostics().boundedAperturePlanes,0);
+    assert.equal(svc.diagnostics().groundProtected,true);
     const group=f.added.find(p=>p instanceof C.PrimitiveCollection);
     assert.ok(group,'detailed graphics retain one atomic scene object');
     assert.equal(group.length,2,'textured tunnel and painted road markings use separate passes');
@@ -1139,14 +1153,14 @@ test('active tunnel flight replaces long vertical polygon cut with a moving boun
     f.viewer.camera.positionCartographic={longitude:8.20012*Math.PI/180,
         latitude:46.8*Math.PI/180,height:1002};
     flying=true;clock+=500;frame();
-    const cut=f.viewer.scene.globe.clippingPlanes;
-    assert.equal(cut.length,11);
+    const cut=f.viewer.scene.globe.material;
+    assert.ok(cut instanceof C.Material);
     assert.equal(svc.diagnostics().boundedApertureActive,true);
     assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
         'no unbounded 2D terrain polygon is combined with the bounded volume');
     const mid=C.Cartesian3.fromDegrees(8.20012,46.8,1000);
-    assert.ok(C.Cartesian3.distance(new C.Cartesian3(cut.modelMatrix[12],
-        cut.modelMatrix[13],cut.modelMatrix[14]),mid)<2,
+    assert.ok(C.Cartesian3.distance(C.Cartesian3.add(cut.uniforms.apertureOriginHigh,
+        cut.uniforms.apertureOriginLow,new C.Cartesian3()),mid)<2,
         'flight cut origin advances from portal toward the occupied tunnel segment');
     svc.dispose();
     assert.equal(frame,null);
@@ -1252,14 +1266,14 @@ test('bridge-to-rock portal expands only its local vaulted entrance cut when FPV
     await service.setAutomaticRoutes([{...source,kind:'tunnel',transport:'road',
         roadApproachKinds:['bridge',null]}],{longitude:8.2001,latitude:46.8});
     assert.equal(service.diagnostics().boundedApertureActive,true);
-    const idle=f.viewer.scene.globe.clippingPlanes;
+    const idle=f.viewer.scene.globe.material;
     // Around 15 m before the start of the source centerline: outside the bore.
     f.viewer.camera.positionCartographic.longitude=(8.2-.00018)*Math.PI/180;
     flying=true;clock+=1000;frame();
-    const approaching=f.viewer.scene.globe.clippingPlanes;
+    const approaching=f.viewer.scene.globe.material;
     assert.notEqual(approaching,idle,'outside approach uses a new longer local aperture');
-    assert.equal(approaching.length,11);
-    assert.equal(approaching.get(2).distance<=-9,true,
+    assert.ok(approaching instanceof C.Material);
+    assert.equal(approaching.uniforms.apertureBounds.y>=9,true,
         'flight approach has more than the idle 10 m lead-in');
     assert.equal(f.viewer.scene.globe.clippingPolygons,polygons,
         'rock slope must not receive an additional unbounded clipping polygon');
@@ -1290,6 +1304,12 @@ test('detailed tunnel road retains former dark asphalt and solid, depth-writing 
     assert.equal(res.count,1);
     const primitive=f.added.find(p=>p instanceof f.C.Primitive);
     assert.equal(primitive.appearance.translucent,false);
+    assert.equal(primitive.appearance.material.isTranslucent(),false,
+        'the custom material must select the opaque pass independently of appearance.translucent');
+    assert.equal(primitive.appearance.isTranslucent(),false);
+    assert.equal(primitive.appearance.getRenderState().depthMask,true,
+        'Cesium must retain depth writes after resolving material translucency');
+    assert.equal(primitive.appearance.getRenderState().blending.enabled,false);
     assert.equal(primitive.appearance.renderState.depthMask,true);
     assert.equal(primitive.appearance.renderState.cull.enabled,false);
     f.service.dispose();
@@ -1312,6 +1332,10 @@ test('tunnel markings use a visible independent opaque decal pass with true Cesi
     assert.equal(collection.length,2);
     const base=collection.get(0),markings=collection.get(1);
     assert.equal(base.appearance.translucent,false);
+    assert.equal(base.appearance.material.isTranslucent(),false);
+    assert.equal(base.appearance.isTranslucent(),false);
+    assert.equal(base.appearance.getRenderState().depthMask,true);
+    assert.equal(base.appearance.getRenderState().blending.enabled,false);
     assert.equal(markings.appearance.translucent,false);
     assert.equal(markings.appearance.renderState.depthMask,true);
     assert.ok(markings.geometryInstances[0].geometry.indices.length>0);
@@ -1337,7 +1361,7 @@ test('normal globe view selects clipping by its visible center instead of the di
     assert.equal(result.count,1);
     assert.equal(svc.diagnostics().boundedApertureActive,true,
         'looking at a portal from far away should still clip the portal');
-    assert.equal(svc.diagnostics().boundedAperturePlanes,11);
+    assert.equal(svc.diagnostics().boundedAperturePlanes,0);
     svc.dispose();
 });
 

@@ -56,6 +56,13 @@ Open these paths at `http://127.0.0.1:8765`:
 | `/terrain-smoke` | Synthetic terrain with HTTP failure/delay and recovery cases |
 | `/interaction-smoke` | Ground camera and waypoint interaction with synthetic terrain |
 | `/flight-smoke` | Flight spawn/HUD, terrain contact, shared touch/gamepad input fixtures, reset and exit |
+| `/tunnel-portal-smoke` | Actual aperture fragment shader: horizontal and 50° faces retained; 75° and 89° faces removed only inside the bounded portal |
+| `/tunnel-model-portal-smoke` | Actual glTF CustomShader: two portal openings, including a graded opening; the flat road and walls outside the openings survive |
+| `/tunnel-globe-portal-smoke` | Actual Globe heightmap without vertex normals: reproduces the disabled-material regression, opens a production tunnel shell from outside and preserves horizontal road and surrounding rock |
+| `/tunnel-wall-opacity-smoke` | Actual tunnel materials in every graphics profile and an imported mesh: both wall sides stay opaque over changing bright backgrounds, with opaque draw commands and depth writes |
+| `/tunnel-bridge-portal-smoke` | Real Globe cliff, horizontal bridge and descending bore: legacy grade stops flight; corrected physics crosses at exactly 0.5 m approach AGL, including a moving aperture refresh |
+| `/bridge-supports-smoke` | Actual Cesium bridge pillars: synthetic bridge tags, visible deck probes, detailed terrain foundations, unobstructed ground and layer cleanup; no live map services |
+| `/bridge-native-source-smoke` | Original swisstopo Ganter bridge subset: native feature classification, picked deck heights and visible production pillars above synthetic ground; no live data service required |
 | `/signal-smoke` | Radio sight lines, Fresnel envelope, unknown heights, ground view and terrain invalidation |
 | `/situational-smoke` | Mobility vectors, independent OSINT sources, live official WMS and ground view |
 | `/obstacle-smoke` | Actual Cesium obstacle geometry, selection, live official WMS and opacity controls |

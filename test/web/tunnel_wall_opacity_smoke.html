@@ -1,0 +1,92 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Tunnel wall opacity regression</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:white;font:15px system-ui}h1{font-size:19px;margin:12px}#viewer{height:65vh}pre{padding:12px;white-space:pre-wrap}</style>
+<h1 id="status">Checking solid tunnel walls from both sides…</h1><div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script><script src="/cesium/Cesium.js"></script><script src="/scene_environment.js"></script>
+<script>
+'use strict';
+const C=Cesium,T=FPVTunnelFlythrough,log=document.getElementById('log');
+const check=(value,message)=>{if(!value)throw Error(message);log.textContent+='PASS: '+message+'\n';};
+window.__wallOpacitySmoke={state:'running'};
+(async()=>{
+ const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,geocoder:false,homeButton:false,
+  sceneModePicker:false,navigationHelpButton:false,animation:false,timeline:false,fullscreenButton:false,
+  infoBox:false,selectionIndicator:false,terrainProvider:new C.EllipsoidTerrainProvider(),
+  contextOptions:{webgl:{preserveDrawingBuffer:true,alpha:false}}});
+ const scene=viewer.scene;scene.globe.show=false;scene.skyBox.show=false;scene.skyAtmosphere.show=false;
+ scene.sun.show=false;scene.moon.show=false;scene.fog.enabled=false;
+ viewer.clock.shouldAnimate=false;scene.screenSpaceCameraController.enableCollisionDetection=false;
+ const errors=[];scene.renderError.addEventListener((_,error)=>errors.push(String(error)));
+ const origin=C.Cartesian3.fromDegrees(8.6,46.7,500),enu=C.Transforms.eastNorthUpToFixedFrame(origin);
+ const world=(x,y,z)=>C.Matrix4.multiplyByPoint(enu,new C.Cartesian3(x,y,z),new C.Cartesian3());
+ const coordinate=(x,y,z)=>{const p=C.Cartographic.fromCartesian(world(x,y,z));
+  return [C.Math.toDegrees(p.longitude),C.Math.toDegrees(p.latitude),p.height];};
+ const sections=[-20,0,20].map(north=>{const p=coordinate(0,north,0);return {
+  longitude:p[0],latitude:p[1],floorMetersWgs84:p[2],widthMeters:8,heightMeters:6};});
+ const frame=()=>new Promise(resolve=>{const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();});
+ function look(outside){
+  const eye=world(outside?9:0,0,3),target=world(4,0,3);
+  viewer.camera.setView({destination:eye,orientation:{
+   direction:C.Cartesian3.normalize(C.Cartesian3.subtract(target,eye,new C.Cartesian3()),new C.Cartesian3()),
+   up:C.Matrix4.multiplyByPointAsVector(enu,new C.Cartesian3(0,0,1),new C.Cartesian3())}});
+ }
+ function shellPrimitives(collection=scene.primitives){
+  const result=[];
+  for(let index=0;index<collection.length;index++){
+   const primitive=collection.get(index);
+   if(primitive instanceof C.PrimitiveCollection)result.push(...shellPrimitives(primitive));
+   else if(primitive instanceof C.Primitive)result.push(primitive);
+  }
+  return result;
+ }
+ async function color(background){
+  scene.backgroundColor=background;await frame();await frame();
+  if(errors.length)throw Error(errors.join('; '));
+  const image=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+  const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+  const context=canvas.getContext('2d');context.drawImage(image,0,0);image.close();
+  return Array.from(context.getImageData(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1).data);
+ }
+ const results=[];
+ for(const profile of ['balanced','quality','performance','compatibility','imported-mesh']){
+  const service=T.create(C,viewer,()=>{},{now:()=>0});
+  if(profile==='imported-mesh'){
+   const vertices=[[4,-20,0],[4,20,0],[4,20,6],[4,-20,6]].map(p=>coordinate(...p));
+   const mesh={vertices,triangles:[[0,1,2],[0,2,3]]};
+   service.importModel({version:2,format:'fpvmanager-georeferenced-trimesh',coordinateReference:'EPSG:4979',
+    elevationReference:'WGS84_ELLIPSOID',source:'Opaque imported wall fixture',visualMesh:mesh,collisionMesh:mesh});
+  }else{
+   service.setPerformanceProfile(profile);
+   service.importModel({version:1,elevationReference:'WGS84_ELLIPSOID',source:'Opaque tunnel fixture',profile:'rectangular',sections});
+  }
+  look(false);await frame();await frame();
+  const primitives=shellPrimitives();check(primitives.length>0,profile+': actual production shell is present');
+  for(const primitive of primitives){
+   const appearance=primitive.appearance,state=appearance.getRenderState();
+   check(!appearance.isTranslucent()&&(!appearance.material||!appearance.material.isTranslucent()),
+    profile+': resolved material selects an opaque pass');
+   check(state.depthMask===true&&!state.blending?.enabled&&!state.cull?.enabled,
+    profile+': resolved state writes depth without blending or backface culling');
+   const commands=primitive._colorCommands;
+   check(commands.length>0&&commands.every(command=>command.pass===C.Pass.OPAQUE&&command.renderState.depthMask===true),
+    profile+': actual GPU draw commands use opaque depth-writing rendering');
+  }
+  for(const outside of [false,true]){
+   look(outside);
+   const magenta=await color(C.Color.fromBytes(255,0,255));
+   const cyan=await color(C.Color.fromBytes(0,255,255));
+   check(magenta.slice(0,3).every((value,index)=>Math.abs(value-cyan[index])<=1),
+    profile+': '+(outside?'outside':'inside')+' wall completely hides changing bright background');
+   check(cyan[0]>10&&Math.max(...cyan.slice(0,3))-Math.min(...cyan.slice(0,3))<100,
+    profile+': '+(outside?'outside':'inside')+' face is visibly solid');
+   results.push({profile,side:outside?'outside':'inside',magenta,cyan});
+  }
+  if(profile==='imported-mesh')window.wallOpacityProofService=service;
+  else service.dispose();
+ }
+ check(!errors.length,'No shader or rendering errors');
+ window.__wallOpacitySmoke={state:'passed',results};
+ document.getElementById('status').textContent='PASS: opaque walls, depth writes and solid front/back faces across all tunnel modes';
+})().catch(error=>{window.__wallOpacitySmoke={state:'failed',error:String(error.stack||error)};
+ document.getElementById('status').textContent='FAIL: '+error;log.textContent+='\n'+String(error.stack||error);});
+</script></html>

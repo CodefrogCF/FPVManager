@@ -1,0 +1,251 @@
+{
+  "source": "swisstopo",
+  "capturedAtUtc": "2026-11-08T00:00:00Z",
+  "nativeTileUrl": "https://3d.geo.admin.ch/ch.swisstopo.swisstlm3d.3d/v1/20260520/6/31/9.b3dm",
+  "axisFeatureUrl": "https://api3.geo.admin.ch/rest/services/api/MapServer/ch.swisstopo.swisstlm3d-strassen/46980536?geometryFormat=geojson&sr=4326",
+  "catalogueUrl": "https://www.swisstopo.admin.ch/dam/de/sd-web/A3kQ2dAgenqG/2025-03",
+  "attribution": "\u00a9 swisstopo",
+  "center": {
+    "longitude": 8.052147,
+    "latitude": 46.295329
+  },
+  "nativeFeature": {
+    "UUID": "{5D51F25F-57AC-4574-9E4F-29BD4E724CCE}",
+    "OBJECTID": 45029,
+    "NAME": "Ganterbr\u00fccke",
+    "KUNSTBAUTE": 200,
+    "SHAPE_Length": 709.5140921577258,
+    "HalfBreite_Centre": 2.7,
+    "HalfBreite_Edge": 0.6
+  },
+  "identify": {
+    "results": [
+      {
+        "type": "Feature",
+        "featureId": 46980536,
+        "bbox": [
+          8.047733,
+          46.294897,
+          8.055249,
+          46.297878
+        ],
+        "layerBodId": "ch.swisstopo.swisstlm3d-strassen",
+        "layerName": "Strassen und Wege swissTLM3D",
+        "id": 46980536,
+        "geometry": {
+          "type": "MultiLineString",
+          "coordinates": [
+            [
+              [
+                8.047766,
+                46.297918
+              ],
+              [
+                8.047921,
+                46.297915
+              ],
+              [
+                8.048053,
+                46.297908
+              ],
+              [
+                8.048185,
+                46.297894
+              ],
+              [
+                8.04831,
+                46.297875
+              ],
+              [
+                8.048471,
+                46.297844
+              ],
+              [
+                8.048631,
+                46.297805
+              ],
+              [
+                8.048784,
+                46.297762
+              ],
+              [
+                8.048917,
+                46.297718
+              ],
+              [
+                8.049055,
+                46.297665
+              ],
+              [
+                8.04919,
+                46.297605
+              ],
+              [
+                8.049298,
+                46.297552
+              ],
+              [
+                8.049427,
+                46.297476
+              ],
+              [
+                8.049563,
+                46.29739
+              ],
+              [
+                8.049701,
+                46.297288
+              ],
+              [
+                8.049963,
+                46.297077
+              ],
+              [
+                8.050325,
+                46.296786
+              ],
+              [
+                8.05042,
+                46.29671
+              ],
+              [
+                8.050777,
+                46.296418
+              ],
+              [
+                8.051191,
+                46.296088
+              ],
+              [
+                8.051433,
+                46.295895
+              ],
+              [
+                8.05175,
+                46.29564
+              ],
+              [
+                8.051912,
+                46.29551
+              ],
+              [
+                8.052017,
+                46.295435
+              ],
+              [
+                8.052088,
+                46.295384
+              ],
+              [
+                8.052184,
+                46.295322
+              ],
+              [
+                8.052273,
+                46.295267
+              ],
+              [
+                8.052347,
+                46.295226
+              ],
+              [
+                8.052438,
+                46.295182
+              ],
+              [
+                8.052522,
+                46.295144
+              ],
+              [
+                8.052656,
+                46.295089
+              ],
+              [
+                8.052762,
+                46.295051
+              ],
+              [
+                8.052876,
+                46.295013
+              ],
+              [
+                8.052993,
+                46.294981
+              ],
+              [
+                8.053109,
+                46.294953
+              ],
+              [
+                8.053258,
+                46.294921
+              ],
+              [
+                8.0534,
+                46.294899
+              ],
+              [
+                8.053519,
+                46.294884
+              ],
+              [
+                8.053638,
+                46.294873
+              ],
+              [
+                8.053781,
+                46.294866
+              ],
+              [
+                8.053922,
+                46.294864
+              ],
+              [
+                8.054048,
+                46.294866
+              ],
+              [
+                8.0542,
+                46.294875
+              ],
+              [
+                8.054349,
+                46.29489
+              ],
+              [
+                8.054497,
+                46.29491
+              ],
+              [
+                8.054655,
+                46.294938
+              ],
+              [
+                8.054795,
+                46.294966
+              ],
+              [
+                8.054953,
+                46.295
+              ],
+              [
+                8.055218,
+                46.295058
+              ]
+            ]
+          ]
+        },
+        "properties": {
+          "strassenname": null,
+          "objektart": 20,
+          "belagsart": 100,
+          "verkehrsbedeutung": 200,
+          "eigentuemer": 100,
+          "verkehrsbeschraenkung": 100,
+          "label": 20
+        }
+      }
+    ]
+  },
+  "subsetNote": "Original Draco-compressed pink deck and grey border meshes, original model transforms and feature metadata; unrelated meshes removed. No geometry or material invented."
+}

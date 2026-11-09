@@ -19,6 +19,45 @@ function peer(options = {}) {
     return { manager, applied, statuses };
 }
 
+test('background height queries accept an omitted or null command signal',async()=>{
+    const {manager}=peer();
+    try{
+        await manager.retry();
+        const selected=manager.provider;
+        assert.equal(await manager.sample(p=>{assert.equal(p,selected);return 1234;}),1234);
+        assert.equal(await manager.sample(async()=>1250,undefined),1250);
+        assert.equal(await manager.sample(async()=>1260,null),1260);
+        assert.equal(manager.status().state,'ready');
+    }finally{manager.dispose();}
+});
+
+test('background height failures and timeouts retain their real cause without a command signal',async()=>{
+    const {manager}=peer({sampleTimeoutMs:20});
+    try{
+        await manager.retry();
+        const failure=new Error('Height tile HTTP 404');
+        await assert.rejects(manager.sample(()=>{throw failure;}),error=>error===failure);
+        await assert.rejects(manager.sample(()=>new Promise(()=>{})),error=>
+            error.name==='TerrainTimeoutError'&&/timed out/.test(error.message));
+        assert.equal(manager.status().state,'ready');
+    }finally{manager.dispose();}
+});
+
+test('provider changes and disposal still cancel background heights without a command signal',async()=>{
+    const {manager}=peer();
+    try{
+        await manager.retry();
+        const height=deferred(),query=manager.sample(()=>height.promise);
+        const rejected=assert.rejects(query,/cancelled|changed/i);
+        await tick();await manager.retry();await rejected;
+        height.resolve(42);await tick();
+        assert.equal(await manager.sample(()=>1300),1300);
+        const pending=manager.sample(()=>new Promise(()=>{}));
+        const stopped=assert.rejects(pending,/cancelled|changed/i);
+        await tick();manager.dispose();await stopped;
+    }finally{manager.dispose();}
+});
+
 test('initialization and probe failures retain a usable flat map; retry can recover', async () => {
     let attempts = 0, probeFails = true;
     const { manager, applied } = peer({ createProvider: async () => {

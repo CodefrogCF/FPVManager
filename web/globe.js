@@ -69,7 +69,7 @@ function postToFlutter(message) {
         if (!event.persisted) mapLabels?.dispose();
     });
     let rendererReady = false;
-    let obstacleWms = null, obstacleVectors = null, hazardAreas = null;
+    let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
@@ -994,15 +994,35 @@ function postToFlutter(message) {
             viewer.scene.globe.getHeight=point=>mapProviders.containsTerrainPoint(point.longitude*180/Math.PI,point.latitude*180/Math.PI)?height(point):undefined;
         }
         const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);
-            tunnelVolumes?.setPerformanceProfile?.(value);}});
+            tunnelVolumes?.setPerformanceProfile?.(value);},
+            terrainPassage:(from,to)=>tunnelVolumes?.segmentInside(from,to)===true||
+                tunnelVolumes?.artificialBoundaryNear(from)===true||
+                tunnelVolumes?.artificialBoundaryNear(to)===true});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}),
             {isTerrainReady:terrainAvailable,onActive:active=>{sceneEnvironment?.navigationActive(active);mapLabels?.navigation(active);}});
         mapCompass = FPVMapCompass.create(Cesium,viewer,document.getElementById('map-compass'),
             {navigation:roadNavigation,isEnabled:()=>!navigationActive()});
         activeViewer = viewer;
+        const sampleSceneTerrain=async(points,signal)=>{
+            const positions=points.map(p=>Cesium.Cartographic.fromDegrees(p.longitude,p.latitude));
+            const heights=await terrainManager.sample(provider=>provider.availability
+                ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
+                :Cesium.sampleTerrain(provider,12,positions,true),signal);
+            return heights.map(p=>p.height);
+        };
+        const bridgeSource=typeof FPVBridgeSource!=='undefined'?FPVBridgeSource.create(Cesium,viewer,{
+            cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',
+            getDeckTileset:()=>sceneEnvironment?.structuresTileset?.()}):null;
+        bridgeSupports=typeof FPVBridgeSupports!=='undefined'
+            ?FPVBridgeSupports.create(Cesium,viewer,{sampleTerrain:sampleSceneTerrain,
+                ready:terrainAvailable,cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',
+                getDeckTileset:()=>sceneEnvironment?.structuresTileset?.(),
+                discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose()})
+            :null;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
-            cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
+            cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',bridgeSupports,
+            getTunnelApertures:()=>tunnelVolumes?.apertureSpecs?.()||[]});
         scenePerformance = FPVScenePerformance.create(viewer,{
             resources:()=>sceneEnvironment?.resourceStats()??{}
         });
@@ -1018,13 +1038,8 @@ function postToFlutter(message) {
             ? FPVTunnelFlythrough.create(Cesium,viewer,sendToFlutter,{
                 ready:terrainAvailable,
                 isSimulating:()=>flyer?.active===true,
-                sampleTerrain:async(points,signal)=>{
-                    const positions=points.map(p=>Cesium.Cartographic.fromDegrees(p.longitude,p.latitude));
-                    const heights=await terrainManager.sample(provider=>provider.availability
-                        ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
-                        :Cesium.sampleTerrain(provider,12,positions,true),signal);
-                    return heights.map(p=>p.height);
-                }
+                sampleTerrain:sampleSceneTerrain,
+                getDeckTileset:()=>sceneEnvironment?.structuresTileset?.()
             }) : null;
         windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
         globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
@@ -1033,7 +1048,9 @@ function postToFlutter(message) {
         obstacleWms = FPVObstacles.createWms(Cesium,viewer,sendToFlutter);
         hazardAreas = FPVObstacles.createHazards(Cesium,viewer);
         obstacleVectors = FPVObstacles.createVectors(Cesium,viewer,
-            {isTerrainReady:terrainAvailable});
+            {isTerrainReady:terrainAvailable,onFeatures:features=>bridgeSupports?.setSourceFeatures(features,{
+                sourceId:'aviation-obstacles',visible:true,elevationReference:'WGS84_ELLIPSOID',
+                source:'BAZL aviation obstacles'})});
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
         modelCollisions = typeof FPVSceneModelCollision !== 'undefined'
             ? FPVSceneModelCollision.create(Cesium,viewer,
@@ -1157,13 +1174,7 @@ function postToFlutter(message) {
                 tunnelVolumes?.segmentInside(from,to)===true ? false :
                 infrastructureClearance?.collision(from,to)===true ? 'bridge' :
                 (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || false,
-            terrainCollision:(from,to)=>{
-                if(tunnelVolumes &&
-                    (tunnelVolumes.floorAt(from)!=null||tunnelVolumes.floorAt(to)!=null||
-                    tunnelVolumes.artificialBoundaryNear(from)||
-                    tunnelVolumes.artificialBoundaryNear(to)))return false;
-                return flightRenderer.terrainCollision(from,to);
-            },
+            terrainCollision:flightRenderer.terrainCollision,
             applyPose:point=>{
                 applyCamera(point);
                 // Prefetch the next source-aligned window before a long tunnel
