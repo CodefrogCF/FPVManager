@@ -1158,10 +1158,14 @@ test('active tunnel flight replaces long vertical polygon cut with a moving boun
     assert.equal(svc.diagnostics().boundedApertureActive,true);
     assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
         'no unbounded 2D terrain polygon is combined with the bounded volume');
-    const mid=C.Cartesian3.fromDegrees(8.20012,46.8,1000);
-    assert.ok(C.Cartesian3.distance(C.Cartesian3.add(cut.uniforms.apertureOriginHigh,
-        cut.uniforms.apertureOriginLow,new C.Cartesian3()),mid)<2,
-        'flight cut origin advances from portal toward the occupied tunnel segment');
+    const mid=C.Cartesian3.fromDegrees(8.20012,46.8,1002);
+    assert.ok(svc.apertureSpecs().some(spec=>{
+        const volume=T.clippingVolume(C,spec),local=C.Matrix4.multiplyByPoint(
+            C.Matrix4.inverse(volume.modelMatrix,new C.Matrix4()),mid,new C.Cartesian3());
+        const contains=Array.from({length:volume.length},(_,i)=>volume.get(i))
+            .every(plane=>C.Cartesian3.dot(plane.normal,local)+plane.distance<0);
+        volume.destroy();return contains;
+    }),'the selected overlapping masks cover the occupied tunnel segment');
     svc.dispose();
     assert.equal(frame,null);
 });
@@ -1267,14 +1271,16 @@ test('bridge-to-rock portal expands only its local vaulted entrance cut when FPV
         roadApproachKinds:['bridge',null]}],{longitude:8.2001,latitude:46.8});
     assert.equal(service.diagnostics().boundedApertureActive,true);
     const idle=f.viewer.scene.globe.material;
+    const idleBefore=idle.uniforms.apertureBounds.y;
     // Around 15 m before the start of the source centerline: outside the bore.
     f.viewer.camera.positionCartographic.longitude=(8.2-.00018)*Math.PI/180;
     flying=true;clock+=1000;frame();
     const approaching=f.viewer.scene.globe.material;
-    assert.notEqual(approaching,idle,'outside approach uses a new longer local aperture');
+    assert.equal(approaching,idle,'outside approach updates the same material without rebuilding Globe shaders');
     assert.ok(approaching instanceof C.Material);
     assert.equal(approaching.uniforms.apertureBounds.y>=9,true,
         'flight approach has more than the idle 10 m lead-in');
+    assert.ok(approaching.uniforms.apertureBounds.y>idleBefore,'the bounded approach length still changes in place');
     assert.equal(f.viewer.scene.globe.clippingPolygons,polygons,
         'rock slope must not receive an additional unbounded clipping polygon');
     service.dispose();

@@ -296,3 +296,29 @@ test('loaded structures and building walls follow shared tunnel apertures and re
     assert.equal(structures.customShader,undefined);assert.equal(buildings.customShader,undefined);
     p.manager.dispose();
 });
+
+test('a changed tunnel aperture reaches native model walls on the next frame rather than one throttle period late',async()=>{
+    const actual=require('../../web/cesium/index.cjs');let specs=[],revision=0,reads=0;
+    const p=fixture(null,{getTunnelApertures:()=>{reads++;return specs;},getTunnelApertureRevision:()=>revision,
+        now:()=>1000});
+    for(const name of ['CustomShader','UniformType','VaryingType','Cartesian3','Cartesian4','Matrix4','EncodedCartesian3',
+        'ClippingPlane','ClippingPlaneCollection','Transforms'])p.C[name]=actual[name];
+    p.viewer.camera.viewMatrix=actual.Matrix4.clone(actual.Matrix4.IDENTITY);
+    p.set({structures:true});await flush();p.viewer.scene.preUpdate.fire();
+    specs=[{longitude:8.6,latitude:46.7,floor:500,forward:{east:0,north:1},halfWidth:3.5,
+        before:8,after:26,below:1,above:6,shape:'rectangular',grade:0}];
+    revision++;p.viewer.scene.preUpdate.fire();
+    const shader=p.primitives[0].customShader;
+    assert.ok(shader instanceof actual.CustomShader);
+    const count=reads;
+    for(let i=0;i<120;i++)p.viewer.scene.preUpdate.fire();
+    assert.equal(reads,count,'unchanged apertures do not clone or stringify specifications per frame');
+    specs=[{...specs[0],floor:501}];revision++;p.viewer.scene.preUpdate.fire();
+    assert.equal(p.primitives[0].customShader,shader,'movement keeps the existing GPU shader');
+    const position=actual.Cartesian3.fromDegrees(8.6,46.7,501);
+    assert.ok(actual.Cartesian3.equalsEpsilon(shader.uniforms.fpvApertureOriginHigh.value,position,1e-9),
+        'a same-time revision updates geometry without waiting another 400 ms');
+    specs=[];revision++;p.viewer.scene.preUpdate.fire();
+    assert.equal(p.primitives[0].customShader,undefined);
+    p.manager.dispose();
+});

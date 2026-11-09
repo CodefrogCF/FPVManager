@@ -1,0 +1,72 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Curved tunnel rock clipping</title>
+<link rel="stylesheet" href="/cesium/Widgets/widgets.css">
+<style>body{margin:0;background:#101820;color:white;font:15px system-ui}h1{font-size:19px;margin:12px}#viewer{height:64vh}pre{padding:12px;white-space:pre-wrap}</style>
+<h1 id="status">Checking rock inside a curved tunnel…</h1><div id="viewer"></div><pre id="log"></pre>
+<script>window.CESIUM_BASE_URL='/cesium/';</script><script src="/cesium/Cesium.js"></script><script src="/scene_environment.js"></script>
+<script>
+'use strict';window.__curvePortalSmoke={state:'running'};
+(async()=>{
+ const C=Cesium,T=FPVTunnelFlythrough,log=document.getElementById('log'),errors=[];
+ const check=(v,message)=>{if(!v)throw Error(message);log.textContent+='PASS: '+message+'\n';};
+ const longitude=8.6,latitude=46.7,floor=500,scale=111319.49079327358;
+ const scheme=new C.GeographicTilingScheme({rectangle:C.Rectangle.fromDegrees(longitude-.0012,latitude-.0012,
+  longitude+.0012,latitude+.0012),numberOfLevelZeroTilesX:1,numberOfLevelZeroTilesY:1});
+ const terrain=new C.CustomHeightmapTerrainProvider({width:129,height:129,tilingScheme:scheme,callback(x,y,level){
+  const rectangle=scheme.tileXYToRectangle(x,y,level),data=new Float32Array(129*129);
+  for(let row=0;row<129;row++)for(let column=0;column<129;column++){
+   const lon=C.Math.toDegrees(rectangle.west+(rectangle.east-rectangle.west)*column/128);
+   const east=(lon-longitude)*scale*Math.cos(latitude*Math.PI/180);
+   data[row*129+column]=floor+(east>=8?30:0);
+  }return data;
+ }});terrain.getLevelMaximumGeometricError=()=>.01;
+ const viewer=new C.Viewer('viewer',{baseLayer:false,baseLayerPicker:false,geocoder:false,homeButton:false,
+  sceneModePicker:false,navigationHelpButton:false,animation:false,timeline:false,fullscreenButton:false,
+  infoBox:false,selectionIndicator:false,terrainProvider:terrain,contextOptions:{webgl:{preserveDrawingBuffer:true}}});
+ const scene=viewer.scene;scene.skyBox.show=false;scene.skyAtmosphere.show=false;scene.sun.show=false;scene.moon.show=false;
+ scene.fog.enabled=false;scene.globe.enableLighting=false;scene.globe.baseColor=C.Color.fromBytes(40,180,70);
+ scene.globe.showGroundAtmosphere=false;scene.backgroundColor=C.Color.fromBytes(16,24,32);
+ scene.screenSpaceCameraController.enableCollisionDetection=false;scene.globe.depthTestAgainstTerrain=true;
+ scene.renderError.addEventListener((_,error)=>errors.push(String(error)));
+ const enu=C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(longitude,latitude,floor));
+ const world=(x,y,z)=>C.Matrix4.multiplyByPoint(enu,new C.Cartesian3(x,y,z),new C.Cartesian3());
+ const pose=(x,y)=>({longitude:longitude+x/(scale*Math.cos(latitude*Math.PI/180)),latitude:latitude+y/scale,height:502,heading:0});
+ function camera(x=-32,y=-34){const eye=world(x,y,25),target=world(8,13,4);viewer.camera.setView({destination:eye,orientation:{
+  direction:C.Cartesian3.normalize(C.Cartesian3.subtract(target,eye,new C.Cartesian3()),new C.Cartesian3()),
+  up:C.Matrix4.multiplyByPointAsVector(enu,new C.Cartesian3(0,0,1),new C.Cartesian3())}});}
+ camera();const frame=()=>new Promise(resolve=>{const remove=scene.postRender.addEventListener(()=>{remove();resolve();});scene.requestRender();});
+ const deadline=performance.now()+20000;do{await frame();if(performance.now()>deadline)throw Error('Terrain timeout');}while(!scene.globe.tilesLoaded);
+ await frame();await frame();
+ function cliff(y,z){let low=4,high=10;for(let i=0;i<35;i++){const x=(low+high)/2,
+   p=C.Cartographic.fromCartesian(world(x,y,0)),height=scene.globe.getHeight(p);
+   if(height===undefined)throw Error('Missing actual cliff height');if(height<floor+z)low=x;else high=x;
+  }return world((low+high)/2,y,z);}
+ const samples=[{name:'rock inside outgoing bend',point:cliff(12,3)},
+  {name:'rock beside bore',point:cliff(30,3)},{name:'roof rock above aperture',point:cliff(12,13)},
+  {name:'horizontal approach road',point:world(0,-4,0)}];
+ async function pixels(){await frame();const bitmap=await createImageBitmap(await new Promise(resolve=>viewer.canvas.toBlob(resolve)));
+  const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+  const context=canvas.getContext('2d');context.drawImage(bitmap,0,0);bitmap.close();
+  return samples.map(sample=>{const p=C.SceneTransforms.worldToWindowCoordinates(scene,sample.point),
+   rgba=Array.from(context.getImageData(Math.round(p.x*canvas.width/viewer.canvas.clientWidth),Math.round(p.y*canvas.height/viewer.canvas.clientHeight),1,1).data);
+   return {name:sample.name,rgba,green:rgba[1]>rgba[0]*1.8&&rgba[1]>rgba[2]*1.4&&rgba[1]>70};});}
+ const model=T.importSections({version:1,elevationReference:'WGS84_ELLIPSOID',source:'curved rock regression',profile:'rectangular',
+  sections:[[0,-20],[0,0],[0,12],[12,12],[28,12]].map(([x,y])=>({...pose(x,y),floorMetersWgs84:500,widthMeters:6,heightMeters:5}))});
+ const position=pose(0,4),primary=T.flightClipSpec(model,position),curved=T.flightClipSpecs(model,position);
+ const material=T.slopeClipMaterial(C,[primary],viewer.camera.viewMatrix,{capacity:3});
+ scene.globe.material=material;scene.preUpdate.addEventListener(()=>T.updateSlopeClipMaterial(C,material,viewer.camera.viewMatrix));
+ await frame();const old=await pixels();check(old.every(p=>p.green),'Single tangent control leaves the bend rock and surroundings visible '+JSON.stringify(old));
+ const bounds=material.uniforms.apertureBounds,source=material.shaderSource;
+ check(T.updateSlopeClipSpecs(C,material,curved,viewer.camera.viewMatrix),'Existing material accepts segment-following masks');
+ const after=await pixels();check(!after[0].green,'Actual heightmap rock inside the next bend clears');
+ check(after.slice(1).every(p=>p.green),'Side rock, roof rock and horizontal road remain');
+ for(let i=0;i<12;i++){const p=pose(0,4+i*.25);camera(-32+i*.05,-34+i*.03);
+  check(T.updateSlopeClipSpecs(C,material,T.flightClipSpecs(model,p),viewer.camera.viewMatrix),'Moving masks update their existing slots');await frame();}
+ check(scene.globe.material===material&&material.uniforms.apertureBounds===bounds&&material.shaderSource===source,
+  'Movement keeps one material, one shader source and the same uniform objects');
+ check(material.uniforms.apertureBounds2.x===0,'Unused slots are inactive');
+ check(errors.length===0,'No Globe or shader errors');
+ window.__curvePortalSmoke={state:'passed',old,after,maskCount:curved.length,materialReplacements:0};
+ document.getElementById('status').textContent='PASS: rock clears around a bend; road preserved; material reused';
+})().catch(error=>{window.__curvePortalSmoke={state:'failed',error:String(error.stack||error)};
+ document.getElementById('status').textContent='FAIL: '+error;document.getElementById('log').textContent+='\n'+String(error.stack||error);});
+</script></html>

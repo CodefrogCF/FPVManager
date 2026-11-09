@@ -115,6 +115,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/tunnel_wall_opacity_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/tunnel-bridge-portal-smoke':
             self.reply((ROOT / 'test/web/tunnel_bridge_portal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/tunnel-curve-portal-smoke':
+            self.reply((ROOT / 'test/web/tunnel_curve_portal_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/bridge-supports-smoke':
             self.reply((ROOT / 'test/web/bridge_supports_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/bridge-native-source-smoke':

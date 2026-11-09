@@ -1022,7 +1022,8 @@ function postToFlutter(message) {
             :null;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
             cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',bridgeSupports,
-            getTunnelApertures:()=>tunnelVolumes?.apertureSpecs?.()||[]});
+            getTunnelApertures:()=>tunnelVolumes?.apertureSpecs?.()||[],
+            getTunnelApertureRevision:()=>tunnelVolumes?.apertureRevision?.()??0});
         scenePerformance = FPVScenePerformance.create(viewer,{
             resources:()=>sceneEnvironment?.resourceStats()??{}
         });

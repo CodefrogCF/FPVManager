@@ -61,6 +61,7 @@ Open these paths at `http://127.0.0.1:8765`:
 | `/tunnel-globe-portal-smoke` | Actual Globe heightmap without vertex normals: reproduces the disabled-material regression, opens a production tunnel shell from outside and preserves horizontal road and surrounding rock |
 | `/tunnel-wall-opacity-smoke` | Actual tunnel materials in every graphics profile and an imported mesh: both wall sides stay opaque over changing bright backgrounds, with opaque draw commands and depth writes |
 | `/tunnel-bridge-portal-smoke` | Real Globe cliff, horizontal bridge and descending bore: legacy grade stops flight; corrected physics crosses at exactly 0.5 m approach AGL, including a moving aperture refresh |
+| `/tunnel-curve-portal-smoke` | Real Globe rock inside a bend: a straight mask leaves it visible; segment-following masks remove it while preserving side/roof rock and road, with one reused material |
 | `/bridge-supports-smoke` | Actual Cesium bridge pillars: synthetic bridge tags, visible deck probes, detailed terrain foundations, unobstructed ground and layer cleanup; no live map services |
 | `/bridge-native-source-smoke` | Original swisstopo Ganter bridge subset: native feature classification, picked deck heights and visible production pillars above synthetic ground; no live data service required |
 | `/signal-smoke` | Radio sight lines, Fresnel envelope, unknown heights, ground view and terrain invalidation |

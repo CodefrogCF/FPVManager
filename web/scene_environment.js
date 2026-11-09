@@ -49,7 +49,7 @@
     }
     function create(C,viewer,send=()=>{},{urls=sources,timeoutMs=15000,setTimer=setTimeout,clearTimer=clearTimeout,
         cachedOnly=false,isOnline=()=>globalThis.navigator?.onLine!==false,bridgeSupports=null,
-        getTunnelApertures=()=>[],now=()=>Date.now()}={}){
+        getTunnelApertures=()=>[],getTunnelApertureRevision=null,now=()=>Date.now()}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
             light:scene.light,lighting:scene.globe.enableLighting,atmosphere:scene.globe.dynamicAtmosphereLightingFromSun,
@@ -62,7 +62,7 @@
             phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null,appliedOpacity:null,detailShader:null}]));
         let disposed=false,lighting=false,profile='balanced',credited=false,appliedTime=null,structuresOpacity=1;
         let navigating=false;
-        let portalApertures=[],portalSignature='',lastPortalCheck=-Infinity,lastPortalView=null;
+        let portalApertures=[],portalSignature='',lastPortalCheck=-Infinity,lastPortalView=null,lastPortalRevision=null;
         const mapLayers={buildings:false,vegetation:false,structures:false},navigationLayers={buildings:null,vegetation:null};
         function publish(key){
             if(disposed)return;
@@ -160,7 +160,13 @@
         }
         function applyBuildingDetail(){applyModelShader('buildings');}
         function refreshPortalShaders(){
-            const instant=now();if(instant-lastPortalCheck<400)return;lastPortalCheck=instant;
+            if(getTunnelApertureRevision){
+                const revision=getTunnelApertureRevision();
+                if(revision===lastPortalRevision)return;
+                lastPortalRevision=revision;
+            }else{
+                const instant=now();if(instant-lastPortalCheck<400)return;lastPortalCheck=instant;
+            }
             const specs=getTunnelApertures();
             const next=Array.isArray(specs)?specs.slice(0,8):[],signature=JSON.stringify(next);
             if(signature===portalSignature)return;
@@ -2254,6 +2260,74 @@
             below:1.1,above:near.height+.8,
             grade:(next.floorMetersWgs84-s.floorMetersWgs84)/Math.max(.5,length(s,next))};
     }
+    function flightClipSpecs(model,point){
+        const primary=flightClipSpec(model,point);
+        if(!primary)return [];
+        const near=closest(model,point),sections=model.sections,distances=[0];
+        for(let i=1;i<sections.length;i++)distances.push(distances.at(-1)+length(sections[i-1],sections[i]));
+        const progress=distances[near.segment]+near.t*(distances[near.segment+1]-distances[near.segment]);
+        const reverse=finite(point.heading)&&Math.cos(point.heading-near.heading)<0;
+        const start=Math.max(0,progress-(reverse?38:12)),end=Math.min(distances.at(-1),progress+(reverse?12:38));
+        const at=distance=>{
+            let index=0;
+            while(index<sections.length-2&&distances[index+1]<distance)index++;
+            const a=sections[index],b=sections[index+1],t=(distance-distances[index])/(distances[index+1]-distances[index]);
+            return Object.fromEntries(['longitude','latitude','floorMetersWgs84','widthMeters','heightMeters']
+                .map(key=>[key,a[key]+(b[key]-a[key])*t]));
+        };
+        const nodes=[at(start)];
+        for(let i=1;i<sections.length-1;i++)if(distances[i]>start+.01&&distances[i]<end-.01)nodes.push(sections[i]);
+        nodes.push(at(end));
+        if(end-start<.5)return [primary];
+        // Merge nearly straight samples. A curve or grade change starts a new
+        // local frame instead of extending one tangent box through the rock.
+        const groups=[];
+        let group=[nodes[0],nodes[1]];
+        const fits=points=>{
+            const a=points[0],b=points.at(-1),delta=xy(b,a),span=Math.hypot(delta.x,delta.y);
+            if(span<.5)return false;
+            return points.slice(1,-1).every(p=>{
+                const q=xy(p,a),along=(q.x*delta.x+q.y*delta.y)/span;
+                return Math.abs(q.x*delta.y-q.y*delta.x)/span<=.3&&
+                    Math.abs(p.floorMetersWgs84-a.floorMetersWgs84-(b.floorMetersWgs84-a.floorMetersWgs84)*along/span)<=.25;
+            });
+        };
+        for(let i=2;i<nodes.length;i++){
+            if(fits([...group,nodes[i]]))group.push(nodes[i]);
+            else{groups.push(group);group=[group.at(-1),nodes[i]];}
+        }
+        groups.push(group);
+        const specs=[];
+        for(const points of groups){
+            const a=points[0],b=points.at(-1),delta=xy(b,a),span=Math.hypot(delta.x,delta.y);
+            if(span<.5)continue;
+            const east=delta.x/span,north=delta.y/span,q=xy(point,a),projection=q.x*east+q.y*north;
+            const width=Math.max(...points.map(p=>p.widthMeters)),height=Math.max(...points.map(p=>p.heightMeters));
+            const overlap=Math.min(6,width/2+.8);
+            const originAlong=Math.max(0,Math.min(span,28-overlap,Math.max(span-(45-overlap),projection)));
+            const t=originAlong/span,grade=(b.floorMetersWgs84-a.floorMetersWgs84)/span;
+            const spec={longitude:a.longitude+(b.longitude-a.longitude)*t,
+                latitude:a.latitude+(b.latitude-a.latitude)*t,floor:a.floorMetersWgs84+grade*originAlong,
+                interior:true,forward:{east,north},halfWidth:width/2+.65,
+                before:Math.min(28,originAlong+overlap),after:Math.min(45,span-originAlong+overlap),
+                below:1.1,above:height+.8,grade,shape:model.profile==='vaulted'?'vaulted':'rectangular',
+                roofRise:model.profile==='vaulted'?Math.min(height*.45,width/2):0};
+            if(near.raw<0&&near.segment===0&&model.portalEnds?.[0]===false)spec.before=Math.max(spec.before,12);
+            if(near.raw>1&&near.segment===sections.length-2&&model.portalEnds?.[1]===false)spec.after=Math.max(spec.after,12);
+            const distance=Math.hypot(Math.max(0,-projection,projection-span),q.x*north-q.y*east);
+            specs.push({spec,distance,ahead:projection<0?1:projection>span?-1:0});
+        }
+        const rank=entry=>entry.distance<.5?0:entry.ahead*(reverse?-1:1)>0?1:2;
+        specs.sort((a,b)=>rank(a)-rank(b)||a.distance-b.distance);
+        return specs.map(entry=>entry.spec);
+    }
+    function apertureContainsPoint(spec,point){
+        const p=xy(point,spec),along=p.x*spec.forward.east+p.y*spec.forward.north,
+            across=-p.x*spec.forward.north+p.y*spec.forward.east;
+        const grade=along<0?(spec.approachGrade??spec.grade??0):(spec.grade??0);
+        return Math.abs(across)<spec.halfWidth-.1&&along>-spec.before+.1&&along<spec.after-.1&&
+            point.height>spec.floor+grade*along-spec.below&&point.height<spec.floor+grade*along+spec.above-.5;
+    }
     function clippingVolume(C,spec){
         if(!spec||!C.ClippingPlane||!C.ClippingPlaneCollection||
             !C.Transforms?.eastNorthUpToFixedFrame||!C.Cartesian3?.fromDegrees)return null;
@@ -2377,13 +2451,24 @@
         }
     `;}
     const SLOPE_CLIP_MATERIAL_SOURCE=slopeClipSource();
+    function validApertureSpec(spec){
+        if(!spec?.forward)return false;
+        const {east,north}=spec.forward,grade=spec.grade??0,approach=spec.approachGrade??grade;
+        if(![spec.longitude,spec.latitude,spec.floor,spec.halfWidth,spec.before,spec.after,
+            spec.below,spec.above,east,north,grade,approach].every(finite)||
+            Math.abs(grade)>.5||Math.abs(approach)>.5||Math.abs(Math.hypot(east,north)-1)>.005||
+            spec.halfWidth<1||spec.halfWidth>9||spec.before<0||spec.before>28||
+            spec.after<1||spec.after>45||spec.above<2||spec.above>18||spec.below<0||spec.below>3)return false;
+        return spec.shape!=='vaulted'||finite(spec.roofRise)&&spec.roofRise>.1&&
+            spec.roofRise<=spec.above-.7&&spec.roofRise<=spec.halfWidth;
+    }
     function apertureUniforms(C,spec,index=0,{uniformPrefix='aperture'}={}){
         const name=field=>`${uniformPrefix}${field}${index||''}`;
         if(!spec)return Object.fromEntries(['OriginHigh','OriginLow','East','North','Up','Bounds','Roof']
             .map(field=>[name(field),field==='Bounds'||field==='Roof'?new C.Cartesian4():new C.Cartesian3()]));
-        const validation=clippingVolume(C,spec);
-        if(!validation)return null;
-        validation.destroy?.();
+        // Material updates need numeric validation only. Constructing native
+        // clipping collections here allocated planes and textures on each move.
+        if(!validApertureSpec(spec))return null;
         const origin=C.Cartesian3.fromDegrees(spec.longitude,spec.latitude,spec.floor);
         const encoded=C.EncodedCartesian3.fromCartesian(origin);
         const lon=spec.longitude*DEG,lat=spec.latitude*DEG;
@@ -2397,39 +2482,59 @@
             [name('Bounds')]:new C.Cartesian4(spec.halfWidth,spec.before,spec.after,spec.approachGrade??spec.grade??0),
             [name('Roof')]:new C.Cartesian4(spec.below,spec.above,spec.shape==='vaulted'?spec.roofRise:0,spec.grade??0)};
     }
-    const slopeClipWorldOrigins=new WeakMap();
+    const slopeClipMaterials=new WeakMap();
     function updateSlopeClipMaterial(C,material,viewMatrix){
-        const origins=slopeClipWorldOrigins.get(material);
-        if(!origins||!viewMatrix||!C.Matrix4?.multiplyByPoint)return false;
-        for(let i=0;i<origins.length;i++){
+        const state=slopeClipMaterials.get(material);
+        if(!state?.eyeOrigins||!viewMatrix||!C.Matrix4?.multiplyByPoint)return false;
+        for(let i=0;i<state.count;i++){
             const suffix=i||'';
-            C.Matrix4.multiplyByPoint(viewMatrix,origins[i],material.uniforms[`apertureOriginHigh${suffix}`]);
+            C.Matrix4.multiplyByPoint(viewMatrix,state.origins[i],material.uniforms[`apertureOriginHigh${suffix}`]);
         }
         return true;
     }
-    function slopeClipMaterial(C,spec,viewMatrix=null){
+    function updateSlopeClipSpecs(C,material,spec,viewMatrix=null){
+        const state=slopeClipMaterials.get(material),specs=Array.isArray(spec)?spec:[spec];
+        if(!state||specs.length>state.capacity||state.eyeOrigins&&!viewMatrix)return false;
+        const entries=[];
+        for(let i=0;i<state.capacity;i++){
+            const entry=apertureUniforms(C,specs[i]||null,i);
+            if(!entry)return false;entries.push(entry);
+        }
+        for(let i=0;i<entries.length;i++){
+            const suffix=i||'',entry=entries[i];
+            for(const [name,value] of Object.entries(entry))Object.assign(material.uniforms[name],value);
+            C.Cartesian3.add(entry[`apertureOriginHigh${suffix}`],entry[`apertureOriginLow${suffix}`],state.origins[i]);
+            if(state.eyeOrigins)Object.assign(material.uniforms[`apertureOriginLow${suffix}`],{x:0,y:0,z:0});
+        }
+        state.count=specs.length;
+        if(state.eyeOrigins)updateSlopeClipMaterial(C,material,viewMatrix);
+        return true;
+    }
+    function slopeClipMaterial(C,spec,viewMatrix=null,{capacity=null}={}){
         if(!C.Material||!C.EncodedCartesian3||!C.Cartesian4)return null;
         const specs=Array.isArray(spec)?spec:[spec];
-        if(!specs.length||specs.length>MAX_PORTAL_APERTURES)return null;
+        capacity=capacity??specs.length;
+        if(!specs.length||!Number.isInteger(capacity)||specs.length>capacity||capacity>MAX_PORTAL_APERTURES)return null;
         const uniforms={};
-        for(let i=0;i<specs.length;i++){
-            const entry=apertureUniforms(C,specs[i],i);
+        for(let i=0;i<capacity;i++){
+            const entry=apertureUniforms(C,specs[i]||null,i);
             if(!entry)return null;Object.assign(uniforms,entry);
         }
         const eyeOrigins=!!viewMatrix&&!!C.Matrix4?.multiplyByPoint;
-        const origins=eyeOrigins?specs.map((_,i)=>{
+        const origins=Array.from({length:capacity},(_,i)=>{
             const suffix=i||'';
             const origin=C.Cartesian3.add(uniforms[`apertureOriginHigh${suffix}`],
                 uniforms[`apertureOriginLow${suffix}`],new C.Cartesian3());
-            uniforms[`apertureOriginLow${suffix}`]=new C.Cartesian3();
+            if(eyeOrigins)uniforms[`apertureOriginLow${suffix}`]=new C.Cartesian3();
             return origin;
-        }):null;
+        });
         // Keep the aperture independent of a draw command's model frame.
         // Transform small eye-space origins on the CPU in double precision,
         // matching the origin convention used by loaded model apertures.
-        const material=new C.Material({fabric:{type:`FPVTunnelSteepAperture${specs.length===1?'':specs.length}${eyeOrigins?'Eye':''}`,
-            uniforms,source:slopeClipSource(specs.length,eyeOrigins)},translucent:false});
-        if(origins){slopeClipWorldOrigins.set(material,origins);updateSlopeClipMaterial(C,material,viewMatrix);}
+        const material=new C.Material({fabric:{type:`FPVTunnelSteepAperture${capacity===1?'':capacity}${eyeOrigins?'Eye':''}`,
+            uniforms,source:slopeClipSource(capacity,eyeOrigins)},translucent:false});
+        slopeClipMaterials.set(material,{capacity,count:specs.length,eyeOrigins,origins});
+        if(eyeOrigins)updateSlopeClipMaterial(C,material,viewMatrix);
         return material;
     }
     // Collision and rendering consume the SAME rings. Every segment carries
@@ -2502,6 +2607,17 @@
         return segmentSegmentDistance2(p,q,a,b)<=r2||
             segmentSegmentDistance2(p,q,b,c)<=r2||segmentSegmentDistance2(p,q,c,a)<=r2;
     }
+    function collisionLayer(min,max,triangles){
+        const triangleBounds=new Float64Array(triangles.length*6);
+        for(let i=0;i<triangles.length;i++){
+            const [a,b,c]=triangles[i],offset=i*6;
+            for(let k=0;k<3;k++){
+                triangleBounds[offset+k]=Math.min(a[k],b[k],c[k]);
+                triangleBounds[offset+3+k]=Math.max(a[k],b[k],c[k]);
+            }
+        }
+        return {min,max,triangles,triangleBounds};
+    }
     function collisionMesh(model){
         let mesh=collisionCache.get(model);
         if(mesh)return mesh;
@@ -2516,28 +2632,37 @@
                 const all=batch.flat();
                 const min=[0,1,2].map(k=>Math.min(...all.map(p=>p[k])));
                 const max=[0,1,2].map(k=>Math.max(...all.map(p=>p[k])));
-                layers.push({min,max,triangles:batch});
+                layers.push(collisionLayer(min,max,batch));
             }
             const min=[0,1,2].map(k=>Math.min(...layers.map(l=>l.min[k])));
             const max=[0,1,2].map(k=>Math.max(...layers.map(l=>l.max[k])));
             mesh={origin,layers,min,max,triangleCount:triangles.length};
             collisionCache.set(model,mesh);return mesh;
         }
-        const outlines=rings(model),vertices=outlines.map(r=>r.map(p=>ecef(p[0],p[1],p[2])));
+        const outlines=rings(model);
         const origin=ecef(model.sections[0].longitude,model.sections[0].latitude,
             model.sections[0].floorMetersWgs84);
+        const vertices=outlines.map(r=>r.map(p=>sub(ecef(p[0],p[1],p[2]),origin)));
+        const hasOpenings=!!model.junctionOpenings?.length;
         const layers=[];
         for(let i=0;i<vertices.length-1;i++){
-            const a=vertices[i].map(p=>sub(p,origin)),b=vertices[i+1].map(p=>sub(p,origin));
+            const a=vertices[i],b=vertices[i+1];
             const all=a.concat(b),min=[0,1,2].map(k=>Math.min(...all.map(p=>p[k]))),
                 max=[0,1,2].map(k=>Math.max(...all.map(p=>p[k]))),triangles=[];
             for(let j=0;j<a.length;j++){
                 const k=(j+1)%a.length;
+                if(!hasOpenings){
+                    // These are the same ring triangles as rendering. Share
+                    // the already converted vertices rather than recomputing
+                    // six Earth-coordinate transforms for every face.
+                    triangles.push([a[j],a[k],b[k]],[a[j],b[k],b[j]]);
+                    continue;
+                }
                 const quad=[outlines[i][j],outlines[i][k],outlines[i+1][k],outlines[i+1][j]];
                 for(const triangle of junctionTriangles(model,quad,j===0))
                     triangles.push(triangle.map(p=>sub(ecef(p[0],p[1],p[2]),origin)));
             }
-            layers.push({min,max,triangles});
+            layers.push(collisionLayer(min,max,triangles));
         }
         const min=[0,1,2].map(k=>Math.min(...layers.map(l=>l.min[k])));
         const max=[0,1,2].map(k=>Math.max(...layers.map(l=>l.max[k])));
@@ -2551,15 +2676,26 @@
         const dist=Math.hypot(length(a,b),b.height-a.height);
         const mesh=collisionMesh(model),p=sub(ecef(a.longitude,a.latitude,a.height),mesh.origin),
             q=sub(ecef(b.longitude,b.latitude,b.height),mesh.origin),r2=radius*radius+1e-10;
+        const padding=radius+1e-6,
+            minX=Math.min(p[0],q[0])-padding,maxX=Math.max(p[0],q[0])+padding,
+            minY=Math.min(p[1],q[1])-padding,maxY=Math.max(p[1],q[1])+padding,
+            minZ=Math.min(p[2],q[2])-padding,maxZ=Math.max(p[2],q[2])+padding;
         // A long jump is blocked only if its swept AABB approaches THIS model;
         // unrelated models must not stop replay elsewhere on the globe.
-        if([0,1,2].some(k=>Math.max(p[k],q[k])+radius<mesh.min[k] ||
-            Math.min(p[k],q[k])-radius>mesh.max[k]))return false;
+        if(maxX<mesh.min[0]||minX>mesh.max[0]||maxY<mesh.min[1]||minY>mesh.max[1]||
+            maxZ<mesh.min[2]||minZ>mesh.max[2])return false;
         if(dist>100)return true;
         for(const layer of mesh.layers){
-            if([0,1,2].some(k=>Math.max(p[k],q[k])+radius<layer.min[k] ||
-                Math.min(p[k],q[k])-radius>layer.max[k]))continue;
-            if(layer.triangles.some(t=>sweptSphereHitsTriangle(p,q,t,r2)))return true;
+            if(maxX<layer.min[0]||minX>layer.max[0]||maxY<layer.min[1]||minY>layer.max[1]||
+                maxZ<layer.min[2]||minZ>layer.max[2])continue;
+            const bounds=layer.triangleBounds;
+            for(let i=0;i<layer.triangles.length;i++){
+                const offset=i*6;
+                if(maxX<bounds[offset]||minX>bounds[offset+3]||
+                    maxY<bounds[offset+1]||minY>bounds[offset+4]||
+                    maxZ<bounds[offset+2]||minZ>bounds[offset+5])continue;
+                if(sweptSphereHitsTriangle(p,q,layer.triangles[i],r2))return true;
+            }
         }
         return false;
     }
@@ -2574,7 +2710,7 @@
         const AUTO_BATCH=3;
         let autoProfile='balanced',autoEnabled=false,autoRevision=0,autoModels=[];
         let lastClipCheck=-Infinity;
-        let autoApertureMaterial=null,autoMaterialPrevious=null,autoMaterialIdentity=null,activeApertureSpecs=[];
+        let autoApertureMaterial=null,autoMaterialPrevious=null,autoMaterialIdentity=null,activeApertureSpecs=[],apertureRevision=0;
         let lastAutoSignature=null,autoInFlightSignature=null,autoCompletedAt=-Infinity;
         let autoPortals=null,lastRequestedRoutes=null,lastRequestedCenter=null;
         let autoDiagnostics={considered:0,skipped:0,reason:null,clipped:0};
@@ -2598,9 +2734,6 @@
                 : surfaceGeometries(C,next).concat(
                     C.ClippingPlaneCollection&&C.ClippingPlane&&C.Transforms
                         ?portalSurroundGeometries(C,next):[]));
-            const instances=surfaces.map(surface=>new C.GeometryInstance({
-                geometry:surface.geometry,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
-                    C.Color.fromBytes(...surface.color))}}));
             let appearance=null;
             if(detailedSurfaces){
                 try{appearance=new C.MaterialAppearance({material:new C.Material({fabric:{
@@ -2628,7 +2761,11 @@
                 // cache, eviction and scene cleanup remain atomic.
                 const collection=new C.PrimitiveCollection({destroyPrimitives:true});
                 const base=detailedSurfaces.filter(surface=>surface.kind!=='marking');
-                const painted=surfaceGeometries(C,next).filter(surface=>surface.kind==='marking');
+                // UV preparation already produced the exact paint positions,
+                // indices and colours. Reuse that geometry for this colour
+                // pass instead of rebuilding every road, wall and roof merely
+                // to discard all surfaces except the centre markings.
+                const painted=detailedSurfaces.filter(surface=>surface.kind==='marking');
                 collection.add(new C.Primitive({geometryInstances:base.map(surface=>
                     new C.GeometryInstance({geometry:surface.geometry})),
                     appearance,asynchronous:false,allowPicking:false}));
@@ -2643,11 +2780,7 @@
             }
             // The low-end mode intentionally retains lightweight solid colors.
             if(!appearance){
-                const flat=next.kind==='georeferenced-trimesh'?[{geometry:geometry(C,next),color:[75,120,133,255]}]:
-                    surfaceGeometries(C,next).concat(
-                        C.ClippingPlaneCollection&&C.ClippingPlane&&C.Transforms?
-                            portalSurroundGeometries(C,next):[]);
-                return new C.Primitive({geometryInstances:flat.map(surface=>new C.GeometryInstance({
+                return new C.Primitive({geometryInstances:surfaces.map(surface=>new C.GeometryInstance({
                     geometry:surface.geometry,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
                         C.Color.fromBytes(...surface.color))}})),
                     appearance:new C.PerInstanceColorAppearance({flat:true,translucent:false,closed:false,
@@ -2655,12 +2788,15 @@
                             blending:{enabled:false},cull:{enabled:false}}}),
                     asynchronous:false,allowPicking:false});
             }
-            return new C.Primitive({geometryInstances:instances,appearance,asynchronous:false,allowPicking:false});
+            return new C.Primitive({geometryInstances:surfaces.map(surface=>new C.GeometryInstance({
+                geometry:surface.geometry,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(
+                    C.Color.fromBytes(...surface.color))}})),appearance,asynchronous:false,allowPicking:false});
         }
         function releaseAutoAperture(){
             const owned=autoApertureMaterial;
             if(owned&&scene.globe.material===owned)
                 scene.globe.material=autoMaterialPrevious;
+            if(activeApertureSpecs.length)apertureRevision++;
             autoApertureMaterial=null;autoMaterialPrevious=null;autoMaterialIdentity=null;activeApertureSpecs=[];
             autoDiagnostics.clipped=0;
             if(owned?.destroy){
@@ -2672,19 +2808,32 @@
             if(!specs.length||!C.Material||scene.context?.webgl2===false){
                 releaseAutoAperture();return false;
             }
-            if(autoApertureMaterial&&scene.globe.material===autoApertureMaterial&&autoMaterialIdentity===identity){
-                autoDiagnostics.clipped=activeApertureSpecs.length;return true;
+            const capacity=PORTAL_APERTURE_BUDGETS[autoProfile];
+            if(autoApertureMaterial&&scene.globe.material===autoApertureMaterial&&
+                slopeClipMaterials.get(autoApertureMaterial)?.capacity===capacity&&
+                !scene.globe.clippingPlanes?.length&&!scene.globe.clippingPolygons?.length){
+                if(autoMaterialIdentity===identity){autoDiagnostics.clipped=activeApertureSpecs.length;return true;}
+                // Moving a cut, changing grade or adding a nearby bend changes
+                // uniforms only. Reassigning Globe.material dirties every tile
+                // shader, even when the replacement GLSL is identical.
+                if(updateSlopeClipSpecs(C,autoApertureMaterial,specs,viewer.camera?.viewMatrix)){
+                    autoMaterialIdentity=identity;
+                    activeApertureSpecs=specs.map(value=>({...value,forward:{...value.forward}}));
+                    apertureRevision++;
+                    autoDiagnostics.clipped=specs.length;scene.requestRender?.();return true;
+                }
             }
             releaseAutoAperture();
             // Other terrain layers keep their own material and clipping state.
             if(scene.globe.material||scene.globe.clippingPlanes?.length>0||
                 scene.globe.clippingPolygons?.length>0)return false;
             try{
-                const aperture=slopeClipMaterial(C,specs.length===1?specs[0]:specs,viewer.camera?.viewMatrix);
+                const aperture=slopeClipMaterial(C,specs,viewer.camera?.viewMatrix,{capacity});
                 if(!aperture)return false;
                 autoMaterialPrevious=scene.globe.material;
                 autoApertureMaterial=aperture;autoMaterialIdentity=identity;
                 activeApertureSpecs=specs.map(value=>({...value,forward:{...value.forward}}));
+                apertureRevision++;
                 scene.globe.material=aperture;
                 autoDiagnostics.clipped=specs.length;
                 scene.requestRender?.();return true;
@@ -2772,10 +2921,10 @@
             const point=visibleFocusPoint(),candidates=[];
             const entries=model?[{model,key:`manual:${model.identity}`}]:autoModels;
             const flightEntry=model&&flight?entries[0]:activeFlightEntry();
-            if(flightEntry&&point){
-                const spec=flightClipSpec(flightEntry.model,point);
-                if(spec)candidates.push({spec,priority:-1e6,id:`flight:${flightEntry.key}`});
-            }
+            const interior=flightEntry&&point?flightClipSpecs(flightEntry.model,{
+                ...point,heading:viewer.camera?.heading}).map((spec,index)=>({spec,
+                priority:-1e6+index,id:`flight:${flightEntry.key}:${index}`})):[];
+            const portals=[];
             const canvas=scene.canvas||viewer.canvas;
             const width=canvas?.clientWidth||canvas?.width,height=canvas?.clientHeight||canvas?.height;
             for(const entry of entries){
@@ -2806,12 +2955,42 @@
                         point.height<=section.floorMetersWgs84+section.heightMeters+4;
                     const approachLength=closeApproach?Math.min(24,Math.max(9,gap+3)):null;
                     const spec=boundedClipSpec(entry.model,end,
-                        approachLength===null?{}:{before:approachLength,after:18});
+                        approachLength===null?{}:{before:approachLength,after:26});
                     if(!spec)continue;
                     if(approachLength!==null){spec.below=2.5;spec.above+=1;}
-                    candidates.push({spec,priority,id:`portal:${entry.key}:${end}`});
+                    portals.push({spec,priority,id:`portal:${entry.key}:${end}`,gap,owner:entry});
                 }
             }
+            const nearPortal=flightEntry&&point?portals.filter(candidate=>candidate.owner===flightEntry&&candidate.gap<28)
+                .sort((a,b)=>a.gap-b.gap)[0]:null;
+            if(nearPortal){
+                nearPortal.priority=-2e6;
+                const current=interior[0]?.spec;
+                // Close to a mouth its measured portal already protects the
+                // current straight bore. Reuse that slot for the upcoming bend,
+                // retaining both the physical approach and curve on low budgets.
+                if(current&&apertureContainsPoint(nearPortal.spec,point)&&
+                    Math.abs(current.forward.east*nearPortal.spec.forward.east+
+                        current.forward.north*nearPortal.spec.forward.north)>.97){
+                    const portal=nearPortal.spec;
+                    const endpoints=[-current.before,current.after].map(along=>({
+                        longitude:current.longitude+current.forward.east*along/(R*DEG*Math.cos(current.latitude*DEG)),
+                        latitude:current.latitude+current.forward.north*along/(R*DEG),
+                        height:current.floor+(current.grade||0)*along+2}));
+                    const projected=endpoints.map(p=>{const q=xy(p,portal);return q.x*portal.forward.east+q.y*portal.forward.north;});
+                    const needed=Math.max(...projected)+.15;
+                    // Replace a flight slot only when the portal covers its
+                    // full useful span. Covering the camera alone leaves a
+                    // short uncut gap immediately before a low-budget bend.
+                    if(needed<=45&&projected.every((along,i)=>Math.abs(
+                        endpoints[i].height-2-(portal.floor+(along<0?
+                            portal.approachGrade??portal.grade??0:portal.grade??0)*along))<.3)){
+                        portal.after=Math.max(portal.after,needed);
+                        if(endpoints.every(p=>apertureContainsPoint(portal,p)))interior.shift();
+                    }
+                }
+            }
+            candidates.push(...interior,...portals);
             candidates.sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
             const selected=candidates.slice(0,PORTAL_APERTURE_BUDGETS[autoProfile]);
             const identity=selected.map(({id,spec})=>`${id}:${JSON.stringify(spec)}`).join('|');
@@ -2837,7 +3016,7 @@
         // Keep one bounded, overlapping tunnel window around the current camera
         // or prefetch target. Source-way ends alone are potential portals;
         // viewport/corridor boundaries must never become portal caps.
-        function boundedRoute(route,center){
+        function boundedRoute(route,center,includeFlightPoint=null){
             if(!Array.isArray(route?.coordinates)||route.coordinates.length<2)return null;
             const coordinates=route.coordinates;
             if(!coordinates.every(p=>Array.isArray(p)&&p.length>=2&&p.slice(0,2).every(finite)))return null;
@@ -2863,7 +3042,29 @@
                 if(gap<best){best=gap;along=cumulative[i-1]+t*(cumulative[i]-cumulative[i-1]);}
             }
             if(!finite(best))return null;
-            const start=Math.max(0,along-900),end=Math.min(full,along+900);
+            let start=Math.max(0,along-900),end=Math.min(full,along+900);
+            if(includeFlightPoint){
+                const flight=xy(includeFlightPoint,origin);
+                let nearest=Infinity,flightAlong=0;
+                for(let i=1;i<coordinates.length;i++){
+                    const a=xy({longitude:coordinates[i-1][0],latitude:coordinates[i-1][1]},origin),
+                        b=xy({longitude:coordinates[i][0],latitude:coordinates[i][1]},origin),
+                        dx=b.x-a.x,dy=b.y-a.y,den=dx*dx+dy*dy;
+                    if(den<.001)continue;
+                    const t=Math.max(0,Math.min(1,((flight.x-a.x)*dx+(flight.y-a.y)*dy)/den)),
+                        gap=Math.hypot(flight.x-a.x-t*dx,flight.y-a.y-t*dy);
+                    if(gap<nearest){nearest=gap;flightAlong=cumulative[i-1]+t*(cumulative[i]-cumulative[i-1]);}
+                }
+                // A prefetch begins 480 m before the old end, whereas its
+                // ordinary forward window begins only 350 m before that end.
+                // Include the occupied corridor so a fast response is usable
+                // immediately instead of being rejected by flight pinning.
+                const inclusiveStart=Math.max(0,Math.min(start,flightAlong-120)),
+                    inclusiveEnd=Math.min(full,Math.max(end,flightAlong+120));
+                if(nearest<=(route.widthMeters||6)/2+1.5&&inclusiveEnd-inclusiveStart<=MAX_LENGTH-5){
+                    start=inclusiveStart;end=inclusiveEnd;
+                }
+            }
             if(end-start<1)return null;
             const atDistance=distance=>{
                 let low=0,high=cumulative.length-1;
@@ -2877,7 +3078,12 @@
             };
             const raw=[atDistance(start)];
             for(let i=1;i<cumulative.length-1;i++){
-                if(cumulative[i]>start+.25&&cumulative[i]<end-.25)raw.push(coordinates[i]);
+                // A moving boundary can land centimetres from an original
+                // source vertex. Do not create a <0.5 m section that the
+                // physical model correctly rejects as unusable.
+                if(cumulative[i]>start+.55&&cumulative[i]<end-.55&&length(
+                    {longitude:raw.at(-1)[0],latitude:raw.at(-1)[1]},
+                    {longitude:coordinates[i][0],latitude:coordinates[i][1]})>=.55)raw.push(coordinates[i]);
             }
             raw.push(atDistance(end));
             const distances=[0];
@@ -2936,8 +3142,14 @@
         function entryBounds(next){
             const sections=next.sections;
             const lons=sections.map(s=>s.longitude),lats=sections.map(s=>s.latitude);
-            return {west:Math.min(...lons)-.0001,east:Math.max(...lons)+.0001,
-                south:Math.min(...lats)-.0001,north:Math.max(...lats)+.0001};
+            const west=Math.min(...lons),east=Math.max(...lons),south=Math.min(...lats),north=Math.max(...lats);
+            const margin=28+Math.max(...sections.map(s=>s.widthMeters))/2+.5,
+                latitudeMargin=margin/(R*DEG),longitudeMargin=latitudeMargin/Math.cos(north*DEG);
+            return {west:west-.0001,east:east+.0001,south:south-.0001,north:north+.0001,
+                // Include every bounded 24 m portal approach and the body
+                // width. The detailed section search is needed only nearby.
+                floorSearch:{west:west-longitudeMargin,east:east+longitudeMargin,
+                    south:south-latitudeMargin,north:north+latitudeMargin}};
         }
         function nearEntry(entry,a,b){
             if(![a?.longitude,a?.latitude,b?.longitude,b?.latitude].every(finite))return false;
@@ -3010,17 +3222,20 @@
             // getHeight is the currently rendered mesh, which can still be a
             // coarse cliff/roof tile. Query every approach together using the
             // detailed provider, including the original ends of cropped ways.
-            const requested=new Set();let probeOffset=0;
+            const requested=new Set(),reused=new Set();let probeOffset=0;
             for(const {route} of routeBatch){
                 const count=route.coordinates.length;
                 const extras=14+(route.partial?(route.originalPortalSegments?12:2):0);
                 for(let i=0;i<extras;i++){
                     const index=probeOffset+count+i;
+                    if(i>=14&&route.resolvedSourceEndpointHeights&&i-14<route.resolvedSourceEndpointHeights.length){
+                        heights[index]=route.resolvedSourceEndpointHeights[i-14];reused.add(index);continue;
+                    }
                     requested.add(index);heights[index]=null;
                 }
                 probeOffset+=count+extras;
             }
-            for(let i=0;i<heights.length;i++)if(heights[i]===null)requested.add(i);
+            for(let i=0;i<heights.length;i++)if(heights[i]===null&&!reused.has(i))requested.add(i);
             const missing=[...requested].sort((a,b)=>a-b);
             let terrainError=null;
             if(missing.length){
@@ -3038,8 +3253,9 @@
             const nativePicking=!!selected&&selected.show!==false&&typeof scene.pickFromRay==='function'&&
                 C.Ray&&typeof C.Cartesian3==='function'&&C.Cartographic?.fromCartesian;
             const legacyPicking=!getDeckTileset&&scene.sampleHeightSupported&&typeof scene.sampleHeight==='function';
-            for(const {route} of routeBatch)route.bridgeDeckSampled=[false,false];
-            if((nativePicking||legacyPicking)&&routeBatch.some(({route})=>route.roadApproachKinds?.includes('bridge'))){
+            for(const {route} of routeBatch)route.bridgeDeckSampled=route.resolvedSourceEndpointHeights?
+                route.resolvedBridgeDeckSampled?.slice()||[false,false]:[false,false];
+            if((nativePicking||legacyPicking)&&routeBatch.some(({route})=>!route.resolvedSourceEndpointHeights&&route.roadApproachKinds?.includes('bridge'))){
                 // Public ray/height queries render an offscreen scene pass.
                 // Discovery can originate in preUpdate; unwind it first.
                 await new Promise(resolve=>setTimeout(resolve,0));
@@ -3055,6 +3271,9 @@
                 for(const entry of routeBatch){
                     if(disposed)break;
                     const route=entry.route,count=route.coordinates.length;
+                    if(route.resolvedSourceEndpointHeights){
+                        offset+=count+14+(route.partial?(route.originalPortalSegments?12:2):0);continue;
+                    }
                     const realRoadPoints=portalApproaches(route);
                     const globalRoadPoints=route.partial&&route.originalPortalSegments?
                         [...portalApproaches({coordinates:route.originalPortalSegments[0],
@@ -3131,10 +3350,25 @@
             const budget=currentBudget();
             const resident=new Set(autoModels.flatMap(e=>e.model.mergedRouteIds||[e.id]));
             const rank=r=>candidateDistance(r,center)-(resident.has(r.id)?24:0);
-            const ranked=routes.filter(r=>(r?.kind==='tunnel'||r?.kind==='underpass')&&
+            const cameraAtRequest=viewer.camera?.positionCartographic;
+            const flightAtRequest=isSimulating()&&cameraAtRequest&&
+                [cameraAtRequest.longitude,cameraAtRequest.latitude,cameraAtRequest.height].every(finite)?
+                {longitude:cameraAtRequest.longitude/DEG,latitude:cameraAtRequest.latitude/DEG,height:cameraAtRequest.height}:null;
+            const occupiedAtRequest=flightAtRequest&&autoModels.find(entry=>inside(entry.model,flightAtRequest));
+            const incomingIds=new Set(routes.map(route=>route.id)),contextIds=new Set(),context=new Map(routes.map(route=>[route.id,route]));
+            if(occupiedAtRequest&&(occupiedAtRequest.model.mergedRouteIds||[occupiedAtRequest.id]).some(id=>incomingIds.has(id))){
+                // A forward query can omit an earlier source fragment. Its
+                // established outer portal still anchors the occupied bore
+                // (Gotthard's 420 m north fragment plus the 16 km main way).
+                for(const route of occupiedAtRequest.sourceRoutes||[]){
+                    contextIds.add(route.id);
+                    if(!context.has(route.id))context.set(route.id,route);
+                }
+            }
+            const ranked=[...context.values()].filter(r=>(r?.kind==='tunnel'||r?.kind==='underpass')&&
                 Array.isArray(r.coordinates)&&r.coordinates.length>=2).slice().sort((a,b)=>
-                    rank(a)-rank(b)||String(a.id).localeCompare(String(b.id)));
-            const eligible=[];let skipped=routes.length-ranked.length;
+                    Number(contextIds.has(b.id))-Number(contextIds.has(a.id))||rank(a)-rank(b)||String(a.id).localeCompare(String(b.id))).slice(0,160);
+            const eligible=[];let skipped=Math.max(0,routes.length-ranked.length);
             const earlyRejected=[];
             const connected=joinConnectedRoutes(ranked.map(route=>({id:route.id,key:route.id,
                 route,sourceRoutes:[route]})));
@@ -3143,14 +3377,26 @@
             const topology=connectTunnelJunctions(connected.entries);
             for(const sourceEntry of topology.entries){
                 const route=sourceEntry.route;
-                const bounded=boundedRoute(route,center);
+                const prior=autoModels.find(entry=>entry.id===route.id),
+                    includeFlight=prior&&flightAtRequest&&inside(prior.model,flightAtRequest)?flightAtRequest:null;
+                const bounded=boundedRoute(route,center,includeFlight);
                 if(!bounded){
                     skipped++;
                     if(earlyRejected.length<16)earlyRejected.push({id:String(route.id),
                         reason:'Source window cannot be modeled with available centreline geometry'});
                     continue;
                 }
-                eligible.push({id:route.id,route:bounded,sourceRoutes:sourceEntry.sourceRoutes,
+                const sourceProfileIdentity=JSON.stringify([route.coordinates,route.coveredIntervals||[],
+                    route.roadApproaches||[],route.roadApproachKinds||[],route.junctionEndpoints||[]]);
+                const awayFromPortals=includeFlight&&[route.coordinates[0],route.coordinates.at(-1)].every(p=>
+                    length(includeFlight,{longitude:p[0],latitude:p[1]})>60);
+                if(bounded.partial&&awayFromPortals&&prior?.sourceProfileIdentity===sourceProfileIdentity&&
+                    prior.sourceEndpointHeights?.length>=2&&prior.sourceEndpointHeights.slice(0,2).every(finite)){
+                    bounded.resolvedSourceEndpointHeights=prior.sourceEndpointHeights;
+                    bounded.resolvedBridgeDeckSampled=prior.bridgeDeckSampled;
+                    bounded.bridgeDeckSampled=prior.bridgeDeckSampled?.slice()||[false,false];
+                }
+                eligible.push({id:route.id,route:bounded,sourceRoutes:sourceEntry.sourceRoutes,sourceProfileIdentity,
                     fullSourceRoute:route,
                     key:routeSignature(bounded)});
             }
@@ -3291,7 +3537,7 @@
                         const next=procedural(entry.route,heights,
                             {widthMeters:entry.route.widthMeters||6,heightMeters:5,profile:'vaulted',
                                 portalApproachHeights:approaches,portalContextHeights:lateral,
-                                globalEndpointHeights:originalHeights,junctionEndpointHeights});
+                                globalEndpointHeights:entry.route.resolvedSourceEndpointHeights||originalHeights,junctionEndpointHeights});
                         // A newly sampled window may use a different terrain
                         // LOD. Before replacing the old window, reconcile the
                         // actual overlapping cross-sections to avoid a step at
@@ -3308,6 +3554,9 @@
                         const created={id:entry.id,key:entry.key,model:next,primitive,
                         bounds:entryBounds(next),sourceRoutes:entry.sourceRoutes||[],
                         fullSourceRoute:entry.fullSourceRoute,lastSeenAt:now(),renderProfile:autoProfile,
+                        sourceProfileIdentity:entry.sourceProfileIdentity,
+                        sourceEndpointHeights:(entry.route.resolvedSourceEndpointHeights||originalHeights).slice(),
+                        bridgeDeckSampled:entry.route.bridgeDeckSampled?.slice()||[false,false],
                         bridgeHeightCheckedAt:now()};
                         added.push(created);chosen.push(created);
                     }catch(error){
@@ -3577,9 +3826,13 @@
             // An automatically displayed tunnel has a local, modeled floor even
             // in ordinary FPV flight. Never suppress terrain outside the actual
             // synthetic hollow volume or use a guessed nationwide floor level.
+            if(!point||!finite(point.longitude)||!finite(point.latitude)||!finite(point.height))return null;
             if(flight&&model)return candidateFloor(model,point);
             if(!autoEnabled)return null;
             for(const entry of autoModels){
+                const box=entry.bounds.floorSearch;
+                if(box&&(point.longitude<box.west||point.longitude>box.east||
+                    point.latitude<box.south||point.latitude>box.north))continue;
                 const floor=candidateFloor(entry.model,point);
                 if(floor!==null)return floor;
             }
@@ -3644,7 +3897,12 @@
                 // Place the NEW window 550 m beyond the CURRENT MODEL END,
                 // leaving ~350 m overlap (900 m half-width) for async load.
                 const desired=Math.max(0,Math.min(dist.at(-1),along+(goingEnd?550:-550)));
-                if(Math.abs(desired-along)<90)continue;
+                const remaining=Math.abs(desired-along),reachesSourceEnd=goingEnd?
+                    desired===dist.at(-1):desired===0;
+                // A final short tail still needs its physical mesh and real
+                // portal. The normal 90 m duplicate threshold must not strand
+                // a long flight just before its source endpoint.
+                if(remaining<.5||(remaining<90&&!reachesSourceEnd))continue;
                 let i=0;while(i<dist.length-2&&dist[i+1]<desired)i++;
                 const t=(desired-dist[i])/(dist[i+1]-dist[i]||1);
                 const target={longitude:coords[i][0]+(coords[i+1][0]-coords[i][0])*t,
@@ -3768,6 +4026,7 @@
         return {prepare,importModel,firstPose,activate,floorAt,intersects,segmentInside,setCollisionEnabled,
             flightCoverageTarget,artificialBoundaryNear,
             apertureSpecs:()=>activeApertureSpecs.map(spec=>({...spec,forward:{...spec.forward}})),
+            apertureRevision:()=>apertureRevision,
             setAutomaticEnabled,setAutomaticRoutes,setPerformanceProfile,diagnostics,
             get flight(){return flight;},get model(){return model;},stop,
             dispose(){if(disposed)return;stop();clearAuto();removeAutoClipFrame?.();disposed=true;},status(){return {ready:!!model,flight,pending,
@@ -3776,8 +4035,8 @@
     return {procedural,importSections,importGeoreferencedMesh,validateSections,validateTriMesh,
         closest,inside,portalApproachFloor,collision,collisionMesh,rings,geometry,surfaceGeometries,texturedSurfaceGeometries,
         TUNNEL_MATERIAL_SOURCE,
-        portalSurroundGeometries,boundedClipSpec,flightClipSpec,clippingVolume,
-        slopeClipMaterial,updateSlopeClipMaterial,SLOPE_CLIP_MATERIAL_SOURCE,portalClipShaderSource,apertureUniforms,
+        portalSurroundGeometries,boundedClipSpec,flightClipSpec,flightClipSpecs,clippingVolume,
+        slopeClipMaterial,updateSlopeClipMaterial,updateSlopeClipSpecs,SLOPE_CLIP_MATERIAL_SOURCE,portalClipShaderSource,apertureUniforms,
         MAX_PORTAL_APERTURES,PORTAL_APERTURE_BUDGETS,
         create,MAX_SECTIONS,MAX_LENGTH,
         MAX_MESH_VERTICES,MAX_MESH_TRIANGLES,mergeParallelRoutes,joinConnectedRoutes,connectTunnelJunctions,
