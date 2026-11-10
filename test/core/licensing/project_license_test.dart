@@ -10,8 +10,7 @@ void main() {
 
   test('project attribution precedes the unchanged official Apache text', () {
     final license = File('LICENSE').readAsStringSync().replaceAll('\r\n', '\n');
-    const attribution =
-        'FPVManager\nCopyright 2026 FPVManager contributors\n\n';
+    const attribution = 'FPVManager\nCopyright 2026 Codefrog\n\n';
     expect(license, startsWith(attribution));
     expect(
       sha256
@@ -37,7 +36,7 @@ void main() {
         RegExp(r'^fpvmanager$', multiLine: true).allMatches(text),
         hasLength(1),
       );
-      expect(text, contains('Copyright 2026 FPVManager contributors'));
+      expect(text, contains('Copyright 2026 Codefrog'));
       expect(text, contains('Apache License'));
       expect(text, contains('Version 2.0, January 2004'));
     },
