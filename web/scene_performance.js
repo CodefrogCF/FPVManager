@@ -1,4 +1,4 @@
-/* FPVManager #117: opt-in, bounded scene timing. No telemetry/network traffic. */
+/* Opt-in, bounded scene timing. No telemetry/network traffic. */
 (function(root,factory){
     const api=factory();
     if(typeof module==='object'&&module.exports)module.exports=api;

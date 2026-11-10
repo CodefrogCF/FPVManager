@@ -1,4 +1,4 @@
-// Local-only network diagnostic for issue #115. No dependencies, telemetry,
+// Local-only network diagnostic. No dependencies, telemetry,
 // proxies or uploads. Run via: dart run tool/benchmark_uas_http.dart
 //
 // The DNS/TCP/TLS connection probes are *separate* measurements, not a trace
@@ -25,7 +25,7 @@ Future<void> main(List<String> args) async {
   }
   final compressed = !args.contains('--identity');
   final probes = !args.contains('--skip-probes');
-  stdout.writeln('FPVManager #115 diagnostic (local only)');
+  stdout.writeln('FPVManager HTTP diagnostic (local only)');
   stdout.writeln('UTC: ${DateTime.now().toUtc().toIso8601String()}');
   stdout.writeln(
     'Host: ${_dataset.host}; request: ${compressed ? "gzip" : "identity"}',

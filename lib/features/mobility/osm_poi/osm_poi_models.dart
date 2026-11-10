@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// The six deliberately small, documented OSM categories supported in issue #85.
+/// The six deliberately small, documented OSM categories supported by the app.
 enum OsmPoiCategory {
   drinkingWater('Drinking water', 'amenity', 'drinking_water'),
   toilets('Toilets', 'amenity', 'toilets'),

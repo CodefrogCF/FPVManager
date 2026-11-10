@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/licensing/bundled_licenses.dart';
 import 'core/performance/app_lifecycle_probe.dart';
 import 'core/theme/app_theme.dart';
 import 'features/home/home_screen.dart';
@@ -8,6 +9,7 @@ export 'features/home/home_screen.dart' show FPVHomeScreen;
 void main() {
   AppLifecycleProbe.start();
   WidgetsFlutterBinding.ensureInitialized();
+  registerBundledLicenses();
   if (AppLifecycleProbe.enabled) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppLifecycleProbe.record('first-flutter-frame');

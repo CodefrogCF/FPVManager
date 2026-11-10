@@ -1,4 +1,4 @@
-// Local-only Issue #116 benchmark. No network, telemetry, or external services.
+// Local-only memory benchmark. No network, telemetry, or external services.
 //
 // dart run tool/benchmark_uas_memory.dart --runs=5 --features=1256
 // dart run tool/benchmark_uas_memory.dart --file=C:\\path\\to\\uas.geojson --runs=5
@@ -103,7 +103,7 @@ Future<void> main(List<String> args) async {
     return;
   }
   stdout.writeln(
-    'FPVManager #116 local benchmark; source=${file ?? "synthetic"}; '
+    'FPVManager local memory benchmark; source=${file ?? "synthetic"}; '
     'bytes=${bytes.length}; runs=$runs; worker=$worker',
   );
   stdout.writeln(

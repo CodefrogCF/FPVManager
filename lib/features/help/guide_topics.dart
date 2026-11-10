@@ -74,11 +74,11 @@ const guideArticles = <GuideTopic, GuideArticle>{
     ),
     GuideSection(
       'Ebenen',
-      'Satellit, Topo und Relief sind Hintergrundkarten. Straßen und Beschriftungen sind unabhängig zuschaltbar. Beschriftungen zeigen eine begrenzte, nach Bildschirmplatz ausgewählte Menge offizieller Schweizer Orts- und Straßennamen. Straßennamen aus dem amtlichen Verzeichnis erfassen vor allem Straßen mit Gebäudeadressen; nicht alle Wege und Autobahnen sind enthalten.',
+      '„Karte & Ansicht“ bündelt Karte, Luftraum, Hindernisse und OSINT. Satellit, Topo und Relief sind Hintergrundkarten; Straßen, Beschriftungen und gespeicherte Spots sind unabhängig schaltbar. Beschriftungen zeigen eine begrenzte Auswahl Schweizer Orts- und Straßennamen. Seltene Werkzeuge und Metadaten lassen sich bei Bedarf öffnen; laufende Fehler und Datenlücken bleiben sichtbar.',
     ),
     GuideSection(
       '3D und Quellen',
-      'Gebäude werden aus Quelldaten gestreamt; Vegetation ist modelliert. Fehlende Objekte werden nicht ergänzt. Diese Darstellungen haben kein Kollisionsmodell. Eine Routen- oder Flugzeit überschreibt die Kartenbeleuchtung vorübergehend. Streaming-Modelle und Beschriftungen sind kein Bestandteil eines vorbereiteten Offline-Kartenpakets.',
+      '„3D & Licht“ enthält Gebäude, Vegetation, Bauwerke, automatische 3D-Tunnel und Beleuchtung. Tunnel und ergänzte Brückenpfeiler sind schematisch. Tunnelwände, Boden und Decke haben geometrische Kontaktprüfungen; die optionale Prüfung fremder 3D-Modelle ist nur eine Näherung geladener Oberflächen. Fehlende Objekte werden nicht ergänzt. Streaming-3D und Beschriftungen sind keine vollständigen Offlineebenen. „Quellen“ öffnet die vollständigen aktiven Angaben.',
     ),
   ]),
   GuideTopic.controls: GuideArticle('Steuerung und Simulation', [
@@ -92,7 +92,7 @@ const guideArticles = <GuideTopic, GuideArticle>{
     ),
     GuideSection(
       'Grenzen',
-      'Angle stabilisiert die Lage, Acro gibt Drehraten vor, GPS bremst und hält die Höhe. Die Physik ist eine Näherung. Gelände-Kontakt ersetzt keine Hinderniskollisionen; Kabel, Gebäude und Bäume sind keine vollständige Kollisionswelt. Einstellungen außerhalb eines aktiven Fluges gelten für die nächste Simulation.',
+      'Angle stabilisiert die Lage, Acro gibt Drehraten vor, GPS bremst und hält die Höhe. „Flugeinstellungen“ bündelt Kamera/Anzeige, Grafik/Licht, Controller, Wind und Funkvorschau. Lange Bildpausen werden nicht als großer Flugschritt nachgeholt. Die Physik, Gelände- und Modellkontakte bleiben Näherungen; Gebäude, Bäume und Kabel bilden keine vollständige Kollisionswelt. Einstellungen außerhalb eines Fluges bereiten die nächste Simulation vor.',
     ),
   ]),
   GuideTopic.coordinates: GuideArticle('Koordinaten und Höhen', [
@@ -152,7 +152,7 @@ const guideArticles = <GuideTopic, GuideArticle>{
   GuideTopic.weather: GuideArticle('Wetter und 3D-Wind', [
     GuideSection(
       'Wetterraster',
-      'Bewölkung, Niederschlag, Regen, Neuschnee, Schneehöhe und Temperatur sind getrennte Modellprognosen mit gemeinsamer Zeit. Summen gelten für eine Stunde; Schneehöhe ist davon unabhängig. Das Stichprobenraster ist kein Wetterradar und keine gemessene 3D-Wolke. Offizielle Radarprodukte benötigen eine gesonderte HDF5-/Projektionsaufbereitung und werden hier noch nicht angezeigt.',
+      'Bewölkung, Niederschlag, Regen, Neuschnee, Schneehöhe und Temperatur sind getrennte Modellprognosen mit gemeinsamer Zeit. Summen gelten für eine Stunde; Schneehöhe ist davon unabhängig. Dieses Stichprobenraster ist kein Wetterradar und keine gemessene 3D-Wolke. Der Wetterbereich bietet separat veröffentlichte MeteoSwiss-Radarbilder: Zeitpunkt wählen, laden oder abspielen. Radar ist eine Beobachtung; fehlende Bilder oder Pixel bedeuten nicht trockenes Wetter.',
     ),
     GuideSection(
       'Modell und Messung',

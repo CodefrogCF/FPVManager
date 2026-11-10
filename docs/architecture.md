@@ -12,6 +12,7 @@ owns imagery/terrain rendering, picking and camera interaction.
 | `lib/features/routes/analysis/` | Bounded sampling, profile/flight/energy models and constraint/proximity checks |
 | `lib/features/routes/transfer/` | Bounded GeoJSON/GPX codecs and explicit local file selection/export |
 | `lib/features/simulation/` | Flight settings/profile defaults and coalesced Android input transport |
+| `lib/features/settings/`, `lib/features/help/` | Grouped settings, shared map-menu entry and bundled help |
 | `lib/features/` | Globe, airspace, spots and equipment UI/controllers |
 | `lib/core/database/` | Drift tables, repositories and migrations |
 | `lib/core/models/`, `lib/core/geo/` | Typed routes, preferences, coordinates and heights |
@@ -19,8 +20,9 @@ owns imagery/terrain rendering, picking and camera interaction.
 | `web/` | Renderer, bridge, providers, terrain, shared navigation input, flight/ground controllers and route editing |
 | `test/`, `integration_test/` | Unit/widget/tooling tests and native renderer integration |
 
-Web embeds `globe.html` in a same-origin iframe. Android uses `webview_flutter`
-and an app-owned loopback asset server for Workers/Wasm. `GlobeController`
+Web embeds `globe.html` in a same-origin iframe. Native adapters use an app-owned
+loopback asset server for Workers/Wasm: `webview_flutter` on Android/iOS and
+WebView2 on Windows. `GlobeController`
 validates events and publishes coherent state; commands require acknowledgement.
 See [bridge protocol](globe_bridge.md) and [renderer assets](cesium_assets.md).
 
@@ -30,14 +32,14 @@ Add Spot defaults read only the current raw point.
 
 ## Database and repositories
 
-`FpvDatabase.open()` opens persistent Drift/SQLite storage on Android or Web.
+`FpvDatabase.open()` opens persistent Drift/SQLite storage on native platforms or Web.
 The home screen opens it lazily and closes only resources it created. Injected
 repositories/databases remain caller-owned. Tests use isolated databases.
 Web uses bundled `sqlite3.wasm` and `drift_worker.js`.
 
-Schema version is **9**. Tables cover spots/photos/tags, drones/parameter sources,
+Schema version is **10**. Tables cover spots/photos/tags, drones/parameter sources,
 battery packs/types and assignments, radio equipment/drone assignments, flight
-plans/waypoints, preflight checklists/templates, raw telemetry and settings.
+plans/waypoints, separate ground routes, preflight checklists/templates, raw telemetry and settings.
 Foreign keys are enabled. Historical schemas are
 in `drift_schemas/`; migration fixtures are in `test/generated_migrations/`.
 See [Contributing](../CONTRIBUTING.md) for generation and migration requirements.
@@ -73,12 +75,41 @@ obstacle options and advisory hazard areas disabled; horizontal buffer distance
 and visibility are stored independently. Reads do not write defaults; serialized atomic saves
 and reset preserve unrelated settings. Obstacle settings retain the requested
 state through network failures so an explicit retry or renderer reload can recover.
+The shared **Karte & Ansicht** menu owns display/layer controls; the general
+settings route links to that same hub. Long technical/source details are disclosed
+on demand while current failures, validity and restricted-use status stay visible.
+Retired axis-overlay and surface-exploration flags are ignored on restore;
+automatic 3D tunnels still load the underlying axes internally.
 
 Route transfer follows [RFC 7946](https://www.rfc-editor.org/rfc/rfc7946.html)
 and [GPX 1.1](https://www.topografix.com/GPX/1/1/). Versioned `fpvmanager` GeoJSON
 properties / `https://codefrog.ch/fpvmanager/routes/1` GPX extensions retain AGL,
 named vertical references and airspeed; unspecified GPX elevation stays unverified.
 Imports are size/depth/count bounded and commit all new copies in one transaction.
+
+## Synthetic tunnels and bridge supports
+
+The bundled OSM tunnel catalogue supplies source axes, not surveyed interiors.
+`FPVTunnelInfrastructure` discovers bounded viewport candidates;
+`FPVTunnelFlythrough` resolves road/bridge approach samples and constructs opaque
+sections. Connected source ways and underground junctions share floor anchors,
+render openings and collision geometry. Long ways use bounded overlapping windows
+while retaining their original outer endpoint evidence. The current occupied
+corridor remains resident until its replacement contains the flight position.
+
+Portal cutouts use direction/grade-aware masks with a face-inclination check:
+steep rock inside the opening can be discarded while horizontal road/floor
+surfaces survive. Curve masks update existing material uniforms. Synthetic wall,
+ceiling and floor collision is exact for the generated mesh; approximate loaded
+model-height checks are separately opt-in and cannot certify real clearance.
+
+Bridge supports use mapped support points or schematic spacing below a verified
+deck profile. Native swissTLM3D discovery classifies the selected feature and
+samples its geometry; road-axis names do not establish deck height. Ground
+samples determine support foundations. A confirmed native profile is reused,
+and GPU depth probes/geometry creation are distributed across render opportunities.
+These models remain simulation estimates. See the [offline catalogue build](offline_swiss_tunnel_index.md),
+[renderer fixtures](cesium_assets.md) and [performance guide](performance.md).
 
 ## External providers
 

@@ -1,84 +1,84 @@
-# Weather
+# Weather, radar and observations
 
-Open **Weather intelligence** from the map menu. Choose a saved spot, provider,
-forecast time and drone. Wind, gust, precipitation and optional visibility limits
-are stored locally per drone. **Refresh forecast** checks the source again even
-while a cached forecast is available.
+Open **Wetter** from navigation or the map actions. Forecast provider, forecast
+time and drone criteria are independent of the map's lighting time. Unknown
+readings stay unknown; a suitable forecast does not establish flight permission
+or obstacle clearance.
 
-## Sources and limits
+## Forecasts and comparisons
 
-- [MeteoSwiss E4](https://opendatadocs.meteoswiss.ch/e-forecast-data/e4-local-forecast-data):
-  official Swiss point forecasts. FPVManager uses the nearest published point,
-  shows its distance and selects the latest complete supported hourly run from
-  [STAC](https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-local-forecasting).
-  Wind and gusts are converted from km/h to m/s. Visibility and 80 m wind are
-  unavailable. The five national parameter files can require substantial data;
-  comparisons are limited to three spots. Repeated requests for the same source
-  point and run reuse a bounded memory cache.
-- [Open-Meteo](https://open-meteo.com/en/docs): model forecasts, including visibility
-  and 80 m wind where available. Its [free API terms](https://open-meteo.com/en/terms)
-  permit non-commercial use and require attribution. The API does not supply a
-  forecast issue time in the response used here. Comparisons are limited to eight spots.
+Choose a saved place or selected coordinates, a provider and a time. Drone-specific
+wind, gust, precipitation and optional visibility thresholds are stored locally.
+**Refresh forecast** requests the source again even when cached values exist.
 
-Both providers require attribution. Forecasts are requested directly from the
-device; selected coordinates are sent to the provider. Sources are never silently
-combined. Downloads are cached in memory for 45 minutes, not retained offline.
-Forecast times are stored in UTC and displayed in local time; hourly rain totals
-refer to the preceding hour. Unknown values remain unknown.
+| Provider | App behavior |
+|---|---|
+| [MeteoSwiss local forecasts](https://opendatadocs.meteoswiss.ch/e-forecast-data/e4-local-forecast-data) | Uses the nearest published Swiss forecast point and shows its distance. National parameter files are matched locally. Wind/gusts are converted from km/h to m/s. Visibility and 80 m wind are not supplied by this adapter; comparisons cover up to three places. |
+| [Open-Meteo](https://open-meteo.com/en/docs) | Sends the selected coordinates for model forecasts. Visibility and 80 m wind are available where supplied; comparisons cover up to eight places. The response used here does not supply a forecast issue time. |
 
-The weather map always uses Open-Meteo, independently of the forecast provider.
-Wind, cloud cover, total precipitation, large-scale rain, snowfall, snow depth
-and temperature can be displayed independently, with opacity, units and a common
-forecast time. Precipitation/rain and snowfall are preceding-hour totals, not
-instantaneous rates; snow depth is a separate variable. Each grid uses 49 samples
-and a ten-minute memory cache. Expired grids are hidden. The 1 km / 5 km setting
-controls display spacing, **not native model
-resolution or accuracy**. No spatial interpolation or native MeteoSwiss raster is
-provided. Missing cells are counted and omitted; incompatible forecast times are
-not combined. Each overlay can be cleared and is restored after renderer reload.
-Official MeteoSwiss radar products use ODIM HDF5/LV95 and require a separate
-decoder/reprojection adapter; they are not currently displayed as radar imagery.
+The source is never silently switched or merged. Forecasts use a 45-minute
+memory cache, not a complete offline forecast archive. UTC forecast times are
+shown in local time; hourly precipitation is the preceding-hour total. Known
+old source runs, invalid/missing required values and failed downloads prevent a
+positive threshold assessment. The app's freshness policy is separate from
+meteorological validity. Optional terrain inspection describes nearby relief,
+not predicted turbulence.
 
-**Messstationen** shows measured MeteoSwiss SwissMetNet and BAFU water observations
-near a map point, saved spot or route. Station identity, elevation, times, native
-units and available validation states remain visible. MeteoSwiss precipitation is
-a ten-minute total; BAFU live values are uncorrected and separate from ten-minute
-means. Licensed snapshots use the shared persistent cache; failed updates retain
-dated values. No station measurement is interpolated into a terrain wind field or
-used as flight-simulation wind. Refresh follows the ten-minute product cadence.
-Web uses ordinary MeteoSwiss GET requests because conditional-header preflight is
-rejected by that service; native clients can use Last-Modified revalidation.
+Open-Meteo's [free API terms](https://open-meteo.com/en/terms) restrict free-service
+access to non-commercial use; the data licence and the API access conditions are
+separate. The project's Apache-2.0 code licence does not extend those terms.
+Source attribution remains available through the map's **Quellen** control.
 
-**Map layers → Map → 3D-Wind und Prognose** adds an independent animated 3D wind
-field. It is also available before flight and through **HUD settings → Wind**.
-Choose current model wind or a forecast time, load the selected map point/view,
-then enable arrows and/or flight influence. The free Open-Meteo API is for
-non-commercial use. Current values are model output, not local live measurements.
-Nine grid queries provide available 10/80/120/180 m AGL vectors; horizontal and
-vertical interpolation is approximate, with the nearest height held outside
-known layers. The arrows follow airflow (opposite meteorological wind-from).
-Angle/Acro use air-relative drag; GPS counters wind within its airspeed limit.
-No synthetic gusts, thermals or building turbulence are added. Missing/outside/
-expired data suspend wind forces and are shown as unavailable, not calm.
-Current wind refreshes every 15 minutes while visible or used in flight, pausing
-in the background. Snapshots stay in memory, expire after at most 30 minutes
-(current) or 3 hours (forecast), and replay after renderer reload. Wind and sun
-times are independent; changing sun time does not silently replace wind data.
+## Forecast map and 3D wind
 
-Suitability explains each configured threshold. Missing or invalid required
-values, downloads or known source runs older than 24 hours, and implausible future
-timestamps prevent a positive assessment. The age limit is a local planning policy,
-not official meteorological validity. Optional terrain inspection samples nearby
-relief; it does not predict turbulence and is separate from the weather comparison.
-Weather results do not establish flight permission or obstacle clearance.
+The sampled weather map uses Open-Meteo independently of the selected point-
+forecast provider. Wind, cloud, total precipitation, large-scale rain, snowfall,
+snow depth and temperature have independent visibility/opacity but share one
+forecast time. The 1 km / 5 km choice is display sampling, not native model
+resolution. Missing cells are omitted; expired grids are hidden. These model
+cells are neither measured clouds nor radar observations.
 
-## Development
+**Karte & Ansicht → Karte → 3D-Wind und Prognose** loads a separate wind field.
+It is also available in flight settings and **Flugeinstellungen → Wind**.
+Select the region/time, load it, then enable arrows and/or flight influence.
+Nine query points supply available vectors at 10/80/120/180 m AGL; interpolation
+between points/heights is approximate. Arrows follow airflow, opposite the
+meteorological wind-from direction.
 
-Provider, normalization, cache, suitability and overlay fixtures are in
-`test/features/weather/`; renderer tests include `test/js/weather_overlay.test.cjs`
-and `test/js/wind_field.test.cjs`. The local `tool/serve_globe_smoke.py` server
-provides `/wind-smoke` for animated arrows, wind drift and expiry on synthetic terrain.
-Use the checks in [CONTRIBUTING.md](../CONTRIBUTING.md). For manual Android/Web
-verification, test provider and time changes during loading, forced refresh,
-missing data, offline errors, terrain inspection, wind/rain overlays and renderer
-reload. Do not infer a platform pass from unit tests.
+Angle/Acro use wind-relative drag; GPS counters wind within its airspeed limit.
+No building turbulence, thermals or synthetic gusts are added. Outside, missing
+or expired data suspend forces and are unavailable rather than calm. Active
+current wind refreshes every 15 minutes in the foreground; forecasts refresh
+explicitly. Snapshots remain in session memory and expire after at most 30 minutes
+(current) or three hours (forecast). Changing sun time does not replace wind.
+
+## Observed precipitation radar
+
+The weather screen includes **Official MeteoSwiss precipitation radar**. Discover
+published times, choose a product and show a frame; older/newer controls and
+forward playback retain the actual timestamp gaps. Discovery is user-triggered
+and bounded to 12 published frames.
+
+Supported products are the RZC radar estimate in mm/h and CPC CombiPrecip
+60-minute totals in mm. The renderer decodes HDF5 data and projects the selected
+LV95 raster onto the globe. Source quality flags, where supplied, remain visible.
+Data/decoder access can fail on Web or Android; a failure is reported and does
+not turn missing pixels into dry weather. Radar is an observation, not a forecast
+or a nowcast. Unsupported products are not substituted.
+
+## Measured stations
+
+**Messstationen** shows MeteoSwiss SwissMetNet and BAFU hydrological observations
+near a point, place or route. Station identity/elevation, native units, timestamps
+and available validation states remain visible. MeteoSwiss precipitation is a
+ten-minute total; BAFU live values are uncorrected and are kept separate from
+ten-minute means.
+
+Licensed snapshots use the separate public-data cache; failed updates retain
+dated values. Refresh follows the product cadence. A station measurement is not
+interpolated into the 3D wind field and does not drive flight-simulation wind.
+
+See [privacy and permissions](privacy_and_permissions.md) for requests and storage,
+[sources](map_sources_and_attribution.md) for attribution, and
+[Contributing](../CONTRIBUTING.md) for renderer checks. Unit/browser fixtures do
+not replace checking provider access and gestures on a real device.

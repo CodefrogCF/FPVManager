@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* Local, explicit, privacy-limited FPVManager #120 performance reports. */
+/* Local, explicit, privacy-limited FPVManager performance reports. */
 const fs = require('node:fs');
 const path = require('node:path');
 

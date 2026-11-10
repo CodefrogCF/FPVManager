@@ -30,7 +30,7 @@ with its MIT licence. Its pinned SHA-256 is checked in
 `test/js/offline_preparation.test.cjs`. Processing runs in a dedicated worker;
 Android uses the same bundled page in a separate app-owned WebView.
 
-Android's `GlobeAssetServer` binds only to `127.0.0.1` on an ephemeral port and
+The native `GlobeAssetServer` binds only to `127.0.0.1` on an ephemeral port and
 serves manifest-listed assets with Worker/Wasm MIME types. Host/port/method checks
 prevent filesystem exposure. Cleartext is allowed only for that local origin;
 external providers use HTTPS. Web serves the same files below the app base path.
@@ -40,6 +40,13 @@ Bundling the renderer does not download map regions.
 `globe.html?offline=1` uses a local grid/ellipsoid without imagery/terrain requests.
 Normal terrain failures use a labelled flat fallback and explicit retry; see
 [architecture](architecture.md).
+
+The compact **Quellen** control uses Cesium's native accessible source dialog.
+Complete applicable data notices remain reachable; provider credits requiring
+on-screen display stay visible. The optional default ion logo is suppressed only
+for the current direct-provider setup. This does not remove actual ion-data credits
+or packaged third-party notices. See [map sources](map_sources_and_attribution.md)
+for the source-specific attribution rules.
 
 ## Browser harnesses
 

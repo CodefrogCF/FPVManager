@@ -1,7 +1,16 @@
 # Contributing
 
-Open a focused pull request against `main`. Describe the change, related issue
-and relevant checks. Use the Flutter/Dart versions in [README](README.md).
+Open a focused pull request against `main`. Describe the problem, resulting
+behavior and relevant checks. Use the Flutter/Dart versions in [README](README.md).
+
+## License
+
+Original contributions submitted for inclusion in FPVManager are provided under
+[Apache-2.0](LICENSE), unless explicitly identified otherwise. Keep existing
+copyright, licence and attribution notices with imported code or data, and identify
+their origin. Third-party components and datasets retain their separate terms;
+see [the third-party notices](THIRD_PARTY_NOTICES.md). No copyright assignment or
+separate contributor agreement is required by this contribution workflow.
 
 ## Code
 
@@ -21,9 +30,11 @@ Run from the repository root. Python 3.9+ and Node.js 20+ are needed for tooling
 ```sh
 flutter pub get --enforce-lockfile
 dart run tool/check_format.dart
+python tool/check_docs.py
 python tool/vendor_cesium.py --check
 python -m unittest discover -s test/tool -p 'test_*.py'
-node --test test/js/globe_bridge.test.cjs test/js/map_attribution.test.cjs test/js/terrain_service.test.cjs test/js/ground_navigation.test.cjs test/js/route_editor.test.cjs test/js/obstacle_layers.test.cjs
+node --test test/js/*.test.cjs
+node tool/performance_suite.cjs --check
 flutter analyze --no-pub
 flutter test --no-pub
 ```
@@ -59,6 +70,8 @@ Check navigation, selection, layers, visible credits, terrain failure/retry and
 affected controls on Web and Android. Builds and synthetic fixtures do not verify
 device gestures, permission dialogs or real network recovery. When upgrading
 Flutter, update README and the CI pin together and repeat both builds.
+Use [the performance guide](docs/performance.md) for local diagnostics and
+reproducible device measurements. Never present synthetic timings as device FPS.
 
 ## Database changes
 

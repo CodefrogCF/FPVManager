@@ -1,6 +1,6 @@
 # Preflight and signal analysis
 
-Open **Preflight & Telemetry** in the main menu. Checklists start with battery,
+Open **Flugvorbereitung** in navigation. Checklists start with battery,
 propeller, GPS, radio, video, weather and airspace items. Edit one item per line,
 assign a drone/flight plan, or save a reusable template. Starting from a template
 creates an independent, unchecked checklist. Changing its drone/plan resets
@@ -28,7 +28,8 @@ This is geometric screening, not a full ITU propagation implementation.
 Refraction, diffraction loss, multipath, interference, antenna patterns and
 received power are not modeled. It cannot guarantee reception or range.
 
-No building/vegetation service is connected. Optionally import local surface
+The radio-path analysis does not automatically sample the streamed 3D scene or
+the simulator's collision model. Optionally import local surface
 observations through **Import surface CSV**. Each record adds a constant AGL
 height inside a circular footprint; overlapping records use the greatest height.
 The source is retained. Up to 100 observations are stored with the route:
@@ -45,7 +46,7 @@ model itself does not establish the absence of buildings, vegetation or cables.
 
 ## Telemetry import and calibration
 
-Import a CSV in **Preflight & Telemetry → Telemetry**. Preview its measurements,
+Import a CSV in **Flugvorbereitung → Telemetry**. Preview its measurements,
 choose the drone and flight plan, then confirm local storage. Raw bytes remain
 in the personal database across restarts, independently of OSINT/map caches.
 Delete a log from the same library to remove its raw data. Limits: 50 logs or
@@ -90,3 +91,8 @@ an old preview. Keep comparable mass, equipment and flight conditions: climbs,
 maneuvers, wind and sensor errors can distort this fit. Drone specifications and
 other routes are not automatically changed. Keep an original curve if needed;
 the raw telemetry remains available for re-evaluation.
+
+For the flight HUD's temporary recording-to-route workflow, use the
+[user guide](user_guide.md#ground-inspection-and-flight-simulation). It is separate
+from importing measurements for energy calibration. Network requests and local
+storage are summarized in [privacy](privacy_and_permissions.md).

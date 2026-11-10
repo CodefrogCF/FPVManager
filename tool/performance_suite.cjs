@@ -92,7 +92,7 @@ function main(args) {
     ],
   };
   if (options.out) writeJson(options.out, result);
-  console.log(`FPVManager #120 synthetic CI invariants passed (bridge=${bridge.features} features, scene=${scene.frames} frames).`);
+  console.log(`FPVManager synthetic CI invariants passed (bridge=${bridge.features} features, scene=${scene.frames} frames).`);
   if (options.out) console.log(`Local report: ${options.out}`);
 }
 if (require.main === module) {

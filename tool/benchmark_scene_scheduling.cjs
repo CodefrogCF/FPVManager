@@ -1,4 +1,4 @@
-/* Synthetic scheduling microbenchmark for #117. Does not measure hardware FPS/GPU. */
+/* Synthetic scheduling microbenchmark. Does not measure hardware FPS/GPU. */
 'use strict';
 const {performance}=require('node:perf_hooks');
 const {create}=require('../web/scene_environment.js');

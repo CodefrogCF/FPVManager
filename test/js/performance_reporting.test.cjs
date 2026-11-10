@@ -9,8 +9,8 @@ const { SCENARIOS, fromManualOptions, parseMetricPairs, parseLifecycleLog,
 const { verify, reports } = require('../../tool/performance_suite.cjs');
 const { summarize } = require('../../tool/performance_compare.cjs');
 const rules = require('../../tool/performance_ci_baselines.json');
-const scenarioDefinitions = require('../../docs/performance/scenarios_issue_120.json');
-const issue47 = require('../../docs/performance/issue47_reference_2026-11-05.json');
+const scenarioDefinitions = require('../../docs/performance/scenarios.json');
+const deviceReference = require('../../docs/performance/device_reference_2026-11-05.json');
 
 test('documented scenario IDs and manual recording command stay consistent', () => {
   assert.equal(new Set(SCENARIOS).size, SCENARIOS.length);
@@ -101,17 +101,17 @@ test('explicit local output creates a new report only; never overwrites', () => 
   } finally { fs.rmSync(folder, { recursive: true, force: true }); }
 });
 
-test('Issue #47 historical real-device reference retains source labels and is not a CI threshold', () => {
-  assert.equal(issue47.referenceIssue, 47);
-  assert.equal(issue47.datasetBytes, 13494145);
-  assert.equal(issue47.features, 1256);
-  assert.equal(issue47.measurements.length, 6);
-  assert.equal(issue47.measurements[0].metricsMs.httpTotalMs, 3553);
-  assert.equal(issue47.measurements[1].metricsMs.httpTotalMs, 1840);
-  assert.equal(issue47.measurements[2].metricsMs.httpTotalMs, 28188);
-  assert.equal(issue47.measurements[4].scenario, 'uas-warm-restart-cache');
-  assert.ok(!Object.hasOwn(rules, 'issue47'), 'Device/network timings must never gate CI');
-  assert.ok(fs.existsSync(path.join(__dirname, '../../', issue47.source)));
+test('dated real-device reference retains source labels and is not a CI threshold', () => {
+  assert.equal(deviceReference.referenceId, 'uas-device-2026-11-05');
+  assert.equal(deviceReference.datasetBytes, 13494145);
+  assert.equal(deviceReference.features, 1256);
+  assert.equal(deviceReference.measurements.length, 6);
+  assert.equal(deviceReference.measurements[0].metricsMs.httpTotalMs, 3553);
+  assert.equal(deviceReference.measurements[1].metricsMs.httpTotalMs, 1840);
+  assert.equal(deviceReference.measurements[2].metricsMs.httpTotalMs, 28188);
+  assert.equal(deviceReference.measurements[4].scenario, 'uas-warm-restart-cache');
+  assert.doesNotMatch(JSON.stringify(rules), /httpTotalMs|bridgeRoundTripMs/, 'Device/network timings must never gate CI');
+  assert.ok(fs.existsSync(path.join(__dirname, '../../', deviceReference.source)));
 });
 
 test('normal Airspace menu contains no developer benchmark output', () => {

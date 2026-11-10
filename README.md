@@ -1,44 +1,34 @@
 # FPVManager
 
-FPVManager is a local-first Flutter prototype for exploring Swiss FPV flying
-locations on a CesiumJS globe. Android and Web are supported.
+FPVManager is a local-first Flutter app for Swiss map exploration, FPV planning
+and flight simulation. Personal records stay on the device; online providers
+supply maps, forecasts and other public information.
 
-## Features
+## Main features
 
-- Swiss 3D terrain, satellite/topographic/relief maps, optional roads and independent place/street labels.
-- Opt-in current location with accuracy/freshness and foreground following; combined coordinate, place and street search.
-- Official UAS zones with structured details, overlapping-zone selection and spatial spot/route checks.
-- Independent aviation obstacle imagery and selectable cached vectors, with optional scaled mast/crane models.
-- Optional streamed buildings/vegetation, real sun/moon positions and fixed route/simulation times.
-- Local spots with a continuous lazy list, photos, tags and favorites; drone, battery and radio/video profiles.
-- Editable activity profiles (FPV, hiking, cycling, photography, family and exploration), custom workspaces and map shortcuts; portable profile import/export and inclusion in personal backups. All tools remain accessible from every profile.
-- Grouped app settings and bundled Guides & Help, with contextual shortcuts.
-- Multiple waypoint routes with configurable heights, speeds, terrain profiles and energy/reserve estimates; GeoJSON/GPX import/export.
-- First-person ground inspection and GPS, Angle and Acro flight simulation using touch, keyboard or controllers; configurable rates, throttle neutral point, camera angle and flight HUD.
-- Simulated flight recording converted to planning routes, with optional live radio line-of-sight screening.
-- Android road navigation with voice guidance, smooth GPS follow camera, compass, rerouting and independent 3D environment settings; destination search, traffic/counter data and optional TMC location-table import.
-- Separate walking/cycling route planning with explicit provider consent, local saved routes, GPX exchange and backup support.
-- Independent official hiking, cycling, mountain-bike and winter route layers; wildlife quiet zones and temporary closures with source details and bounded spatial checks.
-- Aircraft snapshots, aerodromes/heliports, wildfire information and an independent SLF avalanche bulletin map with freshness information.
-- MeteoSwiss/Open-Meteo forecasts and comparisons; independent sampled cloud, precipitation, rain, snow and temperature maps, animated 3D wind and optional flight-simulation wind influence.
-- Measured MeteoSwiss weather and BAFU hydrological stations near points or routes, with observation times, quality information and dated persistent snapshots.
-- Local preflight checklists/templates, terrain LOS/Fresnel analysis, obstacle buffers, route constraints and telemetry calibration.
-- On-device offline region preparation up to 25 km radius; Web additionally supports the whole of Switzerland. Choose detail, terrain and topographic/satellite/neutral-relief imagery; mark the centre on the globe.
-- Portable personal-data backups with optional password protection and validated restoration; optional prepared-map package import and laptop preparation.
+- A CesiumJS globe with Swiss terrain, imagery, 3D buildings, vegetation,
+  schematic tunnels and bridge supports.
+- Local places and photos, flight routes, walking/cycling routes and equipment
+  libraries, with import/export and portable backups.
+- Official UAS zones and published aviation obstacles, plus independent outdoor,
+  traffic, aircraft, weather, radar and observation layers.
+- Ground inspection and GPS, Angle and Acro flight simulation with touch,
+  keyboard or external controllers, flight recording and optional wind.
+- Android road navigation, offline-region preparation, and activity profiles
+  that keep frequently used tools together.
 
-Personal records stay in local storage. Online maps and data services require
-network access. This prototype does not determine permission to fly or verify
-obstacle clearance. The flight simulation uses approximate movement
-and terrain contact only. Offline preparation uses official download assets;
-source gaps and the selected detail limit coverage. Large downloads need free
-storage and the app kept open. Browser storage can be evicted. Public snapshots
-retain their source dates; live information needs a connection and verification.
+**Karte & Ansicht** is the shared map-settings hub. Less-used controls and source
+metadata are expandable; active errors and data limitations remain visible.
+The **Quellen** control opens the map's full attribution information.
+
+The map and simulator are planning/visualization tools. Approximate terrain,
+model geometry and sampled checks do not establish permission to fly or obstacle
+clearance. Retrieval time, source validity and data completeness remain separate.
 
 ## Run from source
 
-Use **Flutter 3.47.0 stable / Dart 3.13.0**, matching
-[CI](.github/workflows/ci.yml). Web needs WebGL; Android needs the Android SDK
-and Java 17.
+Use **Flutter 3.47.0 stable / Dart 3.13.0**, matching the build configuration.
+Web needs WebGL; Android needs the Android SDK and Java 17.
 
 ```sh
 flutter doctor -v
@@ -46,26 +36,33 @@ flutter pub get --enforce-lockfile
 flutter run -d chrome
 ```
 
-For Android, accept SDK licenses with `flutter doctor --android-licenses`, find
-your device with `flutter devices`, then run `flutter run -d <device-id>`.
-An iOS runner is not included.
+For Android, accept SDK licences with `flutter doctor --android-licenses`, find
+the device with `flutter devices`, then run `flutter run -d <device-id>`.
+Automated builds cover Android and Web; other platform runners need their own
+validation. Build, test and contribution instructions are in [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Documentation
 
-| For | Guide |
-|---|---|
-| Users | [Using FPVManager](docs/user_guide.md) |
-| Users and developers | [Coordinates and heights](docs/coordinates_and_heights.md) |
-| Users and developers | [Privacy and permissions](docs/privacy_and_permissions.md) |
-| Users and developers | [Map sources and attribution](docs/map_sources_and_attribution.md) |
-| Users and developers | [Weather sources, controls and limits](docs/weather.md) |
-| Users and developers | [Preflight, signal analysis and telemetry CSV](docs/preflight.md) |
-| Users and developers | [Mobility, OSINT sources and access limits](docs/mobility_osint.md) |
-| Developers | [Contributing, checks and builds](CONTRIBUTING.md) |
-| Developers | [Architecture and storage](docs/architecture.md) |
-| Developers | [Globe bridge](docs/globe_bridge.md) |
-| Developers | [Local-only performance benchmarks and diagnostics](docs/performance_issue_120.md) |
-| Developers | [Bundled renderer assets](docs/cesium_assets.md) |
+The [documentation overview](docs/README.md) links the current guides and explains
+how to clean up retired documents after applying a changes ZIP.
 
-Report bugs and discuss features in the
-[issue tracker](https://github.com/CodefrogCF/FPVManager/issues).
+| Task | Guide |
+|---|---|
+| Use menus, maps, records, simulation and offline tools | [User guide](docs/user_guide.md) |
+| Understand coordinates, AGL and Swiss height references | [Coordinates and heights](docs/coordinates_and_heights.md) |
+| Understand local storage, permissions and external requests | [Privacy and permissions](docs/privacy_and_permissions.md) |
+| Check map-data terms and attribution | [Sources and attribution](docs/map_sources_and_attribution.md) |
+| Use forecasts, radar, wind and measured observations | [Weather](docs/weather.md) |
+| Use checklists, radio-path checks and telemetry | [Preflight and signal analysis](docs/preflight.md) |
+| Use routing, navigation and supplementary information layers | [Navigation and OSINT](docs/mobility_osint.md) |
+| Build, test or extend the app | [Contributing](CONTRIBUTING.md), [architecture](docs/architecture.md) and [performance checks](docs/performance.md) |
+
+The app also bundles **Einstellungen → Hilfe** for offline reading.
+
+## License
+
+FPVManager's original code and documentation are licensed under
+[Apache-2.0](LICENSE). See [NOTICE](NOTICE) and
+[third-party notices](THIRD_PARTY_NOTICES.md). Bundled libraries, map/OSM data,
+other provider datasets and imported personal content retain their own rights
+and conditions; the project licence does not replace them.

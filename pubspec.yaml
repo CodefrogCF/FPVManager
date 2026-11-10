@@ -44,6 +44,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/licenses/image-LICENSE-other.md
+    - assets/licenses/archive-LICENSE-other.md
     - web/globe.html
     # BEGIN CESIUM ASSETS
     - web/cesium/

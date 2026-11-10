@@ -424,7 +424,7 @@
 });
 
 
-/* Issue #111: official swissTLM3D centerline discovery, schematic display only.
+/* Official swissTLM3D centerline discovery, schematic display only.
  * No tunnel volumes, portal dimensions or collision clearance are inferred. */
 (function (root, factory) {
     const api = factory();
@@ -1009,7 +1009,7 @@
     }
     return {ENDPOINT,OSM_ENDPOINT,OSM_BACKUP_ENDPOINT,LAYERS,BOUNDS,category,bounds,urlFor,osmUrlFor,parseIdentify,parseOsm,create};
 });
-/* Issue #112: bounded, explicitly SIMULATION-ONLY tunnel geometry. This is not
+/* Bounded, explicitly SIMULATION-ONLY tunnel geometry. This is not
  * a surveyed tunnel, a clearance certificate, or permission to enter a site.
  * Kept in scene_environment.js to use the existing registered Flutter asset. */
 (function(root,factory){
@@ -4127,7 +4127,7 @@
         attachJunctionOpenings,alignContinuation};
 });
 
-/* Issue #113: infrastructure-aware advisory geometry checks.
+/* Infrastructure-aware advisory geometry checks.
  * swisstopo 3D Tiles are rendered independently; their presence does not
  * expose surveyed collision meshes or prove that every bridge is assessed.
  * External cross-section input is NEVER promoted to verified status merely

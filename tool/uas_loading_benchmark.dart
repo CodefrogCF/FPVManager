@@ -1,4 +1,4 @@
-// Local-only, reproducible synthetic transport benchmark for Issue #47.
+// Local-only, reproducible synthetic transport benchmark.
 // Usage: dart run tool/uas_loading_benchmark.dart [local_official.geojson]
 // No upload or network access. It does NOT measure real WebView or Cesium time.
 import 'dart:convert';

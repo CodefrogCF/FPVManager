@@ -1,7 +1,7 @@
 # Globe bridge protocol v1
 
 `GlobeBridge` and `web/globe_bridge.js` share a JSON transport for the Web iframe
-and Android WebView. Only recognized commands in `web/globe.js` execute; messages
+and native WebViews, including Windows/WebView2. Only recognized commands in `web/globe.js` execute; messages
 are never evaluated as JavaScript.
 
 ## Messages and lifecycle
@@ -31,7 +31,7 @@ Defaults in `GlobeBridgeOptions`:
 |---|---|
 | Ordinary command / terrain query / dataset import | 15 s / 30 s / 2 min |
 | Individual transport send | 10 s |
-| Frame / chunk | 128 Ki / 32 Ki UTF-16 code units |
+| Frame / target chunk | 128 Ki / 96 Ki UTF-16 code units |
 | Encoded command / total reserved JS buffers | 64 Mi UTF-16 code units |
 | Concurrent JS transfers / pending commands | 2 / 32 |
 | Incomplete transfer idle timeout | 30 s |
@@ -42,6 +42,13 @@ IDs and aggregate reservations before execution. Invalid transfers release their
 buffers. Timeout, disposal and `cancel-command` invalidate work. Async paths
 check cancellation before committing; third-party promises may finish later,
 but their obsolete results are ignored.
+
+The ready handshake advertises gzip/base64 decoding and transfer flow control.
+Large native UAS commands may be compressed only when the receiver supports it;
+plain JSON remains the fallback. Compressed transfers carry original byte and
+character lengths, and decompression rejects size mismatches. Receiver credits
+bound in-flight chunks. Target chunk size shrinks to keep the actual escaped JSON
+frame under its limit; HTTP bytes and UTF-16 character counts are different units.
 
 ## Terrain, zones and routes
 
@@ -68,7 +75,7 @@ Free flight uses `enter-simulation` (optional paired latitude/longitude, `agl`,
 `exit-simulation`. Missing coordinates select the camera target. `simulation-state`
 reports active/pending/reason and `cameraTiltDegrees` (0–80° upward, also accepted
 at entry; body-relative FPV view only).
-`graphicsProfile` accepts `quality`, `balanced` (default) or `performance` at
+`graphicsProfile` accepts `quality`, `balanced` (default), `performance` or `compatibility` at
 entry and is reported in `simulation-state` after in-flight changes.
 `showCoordinates` is an optional boolean (default false) at entry and is reported
 in `simulation-state` after changes in the HUD settings; coordinates stay renderer-local.
@@ -134,12 +141,21 @@ The renderer compass emits `road-navigation-follow` when switching between
 north alignment and following; the controller retains that state for reloads.
 `set-rendering-paused` pauses the hidden home map during Android road navigation.
 
-`set-scene-environment` carries boolean `buildings`, `vegetation`, `lighting`
-and an optional layer name in `retry`. `scene-layer-status` reports loading,
+`set-scene-environment` carries boolean `buildings`, `vegetation`, `structures`,
+`lighting`, optional `modelCollisions`, structure opacity and a layer name in
+`retry`. `scene-layer-status` reports loading,
 ready, partial or failed without failing globe initialization. `set-scene-time`
 uses `scope: route|flight`, `enabled` and nullable UTC `timeUtc`; flight overrides
 route, then map lighting. Route-editor and simulation-entry commands also carry
 this object as `sceneTime`. A fixed time freezes the celestial clock.
+
+`set-tunnel-infrastructure` controls automatic synthetic models separately from
+native structure visibility. The Flutter controller sends the retired
+`routesVisible` and `explorationAllowed` flags as false, even when old saved
+preferences contain true. Explicit catalogue search, model preparation/import
+and synthetic 3D flight remain advanced commands; they do not enable the removed
+surface-axis exploration mode. Source identity and unverified model quality stay
+in the model/status payloads.
 
 `set-wind-field` carries independent `visible`/`affectFlight` flags and a nullable
 nine-node snapshot (UTC validity/retrieval/expiry, four supported AGL levels,

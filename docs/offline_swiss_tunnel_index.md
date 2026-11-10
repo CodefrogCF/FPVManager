@@ -1,97 +1,83 @@
-# Swiss tunnel axes: offline build pipeline
+# Swiss tunnel catalogue and build pipeline
 
-**Status:** JS reader, viewport spatial index, fallback control and regression
-suite implemented. The included `web/data/tunnels/ch_tunnels_v1.json` is an
-**explicit placeholder**, not a geographical dataset. **Build the real file
-before testing an APK**; otherwise the app attempts legacy live lookup and
-reports that no bundled dataset is available when offline.
+The app bundles a generated Swiss OSM tunnel index in
+`web/data/tunnels/ch_tunnels_v1.json`. The committed asset is a real, nonempty
+catalogue, not the builder's placeholder. Verify it before packaging a release:
 
-## Build once, then bundle for every platform
+```sh
+python tool/build_ch_tunnel_index.py --verify
+```
 
-This is a **developer/release preparation step**, not a download on user
-phones. In Windows PowerShell, from the FPVManager project root:
+## Rebuild the catalogue
 
-```powershell
-py -3 -m pip install "osmium>=4,<5"
-py -3 tool/build_ch_tunnel_index.py --download
-py -3 tool/build_ch_tunnel_index.py --verify
-flutter pub get
+This is a developer/release step. The app does not download a country-wide PBF
+onto a user's phone.
+
+```sh
+python -m pip install "osmium>=4,<5"
+python tool/build_ch_tunnel_index.py --download
+python tool/build_ch_tunnel_index.py --verify
+flutter pub get --enforce-lockfile
 flutter build apk --release
 ```
 
-`--download` obtains the Swiss OSM PBF from Geofabrik (roughly **523 MB** as of
-November 2026) and writes it to the developer's home `.cache/fpvmanager`.
-The PBF is **not** packaged in the application. The generated compact index is
-written to `web/data/tunnels/ch_tunnels_v1.json` and is bundled automatically
-using `pubspec.yaml`. The file is also served through the existing
-manifest-restricted loopback asset server on Android, iOS and Windows.
+`--download` reads the Geofabrik Switzerland PBF and caches it under the developer's
+home `.cache/fpvmanager`. The PBF is not included in the app; only the compact JSON
+index is bundled through `pubspec.yaml`. A cached PBF is reused. For a new extract,
+provide a newly downloaded file with `--pbf path/to/switzerland-latest.osm.pbf` or
+explicitly replace the cached file before rebuilding. Download size varies.
 
-On macOS/Linux use `python3 -m pip install 'osmium>=4,<5'` followed by
-`python3 tool/build_ch_tunnel_index.py --download`. Alternatively pass
-`--pbf path/to/switzerland-latest.osm.pbf` if a file already exists.
-On Windows the builder automatically checks which osmium node-location indexes
-are compiled into the installed wheel. It prefers a disk-backed
-`sparse_file_array` (temporary files are deleted afterwards), otherwise
-uses the in-memory `flex_mem` index. It does not require `sparse_mmap_array`.
-If disk-backed indexing causes a local error, rerun with
-`--location-index=flex_mem` (requires sufficient free RAM). The already-downloaded
-PBF under `%USERPROFILE%\.cache\fpvmanager` will be reused.
+The Windows builder chooses a supported disk-backed `sparse_file_array` location
+index, falling back to `flex_mem`. If disk-backed indexing fails locally, retry
+with `--location-index=flex_mem` and adequate free RAM. The manual **Prepare Swiss
+tunnel offline index** CI workflow can also produce an artifact for release
+preparation; it is not an automatic app update.
 
-For a fresh source extract, delete the cached `.osm.pbf` or supply a new PBF;
-`--download` does not silently redownload a cached extract.
+## Data and runtime behavior
 
-If local internet downloads are inconvenient, run the manual GitHub Actions
-workflow **Prepare Swiss tunnel offline index**, download its artifact and
-place `web/data/tunnels/ch_tunnels_v1.json` in the project before building.
-This is a manual developer action, **not** a background service or automatic
-app update.
+- Only road/rail ways explicitly tagged as tunnel or covered corridors are
+  included; ordinary roads are not inferred to be tunnels. Connected road/bridge
+  approaches are retained as portal-height evidence. Source coordinates, way IDs,
+  types and the catalogue's snapshot metadata remain available.
+- The spatial index returns at most 160 candidate routes for a viewport and marks
+  truncated results incomplete. A valid catalogue, including an empty local query,
+  avoids live tunnel lookup. Missing, invalid or placeholder assets are reported;
+  the legacy online fallback may then query external services.
+- Render budgets govern resident automatic tubes separately from discovery:
+  Quality 96, Balanced 56, Performance 16 and Compatibility 10. Unsupported height
+  or geometry evidence can produce fewer models; a positive axis count does not
+  guarantee a visible or flyable tube.
+- Connected ways, original portal anchors and underground junctions stay linked
+  through long-tunnel handoffs. A rendered window has at most 96 sections and
+  2.2 km length; adjacent windows overlap. The active corridor remains available
+  while its replacement is prepared. Source catalogue coverage is not a survey.
+- The user enables models under **Karte & Ansicht → 3D & Licht → 3D-Tunnel
+  automatisch laden**. Catalogue search, model import and diagnostics are under
+  **Tunnelwerkzeuge** and **Tunnelstatus & Daten**. The retired surface-axis overlay
+  and schematic surface exploration switches are no longer exposed.
 
-## App behavior
+Terrain-derived approaches, bridge profiles and slope-aware cutouts improve
+simulated entrances. Widths, heights, portal positions and interiors remain
+estimated. Exact collision against a generated tube is not a real clearance
+measurement. See [architecture](architecture.md) and [renderer fixtures](cesium_assets.md)
+for the visual/collision tests; [performance](performance.md) describes bounded
+background work and device-measurement limits.
 
-- Enabled schematic tunnels query the **bundled** index first, offline.
-- A valid index, even with zero tunnels in an area, does not call Overpass.
-- For each viewport, only indexed candidate routes are considered; at most
-  48 route segments are passed to the existing Cesium pipeline and at most
-  six tunnel meshes are generated near the camera.
-- Coordinates, OSM way IDs and route types remain in the indexed dataset.
-  Long ways are split into continuous parts without dropping vertices.
-- Rendering, WebView reload and camera motion do not cause new online tunnel
-  requests while a valid local index is present.
-- If the index is missing or still a placeholder, the app **reports the
-  error** and may attempt the legacy online fallback; no fake routes appear.
-- The terrain and collision logic is unchanged in this patch. **A detected
-  axis is not proof of a visible, navigable portal.** Test geometry separately.
+## Validation and provenance
 
-## Validation
-
-```powershell
+```sh
 python -m unittest discover -s test/tool -p "test_build_ch_tunnel_index.py" -v
 node --test test/js/*.test.cjs
 flutter analyze --no-pub
-flutter test
+flutter test --no-pub
 ```
 
-To test on the Galaxy S25 Ultra, prepare and install a **new release APK**
-after the index has been generated. At a well-mapped tunnel position, inspect
-`Tunnelachsen gefunden` and `Automatisch dargestellte schematische Tunnel`.
-The first count confirms successful catalog lookup; the second confirms
-successful 3D preparation. A zero second count after a positive first count
-indicates a remaining terrain, clipping, mesh or elevation problem, not a
-missing source dataset.
+The source is the [Geofabrik Switzerland extract](https://download.geofabrik.de/europe/switzerland.html)
+of OpenStreetMap. Preserve `web/data/tunnels/ODBL_NOTICE.txt`: data © OpenStreetMap
+contributors, extract © Geofabrik, derived database under ODbL 1.0. This dataset is
+separate from Apache-2.0 application code and from independently licensed swisstopo
+products. See [map sources and attribution](map_sources_and_attribution.md).
 
-## Provenance, completeness, limitations and license
-
-The initial reproducible source is the full-country [Geofabrik Switzerland
-OSM PBF](https://download.geofabrik.de/europe/switzerland.html). Only
-road/rail ways explicitly tagged `tunnel=yes`, `building_passage`,
-`avalanche_protector` or `covered=yes` are included. Other ways are **not**
-inferred to be tunnels. This is an OSM-derived dataset; coverage is not
-complete or equivalent to swissTLM3D. The asset must retain attribution:
-© OpenStreetMap contributors; extract © Geofabrik; derived data under ODbL 1.0.
-See `web/data/tunnels/ODBL_NOTICE.txt`. Keep this derived database separable
-from independently licensed swisstopo datasets.
-
-The recorded `snapshotDateUtc` in this first version is based on the local
-source-file modification time; it is **not a certified survey or revision
-timestamp** for individual tunnels. Mesh width, height, altitudes and
-portals are schematic and only for simulation, never safety clearance.
+`snapshotDateUtc` records the local source-file modification time. It is not a
+certified survey or per-tunnel revision date. Rebuilding from an updated extract
+can change coverage; record the catalogue shipped with each release.

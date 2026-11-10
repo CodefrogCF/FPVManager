@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
-  "source": "docs/performance/uas_measurements_2026-11-05.md",
-  "referenceIssue": 47,
+  "source": "docs/performance.md",
   "measuredDateUtc": "2026-11-05",
   "status": "historical real-device single runs, not CI pass/fail thresholds",
   "sourceDataset": "BAZL official GeoJSON EPSG:4326 (dataset revision as measured 2026-11-05)",
@@ -72,7 +71,10 @@
       "scenario": "uas-cold-http200",
       "httpStatus": 200,
       "runCount": 1,
-      "metricsMs": { "httpTotalMs": 25959, "bridgeRoundTripMs": 5129 }
+      "metricsMs": {
+        "httpTotalMs": 25959,
+        "bridgeRoundTripMs": 5129
+      }
     },
     {
       "platform": "windows",
@@ -105,12 +107,14 @@
     }
   ],
   "limitations": [
-    "The benchmark predates issues #114-#119 and is historical only.",
+    "Historical measurements describe the 2026-11-05 build and are not current performance targets.",
     "Device/network/thermal conditions were not held constant; only single runs are reported.",
     "Renderer stage is recorded as jsDecodeMs; source measured renderer JSON decode, not pure JSON.parse.",
     "Bridge round trip overlaps renderer processing and must not be added to Cesium timing stages.",
     "First postRender is not GPU completion and response bytes are not equivalent to JSON UTF-16 characters.",
     "Warm cache restart had no visible HTTP fetch; it is NOT proof that a 304 response occurred.",
     "Real airspace legality/completeness is never inferred from feature count or benchmark success."
-  ]
+  ],
+  "referenceId": "uas-device-2026-11-05",
+  "method": "User-operated profile-mode runs and screenshots of local diagnostics; single observations with uncontrolled network/thermal conditions; no app telemetry upload."
 }
