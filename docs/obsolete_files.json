@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "AENDERUNGEN_3D_TUNNEL.md",
+      "known_sha256": [
+        "cc1a71ce15d0fa841c7ee068d3d1040c0467c6b79fed30bbfd1e3d382afd84fd"
+      ]
+    },
+    {
+      "path": "AENDERUNGEN_MENUES.md",
+      "known_sha256": [
+        "f25f7399eb4fe08b09d8d71a4d5033030809bbc61f992cfd89ee20f7989fe281"
+      ]
+    },
+    {
+      "path": "docs/performance_issue_120.md",
+      "known_sha256": [
+        "3d9223f13121f03f5ff7cbce1bb46cfd4869154386c8c59c55f8f6905cd26f98"
+      ]
+    },
+    {
+      "path": "docs/uas_geojson_performance.md",
+      "known_sha256": [
+        "2aaca4aeb3bc0216f196ee8555fa94ad4f93043ed0da425a64254fa7c751b9b4"
+      ]
+    },
+    {
+      "path": "docs/performance/uas_measurements_2026-11-05.md",
+      "known_sha256": [
+        "701a550a1568e486ab944428f7a4e0ac861a925892172f10e371c8527b3298b8"
+      ]
+    },
+    {
+      "path": "docs/performance/issue47_reference_2026-11-05.json",
+      "known_sha256": [
+        "71f98d11a84f26d74801a53b01c9553d3fcdaa1fdc408acb7535f03d97ffdefb"
+      ]
+    },
+    {
+      "path": "docs/performance/scenarios_issue_120.json",
+      "known_sha256": [
+        "77ce3a883d64790af650f9ed2407d287be8519592f8c2dea963fcc584a4ea912"
+      ]
+    }
+  ]
+}

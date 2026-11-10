@@ -11,7 +11,8 @@
         const sorted=values.slice().sort((a,b)=>a-b);
         return Math.round(sorted[Math.ceil((sorted.length-1)*p)]*100)/100;
     }
-    function create(viewer,{now=()=>performance.now(),capacity=240,resources=()=>({})}={}){
+    function create(viewer,{now=()=>performance.now(),capacity=240,resources=()=>({}),
+        isContinuous=()=>false,isForeground=()=>globalThis.document?.visibilityState!=='hidden'}={}){
         if(!Number.isSafeInteger(capacity)||capacity<16||capacity>MAX_SAMPLES)throw Error('Invalid frame sample limit');
         const scene=viewer.scene;
         const render=new Float64Array(capacity),interval=new Float64Array(capacity);
@@ -26,18 +27,18 @@
             frameStart=now();
             if(!Number.isFinite(frameStart))frameStart=null;
             if(frameStart===null)return;
-            if(lastFrame!==null){
+            if(lastFrame!==null&&isForeground()){
                 const gap=frameStart-lastFrame;
                 // Request-render / background / paused periods must not be
                 // mistaken for dropped frames during continuously rendered motion.
-                if(gap>=1&&gap<=250){record(interval,intervalCount++,gap);}
+                if(gap>=1&&(gap<=250||(isContinuous()&&gap<60000))){record(interval,intervalCount++,gap);}
             }
-            lastFrame=frameStart;
+            lastFrame=isForeground()?frameStart:null;
         }
         function post(){
             if(frameStart===null)return;
             const elapsed=now()-frameStart;frameStart=null;
-            if(Number.isFinite(elapsed)&&elapsed>=0&&elapsed<250){
+            if(Number.isFinite(elapsed)&&elapsed>=0&&elapsed<60000){
                 record(render,renderCount++,elapsed);allFrames++;
             }
         }
@@ -59,6 +60,7 @@
                 cpuRenderMs:{p50:percentile(renderMs,.5),p95:percentile(renderMs,.95),max:percentile(renderMs,1)},
                 framePacingMs:{p50:percentile(intervalMs,.5),p95:percentile(intervalMs,.95),max:percentile(intervalMs,1)},
                 over33Ms:intervalMs.filter(ms=>ms>33.34).length,
+                over100Ms:intervalMs.filter(ms=>ms>100).length,
                 // Cesium's tileset estimate does not include terrain or full GPU allocations.
                 tilesets:{resident:resource.resident??0,visible:resource.visible??0,pending:resource.pending??0,
                     estimatedBytes:resource.estimatedTilesetBytes??0},

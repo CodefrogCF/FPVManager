@@ -14,9 +14,10 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB_ROOT = ROOT / 'web'
 FIXTURE_APP = False
 MODE = 'healthy'
+ROOT_FAIL_UNTIL = None
 PREPARED_FILE = ROOT / 'test/fixtures/offline/prepared.fpvregion'
 LOCK = threading.Lock()
-MODES = {'healthy', 'metadata-fail', 'metadata-fail-once', 'tile-404', 'tile-500', 'tile-stall'}
+MODES = {'healthy', 'metadata-fail', 'metadata-fail-once', 'root-east-burst', 'tile-404', 'tile-500', 'tile-stall'}
 # Cesium heightmap-1.0: 65x65 little-endian encoded heights, child mask, water mask.
 # 10000 / 5 - 1000 = 1000m. This is synthetic geometry, not swisstopo data.
 HEIGHTS = struct.pack('<4225H', *([10000] * 4225))
@@ -46,7 +47,7 @@ class Handler(SimpleHTTPRequestHandler):
             pass  # A deliberately timed-out request can have been cancelled.
 
     def do_POST(self):
-        global MODE
+        global MODE, ROOT_FAIL_UNTIL
         # Only a same-origin fixture page can change this process-local test mode.
         if (urlsplit(self.path).path != '/terrain-control' or
                 self.headers.get('Origin') != f'http://127.0.0.1:{self.server.server_port}'):
@@ -64,10 +65,11 @@ class Handler(SimpleHTTPRequestHandler):
             return
         with LOCK:
             MODE = mode
+            ROOT_FAIL_UNTIL = None
         self.reply(json.dumps({'mode': mode}).encode())
 
     def do_GET(self):
-        global MODE
+        global MODE, ROOT_FAIL_UNTIL
         path = urlsplit(self.path).path
         with LOCK:
             mode = MODE
@@ -203,6 +205,14 @@ class Handler(SimpleHTTPRequestHandler):
             except ValueError:
                 self.reply(b'', status=404)
                 return
+            if mode == 'root-east-burst' and z == 0 and x == 1:
+                with LOCK:
+                    if ROOT_FAIL_UNTIL is None:
+                        ROOT_FAIL_UNTIL = time.monotonic() + .5
+                    failing = time.monotonic() < ROOT_FAIL_UNTIL
+                if failing:
+                    self.reply(b'', status=503)
+                    return
             if mode == 'tile-stall':
                 time.sleep(15)  # Intentional local fault, beyond the app's deadline.
             if mode in {'tile-404', 'tile-500'} and z > 0:

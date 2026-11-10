@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {create,profiles,perspectiveFov}=require('../../web/flight_rendering.js');
+const {create,profiles,perspectiveFov,createStreamingBudget}=require('../../web/flight_rendering.js');
 const {createVectors}=require('../../web/obstacle_layers.js');
 const {createSimulator}=require('../../web/free_flight.js');
 // Use the pinned runtime's actual coordinate/matrix math without a DOM/WebGL.
@@ -20,6 +20,56 @@ function fixture(options={}){
     return {viewer,adapter:create(MathC,viewer,options),get allocations(){return allocations;},get reference(){return reference;},get last(){return last;},get picks(){return picks;},
         get ray(){return ray;},hit:distance=>hitDistance=distance};
 }
+
+test('fast turns only ease pending terrain refinement, then restore full detail in stages',()=>{
+    let time=0,writes=0,value=2;
+    const globe={tilesLoaded:false,get maximumScreenSpaceError(){return value;},
+        set maximumScreenSpaceError(next){value=next;writes++;}};
+    const budget=createStreamingBudget(globe,{now:()=>time});
+    const point={heading:0,pitch:0,roll:0,agl:500};
+    budget.update(point);assert.equal(writes,0,'inactive map is untouched');
+    budget.start();budget.update(point);time+=16;
+    budget.update({...point,heading:.1});
+    assert.equal(value,4,'rapid view change defers finer pending tiles');
+    globe.tilesLoaded=true;
+    for(let i=0;i<30;i++){time+=16;budget.update({...point,heading:.1});}
+    assert.equal(value,4,'does not oscillate between tile levels during the turn');
+    time=816;budget.update({...point,heading:.1});assert.equal(value,3.5);
+    for(let i=0;i<3;i++){time+=300;budget.update({...point,heading:.1});}
+    assert.equal(value,2,'normal detail returns without a graphics-profile change');
+    const settled=writes;
+    for(let i=0;i<60;i++){time+=16;budget.update({...point,heading:i});}
+    assert.equal(writes,settled,'resident, settled terrain does not churn LOD during turns');
+    budget.stop();time+=100;budget.update(point);assert.equal(writes,settled);
+});
+
+test('low flight relieves real streaming stalls without changing normal smooth low flight',()=>{
+    let time=0;
+    const globe={tilesLoaded:false,maximumScreenSpaceError:2},budget=createStreamingBudget(globe,{now:()=>time});
+    const point={heading:0,pitch:0,roll:0,agl:2};
+    budget.start();budget.update(point);
+    for(let i=0;i<120;i++){time+=16;budget.update(point);}
+    assert.equal(globe.maximumScreenSpaceError,2);
+    time+=75;budget.update(point);assert.equal(globe.maximumScreenSpaceError,4);
+    budget.stop();globe.maximumScreenSpaceError=1;
+    time+=1000;budget.update(point);assert.equal(globe.maximumScreenSpaceError,1,'exit restores ownership to map graphics');
+    budget.start();globe.maximumScreenSpaceError=2;
+    time+=1000;budget.update({...point,agl:500});
+    time+=75;budget.update({...point,agl:500});
+    assert.equal(globe.maximumScreenSpaceError,2,'an unrelated high-altitude pause does not reduce terrain detail');
+});
+
+test('streaming budget handles heading wrap, paused flight and backwards clocks without false turn pressure',()=>{
+    let time=1000;
+    const globe={tilesLoaded:false,maximumScreenSpaceError:2},budget=createStreamingBudget(globe,{now:()=>time});
+    const point={heading:Math.PI-.001,pitch:0,roll:0,agl:20};
+    budget.start();budget.update(point);
+    time+=16;budget.update({...point,heading:-Math.PI+.001});
+    assert.equal(globe.maximumScreenSpaceError,2);
+    time+=16;budget.update({...point,heading:0,paused:true});
+    assert.equal(globe.maximumScreenSpaceError,2);
+    time=0;budget.update(point);assert.equal(globe.maximumScreenSpaceError,2);
+});
 
 test('only an explicitly modeled passage exempts terrain triangles hidden by a portal material',()=>{
     let passage=false;

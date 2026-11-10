@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTerrainManager } = require('../../web/terrain_service.js');
+const { createTerrainManager, probeRootTiles } = require('../../web/terrain_service.js');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 function provider() {
@@ -18,6 +18,92 @@ function peer(options = {}) {
         onStatus: value => statuses.push(value), ...options });
     return { manager, applied, statuses };
 }
+
+async function until(predicate) {
+    const deadline = Date.now() + 2000;
+    while (!predicate()) {
+        assert.ok(Date.now() < deadline, 'terrain recovery timed out');
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+}
+
+function globalProvider(read = async () => ({})) {
+    return { ...provider(), requestTileGeometry: read, tilingScheme: {
+        getNumberOfXTilesAtLevel: () => 2, getNumberOfYTilesAtLevel: () => 1
+    } };
+}
+
+test('startup probes both hemispheres and reuses validated roots for the viewer', async () => {
+    const calls = [], roots = [{ west: true }, { east: true }];
+    const next = globalProvider(async (x, y, level) => {
+        calls.push([x, y, level]);
+        if (level === 0 && calls.filter(call => call[0] === x && call[2] === 0).length > 1)
+            throw Error('second root download failed');
+        return level === 0 ? roots[x] : {};
+    });
+    const { manager } = peer({ createProvider: async () => next, probe: probeRootTiles });
+    try {
+        assert.equal((await manager.initialize()).state, 'ready');
+        assert.deepEqual(calls, [[0, 0, 0], [1, 0, 0]]);
+        assert.equal(await next.requestTileGeometry(1, 0, 0), roots[1]);
+        assert.equal(await next.requestTileGeometry(0, 0, 0), roots[0]);
+        await next.requestTileGeometry(2, 0, 1);
+        await next.requestTileGeometry(2, 0, 1);
+        assert.equal(calls.length, 4, 'only roots are retained, not detailed terrain');
+        assert.equal(manager.hasWarning, false);
+    } finally { manager.dispose(); }
+});
+
+test('eastern root failure shows fallback and recovers automatically without a manual retry', async () => {
+    let attempts = 0;
+    const { manager, applied } = peer({ startupRetryDelaysMs: [5, 10], probe: probeRootTiles,
+        createProvider: async () => {
+            const fails = ++attempts === 1;
+            return globalProvider(async x => { if (fails && x === 1) throw Error('HTTP 503 east root'); return {}; });
+        } });
+    try {
+        assert.equal((await manager.initialize()).state, 'unavailable');
+        assert.equal(applied.at(-1).flat, true, 'no empty 3D provider is handed to the viewer');
+        await until(() => manager.status().state === 'ready');
+        assert.equal(attempts, 2);
+        assert.equal(manager.hasWarning, false);
+    } finally { manager.dispose(); }
+});
+
+test('startup metadata recovery has a finite budget and leaves a usable flat fallback', async () => {
+    let attempts = 0;
+    const { manager, applied } = peer({ startupRetryDelaysMs: [5, 10],
+        createProvider: async () => { attempts++; throw Error('HTTP 503 metadata'); } });
+    try {
+        await manager.initialize();
+        await until(() => attempts === 3 && manager.status().state === 'unavailable');
+        await new Promise(resolve => setTimeout(resolve, 30));
+        assert.equal(attempts, 3, 'no indefinite reconnect loop');
+        assert.equal(applied.at(-1).flat, true);
+    } finally { manager.dispose(); }
+});
+
+test('manual retry, offline mode and disposal cancel scheduled startup recovery', async () => {
+    for (const action of ['manual', 'offline', 'dispose']) {
+        let attempts = 0, offline = null;
+        const { manager } = peer({ startupRetryDelaysMs: [20, 20], offlineReason: () => offline,
+            createProvider: async () => { if (++attempts === 1) throw Error('HTTP 503'); return provider(); } });
+        try {
+            await manager.initialize();
+            if (action === 'manual') await manager.retry();
+            if (action === 'offline') { offline = 'networkOffline'; manager.networkChanged(); }
+            if (action === 'dispose') manager.dispose();
+            await new Promise(resolve => setTimeout(resolve, 60));
+            assert.equal(attempts, action === 'manual' ? 2 : 1, action);
+        } finally { manager.dispose(); }
+    }
+});
+
+test('regional package probes remain restricted to their packaged root', async () => {
+    const calls = [], next = globalProvider(async (...args) => { calls.push(args); return {}; });
+    await probeRootTiles(next, new AbortController().signal, [[1, 0, 0]]);
+    assert.deepEqual(calls, [[1, 0, 0]]);
+});
 
 test('background height queries accept an omitted or null command signal',async()=>{
     const {manager}=peer();

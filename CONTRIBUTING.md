@@ -66,6 +66,14 @@ renderer test:
 flutter test integration_test/globe_runtime_test.dart -d <android-device-id>
 ```
 
+On Windows, the native navigation regression test uses a real WebView2 renderer
+and an in-memory place library. It injects the map-selection event, opens saved
+places and returns to the same globe repeatedly:
+
+```sh
+flutter test integration_test/windows_places_test.dart -d windows
+```
+
 Check navigation, selection, layers, visible credits, terrain failure/retry and
 affected controls on Web and Android. Builds and synthetic fixtures do not verify
 device gestures, permission dialogs or real network recovery. When upgrading

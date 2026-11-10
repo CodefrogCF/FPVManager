@@ -946,18 +946,10 @@ function postToFlutter(message) {
             onWarning: active => {
                 if (rendererReady) sendToFlutter('terrain-resource-warning',{active});
             },
-            probe: async (provider, signal) => {
-                // Metadata alone does not establish that terrain tiles can be read.
-                let request;
-                while (request === undefined) {
-                    signal.throwIfAborted();
-                    request = provider.requestTileGeometry(...mapProviders.terrainProbe);
-                    if (request === undefined) await new Promise(resolve => setTimeout(resolve, 50));
-                }
-                const tile = await request;
-                signal.throwIfAborted();
-                if (!tile) throw new Error("Terrain probe returned no tile");
-            },
+            // Validate every global root, including the eastern root covering
+            // Switzerland. Prepared regional packages use their packaged root.
+            probe: (provider, signal) => FPVTerrain.probeRootTiles(provider, signal,
+                window.FPVMapProviderConfig?.prepared ? [mapProviders.terrainProbe] : undefined),
             onStatus: status => {
                 if (status.state !== "ready") selectedPointInfo = null;
                 if (status.state !== "ready") stopNavigation("Terrain unavailable; returned to globe view");
@@ -972,7 +964,7 @@ function postToFlutter(message) {
                 if (rendererReady) sendToFlutter("terrain-status", status);
             }
         });
-        await terrainManager.retry();
+        await terrainManager.initialize();
 
         FPVMapProviders.prepareCredits?.(Cesium,{usesIon:window.FPVMapProviderConfig?.usesIon===true});
         const viewer = new Cesium.Viewer("globe", {
@@ -1029,6 +1021,7 @@ function postToFlutter(message) {
             getTunnelApertures:()=>tunnelVolumes?.apertureSpecs?.()||[],
             getTunnelApertureRevision:()=>tunnelVolumes?.apertureRevision?.()??0});
         scenePerformance = FPVScenePerformance.create(viewer,{
+            isContinuous:()=>flyer?.active===true&&!flyer.status().paused,
             resources:()=>sceneEnvironment?.resourceStats()??{}
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'

@@ -15,7 +15,10 @@ device FPS, GPU memory, cold-start latency or network performance.
   where the provider does not permit conditional-request headers through CORS.
 - The 3D scene avoids repeated property writes while stable. Flight retains
   recently viewed terrain; bounded detail/cache settings follow the selected
-  graphics profile. These budgets do not promise a particular device frame rate.
+  graphics profile. While tiles are pending, fast turns or low-altitude frame
+  stalls briefly ease terrain refinement; normal detail returns in small steps
+  after the view settles. Resolution and collision checks remain unchanged.
+  These budgets do not promise a particular device frame rate.
 - Tunnel geometry is prepared one model per render opportunity during flight.
   Shared vertices and opaque drawing materials are reused; the newly occupied
   corridor's collision mesh is prepared before handoff. Long source axes retain
@@ -27,6 +30,9 @@ device FPS, GPU memory, cold-start latency or network performance.
   the visible frame and uses a short-lived, nearby result. Exact synthetic tunnel
   collision stays independent. Flight gaps above 75 ms discard excess elapsed
   time instead of applying a large catch-up movement on the next image.
+- Opt-in scene timing includes pauses longer than 250 ms during active,
+  unpaused flight and reports counts above 100 ms. Idle/background gaps stay
+  separate; a long actual render is not discarded from CPU timing.
 
 See [architecture](architecture.md), [bridge contracts](globe_bridge.md) and
 [renderer fixtures](cesium_assets.md) for component boundaries and validation.

@@ -26,6 +26,7 @@ class DatedImagerySection extends StatefulWidget {
 }
 
 class _DatedImagerySectionState extends State<DatedImagerySection> {
+  final _formStorage = PageStorageBucket();
   late final _lat = TextEditingController(
     text: widget.initialCenter == null
         ? ''
@@ -240,146 +241,159 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.globe,
-    builder: (context, _) => ExpansionTile(
-      key: const ValueKey('dated_imagery_section'),
-      tilePadding: EdgeInsets.zero,
-      initiallyExpanded: _expanded,
-      onExpansionChanged: (value) => setState(() => _expanded = value),
-      title: const Text('Datierte Satelliten- & Rapid-Mapping-Bilder'),
-      subtitle: const Text(
-        'swissEO Sentinel-2 v200 / amtliche Ereignisaufnahmen · optional',
-      ),
-      children: [
-        const Text(
-          'Ausgewählte Aufnahmen sind historische bzw. verzögert '
-          'veröffentlichte Bilddaten. Keine Live-Beobachtung. '
-          'Es werden nur kleine STAC-Metadaten gespeichert, keine Rohbilddateien. '
-          'Wolken, Schatten und fehlende Bilddeckung sind keine leeren Flächen.',
+  Widget build(BuildContext context) => PageStorage(
+    bucket: _formStorage,
+    child: ListenableBuilder(
+      listenable: widget.globe,
+      builder: (context, _) => ExpansionTile(
+        key: const ValueKey('dated_imagery_section'),
+        tilePadding: EdgeInsets.zero,
+        initiallyExpanded: _expanded,
+        onExpansionChanged: (value) => setState(() => _expanded = value),
+        title: const Text('Datierte Satelliten- & Rapid-Mapping-Bilder'),
+        subtitle: const Text(
+          'swissEO Sentinel-2 v200 / amtliche Ereignisaufnahmen · optional',
         ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<DatedImageryProduct>(
-          key: const ValueKey('dated_imagery_product'),
-          initialValue: _product,
-          decoration: const InputDecoration(labelText: 'Amtliche Collection'),
-          items: [
-            for (final product in DatedImageryProduct.values)
-              DropdownMenuItem(value: product, child: Text(product.label)),
-          ],
-          onChanged: _busy
-              ? null
-              : (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() {
-                    _product = value;
-                    _snapshot = null;
-                    _message = null;
-                  });
-                },
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('dated_lat'),
-                controller: _lat,
-                decoration: const InputDecoration(labelText: 'Breite (WGS84)'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                key: const ValueKey('dated_lon'),
-                controller: _lon,
-                decoration: const InputDecoration(labelText: 'Länge (WGS84)'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-              ),
-            ),
-          ],
-        ),
-        DropdownButtonFormField<int>(
-          key: const ValueKey('dated_imagery_radius'),
-          initialValue: _radius,
-          decoration: const InputDecoration(labelText: 'Suchradius'),
-          items: [
-            for (final r in [500, 1000, 2000, 5000])
-              DropdownMenuItem(value: r, child: Text('$r m')),
-          ],
-          onChanged: _busy
-              ? null
-              : (value) {
-                  if (value != null) {
-                    setState(() => _radius = value);
-                  }
-                },
-        ),
-        if (_busy) const LinearProgressIndicator(),
-        Wrap(
-          spacing: 8,
-          children: [
-            FilledButton.tonal(
-              key: const ValueKey('dated_imagery_search'),
-              onPressed: _busy ? null : () => _fetch(refresh: true),
-              child: const Text('Datierte Bilder suchen'),
-            ),
-            OutlinedButton(
-              key: const ValueKey('dated_imagery_offline'),
-              onPressed: _busy ? null : () => _fetch(offline: true),
-              child: const Text('Letzten Katalogstand öffnen'),
-            ),
-            if (widget.globe.datedImageryVisible)
-              TextButton.icon(
-                key: const ValueKey('dated_imagery_restore'),
-                onPressed: _hide,
-                icon: const Icon(Icons.layers_clear),
-                label: const Text('Bildebene entfernen / Basiskarte'),
-              ),
-          ],
-        ),
-        Text(
-          'Bildlayer: ${widget.globe.datedImageryStatus}'
-          '${widget.globe.datedImageryItemId == null ? '' : ' · ${widget.globe.datedImageryItemId}'}',
-        ),
-        if (widget.globe.datedImageryError != null)
-          Text('Darstellungsfehler: ${widget.globe.datedImageryError}'),
-        if (_message != null) Text(_message!),
-        if (_snapshot case final snapshot?) ...[
-          Text(
-            'STAC abgefragt: ${_date(snapshot.fetchedUtc)} · '
-            '${snapshot.items.length} Treffer in begrenzter Stichprobe',
+        children: [
+          const Text(
+            'Ausgewählte Aufnahmen sind historische bzw. verzögert '
+            'veröffentlichte Bilddaten. Keine Live-Beobachtung. '
+            'Es werden nur kleine STAC-Metadaten gespeichert, keine Rohbilddateien. '
+            'Wolken, Schatten und fehlende Bilddeckung sind keine leeren Flächen.',
           ),
-          if (snapshot.fromCache)
-            const Text('Offline-/Cache-Katalog – keine Live-Bestätigung.'),
-          if (snapshot.isOld(DateTime.now()))
-            const Text('Metadaten älter als 24 h / Uhrzeit unplausibel.'),
-          if (snapshot.refreshFailed)
-            const Text(
-              'Letzte Aktualisierung fehlgeschlagen; letzter Stand wird angezeigt.',
+          const SizedBox(height: 8),
+          DropdownButtonFormField<DatedImageryProduct>(
+            key: const ValueKey('dated_imagery_product'),
+            isExpanded: true,
+            initialValue: _product,
+            decoration: const InputDecoration(labelText: 'Amtliche Collection'),
+            items: [
+              for (final product in DatedImageryProduct.values)
+                DropdownMenuItem(
+                  value: product,
+                  child: Text(
+                    product.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: _busy
+                ? null
+                : (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      _product = value;
+                      _snapshot = null;
+                      _message = null;
+                    });
+                  },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('dated_lat'),
+                  controller: _lat,
+                  decoration: const InputDecoration(
+                    labelText: 'Breite (WGS84)',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('dated_lon'),
+                  controller: _lon,
+                  decoration: const InputDecoration(labelText: 'Länge (WGS84)'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          DropdownButtonFormField<int>(
+            key: const ValueKey('dated_imagery_radius'),
+            initialValue: _radius,
+            decoration: const InputDecoration(labelText: 'Suchradius'),
+            items: [
+              for (final r in [500, 1000, 2000, 5000])
+                DropdownMenuItem(value: r, child: Text('$r m')),
+            ],
+            onChanged: _busy
+                ? null
+                : (value) {
+                    if (value != null) {
+                      setState(() => _radius = value);
+                    }
+                  },
+          ),
+          if (_busy) const LinearProgressIndicator(),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilledButton.tonal(
+                key: const ValueKey('dated_imagery_search'),
+                onPressed: _busy ? null : () => _fetch(refresh: true),
+                child: const Text('Datierte Bilder suchen'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('dated_imagery_offline'),
+                onPressed: _busy ? null : () => _fetch(offline: true),
+                child: const Text('Letzten Katalogstand öffnen'),
+              ),
+              if (widget.globe.datedImageryVisible)
+                TextButton.icon(
+                  key: const ValueKey('dated_imagery_restore'),
+                  onPressed: _hide,
+                  icon: const Icon(Icons.layers_clear),
+                  label: const Text('Bildebene entfernen / Basiskarte'),
+                ),
+            ],
+          ),
+          Text(
+            'Bildlayer: ${widget.globe.datedImageryStatus}'
+            '${widget.globe.datedImageryItemId == null ? '' : ' · ${widget.globe.datedImageryItemId}'}',
+          ),
+          if (widget.globe.datedImageryError != null)
+            Text('Darstellungsfehler: ${widget.globe.datedImageryError}'),
+          if (_message != null) Text(_message!),
+          if (_snapshot case final snapshot?) ...[
+            Text(
+              'STAC abgefragt: ${_date(snapshot.fetchedUtc)} · '
+              '${snapshot.items.length} Treffer in begrenzter Stichprobe',
             ),
-          if (snapshot.incomplete)
-            const Text(
-              'Weitere STAC-Seiten vorhanden bzw. Trefferlimit erreicht. Abdeckung unvollständig.',
-            ),
-          for (final item in snapshot.items) _record(item),
+            if (snapshot.fromCache)
+              const Text('Offline-/Cache-Katalog – keine Live-Bestätigung.'),
+            if (snapshot.isOld(DateTime.now()))
+              const Text('Metadaten älter als 24 h / Uhrzeit unplausibel.'),
+            if (snapshot.refreshFailed)
+              const Text(
+                'Letzte Aktualisierung fehlgeschlagen; letzter Stand wird angezeigt.',
+              ),
+            if (snapshot.incomplete)
+              const Text(
+                'Weitere STAC-Seiten vorhanden bzw. Trefferlimit erreicht. Abdeckung unvollständig.',
+              ),
+            for (final item in snapshot.items) _record(item),
+          ],
+          const Text(
+            'swissEO: © swisstopo · Contains modified Copernicus Sentinel data. '
+            'Rapid Mapping: Source: FOEN, swisstopo. '
+            'Einsatzbezogene Bilder sind nicht kontinuierliche schweizweite Beobachtungen. '
+            'Große GeoTIFFs, nicht unterstützte Projektionen und Einzel-/Schrägbilder nur über amtliche Quelle öffnen.',
+          ),
         ],
-        const Text(
-          'swissEO: © swisstopo · Contains modified Copernicus Sentinel data. '
-          'Rapid Mapping: Source: FOEN, swisstopo. '
-          'Einsatzbezogene Bilder sind nicht kontinuierliche schweizweite Beobachtungen. '
-          'Große GeoTIFFs, nicht unterstützte Projektionen und Einzel-/Schrägbilder nur über amtliche Quelle öffnen.',
-        ),
-      ],
+      ),
     ),
   );
 }

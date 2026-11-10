@@ -50,6 +50,21 @@ async function heightUnavailable() {
 async function retry() { await command('retry-terrain'); await state('ready'); }
 const zone = {type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[8.4,46.7],[8.5,46.7],[8.5,46.8],[8.4,46.7]]]},properties:{name:'Synthetic test zone'}}]};
 (async () => {
+  await mode('metadata-fail-once'); frame.src = '/terrain-globe.html?startup=metadata';
+  await until(() => session, 'Renderer startup'); await state('ready');
+  await until(() => Number.isFinite(frame.contentWindow.fixtureViewer.scene.globe.getHeight(
+    frame.contentWindow.Cesium.Cartographic.fromDegrees(8.4,46.7))), 'Visible terrain after metadata retry');
+  log('Transient startup metadata failure recovers automatically with a visible globe');
+  session = null; terrain = null; warning = false;
+  await mode('root-east-burst'); frame.src = '/terrain-globe.html?startup=eastern-root';
+  await until(() => session, 'Eastern root startup'); await state('ready');
+  await until(() => Number.isFinite(frame.contentWindow.fixtureViewer.scene.globe.getHeight(
+    frame.contentWindow.Cesium.Cartographic.fromDegrees(8.4,46.7))), 'Visible eastern terrain');
+  if(frame.contentWindow.fixtureProviderAttempts !== 2) throw Error('Expected exactly one automatic eastern-root retry');
+  if(frame.contentWindow.fixtureRootRequests.length !== 4) throw Error('Validated roots were downloaded again by the viewer');
+  if(warning) throw Error('Recovered roots retained a resource warning');
+  log('A burst of eastern-root HTTP 503 failures recovers without a click; validated roots are reused');
+  session = null; terrain = null; warning = false;
   await mode('metadata-fail'); frame.src = '/terrain-globe.html';
   await until(() => session, 'Renderer startup'); await state('unavailable');
   await heightUnavailable();

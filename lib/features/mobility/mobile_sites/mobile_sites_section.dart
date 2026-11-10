@@ -26,6 +26,9 @@ class MobileSitesSection extends StatefulWidget {
 }
 
 class _MobileSitesSectionState extends State<MobileSitesSection> {
+  // Expansion state and editable scroll offsets must not overwrite the map
+  // tab's PageStorageKey with incompatible bool/double values.
+  final _formStorage = PageStorageBucket();
   final _lat = TextEditingController(), _lon = TextEditingController();
   MobileSitesService? _owned;
   MobileSitesService get _service =>
@@ -227,212 +230,215 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
   @override
   Widget build(BuildContext context) {
     final snapshot = _snapshot;
-    return ExpansionTile(
-      key: const ValueKey('mobile_sites_expansion'),
-      title: const Text('BAKOM Mobilfunk-Basisstationen'),
-      subtitle: const Text(
-        'Optional · Stationspunkte, keine Masthöhen oder Signalabdeckung',
-      ),
-      initiallyExpanded: _open,
-      onExpansionChanged: (open) => setState(() => _open = open),
-      children: [
-        const Text(
-          'Offizielle BAKOM-Standorte. Stationstyp, Leistungsklasse und Technologie '
-          'werden nur nach Quellenangabe angezeigt. Die Koordinaten bezeichnen den ersten '
-          'Mast einer Station. Sie sind keine Hindernisgeometrie und messen keine FPV-Abdeckung.',
+    return PageStorage(
+      bucket: _formStorage,
+      child: ExpansionTile(
+        key: const ValueKey('mobile_sites_expansion'),
+        title: const Text('BAKOM Mobilfunk-Basisstationen'),
+        subtitle: const Text(
+          'Optional · Stationspunkte, keine Masthöhen oder Signalabdeckung',
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('mobile_sites_lat'),
-                controller: _lat,
-                decoration: const InputDecoration(labelText: 'Latitude'),
-                onChanged: (_) => setState(() => _snapshot = null),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                key: const ValueKey('mobile_sites_lon'),
-                controller: _lon,
-                decoration: const InputDecoration(labelText: 'Longitude'),
-                onChanged: (_) => setState(() => _snapshot = null),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-              ),
-            ),
-          ],
-        ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _busy
-                ? null
-                : () {
-                    final p = widget.globe.selectedPoint;
-                    if (p == null) {
-                      setState(() => _message = 'No selected 3D map point.');
-                    } else {
-                      setState(() {
-                        _center(MobilityPoint(p.latitude, p.longitude));
-                        _message = null;
-                      });
-                    }
-                  },
-            icon: const Icon(Icons.place_outlined),
-            label: const Text('Ausgewählten Kartenpunkt verwenden'),
-          ),
-        ),
-        DropdownButtonFormField<int>(
-          key: ValueKey('mobile_sites_radius_$_radius'),
-          initialValue: _radius,
-          decoration: const InputDecoration(labelText: 'Suchradius'),
-          items: [500, 1000, 2000, 5000]
-              .map(
-                (n) => DropdownMenuItem(
-                  value: n,
-                  child: Text(n < 1000 ? '$n m' : '${n ~/ 1000} km'),
-                ),
-              )
-              .toList(),
-          onChanged: _busy
-              ? null
-              : (n) => setState(() {
-                  _radius = n ?? 2000;
-                  _snapshot = null;
-                }),
-        ),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _allow,
-          title: const Text('Suchkoordinaten an geo.admin.ch senden'),
-          subtitle: const Text(
-            'Nur nach manuellem Start · begrenzte Abfrage, keine nationalen Downloads',
-          ),
-          onChanged: _busy
-              ? null
-              : (value) => setState(() => _allow = value ?? false),
-        ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            FilledButton.tonalIcon(
-              key: const ValueKey('mobile_sites_search'),
-              onPressed: _busy || !_allow ? null : () => _load(),
-              icon: const Icon(Icons.cell_tower),
-              label: const Text('Stationen suchen'),
-            ),
-            OutlinedButton(
-              onPressed: _busy || !_allow ? null : () => _load(refresh: true),
-              child: const Text('Aktualisieren'),
-            ),
-            OutlinedButton(
-              onPressed: _busy ? null : () => _load(offline: true),
-              child: const Text('Offline-Snapshot'),
-            ),
-            OutlinedButton(
-              onPressed: _busy ? null : _discover,
-              child: const Text('STAC-Assets prüfen'),
-            ),
-          ],
-        ),
-        if (_busy) const LinearProgressIndicator(),
-        if (_message != null) Text(_message!),
-        if (_catalog != null) ...[
-          const Divider(),
-          Text(
-            'STAC-Stand: ${_catalog!.updatedUtc?.toIso8601String() ?? 'unbekannt'}',
-          ),
-          Text(
-            'Lizenz-Metadaten: ${_catalog!.licence} · '
-            '${_catalog!.assets.length} Asset-Verweise; davon '
-            '${_catalog!.assets.where((a) => a.supported).length} als JSON/CSV klassifiziert.',
-          ),
-          if (_catalog!.assets.any((asset) => !asset.supported))
-            const Text(
-              'Nicht unterstützte Datei-Assets (z. B. GeoPackage) werden nicht automatisch importiert.',
-            ),
-          if (_catalog!.termsUrl != null)
-            TextButton(
-              onPressed: () => _openUrl(_catalog!.termsUrl.toString()),
-              child: const Text('Offizielle Nutzungsbedingungen'),
-            ),
-        ],
-        if (snapshot != null) ...[
-          const Divider(),
-          Text(
-            '${snapshot.stations.length} Stationen · ${snapshot.ageDescription}',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          if (snapshot.fromCache)
-            const Text('Gespeicherte Daten · Aktualität nicht live geprüft'),
-          if (snapshot.refreshFailed)
-            const Text(
-              'Aktualisierung fehlgeschlagen: vorhandener Stand bleibt erhalten.',
-            ),
-          if (snapshot.isOld(DateTime.now()))
-            const Text('Datenabruf älter als 24 Stunden.'),
-          if (snapshot.truncated)
-            const Text(
-              'Trefferlimit erreicht: keine vollständige Gebietserfassung. Suchradius verkleinern.',
-            ),
+        initiallyExpanded: _open,
+        onExpansionChanged: (open) => setState(() => _open = open),
+        children: [
           const Text(
-            'Keine Treffer bedeuten nicht, dass keine Anlage vorhanden ist.',
+            'Offizielle BAKOM-Standorte. Stationstyp, Leistungsklasse und Technologie '
+            'werden nur nach Quellenangabe angezeigt. Die Koordinaten bezeichnen den ersten '
+            'Mast einer Station. Sie sind keine Hindernisgeometrie und messen keine FPV-Abdeckung.',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('mobile_sites_lat'),
+                  controller: _lat,
+                  decoration: const InputDecoration(labelText: 'Latitude'),
+                  onChanged: (_) => setState(() => _snapshot = null),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('mobile_sites_lon'),
+                  controller: _lon,
+                  decoration: const InputDecoration(labelText: 'Longitude'),
+                  onChanged: (_) => setState(() => _snapshot = null),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () {
+                      final p = widget.globe.selectedPoint;
+                      if (p == null) {
+                        setState(() => _message = 'No selected 3D map point.');
+                      } else {
+                        setState(() {
+                          _center(MobilityPoint(p.latitude, p.longitude));
+                          _message = null;
+                        });
+                      }
+                    },
+              icon: const Icon(Icons.place_outlined),
+              label: const Text('Ausgewählten Kartenpunkt verwenden'),
+            ),
+          ),
+          DropdownButtonFormField<int>(
+            key: ValueKey('mobile_sites_radius_$_radius'),
+            initialValue: _radius,
+            decoration: const InputDecoration(labelText: 'Suchradius'),
+            items: [500, 1000, 2000, 5000]
+                .map(
+                  (n) => DropdownMenuItem(
+                    value: n,
+                    child: Text(n < 1000 ? '$n m' : '${n ~/ 1000} km'),
+                  ),
+                )
+                .toList(),
+            onChanged: _busy
+                ? null
+                : (n) => setState(() {
+                    _radius = n ?? 2000;
+                    _snapshot = null;
+                  }),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _allow,
+            title: const Text('Suchkoordinaten an geo.admin.ch senden'),
+            subtitle: const Text(
+              'Nur nach manuellem Start · begrenzte Abfrage, keine nationalen Downloads',
+            ),
+            onChanged: _busy
+                ? null
+                : (value) => setState(() => _allow = value ?? false),
           ),
           Wrap(
             spacing: 8,
+            runSpacing: 6,
             children: [
-              FilledButton.icon(
-                onPressed: _busy ? null : _map,
-                icon: const Icon(Icons.map_outlined),
-                label: const Text('Stationen auf dem 3D-Globus'),
+              FilledButton.tonalIcon(
+                key: const ValueKey('mobile_sites_search'),
+                onPressed: _busy || !_allow ? null : () => _load(),
+                icon: const Icon(Icons.cell_tower),
+                label: const Text('Stationen suchen'),
               ),
-              if (widget.globe.situationalVisible('mobile-sites'))
-                TextButton(
-                  onPressed: _busy ? null : _hide,
-                  child: const Text('Stationslayer ausblenden'),
-                ),
+              OutlinedButton(
+                onPressed: _busy || !_allow ? null : () => _load(refresh: true),
+                child: const Text('Aktualisieren'),
+              ),
+              OutlinedButton(
+                onPressed: _busy ? null : () => _load(offline: true),
+                child: const Text('Offline-Snapshot'),
+              ),
+              OutlinedButton(
+                onPressed: _busy ? null : _discover,
+                child: const Text('STAC-Assets prüfen'),
+              ),
             ],
           ),
-          for (final site in snapshot.stations.take(50))
-            ExpansionTile(
-              key: ValueKey('mobile_site_${site.id}'),
-              title: Text(site.station),
-              subtitle: Text(site.technology ?? 'Technologie unbekannt'),
+          if (_busy) const LinearProgressIndicator(),
+          if (_message != null) Text(_message!),
+          if (_catalog != null) ...[
+            const Divider(),
+            Text(
+              'STAC-Stand: ${_catalog!.updatedUtc?.toIso8601String() ?? 'unbekannt'}',
+            ),
+            Text(
+              'Lizenz-Metadaten: ${_catalog!.licence} · '
+              '${_catalog!.assets.length} Asset-Verweise; davon '
+              '${_catalog!.assets.where((a) => a.supported).length} als JSON/CSV klassifiziert.',
+            ),
+            if (_catalog!.assets.any((asset) => !asset.supported))
+              const Text(
+                'Nicht unterstützte Datei-Assets (z. B. GeoPackage) werden nicht automatisch importiert.',
+              ),
+            if (_catalog!.termsUrl != null)
+              TextButton(
+                onPressed: () => _openUrl(_catalog!.termsUrl.toString()),
+                child: const Text('Offizielle Nutzungsbedingungen'),
+              ),
+          ],
+          if (snapshot != null) ...[
+            const Divider(),
+            Text(
+              '${snapshot.stations.length} Stationen · ${snapshot.ageDescription}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            if (snapshot.fromCache)
+              const Text('Gespeicherte Daten · Aktualität nicht live geprüft'),
+            if (snapshot.refreshFailed)
+              const Text(
+                'Aktualisierung fehlgeschlagen: vorhandener Stand bleibt erhalten.',
+              ),
+            if (snapshot.isOld(DateTime.now()))
+              const Text('Datenabruf älter als 24 Stunden.'),
+            if (snapshot.truncated)
+              const Text(
+                'Trefferlimit erreicht: keine vollständige Gebietserfassung. Suchradius verkleinern.',
+              ),
+            const Text(
+              'Keine Treffer bedeuten nicht, dass keine Anlage vorhanden ist.',
+            ),
+            Wrap(
+              spacing: 8,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: SelectableText(
-                    '${site.description}\n${snapshot.ageDescription}',
-                  ),
+                FilledButton.icon(
+                  onPressed: _busy ? null : _map,
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Stationen auf dem 3D-Globus'),
                 ),
+                if (widget.globe.situationalVisible('mobile-sites'))
+                  TextButton(
+                    onPressed: _busy ? null : _hide,
+                    child: const Text('Stationslayer ausblenden'),
+                  ),
               ],
             ),
+            for (final site in snapshot.stations.take(50))
+              ExpansionTile(
+                key: ValueKey('mobile_site_${site.id}'),
+                title: Text(site.station),
+                subtitle: Text(site.technology ?? 'Technologie unbekannt'),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SelectableText(
+                      '${site.description}\n${snapshot.ageDescription}',
+                    ),
+                  ),
+                ],
+              ),
+          ],
+          TextButton.icon(
+            onPressed: () => _openUrl(
+              'https://www.bakom.admin.ch/de/erlaeuterungen-zur-ubersichtskarte',
+            ),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('BAKOM-Erklärungen und amtliche Quelle'),
+          ),
+          TextButton.icon(
+            onPressed: () => _openUrl(
+              'https://data.geo.admin.ch/api/stac/v1/collections/$mobileSiteCollectionId',
+            ),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Offizielle STAC-Collection'),
+          ),
         ],
-        TextButton.icon(
-          onPressed: () => _openUrl(
-            'https://www.bakom.admin.ch/de/erlaeuterungen-zur-ubersichtskarte',
-          ),
-          icon: const Icon(Icons.open_in_new),
-          label: const Text('BAKOM-Erklärungen und amtliche Quelle'),
-        ),
-        TextButton.icon(
-          onPressed: () => _openUrl(
-            'https://data.geo.admin.ch/api/stac/v1/collections/$mobileSiteCollectionId',
-          ),
-          icon: const Icon(Icons.open_in_new),
-          label: const Text('Offizielle STAC-Collection'),
-        ),
-      ],
+      ),
     );
   }
 }

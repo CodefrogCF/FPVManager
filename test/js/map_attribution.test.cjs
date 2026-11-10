@@ -76,6 +76,8 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
                 terrain.push({ url, ...options });
                 if (terrainFails) throw new Error('Fixture: terrain unavailable');
                 return { credit: options.credit, // No metadata-derived credit.
+                    tilingScheme: { getNumberOfXTilesAtLevel: () => 2,
+                        getNumberOfYTilesAtLevel: () => 1 },
                     errorEvent: { addEventListener: () => () => {} },
                     requestTileGeometry: async () => ({}) };
             } },

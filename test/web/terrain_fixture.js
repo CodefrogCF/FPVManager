@@ -2,9 +2,17 @@
 (() => {
     const original = Cesium.CesiumTerrainProvider.fromUrl;
     window.fixtureProviderAttempts = 0;
+    window.fixtureRootRequests = [];
     Cesium.CesiumTerrainProvider.fromUrl = (_url, options) => {
         window.fixtureProviderAttempts++;
-        return original.call(Cesium.CesiumTerrainProvider, '/terrain-data/', options);
+        return original.call(Cesium.CesiumTerrainProvider, '/terrain-data/', options).then(provider => {
+            const read = provider.requestTileGeometry.bind(provider);
+            provider.requestTileGeometry = (...args) => {
+                if (args[2] === 0) window.fixtureRootRequests.push(args.slice(0, 3));
+                return read(...args);
+            };
+            return provider;
+        });
     };
     const Viewer = Cesium.Viewer;
     const FixtureViewer = class extends Viewer {

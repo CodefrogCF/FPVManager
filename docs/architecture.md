@@ -214,11 +214,26 @@ browser thread. Height/time applicability is outside the intersection check.
 `web/terrain_service.js` bounds initialization/probe to 8 seconds and tile/sample
 requests to 12 seconds. Map downloads use eight active slots and a bounded queue;
 cache hits bypass downloads. Individual tile/sample failures retain loaded terrain
-and report missing information. Failed initialization or offline mode without a
-cache uses a labelled ellipsoid fallback. Explicit retry replaces the provider and refreshes
-the selected imagery style; there is no automatic reconnect loop. Terrain
+and report missing information. Startup validates all global root tiles (only the
+packaged root for a prepared region) and retains those few tiles for the viewer,
+so a repeated root download cannot leave an empty globe after a successful probe.
+Failed initialization or offline mode without a cache uses a labelled ellipsoid
+fallback. Transient startup failures get at most two background retries, after
+750 ms and 2 seconds; manual retry, offline mode and disposal cancel that budget.
+Later network restoration still requires explicit retry. Explicit retry replaces
+the provider and refreshes the selected imagery style. Terrain
 generations invalidate pending samples, raw picked heights and route geometry.
 Late results cannot restore obsolete terrain. Ground mode ends on terrain loss.
+
+Windows page transitions animate the live page without snapshotting external
+WebView2 textures. This avoids an engine crash when leaving a selected map point
+for a full-screen tool such as the saved-place list.
+
+During flight, pending terrain refinement briefly uses a looser screen-space
+error budget after rapid turns or low-altitude frame stalls. It returns to the
+normal flight budget in small steps after the view settles. Resolution, physics
+and collision sweeps keep their existing settings. Opt-in scene diagnostics count
+long in-flight stalls separately from idle/background gaps.
 
 See [coordinates and heights](coordinates_and_heights.md) for calculation
 contracts, [privacy](privacy_and_permissions.md) for requests and permissions,

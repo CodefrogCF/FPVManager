@@ -38,7 +38,9 @@ Use `--no-web-resources-cdn` for local Flutter renderer resources in Web builds.
 Bundling the renderer does not download map regions.
 
 `globe.html?offline=1` uses a local grid/ellipsoid without imagery/terrain requests.
-Normal terrain failures use a labelled flat fallback and explicit retry; see
+Terrain startup failures use a labelled flat fallback and two bounded automatic
+retries; later outages retain explicit retry. Both global root tiles are validated
+and reused instead of downloaded again when the viewer starts. See
 [architecture](architecture.md).
 
 The compact **Quellen** control uses Cesium's native accessible source dialog.

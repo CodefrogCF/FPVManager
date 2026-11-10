@@ -63,3 +63,21 @@ test('stopping and restarting never accumulates Cesium listeners; invalid capaci
     }
     f.profiler.dispose();
 });
+
+test('continuous flight reports long stutters while background time is excluded',()=>{
+    const preRender=new Event(),postRender=new Event();
+    let time=0,foreground=true,continuous=true;
+    const profiler=create({scene:{preRender,postRender}}, {now:()=>time,
+        isContinuous:()=>continuous,isForeground:()=>foreground});
+    const frame=(gap,duration)=>{time+=gap;preRender.fire();time+=duration;postRender.fire();};
+    profiler.start();frame(16,4);frame(500,320);
+    let status=profiler.snapshot();
+    assert.equal(status.framePacingMs.max,504,'500 ms in-flight hitch is not hidden as idle time');
+    assert.equal(status.cpuRenderMs.max,320,'a slow actual render is always measured');
+    assert.equal(status.over100Ms,1);
+    foreground=false;frame(1000,4);foreground=true;frame(1000,4);
+    assert.equal(profiler.snapshot().over100Ms,1,'background/resume does not look like a flight hitch');
+    continuous=false;frame(2000,4);
+    assert.equal(profiler.snapshot().over100Ms,1,'idle map time is still excluded');
+    profiler.dispose();
+});
