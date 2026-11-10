@@ -473,3 +473,30 @@ test('invalid modes, parameters and coordinates are rejected before changing cam
     const p=setup();await assert.rejects(p.model.start({latitude:90,longitude:0},new AbortController().signal));
     assert.equal(p.poses.length,0);
 });
+
+test('flight controls stay pending through graphics preparation without physics or late activation after cancellation',async()=>{
+    let done,signal;
+    const p=setup({prepareGraphics:value=>{signal=value;return new Promise(resolve=>done=resolve);}});
+    const starting=p.model.start({...spawn,flightMode:'acro'},new AbortController().signal);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(p.model.status().pending,true);assert.equal(p.model.active,false);
+    const count=p.poses.length;
+    input(p.model,{throttle:1,pitch:1});advance(p.model,2);
+    assert.equal(p.poses.length,count,'No physics or camera motion during preparation');
+    p.model.stop();assert.equal(signal.aborted,true);done();
+    assert.deepEqual(await starting,{cancelled:true});
+    assert.equal(p.model.active,false);assert.equal(p.restored.length,1);
+});
+
+test('graphics preparation completes before activation and a failure restores the original camera',async()=>{
+    let done;
+    const p=setup({prepareGraphics:()=>new Promise(resolve=>done=resolve)});
+    const starting=start(p,{agl:30});await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(p.model.status().pending,true);assert.equal(p.model.active,false);
+    done();await starting;assert.equal(p.model.active,true);assert.equal(p.model.status().height,1030);
+    p.model.stop();assert.equal(p.restored.length,1);
+    const bad=setup({prepareGraphics:async()=>{throw Error('test preparation failed');}});
+    await assert.rejects(start(bad),/test preparation failed/);
+    assert.equal(bad.model.active,false);assert.equal(bad.model.status().pending,false);
+    assert.equal(bad.restored.length,1);
+});

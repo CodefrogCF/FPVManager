@@ -2,6 +2,13 @@
 
 ## 2026-11-10
 
+- Moved common terrain shader preparation before flight activation, with
+  progress, cancellation and reuse on repeat flights, to reduce first-use
+  graphics-driver pauses without reducing the selected image quality.
+- Limited terrain collision sweeps to reachable rendered tiles and reused exact
+  terrain vertices with bounded spatial acceleration for height/contact queries.
+- Applied flight and ground camera updates before Cesium's motion and
+  underground-state detection during rapid maneuvers.
 - Prevented an empty globe after transient terrain-root failures; startup now
   validates and reuses all required roots and retries twice in the background.
 - Disabled Windows route snapshots of the live WebView2 texture to prevent a

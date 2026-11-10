@@ -52,7 +52,7 @@
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
     function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,
-        onSurfaceDiscontinuity=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,
+        onSurfaceDiscontinuity=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,prepareGraphics,
         isTerrainReady,onState,sampleWind=()=>null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
@@ -100,6 +100,11 @@
                 config=next;saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
                 motorThrust=acroThrust(motorCommand());
+                if(prepareGraphics){
+                    pose();await prepareGraphics(request.signal);
+                    signal.throwIfAborted();request.signal.throwIfAborted();
+                    if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
+                }
                 active=true;pending=false;pose();publish();return {};
             }catch(error){if(token!==operation)return {cancelled:true};stop('Unable to start simulated flight');throw error;}
             finally{signal.removeEventListener('abort',cancel);}

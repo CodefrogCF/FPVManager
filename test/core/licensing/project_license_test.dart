@@ -10,7 +10,8 @@ void main() {
 
   test('project attribution precedes the unchanged official Apache text', () {
     final license = File('LICENSE').readAsStringSync().replaceAll('\r\n', '\n');
-    const attribution = 'FPVManager\nCopyright 2026 Codefrog\n\n';
+    const attribution =
+        'FPVManager\nCopyright 2026 Codefrog\n\n';
     expect(license, startsWith(attribution));
     expect(
       sha256

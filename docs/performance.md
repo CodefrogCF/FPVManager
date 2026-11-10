@@ -19,6 +19,22 @@ device FPS, GPU memory, cold-start latency or network performance.
   stalls briefly ease terrain refinement; normal detail returns in small steps
   after the view settles. Resolution and collision checks remain unchanged.
   These budgets do not promise a particular device frame rate.
+- Before activating flight controls, the renderer prepares common terrain
+  shader variants for imagery, fog, quantization and underground views. This
+  avoids first-use driver compilation during low flight and turns. Preparation
+  is cancellable, has a 15-second budget and reuses Cesium's cached programs on
+  later flights. The existing pending indicator remains available; first entry
+  can take several seconds. Parallel compilation is used when the driver offers
+  it. New materials or uncommon variants can still require normal compilation.
+- Terrain collision rays only visit rendered tiles within the current movement
+  segment. Height and contact queries reuse exact decoded terrain vertices and
+  binary bounds instead of repeatedly decoding full meshes. The additional
+  cache is limited to 16 MiB and 64 meshes and is released on flight exit.
+  Skirts, back faces and terrain exaggeration retain their existing behavior;
+  unsupported runtimes use Cesium's original queries. No collision samples or
+  source triangles are removed.
+- Camera movement runs before Cesium detects camera motion and underground
+  transitions, so those checks observe the current flight pose too.
 - Tunnel geometry is prepared one model per render opportunity during flight.
   Shared vertices and opaque drawing materials are reused; the newly occupied
   corridor's collision mesh is prepared before handoff. Long source axes retain
@@ -132,3 +148,9 @@ Those observations preceded later renderer/data changes. They are provenance,
 not a current target, a controlled before/after comparison or a CI baseline.
 The S22's slow network measurements do not establish the cause of later frame
 stalls. Use new, paired measurements when evaluating a current build.
+
+[The 2026-11-10 flight traces](performance/flight_trace_2026-11-10.json) record
+public-test-point measurements on Windows/Chrome with an Intel UHD GPU and the
+85% profile. They distinguish driver preparation, CPU collision work, main-thread
+tasks and Cesium `postRender` intervals. These are individual desktop observations,
+not an Android FPS result or proof that every future frame will meet a deadline.

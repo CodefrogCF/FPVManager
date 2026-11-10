@@ -25,6 +25,9 @@
     window.Cesium = { ...Cesium, Viewer: FixtureViewer,
         ScreenSpaceEventHandler: FixtureScreenSpaceEventHandler,
         UrlTemplateImageryProvider: new URLSearchParams(location.search).has('realImagery') ? Cesium.UrlTemplateImageryProvider : Cesium.GridImageryProvider };
+    const createFlyer=FPVFreeFlight.createSimulator,createRendering=FPVFlightRendering.create;
+    FPVFreeFlight.createSimulator=(...args)=>(window.fixtureFlyer=createFlyer(...args));
+    FPVFlightRendering.create=(...args)=>(window.fixtureFlightRendering=createRendering(...args));
     let online = true;
     Object.defineProperty(navigator, 'onLine', { get: () => online });
     window.addEventListener('message', event => {

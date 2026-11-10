@@ -235,6 +235,21 @@ normal flight budget in small steps after the view settles. Resolution, physics
 and collision sweeps keep their existing settings. Opt-in scene diagnostics count
 long in-flight stalls separately from idle/background gaps.
 
+Flight camera updates run in Cesium `preUpdate`, before controller updates,
+camera-motion detection and terrain selection. `web/flight_rendering.js` prepares common surface shader
+variants while the simulator is pending; cancellation restores the saved camera
+and graphics state. The bounded preparation uses the current surface-shader
+options and Cesium's own program cache. It does not change source shaders or
+selected pixel quality.
+
+Short collision sweeps filter the pinned Cesium 1.145 rendered-tile list by a
+conservative geodetic footprint before testing exact triangles. During flight,
+terrain mesh picks share a decoded-vertex cache and a binary hierarchy of small
+triangle batches, including skirts. Mesh replacement, scene-mode changes and
+exaggeration invalidate it. The final flight owner restores Cesium's original
+picker and releases the additional cache. Guarded fallbacks retain public
+Cesium picking when runtime details or scene modes are unsupported.
+
 See [coordinates and heights](coordinates_and_heights.md) for calculation
 contracts, [privacy](privacy_and_permissions.md) for requests and permissions,
 and [map sources](map_sources_and_attribution.md) for attribution.

@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-10",
+  "purpose": "Investigate recorded flight stalls; individual desktop trace observations, not device FPS certification",
+  "environment": {
+    "platform": "Windows",
+    "renderer": "Headless Chrome, accelerated D3D11",
+    "gpuConfirmedAfterChange": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BCA) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "graphicsProfile": "balanced",
+    "resolutionScale": 0.85,
+    "msaaSamples": 2,
+    "finalViewport": {
+      "width": 2542,
+      "height": 1273,
+      "drawingWidth": 2160,
+      "drawingHeight": 1082
+    },
+    "coldBrowserProfilePerRun": true,
+    "cpuSamplingIntervalUs": 1000
+  },
+  "scenario": {
+    "publicTestPoint": {
+      "latitude": 46.7,
+      "longitude": 8.4
+    },
+    "dataHosts": [
+      "3d.geo.admin.ch",
+      "wmts.geo.admin.ch"
+    ],
+    "requestedActiveDurationMs": 26000,
+    "controls": "Scripted GPS low flight, ground-following climb input and repeated heading changes; no physical controller",
+    "locationNote": "Approved public test point; the original recording location is unknown"
+  },
+  "observations": [
+    {
+      "stage": "Before these flight-rendering changes",
+      "observedFrames": 457,
+      "postRenderIntervalsMs": {
+        "p50": 52.5,
+        "p95": 82.4,
+        "max": 693.7,
+        "countOver100Ms": 16
+      },
+      "mainThreadTasks": {
+        "countOver100Ms": 13,
+        "maxMs": 683
+      },
+      "cpuQueries": {
+        "terrainCollision": {
+          "calls": 457,
+          "totalMs": 875.9,
+          "meanMs": 1.917,
+          "maxMs": 114.1
+        },
+        "terrainHeight": {
+          "calls": 1537,
+          "totalMs": 1407.2,
+          "meanMs": 0.916,
+          "maxMs": 81.1
+        },
+        "simulationTick": {
+          "calls": 457,
+          "totalMs": 1801.7,
+          "meanMs": 3.942,
+          "maxMs": 164.6
+        }
+      },
+      "runtimeErrors": 0
+    },
+    {
+      "stage": "Final changes, including pending-preparation timing guard",
+      "observedFrames": 440,
+      "postRenderIntervalsMs": {
+        "p50": 58,
+        "p95": 74.9,
+        "max": 253.2,
+        "countOver100Ms": 3
+      },
+      "mainThreadTasks": {
+        "countOver100Ms": 0,
+        "maxMs": 85
+      },
+      "cpuQueries": {
+        "terrainCollision": {
+          "calls": 440,
+          "totalMs": 184.4,
+          "meanMs": 0.419,
+          "maxMs": 31.7
+        },
+        "terrainHeight": {
+          "calls": 1490,
+          "totalMs": 513.5,
+          "meanMs": 0.345,
+          "maxMs": 13.9
+        },
+        "simulationTick": {
+          "calls": 440,
+          "totalMs": 688.3,
+          "meanMs": 1.564,
+          "maxMs": 34.6
+        }
+      },
+      "runtimeErrors": 0,
+      "preparation": {
+        "supported": true,
+        "preparing": false,
+        "completed": 40,
+        "total": 40,
+        "elapsed": 11123.9,
+        "timeUnit": "milliseconds"
+      },
+      "driverLinkStatusQueriesDuringFlight": 0,
+      "decodedMeshCache": {
+        "supported": true,
+        "active": true,
+        "bytes": 81936,
+        "meshes": 64,
+        "builds": 141,
+        "evictions": 77,
+        "triangleTests": 368674
+      }
+    }
+  ],
+  "validation": [
+    "601 JavaScript tests passed",
+    "Actual Cesium GPS/Angle/Acro input, pause, reset, terrain and camera smoke passed",
+    "Actual heightmap bridge-to-tunnel entry and adjacent-rock collision smoke passed",
+    "Synthetic CI invariants: 18000 bridge features and 10000 stable scene frames",
+    "Pinned Cesium 1.145.0: 395 file hashes and Flutter asset paths verified"
+  ],
+  "limitations": [
+    "Each observation is one run; trajectories and streaming state vary with timing.",
+    "Cesium postRender is CPU submission timing, not a GPU-completion or display-presentation timestamp.",
+    "Residual long frame intervals remain visible; these changes do not guarantee a fixed frame rate.",
+    "This is not an Android or native Windows/WebView2 frame-rate measurement.",
+    "Shader preparation covers common terrain variants; new materials and uncommon variants can still compile normally."
+  ]
+}

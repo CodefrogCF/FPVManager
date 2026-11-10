@@ -87,7 +87,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
                 this.imageryLayers = { get: () => current, add: layer => { current = layer; }, remove() {} };
                 const listeners = new Set();
                 this.scene = { globe: {}, renderError: { addEventListener() {} },
-                    preRender: { addEventListener() {} },
+                    preUpdate: { addEventListener() {} },preRender: { addEventListener() {} },
                     postRender:{addEventListener(f) {listeners.add(f);return () => listeners.delete(f);}},
                     requestRender:() => setImmediate(() => {for(const f of [...listeners]) f();}) };
                 this.dataSources = {

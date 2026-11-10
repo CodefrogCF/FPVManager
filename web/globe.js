@@ -1095,6 +1095,14 @@ function postToFlutter(message) {
                 tunnelVolumes?.artificialBoundaryNear(position)===true,
             sampleWind: point=>windLayer.sample(point),
             applyGraphics: flightRenderer.applyGraphics,
+            prepareGraphics:async signal=>{
+                applyFlightTime(requestedFlightTime??undefined);
+                await flightRenderer.prepareGraphics(signal,({completed,total})=>{
+                    if(signal.aborted||!flyer.status().pending)return;
+                    info.hidden=false;
+                    info.textContent=total?`Preparing flight… ${Math.round(100*completed/total)}%`:'Preparing flight…';
+                });
+            },
             captureCamera: () => {
                 viewer.camera.cancelFlight();
                 const saved = { destination: Cesium.Cartesian3.clone(viewer.camera.positionWC),
@@ -1254,7 +1262,9 @@ function postToFlutter(message) {
         cameraFovSlider.addEventListener('input',()=>flyer.cameraFov(Number(cameraFovSlider.value)));
         graphicsSelect.addEventListener('change',()=>flyer.graphicsProfile(graphicsSelect.value));
         let lastWalkTime=performance.now();
-        viewer.scene.preRender.addEventListener(()=>{
+        // Move before Cesium's controllers and camera-motion/underground
+        // detection, so those observe the pose rendered by this frame too.
+        viewer.scene.preUpdate.addEventListener(()=>{
             const now=performance.now(),seconds=(now-lastWalkTime)/1000;lastWalkTime=now;
             disposeGroundControls.tick(seconds);walker.tick(seconds);
             if(routePlayback?.active)routePlayback.tick(seconds);else flyer.tick(seconds);

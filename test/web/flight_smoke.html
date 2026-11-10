@@ -45,6 +45,14 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   await until(()=>v.scene.globe.tilesLoaded,'terrain tiles');await pause(250);
   const original=v.camera.positionWC.clone(),near=v.camera.frustum.near;
   const originalGraphics={resolutionScale:v.resolutionScale,msaaSamples:v.scene.msaaSamples,tileCacheSize:v.scene.globe.tileCacheSize};
+  let cullingChecks=0,cullingFailures=0;
+  const removeCameraCheck=v.scene.postRender.addEventListener(()=>{
+    if(!flight?.active)return;
+    const planes=v.scene.frameState.cullingVolume.planes.map(p=>C.Cartesian4.clone(p));
+    const expected=v.camera.frustum.computeCullingVolume(v.camera.positionWC,v.camera.directionWC,v.camera.upWC).planes;
+    cullingChecks++;
+    if(planes.some((p,i)=>!C.Cartesian4.equalsEpsilon(p,expected[i],1e-6)))cullingFailures++;
+  });
   await command('set-obstacle-vectors',{revision:1,features:[
     {id:'mast-a',category:'masts',parts:[{kind:'Point',elevated:true,heightAgl:50,coordinates:[[8.4,46.7,1200]]}]},
     {id:'mast-b',category:'masts',parts:[{kind:'Point',elevated:true,heightAgl:60,coordinates:[[8.401,46.701,1210]]}]},
@@ -58,8 +66,9 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   log('Actual Cesium uses constant mast/cable geometry and keeps cable endpoints on 50m AGL mast tops');
   await command('set-visible-routes',{revision:1,routes:[{id:42,name:'Inspection demo',waypoints:[
     {id:1,latitude:46.70005,longitude:8.4},{id:2,latitude:46.7003,longitude:8.4002}]}]});
-  await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,maxSpeed:15,climbSpeed:8,acceleration:15,deceleration:15});
+  await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,flightMode:'gps',maxSpeed:15,climbSpeed:8,acceleration:15,deceleration:15});
   await until(()=>flight?.active,'flight entry');await pause(300);
+  check(win.fixtureFlightRendering.shaderWarmupStatus().completed>0,'Flight shaders were not prepared');
   check(Math.abs(v.camera.positionCartographic.height-1020)<.5,'Configured spawn height');
   check(!doc.getElementById('navigation-hud').hidden&&!doc.getElementById('flight-buttons').hidden,'Flight controls absent');
   check(v.resolutionScale===.85&&v.scene.msaaSamples===2,'Default balanced graphics profile not applied');
@@ -250,9 +259,13 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
     canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'e',bubbles:true}));
   }
   check(C.Cartesian3.distance(before,v.camera.positionWC)>1&&v.camera.positionCartographic.height>1020.2,'Movement/climb failed');
-  doc.getElementById('exit-flight').focus();const stopped=v.camera.positionWC.clone();await pause(250);
-  check(C.Cartesian3.distance(stopped,v.camera.positionWC)<.05,'Focus loss did not brake');
+  doc.getElementById('settings-flight').focus();
+  check(doc.activeElement===doc.getElementById('settings-flight'),'Focus did not leave the canvas');
+  const stopped=v.camera.positionWC.clone();await pause(250);
+  check(C.Cartesian3.distance(stopped,v.camera.positionWC)<.05,
+    `Focus loss did not brake: ${C.Cartesian3.distance(stopped,v.camera.positionWC)}m; paused=${win.fixtureFlyer.status().paused}; focus=${doc.activeElement.id}`);
   log('Keyboard movement and climb run in the real render loop; losing focus brakes the simulator');
+  await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,flightMode:'angle'});
   canvas.focus();const rect=canvas.getBoundingClientRect(),look=doc.getElementById('look-stick');
   const capture=look.setPointerCapture;look.setPointerCapture=()=>{};
   const right=look.getBoundingClientRect(),x=right.left+right.width/2,y=right.top+right.height/2;
@@ -343,6 +356,9 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   check(C.Cartesian3.distance(gpsStart,v.camera.positionWC)>.2&&Math.abs(v.camera.positionCartographic.height-1030)<.5,'GPS movement/height hold changed');
   await command('exit-simulation');
   log('Ground view retains its 2m eye height; camera-target spawn, Acro inverted attitude/hold and GPS translation/height hold work');
+  removeCameraCheck();
+  check(cullingChecks>20&&cullingFailures===0,'Flight camera and terrain culling used different frame poses');
+  log('Terrain culling follows the current camera pose throughout actual flight and rapid Acro rolls');
   document.getElementById('status').textContent='PASS — flight and shared input smoke';
 })().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;output.textContent+=String(error.stack||error);});
 </script></html>

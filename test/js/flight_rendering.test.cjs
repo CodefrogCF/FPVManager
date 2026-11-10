@@ -59,6 +59,19 @@ test('low flight relieves real streaming stalls without changing normal smooth l
     assert.equal(globe.maximumScreenSpaceError,2,'an unrelated high-altitude pause does not reduce terrain detail');
 });
 
+test('pending graphics preparation is excluded from active flight streaming pressure',()=>{
+    let time=0;const f=fixture({now:()=>time}),saved=f.adapter.captureGraphics();
+    f.viewer.scene.globe.tilesLoaded=false;
+    const pose={latitude:46.7,longitude:8.4,height:1003,heading:0,pitch:0,roll:0,agl:3};
+    try{
+        f.adapter.applyGraphics('balanced');f.adapter.applyPose({...pose,pending:true});
+        time=12000;f.adapter.applyPose({...pose,pending:false});
+        assert.equal(f.adapter.streamingStatus().terrainScreenSpaceError,2);
+        time+=75;f.adapter.applyPose(pose);
+        assert.equal(f.adapter.streamingStatus().terrainScreenSpaceError,4,'A real subsequent frame stall still applies relief');
+    }finally{f.adapter.restoreGraphics(saved);}
+});
+
 test('streaming budget handles heading wrap, paused flight and backwards clocks without false turn pressure',()=>{
     let time=1000;
     const globe={tilesLoaded:false,maximumScreenSpaceError:2},budget=createStreamingBudget(globe,{now:()=>time});
