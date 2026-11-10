@@ -206,7 +206,8 @@
         return result;
     }
     function create(C,viewer,{sampleTerrain=async()=>[],ready=()=>true,cachedOnly=false,
-        isOnline=()=>globalThis.navigator?.onLine!==false,getDeckTileset=null,discoverBridges=null,disposeDiscovery=()=>{},
+        isOnline=()=>globalThis.navigator?.onLine!==false,isNavigationActive=()=>false,
+        getDeckTileset=null,discoverBridges=null,disposeDiscovery=()=>{},
         fetcher=(...args)=>fetch(...args),now=()=>Date.now(),yieldBatch=afterFrame}={}){
         const scene=viewer.scene;
         let enabled=false,structuresEnabled=false,disposed=false,profile='balanced',opacity=1,revision=0,controller=null;
@@ -244,7 +245,10 @@
         }
         function focus(){
             const canvas=scene.canvas||viewer.canvas,camera=viewer.camera;
-            try{
+            // During flight the useful search area is around the aircraft.
+            // A centre-of-screen ray can reach a distant mountainside and
+            // initialize terrain pickers at every two-second refresh.
+            if(!isNavigationActive())try{
                 if(canvas&&C.Cartesian2&&C.Cartographic?.fromCartesian){
                     const pixel=new C.Cartesian2((canvas.clientWidth||canvas.width)/2,(canvas.clientHeight||canvas.height)/2);
                     const ray=camera?.getPickRay?.(pixel),hit=ray&&scene.globe.pick?.(ray,scene);

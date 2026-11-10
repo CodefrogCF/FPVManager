@@ -574,7 +574,10 @@ function postToFlutter(message) {
                             outlineColor: Cesium.Color.BLACK,
                             outlineWidth: 2,
                             heightReference:
-                                Cesium.HeightReference.CLAMP_TO_GROUND
+                                // Ground also includes 3D Tiles (tree crowns,
+                                // roofs and decks). Saved spots belong to the
+                                // terrain, including after renderer restart.
+                                Cesium.HeightReference.CLAMP_TO_TERRAIN
                         },
                         label: {
                             text: spot.name,
@@ -587,7 +590,7 @@ function postToFlutter(message) {
                             pixelOffset:
                                 new Cesium.Cartesian2(0, -25),
                             heightReference:
-                                Cesium.HeightReference.CLAMP_TO_GROUND,
+                                Cesium.HeightReference.CLAMP_TO_TERRAIN,
                             distanceDisplayCondition:
                                 new Cesium.DistanceDisplayCondition(
                                     0,
@@ -1013,6 +1016,7 @@ function postToFlutter(message) {
         bridgeSupports=typeof FPVBridgeSupports!=='undefined'
             ?FPVBridgeSupports.create(Cesium,viewer,{sampleTerrain:sampleSceneTerrain,
                 ready:terrainAvailable,cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',
+                isNavigationActive:navigationActive,
                 getDeckTileset:()=>sceneEnvironment?.structuresTileset?.(),
                 discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose()})
             :null;
@@ -1097,6 +1101,8 @@ function postToFlutter(message) {
             applyGraphics: flightRenderer.applyGraphics,
             prepareGraphics:async signal=>{
                 applyFlightTime(requestedFlightTime??undefined);
+                signal.throwIfAborted();
+                sceneEnvironment.prepareGraphics();
                 await flightRenderer.prepareGraphics(signal,({completed,total})=>{
                     if(signal.aborted||!flyer.status().pending)return;
                     info.hidden=false;

@@ -1,0 +1,427 @@
+{
+  "recordedOn": "2026-11-10",
+  "kind": "Individual diagnostic observations, not a statistical device FPS benchmark",
+  "environment": {
+    "platform": "Windows, headless Chrome with D3D11 hardware rendering",
+    "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BCA) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "browserWindow": {
+      "width": 1440,
+      "height": 900
+    },
+    "graphicsProfile": "quality",
+    "resolutionScale": 1,
+    "msaaSamples": 4,
+    "sceneLayers": [
+      "official buildings",
+      "official vegetation",
+      "official structures"
+    ],
+    "terrainAndImagery": "Official swisstopo live public services",
+    "publicTestPoint": {
+      "latitude": 46.7,
+      "longitude": 8.4
+    },
+    "requestedSpeedKmh": 75,
+    "path": "Northward low flight, four seconds initially stationary; a test pilot follows sampled terrain plus four metres",
+    "cache": "Separate fresh browser profile per run; operating-system, network and graphics-driver caches uncontrolled",
+    "networkAllowlist": [
+      "3d.geo.admin.ch",
+      "wmts.geo.admin.ch",
+      "127.0.0.1"
+    ]
+  },
+  "observations": {
+    "beforeHeaderPartitioningAndNavigationFocus": {
+      "durationMs": 45000,
+      "actualViewport": {
+        "width": 1424,
+        "height": 805,
+        "drawingWidth": 1424,
+        "drawingHeight": 805
+      },
+      "observedPostRenderFrames": 533,
+      "postRenderIntervalsMs": {
+        "p50": 48.2,
+        "p95": 103.1,
+        "max": 2486.7
+      },
+      "preUpdateToPostRenderMs": {
+        "p50": 29,
+        "p95": 60,
+        "max": 547.5
+      },
+      "browserLongTasks": {
+        "count": 89,
+        "countOver100Ms": 22,
+        "maxMs": 2455,
+        "durationsOver100Ms": [
+          2296,
+          225,
+          1753,
+          1524,
+          2455,
+          1759,
+          1960,
+          2083,
+          512,
+          552,
+          125,
+          504,
+          162,
+          242,
+          189,
+          220,
+          147,
+          243,
+          352,
+          953,
+          104,
+          120
+        ]
+      },
+      "horizontalDistanceTravelledMeters": 194.506,
+      "physicsTick": {
+        "calls": 533,
+        "totalMs": 830.3,
+        "maxMs": 21.4
+      },
+      "horizonTerrainPick": {
+        "calls": 20,
+        "totalMs": 314.8,
+        "maxMs": 90.2
+      },
+      "shaderStatusReads": {
+        "calls": 21,
+        "totalMs": 1858.2,
+        "maxMs": 473
+      },
+      "slowShaderStatusReads": [
+        {
+          "ms": 165.8,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 470.3,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 250.3,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 237.8,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 214.2,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 210.3,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 306.2,
+          "sharedBrdfLookup": false
+        }
+      ],
+      "terrainShaderPreparation": {
+        "supported": true,
+        "preparing": false,
+        "completed": 10,
+        "total": 40,
+        "elapsed": 17927.5
+      },
+      "localHeaderLoading": null,
+      "rendererErrorCount": 0,
+      "blockedExternalRequestCount": 6
+    },
+    "headerPartitioningWithOldPeriodicHorizonPick": {
+      "durationMs": 45000,
+      "actualViewport": {
+        "width": 1424,
+        "height": 805,
+        "drawingWidth": 1424,
+        "drawingHeight": 805
+      },
+      "observedPostRenderFrames": 956,
+      "postRenderIntervalsMs": {
+        "p50": 44.9,
+        "p95": 67.2,
+        "max": 314.1
+      },
+      "preUpdateToPostRenderMs": {
+        "p50": 21.6,
+        "p95": 45.3,
+        "max": 78.3
+      },
+      "browserLongTasks": {
+        "count": 49,
+        "countOver100Ms": 6,
+        "maxMs": 256,
+        "durationsOver100Ms": [
+          256,
+          175,
+          108,
+          149,
+          168,
+          150
+        ]
+      },
+      "horizontalDistanceTravelledMeters": 417.343,
+      "physicsTick": {
+        "calls": 956,
+        "totalMs": 1339.4,
+        "maxMs": 9
+      },
+      "horizonTerrainPick": {
+        "calls": 27,
+        "totalMs": 208.4,
+        "maxMs": 54.2
+      },
+      "shaderStatusReads": {
+        "calls": 0,
+        "totalMs": 0,
+        "maxMs": 0
+      },
+      "slowShaderStatusReads": [],
+      "terrainShaderPreparation": {
+        "supported": true,
+        "preparing": false,
+        "completed": 40,
+        "total": 40,
+        "elapsed": 13312.399999976158
+      },
+      "localHeaderLoading": {
+        "supported": true,
+        "prepared": 5,
+        "fragments": 3339,
+        "liveFragments": 3339,
+        "liveBytes": 26290573,
+        "queued": 0,
+        "maxConstructionMs": 8.800000071525574
+      },
+      "rendererErrorCount": 0,
+      "blockedExternalRequestCount": 6
+    },
+    "navigationFocusBeforeSharedLightingPreparation": {
+      "durationMs": 45000,
+      "actualViewport": {
+        "width": 1424,
+        "height": 805,
+        "drawingWidth": 1424,
+        "drawingHeight": 805
+      },
+      "observedPostRenderFrames": 1034,
+      "postRenderIntervalsMs": {
+        "p50": 39.4,
+        "p95": 67.5,
+        "max": 1585
+      },
+      "preUpdateToPostRenderMs": {
+        "p50": 17.9,
+        "p95": 42,
+        "max": 1546.4
+      },
+      "browserLongTasks": {
+        "count": 47,
+        "countOver100Ms": 17,
+        "maxMs": 1570,
+        "durationsOver100Ms": [
+          130,
+          175,
+          1570,
+          689,
+          111,
+          460,
+          193,
+          295,
+          201,
+          129,
+          719,
+          187,
+          185,
+          185,
+          193,
+          232,
+          189
+        ]
+      },
+      "horizontalDistanceTravelledMeters": 350.724,
+      "physicsTick": {
+        "calls": 1034,
+        "totalMs": 1468.2,
+        "maxMs": 45.8
+      },
+      "horizonTerrainPick": {
+        "calls": 0,
+        "totalMs": 0,
+        "maxMs": 0
+      },
+      "shaderStatusReads": {
+        "calls": 18,
+        "totalMs": 3234.6,
+        "maxMs": 1533.7
+      },
+      "slowShaderStatusReads": [
+        {
+          "ms": 1532.9,
+          "sharedBrdfLookup": true
+        },
+        {
+          "ms": 265.5,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 349.4,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 424.6,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 198.6,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 462.5,
+          "sharedBrdfLookup": false
+        }
+      ],
+      "terrainShaderPreparation": {
+        "supported": true,
+        "preparing": false,
+        "completed": 40,
+        "total": 40,
+        "elapsed": 13498.200000047684
+      },
+      "localHeaderLoading": {
+        "supported": true,
+        "prepared": 5,
+        "fragments": 2916,
+        "liveFragments": 2916,
+        "liveBytes": 23194971,
+        "queued": 0,
+        "maxConstructionMs": 8.699999928474426
+      },
+      "rendererErrorCount": 0,
+      "blockedExternalRequestCount": 6
+    },
+    "headerPartitioningNavigationFocusAndSharedLightingPreparation": {
+      "durationMs": 45000,
+      "actualViewport": {
+        "width": 1424,
+        "height": 805,
+        "drawingWidth": 1424,
+        "drawingHeight": 805
+      },
+      "observedPostRenderFrames": 943,
+      "postRenderIntervalsMs": {
+        "p50": 43.9,
+        "p95": 67.1,
+        "max": 656.5
+      },
+      "preUpdateToPostRenderMs": {
+        "p50": 19,
+        "p95": 40.8,
+        "max": 646.6
+      },
+      "browserLongTasks": {
+        "count": 39,
+        "countOver100Ms": 8,
+        "maxMs": 648,
+        "durationsOver100Ms": [
+          118,
+          448,
+          356,
+          648,
+          215,
+          185,
+          142,
+          160
+        ]
+      },
+      "horizontalDistanceTravelledMeters": 445.982,
+      "physicsTick": {
+        "calls": 943,
+        "totalMs": 1283.9,
+        "maxMs": 11.7
+      },
+      "horizonTerrainPick": {
+        "calls": 0,
+        "totalMs": 0,
+        "maxMs": 0
+      },
+      "shaderStatusReads": {
+        "calls": 15,
+        "totalMs": 1308.6,
+        "maxMs": 436.2
+      },
+      "slowShaderStatusReads": [
+        {
+          "ms": 218.4,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 167.7,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 319.8,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 166.1,
+          "sharedBrdfLookup": false
+        },
+        {
+          "ms": 436.1,
+          "sharedBrdfLookup": false
+        }
+      ],
+      "terrainShaderPreparation": {
+        "supported": true,
+        "preparing": false,
+        "completed": 40,
+        "total": 40,
+        "elapsed": 10318.299999952316
+      },
+      "localHeaderLoading": {
+        "supported": true,
+        "prepared": 4,
+        "fragments": 3943,
+        "liveFragments": 3943,
+        "liveBytes": 30955514,
+        "queued": 0,
+        "maxConstructionMs": 21.299999952316284
+      },
+      "rendererErrorCount": 0,
+      "blockedExternalRequestCount": 6
+    }
+  },
+  "findings": [
+    "Large external tile JSON trees synchronously constructed thousands of Cesium tiles, with tasks up to 2455 ms in the initial run.",
+    "Local external fragments keep source geometry and world transforms; the latest run used about 31 MB of local header blobs and reported a maximum individual construction slice of 21.3 ms. The two-millisecond budget is cooperative, not a hard deadline.",
+    "The bridge search performed a horizon terrain pick every two seconds even during flight. At the requested 75 km/h that is 41.7 metres. Navigation now uses camera coordinates; the latest two runs recorded zero such picks.",
+    "Preparing the shared glTF BRDF lookup before activation removed its 1532.9 ms in-flight shader-status wait observed in the preceding run.",
+    "The latest run still includes first-use model-material compilation and other long tasks, up to 648 ms. This change does not establish hitch-free flight on every device or for every new material."
+  ],
+  "correctnessChecks": {
+    "javascriptTestsPassed": 609,
+    "realCesiumHeaderEquivalence": "Exact source content resource URLs, effective world matrices, bounding sphere centres/radii and refinement/error values before and after expansion",
+    "headerLifecycle": "Owned-layer hooks, multi-owner disposal, cancellation, blob/version query handling, wide/deep/multiple-content trees and embedded data URIs",
+    "savedSpots": "Actual Cesium browser renderer with synthetic 1000 m terrain and a real GLB tileset at 1007 m, restored spot data and both loading orders; the generic ground control rises seven metres while the production spot remains at terrain height",
+    "flightBrowserRegression": "Passed with actual Cesium synthetic terrain: graphics profiles, input/focus, GPS/Angle/Acro camera and physics, reset/exit, contact checks and camera culling during rapid rolls",
+    "syntheticSchedulingChecks": "Passed: 18000 bridge-source features and 10000 stable scene frames",
+    "bundledRuntime": "Cesium 1.145.0: 395 file hashes and Flutter asset paths verified"
+  },
+  "limitations": [
+    "One diagnostic run per implementation stage, not five matched repetitions or a causal FPS comparison.",
+    "Changed network arrival order, scene content, travelled distance, thermal conditions and driver cache state can change timings.",
+    "75 km/h is the requested speed, not continuously achieved speed: contacts, acceleration and pause-safe elapsed-time handling shorten the travelled distance.",
+    "Cesium postRender intervals do not measure displayed frames or GPU presentation time; the CPU interval starts at preUpdate and excludes earlier work.",
+    "The periodic bridge focus is exercised, but API3 and Overpass discovery requests were blocked by the allowlist; this is not a complete bridge-source workload measurement.",
+    "No native Windows WebView2, physical Android, thermal endurance, process peak-memory or GPU-memory measurement is asserted."
+  ]
+}

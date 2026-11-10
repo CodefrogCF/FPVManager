@@ -127,6 +127,34 @@ test('terrain failure removes existing supports and camera updates remain thrott
     assert.equal(p.primitives.length,0);p.manager.dispose();
 });
 
+test('two-second bridge refreshes follow the aircraft without horizon picks, while map inspection retains its visible target',async()=>{
+    let navigating=true,picks=0,rays=0;const centers=[];
+    const p=fixture({cachedOnly:true,isNavigationActive:()=>navigating,
+        discoverBridges:async center=>{centers.push({...center});return {bridges:[],piers:[]};}});
+    p.C.Cartesian2=class{constructor(x,y){Object.assign(this,{x,y});}};
+    const target={longitude:8.45*Math.PI/180,latitude:46.85*Math.PI/180};
+    p.C.Cartographic.fromCartesian=()=>target;
+    p.viewer.scene.canvas={clientWidth:800,clientHeight:600};
+    p.viewer.camera.getPickRay=()=>{rays++;return {};};
+    p.viewer.scene.globe.pick=()=>{picks++;return {};};
+    p.manager.setEnabled(true);
+    try{
+        for(let i=0;i<6;i++){
+            const latitude=ORIGIN.latitude+i*40/111320;
+            p.viewer.camera.positionCartographic.latitude=latitude*Math.PI/180;
+            p.setClock(10000+i*2100);await p.manager.refresh();
+            assert.ok(Math.abs(centers.at(-1).latitude-latitude)<1e-10);
+        }
+        assert.equal(rays,0);assert.equal(picks,0);
+        p.viewer.camera.positionCartographic.latitude=NaN;
+        const count=centers.length;await p.manager.refresh();assert.equal(centers.length,count);
+        assert.equal(rays,0,'Missing navigation coordinates must not trigger a horizon ray');
+        navigating=false;await p.manager.refresh();
+        assert.equal(rays,1);assert.equal(picks,1);
+        assert.ok(Math.abs(centers.at(-1).latitude-46.85)<1e-10);
+    }finally{p.manager.dispose();}
+});
+
 test('overlapping refreshes share their request and a failed primary uses the bounded backup',async()=>{
     let requests=0,release;
     const p=fixture({fetcher:async()=>{requests++;if(requests===1)throw Error('primary unavailable');

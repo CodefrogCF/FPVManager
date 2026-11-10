@@ -133,6 +133,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply((ROOT / 'test/web/wind_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/map-controls-smoke':
             self.reply((ROOT / 'test/web/map_controls_smoke.html').read_bytes(), 'text/html; charset=utf-8')
+        elif path == '/saved-spots-smoke':
+            self.reply((ROOT / 'test/web/saved_spots_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/labels-smoke':
             self.reply((ROOT / 'test/web/map_labels_smoke.html').read_bytes(), 'text/html; charset=utf-8')
         elif path == '/map-labels-fixture.js':

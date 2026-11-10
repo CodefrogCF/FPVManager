@@ -2,6 +2,14 @@
 
 ## 2026-11-10
 
+- Anchored saved-place markers and labels to terrain instead of roofs, trees
+  or bridge decks, including restored places after restarting the renderer.
+- Removed the bridge search's recurring horizon terrain pick during flight
+  and ground navigation; discovery now follows the current aircraft position.
+- Spread large explicit 3D tileset header construction over small local
+  subtilesets while preserving source geometry, materials and LOD settings.
+- Prepared the shared 3D material-lighting lookup before flight activation
+  when a 3D layer is enabled, instead of waiting for its first streamed model.
 - Moved common terrain shader preparation before flight activation, with
   progress, cancellation and reuse on repeat flights, to reduce first-use
   graphics-driver pauses without reducing the selected image quality.

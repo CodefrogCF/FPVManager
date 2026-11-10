@@ -19,6 +19,12 @@ device FPS, GPU memory, cold-start latency or network performance.
   stalls briefly ease terrain refinement; normal detail returns in small steps
   after the view settles. Resolution and collision checks remain unchanged.
   These budgets do not promise a particular device frame rate.
+- Large explicit 3D tileset header trees are partitioned into local external
+  subtilesets with up to 64 headers each. Preparation yields after about 2 ms;
+  construction drains in small batches between frames. Geometry payloads,
+  transforms, materials, source credits and configured LOD thresholds are
+  retained. Local header blobs are capped at 64 MiB per tileset and released
+  with their owning layer. Implicit or unsupported trees use ordinary loading.
 - Before activating flight controls, the renderer prepares common terrain
   shader variants for imagery, fog, quantization and underground views. This
   avoids first-use driver compilation during low flight and turns. Preparation
@@ -26,6 +32,8 @@ device FPS, GPU memory, cold-start latency or network performance.
   later flights. The existing pending indicator remains available; first entry
   can take several seconds. Parallel compilation is used when the driver offers
   it. New materials or uncommon variants can still require normal compilation.
+  When a 3D layer is enabled, its shared material-lighting lookup is also
+  initialized before controls activate; later flights reuse the same texture.
 - Terrain collision rays only visit rendered tiles within the current movement
   segment. Height and contact queries reuse exact decoded terrain vertices and
   binary bounds instead of repeatedly decoding full meshes. The additional
@@ -42,6 +50,9 @@ device FPS, GPU memory, cold-start latency or network performance.
 - Native bridge discovery and resident deck checks permit one depth probe per
   rendered opportunity; already confirmed native profiles avoid duplicate picks.
   Unchanged pier geometry retains its existing primitive.
+  Its periodic source search follows the aircraft/ground camera coordinates
+  during navigation, avoiding an unbounded screen-centre terrain ray every
+  two seconds. Normal map browsing retains visible-ground targeting.
 - The optional approximate model-height collision probe is deferred until after
   the visible frame and uses a short-lived, nearby result. Exact synthetic tunnel
   collision stays independent. Flight gaps above 75 ms discard excess elapsed
@@ -154,3 +165,8 @@ public-test-point measurements on Windows/Chrome with an Intel UHD GPU and the
 85% profile. They distinguish driver preparation, CPU collision work, main-thread
 tasks and Cesium `postRender` intervals. These are individual desktop observations,
 not an Android FPS result or proof that every future frame will meet a deadline.
+
+[The additional 2026-11-10 streaming observations](performance/scene_streaming_2026-11-10.json)
+cover terrain plus the three official 3D layers in Quality mode. They isolate
+large header construction and the recurring bridge-search terrain pick, and
+retain cold graphics-driver pauses and other remaining limits in the report.

@@ -62,6 +62,7 @@ Open these paths at `http://127.0.0.1:8765`:
 |---|---|
 | `/smoke` | Offline WebGL, geometry worker, bridge, overlays and iframe reload |
 | `/smoke?spots=10000` | Marker-limit and large-transfer scenarios |
+| `/saved-spots-smoke` | Restored spots stay on terrain with a 3D surface seven metres above it, in both loading orders |
 | `/terrain-smoke` | Synthetic terrain with HTTP failure/delay and recovery cases |
 | `/interaction-smoke` | Ground camera and waypoint interaction with synthetic terrain |
 | `/flight-smoke` | Flight spawn/HUD, terrain contact, shared touch/gamepad input fixtures, reset and exit |

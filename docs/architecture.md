@@ -26,6 +26,12 @@ WebView2 on Windows. `GlobeController`
 validates events and publishes coherent state; commands require acknowledgement.
 See [bridge protocol](globe_bridge.md) and [renderer assets](cesium_assets.md).
 
+`web/scene_tile_loading.js` wraps only the external header loading of owned
+scene tilesets. Large explicit trees become small local external subtilesets;
+source content URLs, transforms, materials and LOD thresholds stay intact.
+Preparation and construction yield between tasks, local header blobs have a
+per-tileset memory cap, and destruction releases blobs and shared hooks.
+
 Raw points, saved spots and UAS zones are mutually exclusive selections. Closing
 a panel does not restore an earlier selection. Raw-point terrain actions and
 Add Spot defaults read only the current raw point.
@@ -56,6 +62,8 @@ and photo edits commit together. Drone deletion preserves flight plans with a
 null assignment; plan deletion cascades to waypoints. Battery type deletion
 clears template links while preserving packs. Association deletion preserves
 the equipment and other linked records.
+Saved marker positions and labels clamp to terrain explicitly, excluding native
+3D roofs, vegetation and decks. No saved altitude or schema migration is needed.
 
 `FlightPlanRepository.saveRoute` saves metadata, ordered points, battery assignments
 and versioned planning assumptions atomically.

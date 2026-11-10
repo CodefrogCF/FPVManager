@@ -111,6 +111,7 @@ flutter:
     - web/flight_hud.css
     - web/flight_rendering.js
     - web/scene_environment.js
+    - web/scene_tile_loading.js
     - web/bridge_supports.js
     - web/bridge_source.js
     - web/tunnel_offline_index.js

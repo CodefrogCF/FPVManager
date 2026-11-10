@@ -40,6 +40,22 @@ function fixture(loader,options={}){
     const set=(options={})=>manager.set({buildings:false,vegetation:false,lighting:false,...options});
     return {manager,set,C,viewer,requests,states,primitives,credits,timers,tile};
 }
+test('flight preparation primes shared model lighting only for requested 3D layers and reuses its texture',()=>{
+    const f=fixture();let updates=0;
+    const generator={colorTexture:undefined,update(state){
+        assert.equal(state,f.viewer.scene.frameState);updates++;this.colorTexture={resident:true};
+    }};
+    f.viewer.scene.frameState={brdfLutGenerator:generator};
+    f.manager.prepareGraphics();assert.equal(updates,0);
+    f.set({structures:true});f.manager.prepareGraphics();assert.equal(updates,1);
+    f.manager.prepareGraphics();assert.equal(updates,1,'A later flight retains the context-owned lookup');
+    generator.colorTexture=undefined;
+    generator.update=()=>{throw Error('unsupported lookup generator');};
+    assert.doesNotThrow(()=>f.manager.prepareGraphics(),'Optional preparation must retain ordinary model loading');
+    f.manager.dispose();generator.update=()=>{updates++;};
+    f.manager.prepareGraphics();assert.equal(updates,1);
+});
+
 test('3D sources are opt-in and toggling retains loaded tiles without new imports or credits',async()=>{
     const p=fixture();p.set();await flush();assert.equal(p.requests.length,0);
     p.set({buildings:true});p.set({buildings:true});await flush();

@@ -61,6 +61,8 @@ Save is required. Search/filtering affects the library, not the complete map
 marker set. More summaries load while scrolling. Photo imports accept up to six
 JPEG/PNG/WebP stills per place, each up to 12 MiB and 16 megapixels; stored copies
 are resized and omit source EXIF/GPS metadata. Originals remain unchanged.
+Map markers and labels follow terrain, including after a restart; buildings,
+tree crowns and bridge decks do not raise them. Existing places need no re-save.
 
 **Ausrüstung** groups **Drohnen**, **Akkus** and **Funk & Video**. Unknown values
 stay empty; measured/estimated provenance belongs to the number entered. Battery
@@ -145,8 +147,8 @@ Compatibility graphics can change during flight without respawning.
 
 **Flug zurücksetzen**, R or controller A returns to spawn; Escape, controller B
 or the exit button returns to the map. HUD AGL is local clearance above terrain;
-**H START** is height above the spawn ground and **D HOME** is horizontal distance
-home. Unknown heights remain unknown.
+**H START** is height above the spawn ground and **D HOME** is horizontal
+straight-line distance home.
 
 Synthetic tunnels use their lining, floor and roof for geometric contact.
 Optional experimental native-model collision approximates nearby loaded top

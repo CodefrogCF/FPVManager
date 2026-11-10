@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Saved spot terrain anchoring</title>
+<style>body{margin:0;background:#101820;color:white;font:14px system-ui}h1{margin:12px;font-size:18px}iframe{width:100%;height:65vh;border:0}pre{padding:12px;white-space:pre-wrap}</style>
+<h1 id="status">Checking saved spots after restart…</h1><iframe id="map" title="Actual Cesium terrain and 3D surface"></iframe><pre id="log"></pre>
+<script>
+'use strict';
+const frame=document.getElementById('map'),pending=new Map(),errors=[];
+let session=null,ready=false,next=0;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const check=(value,message)=>{if(!value)throw Error(message);document.getElementById('log').textContent+='PASS: '+message+'\n';};
+async function until(predicate,message){const end=performance.now()+25000;while(!predicate()){
+  if(errors.length)throw Error(errors.join('; '));if(performance.now()>end)throw Error(message+' timeout');await pause(50);}}
+window.addEventListener('message',event=>{
+  if(event.source!==frame.contentWindow||event.origin!==location.origin)return;
+  let value;try{value=JSON.parse(event.data);}catch{return;}
+  if(value.type==='globe-ready')session=value.sessionId;
+  if(value.type==='terrain-status')ready=value.state==='ready';
+  if(value.type==='globe-error')errors.push(value.message);
+  if(value.type==='command-result'){const p=pending.get(value.requestId);if(p){pending.delete(value.requestId);
+    clearTimeout(p.timer);value.ok?p.resolve(value.result):p.reject(Error(value.error));}}
+});
+function command(type,fields={}){return new Promise((resolve,reject)=>{
+  const requestId=String(++next),timer=setTimeout(()=>reject(Error(type+' timeout')),25000);
+  pending.set(requestId,{resolve,reject,timer});
+  frame.contentWindow.postMessage(JSON.stringify({version:1,sessionId:session,requestId,type,...fields}),location.origin);
+});}
+function dataUri(mime,bytes){let text='';for(const byte of bytes)text+=String.fromCharCode(byte);return `data:${mime};base64,`+btoa(text);}
+async function roof(C,v){
+  const positions=new Float32Array([-20,-20,0,20,-20,0,20,20,0,-20,20,0]),indices=new Uint16Array([0,1,2,0,2,3]);
+  const bytes=new Uint8Array(positions.byteLength+indices.byteLength);
+  bytes.set(new Uint8Array(positions.buffer));bytes.set(new Uint8Array(indices.buffer),positions.byteLength);
+  const gltf={asset:{version:'2.0'},extensionsUsed:['KHR_materials_unlit'],scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],
+    buffers:[{uri:dataUri('application/octet-stream',bytes),byteLength:bytes.length}],
+    bufferViews:[{buffer:0,byteOffset:0,byteLength:positions.byteLength},{buffer:0,byteOffset:positions.byteLength,byteLength:indices.byteLength}],
+    accessors:[{bufferView:0,componentType:5126,count:4,type:'VEC3',min:[-20,-20,0],max:[20,20,0]},
+      {bufferView:1,componentType:5123,count:6,type:'SCALAR'}],
+    meshes:[{primitives:[{attributes:{POSITION:0},indices:1,material:0}]}],
+    materials:[{doubleSided:true,pbrMetallicRoughness:{baseColorFactor:[.4,.8,.4,1]},extensions:{KHR_materials_unlit:{}}}]};
+  const transform=C.Matrix4.pack(C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(8.4,46.7,1007)),[]);
+  const gltfJson=new TextEncoder().encode(JSON.stringify(gltf)),padded=Math.ceil(gltfJson.length/4)*4;
+  const glb=new Uint8Array(20+padded),header=new DataView(glb.buffer);
+  header.setUint32(0,0x46546c67,true);header.setUint32(4,2,true);header.setUint32(8,glb.length,true);
+  header.setUint32(12,padded,true);header.setUint32(16,0x4e4f534a,true);glb.fill(32,20);glb.set(gltfJson,20);
+  const json={asset:{version:'1.1',gltfUpAxis:'Z'},geometricError:100,root:{transform,
+    boundingVolume:{box:[0,0,0,20,0,0,0,20,0,0,0,1]},geometricError:0,
+    content:{uri:dataUri('model/gltf-binary',glb)}}};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(json)],{type:'application/json'}));
+  const tileset=await C.Cesium3DTileset.fromUrl(url,{maximumScreenSpaceError:1,cullRequestsWhileMoving:false,enableCollision:true});
+  window.roofDebug={tileset,viewer:v};
+  tileset.tileFailed.addEventListener(error=>errors.push(error.message));
+  v.scene.primitives.add(tileset);await until(()=>tileset.root.contentReady&&tileset._selectedTiles.length,'3D roof');URL.revokeObjectURL(url);
+  return tileset;
+}
+(async()=>{
+  const key='fpv-test-saved-spot';localStorage.setItem(key,JSON.stringify([{id:91,name:'Restarted spot',latitude:46.7,longitude:8.4}]));
+  for(let generation=0;generation<2;generation++){
+    session=null;ready=false;frame.src='/terrain-globe.html?spot-test='+generation;
+    await until(()=>session&&ready,'fresh renderer');
+    const win=frame.contentWindow,C=win.Cesium,v=win.fixtureViewer;
+    v.scene.renderError.addEventListener((_,error)=>errors.push(String(error)));
+    v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.699,1100),orientation:{heading:0,pitch:-.8,roll:0}});
+    await until(()=>Math.abs(v.scene.globe.getHeight(C.Cartographic.fromDegrees(8.4,46.7))-1000)<.1,'terrain height');
+    if(generation)await roof(C,v);
+    const spots=JSON.parse(localStorage.getItem(key));await command('set-spot-markers',{revision:1,spots});
+    const source=v.dataSources.getByName('FPVManager Saved Spots')[0],spot=source.entities.getById('fpv-spot-91');
+    const control=source.entities.add({id:'generic-ground-control',position:C.Cartesian3.fromDegrees(8.40001,46.7,0),
+      point:{pixelSize:9,color:C.Color.RED,heightReference:C.HeightReference.CLAMP_TO_GROUND}});
+    const visualizer=source._visualizers.find(value=>value instanceof C.PointVisualizer),sphere=new C.BoundingSphere();
+    const height=entity=>visualizer.getBoundingSphere(entity,sphere)===0?C.Cartographic.fromCartesian(sphere.center).height:NaN;
+    if(!generation)await roof(C,v);
+    await until(()=>Math.abs(height(control)-1007)<.1,'control attaches to 3D surface');
+    check(Math.abs(height(control)-1007)<.1,'Control reproduces generic ground clamping seven metres above terrain');
+    await until(()=>Math.abs(height(spot)-1000)<.1,'saved spot attaches to terrain');
+    check(Math.abs(height(spot)-1000)<.1,generation?'Restored spot stays on terrain when 3D geometry loads first':'Existing spot stays on terrain when 3D geometry arrives later');
+    check(spot.label.heightReference.getValue(v.clock.currentTime)===C.HeightReference.CLAMP_TO_TERRAIN,'Spot label uses the same terrain reference');
+    await command('set-spot-markers',{revision:2,spots});
+    await until(()=>Math.abs(height(spot)-1000)<.1,'spot refresh');
+    check(Math.abs(height(spot)-1000)<.1,'Refreshing persisted spot data retains terrain anchoring');
+  }
+  localStorage.removeItem(key);check(!errors.length,'No renderer errors');
+  document.getElementById('status').textContent='PASS — saved spots retain terrain height across restart and 3D loading order';
+})().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;
+  const t=window.roofDebug?.tileset,v=window.roofDebug?.viewer;
+  document.getElementById('log').textContent+=error.stack+'\n'+JSON.stringify(t&&{state:t.root._contentState,selected:t._selectedTiles.length,
+    sphere:t.boundingSphere,transform:t.root.computedTransform,position:v.camera.positionCartographic,errors});});
+</script></html>

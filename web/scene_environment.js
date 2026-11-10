@@ -1,8 +1,9 @@
 (function(root,factory){
-    const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders);
+    const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders,
+        typeof module==='object'&&module.exports?require('./scene_tile_loading.js'):root.FPVSceneTileLoading);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVSceneEnvironment=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(Credits){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits,SceneTileLoading){
     'use strict';
     const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const sources=Object.freeze({
@@ -52,6 +53,7 @@
         cachedOnly=false,isOnline=()=>globalThis.navigator?.onLine!==false,bridgeSupports=null,
         getTunnelApertures=()=>[],getTunnelApertureRevision=null,now=()=>Date.now()}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
+        const tileLoader=SceneTileLoading?.create(C)??{load:(url,options)=>C.Cesium3DTileset.fromUrl(url,options),dispose(){}};
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
             light:scene.light,lighting:scene.globe.enableLighting,atmosphere:scene.globe.dynamicAtmosphereLightingFromSun,
             lightingIn:scene.globe.lightingFadeInDistance,lightingOut:scene.globe.lightingFadeOutDistance,
@@ -237,7 +239,7 @@
             const timer=l.timer=setTimer(()=>{
                 if(!current())return;timedOut=true;l.revision++;l.pending=null;l.phase='failed';publish(key);
             },timeoutMs);
-            l.pending=Promise.resolve().then(()=>C.Cesium3DTileset.fromUrl(urls[key]??sources[key],options(key))).then(tileset=>{
+            l.pending=Promise.resolve().then(()=>tileLoader.load(urls[key]??sources[key],options(key))).then(tileset=>{
                 if(!current()||timedOut){if(!tileset.isDestroyed())tileset.destroy();return;}
                 l.tileset=tileset;applyBudget(key);scene.primitives.add(tileset);if(key==='structures')applyStructureStyle();if(key==='buildings')applyBuildingDetail();visibility(key);
                 if(key==='structures')applyModelShader(key);
@@ -301,6 +303,16 @@
         });
         return {
             hasVisibleModels(){return Object.values(layers).some(l=>l.tileset?.show===true);},
+            prepareGraphics(){
+                if(disposed||!Object.values(layers).some(l=>l.requested))return;
+                // The first glTF material builds Cesium's shared BRDF lookup.
+                // Do that while flight controls are still pending, even when
+                // its model content has not finished streaming yet. This uses
+                // Cesium's ordinary texture/shader and context-owned lifetime.
+                const state=scene.frameState,generator=state?.brdfLutGenerator;
+                if(!generator||generator.colorTexture||typeof generator.update!=='function')return;
+                try{generator.update(state);}catch(_){/* ordinary model update remains the fallback */}
+            },
             set(command){
                 if(disposed)return {};
                 for(const key of ['buildings','vegetation','lighting'])if(typeof command[key]!=='boolean')throw Error('Invalid scene preference');
@@ -391,10 +403,12 @@
                 return {resident,visible,pending,estimatedTilesetBytes};
             },
             structuresTileset(){return layers.structures.tileset;},
+            loadingDiagnostics(){return tileLoader.status?.()??{supported:false};},
             dispose(){
                 if(disposed)return;disposed=true;removeUpdate();
                 bridgeSupports?.dispose?.();
                 for(const l of Object.values(layers))release(l);
+                tileLoader.dispose();
                 if(credited)creditApi.releaseStaticCredit(creditDisplay,credit);
             }
         };
