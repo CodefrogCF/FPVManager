@@ -25,6 +25,12 @@ device FPS, GPU memory, cold-start latency or network performance.
   transforms, materials, source credits and configured LOD thresholds are
   retained. Local header blobs are capped at 64 MiB per tileset and released
   with their owning layer. Implicit or unsupported trees use ordinary loading.
+- Geographic model bounds enclose the full source content and child regions,
+  including overhanging halls. Late external loads update cached ancestor
+  volumes so buildings remain visible at the edge of a wide flight view.
+  Bounds repair also runs when the local-header memory cap prevents splitting.
+  Camera FOV, normal offscreen culling, payloads and graphics settings remain
+  unchanged; no general overscan or extra preload pass is added.
 - Before activating flight controls, the renderer prepares common terrain
   shader variants for imagery, fog, quantization and underground views. This
   avoids first-use driver compilation during low flight and turns. Preparation
@@ -170,3 +176,7 @@ not an Android FPS result or proof that every future frame will meet a deadline.
 cover terrain plus the three official 3D layers in Quality mode. They isolate
 large header construction and the recurring bridge-search terrain pick, and
 retain cold graphics-driver pauses and other remaining limits in the report.
+
+[The building visibility check](performance/building_visibility_2026-11-10.json)
+records the original hall headers and a controlled rendering comparison at
+105 degrees. It verifies visibility correctness rather than device frame rate.

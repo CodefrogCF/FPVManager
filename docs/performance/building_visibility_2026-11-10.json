@@ -1,0 +1,135 @@
+{
+  "recordedOn": "2026-11-10",
+  "kind": "Building-edge visibility regression, not an FPS benchmark",
+  "source": {
+    "provider": "swisstopo swissBUILDINGS3D, copyright swisstopo",
+    "url": "https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/20260520/11/1029/1757.b3dm",
+    "originalRegion": [
+      0.14376106001478595,
+      0.8293753759569198,
+      0.14379968900662826,
+      0.8293922831941433,
+      345.3171000000002,
+      369.8355999998748
+    ],
+    "correctedRegion": [
+      0.1437598771569566,
+      0.8293690718152033,
+      0.1438054013591323,
+      0.8294009300094617,
+      345.3171000000002,
+      369.8355999998748
+    ]
+  },
+  "cause": "The grid-cell tile region is smaller than its own declared content region. Cesium rejects the tile before testing the larger building content volume.",
+  "correction": [
+    "Enclose valid geographic tile regions around their declared content and child regions without changing model geometry.",
+    "Propagate late external root extents through existing ancestor headers and cached Cesium bounding volumes; invalidate the affected visibility cache.",
+    "Retain bounds repair when the local-header memory cap requires unsplit loading.",
+    "Retain source content bounds, transforms, payloads, camera FOV, graphics-profile settings and ordinary offscreen culling."
+  ],
+  "renderingCheck": {
+    "platform": "Windows, actual Cesium 1.145.0 in headless Chrome with D3D11 requested",
+    "point": {
+      "latitude": 47.521022,
+      "longitude": 8.239163,
+      "ellipsoidHeightMeters": 375
+    },
+    "horizontalFovDegrees": 105,
+    "viewport": {
+      "width": 1424,
+      "height": 805
+    },
+    "method": "Load the actual official hall tile first, isolate it from other buildings, then toggle its original/corrected region at identical poses using the flight camera adapter. Terrain, imagery, payload and materials remain the same.",
+    "pairs": [
+      {
+        "headingDegrees": -50,
+        "originalTileSelected": false,
+        "correctedTileSelected": true,
+        "originalTileRegionVisibility": -1,
+        "sourceContentRegionVisibility": 0,
+        "correctedTileRegionVisibility": 0
+      },
+      {
+        "headingDegrees": -30,
+        "originalTileSelected": false,
+        "correctedTileSelected": true,
+        "originalTileRegionVisibility": -1,
+        "sourceContentRegionVisibility": 0,
+        "correctedTileRegionVisibility": 0
+      },
+      {
+        "headingDegrees": -10,
+        "originalTileSelected": false,
+        "correctedTileSelected": true,
+        "originalTileRegionVisibility": -1,
+        "sourceContentRegionVisibility": 0,
+        "correctedTileRegionVisibility": 0
+      },
+      {
+        "headingDegrees": 10,
+        "originalTileSelected": false,
+        "correctedTileSelected": true,
+        "originalTileRegionVisibility": -1,
+        "sourceContentRegionVisibility": 0,
+        "correctedTileRegionVisibility": 0
+      },
+      {
+        "headingDegrees": 30,
+        "originalTileSelected": false,
+        "correctedTileSelected": true,
+        "originalTileRegionVisibility": -1,
+        "sourceContentRegionVisibility": 0,
+        "correctedTileRegionVisibility": 0
+      }
+    ],
+    "visualResult": "Local renderer screenshots inspected: roof/wall fragments visible at the edge and lower foreground reappear with the corrected region.",
+    "rendererErrorCount": 0
+  },
+  "offlineRegressionChecks": {
+    "pinnedCesiumRuntime": "1.145.0",
+    "unitFile": "test/js/scene_building_bounds.test.cjs",
+    "horizontalFovDegrees": [
+      90,
+      105,
+      120
+    ],
+    "aspectRatios": [
+      "16:9",
+      "9:16"
+    ],
+    "pitchDegrees": [
+      -20,
+      0,
+      10
+    ],
+    "ellipsoidHeightsMeters": [
+      360,
+      375
+    ],
+    "headingDegrees": {
+      "from": -180,
+      "untilExclusive": 180,
+      "step": 2
+    },
+    "poseSamples": 6480,
+    "result": "No content-region intersection is rejected by the corrected tile or parent region in these samples; the original headers reproduce more than 100 premature rejections.",
+    "offscreenControl": "360 upward-looking headings verify that normal offscreen culling remains active.",
+    "otherCoverage": [
+      "Small trees",
+      "Partitioned wide trees",
+      "Late external ancestors through an unchanged intermediate tile",
+      "Cached volumes without transform changes",
+      "Source header immutability",
+      "Unchanged content bounds and payload URLs",
+      "One-byte test header budget exercising the memory fallback"
+    ]
+  },
+  "limits": [
+    "One original-model location and five paired rendering views; this is not an exhaustive dataset-wide visual check.",
+    "The rendering comparison preceded the final memory-fallback addition, which is covered separately by the offline regression test; the rendering run remained below the default header budget.",
+    "Repair uses valid non-wrapping geographic region bounds. Unsupported box, sphere, implicit, invalid and wrapping volumes retain their existing handling.",
+    "No physical Android or native Windows WebView2 frame-rate or memory claim is made.",
+    "Original imagery, building payloads and local screenshots are not included in the code archive."
+  ]
+}

@@ -2,6 +2,9 @@
 
 ## 2026-11-10
 
+- Fixed premature disappearance of large buildings at the edge of the flight
+  view. Geographic culling bounds now enclose overhanging source content and
+  propagate through loaded parent tiles, including the header-memory fallback.
 - Anchored saved-place markers and labels to terrain instead of roofs, trees
   or bridge decks, including restored places after restarting the renderer.
 - Removed the bridge search's recurring horizon terrain pick during flight

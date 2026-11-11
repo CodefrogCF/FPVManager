@@ -31,6 +31,10 @@ scene tilesets. Large explicit trees become small local external subtilesets;
 source content URLs, transforms, materials and LOD thresholds stay intact.
 Preparation and construction yield between tasks, local header blobs have a
 per-tileset memory cap, and destruction releases blobs and shared hooks.
+Geographic tile regions also enclose their declared content and child regions.
+Some provider grid cells are smaller than a hall crossing the cell boundary;
+late external headers therefore enlarge cached ancestor volumes too. This
+repairs premature visibility rejection while retaining normal frustum culling.
 
 Raw points, saved spots and UAS zones are mutually exclusive selections. Closing
 a panel does not restore an earlier selection. Raw-point terrain actions and
