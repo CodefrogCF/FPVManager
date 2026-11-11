@@ -51,17 +51,20 @@ test('flight loads retain all requested tunnels while admitting one full mesh pe
 });
 
 test('default flight scheduler waits through a browser render callback before building the next tunnel',async()=>{
-    const originalRAF=globalThis.requestAnimationFrame,originalCancel=globalThis.cancelAnimationFrame,callbacks=[];
-    globalThis.requestAnimationFrame=callback=>{callbacks.push(callback);return callbacks.length;};
+    const originalRAF=globalThis.requestAnimationFrame,originalCancel=globalThis.cancelAnimationFrame;
+    const frameRequested=new Promise(resolve=>{
+        globalThis.requestAnimationFrame=callback=>{resolve(callback);return 1;};
+    });
     globalThis.cancelAnimationFrame=()=>{};
-    const f=fixture();let done=false;
+    const f=fixture();
     try{
-        const pending=f.service.setAutomaticRoutes(routes.slice(0,2),pose(0)).then(value=>{done=true;return value;});
-        await flush();
-        assert.equal(f.builds.length,1);assert.equal(done,false);assert.equal(callbacks.length,1);
-        // Merely finishing the terrain Promise cannot consume a second model.
-        // The simulator/browser gets a complete render opportunity first.
-        callbacks.shift()(16);
+        const pending=f.service.setAutomaticRoutes(routes.slice(0,2),pose(0));
+        // Observe the request in a microtask. An event-loop turn can be delayed
+        // long enough for the background WebView fallback timer to run first.
+        const render=await Promise.race([frameRequested,pending.then(()=>null)]);
+        assert.equal(typeof render,'function','The next tunnel must wait for a render request');
+        assert.equal(f.builds.length,1);
+        render(16);
         assert.equal(f.builds.length,1);
         assert.equal((await pending).count,2);assert.equal(f.builds.length,2);
     }finally{f.service.dispose();globalThis.requestAnimationFrame=originalRAF;globalThis.cancelAnimationFrame=originalCancel;}
