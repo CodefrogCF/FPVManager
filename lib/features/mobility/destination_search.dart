@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -141,15 +143,15 @@ class _RoadDestinationSearchState extends State<RoadDestinationSearch> {
           _message = null;
         }),
         onSubmitted: (_) => _submit(),
-        decoration: const InputDecoration(
-          labelText: 'Adresse oder Ort in der Schweiz',
+        decoration: InputDecoration(
+          labelText: context.translate("Adresse oder Ort in der Schweiz"),
           counterText: '',
         ),
       ),
       OutlinedButton.icon(
         onPressed: _busy ? null : _submit,
         icon: const Icon(Icons.search),
-        label: const Text('Ziel suchen'),
+        label: Text(context.translate("Ziel suchen")),
       ),
       const Text(
         'Erst „Ziel suchen“ sendet die Eingabe an geo.admin.ch / swisstopo. © swisstopo',

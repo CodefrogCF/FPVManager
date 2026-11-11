@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -320,8 +322,10 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Shared Mobility (BFE / sharedmobility.ch). Punktuelle REST-Abfrage, ohne automatische Standortüberwachung oder Reservierung.',
+        Text(
+          context.translate(
+            "Shared Mobility (BFE / sharedmobility.ch). Punktuelle REST-Abfrage, ohne automatische Standortüberwachung oder Reservierung.",
+          ),
         ),
         const SizedBox(height: 8),
         FutureBuilder<List<Spot>>(
@@ -331,8 +335,8 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
             initialValue: state.data?.any((s) => s.id == _spotId) == true
                 ? _spotId
                 : null,
-            decoration: const InputDecoration(
-              labelText: 'Gespeicherter Spot (optional)',
+            decoration: InputDecoration(
+              labelText: context.translate("Gespeicherter Spot (optional)"),
             ),
             items: [
               for (final spot in state.data ?? <Spot>[])
@@ -368,7 +372,9 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
                   signed: true,
                   decimal: true,
                 ),
-                decoration: const InputDecoration(labelText: 'Latitude'),
+                decoration: InputDecoration(
+                  labelText: context.translate("Latitude"),
+                ),
                 onChanged: (_) => setState(() {
                   _spotId = null;
                   _result = null;
@@ -385,7 +391,9 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
                   signed: true,
                   decimal: true,
                 ),
-                decoration: const InputDecoration(labelText: 'Longitude'),
+                decoration: InputDecoration(
+                  labelText: context.translate("Longitude"),
+                ),
                 onChanged: (_) => setState(() {
                   _spotId = null;
                   _result = null;
@@ -400,19 +408,21 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
             OutlinedButton.icon(
               onPressed: _working ? null : _deviceLocation,
               icon: const Icon(Icons.my_location),
-              label: const Text('Mein Standort'),
+              label: Text(context.translate("Mein Standort")),
             ),
             OutlinedButton.icon(
               onPressed: _working ? null : _selectedMapPoint,
               icon: const Icon(Icons.map_outlined),
-              label: const Text('Kartenpunkt'),
+              label: Text(context.translate("Kartenpunkt")),
             ),
           ],
         ),
         DropdownButtonFormField<int>(
           key: ValueKey('sharing_radius_$_radius'),
           initialValue: _radius,
-          decoration: const InputDecoration(labelText: 'Suchradius'),
+          decoration: InputDecoration(
+            labelText: context.translate("Suchradius"),
+          ),
           items: [200, 500, 1000, 2000]
               .map(
                 (radius) =>
@@ -430,11 +440,15 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
           contentPadding: EdgeInsets.zero,
           value: _consent,
           onChanged: (value) => setState(() => _consent = value ?? false),
-          title: const Text(
-            'Suchkoordinaten für eine Abfrage an sharedmobility.ch senden',
+          title: Text(
+            context.translate(
+              "Suchkoordinaten für eine Abfrage an sharedmobility.ch senden",
+            ),
           ),
-          subtitle: const Text(
-            'Keine Kontakt-E-Mail nötig: REST-v1-Schnittstelle ohne Login.',
+          subtitle: Text(
+            context.translate(
+              "Keine Kontakt-E-Mail nötig: REST-v1-Schnittstelle ohne Login.",
+            ),
           ),
         ),
         Wrap(
@@ -444,13 +458,13 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
             FilledButton.icon(
               onPressed: _working || !_consent ? null : () => _load(),
               icon: const Icon(Icons.pedal_bike),
-              label: const Text('Sharing-Angebote suchen'),
+              label: Text(context.translate("Sharing-Angebote suchen")),
             ),
             OutlinedButton(
               onPressed: _working || !_consent
                   ? null
                   : () => _load(refresh: true),
-              child: const Text('Aktualisieren'),
+              child: Text(context.translate("Aktualisieren")),
             ),
             OutlinedButton(
               onPressed: _working ? null : () => _load(offline: true),
@@ -461,42 +475,62 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
         if (_working) const LinearProgressIndicator(),
         if (_message != null) Text(_message!),
         if (kIsWeb)
-          const Text(
-            'Web: CORS nicht verifiziert. Bei Browser-Sperre ist ein eigener Proxy erforderlich; keiner eingerichtet.',
+          Text(
+            context.translate(
+              "Web: CORS nicht verifiziert. Bei Browser-Sperre ist ein eigener Proxy erforderlich; keiner eingerichtet.",
+            ),
           ),
         if (result != null) ...[
           const Divider(),
           Text(
-            '${result.offers.length} Einträge · Stand ${result.fetchedUtc.toLocal()} '
-            '· ${result.sourceVersion}${result.fromCache ? ' (Cache)' : ''}',
+            context.translate("{0} Einträge · Stand {1} · {2}{3}", [
+              result.offers.length,
+              result.fetchedUtc.toLocal(),
+              result.sourceVersion,
+              result.fromCache ? ' (Cache)' : '',
+            ]),
             style: Theme.of(context).textTheme.titleSmall,
           ),
           if (result.refreshFailed)
-            const Text(
-              'Aktualisierung fehlgeschlagen: gespeicherte Daten, aktueller Status unbekannt.',
+            Text(
+              context.translate(
+                "Aktualisierung fehlgeschlagen: gespeicherte Daten, aktueller Status unbekannt.",
+              ),
             ),
           if (result.isOld(now))
-            const Text('Standortdaten älter als fünf Minuten; nicht live.'),
+            Text(
+              context.translate(
+                "Standortdaten älter als fünf Minuten; nicht live.",
+              ),
+            ),
           if (result.feedUpdatedUtc == null || result.maxAge == null)
-            const Text(
-              'Veröffentlichungszeit/TTL nicht belegt. Gemeldete Zustände werden angezeigt, aktuelle Verfügbarkeit bleibt unbekannt.',
+            Text(
+              context.translate(
+                "Veröffentlichungszeit/TTL nicht belegt. Gemeldete Zustände werden angezeigt, aktuelle Verfügbarkeit bleibt unbekannt.",
+              ),
             ),
           if (result.truncated)
-            const Text(
-              'Ergebnis begrenzt; kleinere Suchfläche wählen. Keine vollständige Abdeckung.',
+            Text(
+              context.translate(
+                "Ergebnis begrenzt; kleinere Suchfläche wählen. Keine vollständige Abdeckung.",
+              ),
             ),
-          const Text(
-            'Nicht alle Anbieter liefern Daten. Fehlende Treffer bedeuten keine vollständige Abdeckung.',
+          Text(
+            context.translate(
+              "Nicht alle Anbieter liefern Daten. Fehlende Treffer bedeuten keine vollständige Abdeckung.",
+            ),
           ),
           DropdownButtonFormField<String>(
             key: ValueKey('sharing_provider_$_provider'),
             initialValue: _provider,
-            decoration: const InputDecoration(labelText: 'Anbieter'),
+            decoration: InputDecoration(
+              labelText: context.translate("Anbieter"),
+            ),
             isExpanded: true,
             items: [
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: 'all',
-                child: Text('Alle Anbieter'),
+                child: Text(context.translate("Alle Anbieter")),
               ),
               for (final entry in providers.entries)
                 DropdownMenuItem(
@@ -509,11 +543,13 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
           DropdownButtonFormField<String>(
             key: ValueKey('sharing_type_$_type'),
             initialValue: _type,
-            decoration: const InputDecoration(labelText: 'Fahrzeugtyp'),
+            decoration: InputDecoration(
+              labelText: context.translate("Fahrzeugtyp"),
+            ),
             items: [
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: 'all',
-                child: Text('Alle Fahrzeugtypen'),
+                child: Text(context.translate("Alle Fahrzeugtypen")),
               ),
               for (final type in types)
                 DropdownMenuItem(value: type, child: Text(type)),
@@ -522,13 +558,21 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
           ),
           DropdownButtonFormField<String>(
             initialValue: _pickup,
-            decoration: const InputDecoration(labelText: 'Angebotsart'),
-            items: const [
-              DropdownMenuItem(value: 'all', child: Text('Alle Angebote')),
-              DropdownMenuItem(value: 'stationBased', child: Text('Stationen')),
+            decoration: InputDecoration(
+              labelText: context.translate("Angebotsart"),
+            ),
+            items: [
+              DropdownMenuItem(
+                value: 'all',
+                child: Text(context.translate("Alle Angebote")),
+              ),
+              DropdownMenuItem(
+                value: 'stationBased',
+                child: Text(context.translate("Stationen")),
+              ),
               DropdownMenuItem(
                 value: 'freeFloating',
-                child: Text('Free-Floating'),
+                child: Text(context.translate("Free-Floating")),
               ),
             ],
             onChanged: (value) => setState(() => _pickup = value ?? 'all'),
@@ -536,9 +580,11 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
           OutlinedButton.icon(
             onPressed: _working || displayed.isEmpty ? null : _showMap,
             icon: const Icon(Icons.map),
-            label: const Text('Auf 3D-Karte zeigen (max. 120)'),
+            label: Text(context.translate("Auf 3D-Karte zeigen (max. 120)")),
           ),
-          Text('${displayed.length} Treffer nach Filter'),
+          Text(
+            context.translate("{0} Treffer nach Filter", [displayed.length]),
+          ),
           for (final offer in displayed.take(60))
             Card(
               child: Padding(
@@ -560,24 +606,36 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
                     if (offer.vehicleTypes.isNotEmpty)
                       Text(offer.vehicleTypes.join(', ')),
                     if (offer.availableCount != null)
-                      Text('Fahrzeuge laut Anbieter: ${offer.availableCount}'),
+                      Text(
+                        context.translate("Fahrzeuge laut Anbieter: {0}", [
+                          offer.availableCount,
+                        ]),
+                      ),
                     Text(sharedMobilityStatusLabel(result.status(offer, now))),
                     Text(
-                      'Quellenmeldung: ${sharedMobilityStatusLabel(offer.reportedStatus)}',
+                      context.translate("Quellenmeldung: {0}", [
+                        sharedMobilityStatusLabel(offer.reportedStatus),
+                      ]),
                     ),
                     Text(
-                      'Veröffentlicht: ${offer.updatedUtc?.toLocal().toString() ?? result.feedUpdatedUtc?.toLocal().toString() ?? 'unbekannt'}',
+                      context.translate("Veröffentlicht: {0}", [
+                        offer.updatedUtc?.toLocal().toString() ??
+                            result.feedUpdatedUtc?.toLocal().toString() ??
+                            'unbekannt',
+                      ]),
                     ),
                     Text(
-                      'Referenz: ${offer.id}',
+                      context.translate("Referenz: {0}", [offer.id]),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     if (offer.operatorUrl != null)
                       TextButton.icon(
                         onPressed: () => _openOperator(offer.operatorUrl),
                         icon: const Icon(Icons.open_in_new),
-                        label: const Text(
-                          'Anbieter öffnen (keine Reservierung)',
+                        label: Text(
+                          context.translate(
+                            "Anbieter öffnen (keine Reservierung)",
+                          ),
                         ),
                       ),
                   ],
@@ -585,13 +643,17 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
               ),
             ),
           if (displayed.length > 60)
-            const Text(
-              'Liste auf 60 Einträge begrenzt. Filter oder Radius anpassen.',
+            Text(
+              context.translate(
+                "Liste auf 60 Einträge begrenzt. Filter oder Radius anpassen.",
+              ),
             ),
         ],
         const Divider(),
-        const Text(
-          'Quelle: Bundesamt für Energie (BFE), sharedmobility.ch – Standorte und Verfügbarkeit von Shared-Mobility-Angeboten. Daten können verzögert oder unvollständig sein. Keine Buchung oder Reservierung.',
+        Text(
+          context.translate(
+            "Quelle: Bundesamt für Energie (BFE), sharedmobility.ch – Standorte und Verfügbarkeit von Shared-Mobility-Angeboten. Daten können verzögert oder unvollständig sein. Keine Buchung oder Reservierung.",
+          ),
         ),
         TextButton.icon(
           onPressed: () => launchUrl(
@@ -601,7 +663,7 @@ class _SharedMobilitySectionState extends State<SharedMobilitySection> {
             mode: LaunchMode.externalApplication,
           ),
           icon: const Icon(Icons.open_in_new),
-          label: const Text('Quelle und Nutzungsbedingungen'),
+          label: Text(context.translate("Quelle und Nutzungsbedingungen")),
         ),
       ],
     );

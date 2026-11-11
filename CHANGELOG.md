@@ -1,5 +1,13 @@
 # Change summary
 
+## 2026-11-11
+
+- Added a German and English language setting for the app, map controls and
+  flight interface. The choice is saved on the device.
+- Prepared the Sun, Moon and Sun bloom programs during flight preparation.
+  Briefly reduced Cesium's terrain-loading time slice during fast rotations
+  and low, fast climbs or dives.
+
 ## 2026-11-10
 
 - Fixed premature disappearance of large buildings at the edge of the flight

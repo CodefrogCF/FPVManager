@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../spots/data/spot_query.dart';
 
 enum _SpotAction { airspace, photos }
@@ -47,24 +49,24 @@ class SpotMapPreview extends StatelessWidget {
                 ),
               ),
               PopupMenuButton<_SpotAction>(
-                tooltip: 'More spot actions',
+                tooltip: context.translate("More spot actions"),
                 onSelected: (action) => switch (action) {
                   _SpotAction.airspace => onAirspace(),
                   _SpotAction.photos => onPhotos(),
                 },
-                itemBuilder: (_) => const [
+                itemBuilder: (_) => [
                   PopupMenuItem(
                     value: _SpotAction.airspace,
-                    child: Text('Check airspace'),
+                    child: Text(context.translate("Check airspace")),
                   ),
                   PopupMenuItem(
                     value: _SpotAction.photos,
-                    child: Text('Photos'),
+                    child: Text(context.translate("Photos")),
                   ),
                 ],
               ),
               IconButton(
-                tooltip: 'Close spot details',
+                tooltip: context.translate("Close spot details"),
                 onPressed: onClose,
                 icon: const Icon(Icons.close),
               ),
@@ -79,12 +81,12 @@ class SpotMapPreview extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onDetails,
                 icon: const Icon(Icons.info_outline),
-                label: const Text('Details'),
+                label: Text(context.translate("Details")),
               ),
               FilledButton.icon(
                 onPressed: onFocus,
                 icon: const Icon(Icons.navigation),
-                label: const Text('Fly to Spot'),
+                label: Text(context.translate("Fly to Spot")),
               ),
             ],
           ),

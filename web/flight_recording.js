@@ -65,24 +65,31 @@
             return {};
         }
         return {observe,control,status,stop,
-            bind(doc){
+            bind(doc,language){
                 const button=doc.getElementById('record-flight'),pause=doc.getElementById('pause-recording'),
                     review=doc.getElementById('review-recording'),label=doc.getElementById('flight-recording-status');
                 const update=s=>{
                     const running=s.phase==='recording'||s.phase==='paused';
                     const action=running?'stop':s.count?'review':'start';
-                    button.title=action==='start'?'Record simulated flight':action==='stop'?'Stop flight recording':'Review flight recording';
+                    const title=action==='start'?'Record simulated flight':action==='stop'?'Stop flight recording':'Review flight recording';
+                    button.title=language?.translate(title)??title;
                     button.setAttribute('aria-label',button.title);button.setAttribute('aria-pressed',String(running));
                     button.dataset.recording=s.phase;button.textContent=running?'■':s.count?'↗':'●';
-                    pause.hidden=!running;pause.textContent=s.phase==='paused'?'Resume recording':'Pause recording';
-                    review.hidden=!s.count;label.textContent=s.count?`${s.phase==='recording'?'REC':s.phase==='paused'?'Paused':'Recorded'} · ${s.count} samples · temporary`:'';
+                    const pauseLabel=s.phase==='paused'?'Resume recording':'Pause recording';
+                    pause.hidden=!running;pause.textContent=language?.translate(pauseLabel)??pauseLabel;
+                    const phaseLabel=s.phase==='recording'?'REC':s.phase==='paused'?'Paused':'Recorded';
+                    review.hidden=!s.count;
+                    label.textContent=s.count?(language?.translate('{0} · {1} samples · temporary',
+                        language.translate(phaseLabel),s.count)??`${phaseLabel} · ${s.count} samples · temporary`):'';
                 };
                 // Recording while flying must not blur the canvas and brake the simulator.
                 button.addEventListener('pointerdown',event=>event.preventDefault());
                 button.addEventListener('click',()=>{const s=status();emit('flight-recording-action',{action:s.phase==='recording'||s.phase==='paused'?'stop':s.count?'review':'start'});});
                 pause.addEventListener('click',()=>emit('flight-recording-action',{action:phase==='paused'?'resume':'pause'}));
                 review.addEventListener('click',()=>emit('flight-recording-action',{action:'review'}));
-                listeners.add(update);update(status());return ()=>listeners.delete(update);
+                const removeLanguage=language?.onChange(()=>update(status()));
+                listeners.add(update);update(status());
+                return ()=>{removeLanguage?.();listeners.delete(update);};
             }};
     }
     return {create,maxSamples,maxSeconds};

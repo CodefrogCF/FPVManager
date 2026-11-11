@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_localizations.dart';
+
 import '../../../core/models/drone_profile.dart';
 import '../../../core/models/route_planning_settings.dart';
 import '../route_editor_controller.dart';
@@ -165,9 +167,9 @@ class _SettingsState extends State<_Settings> {
         child: Column(
           children: [
             ListTile(
-              title: const Text('Planning assumptions'),
+              title: Text(context.translate("Planning assumptions")),
               trailing: IconButton(
-                tooltip: 'Close',
+                tooltip: context.translate("Close"),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -181,8 +183,10 @@ class _SettingsState extends State<_Settings> {
                   MediaQuery.viewInsetsOf(context).bottom + 20,
                 ),
                 children: [
-                  const Text(
-                    'These values describe a simplified planning model. They do not account for gusts, manoeuvres, battery sag, temperature, battery ageing or unknown obstacles.',
+                  Text(
+                    context.translate(
+                      "These values describe a simplified planning model. They do not account for gusts, manoeuvres, battery sag, temperature, battery ageing or unknown obstacles.",
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _number(
@@ -193,9 +197,11 @@ class _SettingsState extends State<_Settings> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Include steady wind'),
-                    subtitle: const Text(
-                      'Manual assumption, not an automatically verified forecast.',
+                    title: Text(context.translate("Include steady wind")),
+                    subtitle: Text(
+                      context.translate(
+                        "Manual assumption, not an automatically verified forecast.",
+                      ),
                     ),
                     value: _wind,
                     onChanged: (v) => setState(() => _wind = v),
@@ -209,7 +215,7 @@ class _SettingsState extends State<_Settings> {
                   ),
                   const Divider(),
                   Text(
-                    'Level-flight power curve',
+                    context.translate("Level-flight power curve"),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   if (widget.editor.equipment?.drones.any(
@@ -219,8 +225,10 @@ class _SettingsState extends State<_Settings> {
                     TextButton.icon(
                       onPressed: _useDrone,
                       icon: const Icon(Icons.flight),
-                      label: const Text(
-                        'Copy available drone values for review',
+                      label: Text(
+                        context.translate(
+                          "Copy available drone values for review",
+                        ),
                       ),
                     ),
                   _number(
@@ -241,10 +249,12 @@ class _SettingsState extends State<_Settings> {
                   TextFormField(
                     controller: _fields['curve'],
                     maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: 'Airspeed (m/s); power (W)',
+                    decoration: InputDecoration(
+                      labelText: context.translate("Airspeed (m/s); power (W)"),
                       hintText: '0; 150\n10; 180\n20; 300',
-                      helperText: 'One pair per line. Level flight only, without climb power. No extrapolation outside the curve.',
+                      helperText: context.translate(
+                        "One pair per line. Level flight only, without climb power. No extrapolation outside the curve.",
+                      ),
                     ),
                     validator: (_) {
                       try {
@@ -259,8 +269,10 @@ class _SettingsState extends State<_Settings> {
                   TextFormField(
                     controller: _fields['source'],
                     maxLength: 240,
-                    decoration: const InputDecoration(
-                      labelText: 'Curve source / measurement conditions',
+                    decoration: InputDecoration(
+                      labelText: context.translate(
+                        "Curve source / measurement conditions",
+                      ),
                     ),
                     validator: (v) => v!.trim().isEmpty
                         ? 'Describe whether the curve is measured or estimated.'
@@ -272,19 +284,23 @@ class _SettingsState extends State<_Settings> {
                     .01,
                     1,
                   ),
-                  const Text(
-                    'Power is interpolated by airspeed and scaled by (takeoff mass / reference mass)^1.5. Climb adds m·g·height / efficiency. Descent does not recover energy. This assumes multirotor-like behaviour.',
+                  Text(
+                    context.translate(
+                      "Power is interpolated by airspeed and scaled by (takeoff mass / reference mass)^1.5. Climb adds m·g·height / efficiency. Descent does not recover energy. This assumes multirotor-like behaviour.",
+                    ),
                   ),
                   const Divider(),
                   Text(
-                    'Reserve and uncertainty',
+                    context.translate("Reserve and uncertainty"),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Include return to takeoff'),
-                    subtitle: const Text(
-                      'Retrace the planned path, with reverse-direction wind. No return leg is added at takeoff.',
+                    title: Text(context.translate("Include return to takeoff")),
+                    subtitle: Text(
+                      context.translate(
+                        "Retrace the planned path, with reverse-direction wind. No return leg is added at takeoff.",
+                      ),
                     ),
                     value: _return,
                     onChanged: (v) => setState(() => _return = v),
@@ -311,7 +327,9 @@ class _SettingsState extends State<_Settings> {
                     ),
                   FilledButton(
                     onPressed: _apply,
-                    child: const Text('Apply planning assumptions'),
+                    child: Text(
+                      context.translate("Apply planning assumptions"),
+                    ),
                   ),
                 ],
               ),

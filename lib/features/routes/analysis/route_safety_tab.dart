@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,8 +28,10 @@ class RouteSafetyTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Planning checks only. No flight authorisation or guarantee of terrain, obstacle or airspace clearance.',
+        Text(
+          context.translate(
+            "Planning checks only. No flight authorisation or guarantee of terrain, obstacle or airspace clearance.",
+          ),
         ),
         Wrap(
           spacing: 12,
@@ -35,64 +39,89 @@ class RouteSafetyTab extends StatelessWidget {
             FilledButton.icon(
               onPressed: s.loading ? null : () => s.calculate(c.result!),
               icon: const Icon(Icons.fact_check_outlined),
-              label: Text(s.loading ? 'Checking…' : 'Check current route'),
+              label: Text(
+                s.loading
+                    ? context.translate("Checking…")
+                    : context.translate("Check current route"),
+              ),
             ),
             TextButton(
               onPressed: () => showRouteConstraints(context, c.editor),
-              child: const Text('Configure constraints'),
+              child: Text(context.translate("Configure constraints")),
             ),
             if (s.loading)
               TextButton(
                 onPressed: s.cancel,
-                child: const Text('Cancel checks'),
+                child: Text(context.translate("Cancel checks")),
               ),
           ],
         ),
         if (s.loading) const LinearProgressIndicator(),
         if (r != null) ...[
           Text(
-            'Height constraints',
+            context.translate("Height constraints"),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           Text(
-            'Configured legal ceiling: ${settings.legalCeilingAgl ?? "unverified"} m AGL · '
-            'operational ceiling: ${settings.operationalCeilingAgl ?? "not set"} m AGL',
+            context.translate(
+              "Configured legal ceiling: {0} m AGL · operational ceiling: {1} m AGL",
+              [
+                settings.legalCeilingAgl ?? "unverified",
+                settings.operationalCeilingAgl ?? "not set",
+              ],
+            ),
           ),
           if (r.findings.isEmpty)
-            const Text(
-              'No configured limit exceedance detected in the evaluated inputs.',
+            Text(
+              context.translate(
+                "No configured limit exceedance detected in the evaluated inputs.",
+              ),
             ),
           if (r.unknownHeightSamples > 0)
             Text(
-              '${r.unknownHeightSamples} samples have unknown clearance; intermediate height limits remain unassessed.',
+              context.translate(
+                "{0} samples have unknown clearance; intermediate height limits remain unassessed.",
+                [r.unknownHeightSamples],
+              ),
             ),
           for (final f in r.findings)
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.warning_amber),
-              title: Text('Segment ${segments([f.segment])}'),
+              title: Text(
+                context.translate("Segment {0}", [
+                  segments([f.segment]),
+                ]),
+              ),
               subtitle: Text(f.message),
               onTap: () => c.editor.select(c.editor.points[f.segment].key),
             ),
-          const Text(
-            'Terrain checks sample at intervals up to 50 m. Terrain between samples, nearest-surface legal height, '
-            'zone height limits, activation times and exemptions are not automatically verified.',
+          Text(
+            context.translate(
+              "Terrain checks sample at intervals up to 50 m. Terrain between samples, nearest-surface legal height, zone height limits, activation times and exemptions are not automatically verified.",
+            ),
           ),
         ],
         const Divider(),
         Text(
-          'UAS zone intersections',
+          context.translate("UAS zone intersections"),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         if (s.airspaceError != null) Text(s.airspaceError!),
         if (a != null) ...[
           Text(
-            '${a.source.attribution} · ${a.freshness.name} · retrieved ${a.fetchedAtUtc.toIso8601String()}',
+            context.translate("{0} · {1} · retrieved {2}", [
+              a.source.attribution,
+              a.freshness.name,
+              a.fetchedAtUtc.toIso8601String(),
+            ]),
           ),
           for (final limitation in a.limitations) Text(limitation),
           if (a.intersections.isEmpty)
-            const Text(
-              'No horizontal match in the checked dataset. Unrestricted airspace is not established.',
+            Text(
+              context.translate(
+                "No horizontal match in the checked dataset. Unrestricted airspace is not established.",
+              ),
             ),
           for (final hit in a.intersections)
             ListTile(
@@ -100,8 +129,11 @@ class RouteSafetyTab extends StatelessWidget {
               leading: const Icon(Icons.layers_outlined),
               title: Text(hit.zone.name),
               subtitle: Text(
-                '${hit.zone.restriction.category.label}\nSegments ${segments(hit.geometry.segmentIndices)}\n'
-                '${hit.zone.restriction.restrictionMeaning}',
+                context.translate("{0}\nSegments {1}\n{2}", [
+                  hit.zone.restriction.category.label,
+                  segments(hit.geometry.segmentIndices),
+                  hit.zone.restriction.restrictionMeaning,
+                ]),
               ),
               onTap: () => showModalBottomSheet<void>(
                 context: context,
@@ -117,30 +149,44 @@ class RouteSafetyTab extends StatelessWidget {
         ],
         const Divider(),
         Text(
-          'Horizontal obstacle proximity',
+          context.translate("Horizontal obstacle proximity"),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
-          'Buffer ${c.editor.globe.obstacles.bufferMeters} m · selected categories: '
-          '${c.editor.globe.obstacles.categories.map((v) => v.name).join(", ")}',
+          context.translate("Buffer {0} m · selected categories: {1}", [
+            c.editor.globe.obstacles.bufferMeters,
+            c.editor.globe.obstacles.categories.map((v) => v.name).join(", "),
+          ]),
         ),
         if (s.obstacleError != null) Text(s.obstacleError!),
         if (p != null) ...[
           Text(
-            'BAZL / FOCA · ${s.obstacleStatus} · published ${s.snapshot?.sourceUpdated?.toIso8601String() ?? "unknown"} · '
-            'retrieved ${s.snapshot?.fetchedAt.toIso8601String()}',
+            context.translate(
+              "BAZL / FOCA · {0} · published {1} · retrieved {2}",
+              [
+                s.obstacleStatus,
+                s.snapshot?.sourceUpdated?.toIso8601String() ?? "unknown",
+                s.snapshot?.fetchedAt.toIso8601String(),
+              ],
+            ),
           ),
           if (p.incomplete)
-            const Text(
-              'Incomplete check: geometry, candidate or calculation limits were reached. Some obstacles were not evaluated.',
+            Text(
+              context.translate(
+                "Incomplete check: geometry, candidate or calculation limits were reached. Some obstacles were not evaluated.",
+              ),
             ),
           Text(
-            'Published coverage is incomplete. ${s.snapshot?.skipped ?? 0} unsupported source records. '
-            'Missing objects and cables may exist; category filters exclude other objects.',
+            context.translate(
+              "Published coverage is incomplete. {0} unsupported source records. Missing objects and cables may exist; category filters exclude other objects.",
+              [s.snapshot?.skipped ?? 0],
+            ),
           ),
           if (p.hits.isEmpty)
-            const Text(
-              'No proximity detected in the evaluated data. This does not establish an obstacle-free route.',
+            Text(
+              context.translate(
+                "No proximity detected in the evaluated data. This does not establish an obstacle-free route.",
+              ),
             ),
           for (final hit in p.hits)
             ListTile(
@@ -148,9 +194,20 @@ class RouteSafetyTab extends StatelessWidget {
               leading: const Icon(Icons.warning_amber_outlined),
               title: Text(hit.obstacle.name),
               subtitle: Text(
-                'Segment ${segments([hit.segment])} · ${hit.horizontalMeters.toStringAsFixed(1)} m horizontal\n'
-                '${hit.spatialMeters == null ? "3D separation unknown (missing/incompatible heights)" : "3D separation at closest horizontal approach: ${hit.spatialMeters!.toStringAsFixed(1)} m (source elevations)"}\n'
-                'Source ID: ${hit.obstacle.id}${hit.obstacle.approximate ? " · straight/interpolated cable geometry is approximate" : ""}',
+                context.translate(
+                  "Segment {0} · {1} m horizontal\n{2}\nSource ID: {3}{4}",
+                  [
+                    segments([hit.segment]),
+                    hit.horizontalMeters.toStringAsFixed(1),
+                    hit.spatialMeters == null
+                        ? "3D separation unknown (missing/incompatible heights)"
+                        : "3D separation at closest horizontal approach: ${hit.spatialMeters!.toStringAsFixed(1)} m (source elevations)",
+                    hit.obstacle.id,
+                    hit.obstacle.approximate
+                        ? " · straight/interpolated cable geometry is approximate"
+                        : "",
+                  ],
+                ),
               ),
               onTap: () => showModalBottomSheet<void>(
                 context: context,
@@ -162,23 +219,28 @@ class RouteSafetyTab extends StatelessWidget {
                 ),
               ),
             ),
-          const Text(
-            'Approximate metric distances use the Swiss LV95 projection. 3D values use original source elevations '
-            'converted to the terrain ellipsoid reference, not adjusted display geometry. The 30 m AGL preview is never a checked altitude.',
+          Text(
+            context.translate(
+              "Approximate metric distances use the Swiss LV95 projection. 3D values use original source elevations converted to the terrain ellipsoid reference, not adjusted display geometry. The 30 m AGL preview is never a checked altitude.",
+            ),
           ),
         ],
         const Divider(),
         Text(
-          '3D Infrastructure Clearance (advisory)',
+          context.translate("3D Infrastructure Clearance (advisory)"),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text(
-            'Assess modeled bridges, supports and tunnel walls',
+          title: Text(
+            context.translate(
+              "Assess modeled bridges, supports and tunnel walls",
+            ),
           ),
-          subtitle: const Text(
-            'Opt-in. Only available local surface geometry is inspected; 3D Tiles alone do not prove clearance.',
+          subtitle: Text(
+            context.translate(
+              "Opt-in. Only available local surface geometry is inspected; 3D Tiles alone do not prove clearance.",
+            ),
           ),
           value: s.infrastructureEnabled,
           onChanged: s.loading ? null : s.setInfrastructureEnabled,
@@ -188,7 +250,7 @@ class RouteSafetyTab extends StatelessWidget {
             spacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Text('Approximate drone radius'),
+              Text(context.translate("Approximate drone radius")),
               DropdownButton<double>(
                 value: s.droneRadiusMeters,
                 items: const [0.15, 0.25, 0.5, 1.0, 2.0]
@@ -204,15 +266,19 @@ class RouteSafetyTab extends StatelessWidget {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Show 3D Infrastructure Clearance findings on map',
+            title: Text(
+              context.translate(
+                "Show 3D Infrastructure Clearance findings on map",
+              ),
             ),
             value: s.infrastructureLayerVisible,
             onChanged: s.setInfrastructureLayerVisible,
           ),
           OutlinedButton.icon(
             icon: const Icon(Icons.upload_file),
-            label: const Text('Import local bridge/support geometry (JSON)'),
+            label: Text(
+              context.translate("Import local bridge/support geometry (JSON)"),
+            ),
             onPressed: s.loading
                 ? null
                 : () async {
@@ -240,9 +306,11 @@ class RouteSafetyTab extends StatelessWidget {
                       await c.editor.globe.importInfrastructureGeometry(value);
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
-                            'Local geometry loaded. Re-run Check current route. Source claims remain unverified.',
+                            context.translate(
+                              "Local geometry loaded. Re-run Check current route. Source claims remain unverified.",
+                            ),
                           ),
                         ),
                       );
@@ -250,28 +318,43 @@ class RouteSafetyTab extends StatelessWidget {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Infrastructure import failed: $e'),
+                          content: Text(
+                            context.translate(
+                              "Infrastructure import failed: {0}",
+                              [e],
+                            ),
+                          ),
                         ),
                       );
                     }
                   },
           ),
           Text(
-            'Local bridge/support surfaces: ${c.editor.globe.infrastructureSurfaceCount}. Imported dimensions are not independently verified.',
+            context.translate(
+              "Local bridge/support surfaces: {0}. Imported dimensions are not independently verified.",
+              [c.editor.globe.infrastructureSurfaceCount],
+            ),
           ),
           if (s.infrastructureError != null) Text(s.infrastructureError!),
           if (s.infrastructure case final report?) ...[
             Text(
-              'Examined up to ${report.checkedSamples} model samples; ${report.unknownHeightSamples} unknown-altitude probes.',
+              context.translate(
+                "Examined up to {0} model samples; {1} unknown-altitude probes.",
+                [report.checkedSamples, report.unknownHeightSamples],
+              ),
             ),
             if (report.processingLimited)
-              const Text(
-                'Processing limit reached; additional route sections were not evaluated.',
+              Text(
+                context.translate(
+                  "Processing limit reached; additional route sections were not evaluated.",
+                ),
               ),
             Text(report.message),
             if (report.findings.isEmpty)
-              const Text(
-                'No conflict found in the available local models. Infrastructure clearance remains unassessed elsewhere.',
+              Text(
+                context.translate(
+                  "No conflict found in the available local models. Infrastructure clearance remains unassessed elsewhere.",
+                ),
               ),
             for (final hit in report.findings)
               ListTile(
@@ -283,33 +366,52 @@ class RouteSafetyTab extends StatelessWidget {
                   '${hit.modelContact ? "Model contact" : "Model proximity"}: ${hit.name}',
                 ),
                 subtitle: Text(
-                  'Segment ${segments([hit.segment])} · simulated separation ${hit.clearanceMeters.toStringAsFixed(2)} m\n'
-                  '${hit.kind} · ${hit.quality} · ${hit.source} / ${hit.sourceId}\n'
-                  'Model geometry only; not real-world flight clearance.',
+                  context.translate(
+                    "Segment {0} · simulated separation {1} m\n{2} · {3} · {4} / {5}\nModel geometry only; not real-world flight clearance.",
+                    [
+                      segments([hit.segment]),
+                      hit.clearanceMeters.toStringAsFixed(2),
+                      hit.kind,
+                      hit.quality,
+                      hit.source,
+                      hit.sourceId,
+                    ],
+                  ),
                 ),
                 onTap: hit.segment < c.editor.points.length
                     ? () => c.editor.select(c.editor.points[hit.segment].key)
                     : null,
               ),
           ] else
-            const Text(
-              'No current infrastructure assessment. Use Check current route.',
+            Text(
+              context.translate(
+                "No current infrastructure assessment. Use Check current route.",
+              ),
             ),
         ],
         const Divider(),
         Text(
-          'Manual verification required',
+          context.translate("Manual verification required"),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(switch (settings.visibility) {
-          RouteVisibilityMode.bvlos => 'BVLOS planned: verify the required operating category and authorisation with FOCA.',
-          RouteVisibilityMode.fpvWithObserver => 'FPV planned: verify observer requirements, direct visual contact and communication.',
-          RouteVisibilityMode.vlos => 'VLOS planned: verify actual visibility and surrounding airspace on site. A map radius does not establish VLOS.',
-          RouteVisibilityMode.unverified => 'Visibility scenario unverified. Confirm VLOS/FPV observer requirements and any BVLOS authorisation.',
+          RouteVisibilityMode.bvlos => context.translate(
+            "BVLOS planned: verify the required operating category and authorisation with FOCA.",
+          ),
+          RouteVisibilityMode.fpvWithObserver => context.translate(
+            "FPV planned: verify observer requirements, direct visual contact and communication.",
+          ),
+          RouteVisibilityMode.vlos => context.translate(
+            "VLOS planned: verify actual visibility and surrounding airspace on site. A map radius does not establish VLOS.",
+          ),
+          RouteVisibilityMode.unverified => context.translate(
+            "Visibility scenario unverified. Confirm VLOS/FPV observer requirements and any BVLOS authorisation.",
+          ),
         }),
-        const Text(
-          'Check current official zones, DABS/NOTAM, zone validity and height references, aircraft class and mass, '
-          'pilot qualifications, people and property, permissions and local rules. These checks cannot be completed from the route alone.',
+        Text(
+          context.translate(
+            "Check current official zones, DABS/NOTAM, zone validity and height references, aircraft class and mass, pilot qualifications, people and property, permissions and local rules. These checks cannot be completed from the route alone.",
+          ),
         ),
         TextButton(
           onPressed: () async {
@@ -317,7 +419,7 @@ class RouteSafetyTab extends StatelessWidget {
               Uri.parse('https://www.bazl.admin.ch/de/flugregeln-drohnen'),
             );
           },
-          child: const Text('Official FOCA flight rules'),
+          child: Text(context.translate("Official FOCA flight rules")),
         ),
       ],
     );

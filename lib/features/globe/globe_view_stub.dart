@@ -1,4 +1,7 @@
 import 'dart:convert';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'dart:io';
 import 'dart:async';
 
@@ -277,10 +280,11 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
       );
     }
     if (!_supported) {
-      return const Center(
+      return Center(
         child: Text(
-          'Native 3D globe is currently supported '
-          'on Android and iOS.',
+          context.translate(
+            "Native 3D globe is currently supported on Android and iOS.",
+          ),
           textAlign: TextAlign.center,
         ),
       );
@@ -299,8 +303,8 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
                 color: Colors.orangeAccent,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Failed to load 3D globe',
+              Text(
+                context.translate("Failed to load 3D globe"),
                 style: TextStyle(fontSize: 20),
               ),
               const SizedBox(height: 8),

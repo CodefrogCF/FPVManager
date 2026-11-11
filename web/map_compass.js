@@ -17,7 +17,7 @@
         }
         scene.requestRender();
     }
-    function create(C,viewer,button,{navigation,isEnabled=()=>true}={}){
+    function create(C,viewer,button,{navigation,isEnabled=()=>true,language}={}){
         const needle=button.querySelector('[data-compass-needle]');
         let lastHeading,lastLabel,northSelected=false;
         function update(){
@@ -27,7 +27,8 @@
                 needle.style.transform=`rotate(${-heading}rad)`;lastHeading=heading;
             }
             if(!navigation?.active||navigation.following)northSelected=false;
-            const label=navigation?.active&&northSelected?'Standort verfolgen':'Nach Norden ausrichten';
+            const source=navigation?.active&&northSelected?'Standort verfolgen':'Nach Norden ausrichten';
+            const label=language?.translate(source)??source;
             if(label!==lastLabel){button.title=label;button.setAttribute('aria-label',label);lastLabel=label;}
         }
         function click(){
@@ -44,7 +45,8 @@
         }
         button.addEventListener('click',click);
         const remove=viewer.scene.postRender.addEventListener(update);update();
-        return {dispose(){remove();button.removeEventListener('click',click);}};
+        const removeLanguage=language?.onChange(update);
+        return {dispose(){remove();removeLanguage?.();button.removeEventListener('click',click);}};
     }
     return {create,north};
 });

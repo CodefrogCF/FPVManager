@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/models/activity_profile.dart';
 import '../help/guides_screen.dart';
 import 'activity_profile_editor.dart';
@@ -36,7 +38,9 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
             content: Text(
               error is FormatException
                   ? error.message
-                  : 'Profilaktion fehlgeschlagen. Bitte erneut versuchen.',
+                  : context.translate(
+                      "Profilaktion fehlgeschlagen. Bitte erneut versuchen.",
+                    ),
             ),
           ),
         );
@@ -77,7 +81,7 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Abbrechen'),
+              child: Text(context.translate("Abbrechen")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
@@ -110,7 +114,7 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
     final template = await showDialog<ActivityProfile>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Vorlage wählen'),
+        title: Text(context.translate("Vorlage wählen")),
         children: [
           for (final p in activityProfileTemplates())
             SimpleDialogOption(
@@ -163,7 +167,7 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
       final disabled = _working || c.busy;
       final full = (catalog?.profiles.length ?? 0) >= activityProfileMaxCount;
       return Scaffold(
-        appBar: AppBar(title: const Text('Aktivitätsprofile')),
+        appBar: AppBar(title: Text(context.translate("Aktivitätsprofile"))),
         body: SafeArea(
           child: Align(
             alignment: Alignment.topCenter,
@@ -183,24 +187,30 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                   if (catalog == null && !c.busy)
                     TextButton(
                       onPressed: c.load,
-                      child: const Text('Erneut versuchen'),
+                      child: Text(context.translate("Erneut versuchen")),
                     ),
                   if (catalog != null) ...[
                     Text(
                       catalog.firstUseDone
-                          ? 'Werkzeuge passend zu deiner Aktivität'
-                          : 'Womit möchtest du starten?',
+                          ? context.translate(
+                              "Werkzeuge passend zu deiner Aktivität",
+                            )
+                          : context.translate("Womit möchtest du starten?"),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const Text(
-                      'Vorlagen sind frei anpassbar. Alle Werkzeuge bleiben erreichbar.',
+                    Text(
+                      context.translate(
+                        "Vorlagen sind frei anpassbar. Alle Werkzeuge bleiben erreichbar.",
+                      ),
                     ),
                     ListTile(
                       leading: const Icon(Icons.apps),
                       title: Text(
                         catalog.firstUseDone
-                            ? 'Ohne Profil · alle Werkzeuge'
-                            : 'Überspringen · alle Werkzeuge',
+                            ? context.translate("Ohne Profil · alle Werkzeuge")
+                            : context.translate(
+                                "Überspringen · alle Werkzeuge",
+                              ),
                       ),
                       selected: catalog.selectedId == null,
                       onTap: disabled ? null : () => _run(() => _select(null)),
@@ -215,7 +225,10 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                         ),
                         title: Text(p.name),
                         subtitle: Text(
-                          '${p.tools.length} Werkzeuge · ${p.actions.length} Schnellaktionen',
+                          context.translate(
+                            "{0} Werkzeuge · {1} Schnellaktionen",
+                            [p.tools.length, p.actions.length],
+                          ),
                         ),
                         selected: catalog.selectedId == p.id,
                         onTap: disabled ? null : () => _run(() => _select(p)),
@@ -225,29 +238,31 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                           onSelected: (action) =>
                               _run(() => _action(action, p)),
                           itemBuilder: (_) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: _ProfileAction.edit,
-                              child: Text('Bearbeiten'),
+                              child: Text(context.translate("Bearbeiten")),
                             ),
                             PopupMenuItem(
                               value: _ProfileAction.duplicate,
                               enabled: !full,
-                              child: const Text('Duplizieren'),
+                              child: Text(context.translate("Duplizieren")),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: _ProfileAction.export,
-                              child: Text('Exportieren'),
+                              child: Text(context.translate("Exportieren")),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: _ProfileAction.delete,
-                              child: Text('Löschen'),
+                              child: Text(context.translate("Löschen")),
                             ),
                           ],
                         ),
                       ),
                     if (full)
-                      const Text(
-                        'Maximal 32 Profile. Zum Hinzufügen zuerst ein Profil löschen.',
+                      Text(
+                        context.translate(
+                          "Maximal 32 Profile. Zum Hinzufügen zuerst ein Profil löschen.",
+                        ),
                       ),
                     Wrap(
                       spacing: 8,
@@ -255,14 +270,14 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                       children: [
                         OutlinedButton.icon(
                           icon: const Icon(Icons.copy_outlined),
-                          label: const Text('Aus Vorlage'),
+                          label: Text(context.translate("Aus Vorlage")),
                           onPressed: disabled || full
                               ? null
                               : () => _run(_template),
                         ),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.add),
-                          label: const Text('Eigenes Profil'),
+                          label: Text(context.translate("Eigenes Profil")),
                           onPressed: disabled || full
                               ? null
                               : () => _run(
@@ -276,7 +291,7 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                         ),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.file_open_outlined),
-                          label: const Text('Importieren'),
+                          label: Text(context.translate("Importieren")),
                           onPressed: disabled || full
                               ? null
                               : () => _run(_import),

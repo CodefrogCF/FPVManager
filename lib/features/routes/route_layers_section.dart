@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/repositories/flight_plan_repository.dart';
 import 'route_layers_controller.dart';
 
@@ -20,14 +22,21 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
     builder: (context, _) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Flight routes', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          context.translate("Flight routes"),
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 8),
-        const Text(
-          'Configured heights are shown in 3D. Points marked * use a 30 m AGL preview because their height is missing or uses an unsupported datum. Selected routes stay visible in ground view.',
+        Text(
+          context.translate(
+            "Configured heights are shown in 3D. Points marked * use a 30 m AGL preview because their height is missing or uses an unsupported datum. Selected routes stay visible in ground view.",
+          ),
         ),
         if (!widget.controller.globe.terrainAvailable)
-          const Text(
-            '3D route preview is hidden until detailed terrain is available.',
+          Text(
+            context.translate(
+              "3D route preview is hidden until detailed terrain is available.",
+            ),
           ),
         if (widget.controller.error != null ||
             widget.controller.globe.routePreviewError != null) ...[
@@ -40,7 +49,7 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
             onPressed: widget.controller.retrying
                 ? null
                 : widget.controller.retry,
-            child: const Text('Retry route preview'),
+            child: Text(context.translate("Retry route preview")),
           ),
         ],
         StreamBuilder<List<FlightPlanSummary>>(
@@ -50,22 +59,26 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Unable to load saved routes.'),
+                  Text(context.translate("Unable to load saved routes.")),
                   TextButton(
                     onPressed: () => setState(() {
                       _plans = widget.controller.repository
                           .watchFlightPlanSummaries();
                     }),
-                    child: const Text('Retry route list'),
+                    child: Text(context.translate("Retry route list")),
                   ),
                 ],
               );
             }
             if (!snapshot.hasData) return const LinearProgressIndicator();
             if (snapshot.data!.isEmpty) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('No saved routes. Create one in Flight routes.'),
+                child: Text(
+                  context.translate(
+                    "No saved routes. Create one in Flight routes.",
+                  ),
+                ),
               );
             }
             return Column(
@@ -89,7 +102,9 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Show ${plan.name} on map',
+                        tooltip: context.translate("Show {0} on map", [
+                          plan.name,
+                        ]),
                         icon: const Icon(Icons.fit_screen),
                         onPressed:
                             widget.controller.hasGeometry(plan.id) &&
@@ -102,9 +117,11 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
                                 } catch (_) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Unable to frame this route. Please retry.',
+                                          context.translate(
+                                            "Unable to frame this route. Please retry.",
+                                          ),
                                         ),
                                       ),
                                     );

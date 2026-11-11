@@ -1,9 +1,17 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVLiveRadio=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
-    function create({C,viewer,terrain,ready,emit,layer,doc,clock=()=>performance.now(),wallClock=()=>Date.now()}){
+    function create({C,viewer,terrain,ready,emit,layer,doc,language,clock=()=>performance.now(),wallClock=()=>Date.now()}){
         const cache=new Map();let epoch=0,busy=null,enabled=false,last=-Infinity,lastMode=null,flightId=-1,active=false,paused=false,revision=0,disposed=false,expiry=null,resultAt=-Infinity;
         const badge=doc.getElementById('hud-live-radio'),toggle=doc.getElementById('flight-radio-enabled'),details=doc.getElementById('flight-radio-status');
         const names={unknown:'LOS: ?',obstructed:'LOS: obstruction',fresnelIntrusion:'LOS: Fresnel',noSampledObstruction:'LOS: sampled'};
-        function unknown(){clearTimeout(expiry);expiry=null;resultAt=-Infinity;layer.clear();badge.textContent=names.unknown;badge.dataset.state='unknown';details.textContent='Unknown / awaiting a terrain profile';}
+        const translate=source=>language?.translate(source)??source;
+        let detailMessage='Aus';
+        function updateLabels(){
+            badge.textContent=translate(names[badge.dataset.state]??names.unknown);
+            badge.title=translate('Periodic geometric preview, not measured radio quality. Open details for sampling time and coverage.');
+            details.textContent=translate(detailMessage);
+        }
+        const removeLanguage=language?.onChange(updateLabels);
+        function unknown(){clearTimeout(expiry);expiry=null;resultAt=-Infinity;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();}
         function monitor(c){
             if(disposed)throw Error('Live radio disposed');
             if(typeof c.enabled!=='boolean'||!Number.isInteger(c.revision)||c.revision<0)throw Error('Invalid live radio monitor');
@@ -49,16 +57,15 @@
             if(c.state!=='unknown'&&(!active||paused||c.flightId!==flightId)){unknown();return {};}
             if(!Array.isArray(c.rays)||c.rays.length>1||!c.rays.length&&c.state!=='unknown'||c.rays.some(r=>r.state!==c.state))throw Error('Inconsistent live radio result');
             if(c.state!=='unknown'&&(!Number.isFinite(c.expiresAtMs)||c.expiresAtMs<=wallClock()||c.expiresAtMs>wallClock()+10000)){revision=c.revision;unknown();return {};}
-            layer.set(c);revision=c.revision;badge.textContent=names[c.state];badge.dataset.state=c.state;
+            layer.set(c);revision=c.revision;badge.dataset.state=c.state;
             clearTimeout(expiry);resultAt=c.state==='unknown'?-Infinity:clock();
             if(c.state!=='unknown'){const token=revision;expiry=setTimeout(()=>{if(!disposed&&revision===token)unknown();},Math.min(5000,c.expiresAtMs-wallClock()));}
-            badge.title='Periodic geometric preview, not measured radio quality. Open details for sampling time and coverage.';
-            details.textContent=String(c.message??'Unknown').slice(0,160);return {};
+            detailMessage=String(c.message??'Unknown').slice(0,160);updateLabels();return {};
         }
         const settings=()=>emit('flight-radio-settings-request');
         badge.addEventListener('click',settings);doc.getElementById('configure-flight-radio').addEventListener('click',settings);
         toggle.addEventListener('change',()=>emit('flight-radio-toggle',{enabled:toggle.checked}));
-        return {monitor,observe,sample,set,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();layer.dispose();}};
+        return {monitor,observe,sample,set,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
     }
     return {create};
 });

@@ -354,6 +354,14 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
   canvas.focus();const gpsStart=v.camera.positionWC.clone();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));await pause(600);
   canvas.dispatchEvent(new win.KeyboardEvent('keyup',{key:'w',bubbles:true}));
   check(C.Cartesian3.distance(gpsStart,v.camera.positionWC)>.2&&Math.abs(v.camera.positionCartographic.height-1030)<.5,'GPS movement/height hold changed');
+  const flightId=win.fixtureFlyer.status().flightId;
+  await command('set-language',{language:'en'});
+  check(doc.documentElement.lang==='en'&&settingsButton.title==='Flight settings','English flight controls missing');
+  await command('set-language',{language:'de'});
+  check(doc.documentElement.lang==='de'&&settingsButton.title==='Flugeinstellungen','German flight controls missing');
+  check(doc.querySelector('#controller-roll-axis option').textContent==='Kanal 1','Controller channels did not switch language');
+  check(win.fixtureFlyer.active&&win.fixtureFlyer.status().flightId===flightId,'Language change restarted the flight');
+  log('The renderer switches flight settings and controller labels in place');
   await command('exit-simulation');
   log('Ground view retains its 2m eye height; camera-target spawn, Acro inverted attitude/hold and GPS translation/height hold work');
   removeCameraCheck();

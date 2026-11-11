@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -91,24 +93,26 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    'Airspace & flight safety',
+                    context.translate("Airspace & flight safety"),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Close safety panel',
+                  tooltip: context.translate("Close safety panel"),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Preflight information only. FPVManager cannot issue a flight authorisation or guarantee that a flight is legal or safe.',
+            Text(
+              context.translate(
+                "Preflight information only. FPVManager cannot issue a flight authorisation or guarantee that a flight is legal or safe.",
+              ),
             ),
             const SizedBox(height: 12),
             Text(
-              'BAZL UAS geographical zones',
+              context.translate("BAZL UAS geographical zones"),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             _SafetyDetail('Local data state', status.dataState.label),
@@ -130,13 +134,16 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
             ),
             if (status.error != null)
               Text(
-                'Last refresh failed: ${status.error!.message}',
+                context.translate("Last refresh failed: {0}", [
+                  status.error!.message,
+                ]),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
-            for (final problem in problems) Text('Data limitation: $problem'),
+            for (final problem in problems)
+              Text(context.translate("Data limitation: {0}", [problem])),
             const Divider(height: 32),
             Text(
-              'Restriction legend (Cesium map)',
+              context.translate("Restriction legend (Cesium map)"),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             for (final category in UasRestrictionCategory.values)
@@ -153,8 +160,10 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
                 ),
                 title: Text(category.label),
               ),
-            const Text(
-              'BAZL authorisation subtypes (same category, different applicable conditions):',
+            Text(
+              context.translate(
+                "BAZL authorisation subtypes (same category, different applicable conditions):",
+              ),
             ),
             for (final entry in const [
               (
@@ -185,26 +194,37 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
             for (final item
                 in (controller.uasDatasetAssessment?.categoryCounts.entries ??
                     const <MapEntry<UasRestrictionCategory, int>>[]))
-              Text('${item.key.label}: ${item.value} features'),
+              Text(
+                context.translate("{0}: {1} features", [
+                  item.key.label,
+                  item.value,
+                ]),
+              ),
             if (controller.uasDatasetAssessment case final assessment?)
               _SafetyDetail(
                 'Time-dependent source features',
                 assessment.timeDependentFeatureCount.toString(),
               ),
-            const Text(
-              'Colors describe source restrictions. Blue is not flight clearance; check every overlapping zone and its conditions.',
+            Text(
+              context.translate(
+                "Colors describe source restrictions. Blue is not flight clearance; check every overlapping zone and its conditions.",
+              ),
             ),
             const GuideLink(GuideTopic.airspace),
             const Divider(height: 32),
             Text(
-              'Temporary / time-dependent information',
+              context.translate("Temporary / time-dependent information"),
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const Text(
-              'Check the latest DABS and original NOTAM immediately before flying. DABS is a periodic snapshot.',
+            Text(
+              context.translate(
+                "Check the latest DABS and original NOTAM immediately before flying. DABS is a periodic snapshot.",
+              ),
             ),
-            const Text(
-              'Automatic DABS/NOTAM availability: not connected. No assertion is made that temporary restrictions have been retrieved or checked.',
+            Text(
+              context.translate(
+                "Automatic DABS/NOTAM availability: not connected. No assertion is made that temporary restrictions have been retrieved or checked.",
+              ),
             ),
             const SizedBox(height: 8),
             ApiCredentialsSection(policies: OfficialAirspaceApis.sources),
@@ -231,20 +251,28 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
             ),
             const Divider(height: 32),
             Text(
-              'Manual preflight checklist',
+              context.translate("Manual preflight checklist"),
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const Text(
-              '1. Open current BAZL map, check every applicable overlapping zone and contact the competent authority when necessary.',
+            Text(
+              context.translate(
+                "1. Open current BAZL map, check every applicable overlapping zone and contact the competent authority when necessary.",
+              ),
             ),
-            const Text(
-              '2. Read the latest DABS and original NOTAM for the entire flight period and route.',
+            Text(
+              context.translate(
+                "2. Read the latest DABS and original NOTAM for the entire flight period and route.",
+              ),
             ),
-            const Text(
-              '3. Check altitude references, local/cantonal rules, aerodrome procedures, weather and obstacles.',
+            Text(
+              context.translate(
+                "3. Check altitude references, local/cantonal rules, aerodrome procedures, weather and obstacles.",
+              ),
             ),
-            const Text(
-              '4. Recheck immediately before take-off; a recent download or an empty intersection result is not proof of permission.',
+            Text(
+              context.translate(
+                "4. Recheck immediately before take-off; a recent download or an empty intersection result is not proof of permission.",
+              ),
             ),
           ],
         );
@@ -306,22 +334,24 @@ class _SourceReference extends StatelessWidget {
                 }
                 if (!opened && context.mounted) {
                   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text(
-                        'Could not open browser. Copy the URL instead.',
+                        context.translate(
+                          "Could not open browser. Copy the URL instead.",
+                        ),
                       ),
                     ),
                   );
                 }
               },
               icon: const Icon(Icons.open_in_new),
-              label: const Text('Open official source'),
+              label: Text(context.translate("Open official source")),
             ),
             TextButton.icon(
               onPressed: () =>
                   Clipboard.setData(ClipboardData(text: uri.toString())),
               icon: const Icon(Icons.copy),
-              label: const Text('Copy official link'),
+              label: Text(context.translate("Copy official link")),
             ),
           ],
         ),

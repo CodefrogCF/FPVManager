@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'controller_settings.dart';
 
 class ControllerSettingsFields extends StatefulWidget {
@@ -48,26 +50,28 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     maintainState: true,
-    title: const Text('Controller'),
+    title: Text(context.translate("Controller")),
     subtitle: Text(
       _zero == ControllerThrottleZero.bottom
-          ? 'Gas null: unten (0 %)'
-          : 'Gas null: Mitte (50 %)',
+          ? context.translate("Gas null: unten (0 %)")
+          : context.translate("Gas null: Mitte (50 %)"),
     ),
     children: [
       DropdownButtonFormField<ControllerLayout>(
         key: const ValueKey('controller-layout'),
         initialValue: _layout,
         isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Controllertyp'),
-        items: const [
+        decoration: InputDecoration(
+          labelText: context.translate("Controllertyp"),
+        ),
+        items: [
           DropdownMenuItem(
             value: ControllerLayout.gamepad,
-            child: Text('Gamepad'),
+            child: Text(context.translate("Gamepad")),
           ),
           DropdownMenuItem(
             value: ControllerLayout.radio,
-            child: Text('USB-Fernsteuerung'),
+            child: Text(context.translate("USB-Fernsteuerung")),
           ),
         ],
         onChanged: (value) {
@@ -86,15 +90,17 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
         key: const ValueKey('controller-throttle-zero'),
         initialValue: _zero,
         isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Gas-Nullstellung'),
-        items: const [
+        decoration: InputDecoration(
+          labelText: context.translate("Gas-Nullstellung"),
+        ),
+        items: [
           DropdownMenuItem(
             value: ControllerThrottleZero.bottom,
-            child: Text('0 % · unten (Fernsteuerung)'),
+            child: Text(context.translate("0 % · unten (Fernsteuerung)")),
           ),
           DropdownMenuItem(
             value: ControllerThrottleZero.center,
-            child: Text('50 % · Mitte (Gamepad)'),
+            child: Text(context.translate("50 % · Mitte (Gamepad)")),
           ),
         ],
         onChanged: (value) {
@@ -104,12 +110,16 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
           }
         },
       ),
-      const Text(
-        'Angle/Acro: Null unten nutzt den ganzen Gasweg; Null in der Mitte nur die obere Hälfte. Zum Verbinden oder Fortsetzen Gas auf null, übrige Sticks zentrieren.',
+      Text(
+        context.translate(
+          "Angle/Acro: Null unten nutzt den ganzen Gasweg; Null in der Mitte nur die obere Hälfte. Zum Verbinden oder Fortsetzen Gas auf null, übrige Sticks zentrieren.",
+        ),
       ),
       if (_layout == ControllerLayout.radio) ...[
-        const Text(
-          'Roll, Pitch, Gas und Yaw benötigen vier verschiedene USB-Kanäle. Zuordnung und Richtung hängen von Fernsteuerung und Betriebssystem ab. Schalter lösen weder Zurücksetzen noch Beenden aus.',
+        Text(
+          context.translate(
+            "Roll, Pitch, Gas und Yaw benötigen vier verschiedene USB-Kanäle. Zuordnung und Richtung hängen von Fernsteuerung und Betriebssystem ab. Schalter lösen weder Zurücksetzen noch Beenden aus.",
+          ),
         ),
         for (var i = 0; i < 4; i++)
           Row(
@@ -124,7 +134,10 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
                   ),
                   items: [
                     for (var a = 0; a < 16; a++)
-                      DropdownMenuItem(value: a, child: Text('Kanal ${a + 1}')),
+                      DropdownMenuItem(
+                        value: a,
+                        child: Text(context.translate("Kanal {0}", [a + 1])),
+                      ),
                   ],
                   validator: (_) => _axes.toSet().length != 4
                       ? 'Verschiedene Kanäle wählen'
@@ -143,13 +156,15 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
               ),
               Checkbox(
                 value: _invert[i],
-                semanticLabel: '${['Roll', 'Pitch', 'Gas', 'Yaw'][i]} umkehren',
+                semanticLabel: context.translate("{0} umkehren", [
+                  ['Roll', 'Pitch', 'Gas', 'Yaw'][i],
+                ]),
                 onChanged: (value) {
                   setState(() => _invert[i] = value ?? false);
                   _change();
                 },
               ),
-              const Text('Umkehren'),
+              Text(context.translate("Umkehren")),
             ],
           ),
       ],

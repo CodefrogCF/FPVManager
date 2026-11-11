@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/repositories/drone_repository.dart';
 import '../../core/models/drone_profile.dart';
 import 'drone_editor_dialog.dart';
@@ -27,18 +29,21 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete drone profile?'),
+        title: Text(context.translate("Delete drone profile?")),
         content: Text(
-          'Permanently delete "${profile.drone.name}"? Flight plans will be kept without this drone assignment.',
+          context.translate(
+            "Permanently delete \"{0}\"? Flight plans will be kept without this drone assignment.",
+            [profile.drone.name],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.translate("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.translate("Delete")),
           ),
         ],
       ),
@@ -75,7 +80,7 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Drone profile')),
+    appBar: AppBar(title: Text(context.translate("Drone profile"))),
     body: StreamBuilder<DroneProfile?>(
       stream: _profile,
       builder: (context, snapshot) {
@@ -84,14 +89,14 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Unable to load this drone profile.'),
+                Text(context.translate("Unable to load this drone profile.")),
                 TextButton(
                   onPressed: () => setState(
                     () => _profile = widget.repository.watchProfile(
                       widget.droneId,
                     ),
                   ),
-                  child: const Text('Retry'),
+                  child: Text(context.translate("Retry")),
                 ),
               ],
             ),
@@ -102,8 +107,10 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
         }
         final profile = snapshot.data;
         if (profile == null) {
-          return const Center(
-            child: Text('This drone profile no longer exists.'),
+          return Center(
+            child: Text(
+              context.translate("This drone profile no longer exists."),
+            ),
           );
         }
         final drone = profile.drone;
@@ -137,12 +144,12 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
                               ),
                             ),
                       icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit profile'),
+                      label: Text(context.translate("Edit profile")),
                     ),
                     TextButton.icon(
                       onPressed: _deleting ? null : () => _delete(profile),
                       icon: const Icon(Icons.delete_outline),
-                      label: const Text('Delete profile'),
+                      label: Text(context.translate("Delete profile")),
                     ),
                   ],
                 ),
@@ -179,9 +186,11 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
                   if (!profile.measurements.keys.any(
                     (parameter) => parameter.group == group,
                   ))
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 12),
-                      child: Text('No numeric parameters recorded.'),
+                      child: Text(
+                        context.translate("No numeric parameters recorded."),
+                      ),
                     ),
                 ],
                 _text(

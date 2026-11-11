@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/models/flight_route.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../airspace/airspace_check_sheet.dart';
@@ -46,16 +48,20 @@ class RouteEditorToolbar extends StatelessWidget {
                               editor.loadFailed
                           ? null
                           : () => _points(context),
-                      child: Text('${editor.points.length} waypoints'),
+                      child: Text(
+                        context.translate("{0} waypoints", [
+                          editor.points.length,
+                        ]),
+                      ),
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Route analysis',
+                    tooltip: context.translate("Route analysis"),
                     onPressed: onAnalysis,
                     icon: const Icon(Icons.insights),
                   ),
                   IconButton(
-                    tooltip: 'Check route airspace',
+                    tooltip: context.translate("Check route airspace"),
                     onPressed:
                         !editor.saving &&
                             !editor.loadFailed &&
@@ -73,12 +79,12 @@ class RouteEditorToolbar extends StatelessWidget {
                     icon: const Icon(Icons.shield_outlined),
                   ),
                   IconButton(
-                    tooltip: 'Undo waypoint change',
+                    tooltip: context.translate("Undo waypoint change"),
                     onPressed: editor.canUndo ? editor.undo : null,
                     icon: const Icon(Icons.undo),
                   ),
                   IconButton(
-                    tooltip: 'Show entire route',
+                    tooltip: context.translate("Show entire route"),
                     onPressed: onFrame,
                     icon: const Icon(Icons.fit_screen),
                   ),
@@ -89,14 +95,18 @@ class RouteEditorToolbar extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Waypoint ${editor.points.indexOf(point) + 1} · ${_height(point.height)} · ${point.speedMetersPerSecond?.toStringAsFixed(1) ?? "?"} m/s',
+                        context.translate("Waypoint {0} · {1} · {2} m/s", [
+                          editor.points.indexOf(point) + 1,
+                          _height(point.height),
+                          point.speedMetersPerSecond?.toStringAsFixed(1) ?? "?",
+                        ]),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
                     PopupMenuButton<_PointAction>(
-                      tooltip: 'Waypoint actions',
+                      tooltip: context.translate("Waypoint actions"),
                       enabled: !editor.saving && !editor.loadFailed,
                       onSelected: (action) {
                         switch (action) {
@@ -109,21 +119,21 @@ class RouteEditorToolbar extends StatelessWidget {
                         }
                       },
                       itemBuilder: (_) => [
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: _PointAction.settings,
-                          child: Text('Height & speed'),
+                          child: Text(context.translate("Height & speed")),
                         ),
                         PopupMenuItem(
                           value: _PointAction.move,
                           child: Text(
                             editor.moveId == null
-                                ? 'Move point'
-                                : 'Cancel move',
+                                ? context.translate("Move point")
+                                : context.translate("Cancel move"),
                           ),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: _PointAction.delete,
-                          child: Text('Delete point'),
+                          child: Text(context.translate("Delete point")),
                         ),
                       ],
                     ),
@@ -131,10 +141,14 @@ class RouteEditorToolbar extends StatelessWidget {
                 ),
               Text(
                 editor.moveId != null
-                    ? 'Click the new position on the map.'
+                    ? context.translate("Click the new position on the map.")
                     : editor.hasRouteWarnings
-                    ? 'Red segments: terrain / reserve estimates · Open analysis'
-                    : 'Tap map to add · Select a waypoint to edit',
+                    ? context.translate(
+                        "Red segments: terrain / reserve estimates · Open analysis",
+                      )
+                    : context.translate(
+                        "Tap map to add · Select a waypoint to edit",
+                      ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               if (editor.points.any(
@@ -147,7 +161,7 @@ class RouteEditorToolbar extends StatelessWidget {
                             VerticalReference.wgs84Ellipsoid),
               ))
                 Text(
-                  '* = 30 m AGL preview only',
+                  context.translate("* = 30 m AGL preview only"),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
@@ -166,9 +180,9 @@ class RouteEditorToolbar extends StatelessWidget {
         child: Column(
           children: [
             ListTile(
-              title: const Text('Waypoints'),
+              title: Text(context.translate("Waypoints")),
               trailing: IconButton(
-                tooltip: 'Close',
+                tooltip: context.translate("Close"),
                 onPressed: () => Navigator.pop(sheetContext),
                 icon: const Icon(Icons.close),
               ),

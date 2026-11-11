@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -283,11 +285,13 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Offline map regions',
+          context.translate("Offline map regions"),
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        const Text(
-          'Bereich bis 25 km Radius direkt auf diesem Gerät vorbereiten: Topografie, SWISSIMAGE-Satellitenbilder, neutrales Relief und 3D-Gelände aus offiziellen Downloadquellen. In der Webversion ist auch die gesamte Schweiz wählbar.',
+        Text(
+          context.translate(
+            "Bereich bis 25 km Radius direkt auf diesem Gerät vorbereiten: Topografie, SWISSIMAGE-Satellitenbilder, neutrales Relief und 3D-Gelände aus offiziellen Downloadquellen. In der Webversion ist auch die gesamte Schweiz wählbar.",
+          ),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -295,17 +299,21 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               ? _importPackage
               : null,
           icon: const Icon(Icons.file_download_outlined),
-          label: const Text('Offline-Paket importieren'),
+          label: Text(context.translate("Offline-Paket importieren")),
         ),
-        const Text(
-          'Ein Laptop ist für die Aufbereitung nicht erforderlich. Bereits erstellte .fpvregion-Pakete bis 64 MiB können weiterhin importiert werden. Quellenlücken, Landesgrenzen und der gewählte Detailgrad begrenzen die Abdeckung.',
+        Text(
+          context.translate(
+            "Ein Laptop ist für die Aufbereitung nicht erforderlich. Bereits erstellte .fpvregion-Pakete bis 64 MiB können weiterhin importiert werden. Quellenlücken, Landesgrenzen und der gewählte Detailgrad begrenzen die Abdeckung.",
+          ),
         ),
         if (_notice != null) Text(_notice!),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Use cached base map and terrain'),
-          subtitle: const Text(
-            'Missing tiles remain unavailable. Live data layers and API actions are separate and may still use the network.',
+          title: Text(context.translate("Use cached base map and terrain")),
+          subtitle: Text(
+            context.translate(
+              "Missing tiles remain unavailable. Live data layers and API actions are separate and may still use the network.",
+            ),
           ),
           value: widget.cachedMaps,
           onChanged: widget.enabled && !_busy && _store.rendererReady
@@ -313,7 +321,10 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               : null,
         ),
         Text(
-          'Gespeicherte Kartendaten: ${(size / 1048576).toStringAsFixed(1)} MiB. Der zusätzliche Puffer für beim Betrachten geladene Kacheln ist auf 256 MiB begrenzt.',
+          context.translate(
+            "Gespeicherte Kartendaten: {0} MiB. Der zusätzliche Puffer für beim Betrachten geladene Kacheln ist auf 256 MiB begrenzt.",
+            [(size / 1048576).toStringAsFixed(1)],
+          ),
         ),
         const Text(
           '© swisstopo · OGD terms. Retrieval age is not an official publication date. Cached maps do not supply live airspace, traffic or weather information.',
@@ -327,7 +338,7 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
         TextButton.icon(
           onPressed: widget.enabled && !_busy ? _load : null,
           icon: const Icon(Icons.refresh),
-          label: const Text('Refresh storage status'),
+          label: Text(context.translate("Refresh storage status")),
         ),
         TextButton.icon(
           onPressed: widget.enabled && !_busy
@@ -337,20 +348,24 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                 })
               : null,
           icon: const Icon(Icons.cleaning_services_outlined),
-          label: const Text('Unterbrochene Aufbereitung verwerfen'),
+          label: Text(
+            context.translate("Unterbrochene Aufbereitung verwerfen"),
+          ),
         ),
         for (final region in _regions) _region(region),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('Add offline region'),
+          title: Text(context.translate("Add offline region")),
           children: [
             if (kIsWeb)
               SwitchListTile(
                 key: const Key('offline-whole-switzerland'),
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Gesamte Schweiz'),
-                subtitle: const Text(
-                  'Großer Download. Detail und Ebenen bestimmen den Speicherbedarf; der Browser prüft seinen verfügbaren Speicher vor dem Start.',
+                title: Text(context.translate("Gesamte Schweiz")),
+                subtitle: Text(
+                  context.translate(
+                    "Großer Download. Detail und Ebenen bestimmen den Speicherbedarf; der Browser prüft seinen verfügbaren Speicher vor dem Start.",
+                  ),
                 ),
                 value: _wholeSwitzerland,
                 onChanged: _busy
@@ -377,7 +392,9 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                 signed: true,
               ),
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Centre latitude'),
+              decoration: InputDecoration(
+                labelText: context.translate("Centre latitude"),
+              ),
             ),
             TextField(
               controller: _longitude,
@@ -387,14 +404,16 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                 signed: true,
               ),
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Centre longitude'),
+              decoration: InputDecoration(
+                labelText: context.translate("Centre longitude"),
+              ),
             ),
             OutlinedButton.icon(
               onPressed: widget.enabled && !_busy && !_wholeSwitzerland
                   ? _pickCenter
                   : null,
               icon: const Icon(Icons.public),
-              label: const Text('Mittelpunkt auf Globe markieren'),
+              label: Text(context.translate("Mittelpunkt auf Globe markieren")),
             ),
             Text('Radius: ${_radius.toStringAsFixed(2)} km'),
             Slider(
@@ -408,19 +427,24 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             ),
             DropdownButtonFormField<String>(
               initialValue: _style,
-              decoration: const InputDecoration(labelText: 'Supported map'),
-              items: const [
+              decoration: InputDecoration(
+                labelText: context.translate("Supported map"),
+              ),
+              items: [
                 DropdownMenuItem(
                   value: 'topographic',
-                  child: Text('Topographic'),
+                  child: Text(context.translate("Topographic")),
                 ),
-                DropdownMenuItem(value: 'relief', child: Text('Relief')),
+                DropdownMenuItem(
+                  value: 'relief',
+                  child: Text(context.translate("Relief")),
+                ),
               ],
               onChanged: widget.enabled && !_busy
                   ? (v) => setState(() => _style = v!)
                   : null,
             ),
-            const Text('Offline verfügbare Kartenebenen'),
+            Text(context.translate("Offline verfügbare Kartenebenen")),
             for (final entry in const {
               'topographic': 'Topografische Karte',
               'satellite': 'Satellitenbilder · SWISSIMAGE 2 m',
@@ -442,10 +466,12 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('3D-Gelände'),
+              title: Text(context.translate("3D-Gelände")),
               value: _includeTerrain,
-              subtitle: const Text(
-                'Höhen aus swissALTI3D; gewählte Detailstufe bestimmt die Auflösung im Globe.',
+              subtitle: Text(
+                context.translate(
+                  "Höhen aus swissALTI3D; gewählte Detailstufe bestimmt die Auflösung im Globe.",
+                ),
               ),
               onChanged: widget.enabled && !_busy
                   ? (value) => setState(() => _includeTerrain = value!)
@@ -454,12 +480,15 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             DropdownButtonFormField<int>(
               key: ValueKey('imagery-$_wholeSwitzerland'),
               initialValue: _detail,
-              decoration: const InputDecoration(
-                labelText: 'Maximum imagery detail',
+              decoration: InputDecoration(
+                labelText: context.translate("Maximum imagery detail"),
               ),
               items: [
                 for (final level in [12, 13, 14, 15, 16, 17])
-                  DropdownMenuItem(value: level, child: Text('Zoom $level')),
+                  DropdownMenuItem(
+                    value: level,
+                    child: Text(context.translate("Zoom {0}", [level])),
+                  ),
               ],
               onChanged: widget.enabled && !_busy
                   ? (v) => setState(() => _detail = v!)
@@ -468,14 +497,19 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             DropdownButtonFormField<int>(
               key: ValueKey('terrain-$_wholeSwitzerland'),
               initialValue: _terrainDetail,
-              decoration: const InputDecoration(
-                labelText: 'Geländedetail für Offline-Paket',
+              decoration: InputDecoration(
+                labelText: context.translate("Geländedetail für Offline-Paket"),
               ),
               items: [
                 for (final level in [12, 13, 14, 15, 16])
                   DropdownMenuItem(
                     value: level,
-                    child: Text('Stufe $level${level == 16 ? ' · fein' : ''}'),
+                    child: Text(
+                      context.translate("Stufe {0}{1}", [
+                        level,
+                        level == 16 ? ' · fein' : '',
+                      ]),
+                    ),
                   ),
               ],
               onChanged: widget.enabled && !_busy
@@ -484,8 +518,10 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             ),
             DropdownButtonFormField<int>(
               initialValue: _budgetGiB,
-              decoration: const InputDecoration(
-                labelText: 'Speicherlimit für diesen Download',
+              decoration: InputDecoration(
+                labelText: context.translate(
+                  "Speicherlimit für diesen Download",
+                ),
               ),
               items: [
                 for (final value in [1, 2, 4, 8, 16, 32])
@@ -497,7 +533,13 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             ),
             if (preparationEstimate != null)
               Text(
-                'Geschätzter lokaler Speicher: ${(preparationEstimate.bytes / 1048576).toStringAsFixed(0)} MiB · ${preparationEstimate.tiles} Kacheln. Originaldaten und Karteninhalt beeinflussen Downloadmenge und Dauer. Vorhandene Region bleibt bis zum erfolgreichen Abschluss aktiv.',
+                context.translate(
+                  "Geschätzter lokaler Speicher: {0} MiB · {1} Kacheln. Originaldaten und Karteninhalt beeinflussen Downloadmenge und Dauer. Vorhandene Region bleibt bis zum erfolgreichen Abschluss aktiv.",
+                  [
+                    (preparationEstimate.bytes / 1048576).toStringAsFixed(0),
+                    preparationEstimate.tiles,
+                  ],
+                ),
               ),
             FilledButton.icon(
               onPressed:
@@ -513,15 +555,21 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               icon: const Icon(Icons.download_for_offline_outlined),
               label: Text(
                 _wholeSwitzerland
-                    ? 'Gesamte Schweiz offline vorbereiten'
-                    : 'Bereich offline vorbereiten',
+                    ? context.translate("Gesamte Schweiz offline vorbereiten")
+                    : context.translate("Bereich offline vorbereiten"),
               ),
             ),
-            const Text(
-              'Eigene Spots, Fotos, Ausrüstung, Routen und Checklisten sind bereits lokal. Heruntergeladene UAS-Zonen, Vektorhindernisse und SLF-Bulletins bleiben als datierte Momentaufnahmen verfügbar. Diese Ebenen bei Bedarf vorher in den Kartenebenen aktualisieren. WMS-Bilder, gestreamte Gebäude/Bäume, Verkehr, Flugbewegungen und laufende Wetterdaten werden nicht als vollständige Offline-Datensätze zugesagt.',
+            Text(
+              context.translate(
+                "Eigene Spots, Fotos, Ausrüstung, Routen und Checklisten sind bereits lokal. Heruntergeladene UAS-Zonen, Vektorhindernisse und SLF-Bulletins bleiben als datierte Momentaufnahmen verfügbar. Diese Ebenen bei Bedarf vorher in den Kartenebenen aktualisieren. WMS-Bilder, gestreamte Gebäude/Bäume, Verkehr, Flugbewegungen und laufende Wetterdaten werden nicht als vollständige Offline-Datensätze zugesagt.",
+              ),
             ),
             if (widget.prepareSnapshots != null) ...[
-              const Text('Zusätzliche datierte Momentaufnahmen aktualisieren'),
+              Text(
+                context.translate(
+                  "Zusätzliche datierte Momentaufnahmen aktualisieren",
+                ),
+              ),
               for (final entry in const {
                 'uas': 'UAS-Zonen',
                 'obstacles':
@@ -544,11 +592,25 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                 ),
             ],
             ExpansionTile(
-              title: const Text('Ansichtspuffer und optionaler Laptop-Export'),
+              title: Text(
+                context.translate(
+                  "Ansichtspuffer und optionaler Laptop-Export",
+                ),
+              ),
               children: [
                 if (estimate != null && _style == 'topographic')
                   Text(
-                    'Offline-Paket grob ${(estimate.preparedEstimatedBytes / 1048576).toStringAsFixed(1)} MiB (Karteninhalt variiert), maximal 64 MiB. Originaldateien für die Aufbereitung können deutlich größer sein.${estimate.preparedTerrainBytes + 1048576 > regionPackageMaxBytes ? ' Bereich oder Geländedetail reduzieren.' : ''}',
+                    context.translate(
+                      "Offline-Paket grob {0} MiB (Karteninhalt variiert), maximal 64 MiB. Originaldateien für die Aufbereitung können deutlich größer sein.{1}",
+                      [
+                        (estimate.preparedEstimatedBytes / 1048576)
+                            .toStringAsFixed(1),
+                        estimate.preparedTerrainBytes + 1048576 >
+                                regionPackageMaxBytes
+                            ? ' Bereich oder Geländedetail reduzieren.'
+                            : '',
+                      ],
+                    ),
                   ),
                 FilledButton.icon(
                   onPressed:
@@ -560,7 +622,7 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                       ? _save
                       : null,
                   icon: const Icon(Icons.add_location_alt_outlined),
-                  label: const Text('Save region for caching'),
+                  label: Text(context.translate("Save region for caching")),
                 ),
                 OutlinedButton.icon(
                   onPressed:
@@ -575,10 +637,16 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                       ? () => _exportPlan()
                       : null,
                   icon: const Icon(Icons.save_alt),
-                  label: const Text('Vorbereitungsdatei für Laptop speichern'),
+                  label: Text(
+                    context.translate(
+                      "Vorbereitungsdatei für Laptop speichern",
+                    ),
+                  ),
                 ),
-                const Text(
-                  'Der zusätzliche Ansichtspuffer enthält nur tatsächlich betrachtete Kacheln und kann unvollständig bleiben. Er ist unabhängig vom automatischen offiziellen Regionsdownload oben.',
+                Text(
+                  context.translate(
+                    "Der zusätzliche Ansichtspuffer enthält nur tatsächlich betrachtete Kacheln und kann unvollständig bleiben. Er ist unabhängig vom automatischen offiziellen Regionsdownload oben.",
+                  ),
                 ),
               ],
             ),
@@ -627,13 +695,13 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                           : null,
                       child: Text(
                         region.preparationVersion == 2
-                            ? 'Region aktualisieren'
-                            : 'Neue Vorbereitungsdatei',
+                            ? context.translate("Region aktualisieren")
+                            : context.translate("Neue Vorbereitungsdatei"),
                       ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Schließen'),
+                      child: Text(context.translate("Schließen")),
                     ),
                   ],
                 ),
@@ -659,16 +727,23 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
       contentPadding: EdgeInsets.zero,
       title: Text(region.name),
       subtitle: Text(
-        '${tiles.length} / ${region.packageTiles ?? region.expectedTiles} tiles · ${(size / 1048576).toStringAsFixed(1)} MiB\n'
-        '${region.packageId != null && tiles.length == region.packageTiles ? '${region.packageActive ? 'Aktives Offline-Paket' : 'Offline-Paket'} · abgeleitete Karte und Gelände' : 'Partial cache — missing tiles'} · ${region.style}\n'
-        '${region.packageId != null
-            ? 'Quellenausgaben: ${region.sourceDates ?? "nicht angegeben"} · ${stale ? "älteres Paket · " : ""}aufbereitet ${region.preparedAt!.toLocal()}'
-            : oldest == null
-            ? 'Not downloaded'
-            : '${stale ? 'Outdated cache' : 'Cached snapshot'} · oldest retrieval ${oldest.toIso8601String()}'}',
+        context.translate("{0} / {1} tiles · {2} MiB\n{3} · {4}\n{5}", [
+          tiles.length,
+          region.packageTiles ?? region.expectedTiles,
+          (size / 1048576).toStringAsFixed(1),
+          region.packageId != null && tiles.length == region.packageTiles
+              ? '${region.packageActive ? 'Aktives Offline-Paket' : 'Offline-Paket'} · abgeleitete Karte und Gelände'
+              : 'Partial cache — missing tiles',
+          region.style,
+          region.packageId != null
+              ? 'Quellenausgaben: ${region.sourceDates ?? "nicht angegeben"} · ${stale ? "älteres Paket · " : ""}aufbereitet ${region.preparedAt!.toLocal()}'
+              : oldest == null
+              ? 'Not downloaded'
+              : '${stale ? 'Outdated cache' : 'Cached snapshot'} · oldest retrieval ${oldest.toIso8601String()}',
+        ]),
       ),
       trailing: IconButton(
-        tooltip: 'Remove cached region',
+        tooltip: context.translate("Remove cached region"),
         icon: const Icon(Icons.delete_outline),
         onPressed: widget.enabled && !_busy
             ? () async {

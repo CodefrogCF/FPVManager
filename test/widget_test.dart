@@ -14,13 +14,13 @@ void main() {
       'FPVManager',
     );
     expect(find.byType(FPVHomeScreen), findsOneWidget);
-    expect(find.byTooltip('Open navigation menu'), findsOneWidget);
-    expect(find.byTooltip('Map status'), findsOneWidget);
+    expect(find.byTooltip('Navigationsmenü öffnen'), findsOneWidget);
+    expect(find.byTooltip('Kartenstatus'), findsOneWidget);
     expect(find.byTooltip('Kartenaktionen'), findsOneWidget);
     expect(find.byType(GlobeView), findsOneWidget);
 
     expect(find.byType(Scaffold), findsOneWidget);
-    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.tap(find.byTooltip('Navigationsmenü öffnen'));
     await tester.pumpAndSettle();
     expect(find.text('FPVManager'), findsOneWidget);
     expect(find.text('Gespeicherte Orte'), findsOneWidget);

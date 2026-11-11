@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -141,8 +143,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Weather preferences could not be saved'),
+          SnackBar(
+            content: Text(
+              context.translate("Weather preferences could not be saved"),
+            ),
           ),
         );
       }
@@ -289,14 +293,21 @@ class _WeatherScreenState extends State<WeatherScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${overlay.cells.length} independent Open-Meteo samples shown on globe.',
+            context.translate(
+              "{0} independent Open-Meteo samples shown on globe.",
+              [overlay.cells.length],
+            ),
           ),
         ),
       );
     } catch (error) {
       if (mounted && current()) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Weather overlay unavailable: $error')),
+          SnackBar(
+            content: Text(
+              context.translate("Weather overlay unavailable: {0}", [error]),
+            ),
+          ),
         );
       }
     } finally {
@@ -406,7 +417,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
         ? null
         : evaluateFpvWeather(forecast, _time, _criteria);
     return Scaffold(
-      appBar: AppBar(title: const Text('Weather & FPV suitability')),
+      appBar: AppBar(
+        title: Text(context.translate("Weather & FPV suitability")),
+      ),
       body: _initializing
           ? const Center(child: CircularProgressIndicator())
           : Center(
@@ -415,16 +428,20 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(18),
                   children: [
-                    const Text(
-                      'Weather forecasts are planning aids, not real-time flight safety or legal authorisation.',
+                    Text(
+                      context.translate(
+                        "Weather forecasts are planning aids, not real-time flight safety or legal authorisation.",
+                      ),
                     ),
                     const SizedBox(height: 18),
                     MeteoRadarSection(globe: widget.globe),
                     const SizedBox(height: 18),
                     DropdownButtonFormField<WeatherProviderId>(
                       initialValue: _providerId,
-                      decoration: const InputDecoration(
-                        labelText: 'Active forecast provider',
+                      decoration: InputDecoration(
+                        labelText: context.translate(
+                          "Active forecast provider",
+                        ),
                       ),
                       items: _providers.values
                           .map(
@@ -457,7 +474,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                             mode: LaunchMode.externalApplication,
                           ),
                           icon: const Icon(Icons.open_in_new),
-                          label: const Text('Provider terms / data source'),
+                          label: Text(
+                            context.translate("Provider terms / data source"),
+                          ),
                         ),
                       ],
                     ),
@@ -465,8 +484,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     if (_spots.isNotEmpty)
                       DropdownButtonFormField<int>(
                         initialValue: _spotId,
-                        decoration: const InputDecoration(
-                          labelText: 'Saved flying spot',
+                        decoration: InputDecoration(
+                          labelText: context.translate("Saved flying spot"),
                         ),
                         items: _spots
                             .map(
@@ -484,8 +503,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     else
                       Text(
                         _latitude != null
-                            ? 'Selected globe location (${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)})'
-                            : 'No saved spot selected. Select a point on the globe or save a spot.',
+                            ? context.translate(
+                                "Selected globe location ({0}, {1})",
+                                [
+                                  _latitude!.toStringAsFixed(4),
+                                  _longitude!.toStringAsFixed(4),
+                                ],
+                              )
+                            : context.translate(
+                                "No saved spot selected. Select a point on the globe or save a spot.",
+                              ),
                       ),
                     const SizedBox(height: 12),
                     if (_loading) const LinearProgressIndicator(),
@@ -507,7 +534,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               ? null
                               : () => _load(forceRefresh: true),
                           icon: const Icon(Icons.refresh),
-                          label: const Text('Refresh forecast'),
+                          label: Text(context.translate("Refresh forecast")),
                         ),
                       ),
                     if (forecast != null) ...[
@@ -516,28 +543,47 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
-                        'Location: ${forecast.locationDescription}${forecast.distanceToSourceKm == null ? '' : ' (${forecast.distanceToSourceKm!.toStringAsFixed(1)} km away)'}',
+                        context.translate("Location: {0}{1}", [
+                          forecast.locationDescription,
+                          forecast.distanceToSourceKm == null
+                              ? ''
+                              : ' (${forecast.distanceToSourceKm!.toStringAsFixed(1)} km away)',
+                        ]),
                       ),
-                      Text('Resolution: ${forecast.modelResolution}'),
                       Text(
-                        'Downloaded: ${forecast.retrievedUtc.toUtc().toIso8601String()} UTC',
+                        context.translate("Resolution: {0}", [
+                          forecast.modelResolution,
+                        ]),
+                      ),
+                      Text(
+                        context.translate("Downloaded: {0} UTC", [
+                          forecast.retrievedUtc.toUtc().toIso8601String(),
+                        ]),
                       ),
                       if (forecast.sourceIssuedUtc != null)
                         Text(
-                          'Forecast issued: ${forecast.sourceIssuedUtc!.toIso8601String()}',
+                          context.translate("Forecast issued: {0}", [
+                            forecast.sourceIssuedUtc!.toIso8601String(),
+                          ]),
                         )
                       else
-                        const Text(
-                          'Forecast issue time: not supplied by provider',
+                        Text(
+                          context.translate(
+                            "Forecast issue time: not supplied by provider",
+                          ),
                         ),
-                      const Text(
-                        'Hourly precipitation refers to the preceding hour ending at the forecast timestamp.',
+                      Text(
+                        context.translate(
+                          "Hourly precipitation refers to the preceding hour ending at the forecast timestamp.",
+                        ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<DateTime>(
                         initialValue: _selectedTime,
-                        decoration: const InputDecoration(
-                          labelText: 'Planned flight time (local)',
+                        decoration: InputDecoration(
+                          labelText: context.translate(
+                            "Planned flight time (local)",
+                          ),
                         ),
                         items: forecast.samples
                             .where(
@@ -576,7 +622,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           ),
                           Chip(
                             label: Text(
-                              'Direction ${_number(reading?.directionDegrees, '°')}',
+                              context.translate("Direction {0}", [
+                                _number(reading?.directionDegrees, '°'),
+                              ]),
                             ),
                           ),
                           Chip(
@@ -586,7 +634,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           ),
                           Chip(
                             label: Text(
-                              'Niederschlag ${_number(reading?.precipitationMm, 'mm / 1 h')}',
+                              context.translate("Niederschlag {0}", [
+                                _number(reading?.precipitationMm, 'mm / 1 h'),
+                              ]),
                             ),
                           ),
                           Chip(
@@ -596,7 +646,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           ),
                           Chip(
                             label: Text(
-                              'Visibility ${_number(reading?.visibilityMeters, 'm')}',
+                              context.translate("Visibility {0}", [
+                                _number(reading?.visibilityMeters, 'm'),
+                              ]),
                             ),
                           ),
                           if (reading?.wind80mMs != null)
@@ -607,17 +659,21 @@ class _WeatherScreenState extends State<WeatherScreen> {
                             ),
                         ],
                       ),
-                      const Text(
-                        'Model wind at 10 m and 80 m is not a prediction of local rotor turbulence. Valleys, ridges, obstacles and thermals may cause major deviations.',
+                      Text(
+                        context.translate(
+                          "Model wind at 10 m and 80 m is not a prediction of local rotor turbulence. Valleys, ridges, obstacles and thermals may cause major deviations.",
+                        ),
                       ),
                     ],
                     const Divider(height: 30),
                     Text(
-                      'Local terrain exposure',
+                      context.translate("Local terrain exposure"),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const Text(
-                      'Optional Cesium relief check within 300 m (centre and four neighbours). Not an aerodynamic turbulence model.',
+                    Text(
+                      context.translate(
+                        "Optional Cesium relief check within 300 m (centre and four neighbours). Not an aerodynamic turbulence model.",
+                      ),
                     ),
                     TextButton.icon(
                       onPressed:
@@ -627,24 +683,33 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           ? null
                           : _checkTerrain,
                       icon: const Icon(Icons.terrain),
-                      label: const Text('Inspect local terrain'),
+                      label: Text(context.translate("Inspect local terrain")),
                     ),
                     if (_terrainLoading) const LinearProgressIndicator(),
                     if (_terrainError != null) Text(_terrainError!),
                     if (_terrain != null)
                       Text(
-                        'Nearby relief ${_terrain!.localReliefMeters.toStringAsFixed(0)} m from ${_terrain!.samples} terrain samples. ${_terrain!.warning}',
+                        context.translate(
+                          "Nearby relief {0} m from {1} terrain samples. {2}",
+                          [
+                            _terrain!.localReliefMeters.toStringAsFixed(0),
+                            _terrain!.samples,
+                            _terrain!.warning,
+                          ],
+                        ),
                       ),
                     const Divider(height: 30),
                     Text(
-                      'FPV suitability thresholds',
+                      context.translate("FPV suitability thresholds"),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     if (_drones.isNotEmpty)
                       DropdownButtonFormField<int>(
                         initialValue: _droneId,
-                        decoration: const InputDecoration(
-                          labelText: 'Drone profile (user thresholds)',
+                        decoration: InputDecoration(
+                          labelText: context.translate(
+                            "Drone profile (user thresholds)",
+                          ),
                         ),
                         items: _drones
                             .map(
@@ -660,11 +725,15 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         }),
                       )
                     else
-                      const Text(
-                        'No drone profiles saved; configure generic thresholds below.',
+                      Text(
+                        context.translate(
+                          "No drone profiles saved; configure generic thresholds below.",
+                        ),
                       ),
-                    const Text(
-                      'These are personal limits, not manufacturer-approved wind tolerances.',
+                    Text(
+                      context.translate(
+                        "These are personal limits, not manufacturer-approved wind tolerances.",
+                      ),
                     ),
                     _limit(
                       'Maximum mean wind',
@@ -717,9 +786,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       }),
                     ),
                     SwitchListTile.adaptive(
-                      title: const Text('Require visibility forecast'),
-                      subtitle: const Text(
-                        'MeteoSwiss E4 does not provide this parameter.',
+                      title: Text(
+                        context.translate("Require visibility forecast"),
+                      ),
+                      subtitle: Text(
+                        context.translate(
+                          "MeteoSwiss E4 does not provide this parameter.",
+                        ),
                       ),
                       value: _criteria.minimumVisibilityMeters != null,
                       onChanged: (v) {
@@ -783,36 +856,49 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       ),
                     ],
                     const SizedBox(height: 10),
-                    const Text(
-                      'Airspace status: NOT CHECKED by this weather assessment. Consult current UAS zones, DABS and NOTAM separately.',
+                    Text(
+                      context.translate(
+                        "Airspace status: NOT CHECKED by this weather assessment. Consult current UAS zones, DABS and NOTAM separately.",
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: () =>
                           showAirspaceSafetyPanel(context, widget.globe),
                       icon: const Icon(Icons.shield_outlined),
-                      label: const Text('Official airspace verification'),
+                      label: Text(
+                        context.translate("Official airspace verification"),
+                      ),
                     ),
                     const Divider(height: 30),
                     Text(
-                      'Weather map (Open-Meteo sample grid)',
+                      context.translate("Weather map (Open-Meteo sample grid)"),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     TextButton.icon(
                       onPressed: () => _openStationObservations(),
                       icon: const Icon(Icons.sensors_outlined),
-                      label: const Text(
-                        'Gemessene Wetter- und Gewässerstationen',
+                      label: Text(
+                        context.translate(
+                          "Gemessene Wetter- und Gewässerstationen",
+                        ),
                       ),
                     ),
-                    const Text(
-                      '49 sampled model points around the selected spot. Display spacing does NOT indicate actual meteorological model accuracy; no spatial interpolation. This is NOT a MeteoSwiss layer, even if MeteoSwiss is selected above.',
+                    Text(
+                      context.translate(
+                        "49 sampled model points around the selected spot. Display spacing does NOT indicate actual meteorological model accuracy; no spatial interpolation. This is NOT a MeteoSwiss layer, even if MeteoSwiss is selected above.",
+                      ),
                     ),
-                    const Text(
-                      'Native model resolution: not supplied by this API response. The selected spacing only sets the display sample grid.',
+                    Text(
+                      context.translate(
+                        "Native model resolution: not supplied by this API response. The selected spacing only sets the display sample grid.",
+                      ),
                     ),
                     SegmentedButton<double>(
-                      segments: const [
-                        ButtonSegment(value: 1000.0, label: Text('1 km local')),
+                      segments: [
+                        ButtonSegment(
+                          value: 1000.0,
+                          label: Text(context.translate("1 km local")),
+                        ),
                         ButtonSegment(
                           value: 5000.0,
                           label: Text('5 km regional'),
@@ -827,8 +913,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     DropdownButtonFormField<WeatherOverlayKind>(
                       initialValue: _overlayKind,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Zusätzliches Prognoseraster',
+                      decoration: InputDecoration(
+                        labelText: context.translate(
+                          "Zusätzliches Prognoseraster",
+                        ),
                       ),
                       items: [
                         for (final kind in WeatherOverlayKind.values)
@@ -841,14 +929,20 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           ? null
                           : (kind) => setState(() => _overlayKind = kind!),
                     ),
-                    const Text(
-                      'Wind legend (m/s): green <3, yellow 3–7, orange 7–12, red ≥12.',
+                    Text(
+                      context.translate(
+                        "Wind legend (m/s): green <3, yellow 3–7, orange 7–12, red ≥12.",
+                      ),
                     ),
-                    const Text(
-                      'Niederschlag und großräumiger Regen sind Summen der vorangegangenen Stunde (mm), Neuschnee in cm, Schneehöhe in m. Eine Regenrate oder Niederschlagsart wird daraus nicht abgeleitet.',
+                    Text(
+                      context.translate(
+                        "Niederschlag und großräumiger Regen sind Summen der vorangegangenen Stunde (mm), Neuschnee in cm, Schneehöhe in m. Eine Regenrate oder Niederschlagsart wird daraus nicht abgeleitet.",
+                      ),
                     ),
-                    const Text(
-                      'Bewölkung: 0–100 % Modellbedeckung, keine gemessenen 3D-Wolken. Temperatur: °C in 2 m Höhe. Alle sichtbaren Raster verwenden dieselbe Prognosezeit.',
+                    Text(
+                      context.translate(
+                        "Bewölkung: 0–100 % Modellbedeckung, keine gemessenen 3D-Wolken. Temperatur: °C in 2 m Höhe. Alle sichtbaren Raster verwenden dieselbe Prognosezeit.",
+                      ),
                     ),
                     ListenableBuilder(
                       listenable: widget.globe,
@@ -867,14 +961,24 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                       '${WeatherOverlayKind.values.byName(entry.key).label} · ${entry.value['units'] ?? WeatherOverlayKind.values.byName(entry.key).unit}',
                                     ),
                                     Text(
-                                      'Prognose: ${entry.value['timestampUtc']}\nAbgerufen: ${entry.value['retrievedAtUtc'] ?? "nicht bereitgestellt"} · ${entry.value['missingSamples'] ?? 0} fehlende Stichproben',
+                                      context.translate(
+                                        "Prognose: {0}\nAbgerufen: {1} · {2} fehlende Stichproben",
+                                        [
+                                          entry.value['timestampUtc'],
+                                          entry.value['retrievedAtUtc'] ??
+                                              "nicht bereitgestellt",
+                                          entry.value['missingSamples'] ?? 0,
+                                        ],
+                                      ),
                                     ),
                                     if (DateTime.tryParse(
                                           '${entry.value['expiresAtUtc']}',
                                         )?.isBefore(DateTime.now().toUtc()) ==
                                         true)
-                                      const Text(
-                                        'Raster abgelaufen · auf der Karte ausgeblendet',
+                                      Text(
+                                        context.translate(
+                                          "Raster abgelaufen · auf der Karte ausgeblendet",
+                                        ),
                                       ),
                                     Slider(
                                       label: 'Deckkraft',
@@ -897,8 +1001,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                       icon: const Icon(
                                         Icons.visibility_off_outlined,
                                       ),
-                                      label: const Text(
-                                        'Dieses Raster ausblenden',
+                                      label: Text(
+                                        context.translate(
+                                          "Dieses Raster ausblenden",
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -919,7 +1025,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               ? null
                               : _showOverlay,
                           icon: const Icon(Icons.layers),
-                          label: const Text('Show on globe'),
+                          label: Text(context.translate("Show on globe")),
                         ),
                         OutlinedButton(
                           onPressed: widget.globe.weatherOverlayVisible
@@ -931,21 +1037,25 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                   }
                                 }
                               : null,
-                          child: const Text('Clear overlay'),
+                          child: Text(context.translate("Clear overlay")),
                         ),
                       ],
                     ),
                     const Divider(height: 30),
                     Text(
-                      'Compare saved spots',
+                      context.translate("Compare saved spots"),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const Text(
-                      'All comparison results use the selected provider and identical flight time and criteria; missing data never yields a positive result.',
+                    Text(
+                      context.translate(
+                        "All comparison results use the selected provider and identical flight time and criteria; missing data never yields a positive result.",
+                      ),
                     ),
                     if (_providerId == WeatherProviderId.meteoSwiss)
-                      const Text(
-                        'Official MeteoSwiss files are large; comparison is limited to 3 spots per request to reduce traffic.',
+                      Text(
+                        context.translate(
+                          "Official MeteoSwiss files are large; comparison is limited to 3 spots per request to reduce traffic.",
+                        ),
                       ),
                     FilledButton.tonal(
                       onPressed:
@@ -954,7 +1064,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               _spots.isEmpty
                           ? null
                           : _compare,
-                      child: const Text('Evaluate saved spots'),
+                      child: Text(context.translate("Evaluate saved spots")),
                     ),
                     if (_comparisonLoading) const LinearProgressIndicator(),
                     if (_comparisonError != null) Text(_comparisonError!),
@@ -963,7 +1073,20 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         title: Text(item.spot.name),
                         subtitle: Text(
                           item.error ??
-                              '''${_assessment(item.result!.assessment)}\n${item.result!.factors.map((f) => '${f.label}: ${_number(f.value, f.unit)} (limit ${_number(f.limit, f.unit)})').join(' · ')}\n${item.result!.explanation}\n${item.result!.forecast.source} · Terrain and legal airspace not assessed.''',
+                              context.translate(
+                                "{0}\n{1}\n{2}\n{3} · Terrain and legal airspace not assessed.",
+                                [
+                                  _assessment(item.result!.assessment),
+                                  item.result!.factors
+                                      .map(
+                                        (f) =>
+                                            '${f.label}: ${_number(f.value, f.unit)} (limit ${_number(f.limit, f.unit)})',
+                                      )
+                                      .join(' · '),
+                                  item.result!.explanation,
+                                  item.result!.forecast.source,
+                                ],
+                              ),
                         ),
                         isThreeLine: true,
                       ),
@@ -982,9 +1105,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Kartenebene konnte nicht aktualisiert werden. Bitte erneut versuchen.',
+              context.translate(
+                "Kartenebene konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+              ),
             ),
           ),
         );

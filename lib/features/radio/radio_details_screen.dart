@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/repositories/radio_equipment_repository.dart';
 import '../../core/models/radio_profile.dart';
 import 'radio_editor_dialog.dart';
@@ -27,18 +29,21 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete equipment profile?'),
+        title: Text(context.translate("Delete equipment profile?")),
         content: Text(
-          'Permanently delete "${profile.equipment.name}" and its assignments? Drone profiles and other equipment configurations are kept.',
+          context.translate(
+            "Permanently delete \"{0}\" and its assignments? Drone profiles and other equipment configurations are kept.",
+            [profile.equipment.name],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.translate("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.translate("Delete")),
           ),
         ],
       ),
@@ -66,7 +71,7 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         SelectableText(
           value == null
-              ? 'Not recorded'
+              ? context.translate("Not recorded")
               : '$value${unit.isEmpty ? '' : ' $unit'}',
         ),
       ],
@@ -77,7 +82,7 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_deleting,
     child: Scaffold(
-      appBar: AppBar(title: const Text('Equipment details')),
+      appBar: AppBar(title: Text(context.translate("Equipment details"))),
       body: StreamBuilder<RadioProfile?>(
         stream: _profile,
         builder: (context, snapshot) {
@@ -86,14 +91,16 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Unable to load this equipment profile.'),
+                  Text(
+                    context.translate("Unable to load this equipment profile."),
+                  ),
                   TextButton(
                     onPressed: () => setState(
                       () => _profile = widget.repository.watchProfile(
                         widget.equipmentId,
                       ),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(context.translate("Retry")),
                   ),
                 ],
               ),
@@ -104,8 +111,10 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
           }
           final profile = snapshot.data;
           if (profile == null) {
-            return const Center(
-              child: Text('This equipment profile no longer exists.'),
+            return Center(
+              child: Text(
+                context.translate("This equipment profile no longer exists."),
+              ),
             );
           }
           final row = profile.equipment;
@@ -138,7 +147,7 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
                                 ),
                               ),
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit equipment'),
+                        label: Text(context.translate("Edit equipment")),
                       ),
                       TextButton.icon(
                         onPressed: _deleting ? null : () => _delete(profile),
@@ -156,8 +165,10 @@ class _RadioDetailsScreenState extends State<RadioDetailsScreen> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Recorded specifications. Unknown values remain unrecorded. Maximum transmitter power is before antenna gain and cable loss; the operating setting may be lower.',
+                  Text(
+                    context.translate(
+                      "Recorded specifications. Unknown values remain unrecorded. Maximum transmitter power is before antenna gain and cable loss; the operating setting may be lower.",
+                    ),
                   ),
                   _field(
                     'Associated drones',

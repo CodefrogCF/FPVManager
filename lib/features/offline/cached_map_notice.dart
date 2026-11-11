@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../help/guides_screen.dart';
 
 class CachedMapNotice extends StatelessWidget {
@@ -7,13 +9,15 @@ class CachedMapNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: Theme.of(context).colorScheme.surfaceContainerHigh,
-    child: const Padding(
+    child: Padding(
       padding: EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Cached base map & terrain · coverage may be incomplete or outdated. Live overlays and API actions require separate verification.',
+            context.translate(
+              "Cached base map & terrain · coverage may be incomplete or outdated. Live overlays and API actions require separate verification.",
+            ),
           ),
           GuideLink(GuideTopic.offline),
         ],

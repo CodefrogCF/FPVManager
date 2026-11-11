@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'globe_controller.dart';
 
 /// Shared entry point for terrain-relative inspection; movement lives in Cesium.
@@ -24,8 +26,11 @@ class GroundViewButton extends StatelessWidget {
       await action();
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Ground view: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.translate("Ground view: {0}", [error])),
+          ),
+        );
       }
     }
   }
@@ -45,10 +50,10 @@ class GroundViewButton extends StatelessWidget {
           controller.groundViewPending || controller.simulationPending;
       return IconButton(
         tooltip: pending
-            ? 'Cancel spawn'
+            ? context.translate("Cancel spawn")
             : running
-            ? 'Return to globe'
-            : 'Spawn here',
+            ? context.translate("Return to globe")
+            : context.translate("Spawn here"),
         onPressed: running
             ? () => _run(context, controller.exitNavigation)
             : controller.isReady &&

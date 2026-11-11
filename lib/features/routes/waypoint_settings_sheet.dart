@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/geo/altitude_service.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/flight_route.dart';
@@ -65,22 +67,26 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Waypoint ${widget.editor.points.indexOf(widget.point) + 1}',
+              context.translate("Waypoint {0}", [
+                widget.editor.points.indexOf(widget.point) + 1,
+              ]),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _mode,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Height reference'),
+              decoration: InputDecoration(
+                labelText: context.translate("Height reference"),
+              ),
               items: [
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: 'none',
-                  child: Text('Height not specified'),
+                  child: Text(context.translate("Height not specified")),
                 ),
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: 'agl',
-                  child: Text('Above terrain (AGL)'),
+                  child: Text(context.translate("Above terrain (AGL)")),
                 ),
                 for (final r in VerticalReference.values)
                   DropdownMenuItem(value: r.name, child: Text(r.label)),
@@ -110,9 +116,11 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Outgoing airspeed (m/s)',
-                helperText: 'Empty means unknown. Applies to the next segment.',
+              decoration: InputDecoration(
+                labelText: context.translate("Outgoing airspeed (m/s)"),
+                helperText: context.translate(
+                  "Empty means unknown. Applies to the next segment.",
+                ),
               ),
               validator: (v) {
                 if (v!.trim().isEmpty) return null;
@@ -123,16 +131,22 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
               },
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Terrain uses WGS84 ellipsoid heights. Other absolute references are preserved, but cannot yet be converted for the 3D view or clearance calculation. A * marker shows a 30 m AGL preview only.',
+            Text(
+              context.translate(
+                "Terrain uses WGS84 ellipsoid heights. Other absolute references are preserved, but cannot yet be converted for the 3D view or clearance calculation. A * marker shows a 30 m AGL preview only.",
+              ),
             ),
             const SizedBox(height: 16),
             if (widget.editor.points.length > 1)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Apply height and speed to all waypoints'),
-                subtitle: const Text(
-                  'Replaces existing height and speed settings for this draft. Undo is available.',
+                title: Text(
+                  context.translate("Apply height and speed to all waypoints"),
+                ),
+                subtitle: Text(
+                  context.translate(
+                    "Replaces existing height and speed settings for this draft. Undo is available.",
+                  ),
                 ),
                 value: _applyAll,
                 onChanged: (v) => setState(() => _applyAll = v!),
@@ -166,7 +180,7 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
                 }
                 Navigator.pop(context);
               },
-              child: const Text('Apply waypoint settings'),
+              child: Text(context.translate("Apply waypoint settings")),
             ),
           ],
         ),

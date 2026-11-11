@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'globe_controller.dart';
 
 /// A terrain outage does not replace the working map or its layer controls.
@@ -47,7 +49,10 @@ class TerrainStatusBanner extends StatelessWidget {
                       const Icon(Icons.terrain_outlined),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Semantics(liveRegion: true, child: Text(message)),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(context.translate(message)),
+                      ),
                     ),
                   ],
                 );
@@ -59,16 +64,18 @@ class TerrainStatusBanner extends StatelessWidget {
                           } catch (_) {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                 content: Text(
-                                  'Unable to reconnect to terrain. Please retry.',
+                                  context.translate(
+                                    "Unable to reconnect to terrain. Please retry.",
+                                  ),
                                 ),
                               ),
                             );
                           }
                         }
                       : null,
-                  child: const Text('Retry terrain'),
+                  child: Text(context.translate("Retry terrain")),
                 );
                 if (constraints.maxWidth < 500) {
                   return Column(

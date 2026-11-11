@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import 'checklist.dart';
 import 'preflight_repository.dart';
@@ -22,7 +24,11 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Checklist could not be saved: $e')),
+          SnackBar(
+            content: Text(
+              context.translate("Checklist could not be saved: {0}", [e]),
+            ),
+          ),
         );
       }
     } finally {
@@ -65,8 +71,10 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
     builder: (context, snapshot) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Completion is saved on this device. Start a new checklist for each flight; completing it does not grant flight authorization.',
+        Text(
+          context.translate(
+            "Completion is saved on this device. Start a new checklist for each flight; completing it does not grant flight authorization.",
+          ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -80,13 +88,15 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
             OutlinedButton.icon(
               onPressed: _busy ? null : () => _run(() => _edit(template: true)),
               icon: const Icon(Icons.copy_outlined),
-              label: const Text('New template'),
+              label: Text(context.translate("New template")),
             ),
           ],
         ),
         if (snapshot.hasError)
-          const Text(
-            'Local checklists unavailable. Reopen this screen to retry.',
+          Text(
+            context.translate(
+              "Local checklists unavailable. Reopen this screen to retry.",
+            ),
           ),
         if (!snapshot.hasData && !snapshot.hasError)
           const LinearProgressIndicator(),
@@ -102,7 +112,7 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
     } catch (_) {
       return ListTile(
         title: Text(row.name),
-        subtitle: const Text('Unsupported checklist data'),
+        subtitle: Text(context.translate("Unsupported checklist data")),
       );
     }
     final done = items.where((i) => i.checked).length;
@@ -112,7 +122,9 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
         title: Text(row.name),
         subtitle: Text(
           row.isTemplate
-              ? 'Reusable template · ${items.length} items'
+              ? context.translate("Reusable template · {0} items", [
+                  items.length,
+                ])
               : '$done / ${items.length} checked · ${row.updatedAt.toLocal()}',
         ),
         trailing: PopupMenuButton<String>(
@@ -136,11 +148,11 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+                      child: Text(context.translate("Cancel")),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Delete'),
+                      child: Text(context.translate("Delete")),
                     ),
                   ],
                 ),
@@ -154,11 +166,14 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
                 value: 'start',
                 child: Text('Start checklist'),
               ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'edit',
-              child: Text('Edit items & associations'),
+              child: Text(context.translate("Edit items & associations")),
             ),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+            PopupMenuItem(
+              value: 'delete',
+              child: Text(context.translate("Delete")),
+            ),
           ],
         ),
         children: [
@@ -291,7 +306,11 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(_template ? 'Checklist template' : 'Preflight checklist'),
+    title: Text(
+      _template
+          ? context.translate("Checklist template")
+          : 'Preflight checklist',
+    ),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -308,9 +327,11 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
               minLines: 5,
               maxLines: 12,
               maxLength: 30100,
-              decoration: const InputDecoration(
-                labelText: 'Items · one per line',
-                helperText: 'Up to 100 items. Changed items or associations must be checked again.',
+              decoration: InputDecoration(
+                labelText: context.translate("Items · one per line"),
+                helperText: context.translate(
+                  "Up to 100 items. Changed items or associations must be checked again.",
+                ),
               ),
             ),
             DropdownButtonFormField<int>(
@@ -318,7 +339,9 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Drone'),
               items: [
-                const DropdownMenuItem<int>(child: Text('Any drone')),
+                DropdownMenuItem<int>(
+                  child: Text(context.translate("Any drone")),
+                ),
                 for (final d in widget.drones)
                   DropdownMenuItem(value: d.id, child: Text(d.name)),
               ],
@@ -327,9 +350,13 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
             DropdownButtonFormField<int>(
               initialValue: _route,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Flight plan'),
+              decoration: InputDecoration(
+                labelText: context.translate("Flight plan"),
+              ),
               items: [
-                const DropdownMenuItem<int>(child: Text('Any flight plan')),
+                DropdownMenuItem<int>(
+                  child: Text(context.translate("Any flight plan")),
+                ),
                 for (final p in widget.routes)
                   DropdownMenuItem(value: p.id, child: Text(p.name)),
               ],
@@ -343,14 +370,14 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text(context.translate("Cancel")),
       ),
       FilledButton(
         onPressed: _save,
         child: Text(
           widget.fromTemplate
-              ? 'Start with all items unchecked'
-              : 'Save locally',
+              ? context.translate("Start with all items unchecked")
+              : context.translate("Save locally"),
         ),
       ),
     ],

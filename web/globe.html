@@ -107,11 +107,11 @@
     [data-stick-thumb] { position: absolute; width: 34%; height: 34%; left: 33%; top: 33%;
         border-radius: 50%; background: var(--stick-thumb); border: 1px solid #ffffff88;
         box-sizing: border-box; pointer-events: none; }
-    #ground-controls::after { content: 'Move'; display: block; text-align: center;
+    #ground-controls::after { content: var(--fpv-move-label, 'Move'); display: block; text-align: center;
         color: #ffffffb3; font-size: 11px; margin-top: 4px; pointer-events: none; }
-    #ground-controls[data-mode="flight"]::after { content:'Throttle / Yaw'; }
-    #look-stick::after { content:'Look';position:absolute;top:calc(100% + 5px);left:0;right:0;text-align:center;color:#ffffffb3;font-size:11px;pointer-events:none; }
-    #ground-controls[data-mode="flight"] ~ #look-region #look-stick::after { content:'Pitch / Roll'; }
+    #ground-controls[data-mode="flight"]::after { content:var(--fpv-throttle-label, 'Throttle / Yaw'); }
+    #look-stick::after { content:var(--fpv-look-label, 'Look');position:absolute;top:calc(100% + 5px);left:0;right:0;text-align:center;color:#ffffffb3;font-size:11px;pointer-events:none; }
+    #ground-controls[data-mode="flight"] ~ #look-region #look-stick::after { content:var(--fpv-attitude-label, 'Pitch / Roll'); }
     @media (max-width: 480px) { #info { top: 8px; left: 8px; right: 8px;
         padding: 8px 10px; right:66px; max-width: none; font-size: 12px; } }
 
@@ -278,6 +278,7 @@
     <script src="meteo_radar_overlay.js"></script>
     <script src="dated_imagery_overlay.js"></script>
     <script src="offline_map_client.js"></script>
+    <script src="renderer_language.js"></script>
     <script src="globe.js"></script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -255,8 +257,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Optional nearby points from OpenStreetMap via Overpass. Each request is initiated manually, limited to 2 km and six categories. Missing results do not prove that a facility does not exist. Never use these results as an authoritative source of drinking-water safety or access.',
+        Text(
+          context.translate(
+            "Optional nearby points from OpenStreetMap via Overpass. Each request is initiated manually, limited to 2 km and six categories. Missing results do not prove that a facility does not exist. Never use these results as an authoritative source of drinking-water safety or access.",
+          ),
         ),
         const SizedBox(height: 12),
         FutureBuilder<List<Spot>>(
@@ -266,8 +270,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
             initialValue: state.data?.any((s) => s.id == _spotId) == true
                 ? _spotId
                 : null,
-            decoration: const InputDecoration(
-              labelText: 'Search around saved spot (optional)',
+            decoration: InputDecoration(
+              labelText: context.translate(
+                "Search around saved spot (optional)",
+              ),
             ),
             isExpanded: true,
             items: [
@@ -325,15 +331,15 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
           child: OutlinedButton.icon(
             onPressed: _busy ? null : _deviceLocation,
             icon: const Icon(Icons.my_location),
-            label: const Text('Use device location'),
+            label: Text(context.translate("Use device location")),
           ),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(
           key: ValueKey('osm_poi_radius_$_radius'),
           initialValue: _radius,
-          decoration: const InputDecoration(
-            labelText: 'Search radius (metres)',
+          decoration: InputDecoration(
+            labelText: context.translate("Search radius (metres)"),
           ),
           items: [250, 500, 1000, 2000]
               .map((r) => DropdownMenuItem(value: r, child: Text('$r m')))
@@ -346,7 +352,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                 }),
         ),
         const SizedBox(height: 12),
-        Text('Categories', style: Theme.of(context).textTheme.titleSmall),
+        Text(
+          context.translate("Categories"),
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
         Wrap(
           spacing: 8,
           runSpacing: 0,
@@ -371,11 +380,15 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           value: _consent,
-          title: const Text(
-            'Send selected center, radius and categories to the public Overpass API.',
+          title: Text(
+            context.translate(
+              "Send selected center, radius and categories to the public Overpass API.",
+            ),
           ),
-          subtitle: const Text(
-            'No automatic polling. Queries are limited locally to 12/hour and at least 15 seconds apart. The provider may apply stricter limits.',
+          subtitle: Text(
+            context.translate(
+              "No automatic polling. Queries are limited locally to 12/hour and at least 15 seconds apart. The provider may apply stricter limits.",
+            ),
           ),
           onChanged: _busy
               ? null
@@ -388,15 +401,15 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
             FilledButton.icon(
               onPressed: _busy || !_consent ? null : () => _search(),
               icon: const Icon(Icons.search),
-              label: const Text('Find nearby places'),
+              label: Text(context.translate("Find nearby places")),
             ),
             OutlinedButton(
               onPressed: _busy || !_consent ? null : () => _search(force: true),
-              child: const Text('Refresh from Overpass'),
+              child: Text(context.translate("Refresh from Overpass")),
             ),
             OutlinedButton(
               onPressed: _busy ? null : _cache,
-              child: const Text('Show saved search offline'),
+              child: Text(context.translate("Show saved search offline")),
             ),
           ],
         ),
@@ -412,12 +425,14 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                         'visible': false,
                       });
                     }),
-              child: const Text('Hide POIs on 3D map'),
+              child: Text(context.translate("Hide POIs on 3D map")),
             ),
           ),
         const SizedBox(height: 8),
-        const Text(
-          'Web availability depends on the public endpoint’s CORS policy; direct requests may fail in browsers. No proxy or intermediary is configured. This search does not download OSM map tiles.',
+        Text(
+          context.translate(
+            "Web availability depends on the public endpoint’s CORS policy; direct requests may fail in browsers. No proxy or intermediary is configured. This search does not download OSM map tiles.",
+          ),
         ),
         if (_busy) const LinearProgressIndicator(),
         if (_message != null)
@@ -431,29 +446,41 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
         if (snapshot != null) ...[
           const SizedBox(height: 16),
           Text(
-            '${snapshot.pois.length} OSM places · retrieved ${snapshot.fetchedAtUtc.toLocal().toIso8601String()}${snapshot.fromCache ? ' · cached snapshot' : ''}',
+            context.translate("{0} OSM places · retrieved {1}{2}", [
+              snapshot.pois.length,
+              snapshot.fetchedAtUtc.toLocal().toIso8601String(),
+              snapshot.fromCache ? ' · cached snapshot' : '',
+            ]),
             style: Theme.of(context).textTheme.titleSmall,
           ),
           if (snapshot.isOutdated(DateTime.now()))
-            const Text(
-              'OUTDATED: This offline snapshot may no longer reflect available facilities.',
+            Text(
+              context.translate(
+                "OUTDATED: This offline snapshot may no longer reflect available facilities.",
+              ),
             ),
           if (snapshot.fallbackToCache)
-            const Text(
-              'Provider unavailable; showing a dated cached snapshot instead.',
+            Text(
+              context.translate(
+                "Provider unavailable; showing a dated cached snapshot instead.",
+              ),
             ),
           if (snapshot.truncated)
-            const Text(
-              'Results truncated to protect the device. Reduce your radius or category selection.',
+            Text(
+              context.translate(
+                "Results truncated to protect the device. Reduce your radius or category selection.",
+              ),
             ),
-          const Text(
-            'OpenStreetMap coverage is incomplete and attributes may be absent or outdated.',
+          Text(
+            context.translate(
+              "OpenStreetMap coverage is incomplete and attributes may be absent or outdated.",
+            ),
           ),
           const SizedBox(height: 8),
           FilledButton.tonalIcon(
             onPressed: _busy || snapshot.pois.isEmpty ? null : _showMap,
             icon: const Icon(Icons.map_outlined),
-            label: const Text('Show POIs on 3D map'),
+            label: Text(context.translate("Show POIs on 3D map")),
           ),
           for (final poi in snapshot.pois.take(60))
             Card(
@@ -477,7 +504,7 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                       children: [
                         TextButton(
                           onPressed: () => launchUrl(poi.sourceUrl),
-                          child: const Text('View OSM source'),
+                          child: Text(context.translate("View OSM source")),
                         ),
                         OutlinedButton(
                           onPressed:
@@ -487,8 +514,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                               : () => _savePoi(poi),
                           child: Text(
                             _savedIds.containsKey(poi.reference)
-                                ? 'Saved as spot #${_savedIds[poi.reference]}'
-                                : 'Save as personal spot',
+                                ? context.translate("Saved as spot #{0}", [
+                                    _savedIds[poi.reference],
+                                  ])
+                                : context.translate("Save as personal spot"),
                           ),
                         ),
                       ],
@@ -498,8 +527,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
               ),
             ),
           if (snapshot.pois.length > 60)
-            const Text(
-              'Showing the first 60 POI detail cards; up to 300 points can be rendered on the map.',
+            Text(
+              context.translate(
+                "Showing the first 60 POI detail cards; up to 300 points can be rendered on the map.",
+              ),
             ),
         ],
         const SizedBox(height: 12),
@@ -514,7 +545,9 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
           onPressed: () => launchUrl(
             Uri.parse('https://wiki.openstreetmap.org/wiki/Overpass_API'),
           ),
-          child: const Text('Overpass API documentation and fair-use policy'),
+          child: Text(
+            context.translate("Overpass API documentation and fair-use policy"),
+          ),
         ),
       ],
     );

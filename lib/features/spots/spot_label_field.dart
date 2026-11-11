@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/models/spot_classification.dart';
 import 'data/spot_repository.dart';
 
@@ -68,10 +70,12 @@ class _SpotLabelFieldState extends State<SpotLabelField> {
       focusNode: focus,
       enabled: widget.enabled,
       decoration: InputDecoration(
-        labelText: widget.tags ? 'Tags' : 'Category',
+        labelText: widget.tags ? 'Tags' : context.translate("Category"),
         helperText: widget.tags
-            ? 'Comma separated · up to 10 tags, 32 characters each'
-            : 'Optional · up to 40 characters',
+            ? context.translate(
+                "Comma separated · up to 10 tags, 32 characters each",
+              )
+            : context.translate("Optional · up to 40 characters"),
         helperMaxLines: 2,
       ),
       validator: (value) => validateSpotLabels(value, tags: widget.tags),

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -131,9 +133,9 @@ class _RadioSheetState extends State<_RadioSheet> {
         builder: (context, _) => Column(
           children: [
             ListTile(
-              title: const Text('Terrain & radio path'),
+              title: Text(context.translate("Terrain & radio path")),
               trailing: IconButton(
-                tooltip: 'Close signal analysis',
+                tooltip: context.translate("Close signal analysis"),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -142,14 +144,18 @@ class _RadioSheetState extends State<_RadioSheet> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 children: [
-                  const Text(
-                    'Geometric visibility and Fresnel clearance are approximations, not measured signal quality or a guaranteed communication range.',
+                  Text(
+                    context.translate(
+                      "Geometric visibility and Fresnel clearance are approximations, not measured signal quality or a guaranteed communication range.",
+                    ),
                   ),
                   ExpansionTile(
                     initiallyExpanded: c.result == null,
-                    title: const Text('Pilot & frequency'),
-                    subtitle: const Text(
-                      'Analyze applies inputs; Save the route to keep them',
+                    title: Text(context.translate("Pilot & frequency")),
+                    subtitle: Text(
+                      context.translate(
+                        "Analyze applies inputs; Save the route to keep them",
+                      ),
                     ),
                     children: [
                       _field('latitude', 'Pilot latitude · WGS84'),
@@ -166,25 +172,36 @@ class _RadioSheetState extends State<_RadioSheet> {
                         'clearance',
                         'First Fresnel zone clearance · % (0–100)',
                       ),
-                      const Text(
-                        'Defaults: 2 m antenna, 5800 MHz and 60% first-zone radius. Set the actual control or video frequency for each analysis.',
+                      Text(
+                        context.translate(
+                          "Defaults: 2 m antenna, 5800 MHz and 60% first-zone radius. Set the actual control or video frequency for each analysis.",
+                        ),
                       ),
                     ],
                   ),
                   ExpansionTile(
-                    title: const Text(
-                      'Optional building / vegetation observations',
+                    title: Text(
+                      context.translate(
+                        "Optional building / vegetation observations",
+                      ),
                     ),
                     subtitle: Text(
-                      '${_surfaces.length} local observations · ${_useSurfaces ? "included" : "disabled"}',
+                      context.translate("{0} local observations · {1}", [
+                        _surfaces.length,
+                        _useSurfaces ? "included" : "disabled",
+                      ]),
                     ),
                     children: [
-                      const Text(
-                        'No building or canopy service is connected. Import known local footprints as circular AGL height observations. These are approximate site observations, not a complete surface model.',
+                      Text(
+                        context.translate(
+                          "No building or canopy service is connected. Import known local footprints as circular AGL height observations. These are approximate site observations, not a complete surface model.",
+                        ),
                       ),
                       SwitchListTile(
-                        title: const Text(
-                          'Include imported surface observations',
+                        title: Text(
+                          context.translate(
+                            "Include imported surface observations",
+                          ),
                         ),
                         value: _useSurfaces,
                         onChanged: c.loading || _importing
@@ -201,7 +218,9 @@ class _RadioSheetState extends State<_RadioSheet> {
                             onPressed: c.loading || _importing
                                 ? null
                                 : _importSurface,
-                            child: const Text('Import surface CSV'),
+                            child: Text(
+                              context.translate("Import surface CSV"),
+                            ),
                           ),
                           TextButton(
                             onPressed:
@@ -214,18 +233,25 @@ class _RadioSheetState extends State<_RadioSheet> {
                                       _useSurfaces = false;
                                     });
                                   },
-                            child: const Text('Remove observations'),
+                            child: Text(
+                              context.translate("Remove observations"),
+                            ),
                           ),
                         ],
                       ),
-                      const SelectableText(
-                        'latitude,longitude,height_m_agl,radius_m,kind,source\nKinds: building, vegetation, other. Up to 100 observations. Heights 0–1000 m AGL, radius 1–1000 m.',
+                      SelectableText(
+                        context.translate(
+                          "latitude,longitude,height_m_agl,radius_m,kind,source\nKinds: building, vegetation, other. Up to 100 observations. Heights 0–1000 m AGL, radius 1–1000 m.",
+                        ),
                       ),
                       for (final s in _surfaces)
                         ListTile(
                           dense: true,
                           title: Text(
-                            '${s.kind} · ${s.height} m AGL · ${s.radius} m radius',
+                            context.translate(
+                              "{0} · {1} m AGL · {2} m radius",
+                              [s.kind, s.height, s.radius],
+                            ),
                           ),
                           subtitle: Text(
                             '${s.position.latitude}, ${s.position.longitude} · ${s.source}',
@@ -239,12 +265,14 @@ class _RadioSheetState extends State<_RadioSheet> {
                       FilledButton.icon(
                         onPressed: c.loading || _importing ? null : _calculate,
                         icon: const Icon(Icons.settings_input_antenna),
-                        label: const Text('Analyze radio paths'),
+                        label: Text(context.translate("Analyze radio paths")),
                       ),
                       TextButton(
                         onPressed: c.clear,
                         child: Text(
-                          c.loading ? 'Cancel analysis' : 'Clear overlay',
+                          c.loading
+                              ? context.translate("Cancel analysis")
+                              : context.translate("Clear overlay"),
                         ),
                       ),
                     ],
@@ -253,24 +281,36 @@ class _RadioSheetState extends State<_RadioSheet> {
                     LinearProgressIndicator(
                       value: c.total == 0 ? null : c.completed / c.total,
                     ),
-                    Text('${c.completed} / ${c.total} terrain samples'),
+                    Text(
+                      context.translate("{0} / {1} terrain samples", [
+                        c.completed,
+                        c.total,
+                      ]),
+                    ),
                   ],
                   if (_importing) const LinearProgressIndicator(),
                   if (_error != null || c.error != null)
                     Text(_error ?? c.error!),
                   if (c.result case final paths?) ...[
                     Text(
-                      '${paths.length} route targets · terrain: ${c.methods.join(", ")}',
+                      context.translate("{0} route targets · terrain: {1}", [
+                        paths.length,
+                        c.methods.join(", "),
+                      ]),
                     ),
-                    const Text(
-                      'Map: orange = potential obstruction, purple = Fresnel intrusion, cyan = no sampled obstruction, gray = unknown. The selected path shows the configured Fresnel envelope.',
+                    Text(
+                      context.translate(
+                        "Map: orange = potential obstruction, purple = Fresnel intrusion, cyan = no sampled obstruction, gray = unknown. The selected path shows the configured Fresnel envelope.",
+                      ),
                     ),
                     DropdownButtonFormField<int>(
                       key: ValueKey(paths),
                       initialValue: c.selected,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Inspect communication path',
+                      decoration: InputDecoration(
+                        labelText: context.translate(
+                          "Inspect communication path",
+                        ),
                       ),
                       items: [
                         for (var i = 0; i < paths.length; i++)
@@ -288,13 +328,15 @@ class _RadioSheetState extends State<_RadioSheet> {
                     ),
                     _profile(paths[c.selected]),
                   ],
-                  const ExpansionTile(
-                    title: Text('Method, sources & limits'),
+                  ExpansionTile(
+                    title: Text(context.translate("Method, sources & limits")),
                     children: [
                       Padding(
                         padding: EdgeInsets.all(8),
                         child: Text(
-                          'swisstopo terrain via Cesium, WGS84 ellipsoidal heights. Straight ECEF chord includes Earth curvature; no atmospheric refraction, diffraction loss, multipath, interference, antenna patterns or received-power prediction. First Fresnel radius: √(λ d1 d2 / (d1+d2)), ITU-R P.526 Annex 1 §2.1. Route targets ≤100 m apart, communication profiles ≤25 m apart; narrow obstacles and obstructions beside the sampled centerline may be missed. Imported surface observations are circular, constant AGL additions to sampled terrain. The Fresnel envelope is a wireframe aid, not a surveyed clearance volume. Unknown route heights stay unknown; 30 m display previews are excluded. Up to 128 targets / 16384 terrain samples. Recalculate after route, pilot or terrain changes.',
+                          context.translate(
+                            "swisstopo terrain via Cesium, WGS84 ellipsoidal heights. Straight ECEF chord includes Earth curvature; no atmospheric refraction, diffraction loss, multipath, interference, antenna patterns or received-power prediction. First Fresnel radius: √(λ d1 d2 / (d1+d2)), ITU-R P.526 Annex 1 §2.1. Route targets ≤100 m apart, communication profiles ≤25 m apart; narrow obstacles and obstructions beside the sampled centerline may be missed. Imported surface observations are circular, constant AGL additions to sampled terrain. The Fresnel envelope is a wireframe aid, not a surveyed clearance volume. Unknown route heights stay unknown; 30 m display previews are excluded. Up to 128 targets / 16384 terrain samples. Recalculate after route, pilot or terrain changes.",
+                          ),
                         ),
                       ),
                     ],
@@ -314,11 +356,15 @@ class _RadioSheetState extends State<_RadioSheet> {
       Text(radioStateLabel(p.state)),
       if (p.minimumClearance != null)
         Text(
-          'Minimum sampled LOS clearance: ${p.minimumClearance!.toStringAsFixed(2)} m',
+          context.translate("Minimum sampled LOS clearance: {0} m", [
+            p.minimumClearance!.toStringAsFixed(2),
+          ]),
         ),
       if (p.minimumFresnelClearance != null)
         Text(
-          'Minimum configured Fresnel margin: ${p.minimumFresnelClearance!.toStringAsFixed(2)} m',
+          context.translate("Minimum configured Fresnel margin: {0} m", [
+            p.minimumFresnelClearance!.toStringAsFixed(2),
+          ]),
         ),
       if (p.profile.isNotEmpty) ...[
         SizedBox(
@@ -332,8 +378,10 @@ class _RadioSheetState extends State<_RadioSheet> {
             ),
           ),
         ),
-        const Text(
-          'Profile: brown terrain/surface · cyan LOS · purple lower Fresnel boundary. Heights in WGS84 ellipsoid.',
+        Text(
+          context.translate(
+            "Profile: brown terrain/surface · cyan LOS · purple lower Fresnel boundary. Heights in WGS84 ellipsoid.",
+          ),
         ),
       ],
     ],

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../globe/map_floating_surface.dart';
@@ -52,58 +54,73 @@ class HomeNavigationDrawer extends StatelessWidget {
     ActivityTool.groundRoutes => _item(
       context,
       Icons.hiking,
-      tool.label,
+      context.translate(tool.label),
       onGroundRoutes ?? () async {},
     ),
     ActivityTool.observations => _item(
       context,
       Icons.sensors_outlined,
-      tool.label,
+      context.translate(tool.label),
       onObservations ?? () async {},
     ),
     ActivityTool.places => _item(
       context,
       Icons.bookmark_outline,
-      tool.label,
+      context.translate(tool.label),
       onSpots,
     ),
     ActivityTool.routes => _item(
       context,
       Icons.route_outlined,
-      tool.label,
+      context.translate(tool.label),
       onRoutes,
     ),
     ActivityTool.mobility => _item(
       context,
       Icons.travel_explore,
-      tool.label,
+      context.translate(tool.label),
       onMobility ?? () async {},
     ),
     ActivityTool.preflight => _item(
       context,
       Icons.checklist,
-      tool.label,
+      context.translate(tool.label),
       onPreflight ?? () async {},
     ),
     ActivityTool.weather => _item(
       context,
       Icons.cloud_outlined,
-      tool.label,
+      context.translate(tool.label),
       onWeather,
     ),
     ActivityTool.offline => _item(
       context,
       Icons.storage_outlined,
-      tool.label,
+      context.translate(tool.label),
       onData ?? () async {},
     ),
     ActivityTool.equipment => ExpansionTile(
-      title: Text(tool.label),
+      title: Text(context.translate(tool.label)),
       leading: const Icon(Icons.flight_outlined),
       children: [
-        _item(context, Icons.flight_outlined, 'Drohnen', onDrones),
-        _item(context, Icons.battery_full_outlined, 'Akkus', onBatteries),
-        _item(context, Icons.settings_input_antenna, 'Funk & Video', onRadio),
+        _item(
+          context,
+          Icons.flight_outlined,
+          context.translate("Drohnen"),
+          onDrones,
+        ),
+        _item(
+          context,
+          Icons.battery_full_outlined,
+          context.translate("Akkus"),
+          onBatteries,
+        ),
+        _item(
+          context,
+          Icons.settings_input_antenna,
+          context.translate("Funk & Video"),
+          onRadio,
+        ),
       ],
     ),
   };
@@ -112,18 +129,21 @@ class HomeNavigationDrawer extends StatelessWidget {
     if (onProfiles != null)
       _item(context, Icons.person_outline, profile!.name, onProfiles!),
     if (!allToolsExpanded) ...[
-      const Padding(padding: EdgeInsets.all(16), child: Text('Arbeitsbereich')),
+      Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(context.translate("Arbeitsbereich")),
+      ),
       for (final tool in profile!.tools) _tool(context, tool),
       if (onLayer != null && profile!.layers.isNotEmpty)
         ExpansionTile(
-          title: const Text('Bevorzugte Ebenen'),
+          title: Text(context.translate("Bevorzugte Ebenen")),
           leading: const Icon(Icons.layers_outlined),
           children: [
             for (final layer in profile!.layers)
               _item(
                 context,
                 Icons.layers_outlined,
-                layer.label,
+                context.translate(layer.label),
                 () => onLayer!(layer),
               ),
           ],
@@ -134,32 +154,32 @@ class HomeNavigationDrawer extends StatelessWidget {
       key: ValueKey('all-tools-$allToolsExpanded-${profile!.id}'),
       initiallyExpanded: allToolsExpanded,
       leading: const Icon(Icons.apps),
-      title: const Text('Alle Werkzeuge'),
+      title: Text(context.translate("Alle Werkzeuge")),
       children: [
         for (final tool in ActivityTool.values) _tool(context, tool),
         if (onAction != null)
           ExpansionTile(
             leading: const Icon(Icons.map_outlined),
-            title: const Text('Kartenaktionen'),
+            title: Text(context.translate("Kartenaktionen")),
             children: [
               for (final action in ActivityAction.values)
                 _item(
                   context,
                   Icons.map_outlined,
-                  action.label,
+                  context.translate(action.label),
                   () => onAction!(action),
                 ),
             ],
           ),
         if (onLayer != null)
           ExpansionTile(
-            title: const Text('Alle Kartenebenen'),
+            title: Text(context.translate("Alle Kartenebenen")),
             children: [
               for (final layer in ActivityLayer.values)
                 _item(
                   context,
                   Icons.layers_outlined,
-                  layer.label,
+                  context.translate(layer.label),
                   () => onLayer!(layer),
                 ),
             ],
@@ -167,7 +187,12 @@ class HomeNavigationDrawer extends StatelessWidget {
       ],
     ),
     if (onSettings != null)
-      _item(context, Icons.settings_outlined, 'Einstellungen', onSettings!),
+      _item(
+        context,
+        Icons.settings_outlined,
+        context.translate("Einstellungen"),
+        onSettings!,
+      ),
   ];
   Widget _item(
     BuildContext context,
@@ -206,14 +231,14 @@ class HomeNavigationDrawer extends StatelessWidget {
                 trailing: onClose == null
                     ? null
                     : IconButton(
-                        tooltip: 'Menü schließen',
+                        tooltip: context.translate("Menü schließen"),
                         onPressed: onClose,
                         icon: const Icon(Icons.close),
                       ),
                 subtitle: Text(
                   profile == null
-                      ? 'Karte und Aktivitäten'
-                      : 'Karte und Aktivitäten',
+                      ? context.translate("Karte und Aktivitäten")
+                      : context.translate("Karte und Aktivitäten"),
                 ),
               ),
               const Divider(),
@@ -223,20 +248,25 @@ class HomeNavigationDrawer extends StatelessWidget {
                   _item(
                     context,
                     Icons.person_outline,
-                    'Aktivitätsprofile',
+                    context.translate("Aktivitätsprofile"),
                     onProfiles!,
                   ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text('Planen & Entdecken'),
+                  child: Text(context.translate("Planen & Entdecken")),
                 ),
                 _item(
                   context,
                   Icons.bookmark_outline,
-                  'Gespeicherte Orte',
+                  context.translate("Gespeicherte Orte"),
                   onSpots,
                 ),
-                _item(context, Icons.route_outlined, 'Flugrouten', onRoutes),
+                _item(
+                  context,
+                  Icons.route_outlined,
+                  context.translate("Flugrouten"),
+                  onRoutes,
+                ),
                 if (onMobility != null)
                   _item(
                     context,
@@ -248,36 +278,51 @@ class HomeNavigationDrawer extends StatelessWidget {
                   _item(
                     context,
                     Icons.checklist,
-                    'Flugvorbereitung',
+                    context.translate("Flugvorbereitung"),
                     onPreflight!,
                   ),
-                _item(context, Icons.cloud_outlined, 'Wetter', onWeather),
+                _item(
+                  context,
+                  Icons.cloud_outlined,
+                  context.translate("Wetter"),
+                  onWeather,
+                ),
                 const Divider(indent: 16, endIndent: 16),
                 if (onGroundRoutes != null)
-                  _item(context, Icons.hiking, 'Bodenrouten', onGroundRoutes!),
+                  _item(
+                    context,
+                    Icons.hiking,
+                    context.translate("Bodenrouten"),
+                    onGroundRoutes!,
+                  ),
                 if (onObservations != null)
                   _item(
                     context,
                     Icons.sensors_outlined,
-                    'Messstationen',
+                    context.translate("Messstationen"),
                     onObservations!,
                   ),
                 ExpansionTile(
                   key: const PageStorageKey('equipment-navigation'),
                   leading: const Icon(Icons.flight_outlined),
-                  title: const Text('Ausrüstung'),
+                  title: Text(context.translate("Ausrüstung")),
                   children: [
-                    _item(context, Icons.flight_outlined, 'Drohnen', onDrones),
+                    _item(
+                      context,
+                      Icons.flight_outlined,
+                      context.translate("Drohnen"),
+                      onDrones,
+                    ),
                     _item(
                       context,
                       Icons.battery_full_outlined,
-                      'Akkus',
+                      context.translate("Akkus"),
                       onBatteries,
                     ),
                     _item(
                       context,
                       Icons.settings_input_antenna,
-                      'Funk & Video',
+                      context.translate("Funk & Video"),
                       onRadio,
                     ),
                   ],
@@ -286,7 +331,7 @@ class HomeNavigationDrawer extends StatelessWidget {
                   _item(
                     context,
                     Icons.settings_outlined,
-                    'Einstellungen',
+                    context.translate("Einstellungen"),
                     onSettings!,
                   ),
                 if (onData != null) ...[
@@ -294,7 +339,7 @@ class HomeNavigationDrawer extends StatelessWidget {
                   _item(
                     context,
                     Icons.storage_outlined,
-                    'Offline & Daten',
+                    context.translate("Offline & Daten"),
                     onData!,
                   ),
                 ],

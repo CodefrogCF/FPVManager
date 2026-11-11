@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../globe/globe_controller.dart';
 import '../globe/map_display_section.dart';
 import '../globe/globe_location_controls.dart';
@@ -22,6 +24,7 @@ class AppSettingsScreen extends StatelessWidget {
     this.section,
     this.onProfiles,
     this.onMapLayers,
+    this.onLanguageSelected,
   });
   final GlobeController globe;
   final Future<void> Function() onFlightSettings,
@@ -31,6 +34,7 @@ class AppSettingsScreen extends StatelessWidget {
       onData;
   final AppSettingsSection? section;
   final Future<void> Function()? onProfiles, onMapLayers;
+  final Future<void> Function(AppLanguage)? onLanguageSelected;
 
   Future<void> _run(
     BuildContext context,
@@ -41,9 +45,11 @@ class AppSettingsScreen extends StatelessWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Einstellung konnte nicht übernommen werden. Bitte erneut versuchen.',
+              context.translate(
+                'Einstellung konnte nicht übernommen werden. Bitte erneut versuchen.',
+              ),
             ),
           ),
         );
@@ -61,6 +67,7 @@ class AppSettingsScreen extends StatelessWidget {
     section: value,
     onProfiles: onProfiles,
     onMapLayers: onMapLayers,
+    onLanguageSelected: onLanguageSelected,
   );
   Widget _link(
     BuildContext context,
@@ -86,7 +93,11 @@ class AppSettingsScreen extends StatelessWidget {
     };
     return Scaffold(
       appBar: AppBar(
-        title: Text(section == null ? 'Einstellungen' : titles[section]!),
+        title: Text(
+          context.translate(
+            section == null ? 'Einstellungen' : titles[section]!,
+          ),
+        ),
       ),
       body: SafeArea(
         top: false,
@@ -106,7 +117,7 @@ class AppSettingsScreen extends StatelessWidget {
                   if (globe.preferencesLoading) const LinearProgressIndicator(),
                   if (globe.preferencesError != null) ...[
                     Text(
-                      globe.preferencesError!,
+                      context.translate(globe.preferencesError!),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -119,24 +130,31 @@ class AppSettingsScreen extends StatelessWidget {
                               : () => globe.preferencesLoadFailed
                                     ? globe.retryLoadingPreferences()
                                     : globe.retrySavingPreferences(),
-                          child: const Text('Erneut versuchen'),
+                          child: Text(context.translate("Erneut versuchen")),
                         ),
                         if (globe.preferencesLoadFailed)
                           TextButton(
                             onPressed: globe.resetPreferences,
-                            child: const Text(
-                              'Karteneinstellungen zurücksetzen',
+                            child: Text(
+                              context.translate(
+                                "Karteneinstellungen zurücksetzen",
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ],
                   if (section == null) ...[
+                    if (onLanguageSelected != null)
+                      _LanguageSetting(
+                        onChanged: (language) =>
+                            _run(context, () => onLanguageSelected!(language)),
+                      ),
                     if (onProfiles != null)
                       _link(
                         context,
                         Icons.person_outline,
-                        'Aktivitätsprofile',
+                        context.translate("Aktivitätsprofile"),
                         onProfiles!,
                       ),
                     for (final value in AppSettingsSection.values)
@@ -151,7 +169,7 @@ class AppSettingsScreen extends StatelessWidget {
                           AppSettingsSection.dataPrivacy =>
                             Icons.privacy_tip_outlined,
                         },
-                        titles[value]!,
+                        context.translate(titles[value]!),
                         value == AppSettingsSection.display &&
                                 onMapLayers != null
                             ? onMapLayers!
@@ -166,7 +184,7 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.menu_book_outlined,
-                      'Hilfe',
+                      context.translate("Hilfe"),
                       () => Navigator.push<void>(
                         context,
                         MaterialPageRoute(builder: (_) => const GuidesScreen()),
@@ -178,7 +196,7 @@ class AppSettingsScreen extends StatelessWidget {
                       _link(
                         context,
                         Icons.layers_outlined,
-                        'Karte & Ansicht',
+                        context.translate("Karte & Ansicht"),
                         onMapLayers!,
                       )
                     else
@@ -188,7 +206,9 @@ class AppSettingsScreen extends StatelessWidget {
                   if (section == AppSettingsSection.controls) ...[
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Touch-Steuerung anzeigen'),
+                      title: Text(
+                        context.translate("Touch-Steuerung anzeigen"),
+                      ),
                       value: globe.touchControlsVisible,
                       onChanged: globe.canEditPreferences
                           ? (value) => _run(
@@ -200,14 +220,14 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.flight_outlined,
-                      'Flugsimulator & Controller',
+                      context.translate("Flugsimulator & Controller"),
                       onFlightSettings,
-                      subtitle: 'Für die nächste Simulation',
+                      subtitle: context.translate("Für die nächste Simulation"),
                     ),
                     _link(
                       context,
                       Icons.my_location,
-                      'Standortanzeige',
+                      context.translate("Standortanzeige"),
                       () => showGlobeLocationSettings(context, globe.location),
                     ),
                     const GuideLink(GuideTopic.controls),
@@ -216,25 +236,25 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.traffic_outlined,
-                      'Verkehr & Zugänge',
+                      context.translate("Verkehr & Zugänge"),
                       onTraffic,
                     ),
                     _link(
                       context,
                       Icons.cloud_outlined,
-                      'Wetteranbieter',
+                      context.translate("Wetteranbieter"),
                       onWeather,
                     ),
                     _link(
                       context,
                       Icons.shield_outlined,
-                      'Luftraumquellen',
+                      context.translate("Luftraumquellen"),
                       onAirspace,
                     ),
                     _link(
                       context,
                       Icons.description_outlined,
-                      'Open-Source-Lizenzen',
+                      context.translate("Open-Source-Lizenzen"),
                       () async {
                         showLicensePage(
                           context: context,
@@ -249,7 +269,7 @@ class AppSettingsScreen extends StatelessWidget {
                     _link(
                       context,
                       Icons.storage_outlined,
-                      'Offline-Karten & Daten',
+                      context.translate("Offline-Karten & Daten"),
                       onData,
                     ),
                     const GuideLink(GuideTopic.offline),
@@ -260,6 +280,53 @@ class AppSettingsScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LanguageSetting extends StatefulWidget {
+  const _LanguageSetting({required this.onChanged});
+
+  final Future<void> Function(AppLanguage) onChanged;
+
+  @override
+  State<_LanguageSetting> createState() => _LanguageSettingState();
+}
+
+class _LanguageSettingState extends State<_LanguageSetting> {
+  bool _saving = false;
+
+  Future<void> _select(AppLanguage? language) async {
+    if (language == null || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onChanged(language);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = AppLanguage.fromCode(
+      Localizations.localeOf(context).languageCode,
+    );
+    final label = context.translate('Sprache');
+    return ListTile(
+      leading: const Icon(Icons.language),
+      title: Text(label),
+      trailing: DropdownButton<AppLanguage>(
+        key: const ValueKey('app-language'),
+        value: current,
+        items: [
+          for (final language in AppLanguage.values)
+            DropdownMenuItem(
+              value: language,
+              child: Text(language.nameInLanguage),
+            ),
+        ],
+        onChanged: _saving ? null : _select,
       ),
     );
   }

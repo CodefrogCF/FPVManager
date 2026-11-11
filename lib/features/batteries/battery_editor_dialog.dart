@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/models/battery_profile.dart';
@@ -109,7 +111,7 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
       keyboardType: TextInputType.numberWithOptions(decimal: !whole),
       decoration: InputDecoration(
         labelText: label,
-        helperText: required ? null : 'Optional',
+        helperText: required ? null : context.translate("Optional"),
       ),
       onChanged: (_) => setState(() {}),
       validator: (text) {
@@ -228,7 +230,10 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${widget.profile == null ? 'Add' : 'Edit'} battery${_isType ? ' type' : ''}',
+                context.translate("{0} battery{1}", [
+                  widget.profile == null ? 'Add' : 'Edit',
+                  _isType ? ' type' : '',
+                ]),
               ),
               if (_error != null)
                 Text(
@@ -248,7 +253,11 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (snapshot.hasError) ...[
-                      const Text('Unable to load types and assignments.'),
+                      Text(
+                        context.translate(
+                          "Unable to load types and assignments.",
+                        ),
+                      ),
                       TextButton(
                         onPressed: _saving
                             ? null
@@ -256,7 +265,7 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                                 () => _options = widget.repository
                                     .getAssignmentOptions(),
                               ),
-                        child: const Text('Retry loading options'),
+                        child: Text(context.translate("Retry loading options")),
                       ),
                     ] else if (options == null)
                       const LinearProgressIndicator(),
@@ -271,19 +280,21 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                         key: ValueKey('type:$_typeId'),
                         initialValue: _typeId ?? 0,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Type template (optional)',
+                        decoration: InputDecoration(
+                          labelText: context.translate(
+                            "Type template (optional)",
+                          ),
                         ),
                         items: [
-                          const DropdownMenuItem(
+                          DropdownMenuItem(
                             value: 0,
-                            child: Text('No type template'),
+                            child: Text(context.translate("No type template")),
                           ),
                           if (_typeId != null && selectedType == null)
                             DropdownMenuItem(
                               value: _typeId,
                               enabled: false,
-                              child: const Text('Removed type'),
+                              child: Text(context.translate("Removed type")),
                             ),
                           for (final type in options.types)
                             DropdownMenuItem(
@@ -301,17 +312,23 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                               ),
                       ),
                       if (_typeId != null && selectedType == null)
-                        const Text(
-                          'The assigned type was removed. Select a type or no template.',
+                        Text(
+                          context.translate(
+                            "The assigned type was removed. Select a type or no template.",
+                          ),
                         ),
                       TextButton(
                         onPressed: _saving || selectedType == null
                             ? null
                             : () => _copyType(selectedType!),
-                        child: const Text('Copy type specifications'),
+                        child: Text(
+                          context.translate("Copy type specifications"),
+                        ),
                       ),
-                      const Text(
-                        'Packs keep independent specification copies. Later type edits do not change them.',
+                      Text(
+                        context.translate(
+                          "Packs keep independent specification copies. Later type edits do not change them.",
+                        ),
                       ),
                     ],
                     _text(_chemistry, 'Chemistry', required: true),
@@ -325,7 +342,10 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          'Calculated nominal energy: ${calculated.toStringAsFixed(2)} Wh (capacity × nominal voltage)',
+                          context.translate(
+                            "Calculated nominal energy: {0} Wh (capacity × nominal voltage)",
+                            [calculated.toStringAsFixed(2)],
+                          ),
                         ),
                       ),
                     _numeric('Weight (g)'),
@@ -333,11 +353,13 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                     if (!_isType) ...[
                       const SizedBox(height: 24),
                       Text(
-                        'Condition & availability',
+                        context.translate("Condition & availability"),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const Text(
-                        'Charge, cycles and condition are recorded manually.',
+                      Text(
+                        context.translate(
+                          "Charge, cycles and condition are recorded manually.",
+                        ),
                       ),
                       _numeric('Recorded charge (%)', percent: true),
                       _numeric('Cycle count', whole: true, zero: true),
@@ -345,8 +367,8 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                       DropdownButtonFormField<BatteryAvailability>(
                         initialValue: _availability,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Availability',
+                        decoration: InputDecoration(
+                          labelText: context.translate("Availability"),
                         ),
                         items: [
                           for (final value in BatteryAvailability.values)
@@ -368,11 +390,11 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                       if (options != null) ...[
                         const SizedBox(height: 24),
                         Text(
-                          'Associated drones',
+                          context.translate("Associated drones"),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         if (options.drones.isEmpty)
-                          const Text('No drone profiles yet.'),
+                          Text(context.translate("No drone profiles yet.")),
                         for (final drone in options.drones)
                           CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
@@ -389,11 +411,11 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                                   }),
                           ),
                         Text(
-                          'Associated flight plans',
+                          context.translate("Associated flight plans"),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         if (options.flightPlans.isEmpty)
-                          const Text('No saved flight plans yet.'),
+                          Text(context.translate("No saved flight plans yet.")),
                         for (final plan in options.flightPlans)
                           CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
@@ -419,11 +441,15 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
           actions: [
             TextButton(
               onPressed: _saving ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(context.translate("Cancel")),
             ),
             FilledButton(
               onPressed: _saving || options == null ? null : _save,
-              child: Text(_saving ? 'Saving...' : 'Save'),
+              child: Text(
+                _saving
+                    ? context.translate("Saving...")
+                    : context.translate("Save"),
+              ),
             ),
           ],
         );

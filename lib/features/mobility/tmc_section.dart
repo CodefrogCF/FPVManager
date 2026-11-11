@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -82,23 +84,33 @@ class _TmcSectionState extends State<TmcSection> {
       return ExpansionTile(
         key: const ValueKey('tmcSection'),
         tilePadding: EdgeInsets.zero,
-        title: const Text('TMC-Ortsdaten'),
+        title: Text(context.translate("TMC-Ortsdaten")),
         subtitle: Text(
-          '${repo.snapshots.length} Tabellen lokal${needed.isEmpty ? "" : " · benötigt: ${needed.join(", ")}"}',
+          context.translate("{0} Tabellen lokal{1}", [
+            repo.snapshots.length,
+            needed.isEmpty ? "" : " · benötigt: ${needed.join(", ")}",
+          ]),
         ),
         children: [
-          const Text(
-            'Löst Schweizer Ortscodes und Tabellenrichtungen auf. Referenzdaten werden lokal gespeichert; die Aktualität der Verkehrsmeldungen bleibt unabhängig davon.',
+          Text(
+            context.translate(
+              "Löst Schweizer Ortscodes und Tabellenrichtungen auf. Referenzdaten werden lokal gespeichert; die Aktualität der Verkehrsmeldungen bleibt unabhängig davon.",
+            ),
           ),
           if (data != null)
             Text(
-              '${data['tmcResolved'] ?? 0} Teilmeldungen aufgelöst · ${data['tmcUnresolved'] ?? 0} noch offen',
+              context.translate(
+                "{0} Teilmeldungen aufgelöst · {1} noch offen",
+                [data['tmcResolved'] ?? 0, data['tmcUnresolved'] ?? 0],
+              ),
             ),
           DropdownButtonFormField<String>(
             key: ValueKey('tmcVersion-$selected'),
             initialValue: selected,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Tabellenversion'),
+            decoration: InputDecoration(
+              labelText: context.translate("Tabellenversion"),
+            ),
             items: [
               for (final version in options)
                 DropdownMenuItem(
@@ -111,8 +123,10 @@ class _TmcSectionState extends State<TmcSection> {
             onChanged: disabled ? null : (v) => setState(() => _selected = v),
           ),
           if (!supported.contains(selected))
-            const Text(
-              'Für diese Version ist kein LTEF-ZIP hinterlegt. Im offiziellen Katalog prüfen; GeoPackage wird noch nicht unterstützt.',
+            Text(
+              context.translate(
+                "Für diese Version ist kein LTEF-ZIP hinterlegt. Im offiziellen Katalog prüfen; GeoPackage wird noch nicht unterstützt.",
+              ),
             ),
           Wrap(
             spacing: 8,
@@ -123,7 +137,7 @@ class _TmcSectionState extends State<TmcSection> {
                     ? null
                     : () => _run(() => repo.download(selected)),
                 icon: const Icon(Icons.download_outlined),
-                label: Text('Tabelle $selected laden'),
+                label: Text(context.translate("Tabelle {0} laden", [selected])),
               ),
               if (needed.any(
                 (v) => !repo.snapshots.containsKey(v) && supported.contains(v),
@@ -141,25 +155,31 @@ class _TmcSectionState extends State<TmcSection> {
                             await repo.download(v);
                           }
                         }),
-                  child: const Text('Fehlende benötigte Tabellen laden'),
+                  child: Text(
+                    context.translate("Fehlende benötigte Tabellen laden"),
+                  ),
                 ),
               OutlinedButton.icon(
                 onPressed: disabled ? null : () => _import(selected),
                 icon: const Icon(Icons.file_open_outlined),
-                label: const Text('TMC-ZIP importieren'),
+                label: Text(context.translate("TMC-ZIP importieren")),
               ),
               TextButton(
                 onPressed: () => launchUrl(
                   Uri.parse(tmcCatalogUrl),
                   mode: LaunchMode.externalApplication,
                 ),
-                child: const Text('Offizieller Download und Quellen'),
+                child: Text(
+                  context.translate("Offizieller Download und Quellen"),
+                ),
               ),
             ],
           ),
           if (kIsWeb)
-            const Text(
-              'Im Web das Original-ZIP über den offiziellen Download beziehen und lokal importieren. Kein zusätzlicher API-Schlüssel erforderlich.',
+            Text(
+              context.translate(
+                "Im Web das Original-ZIP über den offiziellen Download beziehen und lokal importieren. Kein zusätzlicher API-Schlüssel erforderlich.",
+              ),
             ),
           if (disabled) const LinearProgressIndicator(),
           if (_error ?? repo.error case final String error)
@@ -172,21 +192,39 @@ class _TmcSectionState extends State<TmcSection> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                'TMC ${entry.key} · ${entry.value.table.nodes.length} Orte',
+                context.translate("TMC {0} · {1} Orte", [
+                  entry.key,
+                  entry.value.table.nodes.length,
+                ]),
               ),
               subtitle: Text(
-                'ASTRA · Tabellenstand: ${entry.value.table.publication?.isNotEmpty == true ? entry.value.table.publication : "nicht angegeben"}\nLokal bezogen: ${entry.value.retrievedUtc.toLocal()}${entry.value.imported ? "\nDateiimport · nicht online bestätigt, nur Information" : "\nDirekt von der offiziellen Downloadquelle"}',
+                context.translate(
+                  "ASTRA · Tabellenstand: {0}\nLokal bezogen: {1}{2}",
+                  [
+                    entry.value.table.publication?.isNotEmpty == true
+                        ? entry.value.table.publication
+                        : "nicht angegeben",
+                    entry.value.retrievedUtc.toLocal(),
+                    entry.value.imported
+                        ? "\nDateiimport · nicht online bestätigt, nur Information"
+                        : "\nDirekt von der offiziellen Downloadquelle",
+                  ],
+                ),
               ),
               trailing: IconButton(
-                tooltip: 'Tabelle ${entry.key} entfernen',
+                tooltip: context.translate("Tabelle {0} entfernen", [
+                  entry.key,
+                ]),
                 onPressed: disabled
                     ? null
                     : () => _run(() => repo.remove(entry.key)),
                 icon: const Icon(Icons.delete_outline),
               ),
             ),
-          const Text(
-            'TMC beschreibt vor allem Hauptverkehrsstraßen. Unbekannte Codes, Versionskonflikte und nicht eindeutige Abschnitte bleiben ohne Einfluss auf die Routenempfehlung.',
+          Text(
+            context.translate(
+              "TMC beschreibt vor allem Hauptverkehrsstraßen. Unbekannte Codes, Versionskonflikte und nicht eindeutige Abschnitte bleiben ohne Einfluss auf die Routenempfehlung.",
+            ),
           ),
         ],
       );

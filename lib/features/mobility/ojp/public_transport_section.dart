@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -169,7 +171,7 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        kind == 'origin' ? 'Start' : 'Ziel',
+        kind == 'origin' ? 'Start' : context.translate("Ziel"),
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 6),
@@ -181,8 +183,10 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
           ),
           initialValue: kind == 'origin' ? _originSpotId : _destinationSpotId,
           isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Gespeicherten Spot übernehmen (optional)',
+          decoration: InputDecoration(
+            labelText: context.translate(
+              "Gespeicherten Spot übernehmen (optional)",
+            ),
           ),
           items: [
             for (final spot in snapshot.data ?? <Spot>[])
@@ -228,7 +232,9 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: axis == 'Lat' ? 'Breitengrad' : 'Längengrad',
+                    labelText: axis == 'Lat'
+                        ? context.translate("Breitengrad")
+                        : context.translate("Längengrad"),
                   ),
                   onChanged: (_) => setState(() {
                     if (kind == 'origin') {
@@ -275,7 +281,7 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                     });
                   },
             icon: const Icon(Icons.map_outlined),
-            label: const Text('Kartenpunkt'),
+            label: Text(context.translate("Kartenpunkt")),
           ),
           if (kind == 'origin')
             OutlinedButton.icon(
@@ -308,12 +314,14 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                       }
                     },
               icon: const Icon(Icons.my_location),
-              label: const Text('Gerätestandort'),
+              label: Text(context.translate("Gerätestandort")),
             ),
         ],
       ),
       Text(
-        kind == 'origin' ? 'Start: $_originName' : 'Ziel: $_destinationName',
+        kind == 'origin'
+            ? 'Start: $_originName'
+            : context.translate("Ziel: {0}", [_destinationName]),
       ),
     ],
   );
@@ -437,7 +445,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (time.timetableUtc != null)
-          Text('$label Fahrplan: ${_format(time.timetableUtc!)}'),
+          Text(
+            context.translate("{0} Fahrplan: {1}", [
+              label,
+              _format(time.timetableUtc!),
+            ]),
+          ),
         if (time.estimatedUtc != null)
           Text(
             '$label Prognose: ${_format(time.estimatedUtc!)}'
@@ -456,28 +469,45 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         const Divider(),
         Text(
           _savedResult
-              ? 'Gespeicherter Stand (offline nutzbar)'
-              : 'OJP-Abfrageergebnis',
+              ? context.translate("Gespeicherter Stand (offline nutzbar)")
+              : context.translate("OJP-Abfrageergebnis"),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
-          'Abgerufen am ${_format(result.fetchedAtUtc)} · ${result.originName} → ${result.destinationName}',
+          context.translate("Abgerufen am {0} · {1} → {2}", [
+            _format(result.fetchedAtUtc),
+            result.originName,
+            result.destinationName,
+          ]),
         ),
-        const Text(
-          'Fahrplan ist nicht garantiert. Prognosen nur, wenn vom Datenlieferanten verfügbar. Gespeicherte Daten sind niemals live.',
+        Text(
+          context.translate(
+            "Fahrplan ist nicht garantiert. Prognosen nur, wenn vom Datenlieferanten verfügbar. Gespeicherte Daten sind niemals live.",
+          ),
         ),
         if (result.journeys.isEmpty)
-          const Text('Für diese Anfrage wurden keine Verbindungen gefunden.'),
+          Text(
+            context.translate(
+              "Für diese Anfrage wurden keine Verbindungen gefunden.",
+            ),
+          ),
         for (var i = 0; i < result.journeys.length; i++)
           Card(
             child: ExpansionTile(
               title: Text(
-                'Verbindung ${i + 1}: ${_format(result.journeys[i].startUtc)} – '
-                '${_format(result.journeys[i].endUtc)}',
+                context.translate("Verbindung {0}: {1} – {2}", [
+                  i + 1,
+                  _format(result.journeys[i].startUtc),
+                  _format(result.journeys[i].endUtc),
+                ]),
               ),
               subtitle: Text(
-                '${result.journeys[i].transfers} Umstiege · '
-                '${result.journeys[i].legs.where((leg) => leg.kind == OjpLegKind.walk).length} Fußwege',
+                context.translate("{0} Umstiege · {1} Fußwege", [
+                  result.journeys[i].transfers,
+                  result.journeys[i].legs
+                      .where((leg) => leg.kind == OjpLegKind.walk)
+                      .length,
+                ]),
               ),
               children: [
                 for (final leg in result.journeys[i].legs)
@@ -517,8 +547,10 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
           OutlinedButton.icon(
             onPressed: _busy ? null : _save,
             icon: const Icon(Icons.save_outlined),
-            label: const Text(
-              'Verbindungen offline als Momentaufnahme speichern',
+            label: Text(
+              context.translate(
+                "Verbindungen offline als Momentaufnahme speichern",
+              ),
             ),
           ),
       ],
@@ -529,17 +561,23 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Text(
-        'Offizieller Open Journey Planner 2.0 (Schweiz). Verbindungssuche bis zum tatsächlichen gewählten Punkt; Parkplatz- und Autokoordinaten werden nicht eingesetzt.',
+      Text(
+        context.translate(
+          "Offizieller Open Journey Planner 2.0 (Schweiz). Verbindungssuche bis zum tatsächlichen gewählten Punkt; Parkplatz- und Autokoordinaten werden nicht eingesetzt.",
+        ),
       ),
       const SizedBox(height: 8),
-      const Text(
-        'Erforderlich: eigener OJP-2.0-API-Schlüssel mit freigeschaltetem Produkt. Zugangsdaten bleiben in lokalem Secure Storage (Web: nur Arbeitsspeicher dieser Sitzung).',
+      Text(
+        context.translate(
+          "Erforderlich: eigener OJP-2.0-API-Schlüssel mit freigeschaltetem Produkt. Zugangsdaten bleiben in lokalem Secure Storage (Web: nur Arbeitsspeicher dieser Sitzung).",
+        ),
       ),
       ApiCredentialsSection(policies: [ojp20Access]),
       if (kIsWeb)
-        const Text(
-          'Web: OJP-CORS und Browser-Zugriff nicht verifiziert. Direkte Anfrage kann fehlschlagen. Kein Relay/Proxy vorhanden; Keys im Browser sind gegenüber Seitenskripten nicht geschützt.',
+        Text(
+          context.translate(
+            "Web: OJP-CORS und Browser-Zugriff nicht verifiziert. Direkte Anfrage kann fehlschlagen. Kein Relay/Proxy vorhanden; Keys im Browser sind gegenüber Seitenskripten nicht geschützt.",
+          ),
         ),
       const SizedBox(height: 12),
       _coordinates('origin'),
@@ -547,9 +585,15 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
       _coordinates('destination'),
       const SizedBox(height: 12),
       SegmentedButton<OjpTimeMode>(
-        segments: const [
-          ButtonSegment(value: OjpTimeMode.departure, label: Text('Abfahrt')),
-          ButtonSegment(value: OjpTimeMode.arrival, label: Text('Ankunft')),
+        segments: [
+          ButtonSegment(
+            value: OjpTimeMode.departure,
+            label: Text(context.translate("Abfahrt")),
+          ),
+          ButtonSegment(
+            value: OjpTimeMode.arrival,
+            label: Text(context.translate("Ankunft")),
+          ),
         ],
         selected: {_mode},
         onSelectionChanged: _busy
@@ -563,13 +607,16 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         onPressed: _busy ? null : _pickDateTime,
         icon: const Icon(Icons.schedule),
         label: Text(
-          '${_mode == OjpTimeMode.departure ? 'Abfahrt ab' : 'Ankunft bis'} ${_format(_localTime.toUtc())} (Gerätezeit)',
+          context.translate("{0} {1} (Gerätezeit)", [
+            _mode == OjpTimeMode.departure ? 'Abfahrt ab' : 'Ankunft bis',
+            _format(_localTime.toUtc()),
+          ]),
         ),
       ),
       DropdownButtonFormField<OjpApiPlan>(
         initialValue: _client.plan,
-        decoration: const InputDecoration(
-          labelText: 'Aktiver OJP-API-Plan (Sitzung)',
+        decoration: InputDecoration(
+          labelText: context.translate("Aktiver OJP-API-Plan (Sitzung)"),
         ),
         items: [
           for (final plan in OjpApiPlan.values)
@@ -581,8 +628,10 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                 if (plan != null) setState(() => _client.plan = plan);
               },
       ),
-      const Text(
-        'Anfragebudget gilt nur für diese App-Sitzung. Die offiziellen Quoten gelten gemeinsam für alle Geräte mit demselben Schlüssel; HTTP 429 wird respektiert.',
+      Text(
+        context.translate(
+          "Anfragebudget gilt nur für diese App-Sitzung. Die offiziellen Quoten gelten gemeinsam für alle Geräte mit demselben Schlüssel; HTTP 429 wird respektiert.",
+        ),
       ),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
@@ -590,14 +639,16 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         onChanged: _busy
             ? null
             : (value) => setState(() => _consent = value ?? false),
-        title: const Text(
-          'Start, Ziel und Reisezeit für die Abfrage an opentransportdata.swiss senden.',
+        title: Text(
+          context.translate(
+            "Start, Ziel und Reisezeit für die Abfrage an opentransportdata.swiss senden.",
+          ),
         ),
       ),
       FilledButton.icon(
         onPressed: !_consent || _busy ? null : _calculate,
         icon: const Icon(Icons.directions_transit),
-        label: const Text('ÖV-Verbindungen suchen'),
+        label: Text(context.translate("ÖV-Verbindungen suchen")),
       ),
       if (_busy) const LinearProgressIndicator(),
       if (_message != null)
@@ -610,7 +661,11 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         ),
       if (_saved.isNotEmpty)
         ExpansionTile(
-          title: Text('Gespeicherte Verbindungen (${_saved.length})'),
+          title: Text(
+            context.translate("Gespeicherte Verbindungen ({0})", [
+              _saved.length,
+            ]),
+          ),
           children: [
             for (final snapshot in _saved)
               ListTile(
@@ -618,7 +673,9 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                   '${snapshot.originName} → ${snapshot.destinationName}',
                 ),
                 subtitle: Text(
-                  'Stand ${_format(snapshot.fetchedAtUtc)} · offline, nicht live',
+                  context.translate("Stand {0} · offline, nicht live", [
+                    _format(snapshot.fetchedAtUtc),
+                  ]),
                 ),
                 onTap: () => setState(() {
                   _result = snapshot;
@@ -640,7 +697,7 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
             }
           },
           icon: const Icon(Icons.pedal_bike),
-          label: const Text('Sharing-Angebote am ÖV-Ziel suchen'),
+          label: Text(context.translate("Sharing-Angebote am ÖV-Ziel suchen")),
         ),
       TextButton.icon(
         onPressed: () => launchUrl(
@@ -650,7 +707,7 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
           mode: LaunchMode.externalApplication,
         ),
         icon: const Icon(Icons.open_in_new),
-        label: const Text('OJP-Dokumentation und Quelle'),
+        label: Text(context.translate("OJP-Dokumentation und Quelle")),
       ),
     ],
   );
@@ -676,7 +733,7 @@ class PublicTransportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('ÖV-Verbindungen · OJP 2.0')),
+    appBar: AppBar(title: Text(context.translate("ÖV-Verbindungen · OJP 2.0"))),
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [

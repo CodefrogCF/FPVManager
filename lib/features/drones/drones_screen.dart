@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import 'drone_details_screen.dart';
@@ -16,7 +18,7 @@ class _DronesScreenState extends State<DronesScreen> {
   late Stream<List<Drone>> _drones = widget.repository.watchDrones();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Drone profiles')),
+    appBar: AppBar(title: Text(context.translate("Drone profiles"))),
     body: StreamBuilder<List<Drone>>(
       stream: _drones,
       builder: (context, snapshot) {
@@ -25,11 +27,11 @@ class _DronesScreenState extends State<DronesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Unable to load drone profiles.'),
+                Text(context.translate("Unable to load drone profiles.")),
                 TextButton(
                   onPressed: () =>
                       setState(() => _drones = widget.repository.watchDrones()),
-                  child: const Text('Retry'),
+                  child: Text(context.translate("Retry")),
                 ),
               ],
             ),
@@ -40,11 +42,13 @@ class _DronesScreenState extends State<DronesScreen> {
         }
         final drones = snapshot.data!;
         if (drones.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                'No drone profiles saved yet. Add a profile to record your equipment.',
+                context.translate(
+                  "No drone profiles saved yet. Add a profile to record your equipment.",
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -80,7 +84,7 @@ class _DronesScreenState extends State<DronesScreen> {
         builder: (context) => DroneEditorDialog(repository: widget.repository),
       ),
       icon: const Icon(Icons.add),
-      label: const Text('Add drone'),
+      label: Text(context.translate("Add drone")),
     ),
   );
 }

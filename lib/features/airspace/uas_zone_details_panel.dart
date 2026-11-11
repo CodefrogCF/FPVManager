@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/osint/osint_source.dart';
 import 'uas_zone_details.dart';
 import 'uas_restriction.dart';
@@ -39,7 +41,7 @@ class UasZoneDetailsPanel extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: 'Previous zone',
+                    tooltip: context.translate("Previous zone"),
                     onPressed: selectedIndex > 0
                         ? () => onZoneSelected?.call(selectedIndex - 1)
                         : null,
@@ -47,12 +49,15 @@ class UasZoneDetailsPanel extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      'Zone ${selectedIndex + 1} of ${zones.length} at this position',
+                      context.translate("Zone {0} of {1} at this position", [
+                        selectedIndex + 1,
+                        zones.length,
+                      ]),
                       textAlign: TextAlign.center,
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Next zone',
+                    tooltip: context.translate("Next zone"),
                     onPressed: selectedIndex + 1 < zones.length
                         ? () => onZoneSelected?.call(selectedIndex + 1)
                         : null,
@@ -79,7 +84,7 @@ class UasZoneDetailsPanel extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             trailing: IconButton(
-              tooltip: 'Close details',
+              tooltip: context.translate("Close details"),
               icon: const Icon(Icons.close),
               onPressed: onClose,
             ),
@@ -87,7 +92,8 @@ class UasZoneDetailsPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              zone.value('restriction') ?? 'Restriction not provided by source',
+              zone.value('restriction') ??
+                  context.translate("Restriction not provided by source"),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -99,7 +105,7 @@ class UasZoneDetailsPanel extends StatelessWidget {
           ),
           TextButton.icon(
             icon: const Icon(Icons.info_outline),
-            label: const Text('Inspect restrictions'),
+            label: Text(context.translate("Inspect restrictions")),
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
@@ -149,7 +155,7 @@ class UasZoneDetailsSheet extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Close zone inspection',
+                tooltip: context.translate("Close zone inspection"),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -201,8 +207,10 @@ class UasZoneDetailsSheet extends StatelessWidget {
           _heading(context, 'Height limits'),
           _DetailRow('Lower limit', zone.heightLimit(upper: false)),
           _DetailRow('Upper limit', zone.heightLimit(upper: true)),
-          const Text(
-            'Each limit retains its own source unit and vertical reference.',
+          Text(
+            context.translate(
+              "Each limit retains its own source unit and vertical reference.",
+            ),
           ),
           _heading(context, 'Applicability as supplied'),
           ..._fields({'permanent': 'Permanent (source code)'}),
@@ -217,8 +225,10 @@ class UasZoneDetailsSheet extends StatelessWidget {
             'startTime': 'Daily start (source time/offset)',
             'endTime': 'Daily end (source time/offset)',
           }),
-          const Text(
-            'Times and offsets are shown as supplied; applicability is not calculated.',
+          Text(
+            context.translate(
+              "Times and offsets are shown as supplied; applicability is not calculated.",
+            ),
           ),
           _heading(context, 'Authority and contact'),
           ..._fields({
@@ -247,7 +257,11 @@ class UasZoneDetailsSheet extends StatelessWidget {
           ),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text('All source attributes (${zone.attributes.length})'),
+            title: Text(
+              context.translate("All source attributes ({0})", [
+                zone.attributes.length,
+              ]),
+            ),
             children: [
               for (final entry in zone.attributes.entries)
                 _DetailRow(

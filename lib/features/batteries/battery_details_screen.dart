@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/models/battery_profile.dart';
 import 'battery_editor_dialog.dart';
@@ -27,7 +29,11 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete battery${profile.battery.isType ? ' type' : ''}?'),
+        title: Text(
+          context.translate("Delete battery{0}?", [
+            profile.battery.isType ? ' type' : '',
+          ]),
+        ),
         content: Text(
           'Permanently delete "${profile.battery.name}"? '
           '${profile.battery.isType ? 'Existing packs keep their specifications and lose this type link.' : 'Drones and flight plans are kept; only this battery and its assignments are removed.'}',
@@ -35,11 +41,11 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.translate("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.translate("Delete")),
           ),
         ],
       ),
@@ -67,7 +73,7 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         SelectableText(
           value == null
-              ? 'Not recorded'
+              ? context.translate("Not recorded")
               : '$value${unit.isEmpty ? '' : ' $unit'}',
         ),
       ],
@@ -78,7 +84,7 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_deleting,
     child: Scaffold(
-      appBar: AppBar(title: const Text('Battery details')),
+      appBar: AppBar(title: Text(context.translate("Battery details"))),
       body: StreamBuilder<BatteryProfile?>(
         stream: _profile,
         builder: (context, snapshot) {
@@ -87,14 +93,14 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Unable to load this battery.'),
+                  Text(context.translate("Unable to load this battery.")),
                   TextButton(
                     onPressed: () => setState(
                       () => _profile = widget.repository.watchProfile(
                         widget.batteryId,
                       ),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(context.translate("Retry")),
                   ),
                 ],
               ),
@@ -105,7 +111,9 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
           }
           final profile = snapshot.data;
           if (profile == null) {
-            return const Center(child: Text('This battery no longer exists.'));
+            return Center(
+              child: Text(context.translate("This battery no longer exists.")),
+            );
           }
           final battery = profile.battery;
           return Align(
@@ -121,8 +129,8 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
                   ),
                   Text(
                     battery.isType
-                        ? 'Battery type · reusable template'
-                        : 'Individual battery',
+                        ? context.translate("Battery type · reusable template")
+                        : context.translate("Individual battery"),
                   ),
                   const SizedBox(height: 16),
                   Wrap(
@@ -141,7 +149,7 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
                                 ),
                               ),
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit battery'),
+                        label: Text(context.translate("Edit battery")),
                       ),
                       if (battery.isType)
                         OutlinedButton.icon(
@@ -169,7 +177,7 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
                                   }
                                 },
                           icon: const Icon(Icons.add),
-                          label: const Text('Add pack from type'),
+                          label: Text(context.translate("Add pack from type")),
                         ),
                       TextButton.icon(
                         onPressed: _deleting ? null : () => _delete(profile),
@@ -204,11 +212,13 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
                   if (!battery.isType) ...[
                     const SizedBox(height: 24),
                     Text(
-                      'Condition & availability',
+                      context.translate("Condition & availability"),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const Text(
-                      'Charge, cycles and condition are recorded manually.',
+                    Text(
+                      context.translate(
+                        "Charge, cycles and condition are recorded manually.",
+                      ),
                     ),
                     _field('Recorded charge', battery.chargePercent, '%'),
                     _field('Cycle count', battery.cycleCount),

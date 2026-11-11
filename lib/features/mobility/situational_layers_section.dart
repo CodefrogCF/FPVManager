@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import '../globe/globe_controller.dart';
@@ -27,7 +30,11 @@ class SituationalLayersSection extends StatelessWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Layer update failed. Please retry.')),
+          SnackBar(
+            content: Text(
+              context.translate("Layer update failed. Please retry."),
+            ),
+          ),
         );
       }
     }
@@ -40,8 +47,10 @@ class SituationalLayersSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OutdoorLayersSection(globe: globe),
-        const Text(
-          'Zusätzliche Datenebenen · Angaben können unvollständig oder veraltet sein.',
+        Text(
+          context.translate(
+            "Zusätzliche Datenebenen · Angaben können unvollständig oder veraltet sein.",
+          ),
         ),
         for (final layer in [
           (
@@ -94,7 +103,7 @@ class SituationalLayersSection extends StatelessWidget {
                   'opacity': globe.situationalOpacity(layer.id),
                   'retry': true,
                 }),
-                child: const Text('Retry tiles'),
+                child: Text(context.translate("Retry tiles")),
               ),
           ],
           if (globe.situationalVisible(layer.id))
@@ -106,23 +115,21 @@ class SituationalLayersSection extends StatelessWidget {
                 mode: LaunchMode.externalApplication,
               ),
               icon: const Icon(Icons.open_in_new),
-              label: const Text('Official legend & source'),
+              label: Text(context.translate("Official legend & source")),
             ),
         ],
         WildfirePreventionSection(globe: globe, initialCenter: initialCenter),
         MobileSitesSection(globe: globe, initialCenter: initialCenter),
         DroughtConditionSection(globe: globe),
         DatedImagerySection(globe: globe, initialCenter: initialCenter),
-        const ExpansionTile(
+        ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: Text('Quellen & Grenzen'),
+          title: Text(context.translate("Quellen & Grenzen")),
           children: [
             Text(
-              'Rasterkarten senden den Kartenausschnitt an geo.admin.ch. '
-              'Das SLF-Bulletin wird ohne Standort als nationaler Datensatz geladen. '
-              'Ladedaten bestätigen keine amtliche Gültigkeit. Flugplatzdaten '
-              'ersetzen nicht das AIP; Brandgefahrenkarten ersetzen keine lokalen '
-              'Anordnungen. Die Ebenen erteilen keine Flug- oder Zugangsfreigabe.',
+              context.translate(
+                "Rasterkarten senden den Kartenausschnitt an geo.admin.ch. Das SLF-Bulletin wird ohne Standort als nationaler Datensatz geladen. Ladedaten bestätigen keine amtliche Gültigkeit. Flugplatzdaten ersetzen nicht das AIP; Brandgefahrenkarten ersetzen keine lokalen Anordnungen. Die Ebenen erteilen keine Flug- oder Zugangsfreigabe.",
+              ),
             ),
           ],
         ),
@@ -140,9 +147,9 @@ class SituationalLayersSection extends StatelessWidget {
           if (globe.situationalVisible(id))
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('$id snapshot visible'),
+              title: Text(context.translate("{0} snapshot visible", [id])),
               trailing: IconButton(
-                tooltip: 'Remove $id layer',
+                tooltip: context.translate("Remove {0} layer", [id]),
                 icon: const Icon(Icons.visibility_off_outlined),
                 onPressed: () =>
                     id == 'meteo-stations' || id == 'hydro-stations'
@@ -159,7 +166,7 @@ class SituationalLayersSection extends StatelessWidget {
           FilledButton.tonalIcon(
             onPressed: onOpen,
             icon: const Icon(Icons.travel_explore),
-            label: const Text('Routes, traffic & aircraft'),
+            label: Text(context.translate("Routes, traffic & aircraft")),
           ),
       ],
     ),

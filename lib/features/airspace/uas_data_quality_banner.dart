@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../globe/globe_controller.dart';
@@ -76,7 +78,7 @@ class _UasDataQualityBannerState extends State<UasDataQualityBanner> {
                 ),
               ),
               IconButton(
-                tooltip: 'UAS data quality',
+                tooltip: context.translate("UAS data quality"),
                 onPressed: widget.onDetails,
                 icon: const Icon(Icons.info_outline),
               ),

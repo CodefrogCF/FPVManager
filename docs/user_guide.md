@@ -1,7 +1,8 @@
 # User guide
 
-This guide follows the current menus. Some specialist tools retain English
-labels; the shared map and settings menus use the German names shown below.
+Under **Einstellungen → Sprache** (**Settings → Language**), choose
+**Deutsch** or **English**. FPVManager saves your choice and applies it to the
+app and the map and flight controls. This guide uses the German menu labels.
 
 ## Find the right control
 
@@ -9,7 +10,7 @@ labels; the shared map and settings menus use the German names shown below.
 |---|---|
 | Navigation menu, upper left | Saved places, flight routes, weather, navigation/OSINT, ground routes, observations, equipment and offline data |
 | **Karte & Ansicht**, layers button or map actions | **Karte**, **Luftraum**, **Hindernisse** and **OSINT** tabs |
-| **Einstellungen** | Shortcuts to the same map hub, flight/controls, navigation overrides, data sources, offline data and help |
+| **Einstellungen** | Language, map and flight controls, navigation overrides, data sources, offline data and help |
 | **Quellen**, at the map edge | Complete active map-source notices and renderer acknowledgments |
 | Selected map object | Coordinates, source attributes and actions relevant to that selection |
 
@@ -148,7 +149,9 @@ Compatibility graphics can change during flight without respawning.
 **Flug zurücksetzen**, R or controller A returns to spawn; Escape, controller B
 or the exit button returns to the map. HUD AGL is local clearance above terrain;
 **H START** is height above the spawn ground and **D HOME** is horizontal
-straight-line distance home.
+straight-line distance home. It excludes turns along a road or tunnel; a curved
+tunnel's length can therefore exceed D HOME at the exit. Unknown heights remain
+unknown.
 
 Synthetic tunnels use their lining, floor and roof for geometric contact.
 Optional experimental native-model collision approximates nearby loaded top

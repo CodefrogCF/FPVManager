@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/geo/geo_coordinate_service.dart';
 import '../mobility/destination_search.dart';
 import '../spots/data/spot_query.dart';
@@ -33,7 +35,7 @@ Future<RouteStartLocation?> showRouteStartLocation(
               title ?? (search ? 'Find a start area' : 'Start at a saved spot'),
             ),
             trailing: IconButton(
-              tooltip: 'Close',
+              tooltip: context.translate("Close"),
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close),
             ),
@@ -45,8 +47,10 @@ Future<RouteStartLocation?> showRouteStartLocation(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Move the map to a place, then tap the map to set your first waypoint.',
+                        Text(
+                          context.translate(
+                            "Move the map to a place, then tap the map to set your first waypoint.",
+                          ),
                         ),
                         const SizedBox(height: 12),
                         RoadDestinationSearch(
@@ -90,8 +94,8 @@ class _SavedStartsState extends State<_SavedStarts> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: TextField(
           maxLength: 120,
-          decoration: const InputDecoration(
-            labelText: 'Filter saved spots',
+          decoration: InputDecoration(
+            labelText: context.translate("Filter saved spots"),
             counterText: '',
             prefixIcon: Icon(Icons.search),
           ),
@@ -102,7 +106,10 @@ class _SavedStartsState extends State<_SavedStarts> {
       Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
-          widget.hint ?? 'Choose a spot to add the first waypoint at its saved coordinates.',
+          widget.hint ??
+              context.translate(
+                "Choose a spot to add the first waypoint at its saved coordinates.",
+              ),
         ),
       ),
       Expanded(
@@ -115,7 +122,9 @@ class _SavedStartsState extends State<_SavedStarts> {
                   onPressed: () => setState(
                     () => _spots = widget.repository.watchMapSpots(),
                   ),
-                  child: const Text('Unable to load saved spots. Retry'),
+                  child: Text(
+                    context.translate("Unable to load saved spots. Retry"),
+                  ),
                 ),
               );
             }
@@ -129,8 +138,10 @@ class _SavedStartsState extends State<_SavedStarts> {
               return Center(
                 child: Text(
                   snapshot.data!.isEmpty
-                      ? 'No saved spots yet. Use the place search or tap the map.'
-                      : 'No matching saved spots.',
+                      ? context.translate(
+                          "No saved spots yet. Use the place search or tap the map.",
+                        )
+                      : context.translate("No matching saved spots."),
                 ),
               );
             }

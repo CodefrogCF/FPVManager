@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart' show Spot;
@@ -82,20 +84,26 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: Text(start ? 'Start wählen' : 'Ziel wählen'),
+        title: Text(
+          start
+              ? context.translate("Start wählen")
+              : context.translate("Ziel wählen"),
+        ),
         children: [
           if (selected != null)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, 'map'),
-              child: const Text('Gewählten Kartenpunkt übernehmen'),
+              child: Text(
+                context.translate("Gewählten Kartenpunkt übernehmen"),
+              ),
             ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'search'),
-            child: const Text('Ort oder Koordinaten suchen'),
+            child: Text(context.translate("Ort oder Koordinaten suchen")),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'spot'),
-            child: const Text('Gespeicherten Ort auswählen'),
+            child: Text(context.translate("Gespeicherten Ort auswählen")),
           ),
         ],
       ),
@@ -181,15 +189,17 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Ungespeicherten Entwurf verlassen?'),
+            title: Text(
+              context.translate("Ungespeicherten Entwurf verlassen?"),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Weiter bearbeiten'),
+                child: Text(context.translate("Weiter bearbeiten")),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Verwerfen'),
+                child: Text(context.translate("Verwerfen")),
               ),
             ],
           ),
@@ -240,14 +250,20 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('GPX-Bodenrouten importieren?'),
+        title: Text(context.translate("GPX-Bodenrouten importieren?")),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (final r in preview.routes)
-                Text('${r.name} · ${r.mode.label} · ${r.points.length} Punkte'),
+                Text(
+                  context.translate("{0} · {1} · {2} Punkte", [
+                    r.name,
+                    r.mode.label,
+                    r.points.length,
+                  ]),
+                ),
               for (final warning in preview.warnings)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -259,11 +275,11 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: Text(context.translate("Abbrechen")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Importieren'),
+            child: Text(context.translate("Importieren")),
           ),
         ],
       ),
@@ -273,7 +289,11 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${preview.routes.length} Bodenrouten gespeichert'),
+          content: Text(
+            context.translate("{0} Bodenrouten gespeichert", [
+              preview.routes.length,
+            ]),
+          ),
         ),
       );
     }
@@ -283,15 +303,15 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('„${route.name}“ löschen?'),
+        title: Text(context.translate("„{0}“ löschen?", [route.name])),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: Text(context.translate("Abbrechen")),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Löschen'),
+            child: Text(context.translate("Löschen")),
           ),
         ],
       ),
@@ -314,7 +334,7 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
       }
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('Bodenrouten')),
+      appBar: AppBar(title: Text(context.translate("Bodenrouten"))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -323,8 +343,8 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
               key: ValueKey(mode),
               initialValue: mode,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Routenmodus ausdrücklich wählen',
+              decoration: InputDecoration(
+                labelText: context.translate("Routenmodus ausdrücklich wählen"),
               ),
               items: [
                 for (final m in GroundTravelMode.values)
@@ -339,7 +359,7 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.trip_origin),
-              title: Text(origin?.name ?? 'Start wählen'),
+              title: Text(origin?.name ?? context.translate("Start wählen")),
               subtitle: origin == null
                   ? null
                   : Text(
@@ -349,7 +369,9 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.flag_outlined),
-              title: Text(destination?.name ?? 'Ziel wählen'),
+              title: Text(
+                destination?.name ?? context.translate("Ziel wählen"),
+              ),
               subtitle: destination == null
                   ? null
                   : Text(
@@ -375,15 +397,21 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                       ),
                     ),
               icon: const Icon(Icons.directions_transit),
-              label: const Text('ÖV-Anreise zum Bodenrouten-Start planen'),
+              label: Text(
+                context.translate("ÖV-Anreise zum Bodenrouten-Start planen"),
+              ),
             ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Start und Ziel zur Berechnung an FOSSGIS / OSRM senden',
+              title: Text(
+                context.translate(
+                  "Start und Ziel zur Berechnung an FOSSGIS / OSRM senden",
+                ),
               ),
-              subtitle: const Text(
-                'Passendes Fuß- oder Veloprofil · OpenStreetMap-Grundlage',
+              subtitle: Text(
+                context.translate(
+                  "Passendes Fuß- oder Veloprofil · OpenStreetMap-Grundlage",
+                ),
               ),
               value: consent,
               onChanged: busy ? null : (v) => setState(() => consent = v!),
@@ -402,7 +430,7 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                       ? null
                       : _calculate,
                   icon: const Icon(Icons.route),
-                  label: const Text('Bodenroute berechnen'),
+                  label: Text(context.translate("Bodenroute berechnen")),
                 ),
                 OutlinedButton.icon(
                   onPressed: busy
@@ -418,12 +446,12 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                           }
                         }),
                   icon: const Icon(Icons.add),
-                  label: const Text('Neue Route'),
+                  label: Text(context.translate("Neue Route")),
                 ),
                 OutlinedButton.icon(
                   onPressed: mode == null || busy ? null : () => _run(_import),
                   icon: const Icon(Icons.file_open_outlined),
-                  label: const Text('GPX importieren'),
+                  label: Text(context.translate("GPX importieren")),
                 ),
               ],
             ),
@@ -441,14 +469,27 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Angezeigte Route: ${route.mode.label}',
+                        context.translate("Angezeigte Route: {0}", [
+                          route.mode.label,
+                        ]),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
-                        '${route.points.length} Punkte · ${route.distanceMeters == null ? 'Distanz unbekannt' : '${(route.distanceMeters! / 1000).toStringAsFixed(2)} km'} · ${route.durationSeconds == null ? 'Dauer unbekannt' : '${(route.durationSeconds! / 60).round()} min Schätzung'}',
+                        context.translate("{0} Punkte · {1} · {2}", [
+                          route.points.length,
+                          route.distanceMeters == null
+                              ? 'Distanz unbekannt'
+                              : '${(route.distanceMeters! / 1000).toStringAsFixed(2)} km',
+                          route.durationSeconds == null
+                              ? 'Dauer unbekannt'
+                              : '${(route.durationSeconds! / 60).round()} min Schätzung',
+                        ]),
                       ),
                       Text(
-                        'Quelle: ${route.source}\nBerechnet: ${route.calculatedAtUtc?.toLocal() ?? 'nicht angegeben'}',
+                        context.translate("Quelle: {0}\nBerechnet: {1}", [
+                          route.source,
+                          route.calculatedAtUtc?.toLocal() ?? 'nicht angegeben',
+                        ]),
                       ),
                       if (mode != route.mode ||
                           origin?.point.latitude != route.origin.latitude ||
@@ -457,14 +498,16 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                               route.destination.latitude ||
                           destination?.point.longitude !=
                               route.destination.longitude)
-                        const Text(
-                          'Die angezeigte Route gehört zu den vorherigen Eingaben. Für die neuen Eingaben erneut berechnen.',
+                        Text(
+                          context.translate(
+                            "Die angezeigte Route gehört zu den vorherigen Eingaben. Für die neuen Eingaben erneut berechnen.",
+                          ),
                         ),
                       TextFormField(
                         controller: name,
                         maxLength: 120,
-                        decoration: const InputDecoration(
-                          labelText: 'Name der Bodenroute',
+                        decoration: InputDecoration(
+                          labelText: context.translate("Name der Bodenroute"),
                         ),
                         onChanged: (_) => setState(() => dirty = true),
                       ),
@@ -477,8 +520,8 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                             icon: const Icon(Icons.save_outlined),
                             label: Text(
                               recordId == null
-                                  ? 'Bodenroute speichern'
-                                  : 'Änderungen speichern',
+                                  ? context.translate("Bodenroute speichern")
+                                  : context.translate("Änderungen speichern"),
                             ),
                           ),
                           OutlinedButton(
@@ -487,7 +530,9 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                                 route.toGlobe(),
                               ),
                             ),
-                            child: const Text('Auf Globe anzeigen'),
+                            child: Text(
+                              context.translate("Auf Globe anzeigen"),
+                            ),
                           ),
                           TextButton(
                             onPressed: () => _run(
@@ -496,7 +541,9 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                                 'visible': false,
                               }),
                             ),
-                            child: const Text('Kartenvorschau ausblenden'),
+                            child: Text(
+                              context.translate("Kartenvorschau ausblenden"),
+                            ),
                           ),
                           OutlinedButton(
                             onPressed: () => _run(() async {
@@ -525,8 +572,10 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                                 ),
                               );
                             }),
-                            child: const Text(
-                              'Messstationen entlang der Route',
+                            child: Text(
+                              context.translate(
+                                "Messstationen entlang der Route",
+                              ),
                             ),
                           ),
                           TextButton(
@@ -535,12 +584,25 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                               globe: widget.globe,
                               path: route.points,
                             ),
-                            child: const Text('Sperrungen im Routenumfeld'),
+                            child: Text(
+                              context.translate("Sperrungen im Routenumfeld"),
+                            ),
                           ),
                         ],
                       ),
                       Text(
-                        'Oberfläche: ${route.attributes['surface'] ?? 'nicht bereitgestellt'} · Zugang: ${route.attributes['access'] ?? 'nicht bereitgestellt'}\nHöhen: ${route.elevations == null ? 'nicht bereitgestellt' : 'Quelldaten; Referenz: ${route.attributes['elevationReference'] ?? 'unbekannt'}'}',
+                        context.translate(
+                          "Oberfläche: {0} · Zugang: {1}\nHöhen: {2}",
+                          [
+                            route.attributes['surface'] ??
+                                'nicht bereitgestellt',
+                            route.attributes['access'] ??
+                                'nicht bereitgestellt',
+                            route.elevations == null
+                                ? 'nicht bereitgestellt'
+                                : 'Quelldaten; Referenz: ${route.attributes['elevationReference'] ?? 'unbekannt'}',
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -548,12 +610,12 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
               ),
             const GuideLink(GuideTopic.outdoor),
             const Divider(),
-            const Text('Lokal gespeicherte Bodenrouten'),
+            Text(context.translate("Lokal gespeicherte Bodenrouten")),
             TextField(
               controller: search,
               maxLength: 120,
-              decoration: const InputDecoration(
-                labelText: 'Gespeicherte Bodenrouten suchen',
+              decoration: InputDecoration(
+                labelText: context.translate("Gespeicherte Bodenrouten suchen"),
               ),
               onChanged: (_) => setState(_watch),
             ),
@@ -561,8 +623,10 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
               stream: _saved,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Text(
-                    'Gespeicherte Bodenrouten konnten nicht geladen werden.',
+                  return Text(
+                    context.translate(
+                      "Gespeicherte Bodenrouten konnten nicht geladen werden.",
+                    ),
                   );
                 }
                 final records = snapshot.data ?? [];
@@ -576,10 +640,14 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                               : Icons.directions_bike,
                         ),
                         title: Text(r.name),
-                        subtitle: Text('${r.mode.label} · lokal gespeichert'),
+                        subtitle: Text(
+                          context.translate("{0} · lokal gespeichert", [
+                            r.mode.label,
+                          ]),
+                        ),
                         onTap: busy ? null : () => _run(() => _open(r.id)),
                         trailing: IconButton(
-                          tooltip: 'Bodenroute löschen',
+                          tooltip: context.translate("Bodenroute löschen"),
                           icon: const Icon(Icons.delete_outline),
                           onPressed: busy ? null : () => _run(() => _delete(r)),
                         ),
@@ -590,14 +658,22 @@ class _GroundRoutesScreenState extends State<GroundRoutesScreen> {
                           limit += 50;
                           _watch();
                         }),
-                        child: const Text('Weitere Bodenrouten anzeigen'),
+                        child: Text(
+                          context.translate("Weitere Bodenrouten anzeigen"),
+                        ),
                       ),
                     if (records.length >= 500)
-                      const Text(
-                        '500 Treffer angezeigt. Bitte die Suche eingrenzen.',
+                      Text(
+                        context.translate(
+                          "500 Treffer angezeigt. Bitte die Suche eingrenzen.",
+                        ),
                       ),
                     if (snapshot.hasData && records.isEmpty)
-                      const Text('Keine gespeicherten Bodenrouten gefunden'),
+                      Text(
+                        context.translate(
+                          "Keine gespeicherten Bodenrouten gefunden",
+                        ),
+                      ),
                   ],
                 );
               },

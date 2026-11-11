@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../globe/globe_controller.dart';
@@ -151,16 +153,20 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Official MeteoSwiss precipitation radar',
+              context.translate("Official MeteoSwiss precipitation radar"),
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const Text(
-              'Observation, not forecast. Missing pixels and missing dates must not be interpreted as dry weather.',
+            Text(
+              context.translate(
+                "Observation, not forecast. Missing pixels and missing dates must not be interpreted as dry weather.",
+              ),
             ),
             const SizedBox(height: 6),
             DropdownButtonFormField<MeteoRadarProduct>(
               initialValue: _product,
-              decoration: const InputDecoration(labelText: 'Radar product'),
+              decoration: InputDecoration(
+                labelText: context.translate("Radar product"),
+              ),
               items: [
                 for (final product in MeteoRadarProduct.values)
                   DropdownMenuItem(
@@ -191,7 +197,7 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
             FilledButton.tonalIcon(
               onPressed: _busy ? null : _discover,
               icon: const Icon(Icons.cloud_download_outlined),
-              label: const Text('Discover published radar times'),
+              label: Text(context.translate("Discover published radar times")),
             ),
             if (_busy) const LinearProgressIndicator(),
             if (_error != null)
@@ -201,15 +207,28 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
               ),
             if (selected != null) ...[
               Text(
-                'Observed: ${_format(selected.timestampUtc)} · ${selected.product.unit}',
+                context.translate("Observed: {0} · {1}", [
+                  _format(selected.timestampUtc),
+                  selected.product.unit,
+                ]),
               ),
               if (selected.catalogueUpdatedUtc != null)
-                Text('STAC updated: ${_format(selected.catalogueUpdatedUtc!)}'),
+                Text(
+                  context.translate("STAC updated: {0}", [
+                    _format(selected.catalogueUpdatedUtc!),
+                  ]),
+                ),
               if (selected.quality != null)
-                Text('Published CPC quality flag: ${selected.quality}/9'),
+                Text(
+                  context.translate("Published CPC quality flag: {0}/9", [
+                    selected.quality,
+                  ]),
+                ),
               if (selected.quality == null)
-                const Text(
-                  'No published quality flag for this frame (quality unknown).',
+                Text(
+                  context.translate(
+                    "No published quality flag for this frame (quality unknown).",
+                  ),
                 ),
               Slider(
                 value: _index
@@ -234,7 +253,7 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
                   FilledButton.icon(
                     onPressed: _busy ? null : () => _show(_index),
                     icon: const Icon(Icons.radar),
-                    label: const Text('Show selected frame'),
+                    label: Text(context.translate("Show selected frame")),
                   ),
                   OutlinedButton.icon(
                     onPressed: _busy || _index >= frames.length - 1
@@ -249,7 +268,9 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
                   FilledButton.tonalIcon(
                     onPressed: _busy && !_playing ? null : _play,
                     icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                    label: Text(_playing ? 'Pause' : 'Play forward'),
+                    label: Text(
+                      _playing ? 'Pause' : context.translate("Play forward"),
+                    ),
                   ),
                   OutlinedButton.icon(
                     onPressed: _busy || _index == 0
@@ -267,16 +288,21 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
                       await widget.globe.clearMeteoSwissRadar();
                     },
                     icon: const Icon(Icons.layers_clear),
-                    label: const Text('Clear radar'),
+                    label: Text(context.translate("Clear radar")),
                   ),
                 ],
               ),
               Text(
-                '${frames.length} published frames (maximum 12). Irregular timestamp gaps are retained.',
+                context.translate(
+                  "{0} published frames (maximum 12). Irregular timestamp gaps are retained.",
+                  [frames.length],
+                ),
               ),
             ],
-            const Text(
-              'Source: MeteoSwiss · FSDI STAC · online HDF5/WASM · EPSG:2056. Radar can be unavailable on Web or Android if data or decoder access is blocked.',
+            Text(
+              context.translate(
+                "Source: MeteoSwiss · FSDI STAC · online HDF5/WASM · EPSG:2056. Radar can be unavailable on Web or Android if data or decoder access is blocked.",
+              ),
             ),
           ],
         ),

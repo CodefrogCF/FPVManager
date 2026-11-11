@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -171,20 +173,26 @@ class _PollenSectionState extends State<PollenSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Official MeteoSwiss pollen stations',
+              context.translate("Official MeteoSwiss pollen stations"),
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const Text(
-              'Measured hourly station averages (No/m³, pollen grains per cubic metre); not a forecast or an exposure estimate at the selected spot.',
+            Text(
+              context.translate(
+                "Measured hourly station averages (No/m³, pollen grains per cubic metre); not a forecast or an exposure estimate at the selected spot.",
+              ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Automatic observations (from 2023) and historical manual measurements are separate methods. Historical/manual series are not loaded here.',
+            Text(
+              context.translate(
+                "Automatic observations (from 2023) and historical manual measurements are separate methods. Historical/manual series are not loaded here.",
+              ),
             ),
             const SizedBox(height: 8),
             if (widget.latitude == null || widget.longitude == null)
-              const Text(
-                'Choose a saved flying spot or a globe coordinate to inspect nearby monitoring stations.',
+              Text(
+                context.translate(
+                  "Choose a saved flying spot or a globe coordinate to inspect nearby monitoring stations.",
+                ),
               )
             else ...[
               Wrap(
@@ -194,12 +202,12 @@ class _PollenSectionState extends State<PollenSection> {
                   FilledButton.tonalIcon(
                     onPressed: _busy ? null : () => _discover(),
                     icon: const Icon(Icons.place_outlined),
-                    label: const Text('Find monitoring stations'),
+                    label: Text(context.translate("Find monitoring stations")),
                   ),
                   OutlinedButton.icon(
                     onPressed: _busy ? null : () => _discover(refresh: true),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh station metadata'),
+                    label: Text(context.translate("Refresh station metadata")),
                   ),
                 ],
               ),
@@ -207,10 +215,19 @@ class _PollenSectionState extends State<PollenSection> {
                 const SizedBox(height: 8),
                 Text(
                   _service.stationMetadataRefreshFailed
-                      ? 'Station directory: cached; last metadata refresh failed (original publication time unavailable).'
+                      ? context.translate(
+                          "Station directory: cached; last metadata refresh failed (original publication time unavailable).",
+                        )
                       : _service.stationMetadataFromCache
-                      ? 'Station directory: locally cached (original publication time unavailable).'
-                      : 'Station directory: retrieved ${_service.stationMetadataCheckedUtc?.toUtc().toIso8601String() ?? 'time unknown'}',
+                      ? context.translate(
+                          "Station directory: locally cached (original publication time unavailable).",
+                        )
+                      : context.translate("Station directory: retrieved {0}", [
+                          _service.stationMetadataCheckedUtc
+                                  ?.toUtc()
+                                  .toIso8601String() ??
+                              'time unknown',
+                        ]),
                 ),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
@@ -218,8 +235,8 @@ class _PollenSectionState extends State<PollenSection> {
                     'pollen-stations-${widget.latitude}-${widget.longitude}',
                   ),
                   initialValue: _selected?.id,
-                  decoration: const InputDecoration(
-                    labelText: 'Nearest monitoring station',
+                  decoration: InputDecoration(
+                    labelText: context.translate("Nearest monitoring station"),
                   ),
                   items: [
                     for (final s in _near)
@@ -240,7 +257,12 @@ class _PollenSectionState extends State<PollenSection> {
                 ),
                 if (station != null) ...[
                   Text(
-                    'Station ${station.id}${station.canton == null ? '' : ' · ${station.canton}'} · ${station.latitude.toStringAsFixed(4)}, ${station.longitude.toStringAsFixed(4)}',
+                    context.translate("Station {0}{1} · {2}, {3}", [
+                      station.id,
+                      station.canton == null ? '' : ' · ${station.canton}',
+                      station.latitude.toStringAsFixed(4),
+                      station.longitude.toStringAsFixed(4),
+                    ]),
                   ),
                   if (station.detailsUrl != null)
                     TextButton.icon(
@@ -249,12 +271,14 @@ class _PollenSectionState extends State<PollenSection> {
                         mode: LaunchMode.externalApplication,
                       ),
                       icon: const Icon(Icons.open_in_new),
-                      label: const Text('MeteoSwiss station details'),
+                      label: Text(
+                        context.translate("MeteoSwiss station details"),
+                      ),
                     ),
                   FilledButton.icon(
                     onPressed: _busy ? null : _fetch,
                     icon: const Icon(Icons.cloud_download_outlined),
-                    label: const Text('Load hourly observations'),
+                    label: Text(context.translate("Load hourly observations")),
                   ),
                 ],
               ],
@@ -268,18 +292,33 @@ class _PollenSectionState extends State<PollenSection> {
             if (snapshot != null) ...[
               const Divider(),
               Text(
-                'Data state: $freshnessLabel${snapshot.fromCache ? ' · cached' : ''}${snapshot.refreshFailed ? ' · refresh failed' : ''}',
+                context.translate("Data state: {0}{1}{2}", [
+                  freshnessLabel,
+                  snapshot.fromCache ? ' · cached' : '',
+                  snapshot.refreshFailed ? ' · refresh failed' : '',
+                ]),
               ),
-              Text('Retrieved: ${_utc(snapshot.fetchedUtc)}'),
+              Text(
+                context.translate("Retrieved: {0}", [
+                  _utc(snapshot.fetchedUtc),
+                ]),
+              ),
               Text(
                 snapshot.publishedUtc == null
-                    ? 'Source publication time: not provided'
-                    : 'Source STAC updated: ${_utc(snapshot.publishedUtc!)}',
+                    ? context.translate("Source publication time: not provided")
+                    : context.translate("Source STAC updated: {0}", [
+                        _utc(snapshot.publishedUtc!),
+                      ]),
               ),
               Text(
                 latest == null
-                    ? 'No valid automatic observations published in this file.'
-                    : 'Latest station observation: ${_utc(latest.timeUtc)} · ${latest.method.name} · hourly average',
+                    ? context.translate(
+                        "No valid automatic observations published in this file.",
+                      )
+                    : context.translate(
+                        "Latest station observation: {0} · {1} · hourly average",
+                        [_utc(latest.timeUtc), latest.method.name],
+                      ),
               ),
               if (snapshot.samples.length > 1)
                 DropdownButtonFormField<int>(
@@ -288,8 +327,10 @@ class _PollenSectionState extends State<PollenSection> {
                     'pollen-sample-${snapshot.fetchedUtc.toIso8601String()}',
                   ),
                   initialValue: _sampleIndex,
-                  decoration: const InputDecoration(
-                    labelText: 'Inspect hourly observation (UTC)',
+                  decoration: InputDecoration(
+                    labelText: context.translate(
+                      "Inspect hourly observation (UTC)",
+                    ),
                   ),
                   items: [
                     for (var i = 0; i < snapshot.samples.length; i++)
@@ -305,7 +346,11 @@ class _PollenSectionState extends State<PollenSection> {
                   },
                 ),
               if (displayed != null) ...[
-                Text('Selected observation: ${_utc(displayed.timeUtc)}'),
+                Text(
+                  context.translate("Selected observation: {0}", [
+                    _utc(displayed.timeUtc),
+                  ]),
+                ),
                 for (final taxon in PollenTaxon.values)
                   Text(
                     '${taxon.label}: ${displayed.values[taxon]?.toStringAsFixed(0) ?? 'missing / unknown'}${displayed.values[taxon] == null ? '' : ' No/m³'}',
@@ -313,15 +358,22 @@ class _PollenSectionState extends State<PollenSection> {
               ],
               if (snapshot.unknownParameters.isNotEmpty)
                 Text(
-                  'Unsupported source parameters not classified: ${snapshot.unknownParameters.join(', ')}',
+                  context.translate(
+                    "Unsupported source parameters not classified: {0}",
+                    [snapshot.unknownParameters.join(', ')],
+                  ),
                 ),
-              const Text(
-                'No official severity classes are inferred. Missing is not zero. Readings describe the monitoring station only.',
+              Text(
+                context.translate(
+                  "No official severity classes are inferred. Missing is not zero. Readings describe the monitoring station only.",
+                ),
               ),
             ],
             const SizedBox(height: 8),
-            const Text(
-              'Source: MeteoSwiss · FSDI STAC · Swiss pollen monitoring network. Coverage is limited to published stations. Data are observations, not medical advice.',
+            Text(
+              context.translate(
+                "Source: MeteoSwiss · FSDI STAC · Swiss pollen monitoring network. Coverage is limited to published stations. Data are observations, not medical advice.",
+              ),
             ),
           ],
         ),

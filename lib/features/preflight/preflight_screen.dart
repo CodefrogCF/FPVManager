@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../telemetry/telemetry_repository.dart';
 import '../telemetry/telemetry_tab.dart';
@@ -14,7 +16,7 @@ class PreflightScreen extends StatelessWidget {
     length: 2,
     child: Scaffold(
       appBar: AppBar(
-        title: const Text('Preflight & Telemetry'),
+        title: Text(context.translate("Preflight & Telemetry")),
         bottom: const TabBar(
           tabs: [
             Tab(text: 'Checklists'),

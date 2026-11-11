@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/radio_equipment_repository.dart';
 import '../../core/models/radio_profile.dart';
@@ -35,7 +37,7 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Radio & video equipment')),
+    appBar: AppBar(title: Text(context.translate("Radio & video equipment"))),
     body: StreamBuilder<List<RadioEquipmentData>>(
       stream: _equipment,
       builder: (context, snapshot) {
@@ -44,12 +46,12 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Unable to load equipment profiles.'),
+                Text(context.translate("Unable to load equipment profiles.")),
                 TextButton(
                   onPressed: () => setState(
                     () => _equipment = widget.repository.watchEquipment(),
                   ),
-                  child: const Text('Retry'),
+                  child: Text(context.translate("Retry")),
                 ),
               ],
             ),
@@ -59,11 +61,13 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.data!.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                'No equipment profiles yet. Add separate configurations for radio control, video or telemetry.',
+                context.translate(
+                  "No equipment profiles yet. Add separate configurations for radio control, video or telemetry.",
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -95,7 +99,7 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
     floatingActionButton: FloatingActionButton.extended(
       onPressed: _add,
       icon: const Icon(Icons.add),
-      label: const Text('Add equipment'),
+      label: Text(context.translate("Add equipment")),
     ),
   );
 }

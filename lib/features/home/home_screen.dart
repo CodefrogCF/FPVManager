@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'dart:async';
 
 import '../data_management/data_management_screen.dart';
 import '../offline/offline_region.dart';
 
 import '../../core/database/fpv_database.dart';
+import '../../core/localization/app_language_store.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/database/repositories/radio_equipment_repository.dart';
@@ -72,6 +75,7 @@ class FPVHomeScreen extends StatefulWidget {
     this.preferencesRepository,
     this.globeController,
     this.profilesRepository,
+    this.onLanguageChanged,
   });
 
   /// An injected repository remains owned by its caller.
@@ -83,6 +87,7 @@ class FPVHomeScreen extends StatefulWidget {
   final UserPreferencesRepository? preferencesRepository;
   final GlobeController? globeController;
   final ActivityProfilesRepository? profilesRepository;
+  final ValueChanged<AppLanguage>? onLanguageChanged;
 
   @override
   State<FPVHomeScreen> createState() => _FPVHomeScreenState();
@@ -94,6 +99,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   ActivityMapDefaults? _pendingProfileDefaults;
   bool _applyingProfile = false;
   bool _allToolsExpanded = false;
+  Future<void>? _languageOperation;
   // Reuse the caller-owned database when preferences are injected.
   // Only create and later close a database when this screen owns it.
   FpvDatabase get _planningDatabase {
@@ -186,9 +192,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     await _tryProfileDefaults();
     if (mounted && _pendingProfileDefaults != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Arbeitsbereich gewechselt. Kartenstartwerte folgen nach der laufenden Ansicht.',
+            context.translate(
+              "Arbeitsbereich gewechselt. Kartenstartwerte folgen nach der laufenden Ansicht.",
+            ),
           ),
         ),
       );
@@ -215,8 +223,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         final selectedId = _profiles?.selected?.id;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Kartenstartwerte konnten nicht übernommen werden.',
+            content: Text(
+              context.translate(
+                "Kartenstartwerte konnten nicht übernommen werden.",
+              ),
             ),
             action: SnackBarAction(
               label: 'Erneut versuchen',
@@ -559,6 +569,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           onData: _openData,
           onProfiles: _openProfiles,
           onMapLayers: _openMapLayers,
+          onLanguageSelected: widget.onLanguageChanged == null
+              ? null
+              : _saveLanguage,
         ),
       ),
     );
@@ -652,8 +665,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Map error: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.translate("Map error: {0}", [error]))),
+      );
     }
   }
 
@@ -885,9 +899,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       );
     } catch (error) {
       if (!mounted || !identical(point, _globeController.selectedPoint)) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Terrain query failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.translate("Terrain query failed: {0}", [error]),
+          ),
+        ),
+      );
     }
   }
 
@@ -947,7 +965,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             if (!mounted) return;
 
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Spot marker sync failed: $error')),
+              SnackBar(
+                content: Text(
+                  context.translate("Spot marker sync failed: {0}", [error]),
+                ),
+              ),
             );
           }),
         );
@@ -956,7 +978,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to load stored spots: $error')),
+          SnackBar(
+            content: Text(
+              context.translate("Unable to load stored spots: {0}", [error]),
+            ),
+          ),
         );
       },
     );
@@ -977,6 +1003,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     }
 
     if (database != null) {
+      try {
+        await _languageOperation;
+      } catch (_) {
+        // The settings screen reports write failures.
+      }
       await _globeController.preferencesSettled;
       await database.close();
     }
@@ -985,6 +1016,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.onLanguageChanged != null) {
+      _languageOperation = _loadLanguage();
+    }
     _globeController.addListener(_onGlobeStateChanged);
     _globeController.onWindSettingsRequested = _windRequestHandler;
     _globeController.onRecordingReviewRequested = _recordingReviewHandler;
@@ -999,6 +1033,35 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         );
       },
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final language = AppLocalizations.maybeOf(context)?.language;
+    if (language != null) _globeController.setLanguage(language);
+  }
+
+  Future<void> _loadLanguage() async {
+    try {
+      final language = await AppLanguageStore(_planningDatabase).read();
+      if (mounted) widget.onLanguageChanged?.call(language);
+    } catch (_) {
+      // The startup locale remains usable if local settings cannot be read.
+    }
+  }
+
+  Future<void> _saveLanguage(AppLanguage language) async {
+    await _languageOperation;
+    if (!mounted) return;
+    final write = AppLanguageStore(_planningDatabase).write(language);
+    _languageOperation = write;
+    try {
+      await write;
+      if (mounted) widget.onLanguageChanged?.call(language);
+    } finally {
+      if (identical(_languageOperation, write)) _languageOperation = null;
+    }
   }
 
   void _onGlobeStateChanged() {
@@ -1063,7 +1126,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                  child: Text(context.translate("Close")),
                 ),
               ],
             ),
@@ -1168,7 +1231,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip: 'Open navigation menu',
+                      tooltip: context.translate("Open navigation menu"),
                       onPressed: () => _toggleNavigationMenu(context),
                       icon: const Icon(Icons.menu),
                     ),
@@ -1176,8 +1239,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         MediaQuery.sizeOf(context).width >= 360)
                       IconButton(
                         tooltip: _profiles?.selected == null
-                            ? 'Profil wählen'
-                            : 'Aktivitätsprofil: ${_profiles!.selected!.name}',
+                            ? context.translate("Profil wählen")
+                            : context.translate("Aktivitätsprofil: {0}", [
+                                _profiles!.selected!.name,
+                              ]),
                         onPressed: _openProfiles,
                         icon: const Icon(Icons.person_outline),
                       ),
@@ -1204,7 +1269,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     ),
                     if (_globeController.playbackPhase == 'loading')
                       IconButton(
-                        tooltip: 'Cancel route replay preparation',
+                        tooltip: context.translate(
+                          "Cancel route replay preparation",
+                        ),
                         onPressed: () => _runCommand(
                           () => _globeController.controlRoutePlayback('stop'),
                         ),

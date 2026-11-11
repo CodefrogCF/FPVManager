@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart';
@@ -39,8 +41,11 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Delete failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.translate("Delete failed: {0}", [error])),
+        ),
+      );
     }
   }
 
@@ -53,7 +58,7 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Local Storage Test')),
+      appBar: AppBar(title: Text(context.translate("Local Storage Test"))),
 
       body: StreamBuilder(
         stream: _repository.watchSpots(),
@@ -63,7 +68,7 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'Database error: ${snapshot.error}',
+                  context.translate("Database error: {0}", [snapshot.error]),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -77,10 +82,11 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
           final spots = snapshot.data!;
 
           if (spots.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                'No spots saved yet.\n'
-                'Add a test spot to verify persistence.',
+                context.translate(
+                  "No spots saved yet.\nAdd a test spot to verify persistence.",
+                ),
                 textAlign: TextAlign.center,
               ),
             );
@@ -112,7 +118,7 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addTestSpot,
         icon: const Icon(Icons.add),
-        label: const Text('Add Test Spot'),
+        label: Text(context.translate("Add Test Spot")),
       ),
     );
   }

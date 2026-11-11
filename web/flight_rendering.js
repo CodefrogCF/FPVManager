@@ -30,6 +30,30 @@
         if(!set||typeof set.getShaderProgram!=='function'||!C.DerivedCommand?.createLogDepthCommand||!C.DrawCommand)return noop;
         const original=set.getShaderProgram;
         let seed=null,completed=0,total=0,preparing=false,elapsed=0;
+        function environmentPrograms(programs){
+            const environment=scene._environmentState;
+            if(!environment)return;
+            for(const command of [environment.skyBoxCommand,environment.skyAtmosphereCommand,
+                environment.sunDrawCommand,environment.moonCommand]){
+                const shader=command?.derivedCommands?.logDepth?.command?.shaderProgram??command?.shaderProgram;
+                if(shader)programs.add(shader);
+            }
+            // Sun bloom's stages are normally initialized only when the Sun
+            // enters the view. Create their real programs at the flight
+            // viewport size without moving the camera or drawing to the screen.
+            const bloom=scene.sunBloom&&scene.sun?.show?scene._sunPostProcess:null;
+            const passState=scene._view?.passState;
+            if(!bloom?._stages||!passState||typeof bloom.update!=='function')return;
+            try{
+                bloom.update(passState);
+                for(let index=0;index<bloom._stages.length;index++){
+                    const shader=bloom._stages.get(index)?._command?.shaderProgram;
+                    if(shader)programs.add(shader);
+                }
+                const copyShader=bloom._copyColorCommand?.shaderProgram;
+                if(copyShader)programs.add(copyShader);
+            }catch(_){/* The pinned runtime can still initialize bloom on demand. */}
+        }
         // This instance belongs to this viewer. Keep a snapshot: Cesium reuses
         // its options object for the next tile/imagery combination.
         set.getShaderProgram=function(options){
@@ -54,6 +78,7 @@
                 const options=seed,gl=options.frameState.context?._gl;
                 if(!gl||gl.isContextLost?.())return;
                 const programs=new Set(),context=options.frameState.context,encoding=options.surfaceTile.renderedMesh.encoding;
+                environmentPrograms(programs);
                 for(const quantization of [C.TerrainQuantization.NONE,C.TerrainQuantization.BITS12])
                     for(const enableFog of [false,true])for(const showUndergroundColor of [false,true])
                         for(let textures=0;textures<=4;textures++){
@@ -105,6 +130,14 @@
                 }
                 await Promise.allSettled([worker(),worker()]);
                 signal?.throwIfAborted();
+                if(check()){
+                    const sunTexture=scene._environmentState?.sunComputeCommand;
+                    if(sunTexture&&sunTexture.owner?._commands?.computeCommand===sunTexture&&scene._computeEngine?.execute){
+                        // Cesium's compute pass targets the Sun's own texture.
+                        // Prepare it before flight instead of on the first loop.
+                        scene._computeEngine.execute(sunTexture);
+                    }
+                }
             }catch(error){
                 if(signal?.aborted)throw error;
                 // Unsupported private runtime details must not prevent flight.
@@ -289,15 +322,25 @@
     function createStreamingBudget(globe,{now=()=>performance.now()}={}){
         let active=false,lastTime=null,heading=0,pitch=0,roll=0,slowFrames=0;
         let holdUntil=0,nextRefinement=0,target=2,changes=0;
+        let surface,normalLoadSlice,loadHoldUntil=0;
         const angle=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
-        function reset(){lastTime=null;slowFrames=0;holdUntil=nextRefinement=0;target=2;}
+        function reset(){lastTime=null;slowFrames=0;holdUntil=nextRefinement=loadHoldUntil=0;target=2;}
         function apply(value){
             target=value;
             if(globe.maximumScreenSpaceError!==value){globe.maximumScreenSpaceError=value;changes++;}
         }
         return {
-            start(){active=true;reset();},
-            stop(){active=false;reset();},
+            start(){
+                if(!active){
+                    surface=globe._surface;
+                    normalLoadSlice=surface?._loadQueueTimeSlice;
+                }
+                active=true;reset();
+            },
+            stop(){
+                if(active&&Number.isFinite(normalLoadSlice))surface._loadQueueTimeSlice=normalLoadSlice;
+                active=false;reset();
+            },
             update(point){
                 if(!active)return;
                 const time=now();
@@ -311,6 +354,16 @@
                 heading=h;pitch=p;roll=r;lastTime=time;
                 slowFrames=elapsed>28?Math.min(3,slowFrames+(elapsed>50?2:1)):Math.max(0,slowFrames-1);
                 const nearGround=Number.isFinite(point.agl)&&point.agl>=0&&point.agl<100;
+                // The previous frame may still report all tiles loaded when
+                // a pull-up exposes a completely new part of the terrain.
+                // Limit Cesium's next loading slice before the new traversal.
+                if(!point.paused&&(turning||(nearGround&&Math.abs(point.verticalSpeed)>=10))){
+                    loadHoldUntil=time+400;
+                }
+                if(Number.isFinite(normalLoadSlice)){
+                    const loadSlice=!point.paused&&time<loadHoldUntil?Math.min(2,normalLoadSlice):normalLoadSlice;
+                    if(surface._loadQueueTimeSlice!==loadSlice)surface._loadQueueTimeSlice=loadSlice;
+                }
                 // Refinement/textures arrive in bursts near the surface and
                 // after fast view changes. Ease their demand briefly instead
                 // of repeatedly loading fine tiles that leave the view at once.
@@ -326,7 +379,8 @@
                     nextRefinement=time+300;
                 }
             },
-            status:()=>({active,terrainScreenSpaceError:target,adjustments:changes})
+            status:()=>({active,terrainScreenSpaceError:target,adjustments:changes,
+                terrainLoadSliceMs:surface?._loadQueueTimeSlice})
         };
     }
     function create(C,viewer,{onProfile=()=>{},terrainPassage=()=>false,now}={}){

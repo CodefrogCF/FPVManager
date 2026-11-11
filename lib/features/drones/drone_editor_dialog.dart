@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/repositories/drone_repository.dart';
 import '../../core/models/drone_profile.dart';
 
@@ -120,7 +122,9 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
           key: ValueKey('${parameter.name}:${_sources[parameter]!.name}'),
           initialValue: _sources[parameter],
           isExpanded: true,
-          decoration: InputDecoration(labelText: '${parameter.label} source'),
+          decoration: InputDecoration(
+            labelText: context.translate("{0} source", [parameter.label]),
+          ),
           items: [
             for (final option in DroneValueSource.values)
               DropdownMenuItem(
@@ -228,7 +232,9 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.profile == null ? 'Add drone profile' : 'Edit drone profile',
+            widget.profile == null
+                ? context.translate("Add drone profile")
+                : context.translate("Edit drone profile"),
           ),
           if (_error != null)
             Padding(
@@ -260,8 +266,10 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
                   helper: 'For example: quadcopter, fixed-wing or hexacopter',
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Leave unknown values empty. Identify each entered value as measured, estimated or source not specified. Editing a number resets its previous source.',
+                Text(
+                  context.translate(
+                    "Leave unknown values empty. Identify each entered value as measured, estimated or source not specified. Editing a number resets its previous source.",
+                  ),
                 ),
                 for (final group in DroneParameterGroup.values) ...[
                   const SizedBox(height: 24),
@@ -312,11 +320,13 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.translate("Cancel")),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: Text(_saving ? 'Saving…' : 'Save'),
+          child: Text(
+            _saving ? context.translate("Saving…") : context.translate("Save"),
+          ),
         ),
       ],
     ),

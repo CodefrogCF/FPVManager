@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../mobility/destination_search.dart';
 import 'globe_search.dart';
 import '../help/guides_screen.dart';
@@ -59,7 +61,7 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Ort oder Koordinaten suchen'),
+    title: Text(context.translate("Ort oder Koordinaten suchen")),
     scrollable: true,
     content: SizedBox(
       width: 460,
@@ -73,8 +75,8 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
             autofocus: true,
             maxLength: 200,
             textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(
-              labelText: 'Koordinaten, Ort oder Straße',
+            decoration: InputDecoration(
+              labelText: context.translate("Koordinaten, Ort oder Straße"),
               counterText: '',
               hintText: '46.7, 8.4 · LV95: 2600000 / 1200000',
             ),
@@ -114,12 +116,12 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
       const GuideLink(GuideTopic.coordinates, label: 'Koordinatenhilfe'),
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text(context.translate("Cancel")),
       ),
       FilledButton.icon(
         onPressed: _busy ? null : _submit,
         icon: const Icon(Icons.search),
-        label: const Text('Suchen'),
+        label: Text(context.translate("Suchen")),
       ),
     ],
   );

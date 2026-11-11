@@ -6,6 +6,7 @@ const { createBridge } = require('../../web/globe_bridge.js');
 const FPVTerrain = require('../../web/terrain_service.js');
 const FPVMapProviders = require('../../web/map_providers.js');
 const FPVObstacles = require('../../web/obstacle_layers.js');
+const FPVRendererLanguage = require('../../web/renderer_language.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
 const FPVUasZoneStyles = require('../../web/uas_zone_styles.js');
 require('../../web/weather_overlay.js');
@@ -27,9 +28,12 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     window.parent = window;
     const context = vm.createContext({
         window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders, FPVObstacles,
-        document: { getElementById: () => info, documentElement: {classList: new Set()} },
+        document: {
+            getElementById: () => info, documentElement: {classList: new Set()},
+            createTreeWalker: () => ({nextNode: () => false}), querySelectorAll: () => []
+        },
         console: { error() {}, log() {} }, setTimeout, clearTimeout,
-        FPVGlobeBridge: { createBridge },
+        FPVGlobeBridge: { createBridge }, FPVRendererLanguage,
         FPVGroundNavigation: { createWalker: () => ({ stop() {}, tick() {}, status: () => ({active: groundView}) }), bindControls() {} },
         FPVFreeFlight: {createSimulator:()=>({stop(){},tick(){},status:()=>({active:false})})},
         FPVRoutePlayback: {create:()=>({interrupt(){},control(){},tick(){},loaded:false,active:false,status:()=>({phase:'idle',loading:false,seconds:0,duration:0,progress:0,speed:1})})},

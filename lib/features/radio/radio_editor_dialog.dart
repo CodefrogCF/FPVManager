@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/radio_equipment_repository.dart';
 import '../../core/models/radio_profile.dart';
@@ -171,8 +173,8 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
             children: [
               Text(
                 widget.profile == null
-                    ? 'Add equipment profile'
-                    : 'Edit equipment profile',
+                    ? context.translate("Add equipment profile")
+                    : context.translate("Edit equipment profile"),
               ),
               if (_error != null)
                 Padding(
@@ -199,8 +201,8 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                     DropdownButtonFormField<String>(
                       initialValue: _category,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'System category',
+                      decoration: InputDecoration(
+                        labelText: context.translate("System category"),
                       ),
                       items: [
                         for (final entry in radioCategories.entries)
@@ -222,8 +224,10 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                           : (value) => setState(() => _category = value!),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Create independent control and video configurations. Leave unknown values empty. Maximum power is the transmitter output before antenna gain and cable loss; record the applicable mode and source below.',
+                    Text(
+                      context.translate(
+                        "Create independent control and video configurations. Leave unknown values empty. Maximum power is the transmitter output before antenna gain and cable loss; record the applicable mode and source below.",
+                      ),
                     ),
                     for (final group in RadioProfileSection.values) ...[
                       const SizedBox(height: 24),
@@ -246,14 +250,16 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                     ],
                     const SizedBox(height: 24),
                     Text(
-                      'Associated drones',
+                      context.translate("Associated drones"),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const Text(
-                      'A drone can use several independent configurations.',
+                    Text(
+                      context.translate(
+                        "A drone can use several independent configurations.",
+                      ),
                     ),
                     if (snapshot.hasError)
-                      const Text('Unable to load drone profiles.'),
+                      Text(context.translate("Unable to load drone profiles.")),
                     if (snapshot.connectionState == ConnectionState.waiting)
                       const LinearProgressIndicator(),
                     TextButton(
@@ -262,11 +268,13 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                           : () => setState(() {
                               _drones = widget.repository.getDrones();
                             }),
-                      child: const Text('Refresh drones'),
+                      child: Text(context.translate("Refresh drones")),
                     ),
                     if (drones != null && drones.isEmpty && missing.isEmpty)
-                      const Text(
-                        'No drone profiles yet. You can assign this equipment later.',
+                      Text(
+                        context.translate(
+                          "No drone profiles yet. You can assign this equipment later.",
+                        ),
                       ),
                     for (final row in drones ?? <Drone>[])
                       CheckboxListTile(
@@ -287,7 +295,10 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
-                          'Removed drone (#$id) — uncheck to continue',
+                          context.translate(
+                            "Removed drone (#{0}) — uncheck to continue",
+                            [id],
+                          ),
                         ),
                         value: true,
                         onChanged: _saving
@@ -302,7 +313,7 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
           actions: [
             TextButton(
               onPressed: _saving ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(context.translate("Cancel")),
             ),
             FilledButton(
               onPressed:
@@ -313,7 +324,11 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                       missing.isNotEmpty
                   ? null
                   : _save,
-              child: Text(_saving ? 'Saving...' : 'Save'),
+              child: Text(
+                _saving
+                    ? context.translate("Saving...")
+                    : context.translate("Save"),
+              ),
             ),
           ],
         );

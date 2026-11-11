@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_localizations.dart';
+
 import '../../../core/models/route_constraints.dart';
 import '../route_editor_controller.dart';
 
@@ -49,7 +51,9 @@ class _ConstraintsState extends State<_Constraints> {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
-        helperText: 'Empty means unverified / not configured.',
+        helperText: context.translate(
+          "Empty means unverified / not configured.",
+        ),
       ),
       validator: (v) => v!.trim().isEmpty
           ? null
@@ -77,14 +81,14 @@ class _ConstraintsState extends State<_Constraints> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Route constraints',
+              context.translate("Route constraints"),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'The default 120 m AGL ceiling is a Swiss open-category planning reference. '
-              'A configured value does not establish the applicable law, an exemption or authorisation. '
-              'Vertical AGL samples do not evaluate distance to the nearest terrain surface on steep slopes.',
+            Text(
+              context.translate(
+                "The default 120 m AGL ceiling is a Swiss open-category planning reference. A configured value does not establish the applicable law, an exemption or authorisation. Vertical AGL samples do not evaluate distance to the nearest terrain surface on steep slopes.",
+              ),
             ),
             const SizedBox(height: 16),
             field(_legal, 'Configured legal ceiling (m AGL)'),
@@ -93,18 +97,20 @@ class _ConstraintsState extends State<_Constraints> {
             DropdownButtonFormField<RouteVisibilityMode>(
               initialValue: _visibility,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Planned visibility scenario',
+              decoration: InputDecoration(
+                labelText: context.translate("Planned visibility scenario"),
               ),
               items: RouteVisibilityMode.values
                   .map(
                     (v) => DropdownMenuItem(
                       value: v,
                       child: Text(switch (v) {
-                        RouteVisibilityMode.unverified => 'Unverified',
+                        RouteVisibilityMode.unverified => context.translate(
+                          "Unverified",
+                        ),
                         RouteVisibilityMode.vlos => 'VLOS',
                         RouteVisibilityMode.fpvWithObserver =>
-                          'FPV with observer',
+                          context.translate("FPV with observer"),
                         RouteVisibilityMode.bvlos => 'BVLOS',
                       }),
                     ),
@@ -113,9 +119,10 @@ class _ConstraintsState extends State<_Constraints> {
               onChanged: (v) => setState(() => _visibility = v!),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'A planning radius is not a VLOS limit. Visibility, aircraft orientation, observers, '
-              'people, pilot qualifications, local restrictions and approvals require manual verification.',
+            Text(
+              context.translate(
+                "A planning radius is not a VLOS limit. Visibility, aircraft orientation, observers, people, pilot qualifications, local restrictions and approvals require manual verification.",
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton(
@@ -133,7 +140,7 @@ class _ConstraintsState extends State<_Constraints> {
                 );
                 Navigator.pop(context);
               },
-              child: const Text('Apply route constraints'),
+              child: Text(context.translate("Apply route constraints")),
             ),
           ],
         ),

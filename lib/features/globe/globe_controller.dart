@@ -11,6 +11,7 @@ import '../../core/osint/osint_cache_database.dart';
 import '../../core/osint/osint_dataset_store.dart';
 import '../../core/osint/cached_osint_provider.dart';
 import '../../core/geo/geo_coordinate_service.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/performance/app_lifecycle_probe.dart';
 import '../../core/models/user_preferences.dart';
 import '../../core/models/activity_profile.dart';
@@ -1084,6 +1085,24 @@ class GlobeController extends ChangeNotifier {
   OsintDataset<Map<String, dynamic>>? _uasDisplayedDataset;
   bool _uasRequestedVisible = false;
   bool _ready = false;
+  AppLanguage? _language;
+
+  void setLanguage(AppLanguage language) {
+    if (_disposed || _language == language) return;
+    _language = language;
+    if (_ready) unawaited(_sendLanguage());
+  }
+
+  Future<void> _sendLanguage() async {
+    final language = _language;
+    if (language == null || !_ready || _disposed) return;
+    try {
+      await _send({'type': 'set-language', 'language': language.code});
+    } catch (_) {
+      // A replaced renderer session receives the setting at its next ready.
+    }
+  }
+
   bool _groundViewActive = false, _groundViewPending = false;
   bool _simulationActive = false,
       _simulationPending = false,
@@ -2535,6 +2554,7 @@ class GlobeController extends ChangeNotifier {
         _selectedSpotId = null;
         _resetUasSelection();
         final generation = _connectionGeneration;
+        unawaited(_sendLanguage());
         if (recording.id != null) {
           recording.rendererLost();
           unawaited(recording.restore().catchError((Object _) {}));

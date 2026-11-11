@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import 'globe_location_controller.dart';
@@ -17,10 +19,10 @@ class GlobeLocationButton extends StatelessWidget {
       child: IconButton(
         key: const ValueKey('globe-locate'),
         tooltip: controller.busy
-            ? 'Standort wird gesucht'
+            ? context.translate("Standort wird gesucht")
             : controller.stale
-            ? 'Letzter Standort · erneut orten'
-            : 'Mein Standort · lange drücken für Optionen',
+            ? context.translate("Letzter Standort · erneut orten")
+            : context.translate("Mein Standort · lange drücken für Optionen"),
         onPressed: controller.busy
             ? null
             : () => unawaited(controller.locate()),
@@ -50,12 +52,12 @@ Future<void> showGlobeLocationSettings(
           children: [
             Expanded(
               child: Text(
-                'Mein Standort',
+                context.translate("Mein Standort"),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
             IconButton(
-              tooltip: 'Schließen',
+              tooltip: context.translate("Schließen"),
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close),
             ),
@@ -63,15 +65,17 @@ Future<void> showGlobeLocationSettings(
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Standort anzeigen'),
+          title: Text(context.translate("Standort anzeigen")),
           value: controller.enabled,
           onChanged: (value) =>
               unawaited(value ? controller.locate() : controller.disable()),
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Standort verfolgen'),
-          subtitle: const Text('Kartenbewegung beendet die Verfolgung.'),
+          title: Text(context.translate("Standort verfolgen")),
+          subtitle: Text(
+            context.translate("Kartenbewegung beendet die Verfolgung."),
+          ),
           value: controller.following,
           onChanged: (value) => unawaited(controller.setFollowing(value)),
         ),
@@ -80,18 +84,22 @@ Future<void> showGlobeLocationSettings(
         if (controller.fix case final fix?) ...[
           Text(
             controller.stale
-                ? 'Letzter bekannter Standort · veraltet'
-                : 'Aktuelles GPS-Signal',
+                ? context.translate("Letzter bekannter Standort · veraltet")
+                : context.translate("Aktuelles GPS-Signal"),
           ),
-          Text('Genauigkeit: ±${fix.accuracyMeters.round()} m'),
-          Text('Signalzeit: ${fix.timeUtc.toLocal()}'),
+          Text(
+            context.translate("Genauigkeit: ±{0} m", [
+              fix.accuracyMeters.round(),
+            ]),
+          ),
+          Text(context.translate("Signalzeit: {0}", [fix.timeUtc.toLocal()])),
           if (controller.heading case final heading?)
-            Text('Fahrtrichtung: ${heading.round()}°'),
+            Text(context.translate("Fahrtrichtung: {0}°", [heading.round()])),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () => unawaited(controller.locate()),
             icon: const Icon(Icons.my_location),
-            label: const Text('Auf Standort zentrieren'),
+            label: Text(context.translate("Auf Standort zentrieren")),
           ),
         ],
       ],

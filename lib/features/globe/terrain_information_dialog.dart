@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/geo/altitude_service.dart';
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/geo/reframe_wgs84_service.dart';
@@ -115,36 +117,56 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
 
     return AlertDialog(
       scrollable: true,
-      title: const Text('Terrain Information'),
+      title: Text(context.translate("Terrain Information")),
       content: SizedBox(
         width: 430,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('WGS84 latitude: ${terrain.latitude.toStringAsFixed(6)}°'),
-            Text('WGS84 longitude: ${terrain.longitude.toStringAsFixed(6)}°'),
+            Text(
+              context.translate("WGS84 latitude: {0}°", [
+                terrain.latitude.toStringAsFixed(6),
+              ]),
+            ),
+            Text(
+              context.translate("WGS84 longitude: {0}°", [
+                terrain.longitude.toStringAsFixed(6),
+              ]),
+            ),
             const SizedBox(height: 16),
             if (position != null) ...[
-              const Text(
-                'Swiss coordinates (LV95)',
+              Text(
+                context.translate("Swiss coordinates (LV95)"),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              Text('Easting: ${position.easting.toStringAsFixed(2)} m'),
-              Text('Northing: ${position.northing.toStringAsFixed(2)} m'),
+              Text(
+                context.translate("Easting: {0} m", [
+                  position.easting.toStringAsFixed(2),
+                ]),
+              ),
+              Text(
+                context.translate("Northing: {0} m", [
+                  position.northing.toStringAsFixed(2),
+                ]),
+              ),
               Text(
                 _swissHeight == null
-                    ? 'Approximate conversion (swisstopo formulas)'
-                    : 'Converted with swisstopo REFRAME',
+                    ? context.translate(
+                        "Approximate conversion (swisstopo formulas)",
+                      )
+                    : context.translate("Converted with swisstopo REFRAME"),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ] else
-              const Text(
-                'LV95 conversion unavailable outside the supported Swiss region.',
+              Text(
+                context.translate(
+                  "LV95 conversion unavailable outside the supported Swiss region.",
+                ),
               ),
             const SizedBox(height: 20),
-            const Text(
-              'Ground elevation',
+            Text(
+              context.translate("Ground elevation"),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             Text(
@@ -152,7 +174,7 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
               key: const ValueKey('terrain-ellipsoid-height'),
             ),
             Text(
-              'Sampling: ${terrain.samplingMethod}',
+              context.translate("Sampling: {0}", [terrain.samplingMethod]),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -162,7 +184,7 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
                 key: const ValueKey('terrain-ln02-height'),
               )
             else ...[
-              const Text('AMSL (Swiss LN02): not converted'),
+              Text(context.translate("AMSL (Swiss LN02): not converted")),
               const SizedBox(height: 8),
               if (supported &&
                   terrain.elevation.reference ==
@@ -171,19 +193,22 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
                   onPressed: _converting ? null : _convert,
                   child: Text(
                     _converting
-                        ? 'Converting…'
-                        : 'Convert to Swiss height (LN02)',
+                        ? context.translate("Converting…")
+                        : context.translate("Convert to Swiss height (LN02)"),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Online conversion sends this position and ground elevation '
-                  'to swisstopo.',
+                  context.translate(
+                    "Online conversion sends this position and ground elevation to swisstopo.",
+                  ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ] else
-                const Text(
-                  'Swiss height conversion is unavailable at this position or for this reference.',
+                Text(
+                  context.translate(
+                    "Swiss height conversion is unavailable at this position or for this reference.",
+                  ),
                 ),
             ],
             if (_conversionError != null) ...[
@@ -196,17 +221,20 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ],
             const SizedBox(height: 8),
             Text(
-              'AMSL is height above mean sea level. Swiss national map heights '
-              'use LN02; LHN95 is a separate height datum.',
+              context.translate(
+                "AMSL is height above mean sea level. Swiss national map heights use LN02; LHN95 is a separate height datum.",
+              ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Height above local ground (AGL)',
+            Text(
+              context.translate("Height above local ground (AGL)"),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const Text(
-              'AGL is a distance above this ground point, not a sea-level height.',
+            Text(
+              context.translate(
+                "AGL is a distance above this ground point, not a sea-level height.",
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -216,7 +244,7 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Height above terrain (AGL)',
+                labelText: context.translate("Height above terrain (AGL)"),
                 suffixText: 'm',
                 errorText: _aglError,
               ),
@@ -224,7 +252,7 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ),
             if (calculate) ...[
               const SizedBox(height: 8),
-              const Text('Height at this AGL:'),
+              Text(context.translate("Height at this AGL:")),
               Text(
                 _height(
                   altitudes.fromAboveGround(
@@ -247,8 +275,9 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ],
             const SizedBox(height: 16),
             Text(
-              'Source: swisstopo terrain. Values use a digital terrain model, '
-              'not measured aircraft height or verified obstacle clearance.',
+              context.translate(
+                "Source: swisstopo terrain. Values use a digital terrain model, not measured aircraft height or verified obstacle clearance.",
+              ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -257,7 +286,7 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(context.translate("Close")),
         ),
       ],
     );

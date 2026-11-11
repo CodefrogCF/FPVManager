@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../airspace/uas_data_quality_banner.dart';
@@ -56,9 +58,11 @@ class _HomeMapStatusButtonState extends State<HomeMapStatusButton> {
       final notices = _notices(widget.controller, widget.cachedMaps);
       return Semantics(
         liveRegion: notices.isNotEmpty,
-        value: notices.isEmpty ? 'No map data warnings' : notices.join('. '),
+        value: notices.isEmpty
+            ? context.translate("No map data warnings")
+            : notices.join('. '),
         child: IconButton(
-          tooltip: 'Map status',
+          tooltip: context.translate("Map status"),
           onPressed: widget.onPressed,
           icon: Badge.count(
             count: notices.length,
@@ -90,9 +94,9 @@ class HomeMapStatusSheet extends StatelessWidget {
     children: [
       ListTile(
         leading: const Icon(Icons.info_outline),
-        title: const Text('Map status'),
+        title: Text(context.translate("Map status")),
         trailing: IconButton(
-          tooltip: 'Close map status',
+          tooltip: context.translate("Close map status"),
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close),
         ),
@@ -108,12 +112,16 @@ class HomeMapStatusSheet extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Text(
                     controller.error != null
-                        ? 'Map error: ${controller.error}'
+                        ? context.translate("Map error: {0}", [
+                            controller.error,
+                          ])
                         : !controller.isReady
-                        ? 'Loading globe...'
+                        ? context.translate("Loading globe...")
                         : controller.terrainAvailable
-                        ? '3D globe ready'
-                        : 'Flat map — terrain heights unavailable',
+                        ? context.translate("3D globe ready")
+                        : context.translate(
+                            "Flat map — terrain heights unavailable",
+                          ),
                   ),
                 ),
               ),

@@ -1,8 +1,11 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/core/database/repositories/user_preferences_repository.dart';
+import 'package:fpvmanager/core/localization/app_language_store.dart';
+import 'package:fpvmanager/core/localization/app_localizations.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 import 'package:fpvmanager/features/settings/app_settings_screen.dart';
 import 'package:fpvmanager/features/help/guides_screen.dart';
@@ -37,6 +40,82 @@ void main() {
       section: section,
     ),
   );
+
+  testWidgets('settings change the active language and restore it on restart', (
+    tester,
+  ) async {
+    await tester.runAsync(() => db.customSelect('SELECT 1').get());
+    final language = ValueNotifier(AppLanguage.german);
+    addTearDown(language.dispose);
+
+    Widget app() => ValueListenableBuilder<AppLanguage>(
+      valueListenable: language,
+      builder: (context, current, _) => MaterialApp(
+        locale: current.locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
+        ],
+        home: FPVHomeScreen(
+          globeController: globe,
+          spotRepository: SpotRepository(db),
+          preferencesRepository: preferences,
+          onLanguageChanged: (selected) => language.value = selected,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Navigationsmenü öffnen'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Einstellungen'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Einstellungen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sprache'), findsOneWidget);
+
+    final renderer = FakeGlobeRenderer(globe)
+      ..attach()
+      ..ready();
+    await tester.pumpAndSettle();
+    Iterable<Object?> rendererLanguages() => renderer.commands
+        .where((command) => command['type'] == 'set-language')
+        .map((command) => command['language']);
+    expect(rendererLanguages(), ['de']);
+
+    final selector = find.byKey(const ValueKey('app-language'));
+    await tester.tap(selector);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Data sources'), findsOneWidget);
+    expect(await AppLanguageStore(db).read(), AppLanguage.english);
+
+    expect(rendererLanguages(), ['de', 'en']);
+    renderer.sessionId = 'language-reload';
+    renderer.sequence = 0;
+    renderer.emit({'type': 'renderer-loading'});
+    renderer.ready();
+    await tester.pumpAndSettle();
+    expect(rendererLanguages(), ['de', 'en', 'en']);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    globe.dispose();
+    globe = GlobeController();
+    language.value = AppLanguage.german;
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Open navigation menu'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
 
   testWidgets(
     'drawer opens app settings before globe readiness and does not fetch providers',

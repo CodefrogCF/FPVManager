@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/geo/geo_coordinate_service.dart';
@@ -107,12 +109,12 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
             children: [
               Expanded(
                 child: Text(
-                  'Airspace intersections',
+                  context.translate("Airspace intersections"),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
               IconButton(
-                tooltip: 'Close airspace check',
+                tooltip: context.translate("Close airspace check"),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -121,28 +123,36 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
           Text(widget.name, style: Theme.of(context).textTheme.titleMedium),
           Text(
             widget.route
-                ? 'Route snapshot · ${widget.positions.length} waypoints · all connecting segments'
-                : 'Spot position · ${widget.positions.single.latitude.toStringAsFixed(6)}, '
-                      '${widget.positions.single.longitude.toStringAsFixed(6)}',
+                ? context.translate(
+                    "Route snapshot · {0} waypoints · all connecting segments",
+                    [widget.positions.length],
+                  )
+                : context.translate("Spot position · {0}, {1}", [
+                    widget.positions.single.latitude.toStringAsFixed(6),
+                    widget.positions.single.longitude.toStringAsFixed(6),
+                  ]),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'Horizontal WGS84 geometry only, including boundary contact. '
-              'Route segments are straight between waypoints. '
-              'Height limits, activation times and legal applicability are not evaluated. '
-              'This check is not flight authorization.',
+              context.translate(
+                "Horizontal WGS84 geometry only, including boundary contact. Route segments are straight between waypoints. Height limits, activation times and legal applicability are not evaluated. This check is not flight authorization.",
+              ),
             ),
           ),
           TextButton.icon(
             onPressed: () =>
                 showAirspaceSafetyPanel(context, widget.controller),
             icon: const Icon(Icons.shield_outlined),
-            label: const Text('Flight safety & current official publications'),
+            label: Text(
+              context.translate(
+                "Flight safety & current official publications",
+              ),
+            ),
           ),
           if (result == null && _error == null) ...[
             const LinearProgressIndicator(),
-            const Text('Loading UAS data and checking geometry…'),
+            Text(context.translate("Loading UAS data and checking geometry…")),
           ],
           if (_error != null) ...[
             Text(
@@ -151,26 +161,37 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
             ),
             TextButton(
               onPressed: () => _load(refresh: true),
-              child: const Text('Retry with fresh data'),
+              child: Text(context.translate("Retry with fresh data")),
             ),
           ],
           if (result != null) ...[
             Text(
               result.intersections.isEmpty
-                  ? 'No horizontal intersections found in the checked data.'
-                  : 'Intersecting zones: ${result.intersections.length}',
+                  ? context.translate(
+                      "No horizontal intersections found in the checked data.",
+                    )
+                  : context.translate("Intersecting zones: {0}", [
+                      result.intersections.length,
+                    ]),
             ),
-            const Text(
-              'Absence of a match does not establish unrestricted airspace. '
-              'Source coverage is not independently verified.',
+            Text(
+              context.translate(
+                "Absence of a match does not establish unrestricted airspace. Source coverage is not independently verified.",
+              ),
             ),
             const SizedBox(height: 12),
             Text('${result.source.name} · ${result.source.publisher}'),
             Text('Downloaded (UTC): ${result.fetchedAtUtc.toIso8601String()}'),
-            Text('${result.checkedFeatureCount} polygon features checked'),
+            Text(
+              context.translate("{0} polygon features checked", [
+                result.checkedFeatureCount,
+              ]),
+            ),
             if (result.freshness != OsintFreshness.fresh)
-              const Text(
-                'Dataset cache is stale or its clock is inconsistent.',
+              Text(
+                context.translate(
+                  "Dataset cache is stale or its clock is inconsistent.",
+                ),
               ),
             for (final limitation in result.limitations)
               Text(
@@ -180,7 +201,7 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
             TextButton.icon(
               onPressed: () => _load(refresh: true),
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh source data'),
+              label: Text(context.translate("Refresh source data")),
             ),
             for (final hit in result.intersections)
               Card(
@@ -198,7 +219,7 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                       Text(hit.zone.restriction.category.label),
                       Text(
                         hit.zone.value('restriction') ??
-                            'Restriction not provided',
+                            context.translate("Restriction not provided"),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -209,12 +230,21 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      Text('Lower: ${hit.zone.heightLimit(upper: false)}'),
+                      Text(
+                        context.translate("Lower: {0}", [
+                          hit.zone.heightLimit(upper: false),
+                        ]),
+                      ),
                       Text('Upper: ${hit.zone.heightLimit(upper: true)}'),
                       if (widget.route)
                         Text(
-                          'Waypoints: ${_indices(hit.geometry.pointIndices)} · '
-                          'Segments: ${_indices(hit.geometry.segmentIndices, segments: true)}',
+                          context.translate("Waypoints: {0} · Segments: {1}", [
+                            _indices(hit.geometry.pointIndices),
+                            _indices(
+                              hit.geometry.segmentIndices,
+                              segments: true,
+                            ),
+                          ]),
                         ),
                       TextButton(
                         onPressed: () => showModalBottomSheet<void>(
@@ -231,7 +261,7 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                             downloadedAtUtc: result.fetchedAtUtc,
                           ),
                         ),
-                        child: const Text('Inspect restrictions'),
+                        child: Text(context.translate("Inspect restrictions")),
                       ),
                     ],
                   ),

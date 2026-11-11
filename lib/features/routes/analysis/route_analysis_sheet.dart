@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_localizations.dart';
+
 import '../waypoint_settings_sheet.dart';
 import 'route_analysis_controller.dart';
 import 'route_profile_chart.dart';
@@ -49,26 +51,26 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
               Row(
                 children: [
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Route analysis',
+                      context.translate("Route analysis"),
                       style: TextStyle(fontSize: 20),
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Planning assumptions',
+                    tooltip: context.translate("Planning assumptions"),
                     icon: const Icon(Icons.tune),
                     onPressed: c.loading
                         ? null
                         : () => showRoutePlanningSettings(context, c.editor),
                   ),
                   IconButton(
-                    tooltip: 'Recalculate route',
+                    tooltip: context.translate("Recalculate route"),
                     icon: const Icon(Icons.refresh),
                     onPressed: c.loading ? null : c.calculate,
                   ),
                   IconButton(
-                    tooltip: 'Close analysis',
+                    tooltip: context.translate("Close analysis"),
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -85,12 +87,15 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        'Terrain samples ${c.completedSamples}/${c.totalSamples}',
+                        context.translate("Terrain samples {0}/{1}", [
+                          c.completedSamples,
+                          c.totalSamples,
+                        ]),
                       ),
                     ),
                     TextButton(
                       onPressed: c.cancel,
-                      child: const Text('Cancel'),
+                      child: Text(context.translate("Cancel")),
                     ),
                   ],
                 ),
@@ -120,11 +125,15 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                         child: Padding(
                           padding: const EdgeInsets.all(20),
                           child: c.loading
-                              ? const Text('Calculating route…')
+                              ? Text(context.translate("Calculating route…"))
                               : FilledButton.icon(
                                   onPressed: c.calculate,
                                   icon: const Icon(Icons.calculate_outlined),
-                                  label: const Text('Calculate current route'),
+                                  label: Text(
+                                    context.translate(
+                                      "Calculate current route",
+                                    ),
+                                  ),
                                 ),
                         ),
                       )
@@ -155,7 +164,11 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         Text(
-          'Terrain sampling: ${c.samplingMethods.isEmpty ? "unavailable" : c.samplingMethods.join(", ")}. WGS84 ellipsoid heights.',
+          context.translate("Terrain sampling: {0}. WGS84 ellipsoid heights.", [
+            c.samplingMethods.isEmpty
+                ? "unavailable"
+                : c.samplingMethods.join(", "),
+          ]),
         ),
         if (r.profile.any((p) => p.ground != null || p.altitude != null))
           RouteProfileChart(analysis: r),
@@ -168,19 +181,28 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
           '${_meters(r.climb)} / ${_meters(r.descent)}',
         ),
         if (!r.completeClearance)
-          const Text(
-            'Clearance is incomplete: set a height for every waypoint. Absolute heights need WGS84 ellipsoid reference; other datums cannot be converted here.',
+          Text(
+            context.translate(
+              "Clearance is incomplete: set a height for every waypoint. Absolute heights need WGS84 ellipsoid reference; other datums cannot be converted here.",
+            ),
           ),
         const SizedBox(height: 12),
         Text(
-          '${r.profile.length} terrain samples, at most 50 m apart horizontally. Heights interpolate linearly between waypoints; AGL applies at waypoints and does not imply terrain following.',
+          context.translate(
+            "{0} terrain samples, at most 50 m apart horizontally. Heights interpolate linearly between waypoints; AGL applies at waypoints and does not imply terrain following.",
+            [r.profile.length],
+          ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Terrain samples do not prove continuous clearance. Small features between samples, elevation-model errors, cables, trees and other unknown obstacles can be missed. Verify the route on site and with current official information.',
+        Text(
+          context.translate(
+            "Terrain samples do not prove continuous clearance. Small features between samples, elevation-model errors, cables, trees and other unknown obstacles can be missed. Verify the route on site and with current official information.",
+          ),
         ),
-        const Text(
-          'Red map segments indicate sampled terrain clearance, battery reserve, or findings from the current route checks. Open Checks for the reason; a horizontal zone match does not establish legal applicability.',
+        Text(
+          context.translate(
+            "Red map segments indicate sampled terrain clearance, battery reserve, or findings from the current route checks. Open Checks for the reason; a horizontal zone match does not establish legal applicability.",
+          ),
         ),
       ],
     );
@@ -200,19 +222,38 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
         ),
         Text(
           c.editor.planning.useWind
-              ? 'Steady wind assumption: ${c.editor.planning.windSpeed} m/s from ${c.editor.planning.windFromDegrees}° true. Crosswind compensation is included; an unachievable track remains unknown.'
-              : 'Wind is excluded. Enable a manual wind assumption in Planning assumptions.',
+              ? context.translate(
+                  "Steady wind assumption: {0} m/s from {1}° true. Crosswind compensation is included; an unachievable track remains unknown.",
+                  [
+                    c.editor.planning.windSpeed,
+                    c.editor.planning.windFromDegrees,
+                  ],
+                )
+              : context.translate(
+                  "Wind is excluded. Enable a manual wind assumption in Planning assumptions.",
+                ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Approximate great-circle distances and constant airspeed per segment. No acceleration, hovering, manoeuvre time or gusts are included. The aircraft must be able to achieve the planned speed and climb rate.',
+        Text(
+          context.translate(
+            "Approximate great-circle distances and constant airspeed per segment. No acceleration, hovering, manoeuvre time or gusts are included. The aircraft must be able to achieve the planned speed and climb rate.",
+          ),
         ),
         for (final s in r.segments)
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Segment ${s.index + 1} → ${s.index + 2}'),
             subtitle: Text(
-              '${_meters(s.horizontal)} horizontal · ${_meters(s.spatial)} 3D\nAirspeed ${s.speed?.toStringAsFixed(1) ?? "unknown"} m/s · ${_duration(s.seconds)} · clearance ${_meters(s.minimumClearance)}',
+              context.translate(
+                "{0} horizontal · {1} 3D\nAirspeed {2} m/s · {3} · clearance {4}",
+                [
+                  _meters(s.horizontal),
+                  _meters(s.spatial),
+                  s.speed?.toStringAsFixed(1) ?? "unknown",
+                  _duration(s.seconds),
+                  _meters(s.minimumClearance),
+                ],
+              ),
             ),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () {
@@ -235,14 +276,18 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
       children: [
         _metric('Estimated outbound energy', _wh(energy.totalWh)),
         if (!c.result!.completeClearance)
-          const Text(
-            'Terrain clearance remains unknown. The energy budget does not establish route safety.',
+          Text(
+            context.translate(
+              "Terrain clearance remains unknown. The energy budget does not establish route safety.",
+            ),
           ),
         if (settings.includeReturn &&
             energy.available &&
             !energy.returnAvailable)
           Text(
-            'Return energy is unknown; no complete feasibility estimate is available.',
+            context.translate(
+              "Return energy is unknown; no complete feasibility estimate is available.",
+            ),
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         if (energy.problem != null)
@@ -250,31 +295,46 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             energy.problem!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-        Text('Power curve source: ${settings.curveSource}'),
         Text(
-          'Optimistic ×${settings.optimisticFactor} · conservative ×${settings.conservativeFactor} · reserve ${settings.reservePercent}% of nominal capacity.',
+          context.translate("Power curve source: {0}", [settings.curveSource]),
+        ),
+        Text(
+          context.translate(
+            "Optimistic ×{0} · conservative ×{1} · reserve {2}% of nominal capacity.",
+            [
+              settings.optimisticFactor,
+              settings.conservativeFactor,
+              settings.reservePercent,
+            ],
+          ),
         ),
         Text(
           settings.includeReturn
-              ? 'Return to takeoff is included by retracing the planned path, with wind recalculated in reverse.'
-              : 'Return flight is excluded from the budget.',
+              ? context.translate(
+                  "Return to takeoff is included by retracing the planned path, with wind recalculated in reverse.",
+                )
+              : context.translate("Return flight is excluded from the budget."),
         ),
-        const Text(
-          'The same configured takeoff mass is used for alternative packs. Adjust it for the installed battery.',
+        Text(
+          context.translate(
+            "The same configured takeoff mass is used for alternative packs. Adjust it for the installed battery.",
+          ),
         ),
         const SizedBox(height: 12),
         if (c.editor.equipmentError != null) Text(c.editor.equipmentError!),
         if (c.batteries.isEmpty)
-          const Text(
-            'Assign an individual battery in Route equipment to compare capacity and reserve. Capacities of alternative packs are never added.',
+          Text(
+            context.translate(
+              "Assign an individual battery in Route equipment to compare capacity and reserve. Capacities of alternative packs are never added.",
+            ),
           ),
         if (c.batteries.isNotEmpty)
           DropdownButtonFormField<int>(
             key: ValueKey(c.selectedBatteryId),
             initialValue: c.selectedBatteryId,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Battery to inspect and highlight',
+            decoration: InputDecoration(
+              labelText: context.translate("Battery to inspect and highlight"),
             ),
             items: [
               for (final b in c.batteries)
@@ -299,24 +359,35 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
           Text(selected.status),
           if (selected.criticalSegments.isNotEmpty)
             Text(
-              'Critical conservative segments: ${selected.criticalSegments.map((i) => "${i + 1} → ${i + 2}").join(", ")}',
+              context.translate("Critical conservative segments: {0}", [
+                selected.criticalSegments
+                    .map((i) => "${i + 1} → ${i + 2}")
+                    .join(", "),
+              ]),
             ),
           Text(
-            'Recorded charge: ${selected.battery.chargePercent?.toStringAsFixed(0) ?? "unknown"}% · pack status: ${selected.battery.availability}.',
+            context.translate("Recorded charge: {0}% · pack status: {1}.", [
+              selected.battery.chargePercent?.toStringAsFixed(0) ?? "unknown",
+              selected.battery.availability,
+            ]),
           ),
         ],
         const SizedBox(height: 16),
-        const Text(
-          'Estimates are not guarantees. Scenarios scale consumption; they are not statistical confidence intervals. Validate the model against measured flights. Battery condition, temperature and voltage sag can reduce usable energy.',
+        Text(
+          context.translate(
+            "Estimates are not guarantees. Scenarios scale consumption; they are not statistical confidence intervals. Validate the model against measured flights. Battery condition, temperature and voltage sag can reduce usable energy.",
+          ),
         ),
-        const Text(
-          'The level-flight power curve is interpolated without extrapolation and scaled by mass^1.5. Climb work is added with the configured efficiency; descent has no energy recovery.',
+        Text(
+          context.translate(
+            "The level-flight power curve is interpolated without extrapolation and scaled by mass^1.5. Climb work is added with the configured efficiency; descent has no energy recovery.",
+          ),
         ),
         const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: () => showRoutePlanningSettings(context, c.editor),
           icon: const Icon(Icons.tune),
-          label: const Text('Edit planning assumptions'),
+          label: Text(context.translate("Edit planning assumptions")),
         ),
       ],
     );

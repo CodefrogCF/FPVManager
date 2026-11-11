@@ -43,14 +43,23 @@
         const idle=fpv&&c.throttleZero==='bottom'?throttle(pad.forward,'bottom')===0:Math.abs(pad.forward)<.02;
         return idle&&['right','yaw','pitch','vertical'].every(k=>Math.abs(pad[k])<.02)&&!pad.reset&&!pad.exit;
     }
-    function bindPanel(doc,onChanged){
+    function bindPanel(doc,onChanged,language){
         const layout=doc.getElementById('controller-layout'),zero=doc.getElementById('controller-zero');
         const channels=doc.getElementById('controller-channels');
         const fields=functions.map(f=>({axis:doc.getElementById('controller-'+f+'-axis'),invert:doc.getElementById('controller-'+f+'-reverse')}));
         let current=defaults;
+        const options=[];
         for(const field of fields)for(let i=0;i<16;i++){
-            const option=doc.createElement('option');option.value=String(i);option.textContent=`Channel ${i+1}`;field.axis.appendChild(option);
+            const option=doc.createElement('option');option.value=String(i);field.axis.appendChild(option);
+            options.push(option);
         }
+        function labelChannels(){
+            for(const option of options){
+                const number=Number(option.value)+1;
+                option.textContent=language?.translate('Channel {0}',number)??`Channel ${number}`;
+            }
+        }
+        labelChannels();language?.onChange(labelChannels);
         function update(value){
             current=value??defaults;layout.value=current.layout;zero.value=current.throttleZero;
             channels.hidden=current.layout!=='radio';

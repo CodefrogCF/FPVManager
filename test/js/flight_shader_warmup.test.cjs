@@ -44,8 +44,38 @@ function fixture({parallel=true,failLink=false,timeoutMs=12000,abortAt=Infinity,
     const scene={globe:{_surfaceShaderSet:set},logarithmicDepthBuffer:logDepth,isDestroyed:()=>false,requestRender(){}};
     const warmup=createTerrainShaderWarmup(C,{scene},{now:()=>time,timeoutMs,
         pause:async ms=>{time+=Math.max(1,ms);set.getShaderProgram(options);if(time>=abortAt)controller.abort();}});
-    return {warmup,scene,set,options,controller,binds,programs,shaders,initial,get bound(){return bound;},get reads(){return reads;}};
+    return {warmup,scene,set,options,controller,binds,programs,shaders,shader,initial,get bound(){return bound;},get reads(){return reads;}};
 }
+
+test('flight preparation primes the Sun, Moon and bloom programs before the first upward maneuver',async()=>{
+    const fixtureScene=fixture();
+    const {scene,shader,warmup,controller,binds}=fixtureScene;
+    const sunTexture={owner:{_commands:{}}};
+    sunTexture.owner._commands.computeCommand=sunTexture;
+    scene._environmentState={
+        sunDrawCommand:{shaderProgram:shader('sun')},
+        moonCommand:{shaderProgram:shader('moon')},
+        sunComputeCommand:sunTexture,
+    };
+    scene.sunBloom=true;scene.sun={show:true};
+    scene._view={passState:{viewport:{width:1440,height:900}}};
+    let updates=0,computes=0;
+    const bloom={_command:{shaderProgram:shader('bloom')}};
+    scene._sunPostProcess={
+        update(pass){assert.equal(pass,scene._view.passState);updates++;},
+        _stages:{length:1,get:()=>bloom},
+    };
+    scene._computeEngine={execute(command){
+        assert.equal(command,sunTexture);
+        assert.ok(binds.includes('sun')&&binds.includes('moon')&&binds.includes('bloom'));
+        command.owner._commands.computeCommand=undefined;computes++;
+    }};
+    await warmup.prepare(controller.signal);
+    assert.equal(warmup.status().completed,43);
+    assert.equal(updates,1);assert.equal(computes,1);
+    await warmup.prepare(controller.signal);
+    assert.equal(computes,1,'A consumed Sun texture command is not executed again');
+});
 
 test('terrain shaders finish before flight and retain exact bindings without first-use status waits',async()=>{
     const f=fixture();

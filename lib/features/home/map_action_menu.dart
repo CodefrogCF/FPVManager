@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../globe/globe_controller.dart';
@@ -81,7 +83,7 @@ class MapActionMenu extends StatelessWidget {
           GlobeLocationButton(controller: controller.location),
         if (!compact && _show(ActivityAction.layers))
           IconButton(
-            tooltip: 'Karte & Ansicht',
+            tooltip: context.translate("Karte & Ansicht"),
             onPressed: controller.isReady ? onLayers : null,
             icon: Icon(
               Icons.layers_outlined,
@@ -199,7 +201,7 @@ class MapActionMenu extends StatelessWidget {
   ];
 
   Widget _mobileActions(BuildContext context) => PopupMenuButton<_MapAction>(
-    tooltip: 'Kartenaktionen',
+    tooltip: context.translate("Kartenaktionen"),
     onSelected: (action) => unawaited(_dispatch(context, action)),
     itemBuilder: (_) => [
       for (final entry in _entries())
@@ -213,7 +215,7 @@ class MapActionMenu extends StatelessWidget {
               children: [
                 Icon(_icon(entry.action!)),
                 const SizedBox(width: 12),
-                Expanded(child: Text(entry.label)),
+                Expanded(child: Text(context.translate(entry.label))),
               ],
             ),
           ),
@@ -233,11 +235,11 @@ class MapActionMenu extends StatelessWidget {
                 ? () => unawaited(_dispatch(context, entry.action!))
                 : null,
             leadingIcon: Icon(_icon(entry.action!)),
-            child: Text(entry.label),
+            child: Text(context.translate(entry.label)),
           ),
     ],
     builder: (context, menu, child) => IconButton(
-      tooltip: 'Kartenaktionen',
+      tooltip: context.translate("Kartenaktionen"),
       onPressed: () => menu.isOpen ? menu.close() : menu.open(),
       icon: const Icon(Icons.more_vert),
     ),

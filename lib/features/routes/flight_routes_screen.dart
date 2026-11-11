@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/repositories/flight_plan_repository.dart';
 import 'route_editor_screen.dart';
 import '../../core/database/repositories/user_preferences_repository.dart';
@@ -65,25 +67,38 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('Import ${preview.routes.length} routes?'),
+          title: Text(
+            dialogContext.translate("Import {0} routes?", [
+              preview.routes.length,
+            ]),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'New local copies are created. Existing routes and equipment assignments are preserved.',
+                Text(
+                  dialogContext.translate(
+                    "New local copies are created. Existing routes and equipment assignments are preserved.",
+                  ),
                 ),
                 for (final route in preview.routes)
-                  Text('${route.name} · ${route.points.length} waypoints'),
+                  Text(
+                    dialogContext.translate("{0} · {1} waypoints", [
+                      route.name,
+                      route.points.length,
+                    ]),
+                  ),
                 for (final warning in preview.warnings)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(warning),
                   ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Review coordinates and height references before planning a flight.',
+                Text(
+                  dialogContext.translate(
+                    "Review coordinates and height references before planning a flight.",
+                  ),
                 ),
               ],
             ),
@@ -91,11 +106,11 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
+              child: Text(dialogContext.translate("Cancel")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Import locally'),
+              child: Text(dialogContext.translate("Import locally")),
             ),
           ],
         ),
@@ -196,10 +211,10 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Flight routes'),
+      title: Text(context.translate("Flight routes")),
       actions: [
         IconButton(
-          tooltip: 'Import routes',
+          tooltip: context.translate("Import routes"),
           onPressed: _transferring ? null : _import,
           icon: const Icon(Icons.file_upload_outlined),
         ),
@@ -219,13 +234,13 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Unable to load saved routes.'),
+                Text(context.translate("Unable to load saved routes.")),
                 TextButton(
                   onPressed: () => setState(
                     () =>
                         _routes = widget.repository.watchFlightPlanSummaries(),
                   ),
-                  child: const Text('Retry'),
+                  child: Text(context.translate("Retry")),
                 ),
               ],
             ),
@@ -235,11 +250,13 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.data!.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                'No saved flight routes yet. Create a route and place waypoints on the map.',
+                context.translate(
+                  "No saved flight routes yet. Create a route and place waypoints on the map.",
+                ),
               ),
             ),
           );
@@ -265,32 +282,35 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
                 ),
                 builder: (context, details) => Text(
                   details.hasError
-                      ? 'Recording details unavailable'
-                      : details.data ?? 'Stored on this device',
+                      ? context.translate("Recording details unavailable")
+                      : details.data ??
+                            context.translate("Stored on this device"),
                 ),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: 'Simulate flight: ${route.name}',
+                    tooltip: context.translate("Simulate flight: {0}", [
+                      route.name,
+                    ]),
                     icon: const Icon(Icons.play_circle_outline),
                     onPressed: _transferring
                         ? null
                         : () => Navigator.of(context).pop(route.id),
                   ),
                   PopupMenuButton<RouteFileFormat>(
-                    tooltip: 'Export ${route.name}',
+                    tooltip: context.translate("Export {0}", [route.name]),
                     enabled: !_transferring,
                     onSelected: (format) => _export(route.id, format),
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
                       PopupMenuItem(
                         value: RouteFileFormat.geoJson,
-                        child: Text('Export GeoJSON'),
+                        child: Text(context.translate("Export GeoJSON")),
                       ),
                       PopupMenuItem(
                         value: RouteFileFormat.gpx,
-                        child: Text('Export GPX'),
+                        child: Text(context.translate("Export GPX")),
                       ),
                     ],
                   ),
@@ -305,7 +325,7 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
     floatingActionButton: FloatingActionButton.extended(
       onPressed: _open,
       icon: const Icon(Icons.add),
-      label: const Text('New route'),
+      label: Text(context.translate("New route")),
     ),
   );
 }

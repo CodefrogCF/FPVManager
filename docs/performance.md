@@ -40,6 +40,12 @@ device FPS, GPU memory, cold-start latency or network performance.
   it. New materials or uncommon variants can still require normal compilation.
   When a 3D layer is enabled, its shared material-lighting lookup is also
   initialized before controls activate; later flights reuse the same texture.
+- Flight preparation also initializes the sky, Sun bloom and Moon programs.
+  Fast rotations and vertical speeds of at least 10 m/s below 100 m AGL briefly
+  reduce Cesium's terrain tile load time slice from 5 ms to 2 ms. This is a
+  scheduling target. A single tile operation can take longer. The
+  [Acro test with swisstopo terrain](performance/acro_maneuvers_2026-11-11.json)
+  records the remaining frame gaps as well as the reduction in shader waits.
 - Terrain collision rays only visit rendered tiles within the current movement
   segment. Height and contact queries reuse exact decoded terrain vertices and
   binary bounds instead of repeatedly decoding full meshes. The additional

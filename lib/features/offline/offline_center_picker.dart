@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../globe/globe_controller.dart';
 import '../globe/globe_view.dart';
 
@@ -48,7 +50,9 @@ class _OfflineCenterPickerState extends State<OfflineCenterPicker> {
   Widget build(BuildContext context) {
     final point = _controller.selectedPoint;
     return Scaffold(
-      appBar: AppBar(title: const Text('Mittelpunkt auf Karte wählen')),
+      appBar: AppBar(
+        title: Text(context.translate("Mittelpunkt auf Karte wählen")),
+      ),
       body: Stack(
         children: [
           Positioned.fill(child: GlobeView(controller: _controller)),
@@ -65,7 +69,9 @@ class _OfflineCenterPickerState extends State<OfflineCenterPicker> {
                     children: [
                       Text(
                         point == null
-                            ? 'Gewünschten Mittelpunkt auf dem Globe antippen.'
+                            ? context.translate(
+                                "Gewünschten Mittelpunkt auf dem Globe antippen.",
+                              )
                             : '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
                       ),
                       FilledButton.icon(
@@ -76,7 +82,9 @@ class _OfflineCenterPickerState extends State<OfflineCenterPicker> {
                                 longitude: point.longitude,
                               )),
                         icon: const Icon(Icons.check),
-                        label: const Text('Mittelpunkt übernehmen'),
+                        label: Text(
+                          context.translate("Mittelpunkt übernehmen"),
+                        ),
                       ),
                     ],
                   ),

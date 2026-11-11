@@ -1,3 +1,6 @@
+    const rendererLanguage = FPVRendererLanguage.create(document);
+    const translate = rendererLanguage.translate;
+
 function postToFlutter(message) {
         if (window.FPVBridge?.postMessage) window.FPVBridge.postMessage(message);
         if (window.parent !== window) {
@@ -634,6 +637,7 @@ function postToFlutter(message) {
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
             }
+            case "set-language": rendererLanguage.setLanguage(command.language); return {};
             case "set-road-navigation": return roadNavigation.set(command);
             case "set-rendering-paused": {
                 if(typeof command.paused!=='boolean')throw new Error('Invalid render loop state');
@@ -928,16 +932,19 @@ function postToFlutter(message) {
         mapProviders=FPVMapProviders.createAdapters(Cesium,window.FPVMapProviderConfig);
         const info = document.getElementById("info");
         let selectedPointInfo = null;
+        const pointLabel = () => selectedPointInfo[2] === undefined
+            ? translate('Lat: {0} | Lon: {1} | Flat map — terrain height unavailable', ...selectedPointInfo)
+            : translate('Lat: {0} | Lon: {1} | Height: {2} m (WGS84 ellipsoid, rendered terrain)', ...selectedPointInfo);
 
         const imageryProvider = createMapProvider("satellite");
 
         function terrainInfo(status) {
             info.hidden = !!flyer?.active || (floatingChrome && status.state === 'ready' && !selectedPointInfo && !walker?.active);
             info.textContent = status.state === "ready"
-                ? selectedPointInfo ?? "FPVManager | 3D terrain loaded"
+                ? selectedPointInfo ? pointLabel() : translate("FPVManager | 3D terrain loaded")
                 : status.state === "loading"
-                    ? "Connecting to 3D terrain | Flat map shown"
-                    : "3D terrain unavailable | Flat map shown — terrain heights disabled";
+                    ? translate("Connecting to 3D terrain | Flat map shown")
+                    : translate("3D terrain unavailable | Flat map shown — terrain heights disabled");
         }
         terrainManager = FPVTerrain.createTerrainManager({
             createProvider: () => mapProviders.terrain(),
@@ -1001,7 +1008,7 @@ function postToFlutter(message) {
             follow=>sendToFlutter('road-navigation-follow',{follow}),
             {isTerrainReady:terrainAvailable,onActive:active=>{sceneEnvironment?.navigationActive(active);mapLabels?.navigation(active);}});
         mapCompass = FPVMapCompass.create(Cesium,viewer,document.getElementById('map-compass'),
-            {navigation:roadNavigation,isEnabled:()=>!navigationActive()});
+            {navigation:roadNavigation,isEnabled:()=>!navigationActive(),language:rendererLanguage});
         activeViewer = viewer;
         const sampleSceneTerrain=async(points,signal)=>{
             const positions=points.map(p=>Cesium.Cartographic.fromDegrees(p.longitude,p.latitude));
@@ -1043,7 +1050,7 @@ function postToFlutter(message) {
                 sampleTerrain:sampleSceneTerrain,
                 getDeckTileset:()=>sceneEnvironment?.structuresTileset?.()
             }) : null;
-        windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable});
+        windLayer = FPVWindField.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,language:rendererLanguage});
         globePositions = FPVGlobePositions.create(Cesium,viewer,sendToFlutter,{isTerrainReady:terrainAvailable,isNavigationActive:navigationActive});
         mapLabels = FPVMapLabels.create(Cesium,viewer,sendToFlutter,{cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1'});
         situationalLayers = FPVSituationalLayers.create(Cesium,viewer,sendToFlutter,FPVObstacles.createWms);
@@ -1064,11 +1071,11 @@ function postToFlutter(message) {
             : null;
         const groundPanel = document.getElementById("ground-controls");
         const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
-        const flightHud=FPVFlightHud.create(document),device=document.getElementById('navigation-device');
-        liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,
+        const flightHud=FPVFlightHud.create(document,rendererLanguage),device=document.getElementById('navigation-device');
+        liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,language:rendererLanguage,
             layer:FPVSignalAnalysis.createLayer(Cesium,viewer,{name:'Simulated radio link'})});
         flightRecording=FPVFlightRecording.create({emit:sendToFlutter,getState:()=>flyer.status()});
-        flightRecording.bind(document);
+        flightRecording.bind(document,rendererLanguage);
         const settingsButton=document.getElementById('settings-flight'),settingsPanel=document.getElementById('flight-options');
         const hudSelect=document.getElementById('flight-hud-style');
         const coordinateToggle=document.getElementById('flight-show-coordinates');
@@ -1077,7 +1084,7 @@ function postToFlutter(message) {
         const cameraFovSlider=document.getElementById('flight-camera-fov'),cameraFovValue=document.getElementById('flight-camera-fov-value');
         const cameraTiltRow=document.getElementById('flight-camera-tilt-row');
         const graphicsSelect=document.getElementById('flight-graphics-profile');
-        const controllerPanel=FPVControllerInput.bindPanel(document,value=>flyer.controllerSettings(value));
+        const controllerPanel=FPVControllerInput.bindPanel(document,value=>flyer.controllerSettings(value),rendererLanguage);
         let flightTimeSettings={enabled:false,timeUtc:null};
         const timeControls=FPVSceneEnvironment.bindTimeControls(document,value=>applyFlightTime(value));
         applyFlightTime=(value=flightTimeSettings)=>{
@@ -1106,7 +1113,9 @@ function postToFlutter(message) {
                 await flightRenderer.prepareGraphics(signal,({completed,total})=>{
                     if(signal.aborted||!flyer.status().pending)return;
                     info.hidden=false;
-                    info.textContent=total?`Preparing flight… ${Math.round(100*completed/total)}%`:'Preparing flight…';
+                    info.textContent=total
+                        ?translate('Preparing flight… {0}%',Math.round(100*completed/total))
+                        :translate('Preparing flight…');
                 });
             },
             captureCamera: () => {
@@ -1176,8 +1185,9 @@ function postToFlutter(message) {
                 applyCamera(point);
                 info.hidden=false;
                 info.textContent=`${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} | `+
-                    `Ground: ${(point.height-2).toFixed(1)} m WGS84 | Eye: ≈ 2 m AGL | `+
-                    `Look: ${(point.pitch*180/Math.PI).toFixed(0)}°`+(deviceMessage?` | ${deviceMessage}`:'');
+                    translate('Ground: {0} m WGS84 | Eye: ≈ 2 m AGL | Look: {1}°',
+                        (point.height-2).toFixed(1),(point.pitch*180/Math.PI).toFixed(0))+
+                    (deviceMessage?` | ${translate(deviceMessage)}`:'');
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
@@ -1208,10 +1218,10 @@ function postToFlutter(message) {
         const playbackDisplay=state=>{
             playbackPanel.hidden=!state.loading&&!state.active&&state.phase!=='finished'&&state.phase!=='stopped';
             playbackPause.disabled=!state.active;
-            playbackPause.textContent=state.phase==='paused'?'Resume':'Pause';
+            playbackPause.textContent=translate(state.phase==='paused'?'Resume':'Pause');
             playbackProgress.value=state.progress;
             playbackSpeed.value=String(state.speed);
-            playbackInfo.textContent=state.loading?'Preparing route & terrain…':
+            playbackInfo.textContent=state.loading?translate('Preparing route & terrain…'):
                 `${state.recorded?'Recorded':'Planned'} replay · ${state.phase} · ${formatTime(state.seconds)} / ${formatTime(state.duration)}`+
                 (state.assumedHeight?' · assumed AGL':'')+(state.assumedSpeed?(state.recorded?' · speed derived where missing':' · fallback speed'):'');
         };
@@ -1243,9 +1253,16 @@ function postToFlutter(message) {
             onInterruption:message=>{
                 if(controllerInterruptions.at(-1)!==message)controllerInterruptions.push(message);
                 if(controllerInterruptions.length>3)controllerInterruptions.shift();
-                document.getElementById('controller-last-interruption').textContent=`Recent interruptions: ${controllerInterruptions.join(' · ')}`;
+                document.getElementById('controller-last-interruption').textContent=translate(
+                    'Recent interruptions: {0}',controllerInterruptions.map(translateMessage=>translate(translateMessage)).join(' · '));
             },
-            onDevice:message=>{deviceMessage=message;device.textContent=message;flightHud.device(message);}});
+            onDevice:message=>{deviceMessage=message;device.textContent=translate(message);flightHud.device(message);}});
+        rendererLanguage.onChange(()=>{
+            if(!flyer?.pending&&!walker?.active)terrainInfo(terrainManager.status());
+            device.textContent=translate(deviceMessage);
+            const playback=routePlayback?.status();
+            if(playback)playbackDisplay(playback);
+        });
         disposeGroundControls.setVisible(touchControlsVisible);
         document.getElementById('flight-show-touch').addEventListener('change',event=>{
             setTouchControls(event.target.checked);sendToFlutter('touch-controls-changed',{visible:touchControlsVisible});
@@ -1414,12 +1431,9 @@ function postToFlutter(message) {
 
                 const altitude = coordinates.height;
 
-                selectedPointInfo = info.textContent =
-                    `Lat: ${latitude.toFixed(6)} | ` +
-                    `Lon: ${longitude.toFixed(6)} | ` +
-                    (terrainAvailable()
-                        ? `Height: ${altitude.toFixed(1)} m (WGS84 ellipsoid, rendered terrain)`
-                        : "Flat map — terrain height unavailable");
+                selectedPointInfo = [latitude.toFixed(6), longitude.toFixed(6)];
+                if (terrainAvailable()) selectedPointInfo.push(altitude.toFixed(1));
+                info.textContent = pointLabel();
                 info.hidden=false;
 
                 sendToFlutter("point-selected", {

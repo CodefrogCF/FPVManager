@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import 'route_analysis.dart';
@@ -24,7 +26,7 @@ class _RouteProfileChartState extends State<RouteProfileChart> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Terrain and planned altitude · WGS84 ellipsoid',
+          context.translate("Terrain and planned altitude · WGS84 ellipsoid"),
           style: Theme.of(context).textTheme.titleSmall,
         ),
         const SizedBox(height: 8),
@@ -67,13 +69,19 @@ class _RouteProfileChartState extends State<RouteProfileChart> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tap the profile to inspect a sample. Planned altitude uses the primary colour; terrain uses grey.',
+          context.translate(
+            "Tap the profile to inspect a sample. Planned altitude uses the primary colour; terrain uses grey.",
+          ),
         ),
         Semantics(
           liveRegion: true,
           child: Text(
-            'At ${selected.sample.distance.toStringAsFixed(0)} m: '
-            'ground ${meters(selected.ground)}, altitude ${meters(selected.altitude)}, AGL ${meters(selected.clearance)}.',
+            context.translate("At {0} m: ground {1}, altitude {2}, AGL {3}.", [
+              selected.sample.distance.toStringAsFixed(0),
+              meters(selected.ground),
+              meters(selected.altitude),
+              meters(selected.clearance),
+            ]),
           ),
         ),
       ],

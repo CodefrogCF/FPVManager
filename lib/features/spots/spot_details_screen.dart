@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data/spot_query.dart';
@@ -49,18 +52,20 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete spot?'),
+        title: Text(context.translate("Delete spot?")),
         content: Text(
-          'Permanently delete "${details.spot.name}" and its photos?',
+          context.translate("Permanently delete \"{0}\" and its photos?", [
+            details.spot.name,
+          ]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.translate("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.translate("Delete")),
           ),
         ],
       ),
@@ -74,19 +79,23 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Spot details')),
+    appBar: AppBar(title: Text(context.translate("Spot details"))),
     body: StreamBuilder<SpotDetails?>(
       stream: _details,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Center(child: Text('Unable to load spot details.'));
+          return Center(
+            child: Text(context.translate("Unable to load spot details.")),
+          );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final details = snapshot.data;
         if (details == null) {
-          return const Center(child: Text('This spot no longer exists.'));
+          return Center(
+            child: Text(context.translate("This spot no longer exists.")),
+          );
         }
         final spot = details.spot;
         return Align(
@@ -106,8 +115,8 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                     ),
                     IconButton(
                       tooltip: spot.isFavorite
-                          ? 'Remove favorite'
-                          : 'Add favorite',
+                          ? context.translate("Remove favorite")
+                          : context.translate("Add favorite"),
                       onPressed: _changing
                           ? null
                           : () => _change(() async {
@@ -130,7 +139,7 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                 ),
                 if (spot.category != null) ...[
                   const SizedBox(height: 16),
-                  Text('Category: ${spot.category}'),
+                  Text(context.translate("Category: {0}", [spot.category])),
                 ],
                 if (details.tags.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -146,7 +155,7 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                 SelectableText(
                   spot.notes?.isNotEmpty == true
                       ? spot.notes!
-                      : 'No description added.',
+                      : context.translate("No description added."),
                 ),
                 if (_osmProvenance != null)
                   FutureBuilder<Map<String, dynamic>?>(
@@ -162,7 +171,11 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 16),
-                          Text('OpenStreetMap source: $reference'),
+                          Text(
+                            context.translate("OpenStreetMap source: {0}", [
+                              reference,
+                            ]),
+                          ),
                           TextButton(
                             onPressed: () => launchUrl(
                               Uri.parse(
@@ -173,8 +186,10 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                               'View original OSM element · © OpenStreetMap contributors · ODbL',
                             ),
                           ),
-                          const Text(
-                            'Original OSM source reference is kept separately from personal edits.',
+                          Text(
+                            context.translate(
+                              "Original OSM source reference is kept separately from personal edits.",
+                            ),
                           ),
                         ],
                       );
@@ -190,7 +205,7 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                           ? null
                           : () => Navigator.pop(context, spot),
                       icon: const Icon(Icons.map_outlined),
-                      label: const Text('Show on map'),
+                      label: Text(context.translate("Show on map")),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => showDialog<void>(
@@ -202,13 +217,13 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                         ),
                       ),
                       icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Photos'),
+                      label: Text(context.translate("Photos")),
                     ),
                     if (widget.onRoadRoute != null)
                       OutlinedButton.icon(
                         onPressed: _changing ? null : widget.onRoadRoute,
                         icon: const Icon(Icons.directions_car_outlined),
-                        label: const Text('Driving route'),
+                        label: Text(context.translate("Driving route")),
                       ),
                     OutlinedButton.icon(
                       onPressed: _changing
@@ -222,12 +237,12 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                               ),
                             ),
                       icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit'),
+                      label: Text(context.translate("Edit")),
                     ),
                     TextButton.icon(
                       onPressed: _changing ? null : () => _delete(details),
                       icon: const Icon(Icons.delete_outline),
-                      label: const Text('Delete'),
+                      label: Text(context.translate("Delete")),
                     ),
                   ],
                 ),

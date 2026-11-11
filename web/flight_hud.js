@@ -25,15 +25,18 @@
             vertical:number(state.verticalSpeed),throttle:number(Number.isFinite(state.throttle)?state.throttle*100:null,0),
             coordinates,angle:homeDirection(state,viewHeading),atHome:Number.isFinite(d)&&d<1};
     }
-    function create(doc){
+    function create(doc,language){
         const hud=doc.getElementById('navigation-hud');
         const elements=Object.fromEntries(['speed','agl','height','distance','distance-unit','vertical','throttle','throttle-readout','mode','warning','home-arrow','home-marker','coordinates']
             .map(key=>[key,doc.getElementById('hud-'+key)]));
-        let style,reason=null,inputWarning='';
+        let style,reason=null,inputWarning='',lastState,lastHeading;
+        const translate=language?.translate??((message,...values)=>
+            message.replace(/\{(\d+)\}/g,(match,index)=>index<values.length?String(values[index]):match));
         const wind=doc.getElementById('hud-wind'),windReadout=doc.getElementById('hud-wind-readout');
         function text(key,value){if(elements[key].textContent!==value)elements[key].textContent=value;}
-        function warning(){text('warning',reason||inputWarning);elements.warning.hidden=!(reason||inputWarning);}
+        function warning(){text('warning',translate(reason||inputWarning));elements.warning.hidden=!(reason||inputWarning);}
         function update(state,viewHeading){
+            lastState=state;lastHeading=viewHeading;
             const t=telemetry(state,viewHeading),next=state.hudStyle==='betaflight'?'betaflight':'goggles';
             if(style!==next){style=next;hud.setAttribute('data-style',style);}
             for(const key of ['speed','agl','height','distance','vertical','throttle'])text(key,t[key]);
@@ -42,17 +45,18 @@
             elements.coordinates.hidden=state.showCoordinates!==true;
             elements['throttle-readout'].hidden=state.mode==='gps';
             if(wind&&windReadout){windReadout.hidden=!state.wind?.enabled;wind.textContent=state.wind?.available?`${number(state.wind.speedMs)} m/s`:'—';
-                windReadout.title=state.wind?.available?(state.wind.extrapolated?'Nächste Modellschicht konstant fortgesetzt':'Interpolierter Modellwind'):'Wind fehlt, ist abgelaufen oder liegt außerhalb des geladenen Ausschnitts. Physik ohne Wind.';}
-            text('mode',`SIM · ${state.mode.toUpperCase()}${state.paused?' · PAUSED':''}`);
+                windReadout.title=translate(state.wind?.available?(state.wind.extrapolated?'Nächste Modellschicht konstant fortgesetzt':'Interpolierter Modellwind'):'Wind fehlt, ist abgelaufen oder liegt außerhalb des geladenen Ausschnitts. Physik ohne Wind.');}
+            text('mode',`SIM · ${state.mode.toUpperCase()}${state.paused?' · '+translate('PAUSED'):''}`);
             reason=state.reason;warning();
             elements['home-arrow'].hidden=t.angle===null;
             elements['home-marker'].hidden=!t.atHome;
             if(t.angle!==null){
                 const arrow=elements['home-arrow'];
                 arrow.style.transform=`rotate(${t.angle}rad)`;
-                arrow.setAttribute('aria-label',`Home direction ${number(t.angle*degrees,0)}° from view heading`);
+                arrow.setAttribute('aria-label',translate('Home direction {0}° from view heading',number(t.angle*degrees,0)));
             }
         }
+        language?.onChange(()=>{if(lastState)update(lastState,lastHeading);else warning();});
         return {update,device(message){inputWarning=message==='Controller ready'?'':message;warning();}};
     }
     return {homeDirection,telemetry,create};

@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,19 +22,25 @@ class ApiCredentialsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'API access (free services only)',
+          context.translate("API access (free services only)"),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 4),
         if (eligible.isEmpty)
-          const Text(
-            'No supported airspace provider currently needs a freely obtainable API key. BAZL works without one; Skyguide NOTAM access is not verified as free.',
+          Text(
+            context.translate(
+              "No supported airspace provider currently needs a freely obtainable API key. BAZL works without one; Skyguide NOTAM access is not verified as free.",
+            ),
           ),
         if (eligible.isNotEmpty) ...[
           Text(
             kIsWeb
-                ? 'Keys are kept for this browser session only and disappear after reload.'
-                : 'Keys are stored locally using encrypted OS-backed storage, not app preferences.',
+                ? context.translate(
+                    "Keys are kept for this browser session only and disappear after reload.",
+                  )
+                : context.translate(
+                    "Keys are stored locally using encrypted OS-backed storage, not app preferences.",
+                  ),
           ),
           for (final policy in eligible)
             _CredentialEditor(
@@ -131,16 +140,22 @@ class _CredentialEditorState extends State<_CredentialEditor> {
     children: [
       const SizedBox(height: 12),
       Text(widget.policy.name, style: Theme.of(context).textTheme.labelLarge),
-      Text(_saved ? 'Key configured' : 'No key configured'),
+      Text(
+        _saved
+            ? context.translate("Key configured")
+            : context.translate("No key configured"),
+      ),
       TextField(
         controller: _key,
         obscureText: true,
         maxLength: 4096,
         autocorrect: false,
         enableSuggestions: false,
-        decoration: const InputDecoration(
-          labelText: 'API key',
-          helperText: 'Leave existing key unchanged by keeping this empty',
+        decoration: InputDecoration(
+          labelText: context.translate("API key"),
+          helperText: context.translate(
+            "Leave existing key unchanged by keeping this empty",
+          ),
         ),
       ),
       if (_error != null)
@@ -155,11 +170,11 @@ class _CredentialEditorState extends State<_CredentialEditor> {
             onPressed: _loading || _key.text.trim().isEmpty
                 ? null
                 : () => _mutate(remove: false),
-            child: const Text('Save key'),
+            child: Text(context.translate("Save key")),
           ),
           TextButton(
             onPressed: _loading || !_saved ? null : () => _mutate(remove: true),
-            child: const Text('Remove key'),
+            child: Text(context.translate("Remove key")),
           ),
           TextButton.icon(
             onPressed: _loading
@@ -175,7 +190,7 @@ class _CredentialEditorState extends State<_CredentialEditor> {
                     }
                   },
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Get free API key'),
+            label: Text(context.translate("Get free API key")),
           ),
         ],
       ),

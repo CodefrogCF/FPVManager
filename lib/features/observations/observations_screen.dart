@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/osint/osint_provider_state.dart';
@@ -34,7 +37,7 @@ class ObservationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Messstationen')),
+    appBar: AppBar(title: Text(context.translate("Messstationen"))),
     body: SafeArea(
       child: DefaultTabController(
         length: 2,
@@ -61,28 +64,44 @@ class ObservationsScreen extends StatelessWidget {
                         return ListView(
                           padding: const EdgeInsets.all(16),
                           children: [
-                            const Text(
-                              'Gemessene Stationswerte · keine Prognose',
+                            Text(
+                              context.translate(
+                                "Gemessene Stationswerte · keine Prognose",
+                              ),
                             ),
                             if (controller.path.isNotEmpty)
                               Text(
-                                'Bezug: ${controller.path.length == 1 ? 'Kartenpunkt' : 'Route'} · ${controller.path.first.latitude.toStringAsFixed(4)}, ${controller.path.first.longitude.toStringAsFixed(4)}',
+                                context.translate("Bezug: {0} · {1}, {2}", [
+                                  controller.path.length == 1
+                                      ? 'Kartenpunkt'
+                                      : 'Route',
+                                  controller.path.first.latitude
+                                      .toStringAsFixed(4),
+                                  controller.path.first.longitude
+                                      .toStringAsFixed(4),
+                                ]),
                               ),
                             if (onChooseLocation != null)
                               TextButton.icon(
                                 onPressed: () =>
                                     _run(context, onChooseLocation!),
                                 icon: const Icon(Icons.place_outlined),
-                                label: const Text(
-                                  'Kartenpunkt, Ort oder Route wählen',
+                                label: Text(
+                                  context.translate(
+                                    "Kartenpunkt, Ort oder Route wählen",
+                                  ),
                                 ),
                               ),
-                            const Text(
-                              'Abrufen sendet bei BAFU eine Auswahl naher Stationsnummern; MeteoSwiss wird als landesweite Datei geladen.',
+                            Text(
+                              context.translate(
+                                "Abrufen sendet bei BAFU eine Auswahl naher Stationsnummern; MeteoSwiss wird als landesweite Datei geladen.",
+                              ),
                             ),
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: const Text('Stationen auf der Karte'),
+                              title: Text(
+                                context.translate("Stationen auf der Karte"),
+                              ),
                               value: controller.visible.contains(kind),
                               onChanged: controller.path.isEmpty
                                   ? null
@@ -102,7 +121,9 @@ class ObservationsScreen extends StatelessWidget {
                                           () => controller.refresh(kind),
                                         ),
                                   icon: const Icon(Icons.refresh),
-                                  label: const Text('Messwerte abrufen'),
+                                  label: Text(
+                                    context.translate("Messwerte abrufen"),
+                                  ),
                                 ),
                                 if (data != null)
                                   TextButton(
@@ -112,8 +133,10 @@ class ObservationsScreen extends StatelessWidget {
                                             await provider!.clearCache();
                                             await controller.restoreRenderer();
                                           }),
-                                    child: const Text(
-                                      'Lokalen Snapshot löschen',
+                                    child: Text(
+                                      context.translate(
+                                        "Lokalen Snapshot löschen",
+                                      ),
                                     ),
                                   ),
                               ],
@@ -121,11 +144,21 @@ class ObservationsScreen extends StatelessWidget {
                             if (busy) const LinearProgressIndicator(),
                             Text(
                               status?.dataState.label ??
-                                  'Daten nicht verfügbar',
+                                  context.translate("Daten nicht verfügbar"),
                             ),
                             if (data != null)
                               Text(
-                                'Abgerufen: ${_date(context, data.fetchedAtUtc)}\nZuletzt geprüft: ${_date(context, data.lastCheckedAtUtc ?? data.fetchedAtUtc)}',
+                                context.translate(
+                                  "Abgerufen: {0}\nZuletzt geprüft: {1}",
+                                  [
+                                    _date(context, data.fetchedAtUtc),
+                                    _date(
+                                      context,
+                                      data.lastCheckedAtUtc ??
+                                          data.fetchedAtUtc,
+                                    ),
+                                  ],
+                                ),
                               ),
                             if (status?.error != null)
                               Text(
@@ -140,29 +173,56 @@ class ObservationsScreen extends StatelessWidget {
                               Text(controller.renderErrors[kind]!),
                             Text(
                               kind == StationKind.meteo
-                                  ? 'Quelle: MeteoSchweiz · SwissMetNet · CC BY 4.0. Wind/Böen in km/h; Niederschlag als 10-Minuten-Summe.'
-                                  : 'Quelle: BAFU · Hydrologische Beobachtungen. Live ist unkorrigiert; 10-Minuten-Mittel und Freigabestatus bleiben getrennt.',
+                                  ? context.translate(
+                                      "Quelle: MeteoSchweiz · SwissMetNet · CC BY 4.0. Wind/Böen in km/h; Niederschlag als 10-Minuten-Summe.",
+                                    )
+                                  : context.translate(
+                                      "Quelle: BAFU · Hydrologische Beobachtungen. Live ist unkorrigiert; 10-Minuten-Mittel und Freigabestatus bleiben getrennt.",
+                                    ),
                             ),
                             if (data != null) Text('${data.data['coverage']}'),
                             if (data?.data['incomplete'] == true)
-                              const Text(
-                                'Unvollständiger Datenauszug; weitere Messwerte können fehlen.',
+                              Text(
+                                context.translate(
+                                  "Unvollständiger Datenauszug; weitere Messwerte können fehlen.",
+                                ),
                               ),
                             if ((data?.data['unlocated'] as int? ?? 0) > 0)
                               Text(
-                                '${data!.data['unlocated']} Stationen ohne zuordenbare Metadaten.',
+                                context.translate(
+                                  "{0} Stationen ohne zuordenbare Metadaten.",
+                                  [data!.data['unlocated']],
+                                ),
                               ),
                             if (data != null && stations.isEmpty)
-                              const Text(
-                                'Keine verfügbaren Messstationen im gewählten Umfeld. Fehlende Werte bedeuten keine Entwarnung.',
+                              Text(
+                                context.translate(
+                                  "Keine verfügbaren Messstationen im gewählten Umfeld. Fehlende Werte bedeuten keine Entwarnung.",
+                                ),
                               ),
                             for (final station in stations)
                               ExpansionTile(
                                 title: Text(station.name),
                                 subtitle: Text(
-                                  '${station.id} · ${station.readings.length} verfügbare Werte'
-                                  '${station.readings.isEmpty ? " · Messwerte nicht verfügbar" : "\nLetzte Messung: ${_date(context, station.readings.map((r) => r.atUtc).reduce((a, b) => a.isAfter(b) ? a : b))}"}'
-                                  '${station.readings.isNotEmpty && station.readings.every((r) => r.outdated(DateTime.now().toUtc(), controller.maxAge(kind))) ? " · veraltet" : ""}',
+                                  context.translate(
+                                    "{0} · {1} verfügbare Werte{2}{3}",
+                                    [
+                                      station.id,
+                                      station.readings.length,
+                                      station.readings.isEmpty
+                                          ? " · Messwerte nicht verfügbar"
+                                          : "\nLetzte Messung: ${_date(context, station.readings.map((r) => r.atUtc).reduce((a, b) => a.isAfter(b) ? a : b))}",
+                                      station.readings.isNotEmpty &&
+                                              station.readings.every(
+                                                (r) => r.outdated(
+                                                  DateTime.now().toUtc(),
+                                                  controller.maxAge(kind),
+                                                ),
+                                              )
+                                          ? " · veraltet"
+                                          : "",
+                                    ],
+                                  ),
                                 ),
                                 children: [
                                   Padding(
@@ -178,8 +238,10 @@ class ObservationsScreen extends StatelessWidget {
                                       case final String ref)
                                     TextButton(
                                       onPressed: () => _reference(ref),
-                                      child: const Text(
-                                        'Offizielle Stationsdetails',
+                                      child: Text(
+                                        context.translate(
+                                          "Offizielle Stationsdetails",
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -192,8 +254,10 @@ class ObservationsScreen extends StatelessWidget {
                                       mode: LaunchMode.externalApplication,
                                     ),
                               icon: const Icon(Icons.open_in_new),
-                              label: const Text(
-                                'Quelle und Produktbeschreibung',
+                              label: Text(
+                                context.translate(
+                                  "Quelle und Produktbeschreibung",
+                                ),
                               ),
                             ),
                             const GuideLink(GuideTopic.outdoor),

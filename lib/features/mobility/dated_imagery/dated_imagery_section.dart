@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -177,28 +179,54 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(item.title, style: Theme.of(context).textTheme.titleSmall),
-            Text('Produkt: ${item.product.label} · ${item.id}'),
-            Text('Aufnahme (UTC): ${_date(item.acquiredUtc)}'),
-            Text('Veröffentlicht: ${_date(item.publishedUtc)}'),
-            if (item.missionContext != null)
-              Text('Ereignis / Einsatz: ${item.missionContext}'),
             Text(
-              'Abdeckung (WGS84): ${item.bbox.map((x) => x.toStringAsFixed(4)).join(', ')}',
+              context.translate("Produkt: {0} · {1}", [
+                item.product.label,
+                item.id,
+              ]),
+            ),
+            Text(
+              context.translate("Aufnahme (UTC): {0}", [
+                _date(item.acquiredUtc),
+              ]),
+            ),
+            Text(
+              context.translate("Veröffentlicht: {0}", [
+                _date(item.publishedUtc),
+              ]),
+            ),
+            if (item.missionContext != null)
+              Text(
+                context.translate("Ereignis / Einsatz: {0}", [
+                  item.missionContext,
+                ]),
+              ),
+            Text(
+              context.translate("Abdeckung (WGS84): {0}", [
+                item.bbox.map((x) => x.toStringAsFixed(4)).join(', '),
+              ]),
             ),
             Text(
               item.cloudCoverPercent == null
-                  ? 'Wolkenanteil: nicht angegeben'
-                  : 'Wolkenanteil gemäss Quelle: ${item.cloudCoverPercent!.toStringAsFixed(1)} %',
+                  ? context.translate("Wolkenanteil: nicht angegeben")
+                  : context.translate("Wolkenanteil gemäss Quelle: {0} %", [
+                      item.cloudCoverPercent!.toStringAsFixed(1),
+                    ]),
             ),
             Text(
               item.qualityAssetAvailable
-                  ? 'Qualitäts-/Wolkenmaske als eigenes Datenasset vorhanden; nicht automatisch als wolkenfrei interpretiert.'
-                  : 'Keine überprüfte Qualitätsmaske – Wolken und Bildlücken können vorhanden sein.',
+                  ? context.translate(
+                      "Qualitäts-/Wolkenmaske als eigenes Datenasset vorhanden; nicht automatisch als wolkenfrei interpretiert.",
+                    )
+                  : context.translate(
+                      "Keine überprüfte Qualitätsmaske – Wolken und Bildlücken können vorhanden sein.",
+                    ),
             ),
             if (outside)
-              const Text(
-                'Für dieses Einsatzprodukt ist kein georeferenzierter, begrenzt lesbarer '
-                'RGB-GeoTIFF mit bestätigter Projektion hinterlegt. Kein Kartenbild erfunden.',
+              Text(
+                context.translate(
+                  "Für dieses Einsatzprodukt ist kein georeferenzierter, begrenzt lesbarer RGB-GeoTIFF mit bestätigter Projektion hinterlegt. Kein Kartenbild erfunden.",
+                ),
               ),
             Wrap(
               spacing: 8,
@@ -209,7 +237,9 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                     key: ValueKey('dated_show_${item.id}'),
                     onPressed: _busy ? null : () => _display(item),
                     icon: const Icon(Icons.layers_outlined),
-                    label: const Text('Datierte Aufnahme anzeigen'),
+                    label: Text(
+                      context.translate("Datierte Aufnahme anzeigen"),
+                    ),
                   ),
                 TextButton.icon(
                   onPressed: () => _open(
@@ -219,7 +249,7 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                             : 'https://www.swisstopo.admin.ch/en/service-rapid-mapping'),
                   ),
                   icon: const Icon(Icons.open_in_new),
-                  label: const Text('Amtliche Quelle / Ansicht'),
+                  label: Text(context.translate("Amtliche Quelle / Ansicht")),
                 ),
               ],
             ),
@@ -250,23 +280,28 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
         tilePadding: EdgeInsets.zero,
         initiallyExpanded: _expanded,
         onExpansionChanged: (value) => setState(() => _expanded = value),
-        title: const Text('Datierte Satelliten- & Rapid-Mapping-Bilder'),
-        subtitle: const Text(
-          'swissEO Sentinel-2 v200 / amtliche Ereignisaufnahmen · optional',
+        title: Text(
+          context.translate("Datierte Satelliten- & Rapid-Mapping-Bilder"),
+        ),
+        subtitle: Text(
+          context.translate(
+            "swissEO Sentinel-2 v200 / amtliche Ereignisaufnahmen · optional",
+          ),
         ),
         children: [
-          const Text(
-            'Ausgewählte Aufnahmen sind historische bzw. verzögert '
-            'veröffentlichte Bilddaten. Keine Live-Beobachtung. '
-            'Es werden nur kleine STAC-Metadaten gespeichert, keine Rohbilddateien. '
-            'Wolken, Schatten und fehlende Bilddeckung sind keine leeren Flächen.',
+          Text(
+            context.translate(
+              "Ausgewählte Aufnahmen sind historische bzw. verzögert veröffentlichte Bilddaten. Keine Live-Beobachtung. Es werden nur kleine STAC-Metadaten gespeichert, keine Rohbilddateien. Wolken, Schatten und fehlende Bilddeckung sind keine leeren Flächen.",
+            ),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<DatedImageryProduct>(
             key: const ValueKey('dated_imagery_product'),
             isExpanded: true,
             initialValue: _product,
-            decoration: const InputDecoration(labelText: 'Amtliche Collection'),
+            decoration: InputDecoration(
+              labelText: context.translate("Amtliche Collection"),
+            ),
             items: [
               for (final product in DatedImageryProduct.values)
                 DropdownMenuItem(
@@ -298,8 +333,8 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                 child: TextField(
                   key: const ValueKey('dated_lat'),
                   controller: _lat,
-                  decoration: const InputDecoration(
-                    labelText: 'Breite (WGS84)',
+                  decoration: InputDecoration(
+                    labelText: context.translate("Breite (WGS84)"),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -312,7 +347,9 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                 child: TextField(
                   key: const ValueKey('dated_lon'),
                   controller: _lon,
-                  decoration: const InputDecoration(labelText: 'Länge (WGS84)'),
+                  decoration: InputDecoration(
+                    labelText: context.translate("Länge (WGS84)"),
+                  ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                     signed: true,
@@ -324,7 +361,9 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
           DropdownButtonFormField<int>(
             key: const ValueKey('dated_imagery_radius'),
             initialValue: _radius,
-            decoration: const InputDecoration(labelText: 'Suchradius'),
+            decoration: InputDecoration(
+              labelText: context.translate("Suchradius"),
+            ),
             items: [
               for (final r in [500, 1000, 2000, 5000])
                 DropdownMenuItem(value: r, child: Text('$r m')),
@@ -344,45 +383,69 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
               FilledButton.tonal(
                 key: const ValueKey('dated_imagery_search'),
                 onPressed: _busy ? null : () => _fetch(refresh: true),
-                child: const Text('Datierte Bilder suchen'),
+                child: Text(context.translate("Datierte Bilder suchen")),
               ),
               OutlinedButton(
                 key: const ValueKey('dated_imagery_offline'),
                 onPressed: _busy ? null : () => _fetch(offline: true),
-                child: const Text('Letzten Katalogstand öffnen'),
+                child: Text(context.translate("Letzten Katalogstand öffnen")),
               ),
               if (widget.globe.datedImageryVisible)
                 TextButton.icon(
                   key: const ValueKey('dated_imagery_restore'),
                   onPressed: _hide,
                   icon: const Icon(Icons.layers_clear),
-                  label: const Text('Bildebene entfernen / Basiskarte'),
+                  label: Text(
+                    context.translate("Bildebene entfernen / Basiskarte"),
+                  ),
                 ),
             ],
           ),
           Text(
-            'Bildlayer: ${widget.globe.datedImageryStatus}'
-            '${widget.globe.datedImageryItemId == null ? '' : ' · ${widget.globe.datedImageryItemId}'}',
+            context.translate("Bildlayer: {0}{1}", [
+              widget.globe.datedImageryStatus,
+              widget.globe.datedImageryItemId == null
+                  ? ''
+                  : ' · ${widget.globe.datedImageryItemId}',
+            ]),
           ),
           if (widget.globe.datedImageryError != null)
-            Text('Darstellungsfehler: ${widget.globe.datedImageryError}'),
+            Text(
+              context.translate("Darstellungsfehler: {0}", [
+                widget.globe.datedImageryError,
+              ]),
+            ),
           if (_message != null) Text(_message!),
           if (_snapshot case final snapshot?) ...[
             Text(
-              'STAC abgefragt: ${_date(snapshot.fetchedUtc)} · '
-              '${snapshot.items.length} Treffer in begrenzter Stichprobe',
+              context.translate(
+                "STAC abgefragt: {0} · {1} Treffer in begrenzter Stichprobe",
+                [_date(snapshot.fetchedUtc), snapshot.items.length],
+              ),
             ),
             if (snapshot.fromCache)
-              const Text('Offline-/Cache-Katalog – keine Live-Bestätigung.'),
+              Text(
+                context.translate(
+                  "Offline-/Cache-Katalog – keine Live-Bestätigung.",
+                ),
+              ),
             if (snapshot.isOld(DateTime.now()))
-              const Text('Metadaten älter als 24 h / Uhrzeit unplausibel.'),
+              Text(
+                context.translate(
+                  "Metadaten älter als 24 h / Uhrzeit unplausibel.",
+                ),
+              ),
             if (snapshot.refreshFailed)
-              const Text(
-                'Letzte Aktualisierung fehlgeschlagen; letzter Stand wird angezeigt.',
+              Text(
+                context.translate(
+                  "Letzte Aktualisierung fehlgeschlagen; letzter Stand wird angezeigt.",
+                ),
               ),
             if (snapshot.incomplete)
-              const Text(
-                'Weitere STAC-Seiten vorhanden bzw. Trefferlimit erreicht. Abdeckung unvollständig.',
+              Text(
+                context.translate(
+                  "Weitere STAC-Seiten vorhanden bzw. Trefferlimit erreicht. Abdeckung unvollständig.",
+                ),
               ),
             for (final item in snapshot.items) _record(item),
           ],

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/repositories/flight_plan_repository.dart';
@@ -100,16 +102,18 @@ class _ReviewState extends State<_Review> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Discard recording?'),
-        content: const Text('The unsaved simulated flight will be removed.'),
+        title: Text(context.translate("Discard recording?")),
+        content: Text(
+          context.translate("The unsaved simulated flight will be removed."),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Keep recording'),
+            child: Text(context.translate("Keep recording")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Discard'),
+            child: Text(context.translate("Discard")),
           ),
         ],
       ),
@@ -151,7 +155,7 @@ class _ReviewState extends State<_Review> {
     return PopScope(
       canPop: !_working,
       child: AlertDialog(
-        title: const Text('Review simulated flight'),
+        title: Text(context.translate("Review simulated flight")),
         content: SizedBox(
           width: 540,
           child: SingleChildScrollView(
@@ -159,15 +163,17 @@ class _ReviewState extends State<_Review> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Save a continuous section as a new planning route. Unsaved recordings are lost when closing the app.',
+                Text(
+                  context.translate(
+                    "Save a continuous section as a new planning route. Unsaved recordings are lost when closing the app.",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (_segments.length > 1)
                   DropdownButtonFormField<int>(
                     initialValue: _segment,
-                    decoration: const InputDecoration(
-                      labelText: 'Continuous section',
+                    decoration: InputDecoration(
+                      labelText: context.translate("Continuous section"),
                     ),
                     isExpanded: true,
                     items: [
@@ -175,7 +181,10 @@ class _ReviewState extends State<_Review> {
                         DropdownMenuItem(
                           value: i,
                           child: Text(
-                            'Section ${i + 1} · ${_segments[i].length} samples',
+                            context.translate("Section {0} · {1} samples", [
+                              i + 1,
+                              _segments[i].length,
+                            ]),
                           ),
                         ),
                     ],
@@ -189,8 +198,10 @@ class _ReviewState extends State<_Review> {
                           }),
                   ),
                 Semantics(
-                  label:
-                      'Recorded trajectory, north up, with height profile. ${distance.toStringAsFixed(0)} metres.',
+                  label: context.translate(
+                    "Recorded trajectory, north up, with height profile. {0} metres.",
+                    [distance.toStringAsFixed(0)],
+                  ),
                   child: SizedBox(
                     height: 180,
                     child: CustomPaint(
@@ -204,27 +215,54 @@ class _ReviewState extends State<_Review> {
                     ),
                   ),
                 ),
-                const Text(
-                  'Track: north ↑ · Profile: height in metres',
+                Text(
+                  context.translate(
+                    "Track: north ↑ · Profile: height in metres",
+                  ),
                   style: TextStyle(fontSize: 12),
                 ),
                 Text(
                   'Height: ${heights.reduce(math.min).toStringAsFixed(1)}–${heights.reduce(math.max).toStringAsFixed(1)} m ${_agl && hasAgl ? 'AGL' : 'WGS84 ellipsoid'}',
                 ),
                 Text(
-                  '${distance.toStringAsFixed(0)} m in 3D · ${seconds.toStringAsFixed(1)} s · ${selected.length} samples → ${points.length} waypoints',
+                  context.translate(
+                    "{0} m in 3D · {1} s · {2} samples → {3} waypoints",
+                    [
+                      distance.toStringAsFixed(0),
+                      seconds.toStringAsFixed(1),
+                      selected.length,
+                      points.length,
+                    ],
+                  ),
                 ),
                 Text(
-                  'Recorded ground speed: ${speeds.isEmpty ? 'unavailable' : '${speeds.reduce(math.min).toStringAsFixed(1)}–${speeds.reduce(math.max).toStringAsFixed(1)} m/s (3D)'} · Terrain samples: $measuredGround/${selected.length}',
+                  context.translate(
+                    "Recorded ground speed: {0} · Terrain samples: {1}/{2}",
+                    [
+                      speeds.isEmpty
+                          ? 'unavailable'
+                          : '${speeds.reduce(math.min).toStringAsFixed(1)}–${speeds.reduce(math.max).toStringAsFixed(1)} m/s (3D)',
+                      measuredGround,
+                      selected.length,
+                    ],
+                  ),
                 ),
                 Text(
-                  'UTC start: ${widget.flight.startedAt.toUtc().toIso8601String()} · Per-point elapsed time retained',
+                  context.translate(
+                    "UTC start: {0} · Per-point elapsed time retained",
+                    [widget.flight.startedAt.toUtc().toIso8601String()],
+                  ),
                   style: const TextStyle(fontSize: 12),
                 ),
                 if (_segments[_segment].length > 1) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Trim section · samples ${(_range?.start.round() ?? 0) + 1}–${(_range?.end.round() ?? (_segments[_segment].length - 1)) + 1}',
+                    context.translate("Trim section · samples {0}–{1}", [
+                      (_range?.start.round() ?? 0) + 1,
+                      (_range?.end.round() ??
+                              (_segments[_segment].length - 1)) +
+                          1,
+                    ]),
                   ),
                   RangeSlider(
                     values:
@@ -244,15 +282,19 @@ class _ReviewState extends State<_Review> {
                 DropdownButtonFormField<double>(
                   isExpanded: true,
                   initialValue: _tolerance,
-                  decoration: const InputDecoration(
-                    labelText: 'Maximum simplification deviation',
+                  decoration: InputDecoration(
+                    labelText: context.translate(
+                      "Maximum simplification deviation",
+                    ),
                   ),
                   items: [
                     for (final t in [0.0, 1.0, 2.0, 5.0, 10.0, 20.0])
                       DropdownMenuItem(
                         value: t,
                         child: Text(
-                          t == 0 ? 'Keep all samples' : '${t.toInt()} m in 3D',
+                          t == 0
+                              ? context.translate("Keep all samples")
+                              : context.translate("{0} m in 3D", [t.toInt()]),
                         ),
                       ),
                   ],
@@ -262,9 +304,17 @@ class _ReviewState extends State<_Review> {
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Use height above terrain (AGL)'),
+                  title: Text(
+                    context.translate("Use height above terrain (AGL)"),
+                  ),
                   subtitle: Text(
-                    hasAgl ? 'Based on terrain loaded during recording.' : 'Unavailable: terrain height is missing for part of this section.',
+                    hasAgl
+                        ? context.translate(
+                            "Based on terrain loaded during recording.",
+                          )
+                        : context.translate(
+                            "Unavailable: terrain height is missing for part of this section.",
+                          ),
                   ),
                   value: _agl && hasAgl,
                   onChanged: _working || !hasAgl
@@ -272,28 +322,40 @@ class _ReviewState extends State<_Review> {
                       : (v) => setState(() => _agl = v),
                 ),
                 if (!_agl || !hasAgl)
-                  const Text(
-                    'Saved height reference: WGS84 ellipsoid. Recorded absolute heights are preserved.',
+                  Text(
+                    context.translate(
+                      "Saved height reference: WGS84 ellipsoid. Recorded absolute heights are preserved.",
+                    ),
                   ),
                 if (_agl && hasAgl)
-                  const Text(
-                    'AGL follows the terrain between waypoints and may differ from the recorded absolute trajectory.',
+                  Text(
+                    context.translate(
+                      "AGL follows the terrain between waypoints and may differ from the recorded absolute trajectory.",
+                    ),
                   ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _name,
                   enabled: !_working,
                   maxLength: 120,
-                  decoration: const InputDecoration(labelText: 'Route name'),
+                  decoration: InputDecoration(
+                    labelText: context.translate("Route name"),
+                  ),
                 ),
-                const Text(
-                  'Review the saved route before real flight. Sampled motion, terrain and timing are simulated; drone and battery assignments can be added in the route editor.',
+                Text(
+                  context.translate(
+                    "Review the saved route before real flight. Sampled motion, terrain and timing are simulated; drone and battery assignments can be added in the route editor.",
+                  ),
                 ),
                 if (!usable)
                   Text(
                     points.length > 1000
-                        ? 'More than 1000 waypoints: increase simplification or trim the section.'
-                        : 'Record or select at least two positions with movement.',
+                        ? context.translate(
+                            "More than 1000 waypoints: increase simplification or trim the section.",
+                          )
+                        : context.translate(
+                            "Record or select at least two positions with movement.",
+                          ),
                     style: TextStyle(color: colors.error),
                   ),
                 if (_error != null)
@@ -305,17 +367,21 @@ class _ReviewState extends State<_Review> {
         actions: [
           TextButton(
             onPressed: _working ? null : _discard,
-            child: const Text('Discard'),
+            child: Text(context.translate("Discard")),
           ),
           TextButton(
             onPressed: _working ? null : () => Navigator.pop(context),
-            child: const Text('Keep for later'),
+            child: Text(context.translate("Keep for later")),
           ),
           FilledButton(
             onPressed: _working || !usable
                 ? null
                 : () => _saveRoute(points, agl: _agl && hasAgl),
-            child: Text(_working ? 'Saving…' : 'Save as route'),
+            child: Text(
+              _working
+                  ? context.translate("Saving…")
+                  : context.translate("Save as route"),
+            ),
           ),
         ],
       ),

@@ -52,7 +52,8 @@
         return {north,east,up:0,speedMs:Math.hypot(north,east),extrapolated};
     }
     const density={quality:7,balanced:5,performance:3};
-    function create(C,viewer,send=()=>{},{now=()=>Date.now(),elapsed=()=>performance.now(),doc=typeof document==='undefined'?null:document,isTerrainReady=()=>true}={}){
+    function create(C,viewer,send=()=>{},{now=()=>Date.now(),elapsed=()=>performance.now(),doc=typeof document==='undefined'?null:document,isTerrainReady=()=>true,language}={}){
+        const translate=source=>language?.translate(source)??source;
         const collection=new C.PolylineCollection();viewer.scene.primitives.add(collection);collection.show=false;
         const palette=['#61dea5','#ffe080','#ffab66','#ff797b'];
         const terrain=new Map(),location=new C.Cartographic();
@@ -66,20 +67,20 @@
             const state=!data?'unavailable':!fresh()?'expired':visible&&(!isTerrainReady()||terrainMissing)?'terrainPending':'ready';
             if(state===status)return;status=state;send('wind-layer-status',{state});
         }
-        function controls(){
+        function controls(forceUpdate=false){
             const valid=!!fresh(),nav=!!navigation;
-            if(uiData===data&&uiVisible===visible&&uiForce===affectFlight&&uiNav===nav&&uiFresh===valid)return;
+            if(!forceUpdate&&uiData===data&&uiVisible===visible&&uiForce===affectFlight&&uiNav===nav&&uiFresh===valid)return;
             uiData=data;uiVisible=visible;uiForce=affectFlight;uiNav=nav;uiFresh=valid;
             const needed=!!(fresh()&&(visible||affectFlight&&navigation));
             if(needed!==credited){credited=needed;for(const credit of sourceCredits)
                 if(needed)creditApi.retainStaticCredit(credits,credit);else creditApi.releaseStaticCredit(credits,credit);}
             const status=doc?.getElementById('flight-wind-status'),force=doc?.getElementById('flight-wind-force'),arrows=doc?.getElementById('flight-wind-arrows');
             if(force)force.checked=affectFlight;if(arrows)arrows.checked=visible;
-            const time=data?new Date(data.validAtUtc).toLocaleString(undefined,{dateStyle:'short',timeStyle:'short'}):'';
-            const message=data?`${data.mode==='current'?'Aktueller Modellwind':'Windprognose'} · ${time}${fresh()?'':' · abgelaufen'}`:'Keine Winddaten geladen';
+            const time=data?new Date(data.validAtUtc).toLocaleString(language?.locale,{dateStyle:'short',timeStyle:'short'}):'';
+            const message=data?`${translate(data.mode==='current'?'Aktueller Modellwind':'Windprognose')} · ${time}${valid?'':` · ${translate('abgelaufen')}`}`:translate('Keine Winddaten geladen');
             if(status&&status.textContent!==message)status.textContent=message;
             const legend=doc?.getElementById('wind-legend');
-            if(legend){legend.hidden=!visible||nav;const text=`${message} · Pfeile folgen der Strömung. Wind in m/s: grün <3, gelb 3–7, orange 7–12, rot ≥12. Open-Meteo, keine lokale Messung.`;
+            if(legend){legend.hidden=!visible||nav;const text=`${message} · ${translate('Pfeile folgen der Strömung. Wind in m/s: grün <3, gelb 3–7, orange 7–12, rot ≥12. Open-Meteo, keine lokale Messung.')}`;
                 if(legend.textContent!==text)legend.textContent=text;}
         }
         function ground(lat,lon){
@@ -185,6 +186,7 @@
             send('wind-flags-changed',{visible,affectFlight});controls();
         }
         const force=doc?.getElementById('flight-wind-force'),arrows=doc?.getElementById('flight-wind-arrows'),button=doc?.getElementById('wind-flight');
+        const removeLanguage=language?.onChange(()=>controls(true));
         force?.addEventListener('change',flagsFromUi);arrows?.addEventListener('change',flagsFromUi);
         const requestSettings=()=>send('wind-settings-request',{});button?.addEventListener('click',requestSettings);
         return {
@@ -204,7 +206,7 @@
             terrainChanged(){terrain.clear();dirty=true;},
             performance(value){if(!Object.hasOwn(density,value))throw Error('Invalid wind graphics profile');
                 if(profile!==value){profile=value;dirty=true;}},
-            dispose(){if(disposed)return;disposed=true;removeTerrain();removeUpdate();force?.removeEventListener('change',flagsFromUi);arrows?.removeEventListener('change',flagsFromUi);button?.removeEventListener('click',requestSettings);
+            dispose(){if(disposed)return;disposed=true;removeTerrain();removeUpdate();removeLanguage?.();force?.removeEventListener('change',flagsFromUi);arrows?.removeEventListener('change',flagsFromUi);button?.removeEventListener('click',requestSettings);
                 terrain.clear();entries=[];if(credited)for(const credit of sourceCredits)creditApi.releaseStaticCredit(credits,credit);viewer.scene.primitives.remove(collection);const legend=doc?.getElementById('wind-legend');if(legend)legend.hidden=true;}
         };
     }

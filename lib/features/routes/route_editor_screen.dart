@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/repositories/flight_plan_repository.dart';
@@ -159,7 +161,11 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Map command failed. Please retry.')),
+          SnackBar(
+            content: Text(
+              context.translate("Map command failed. Please retry."),
+            ),
+          ),
         );
       }
     }
@@ -171,12 +177,14 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
       final discard = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Discard route changes?'),
-          content: const Text('The current draft has unsaved changes.'),
+          title: Text(context.translate("Discard route changes?")),
+          content: Text(
+            context.translate("The current draft has unsaved changes."),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep editing'),
+              child: Text(context.translate("Keep editing")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
@@ -214,15 +222,15 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Route editor'),
+          title: Text(context.translate("Route editor")),
           leading: IconButton(
-            tooltip: 'Back',
+            tooltip: context.translate("Back"),
             onPressed: _editor.saving ? null : _close,
             icon: const Icon(Icons.arrow_back),
           ),
           actions: [
             PopupMenuButton<_RouteAction>(
-              tooltip: 'Route options',
+              tooltip: context.translate("Route options"),
               enabled:
                   !_editor.loading && !_editor.saving && !_editor.loadFailed,
               onSelected: (action) {
@@ -242,31 +250,31 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                 }
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: _RouteAction.sunTime,
-                  child: Text('Sonnen- und Mondzeit'),
+                  child: Text(context.translate("Sonnen- und Mondzeit")),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: _RouteAction.equipment,
-                  child: Text('Route equipment'),
+                  child: Text(context.translate("Route equipment")),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: _RouteAction.planning,
-                  child: Text('Planning assumptions'),
+                  child: Text(context.translate("Planning assumptions")),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.constraints,
-                  child: const Text('Route constraints'),
+                  child: Text(context.translate("Route constraints")),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.signal,
                   enabled: _editor.points.length >= 2,
-                  child: const Text('Terrain & radio path'),
+                  child: Text(context.translate("Terrain & radio path")),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.layers,
                   enabled: _globe.isReady,
-                  child: const Text('Map layers'),
+                  child: Text(context.translate("Map layers")),
                 ),
               ],
             ),
@@ -276,13 +284,21 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                       FocusScope.of(context).unfocus();
                       if (await _editor.save() && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Route saved locally')),
+                          SnackBar(
+                            content: Text(
+                              context.translate("Route saved locally"),
+                            ),
+                          ),
                         );
                       }
                     }
                   : null,
               icon: const Icon(Icons.save_outlined),
-              label: Text(_editor.saving ? 'Saving…' : 'Save'),
+              label: Text(
+                _editor.saving
+                    ? context.translate("Saving…")
+                    : context.translate("Save"),
+              ),
             ),
           ],
         ),
@@ -297,13 +313,13 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                       enabled: !_editor.saving && !_editor.loadFailed,
                       maxLength: 120,
                       decoration: InputDecoration(
-                        labelText: 'Route name',
+                        labelText: context.translate("Route name"),
                         counterText: '',
                         suffixText: _editor.dirty
-                            ? 'Unsaved'
+                            ? context.translate("Unsaved")
                             : _editor.routeId == null
                             ? 'Draft'
-                            : 'Saved',
+                            : context.translate("Saved"),
                       ),
                       onChanged: _editor.rename,
                     ),
@@ -325,7 +341,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                                   ? null
                                   : () => _chooseStart(search: false),
                               icon: const Icon(Icons.place_outlined),
-                              label: const Text('Saved spot'),
+                              label: Text(context.translate("Saved spot")),
                             ),
                           OutlinedButton.icon(
                             onPressed:
@@ -335,7 +351,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                                 ? null
                                 : () => _chooseStart(search: true),
                             icon: const Icon(Icons.search),
-                            label: const Text('Search place'),
+                            label: Text(context.translate("Search place")),
                           ),
                         ],
                       ),
@@ -372,7 +388,7 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                           if (_editor.loadFailed)
                             TextButton(
                               onPressed: _load,
-                              child: const Text('Retry loading'),
+                              child: Text(context.translate("Retry loading")),
                             ),
                         ],
                       ),

@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/osint/api_credential_vault.dart';
@@ -58,20 +61,27 @@ class _TrafficCountersSectionState extends State<TrafficCountersSection> {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     maintainState: true,
-    title: const Text('Live-Messwerte · Traffic Counters'),
-    subtitle: const Text('Geschwindigkeiten und Fahrzeugmengen an Messstellen'),
+    title: Text(context.translate("Live-Messwerte · Traffic Counters")),
+    subtitle: Text(
+      context.translate("Geschwindigkeiten und Fahrzeugmengen an Messstellen"),
+    ),
     children: [
-      const Text(
-        'Eigener Zugang für Traffic Counters. Der Schlüssel für Verkehrsmeldungen wird dafür nicht wiederverwendet. Daten bleiben in dieser Sitzung.',
+      Text(
+        context.translate(
+          "Eigener Zugang für Traffic Counters. Der Schlüssel für Verkehrsmeldungen wird dafür nicht wiederverwendet. Daten bleiben in dieser Sitzung.",
+        ),
       ),
-      if (kIsWeb) const Text('Direkter Abruf auf Android verfügbar.'),
+      if (kIsWeb)
+        Text(context.translate("Direkter Abruf auf Android verfügbar.")),
       if (!kIsWeb) ...[
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           value: _terms,
           onChanged: (v) => setState(() => _terms = v ?? false),
-          title: const Text(
-            'Zählstellenzugang freigeschaltet und ASTRA-Bedingungen akzeptiert',
+          title: Text(
+            context.translate(
+              "Zählstellenzugang freigeschaltet und ASTRA-Bedingungen akzeptiert",
+            ),
           ),
         ),
         TextField(
@@ -79,9 +89,9 @@ class _TrafficCountersSectionState extends State<TrafficCountersSection> {
           obscureText: true,
           enableSuggestions: false,
           autocorrect: false,
-          decoration: const InputDecoration(
-            labelText: 'Eigener Traffic-Counters-Token',
-            helperText: 'Token verwenden, nicht Token Hash.',
+          decoration: InputDecoration(
+            labelText: context.translate("Eigener Traffic-Counters-Token"),
+            helperText: context.translate("Token verwenden, nicht Token Hash."),
           ),
         ),
         Wrap(
@@ -89,11 +99,11 @@ class _TrafficCountersSectionState extends State<TrafficCountersSection> {
           children: [
             OutlinedButton(
               onPressed: _saving || !_terms ? null : () => _save(false),
-              child: const Text('Zählstellen-Token speichern'),
+              child: Text(context.translate("Zählstellen-Token speichern")),
             ),
             TextButton(
               onPressed: _saving ? null : () => _save(true),
-              child: const Text('Zählstellen-Token entfernen'),
+              child: Text(context.translate("Zählstellen-Token entfernen")),
             ),
           ],
         ),
@@ -149,10 +159,18 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Gebiet: ${provider.center.latitude.toStringAsFixed(4)}, ${provider.center.longitude.toStringAsFixed(4)} · 30 km · maximal 100 Detektoren',
+            context.translate(
+              "Gebiet: {0}, {1} · 30 km · maximal 100 Detektoren",
+              [
+                provider.center.latitude.toStringAsFixed(4),
+                provider.center.longitude.toStringAsFixed(4),
+              ],
+            ),
           ),
-          const Text(
-            'Punktuelle Messungen der Quelle. Fahrzeugmengen sind Raten in Fahrzeugen pro Stunde. Werte verschiedener Fahrstreifen und Fahrzeuggruppen werden nicht addiert. Keine durchgehende Staukarte.',
+          Text(
+            context.translate(
+              "Punktuelle Messungen der Quelle. Fahrzeugmengen sind Raten in Fahrzeugen pro Stunde. Werte verschiedener Fahrstreifen und Fahrzeuggruppen werden nicht addiert. Keine durchgehende Staukarte.",
+            ),
           ),
           FilledButton.icon(
             onPressed:
@@ -164,8 +182,8 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             icon: const Icon(Icons.speed),
             label: Text(
               status.update == OsintUpdateState.loading
-                  ? 'Messwerte werden geladen …'
-                  : 'Messwerte aktualisieren',
+                  ? context.translate("Messwerte werden geladen …")
+                  : context.translate("Messwerte aktualisieren"),
             ),
           ),
           if (status.error != null)
@@ -175,14 +193,22 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             ),
           if (dataset != null) ...[
             Text(
-              'Abruf: ${trafficTime(dataset.fetchedAtUtc)} · Quellenpublikation: ${trafficTime(dataset.publishedAtUtc)}',
+              context.translate("Abruf: {0} · Quellenpublikation: {1}", [
+                trafficTime(dataset.fetchedAtUtc),
+                trafficTime(dataset.publishedAtUtc),
+              ]),
             ),
             Text(
-              '${records.length} zugeordnete Detektoren · ${dataset.data['unknown']} ohne passende Metadaten',
+              context.translate(
+                "{0} zugeordnete Detektoren · {1} ohne passende Metadaten",
+                [records.length, dataset.data['unknown']],
+              ),
             ),
             if (status.dataState != OsintDataState.fresh)
-              const Text(
-                'Abruf veraltet oder fehlgeschlagen · Messzeit jedes Werts prüfen.',
+              Text(
+                context.translate(
+                  "Abruf veraltet oder fehlgeschlagen · Messzeit jedes Werts prüfen.",
+                ),
               ),
             if (widget.onShowMap != null)
               OutlinedButton(
@@ -197,7 +223,7 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
                     }
                   }
                 },
-                child: const Text('Messstellen auf Karte zeigen'),
+                child: Text(context.translate("Messstellen auf Karte zeigen")),
               ),
             if (_mapError != null) Text(_mapError!),
             for (final raw in records.take(_limit))
@@ -205,7 +231,7 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             if (records.length > _limit)
               TextButton(
                 onPressed: () => setState(() => _limit += 20),
-                child: const Text('Weitere Messstellen'),
+                child: Text(context.translate("Weitere Messstellen")),
               ),
           ],
         ],
@@ -239,7 +265,8 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             Text(
               '${current ? 'Messung' : 'Messzeit unbekannt / veraltet'}: ${trafficTime(time)}',
             ),
-            if (summary.isEmpty) const Text('Keine auswertbaren Messwerte'),
+            if (summary.isEmpty)
+              Text(context.translate("Keine auswertbaren Messwerte")),
             for (final v in summary)
               Text(
                 '${v['kind'] == 'trafficSpeed' ? 'Ø Geschwindigkeit' : 'Fahrzeugrate'}: ${(v['value'] as num).toStringAsFixed(v['kind'] == 'trafficSpeed' ? 1 : 0)} ${v['kind'] == 'trafficSpeed' ? 'km/h' : 'Fahrzeuge/h'} · ${v['vehicle'] == 'car' ? 'Leichte Fahrzeuge' : v['vehicle']}',
@@ -253,12 +280,17 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Detektor: ${record['id']} · Fahrstreifen: ${record['lane']} · Fahrbahntyp: ${record['carriageway']}',
+                  context.translate(
+                    "Detektor: {0} · Fahrstreifen: {1} · Fahrbahntyp: {2}",
+                    [record['id'], record['lane'], record['carriageway']],
+                  ),
                 ),
                 for (final raw in record['values'] as List)
                   _value(Map<String, dynamic>.from(raw as Map), time),
-                const Text(
-                  'ASTRA / VDP · Best-Effort-Messdaten, keine bestätigte Verkehrsprognose.',
+                Text(
+                  context.translate(
+                    "ASTRA / VDP · Best-Effort-Messdaten, keine bestätigte Verkehrsprognose.",
+                  ),
                 ),
               ],
             ),
@@ -278,7 +310,26 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
-        '$vehicle · ${value['kind'] == 'trafficSpeed' ? 'Ø Geschwindigkeit' : 'Fahrzeugrate'}: ${amount == null ? 'nicht verfügbar' : amount.toStringAsFixed(value['kind'] == 'trafficSpeed' ? 1 : 0)} ${value['kind'] == 'trafficSpeed' ? 'km/h' : 'Fahrzeuge/h'}\nMesszeit: ${trafficTime(DateTime.tryParse(value['timeUtc'] as String? ?? '') ?? fallback)} · Intervall: ${value['periodSeconds'] ?? "unbekannt"} s${value['error'] == true ? ' · Quellenfehler' : ''}',
+        context.translate(
+          "{0} · {1}: {2} {3}\nMesszeit: {4} · Intervall: {5} s{6}",
+          [
+            vehicle,
+            value['kind'] == 'trafficSpeed'
+                ? 'Ø Geschwindigkeit'
+                : 'Fahrzeugrate',
+            amount == null
+                ? 'nicht verfügbar'
+                : amount.toStringAsFixed(
+                    value['kind'] == 'trafficSpeed' ? 1 : 0,
+                  ),
+            value['kind'] == 'trafficSpeed' ? 'km/h' : 'Fahrzeuge/h',
+            trafficTime(
+              DateTime.tryParse(value['timeUtc'] as String? ?? '') ?? fallback,
+            ),
+            value['periodSeconds'] ?? "unbekannt",
+            value['error'] == true ? ' · Quellenfehler' : '',
+          ],
+        ),
       ),
     );
   }

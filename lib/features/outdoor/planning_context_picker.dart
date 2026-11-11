@@ -1,4 +1,7 @@
 import 'package:drift/drift.dart' show OrderingTerm;
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart';
@@ -19,24 +22,24 @@ Future<List<MobilityPoint>?> choosePlanningContext(
   final choice = await showDialog<String>(
     context: context,
     builder: (context) => SimpleDialog(
-      title: const Text('Bezug wählen'),
+      title: Text(context.translate("Bezug wählen")),
       children: [
         if (selected != null)
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'map'),
-            child: const Text('Ausgewählter Kartenpunkt'),
+            child: Text(context.translate("Ausgewählter Kartenpunkt")),
           ),
         SimpleDialogOption(
           onPressed: () => Navigator.pop(context, 'search'),
-          child: const Text('Ort oder Koordinaten suchen'),
+          child: Text(context.translate("Ort oder Koordinaten suchen")),
         ),
         SimpleDialogOption(
           onPressed: () => Navigator.pop(context, 'spot'),
-          child: const Text('Gespeicherter Ort'),
+          child: Text(context.translate("Gespeicherter Ort")),
         ),
         SimpleDialogOption(
           onPressed: () => Navigator.pop(context, 'flight'),
-          child: const Text('Gespeicherte Flugroute'),
+          child: Text(context.translate("Gespeicherte Flugroute")),
         ),
       ],
     ),
@@ -68,7 +71,7 @@ Future<List<MobilityPoint>?> choosePlanningContext(
   final id = await showDialog<int>(
     context: context,
     builder: (context) => SimpleDialog(
-      title: const Text('Flugroute auswählen · letzte 100'),
+      title: Text(context.translate("Flugroute auswählen · letzte 100")),
       children: [
         for (final p in plans)
           SimpleDialogOption(
@@ -76,9 +79,9 @@ Future<List<MobilityPoint>?> choosePlanningContext(
             child: Text(p.name),
           ),
         if (plans.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(16),
-            child: Text('Noch keine Flugrouten gespeichert'),
+            child: Text(context.translate("Noch keine Flugrouten gespeichert")),
           ),
       ],
     ),

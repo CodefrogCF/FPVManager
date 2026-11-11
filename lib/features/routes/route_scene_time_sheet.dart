@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../globe/scene_time_control.dart';
 import 'route_editor_controller.dart';
 
@@ -17,19 +19,23 @@ Future<void> showRouteSceneTime(
         builder: (context, _) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ListTile(title: Text('Sonnen- und Mondzeit der Route')),
+            ListTile(
+              title: Text(context.translate("Sonnen- und Mondzeit der Route")),
+            ),
             SceneTimeControl(
               value: editor.planning.sceneTime,
               onChanged: (value) => editor.configurePlanning(
                 editor.planning.withSceneTime(value),
               ),
             ),
-            const Text(
-              'Wird mit der Route gespeichert. Eine feste Zeit bleibt stehen; „Jetzt“ läuft mit der Gerätezeit.',
+            Text(
+              context.translate(
+                "Wird mit der Route gespeichert. Eine feste Zeit bleibt stehen; „Jetzt“ läuft mit der Gerätezeit.",
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Fertig'),
+              child: Text(context.translate("Fertig")),
             ),
           ],
         ),

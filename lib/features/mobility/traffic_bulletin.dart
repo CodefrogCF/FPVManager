@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/osint/osint_provider_state.dart';
 import 'situational_provider.dart';
 import 'traffic_incident.dart';
@@ -106,27 +108,46 @@ class _TrafficBulletinState extends State<TrafficBulletin> {
                 children: [
                   Text(
                     provider.status.update == OsintUpdateState.loading
-                        ? 'Verkehrsmeldungen werden aktualisiert …'
+                        ? context.translate(
+                            "Verkehrsmeldungen werden aktualisiert …",
+                          )
                         : dataset == null
-                        ? 'Keine Verkehrsdaten geladen'
+                        ? context.translate("Keine Verkehrsdaten geladen")
                         : provider.status.error != null
-                        ? 'Aktualisierung fehlgeschlagen · letzter Datenstand bleibt sichtbar'
+                        ? context.translate(
+                            "Aktualisierung fehlgeschlagen · letzter Datenstand bleibt sichtbar",
+                          )
                         : dataset.requiresRevalidation
-                        ? 'Importierte Daten · online nicht geprüft'
+                        ? context.translate(
+                            "Importierte Daten · online nicht geprüft",
+                          )
                         : provider.status.dataState == OsintDataState.fresh
-                        ? 'Letzter Abruf aktuell'
-                        : 'Abruf veraltet · erneut aktualisieren',
+                        ? context.translate("Letzter Abruf aktuell")
+                        : context.translate(
+                            "Abruf veraltet · erneut aktualisieren",
+                          ),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   if (dataset != null) ...[
                     Text(
-                      'Letzter Abruf / Import: ${trafficTime(dataset.fetchedAtUtc)}',
+                      context.translate("Letzter Abruf / Import: {0}", [
+                        trafficTime(dataset.fetchedAtUtc),
+                      ]),
                     ),
                     Text(
-                      'Quellenpublikation: ${trafficTime(dataset.publishedAtUtc)}',
+                      context.translate("Quellenpublikation: {0}", [
+                        trafficTime(dataset.publishedAtUtc),
+                      ]),
                     ),
                     Text(
-                      '${(data?['records'] as List?)?.length ?? records.length} Ereignisse · ${data?['unlocated'] ?? 0} ohne Kartenposition · ${data?['omitted'] ?? 0} nicht auswertbar',
+                      context.translate(
+                        "{0} Ereignisse · {1} ohne Kartenposition · {2} nicht auswertbar",
+                        [
+                          (data?['records'] as List?)?.length ?? records.length,
+                          data?['unlocated'] ?? 0,
+                          data?['omitted'] ?? 0,
+                        ],
+                      ),
                     ),
                   ],
                   if (provider.status.error != null)
@@ -140,8 +161,8 @@ class _TrafficBulletinState extends State<TrafficBulletin> {
           ),
           if (dataset != null) ...[
             TextField(
-              decoration: const InputDecoration(
-                labelText: 'Straße, Ort oder Meldung suchen',
+              decoration: InputDecoration(
+                labelText: context.translate("Straße, Ort oder Meldung suchen"),
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (v) => _filter(() => _query = v.trim()),
@@ -158,7 +179,7 @@ class _TrafficBulletinState extends State<TrafficBulletin> {
                     onSelected: (_) => _filter(() => _period = period),
                   ),
                 FilterChip(
-                  label: const Text('Nur mit Kartenposition'),
+                  label: Text(context.translate("Nur mit Kartenposition")),
                   selected: _positionedOnly,
                   onSelected: (v) => _filter(() => _positionedOnly = v),
                 ),
@@ -168,9 +189,9 @@ class _TrafficBulletinState extends State<TrafficBulletin> {
               isExpanded: true,
               value: _category,
               items: [
-                const DropdownMenuItem<TrafficCategory?>(
+                DropdownMenuItem<TrafficCategory?>(
                   value: null,
-                  child: Text('Alle Ereignistypen'),
+                  child: Text(context.translate("Alle Ereignistypen")),
                 ),
                 for (final c in TrafficCategory.values)
                   DropdownMenuItem(value: c, child: Text(c.label)),
@@ -181,17 +202,24 @@ class _TrafficBulletinState extends State<TrafficBulletin> {
               FilledButton.tonalIcon(
                 onPressed: widget.onShowMap,
                 icon: const Icon(Icons.map_outlined),
-                label: const Text('Aktuelle Meldungen auf Karte zeigen'),
+                label: Text(
+                  context.translate("Aktuelle Meldungen auf Karte zeigen"),
+                ),
               ),
             Text(
-              '${filtered.length} passende Ereignisse${widget.routeRecords != null ? " im Routenumfeld" : ""}',
+              context.translate("{0} passende Ereignisse{1}", [
+                filtered.length,
+                widget.routeRecords != null ? " im Routenumfeld" : "",
+              ]),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             if (filtered.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  'Keine passenden Meldungen. Das bestätigt keine freie Fahrt oder vollständige Quellenabdeckung.',
+                  context.translate(
+                    "Keine passenden Meldungen. Das bestätigt keine freie Fahrt oder vollständige Quellenabdeckung.",
+                  ),
                 ),
               ),
             for (final incident in filtered.take(_limit))
@@ -203,15 +231,23 @@ class _TrafficBulletinState extends State<TrafficBulletin> {
             if (filtered.length > _limit)
               OutlinedButton(
                 onPressed: () => setState(() => _limit += 30),
-                child: Text('Weitere Meldungen (${filtered.length - _limit})'),
+                child: Text(
+                  context.translate("Weitere Meldungen ({0})", [
+                    filtered.length - _limit,
+                  ]),
+                ),
               ),
             ExpansionTile(
-              title: const Text('Abdeckung und zusätzliche Verkehrsdaten'),
-              children: const [
+              title: Text(
+                context.translate("Abdeckung und zusätzliche Verkehrsdaten"),
+              ),
+              children: [
                 Padding(
                   padding: EdgeInsets.all(12),
                   child: Text(
-                    'ASTRA / VMZ-CH veröffentlicht Ereignismeldungen. Ohne passende offizielle TMC-Ortstabelle können reine Ortscodes nicht auf der Karte verortet werden. Solche Meldungen bleiben hier durchsuchbar. Kartenpunkte können nur eine Anzeigereferenz sein; gerade Linien bilden keinen genauen Straßenverlauf ab.\n\nDurchgehende Verkehrsdichte und verkehrsabhängige Ankunftszeiten sind damit nicht verfügbar. ASTRA bietet zusätzlich Geschwindigkeiten und Fahrzeugmengen an Zählstellen über einen separaten API-Zugang an.',
+                    context.translate(
+                      "ASTRA / VMZ-CH veröffentlicht Ereignismeldungen. Ohne passende offizielle TMC-Ortstabelle können reine Ortscodes nicht auf der Karte verortet werden. Solche Meldungen bleiben hier durchsuchbar. Kartenpunkte können nur eine Anzeigereferenz sein; gerade Linien bilden keinen genauen Straßenverlauf ab.\n\nDurchgehende Verkehrsdichte und verkehrsabhängige Ankunftszeiten sind damit nicht verfügbar. ASTRA bietet zusätzlich Geschwindigkeiten und Fahrzeugmengen an Zählstellen über einen separaten API-Zugang an.",
+                    ),
                   ),
                 ),
               ],
@@ -250,19 +286,32 @@ class TrafficIncidentCard extends StatelessWidget {
             if (!r.located)
               Text(
                 (r.data['tmcCodes'] as List?)?.isNotEmpty == true
-                    ? 'Ohne Kartenposition · TMC-Ortstabelle erforderlich'
-                    : 'Ohne nutzbare Quellenposition',
+                    ? context.translate(
+                        "Ohne Kartenposition · TMC-Ortstabelle erforderlich",
+                      )
+                    : context.translate("Ohne nutzbare Quellenposition"),
               ),
             if (r.data['geometryAccuracy'] == 'displayReference')
-              const Text('Anzeigereferenz · genaue Ausdehnung unbekannt'),
+              Text(
+                context.translate(
+                  "Anzeigereferenz · genaue Ausdehnung unbekannt",
+                ),
+              ),
             if ({
               'tmcAnchors',
               'tmcReference',
             }.contains(r.data['geometryAccuracy']))
-              const Text('TMC-Tabellenbezug · kein genauer Straßenverlauf'),
+              Text(
+                context.translate(
+                  "TMC-Tabellenbezug · kein genauer Straßenverlauf",
+                ),
+              ),
             if (along != null)
               Text(
-                'In ${((along - progressMeters).clamp(0, double.infinity) / 1000).toStringAsFixed(1)} km · im 300-m-Routenumfeld',
+                context.translate("In {0} km · im 300-m-Routenumfeld", [
+                  ((along - progressMeters).clamp(0, double.infinity) / 1000)
+                      .toStringAsFixed(1),
+                ]),
               ),
             ...labels.map(Text.new),
           ],
@@ -275,30 +324,53 @@ class TrafficIncidentCard extends StatelessWidget {
               children: [
                 SelectableText(
                   r.description.isEmpty
-                      ? 'Kein öffentlicher Beschreibungstext vorhanden.'
+                      ? context.translate(
+                          "Kein öffentlicher Beschreibungstext vorhanden.",
+                        )
                       : r.description,
                 ),
                 const SizedBox(height: 8),
-                Text('Meldung geändert: ${trafficTime(r.updated)}'),
                 Text(
-                  'Gültig ab: ${trafficTime(r.from)} · bis: ${trafficTime(r.until)}',
+                  context.translate("Meldung geändert: {0}", [
+                    trafficTime(r.updated),
+                  ]),
+                ),
+                Text(
+                  context.translate("Gültig ab: {0} · bis: {1}", [
+                    trafficTime(r.from),
+                    trafficTime(r.until),
+                  ]),
                 ),
                 if (r.data['recurring'] == true)
-                  const Text(
-                    'Die Quelle nennt wiederkehrende Zeitfenster. Einzelne Zeitfenster vor Fahrtantritt prüfen.',
+                  Text(
+                    context.translate(
+                      "Die Quelle nennt wiederkehrende Zeitfenster. Einzelne Zeitfenster vor Fahrtantritt prüfen.",
+                    ),
                   ),
                 if (r.data['tmcStatus'] case final String status) Text(status),
                 if (r.data['geometryAccuracy'] == 'approximateLine')
-                  const Text(
-                    'Gerade Verbindung zwischen Quellenpositionen; kein genauer Straßenverlauf.',
+                  Text(
+                    context.translate(
+                      "Gerade Verbindung zwischen Quellenpositionen; kein genauer Straßenverlauf.",
+                    ),
                   ),
                 if (r.data['tmcCodes'] case final List codes
                     when codes.isNotEmpty)
                   Text(
-                    'TMC-Version ${r.data['tmcVersion']} · Orte ${codes.join(", ")} · Richtungscode ${r.data['directionCode'] ?? "unbekannt"}',
+                    context.translate(
+                      "TMC-Version {0} · Orte {1} · Richtungscode {2}",
+                      [
+                        r.data['tmcVersion'],
+                        codes.join(", "),
+                        r.data['directionCode'] ?? "unbekannt",
+                      ],
+                    ),
                   ),
                 SelectableText(
-                  'ASTRA / VMZ-CH · Ereignis ${r.data['id']} · ${r.data['parts'] ?? 1} Teilmeldungen',
+                  context.translate(
+                    "ASTRA / VMZ-CH · Ereignis {0} · {1} Teilmeldungen",
+                    [r.data['id'], r.data['parts'] ?? 1],
+                  ),
                 ),
               ],
             ),

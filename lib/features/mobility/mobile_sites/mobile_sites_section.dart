@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -234,17 +236,19 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
       bucket: _formStorage,
       child: ExpansionTile(
         key: const ValueKey('mobile_sites_expansion'),
-        title: const Text('BAKOM Mobilfunk-Basisstationen'),
-        subtitle: const Text(
-          'Optional · Stationspunkte, keine Masthöhen oder Signalabdeckung',
+        title: Text(context.translate("BAKOM Mobilfunk-Basisstationen")),
+        subtitle: Text(
+          context.translate(
+            "Optional · Stationspunkte, keine Masthöhen oder Signalabdeckung",
+          ),
         ),
         initiallyExpanded: _open,
         onExpansionChanged: (open) => setState(() => _open = open),
         children: [
-          const Text(
-            'Offizielle BAKOM-Standorte. Stationstyp, Leistungsklasse und Technologie '
-            'werden nur nach Quellenangabe angezeigt. Die Koordinaten bezeichnen den ersten '
-            'Mast einer Station. Sie sind keine Hindernisgeometrie und messen keine FPV-Abdeckung.',
+          Text(
+            context.translate(
+              "Offizielle BAKOM-Standorte. Stationstyp, Leistungsklasse und Technologie werden nur nach Quellenangabe angezeigt. Die Koordinaten bezeichnen den ersten Mast einer Station. Sie sind keine Hindernisgeometrie und messen keine FPV-Abdeckung.",
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -253,7 +257,9 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 child: TextField(
                   key: const ValueKey('mobile_sites_lat'),
                   controller: _lat,
-                  decoration: const InputDecoration(labelText: 'Latitude'),
+                  decoration: InputDecoration(
+                    labelText: context.translate("Latitude"),
+                  ),
                   onChanged: (_) => setState(() => _snapshot = null),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -266,7 +272,9 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 child: TextField(
                   key: const ValueKey('mobile_sites_lon'),
                   controller: _lon,
-                  decoration: const InputDecoration(labelText: 'Longitude'),
+                  decoration: InputDecoration(
+                    labelText: context.translate("Longitude"),
+                  ),
                   onChanged: (_) => setState(() => _snapshot = null),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -293,13 +301,17 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                       }
                     },
               icon: const Icon(Icons.place_outlined),
-              label: const Text('Ausgewählten Kartenpunkt verwenden'),
+              label: Text(
+                context.translate("Ausgewählten Kartenpunkt verwenden"),
+              ),
             ),
           ),
           DropdownButtonFormField<int>(
             key: ValueKey('mobile_sites_radius_$_radius'),
             initialValue: _radius,
-            decoration: const InputDecoration(labelText: 'Suchradius'),
+            decoration: InputDecoration(
+              labelText: context.translate("Suchradius"),
+            ),
             items: [500, 1000, 2000, 5000]
                 .map(
                   (n) => DropdownMenuItem(
@@ -318,9 +330,13 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _allow,
-            title: const Text('Suchkoordinaten an geo.admin.ch senden'),
-            subtitle: const Text(
-              'Nur nach manuellem Start · begrenzte Abfrage, keine nationalen Downloads',
+            title: Text(
+              context.translate("Suchkoordinaten an geo.admin.ch senden"),
+            ),
+            subtitle: Text(
+              context.translate(
+                "Nur nach manuellem Start · begrenzte Abfrage, keine nationalen Downloads",
+              ),
             ),
             onChanged: _busy
                 ? null
@@ -334,11 +350,11 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 key: const ValueKey('mobile_sites_search'),
                 onPressed: _busy || !_allow ? null : () => _load(),
                 icon: const Icon(Icons.cell_tower),
-                label: const Text('Stationen suchen'),
+                label: Text(context.translate("Stationen suchen")),
               ),
               OutlinedButton(
                 onPressed: _busy || !_allow ? null : () => _load(refresh: true),
-                child: const Text('Aktualisieren'),
+                child: Text(context.translate("Aktualisieren")),
               ),
               OutlinedButton(
                 onPressed: _busy ? null : () => _load(offline: true),
@@ -346,7 +362,7 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
               ),
               OutlinedButton(
                 onPressed: _busy ? null : _discover,
-                child: const Text('STAC-Assets prüfen'),
+                child: Text(context.translate("STAC-Assets prüfen")),
               ),
             ],
           ),
@@ -355,43 +371,67 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
           if (_catalog != null) ...[
             const Divider(),
             Text(
-              'STAC-Stand: ${_catalog!.updatedUtc?.toIso8601String() ?? 'unbekannt'}',
+              context.translate("STAC-Stand: {0}", [
+                _catalog!.updatedUtc?.toIso8601String() ?? 'unbekannt',
+              ]),
             ),
             Text(
-              'Lizenz-Metadaten: ${_catalog!.licence} · '
-              '${_catalog!.assets.length} Asset-Verweise; davon '
-              '${_catalog!.assets.where((a) => a.supported).length} als JSON/CSV klassifiziert.',
+              context.translate(
+                "Lizenz-Metadaten: {0} · {1} Asset-Verweise; davon {2} als JSON/CSV klassifiziert.",
+                [
+                  _catalog!.licence,
+                  _catalog!.assets.length,
+                  _catalog!.assets.where((a) => a.supported).length,
+                ],
+              ),
             ),
             if (_catalog!.assets.any((asset) => !asset.supported))
-              const Text(
-                'Nicht unterstützte Datei-Assets (z. B. GeoPackage) werden nicht automatisch importiert.',
+              Text(
+                context.translate(
+                  "Nicht unterstützte Datei-Assets (z. B. GeoPackage) werden nicht automatisch importiert.",
+                ),
               ),
             if (_catalog!.termsUrl != null)
               TextButton(
                 onPressed: () => _openUrl(_catalog!.termsUrl.toString()),
-                child: const Text('Offizielle Nutzungsbedingungen'),
+                child: Text(
+                  context.translate("Offizielle Nutzungsbedingungen"),
+                ),
               ),
           ],
           if (snapshot != null) ...[
             const Divider(),
             Text(
-              '${snapshot.stations.length} Stationen · ${snapshot.ageDescription}',
+              context.translate("{0} Stationen · {1}", [
+                snapshot.stations.length,
+                snapshot.ageDescription,
+              ]),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             if (snapshot.fromCache)
-              const Text('Gespeicherte Daten · Aktualität nicht live geprüft'),
+              Text(
+                context.translate(
+                  "Gespeicherte Daten · Aktualität nicht live geprüft",
+                ),
+              ),
             if (snapshot.refreshFailed)
-              const Text(
-                'Aktualisierung fehlgeschlagen: vorhandener Stand bleibt erhalten.',
+              Text(
+                context.translate(
+                  "Aktualisierung fehlgeschlagen: vorhandener Stand bleibt erhalten.",
+                ),
               ),
             if (snapshot.isOld(DateTime.now()))
-              const Text('Datenabruf älter als 24 Stunden.'),
+              Text(context.translate("Datenabruf älter als 24 Stunden.")),
             if (snapshot.truncated)
-              const Text(
-                'Trefferlimit erreicht: keine vollständige Gebietserfassung. Suchradius verkleinern.',
+              Text(
+                context.translate(
+                  "Trefferlimit erreicht: keine vollständige Gebietserfassung. Suchradius verkleinern.",
+                ),
               ),
-            const Text(
-              'Keine Treffer bedeuten nicht, dass keine Anlage vorhanden ist.',
+            Text(
+              context.translate(
+                "Keine Treffer bedeuten nicht, dass keine Anlage vorhanden ist.",
+              ),
             ),
             Wrap(
               spacing: 8,
@@ -399,12 +439,12 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 FilledButton.icon(
                   onPressed: _busy ? null : _map,
                   icon: const Icon(Icons.map_outlined),
-                  label: const Text('Stationen auf dem 3D-Globus'),
+                  label: Text(context.translate("Stationen auf dem 3D-Globus")),
                 ),
                 if (widget.globe.situationalVisible('mobile-sites'))
                   TextButton(
                     onPressed: _busy ? null : _hide,
-                    child: const Text('Stationslayer ausblenden'),
+                    child: Text(context.translate("Stationslayer ausblenden")),
                   ),
               ],
             ),
@@ -412,7 +452,9 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
               ExpansionTile(
                 key: ValueKey('mobile_site_${site.id}'),
                 title: Text(site.station),
-                subtitle: Text(site.technology ?? 'Technologie unbekannt'),
+                subtitle: Text(
+                  site.technology ?? context.translate("Technologie unbekannt"),
+                ),
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
@@ -428,14 +470,16 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
               'https://www.bakom.admin.ch/de/erlaeuterungen-zur-ubersichtskarte',
             ),
             icon: const Icon(Icons.open_in_new),
-            label: const Text('BAKOM-Erklärungen und amtliche Quelle'),
+            label: Text(
+              context.translate("BAKOM-Erklärungen und amtliche Quelle"),
+            ),
           ),
           TextButton.icon(
             onPressed: () => _openUrl(
               'https://data.geo.admin.ch/api/stac/v1/collections/$mobileSiteCollectionId',
             ),
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Offizielle STAC-Collection'),
+            label: Text(context.translate("Offizielle STAC-Collection")),
           ),
         ],
       ),

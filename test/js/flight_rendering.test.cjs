@@ -43,6 +43,23 @@ test('fast turns only ease pending terrain refinement, then restore full detail 
     budget.stop();time+=100;budget.update(point);assert.equal(writes,settled);
 });
 
+test('a low pull-up limits the next terrain load before the old view reports pending tiles',()=>{
+    let time=0;
+    const globe={tilesLoaded:true,maximumScreenSpaceError:2,_surface:{_loadQueueTimeSlice:5}};
+    const budget=createStreamingBudget(globe,{now:()=>time});
+    const pose={heading:0,pitch:-.75,roll:0,agl:9,verticalSpeed:-20};
+    budget.start();budget.update(pose);
+    assert.equal(globe._surface._loadQueueTimeSlice,2);
+    time=16;budget.update({...pose,pitch:-.4,verticalSpeed:-8});
+    assert.equal(globe._surface._loadQueueTimeSlice,2);
+    assert.equal(globe.maximumScreenSpaceError,2);
+    time=430;budget.update({...pose,pitch:-.4,verticalSpeed:0});
+    assert.equal(globe._surface._loadQueueTimeSlice,5);
+    time=446;budget.update({...pose,pitch:.1});
+    assert.equal(globe._surface._loadQueueTimeSlice,2);
+    budget.stop();assert.equal(globe._surface._loadQueueTimeSlice,5);
+});
+
 test('low flight relieves real streaming stalls without changing normal smooth low flight',()=>{
     let time=0;
     const globe={tilesLoaded:false,maximumScreenSpaceError:2},budget=createStreamingBudget(globe,{now:()=>time});

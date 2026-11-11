@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/models/scene_time.dart';
 
 /// Shared by route planning and pre-flight settings; dates are stored in UTC.
@@ -52,8 +54,10 @@ class SceneTimeControl extends StatelessWidget {
       children: [
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Eigene Sonnen- und Mondzeit'),
-          subtitle: const Text('Aus: Beleuchtung der Karte verwenden.'),
+          title: Text(context.translate("Eigene Sonnen- und Mondzeit")),
+          subtitle: Text(
+            context.translate("Aus: Beleuchtung der Karte verwenden."),
+          ),
           value: value.enabled,
           onChanged: (enabled) =>
               onChanged(SceneTime(enabled: enabled, fixedUtc: value.fixedUtc)),
@@ -66,17 +70,19 @@ class SceneTimeControl extends StatelessWidget {
               TextButton.icon(
                 onPressed: () => onChanged(const SceneTime(enabled: true)),
                 icon: const Icon(Icons.update),
-                label: const Text('Jetzt'),
+                label: Text(context.translate("Jetzt")),
               ),
               TextButton.icon(
                 onPressed: () => _choose(context),
                 icon: const Icon(Icons.event_outlined),
-                label: const Text('Datum und Uhrzeit'),
+                label: Text(context.translate("Datum und Uhrzeit")),
               ),
             ],
           ),
-          const Text(
-            'Eingabe in der Zeitzone des Geräts; gespeichert in UTC. Nur Lichtvorschau, keine Wetter- oder Freigabeprüfung.',
+          Text(
+            context.translate(
+              "Eingabe in der Zeitzone des Geräts; gespeichert in UTC. Nur Lichtvorschau, keine Wetter- oder Freigabeprüfung.",
+            ),
           ),
         ],
       ],

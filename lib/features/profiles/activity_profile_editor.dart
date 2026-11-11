@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/models/activity_profile.dart';
 import '../../core/models/user_preferences.dart';
 import '../help/guides_screen.dart';
@@ -53,9 +55,11 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Profil wurde nicht gespeichert. Dein Entwurf bleibt erhalten; bitte erneut versuchen.',
+            context.translate(
+              "Profil wurde nicht gespeichert. Dein Entwurf bleibt erhalten; bitte erneut versuchen.",
+            ),
           ),
         ),
       );
@@ -97,10 +101,13 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
             : 0,
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
-        items: const [
-          DropdownMenuItem(value: -1, child: Text('Beibehalten')),
-          DropdownMenuItem(value: 1, child: Text('Ein')),
-          DropdownMenuItem(value: 0, child: Text('Aus')),
+        items: [
+          DropdownMenuItem(
+            value: -1,
+            child: Text(context.translate("Beibehalten")),
+          ),
+          DropdownMenuItem(value: 1, child: Text(context.translate("Ein"))),
+          DropdownMenuItem(value: 0, child: Text(context.translate("Aus"))),
         ],
         onChanged: (v) => setState(() {
           _changed = true;
@@ -113,15 +120,15 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
       await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Änderungen verwerfen?'),
+              title: Text(context.translate("Änderungen verwerfen?")),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Weiter bearbeiten'),
+                  child: Text(context.translate("Weiter bearbeiten")),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Verwerfen'),
+                  child: Text(context.translate("Verwerfen")),
                 ),
               ],
             ),
@@ -141,7 +148,7 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
       }
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('Profil bearbeiten')),
+      appBar: AppBar(title: Text(context.translate("Profil bearbeiten"))),
       body: SafeArea(
         child: Form(
           key: _form,
@@ -172,29 +179,31 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
                             : null,
                       ),
                       const SizedBox(height: 8),
-                      const Text('Kartenstartwerte beim Aktivieren'),
+                      Text(
+                        context.translate("Kartenstartwerte beim Aktivieren"),
+                      ),
                       DropdownButtonFormField<String>(
                         initialValue: _style?.name ?? 'keep',
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Hintergrundkarte',
+                        decoration: InputDecoration(
+                          labelText: context.translate("Hintergrundkarte"),
                         ),
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: 'keep',
-                            child: Text('Beibehalten'),
+                            child: Text(context.translate("Beibehalten")),
                           ),
                           DropdownMenuItem(
                             value: 'satellite',
-                            child: Text('Satellit'),
+                            child: Text(context.translate("Satellit")),
                           ),
                           DropdownMenuItem(
                             value: 'topographic',
-                            child: Text('Topografisch'),
+                            child: Text(context.translate("Topografisch")),
                           ),
                           DropdownMenuItem(
                             value: 'relief',
-                            child: Text('Relief'),
+                            child: Text(context.translate("Relief")),
                           ),
                         ],
                         onChanged: (value) => setState(() {
@@ -234,7 +243,9 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
                       FilledButton.icon(
                         icon: const Icon(Icons.save_outlined),
                         label: Text(
-                          _saving ? 'Wird gespeichert…' : 'Profil speichern',
+                          _saving
+                              ? context.translate("Wird gespeichert…")
+                              : context.translate("Profil speichern"),
                         ),
                         onPressed: _saving ? null : _save,
                       ),

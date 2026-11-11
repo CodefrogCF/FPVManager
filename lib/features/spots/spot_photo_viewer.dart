@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import 'data/spot_photo.dart';
@@ -46,7 +48,7 @@ class _PhotoDialogState extends State<_PhotoDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Spot photo'),
+    title: Text(context.translate("Spot photo")),
     content: SizedBox(
       width: 800,
       height: MediaQuery.sizeOf(context).height * .6,
@@ -58,10 +60,10 @@ class _PhotoDialogState extends State<_PhotoDialog> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Unable to load this photo.'),
+                  Text(context.translate("Unable to load this photo.")),
                   TextButton(
                     onPressed: () => setState(_load),
-                    child: const Text('Retry'),
+                    child: Text(context.translate("Retry")),
                   ),
                 ],
               ),
@@ -71,8 +73,10 @@ class _PhotoDialogState extends State<_PhotoDialog> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.data == null) {
-            return const Center(
-              child: Text('This photo is no longer available.'),
+            return Center(
+              child: Text(
+                context.translate("This photo is no longer available."),
+              ),
             );
           }
           return InteractiveViewer(
@@ -81,9 +85,10 @@ class _PhotoDialogState extends State<_PhotoDialog> {
             child: Image.memory(
               snapshot.data!,
               fit: BoxFit.contain,
-              semanticLabel: 'Saved spot photo',
-              errorBuilder: (context, error, stack) =>
-                  const Center(child: Text('Unable to display this photo.')),
+              semanticLabel: context.translate("Saved spot photo"),
+              errorBuilder: (context, error, stack) => Center(
+                child: Text(context.translate("Unable to display this photo.")),
+              ),
             ),
           );
         },
@@ -92,7 +97,7 @@ class _PhotoDialogState extends State<_PhotoDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Close'),
+        child: Text(context.translate("Close")),
       ),
     ],
   );
@@ -117,7 +122,7 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
       .watchPhotos(widget.spotId);
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text('Photos: ${widget.spotName}'),
+    title: Text(context.translate("Photos: {0}", [widget.spotName])),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -125,15 +130,21 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
           stream: _photos,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return const Text(
-                'Unable to load photos. Close this window and try again.',
+              return Text(
+                context.translate(
+                  "Unable to load photos. Close this window and try again.",
+                ),
               );
             }
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.data!.isEmpty) {
-              return const Text('No photos yet. Edit this spot to add photos.');
+              return Text(
+                context.translate(
+                  "No photos yet. Edit this spot to add photos.",
+                ),
+              );
             }
             return Wrap(
               spacing: 12,
@@ -151,7 +162,7 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
                       width: 120,
                       height: 100,
                       fit: BoxFit.cover,
-                      semanticLabel: 'Open spot photo',
+                      semanticLabel: context.translate("Open spot photo"),
                       errorBuilder: (context, error, stack) => const SizedBox(
                         width: 120,
                         height: 100,
@@ -168,7 +179,7 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Close'),
+        child: Text(context.translate("Close")),
       ),
     ],
   );

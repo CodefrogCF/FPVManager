@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/osint/osint_provider_state.dart';
@@ -39,8 +41,11 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Map layer error: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.translate("Map layer error: {0}", [error])),
+        ),
+      );
     }
   }
 
@@ -92,7 +97,7 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             title: Text(source.name),
             subtitle: Text(
               controller.uasZonesLoading
-                  ? 'Loading zone data...'
+                  ? context.translate("Loading zone data...")
                   : source.publisher,
             ),
             value: controller.uasZonesVisible,
@@ -111,8 +116,9 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
           const SizedBox(height: 12),
 
           Text(
-            'Polygon fill opacity: '
-            '${(opacity * 100).round()}%',
+            context.translate("Polygon fill opacity: {0}%", [
+              (opacity * 100).round(),
+            ]),
           ),
 
           Slider(
@@ -145,12 +151,12 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             children: [
               Expanded(
                 child: Text(
-                  'Datenstand',
+                  context.translate("Datenstand"),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
               IconButton(
-                tooltip: 'Refresh UAS data',
+                tooltip: context.translate("Refresh UAS data"),
                 onPressed:
                     controller.isReady &&
                         controller.canEditPreferences &&
@@ -206,18 +212,20 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
           ),
           if (assessment != null && assessment.issues.isNotEmpty)
             Text(assessment.issues.first),
-          const Text(
-            'Weitere Einschränkungen möglich. Vor dem Flug amtliche Quellen prüfen.',
+          Text(
+            context.translate(
+              "Weitere Einschränkungen möglich. Vor dem Flug amtliche Quellen prüfen.",
+            ),
           ),
           TextButton.icon(
             onPressed: () => showAirspaceSafetyPanel(context, controller),
             icon: const Icon(Icons.verified_user_outlined),
-            label: const Text('Amtliche Quellen & Sicherheit'),
+            label: Text(context.translate("Amtliche Quellen & Sicherheit")),
           ),
           ExpansionTile(
             key: const PageStorageKey('map-airspace-source-details'),
             tilePadding: EdgeInsets.zero,
-            title: const Text('Daten & Quellen'),
+            title: Text(context.translate("Daten & Quellen")),
             children: [
               _InfoRow(label: 'Provider', value: source.publisher),
 
@@ -248,7 +256,7 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                     ? () => _execute(controller.clearUasCache)
                     : null,
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('Clear UAS dataset cache'),
+                label: Text(context.translate("Clear UAS dataset cache")),
               ),
 
               _InfoRow(

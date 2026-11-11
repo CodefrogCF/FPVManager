@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import 'backup_codec.dart';
 import 'backup_file_service.dart';
@@ -100,18 +102,20 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         password = await showDialog<String>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Backup password'),
+            title: Text(context.translate("Backup password")),
             content: TextField(
               onChanged: (value) => input = value,
               obscureText: true,
               enableSuggestions: false,
               autocorrect: false,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: InputDecoration(
+                labelText: context.translate("Password"),
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(context.translate("Cancel")),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, input),
@@ -145,18 +149,22 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Replace personal data?'),
+        title: Text(context.translate("Replace personal data?")),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Backup from ${document['createdAt']}'),
+              Text(
+                context.translate("Backup from {0}", [document['createdAt']]),
+              ),
               const SizedBox(height: 12),
               for (final e in counts.entries) Text('${e.value}: ${e.key}'),
               const SizedBox(height: 12),
-              const Text(
-                'This replaces your current spots, equipment, routes, images, checklists, telemetry and backed-up preferences. Restored map preferences can reconnect enabled layers. API keys and downloaded maps/data remain on this device. Create a backup of your current data first.',
+              Text(
+                context.translate(
+                  "This replaces your current spots, equipment, routes, images, checklists, telemetry and backed-up preferences. Restored map preferences can reconnect enabled layers. API keys and downloaded maps/data remain on this device. Create a backup of your current data first.",
+                ),
               ),
             ],
           ),
@@ -164,11 +172,11 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.translate("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Replace and restore'),
+            child: Text(context.translate("Replace and restore")),
           ),
         ],
       ),
@@ -193,7 +201,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
     child: Scaffold(
-      appBar: AppBar(title: const Text('Offline & personal data')),
+      appBar: AppBar(title: Text(context.translate("Offline & personal data"))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -212,15 +220,17 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
           ),
           const Divider(height: 32),
           Text(
-            'Portable backups',
+            context.translate("Portable backups"),
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          const Text(
-            'Save spots, images, equipment, routes, checklists, telemetry and planning preferences in one local file (up to 64 MiB). Public map/OSINT caches and API keys are excluded.',
+          Text(
+            context.translate(
+              "Save spots, images, equipment, routes, checklists, telemetry and planning preferences in one local file (up to 64 MiB). Public map/OSINT caches and API keys are excluded.",
+            ),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Protect backup with a password'),
+            title: Text(context.translate("Protect backup with a password")),
             value: _encrypt,
             onChanged: _busy ? null : (v) => setState(() => _encrypt = v),
           ),
@@ -231,8 +241,10 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
               obscureText: true,
               enableSuggestions: false,
               autocorrect: false,
-              decoration: const InputDecoration(
-                labelText: 'Password (at least 12 characters)',
+              decoration: InputDecoration(
+                labelText: context.translate(
+                  "Password (at least 12 characters)",
+                ),
               ),
             ),
             TextField(
@@ -241,23 +253,29 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
               obscureText: true,
               enableSuggestions: false,
               autocorrect: false,
-              decoration: const InputDecoration(labelText: 'Repeat password'),
+              decoration: InputDecoration(
+                labelText: context.translate("Repeat password"),
+              ),
             ),
-            const Text('A forgotten password cannot be recovered.'),
+            Text(
+              context.translate("A forgotten password cannot be recovered."),
+            ),
           ] else
-            const Text(
-              'Unprotected backups contain readable personal data, including coordinates, notes and images.',
+            Text(
+              context.translate(
+                "Unprotected backups contain readable personal data, including coordinates, notes and images.",
+              ),
             ),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: _busy ? null : _export,
             icon: const Icon(Icons.save_alt),
-            label: const Text('Create backup'),
+            label: Text(context.translate("Create backup")),
           ),
           OutlinedButton.icon(
             onPressed: _busy ? null : _import,
             icon: const Icon(Icons.restore),
-            label: const Text('Restore backup'),
+            label: Text(context.translate("Restore backup")),
           ),
           if (_busy) const LinearProgressIndicator(),
           if (_status != null)

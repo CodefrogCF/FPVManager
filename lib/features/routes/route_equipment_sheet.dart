@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'route_editor_controller.dart';
 
 Future<void> showRouteEquipment(
@@ -43,22 +45,24 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Route equipment',
+                  context.translate("Route equipment"),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 if (widget.editor.equipmentError case final error?) ...[
                   Text(error),
                   TextButton(
                     onPressed: widget.editor.loadEquipment,
-                    child: const Text('Retry'),
+                    child: Text(context.translate("Retry")),
                   ),
                 ] else if (equipment == null)
                   const LinearProgressIndicator(),
                 if (equipment != null) ...[
                   if (_drone != null &&
                       !equipment.drones.any((d) => d.drone.id == _drone))
-                    const Text(
-                      'The assigned drone was deleted. Choose another profile or clear the assignment.',
+                    Text(
+                      context.translate(
+                        "The assigned drone was deleted. Choose another profile or clear the assignment.",
+                      ),
                     ),
                   DropdownButtonFormField<int>(
                     initialValue:
@@ -66,12 +70,12 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                         ? _drone
                         : null,
                     isExpanded: true,
-                    hint: const Text('No drone assigned'),
+                    hint: Text(context.translate("No drone assigned")),
                     decoration: const InputDecoration(labelText: 'Drone'),
                     items: [
-                      const DropdownMenuItem<int>(
+                      DropdownMenuItem<int>(
                         value: null,
-                        child: Text('No drone assigned'),
+                        child: Text(context.translate("No drone assigned")),
                       ),
                       for (final d in equipment.drones)
                         DropdownMenuItem(
@@ -82,16 +86,20 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                     onChanged: (v) => setState(() => _drone = v),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Batteries are alternative packs for one flight. Their capacities are assessed individually.',
+                  Text(
+                    context.translate(
+                      "Batteries are alternative packs for one flight. Their capacities are assessed individually.",
+                    ),
                   ),
                   Expanded(
                     child: ListView(
                       children: [
                         if (equipment.batteries.isEmpty)
-                          const ListTile(
+                          ListTile(
                             title: Text(
-                              'Create battery profiles in Equipment first.',
+                              context.translate(
+                                "Create battery profiles in Equipment first.",
+                              ),
                             ),
                           ),
                         for (final b in equipment.batteries)
@@ -99,7 +107,11 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                             contentPadding: EdgeInsets.zero,
                             title: Text(b.name),
                             subtitle: Text(
-                              '${b.cellCount}S · ${b.capacityMah} mAh · ${b.availability}',
+                              context.translate("{0}S · {1} mAh · {2}", [
+                                b.cellCount,
+                                b.capacityMah,
+                                b.availability,
+                              ]),
                             ),
                             value: _batteries.contains(b.id),
                             onChanged: (v) => setState(() {
@@ -125,7 +137,7 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                       );
                       Navigator.pop(context);
                     },
-                    child: const Text('Apply equipment'),
+                    child: Text(context.translate("Apply equipment")),
                   ),
                 ],
               ],

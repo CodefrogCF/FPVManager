@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -118,15 +120,20 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
           onChanged: (value) => _set(id, value),
           title: Text(title),
           subtitle: Text(
-            '$caption\nKacheln: $status · Quelldatum nicht durch Kachelladen bestätigt',
+            context.translate(
+              "{0}\nKacheln: {1} · Quelldatum nicht durch Kachelladen bestätigt",
+              [caption, status],
+            ),
           ),
         ),
         if (id == 'drought-index')
           DropdownButtonFormField<DroughtTimeStep>(
             key: const ValueKey('drought_index_step'),
             initialValue: _step,
-            decoration: const InputDecoration(
-              labelText: 'CDI-Zeitstand (offizieller WMS-Parameter)',
+            decoration: InputDecoration(
+              labelText: context.translate(
+                "CDI-Zeitstand (offizieller WMS-Parameter)",
+              ),
             ),
             items: [
               for (final step in DroughtTimeStep.values)
@@ -143,7 +150,9 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
             },
           ),
         if (id == 'drought-index' && _step.isForecast)
-          const Text('Prognosezeitstand: keine direkte Beobachtung.'),
+          Text(
+            context.translate("Prognosezeitstand: keine direkte Beobachtung."),
+          ),
         if (enabled) ...[
           Slider(
             value: widget.globe.situationalOpacity(id),
@@ -154,7 +163,7 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
             TextButton.icon(
               onPressed: () => _set(id, true, retry: true),
               icon: const Icon(Icons.refresh),
-              label: const Text('Kacheln erneut versuchen'),
+              label: Text(context.translate("Kacheln erneut versuchen")),
             ),
         ],
         Align(
@@ -162,7 +171,9 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
           child: TextButton.icon(
             icon: const Icon(Icons.open_in_new),
             onPressed: () => _open(legendUrl),
-            label: const Text('Amtliche Legende / Produktinformation'),
+            label: Text(
+              context.translate("Amtliche Legende / Produktinformation"),
+            ),
           ),
         ),
         const Divider(),
@@ -190,15 +201,21 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
         tilePadding: EdgeInsets.zero,
         initiallyExpanded: _expanded,
         onExpansionChanged: (value) => setState(() => _expanded = value),
-        title: const Text('Trockenheit & Vegetationszustand (BAFU / swissEO)'),
-        subtitle: const Text(
-          'Drei unabhängige amtliche Kartenebenen · optional',
+        title: Text(
+          context.translate(
+            "Trockenheit & Vegetationszustand (BAFU / swissEO)",
+          ),
+        ),
+        subtitle: Text(
+          context.translate(
+            "Drei unabhängige amtliche Kartenebenen · optional",
+          ),
         ),
         children: [
-          const Text(
-            'Regionale Indikatoren und satellitengestützte Modelle, keine Messung der '
-            'lokalen Bodenfeuchte. Weder Feuerverbote noch Wasserentnahmebeschränkungen '
-            'werden aus diesen Karten abgeleitet. Fehlende Kacheln sind keine Entwarnung.',
+          Text(
+            context.translate(
+              "Regionale Indikatoren und satellitengestützte Modelle, keine Messung der lokalen Bodenfeuchte. Weder Feuerverbote noch Wasserentnahmebeschränkungen werden aus diesen Karten abgeleitet. Fehlende Kacheln sind keine Entwarnung.",
+            ),
           ),
           const SizedBox(height: 8),
           _layer(
@@ -228,14 +245,15 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
                 'landwirtschaftliche Flächen können nutzungsbedingt abweichen',
             'https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi',
           ),
-          const Text(
-            'VHI v100 wird laut swisstopo bis Ende 2026 durch v200 ersetzt. '
-            'Bis zur verifizierten Umstellung ist der aktuelle Layer eine Übergangslösung.',
+          Text(
+            context.translate(
+              "VHI v100 wird laut swisstopo bis Ende 2026 durch v200 ersetzt. Bis zur verifizierten Umstellung ist der aktuelle Layer eine Übergangslösung.",
+            ),
           ),
-          const Text(
-            'STAC-Metadaten für swissEO VHI werden nur auf Wunsch abgefragt. '
-            'Der Abrufzeitpunkt und der Beobachtungszeitraum werden getrennt gespeichert. '
-            'WMS-/WMTS-Kacheln werden nicht als Offline-Datensatz archiviert.',
+          Text(
+            context.translate(
+              "STAC-Metadaten für swissEO VHI werden nur auf Wunsch abgefragt. Der Abrufzeitpunkt und der Beobachtungszeitraum werden getrennt gespeichert. WMS-/WMTS-Kacheln werden nicht als Offline-Datensatz archiviert.",
+            ),
           ),
           if (_checking) const LinearProgressIndicator(),
           Wrap(
@@ -245,35 +263,60 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
               OutlinedButton(
                 key: const ValueKey('drought_offline_metadata'),
                 onPressed: _checking ? null : () => _check(offline: true),
-                child: const Text('Gespeicherten Stand'),
+                child: Text(context.translate("Gespeicherten Stand")),
               ),
               FilledButton.tonal(
                 key: const ValueKey('drought_refresh_metadata'),
                 onPressed: _checking ? null : () => _check(refresh: true),
-                child: const Text('STAC-Datenstand prüfen'),
+                child: Text(context.translate("STAC-Datenstand prüfen")),
               ),
             ],
           ),
           if (_message != null) Text(_message!),
           if (data != null) ...[
-            Text('swissEO VHI · Datenstatus: ${state?.label ?? 'unbekannt'}'),
-            Text('Beobachtungszeit: ${_date(data.observedUtc)}'),
             Text(
-              'Beobachtungszeitraum (STAC): ${_date(data.periodStartUtc)} – ${_date(data.periodEndUtc)}',
+              context.translate("swissEO VHI · Datenstatus: {0}", [
+                state?.label ?? 'unbekannt',
+              ]),
             ),
-            Text('Quellenveröffentlichung: ${_date(data.publishedUtc)}'),
-            Text('Metadaten heruntergeladen: ${_date(data.fetchedUtc)}'),
+            Text(
+              context.translate("Beobachtungszeit: {0}", [
+                _date(data.observedUtc),
+              ]),
+            ),
+            Text(
+              context.translate("Beobachtungszeitraum (STAC): {0} – {1}", [
+                _date(data.periodStartUtc),
+                _date(data.periodEndUtc),
+              ]),
+            ),
+            Text(
+              context.translate("Quellenveröffentlichung: {0}", [
+                _date(data.publishedUtc),
+              ]),
+            ),
+            Text(
+              context.translate("Metadaten heruntergeladen: {0}", [
+                _date(data.fetchedUtc),
+              ]),
+            ),
             if (data.incompletePage)
-              const Text(
-                'Nur begrenzte STAC-Auswahl geprüft; Vollständigkeit nicht bestätigt.',
+              Text(
+                context.translate(
+                  "Nur begrenzte STAC-Auswahl geprüft; Vollständigkeit nicht bestätigt.",
+                ),
               ),
             if (data.fromCache)
-              const Text(
-                'Gespeicherter Metadatenstand – keine aktuelle Live-Bestätigung.',
+              Text(
+                context.translate(
+                  "Gespeicherter Metadatenstand – keine aktuelle Live-Bestätigung.",
+                ),
               ),
             if (data.refreshFailed)
-              const Text(
-                'Aktualisierung fehlgeschlagen; vorheriger Stand wird beibehalten.',
+              Text(
+                context.translate(
+                  "Aktualisierung fehlgeschlagen; vorheriger Stand wird beibehalten.",
+                ),
               ),
           ],
           const Text(

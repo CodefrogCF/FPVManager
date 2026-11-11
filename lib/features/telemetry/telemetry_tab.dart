@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart';
@@ -35,8 +38,9 @@ class _TelemetryTabState extends State<TelemetryTab> {
       await action();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Telemetry: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate("Telemetry: {0}", [e]))),
+        );
       }
     } finally {
       if (mounted) {
@@ -97,22 +101,26 @@ class _TelemetryTabState extends State<TelemetryTab> {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(16),
     children: [
-      const Text(
-        'Import one continuous flight. Raw CSV stays in the local database. No telemetry is uploaded.',
+      Text(
+        context.translate(
+          "Import one continuous flight. Raw CSV stays in the local database. No telemetry is uploaded.",
+        ),
       ),
       const SizedBox(height: 8),
       FilledButton.icon(
         onPressed: _busy ? null : () => _run(_import),
         icon: const Icon(Icons.file_open_outlined),
-        label: const Text('Import telemetry CSV'),
+        label: Text(context.translate("Import telemetry CSV")),
       ),
-      const ExpansionTile(
-        title: Text('Supported formats'),
+      ExpansionTile(
+        title: Text(context.translate("Supported formats")),
         children: [
           Padding(
             padding: EdgeInsets.all(12),
             child: SelectableText(
-              'FPVManager CSV v1: time_s,airspeed_m_s,voltage_v,current_a (groundspeed_m_s is also accepted).\nEdgeTX: Date, Time, GSpd(kmh/km/h/m/s/kts), Curr(A), VFAS(V) or Bat(V).\nUse a single voltage and speed column. UTF-8, decimal dot, 2–20000 rows, up to 4 MiB, gaps ≤30 s. Missing measurements are rejected. See docs/preflight.md for an example.',
+              context.translate(
+                "FPVManager CSV v1: time_s,airspeed_m_s,voltage_v,current_a (groundspeed_m_s is also accepted).\nEdgeTX: Date, Time, GSpd(kmh/km/h/m/s/kts), Curr(A), VFAS(V) or Bat(V).\nUse a single voltage and speed column. UTF-8, decimal dot, 2–20000 rows, up to 4 MiB, gaps ≤30 s. Missing measurements are rejected. See docs/preflight.md for an example.",
+              ),
             ),
           ),
         ],
@@ -123,8 +131,10 @@ class _TelemetryTabState extends State<TelemetryTab> {
         stream: _logs,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Text(
-              'Local telemetry unavailable. Reopen this screen to retry.',
+            return Text(
+              context.translate(
+                "Local telemetry unavailable. Reopen this screen to retry.",
+              ),
             );
           }
           if (!snapshot.hasData) return const LinearProgressIndicator();
@@ -134,10 +144,14 @@ class _TelemetryTabState extends State<TelemetryTab> {
                 ListTile(
                   leading: const Icon(Icons.insights),
                   title: Text(row.fileName),
-                  subtitle: Text('Imported ${row.importedAt.toLocal()}'),
+                  subtitle: Text(
+                    context.translate("Imported {0}", [
+                      row.importedAt.toLocal(),
+                    ]),
+                  ),
                   onTap: _busy ? null : () => _run(() => _open(row.id)),
                   trailing: IconButton(
-                    tooltip: 'Delete local telemetry',
+                    tooltip: context.translate("Delete local telemetry"),
                     icon: const Icon(Icons.delete_outline),
                     onPressed: _busy
                         ? null
@@ -146,18 +160,20 @@ class _TelemetryTabState extends State<TelemetryTab> {
                             final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('Delete raw telemetry?'),
+                                title: Text(
+                                  context.translate("Delete raw telemetry?"),
+                                ),
                                 content: Text(row.fileName),
                                 actions: [
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
+                                    child: Text(context.translate("Cancel")),
                                   ),
                                   FilledButton(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
-                                    child: const Text('Delete'),
+                                    child: Text(context.translate("Delete")),
                                   ),
                                 ],
                               ),
@@ -176,19 +192,35 @@ class _TelemetryTabState extends State<TelemetryTab> {
   );
 }
 
-Widget _measurements(TelemetryLog log) => Column(
+Widget _measurements(BuildContext context, TelemetryLog log) => Column(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
-    Text('${log.format} · ${log.samples.length} samples'),
-    Text('Recorded duration: ${log.duration.toStringAsFixed(1)} s'),
     Text(
-      'Average ${log.isAirspeed ? "air" : "ground"} speed: ${log.averageSpeed.toStringAsFixed(2)} m/s · maximum ${log.maxSpeed.toStringAsFixed(2)} m/s',
+      context.translate('{0} · {1} samples', [log.format, log.samples.length]),
     ),
     Text(
-      'Measured energy: ${log.energyWh.toStringAsFixed(3)} Wh · average power ${log.averagePower.toStringAsFixed(1)} W',
+      context.translate('Recorded duration: {0} s', [
+        log.duration.toStringAsFixed(1),
+      ]),
     ),
-    const Text(
-      'Duration includes all recorded idle/hover time. Trim the log to one flight before importing.',
+    Text(
+      context.translate(
+        log.isAirspeed
+            ? 'Average airspeed: {0} m/s · maximum {1} m/s'
+            : 'Average ground speed: {0} m/s · maximum {1} m/s',
+        [log.averageSpeed.toStringAsFixed(2), log.maxSpeed.toStringAsFixed(2)],
+      ),
+    ),
+    Text(
+      context.translate('Measured energy: {0} Wh · average power {1} W', [
+        log.energyWh.toStringAsFixed(3),
+        log.averagePower.toStringAsFixed(1),
+      ]),
+    ),
+    Text(
+      context.translate(
+        'Duration includes all recorded idle/hover time. Trim the log to one flight before importing.',
+      ),
     ),
   ],
 );
@@ -212,7 +244,7 @@ class _ImportPreviewState extends State<_ImportPreview> {
   int? _drone, _plan;
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Import telemetry locally?'),
+    title: Text(context.translate("Import telemetry locally?")),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -221,12 +253,14 @@ class _ImportPreviewState extends State<_ImportPreview> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.name),
-            _measurements(widget.log),
+            _measurements(context, widget.log),
             DropdownButtonFormField<int>(
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Drone'),
               items: [
-                const DropdownMenuItem<int>(child: Text('Unassigned')),
+                DropdownMenuItem<int>(
+                  child: Text(context.translate("Unassigned")),
+                ),
                 for (final d in widget.drones)
                   DropdownMenuItem(value: d.id, child: Text(d.name)),
               ],
@@ -234,11 +268,13 @@ class _ImportPreviewState extends State<_ImportPreview> {
             ),
             DropdownButtonFormField<int>(
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Flight plan for comparison',
+              decoration: InputDecoration(
+                labelText: context.translate("Flight plan for comparison"),
               ),
               items: [
-                const DropdownMenuItem<int>(child: Text('Unassigned')),
+                DropdownMenuItem<int>(
+                  child: Text(context.translate("Unassigned")),
+                ),
                 for (final p in widget.plans)
                   DropdownMenuItem(value: p.id, child: Text(p.name)),
               ],
@@ -251,11 +287,11 @@ class _ImportPreviewState extends State<_ImportPreview> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text(context.translate("Cancel")),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, (_drone, _plan)),
-        child: const Text('Import locally'),
+        child: Text(context.translate("Import locally")),
       ),
     ],
   );
@@ -342,18 +378,21 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
-        title: const Text('Apply route calibration?'),
+        title: Text(context.translate("Apply route calibration?")),
         content: Text(
-          'Scale this saved route’s power curve by ${factor.toStringAsFixed(3)}. This is a level-flight approximation over the logged speed profile; climbs, wind, aggressive maneuvers and battery/sensor errors can distort it. The original CSV remains stored. Other routes and drone specifications are unchanged.',
+          context.translate(
+            "Scale this saved route’s power curve by {0}. This is a level-flight approximation over the logged speed profile; climbs, wind, aggressive maneuvers and battery/sensor errors can distort it. The original CSV remains stored. Other routes and drone specifications are unchanged.",
+            [factor.toStringAsFixed(3)],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.translate("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Apply to this route'),
+            child: Text(context.translate("Apply to this route")),
           ),
         ],
       ),
@@ -391,18 +430,23 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _measurements(widget.log),
+        _measurements(context, widget.log),
         const Divider(),
-        const Text('Model comparison', style: TextStyle(fontSize: 20)),
-        const Text(
-          'The route power curve is evaluated at every recorded speed with its mass correction. Energy uses trapezoidal integration of voltage × current. No climb or maneuver correction is inferred.',
+        Text(
+          context.translate("Model comparison"),
+          style: TextStyle(fontSize: 20),
+        ),
+        Text(
+          context.translate(
+            "The route power curve is evaluated at every recorded speed with its mass correction. Energy uses trapezoidal integration of voltage × current. No climb or maneuver correction is inferred.",
+          ),
         ),
         if (!widget.log.isAirspeed)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Use ground speed as airspeed'),
-            subtitle: const Text(
-              'Approximation for a still-air recording only',
+            title: Text(context.translate("Use ground speed as airspeed")),
+            subtitle: Text(
+              context.translate("Approximation for a still-air recording only"),
             ),
             value: _stillAir,
             onChanged: _busy ? null : (v) => setState(() => _stillAir = v),
@@ -411,8 +455,10 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
           future: _comparison,
           builder: (_, s) {
             if (s.hasError) {
-              return const Text(
-                'Route comparison unavailable. Check the saved route inputs.',
+              return Text(
+                context.translate(
+                  "Route comparison unavailable. Check the saved route inputs.",
+                ),
               );
             }
             if (s.connectionState != ConnectionState.done) {
@@ -420,8 +466,10 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
             }
             final data = s.data;
             if (data == null) {
-              return const Text(
-                'No associated flight plan is available. Associate a plan when importing to compare its model.',
+              return Text(
+                context.translate(
+                  "No associated flight plan is available. Associate a plan when importing to compare its model.",
+                ),
               );
             }
             final result = widget.log.compare(
@@ -437,36 +485,58 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Saved outbound route duration: ${difference(data.duration, widget.log.duration, "s")}',
+                  context.translate("Saved outbound route duration: {0}", [
+                    difference(data.duration, widget.log.duration, "s"),
+                  ]),
                 ),
                 Text(
-                  'Saved outbound route mean ${widget.log.isAirspeed ? "air" : "horizontal ground"} speed: ${difference(data.speed, widget.log.averageSpeed, "m/s")}',
+                  context.translate(
+                    "Saved outbound route mean {0} speed: {1}",
+                    [
+                      widget.log.isAirspeed ? "air" : "horizontal ground",
+                      difference(data.speed, widget.log.averageSpeed, "m/s"),
+                    ],
+                  ),
                 ),
-                const Text(
-                  'Route comparisons assume the recording covers the same outbound path. Return flights and idle time are not automatically removed.',
+                Text(
+                  context.translate(
+                    "Route comparisons assume the recording covers the same outbound path. Return flights and idle time are not automatically removed.",
+                  ),
                 ),
                 if (data.mismatch)
-                  const Text(
-                    'Different drones are associated with the log and route. Calibration is disabled.',
+                  Text(
+                    context.translate(
+                      "Different drones are associated with the log and route. Calibration is disabled.",
+                    ),
                   ),
                 if (result.problem != null)
                   Text(result.problem!)
                 else ...[
                   Text(
-                    'Model energy over recorded speeds: ${result.predictedWh!.toStringAsFixed(3)} Wh',
+                    context.translate(
+                      "Model energy over recorded speeds: {0} Wh",
+                      [result.predictedWh!.toStringAsFixed(3)],
+                    ),
                   ),
                   Text(
-                    'Measured − modeled: ${result.differenceWh!.toStringAsFixed(3)} Wh (${((result.factor! - 1) * 100).toStringAsFixed(1)}%)',
+                    context.translate("Measured − modeled: {0} Wh ({1}%)", [
+                      result.differenceWh!.toStringAsFixed(3),
+                      ((result.factor! - 1) * 100).toStringAsFixed(1),
+                    ]),
                   ),
                   FilledButton(
                     onPressed: !_busy && result.canCalibrate && !data.mismatch
                         ? () => _apply(data, result)
                         : null,
-                    child: const Text('Preview & apply calibration'),
+                    child: Text(
+                      context.translate("Preview & apply calibration"),
+                    ),
                   ),
                   if (!result.canCalibrate)
-                    const Text(
-                      'Calibration outside 0.25–4× is not applied. Check units, sensors and flight conditions.',
+                    Text(
+                      context.translate(
+                        "Calibration outside 0.25–4× is not applied. Check units, sensors and flight conditions.",
+                      ),
                     ),
                 ],
               ],

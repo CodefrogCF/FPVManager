@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -138,13 +140,19 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
             initiallyExpanded: _expanded,
             onExpansionChanged: (value) => setState(() => _expanded = value),
             tilePadding: EdgeInsets.zero,
-            title: const Text('Kantonale Waldbrand-Präventionsmassnahmen'),
-            subtitle: const Text(
-              'Offizielle Einzelabfrage · unabhängig von der Waldbrand-Gefahrenstufe',
+            title: Text(
+              context.translate("Kantonale Waldbrand-Präventionsmassnahmen"),
+            ),
+            subtitle: Text(
+              context.translate(
+                "Offizielle Einzelabfrage · unabhängig von der Waldbrand-Gefahrenstufe",
+              ),
             ),
             children: [
-              const Text(
-                'Die Kantone erlassen die verbindlichen Regeln. Eine Gefahrenstufe allein begründet kein Feuerverbot. Fehlende, veraltete oder unvollständige Daten bedeuten keine Entwarnung.',
+              Text(
+                context.translate(
+                  "Die Kantone erlassen die verbindlichen Regeln. Eine Gefahrenstufe allein begründet kein Feuerverbot. Fehlende, veraltete oder unvollständige Daten bedeuten keine Entwarnung.",
+                ),
               ),
               const SizedBox(height: 8),
               Row(
@@ -157,7 +165,9 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         signed: true,
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(labelText: 'Latitude'),
+                      decoration: InputDecoration(
+                        labelText: context.translate("Latitude"),
+                      ),
                       onChanged: (_) => setState(() => _snapshot = null),
                     ),
                   ),
@@ -170,7 +180,9 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         signed: true,
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(labelText: 'Longitude'),
+                      decoration: InputDecoration(
+                        labelText: context.translate("Longitude"),
+                      ),
                       onChanged: (_) => setState(() => _snapshot = null),
                     ),
                   ),
@@ -195,7 +207,9 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                           }
                         },
                   icon: const Icon(Icons.place_outlined),
-                  label: const Text('Ausgewählten Kartenpunkt übernehmen'),
+                  label: Text(
+                    context.translate("Ausgewählten Kartenpunkt übernehmen"),
+                  ),
                 ),
               ),
               CheckboxListTile(
@@ -205,8 +219,10 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                 onChanged: _loading
                     ? null
                     : (value) => setState(() => _allowQuery = value ?? false),
-                title: const Text(
-                  'Koordinaten für die Abfrage an geo.admin.ch senden',
+                title: Text(
+                  context.translate(
+                    "Koordinaten für die Abfrage an geo.admin.ch senden",
+                  ),
                 ),
               ),
               Wrap(
@@ -216,11 +232,15 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                   FilledButton.tonal(
                     key: const ValueKey('fire_prevention_query'),
                     onPressed: _loading ? null : () => _load(refresh: true),
-                    child: const Text('Amtliche Massnahmen abfragen'),
+                    child: Text(
+                      context.translate("Amtliche Massnahmen abfragen"),
+                    ),
                   ),
                   OutlinedButton(
                     onPressed: _loading ? null : () => _load(offline: true),
-                    child: const Text('Gespeicherte Abfrage anzeigen'),
+                    child: Text(
+                      context.translate("Gespeicherte Abfrage anzeigen"),
+                    ),
                   ),
                 ],
               ),
@@ -233,33 +253,48 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
               if (snapshot != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'Abgerufen: ${snapshot.fetchedUtc.toIso8601String()} (UTC)'
-                  '${snapshot.fromCache ? ' · Cache' : ''}'
-                  '${snapshot.refreshFailed ? ' · Aktualisierung fehlgeschlagen' : ''}',
+                  context.translate("Abgerufen: {0} (UTC){1}{2}", [
+                    snapshot.fetchedUtc.toIso8601String(),
+                    snapshot.fromCache ? ' · Cache' : '',
+                    snapshot.refreshFailed
+                        ? ' · Aktualisierung fehlgeschlagen'
+                        : '',
+                  ]),
                 ),
                 Text(
-                  'Publikationsstand der Quelle: ${snapshot.publicationRaw ?? 'unbekannt'}',
+                  context.translate("Publikationsstand der Quelle: {0}", [
+                    snapshot.publicationRaw ?? 'unbekannt',
+                  ]),
                 ),
-                Text('Datenstatus: ${snapshot.freshnessLabel(DateTime.now())}'),
+                Text(
+                  context.translate("Datenstatus: {0}", [
+                    snapshot.freshnessLabel(DateTime.now()),
+                  ]),
+                ),
                 if (stale)
-                  const Text(
-                    'Aktualität nicht bestätigt – Angaben können überholt sein. '
-                    'Lokale Anordnungen prüfen.',
+                  Text(
+                    context.translate(
+                      "Aktualität nicht bestätigt – Angaben können überholt sein. Lokale Anordnungen prüfen.",
+                    ),
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 if (snapshot.truncated)
-                  const Text(
-                    'Abfrage begrenzt. Weitere oder überlappende Regeln möglich.',
+                  Text(
+                    context.translate(
+                      "Abfrage begrenzt. Weitere oder überlappende Regeln möglich.",
+                    ),
                   ),
                 if (snapshot.measures.isEmpty)
-                  const Text(
-                    'Keine datierten Massnahmen für diesen Punkt ermittelt. '
-                    'Die Abdeckung kann unvollständig sein – KEINE Entwarnung.',
+                  Text(
+                    context.translate(
+                      "Keine datierten Massnahmen für diesen Punkt ermittelt. Die Abdeckung kann unvollständig sein – KEINE Entwarnung.",
+                    ),
                   ),
                 if (snapshot.measures.length > 1)
-                  const Text(
-                    'Mehrere amtliche Gebiete überlagern sich. Geltungsbereich '
-                    'und Vorrang bitte bei den Kantonen prüfen.',
+                  Text(
+                    context.translate(
+                      "Mehrere amtliche Gebiete überlagern sich. Geltungsbereich und Vorrang bitte bei den Kantonen prüfen.",
+                    ),
                   ),
                 for (final measure in snapshot.measures)
                   Card(
@@ -270,22 +305,37 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         children: [
                           Text(
                             measure.category == PreventionCategory.unknown
-                                ? 'Nicht klassifiziert: ${measure.title}'
+                                ? context.translate(
+                                    "Nicht klassifiziert: {0}",
+                                    [measure.title],
+                                  )
                                 : preventionCategoryLabel(measure.category),
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
-                          Text('Amtlicher Titel: ${measure.title}'),
+                          Text(
+                            context.translate("Amtlicher Titel: {0}", [
+                              measure.title,
+                            ]),
+                          ),
                           if (measure.description != null)
                             Text(measure.description!),
                           Text(
-                            'Kanton: ${measure.canton ?? 'unbekannt'} · '
-                            'Gebiet: ${measure.region ?? 'unbekannt'}',
+                            context.translate("Kanton: {0} · Gebiet: {1}", [
+                              measure.canton ?? 'unbekannt',
+                              measure.region ?? 'unbekannt',
+                            ]),
                           ),
                           Text(
-                            'Gültig seit: ${measure.validFromRaw ?? 'nicht angegeben'}'
-                            ' · bis: ${measure.validUntilRaw ?? 'nicht angegeben'}',
+                            context.translate("Gültig seit: {0} · bis: {1}", [
+                              measure.validFromRaw ?? 'nicht angegeben',
+                              measure.validUntilRaw ?? 'nicht angegeben',
+                            ]),
                           ),
-                          Text('BAFU Feature-ID: ${measure.sourceId}'),
+                          Text(
+                            context.translate("BAFU Feature-ID: {0}", [
+                              measure.sourceId,
+                            ]),
+                          ),
                         ],
                       ),
                     ),
@@ -298,17 +348,21 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                   TextButton.icon(
                     onPressed: () => _official('aktuelle-massnahmen'),
                     icon: const Icon(Icons.open_in_new),
-                    label: const Text('Aktuelle amtliche Massnahmen'),
+                    label: Text(
+                      context.translate("Aktuelle amtliche Massnahmen"),
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => _official('kantonale-fachstellen'),
                     icon: const Icon(Icons.open_in_new),
-                    label: const Text('Kantonale Fachstellen'),
+                    label: Text(context.translate("Kantonale Fachstellen")),
                   ),
                 ],
               ),
-              const Text(
-                'Quelle: BAFU / Kantone · geo.admin.ch · waldbrandgefahr.ch',
+              Text(
+                context.translate(
+                  "Quelle: BAFU / Kantone · geo.admin.ch · waldbrandgefahr.ch",
+                ),
               ),
             ],
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'globe_controller.dart';
 import 'scene_layers_section.dart';
 import '../weather/wind_settings_sheet.dart';
@@ -22,8 +24,12 @@ class MapDisplaySection extends StatelessWidget {
       } catch (_) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unable to update map display. Please retry.'),
+            SnackBar(
+              content: Text(
+                context.translate(
+                  "Unable to update map display. Please retry.",
+                ),
+              ),
             ),
           );
         }
@@ -37,20 +43,20 @@ class MapDisplaySection extends StatelessWidget {
           width: double.infinity,
           child: SegmentedButton<GlobeMapStyle>(
             showSelectedIcon: false,
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: GlobeMapStyle.satellite,
-                label: Text('Satellite'),
+                label: Text(context.translate("Satellite")),
                 icon: Icon(Icons.satellite_alt),
               ),
               ButtonSegment(
                 value: GlobeMapStyle.topographic,
-                label: Text('Topo'),
+                label: Text(context.translate("Topo")),
                 icon: Icon(Icons.map_outlined),
               ),
               ButtonSegment(
                 value: GlobeMapStyle.relief,
-                label: Text('Relief'),
+                label: Text(context.translate("Relief")),
                 icon: Icon(Icons.terrain),
               ),
             ],
@@ -68,7 +74,7 @@ class MapDisplaySection extends StatelessWidget {
 
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Orts- und Straßennamen'),
+          title: Text(context.translate("Orts- und Straßennamen")),
           value: controller.labelsVisible,
           onChanged: controller.canEditPreferences
               ? (value) => execute(() => controller.setMapLabels(value))
@@ -76,12 +82,20 @@ class MapDisplaySection extends StatelessWidget {
         ),
         if (controller.labelsVisible && controller.labelsState != 'ready') ...[
           Text(switch (controller.labelsState) {
-            'loading' => 'Beschriftungen werden geladen …',
-            'partial' => 'Beschriftungen teilweise verfügbar.',
-            'offline' => 'Beschriftungen offline nicht verfügbar.',
-            'zoomIn' => 'Für Beschriftungen näher heranzoomen.',
-            'outside' => 'Nur Schweiz und Liechtenstein.',
-            'failed' => 'Neue Beschriftungen konnten nicht geladen werden.',
+            'loading' => context.translate("Beschriftungen werden geladen …"),
+            'partial' => context.translate(
+              "Beschriftungen teilweise verfügbar.",
+            ),
+            'offline' => context.translate(
+              "Beschriftungen offline nicht verfügbar.",
+            ),
+            'zoomIn' => context.translate(
+              "Für Beschriftungen näher heranzoomen.",
+            ),
+            'outside' => context.translate("Nur Schweiz und Liechtenstein."),
+            'failed' => context.translate(
+              "Neue Beschriftungen konnten nicht geladen werden.",
+            ),
             _ => '',
           }, style: Theme.of(context).textTheme.bodySmall),
           if (controller.labelsState == 'failed')
@@ -89,13 +103,13 @@ class MapDisplaySection extends StatelessWidget {
               onPressed: () =>
                   execute(() => controller.setMapLabels(true, retry: true)),
               icon: const Icon(Icons.refresh),
-              label: const Text('Beschriftungen erneut laden'),
+              label: Text(context.translate("Beschriftungen erneut laden")),
             ),
         ],
 
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Straßen und Wege'),
+          title: Text(context.translate("Straßen und Wege")),
           value: controller.roadsVisible,
           onChanged: controller.isReady && controller.canEditPreferences
               ? (visible) =>
@@ -105,7 +119,7 @@ class MapDisplaySection extends StatelessWidget {
         if (controller.roadsVisible) ...[
           Row(
             children: [
-              const Text('Deckkraft'),
+              Text(context.translate("Deckkraft")),
               Expanded(
                 child: Slider(
                   value: controller.roadsOpacity,
@@ -130,12 +144,12 @@ class MapDisplaySection extends StatelessWidget {
                   ? () => execute(() => controller.setRoadsOverlay(retry: true))
                   : null,
               icon: const Icon(Icons.refresh),
-              label: const Text('Straßen-Layer erneut laden'),
+              label: Text(context.translate("Straßen-Layer erneut laden")),
             ),
         ],
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Gespeicherte Spots'),
+          title: Text(context.translate("Gespeicherte Spots")),
           value: controller.savedSpotsVisible,
           onChanged: controller.isReady && controller.canEditPreferences
               ? (visible) =>
@@ -149,8 +163,8 @@ class MapDisplaySection extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('map-overlay-order'),
           tilePadding: EdgeInsets.zero,
-          title: const Text('Reihenfolge der Ebenen'),
-          subtitle: const Text('Vorne nach hinten'),
+          title: Text(context.translate("Reihenfolge der Ebenen")),
+          subtitle: Text(context.translate("Vorne nach hinten")),
           children: [
             for (final overlay in controller.overlayOrder.reversed)
               ListTile(
@@ -162,20 +176,23 @@ class MapDisplaySection extends StatelessWidget {
                 ),
                 title: Text(
                   overlay == GlobeOverlay.savedSpots
-                      ? 'Saved spots'
+                      ? context.translate("Saved spots")
                       : 'UAS zones',
                 ),
                 subtitle: Text(
                   overlay == GlobeOverlay.savedSpots
-                      ? 'Local library'
+                      ? context.translate("Local library")
                       : source.publisher,
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip:
-                          'Bring ${overlay == GlobeOverlay.savedSpots ? 'saved spots' : 'UAS zones'} forward',
+                      tooltip: context.translate("Bring {0} forward", [
+                        overlay == GlobeOverlay.savedSpots
+                            ? 'saved spots'
+                            : 'UAS zones',
+                      ]),
                       onPressed:
                           controller.isReady &&
                               controller.canEditPreferences &&
@@ -212,7 +229,7 @@ class MapDisplaySection extends StatelessWidget {
           ExpansionTile(
             key: const PageStorageKey('map-route-layers'),
             tilePadding: EdgeInsets.zero,
-            title: const Text('Flugrouten'),
+            title: Text(context.translate("Flugrouten")),
             children: [routeControls!],
           ),
         const GuideLink(GuideTopic.map, label: 'Hilfe zur Karte'),

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -135,9 +137,13 @@ class _ComparisonState extends State<RoadRouteComparison> {
     children: [
       SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Verkehr bei der Routenbewertung berücksichtigen'),
-        subtitle: const Text(
-          'Nutzt vorhandene Daten. Beeinflusst auch spätere Neuberechnungen; die Fahrzeit bleibt eine OSRM-Basisschätzung.',
+        title: Text(
+          context.translate("Verkehr bei der Routenbewertung berücksichtigen"),
+        ),
+        subtitle: Text(
+          context.translate(
+            "Nutzt vorhandene Daten. Beeinflusst auch spätere Neuberechnungen; die Fahrzeit bleibt eine OSRM-Basisschätzung.",
+          ),
         ),
         value: widget.enabled,
         onChanged: widget.onEnabled,
@@ -147,7 +153,7 @@ class _ComparisonState extends State<RoadRouteComparison> {
           alignment: Alignment.centerLeft,
           child: TextButton(
             onPressed: widget.onOpenTraffic,
-            child: const Text('Verkehrsdaten laden / prüfen'),
+            child: Text(context.translate("Verkehrsdaten laden / prüfen")),
           ),
         ),
       if (_busy) const LinearProgressIndicator(),
@@ -182,10 +188,15 @@ class _ComparisonState extends State<RoadRouteComparison> {
         RouteTrafficExplanation(evaluation: _result!),
       if (widget.routes.first.omittedAlternatives > 0)
         Text(
-          '${widget.routes.first.omittedAlternatives} weitere / ungültige Alternativen nicht dargestellt.',
+          context.translate(
+            "{0} weitere / ungültige Alternativen nicht dargestellt.",
+            [widget.routes.first.omittedAlternatives],
+          ),
         ),
-      const Text(
-        'OSRM liefert nicht immer Alternativen. Fehlende Meldungen oder Messungen bestätigen keinen freien Verkehrsfluss.',
+      Text(
+        context.translate(
+          "OSRM liefert nicht immer Alternativen. Fehlende Meldungen oder Messungen bestätigen keinen freien Verkehrsfluss.",
+        ),
       ),
     ],
   );
@@ -199,22 +210,33 @@ class RouteTrafficAssessmentView extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        '${assessment.closures} zugeordnete Sperrmeldungen · ${assessment.evidence.length} zugeordnete Quellenhinweise',
+        context.translate(
+          "{0} zugeordnete Sperrmeldungen · {1} zugeordnete Quellenhinweise",
+          [assessment.closures, assessment.evidence.length],
+        ),
       ),
       if (assessment.reportedDelaySeconds != null)
         Text(
-          'Größte publizierte Verzögerung: ${(assessment.reportedDelaySeconds! / 60).ceil()} min · Vergleichswert, nicht zur Ankunftszeit addiert',
+          context.translate(
+            "Größte publizierte Verzögerung: {0} min · Vergleichswert, nicht zur Ankunftszeit addiert",
+            [(assessment.reportedDelaySeconds! / 60).ceil()],
+          ),
         ),
       if (assessment.incomplete)
-        const Text(
-          'Bewertung unvollständig · keine verkehrsbasierte Empfehlung',
+        Text(
+          context.translate(
+            "Bewertung unvollständig · keine verkehrsbasierte Empfehlung",
+          ),
         ),
       ExpansionTile(
         tilePadding: EdgeInsets.zero,
-        title: const Text('Zuordnung und Quellen'),
+        title: Text(context.translate("Zuordnung und Quellen")),
         children: [
           Text(
-            '${assessment.ignored} Datensätze nicht sicher zugeordnet / nicht gewichtet. Fehlende Straßenkennung, Richtung, Ortsauflösung oder Gültigkeit bleiben unbekannt.',
+            context.translate(
+              "{0} Datensätze nicht sicher zugeordnet / nicht gewichtet. Fehlende Straßenkennung, Richtung, Ortsauflösung oder Gültigkeit bleiben unbekannt.",
+              [assessment.ignored],
+            ),
           ),
           for (final e in assessment.evidence.take(30))
             ListTile(
@@ -227,7 +249,9 @@ class RouteTrafficAssessmentView extends StatelessWidget {
             ),
           if (assessment.evidence.length > 30)
             Text(
-              '${assessment.evidence.length - 30} weitere zugeordnete Hinweise',
+              context.translate("{0} weitere zugeordnete Hinweise", [
+                assessment.evidence.length - 30,
+              ]),
             ),
         ],
       ),
@@ -241,18 +265,26 @@ class RouteTrafficExplanation extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
-    title: const Text('Datenstand und Bewertungsregeln'),
+    title: Text(context.translate("Datenstand und Bewertungsregeln")),
     children: [
-      Text('Vergleich: ${evaluation.evaluatedAt.toLocal()}'),
+      Text(
+        context.translate("Vergleich: {0}", [evaluation.evaluatedAt.toLocal()]),
+      ),
       Text(evaluation.trafficStatus),
       Text(evaluation.counterStatus),
-      const Text(
-        'Zuerst werden Routen mit zugeordneten Sperrmeldungen nachrangig angezeigt. Danach zählen OSRM-Basiszeit und der größte publizierte Verzögerungswert. Verzögerungen werden nicht summiert und verändern die angezeigte Ankunftszeit nicht.',
+      Text(
+        context.translate(
+          "Zuerst werden Routen mit zugeordneten Sperrmeldungen nachrangig angezeigt. Danach zählen OSRM-Basiszeit und der größte publizierte Verzögerungswert. Verzögerungen werden nicht summiert und verändern die angezeigte Ankunftszeit nicht.",
+        ),
       ),
       Text(
         evaluation.speedCompared
-            ? 'Vergleichbare Gesamtverkehrs-Messungen aller Alternativen beeinflussen den Vergleich geringfügig (höchstens ein Vergleichspunkt).'
-            : 'Punktuelle Geschwindigkeiten werden ohne vergleichbare Messungen aller Alternativen nicht gewichtet.',
+            ? context.translate(
+                "Vergleichbare Gesamtverkehrs-Messungen aller Alternativen beeinflussen den Vergleich geringfügig (höchstens ein Vergleichspunkt).",
+              )
+            : context.translate(
+                "Punktuelle Geschwindigkeiten werden ohne vergleichbare Messungen aller Alternativen nicht gewichtet.",
+              ),
       ),
       const Text(
         'Zuordnung: explizite Straßenkennung, unterstützte Richtung und eindeutige Quellenposition nahe der Straße. TMC-Abschnitte erfordern die exakte Ortstabelle, geordnete Anker entlang derselben Straße und passende Fahrtrichtung; Offsets werden entlang der Route gemessen. Dateiimporte der Ortstabelle bleiben ohne Online-Bestätigung Information. Gerade Ankerverbindungen werden nicht als Straßenverlauf gewertet. Quellen: ASTRA / VDP; Routing: FOSSGIS / OSRM / © OpenStreetMap contributors.',

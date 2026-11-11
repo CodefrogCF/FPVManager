@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/models/battery_profile.dart';
@@ -41,8 +43,12 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
           padding: const EdgeInsets.all(24),
           child: Text(
             types
-                ? 'No battery types yet. Add a reusable specification template.'
-                : 'No individual batteries yet. Add a pack to your inventory.',
+                ? context.translate(
+                    "No battery types yet. Add a reusable specification template.",
+                  )
+                : context.translate(
+                    "No individual batteries yet. Add a pack to your inventory.",
+                  ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -75,7 +81,7 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
     length: 2,
     child: Scaffold(
       appBar: AppBar(
-        title: const Text('Battery inventory'),
+        title: Text(context.translate("Battery inventory")),
         bottom: const TabBar(
           tabs: [
             Tab(text: 'Packs'),
@@ -91,12 +97,12 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Unable to load battery inventory.'),
+                  Text(context.translate("Unable to load battery inventory.")),
                   TextButton(
                     onPressed: () => setState(
                       () => _batteries = widget.repository.watchBatteries(),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(context.translate("Retry")),
                   ),
                 ],
               ),
@@ -122,13 +128,13 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
             heroTag: 'add-battery-type',
             onPressed: () => _add(asType: true),
             icon: const Icon(Icons.copy_all_outlined),
-            label: const Text('Add type'),
+            label: Text(context.translate("Add type")),
           ),
           FloatingActionButton.extended(
             heroTag: 'add-battery',
             onPressed: _add,
             icon: const Icon(Icons.add),
-            label: const Text('Add battery'),
+            label: Text(context.translate("Add battery")),
           ),
         ],
       ),

@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../core/localization/app_localizations.dart';
+
 import 'dart:convert';
 import 'dart:math';
 
@@ -293,8 +296,8 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
                 size: 48,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Failed to load 3D globe',
+              Text(
+                context.translate("Failed to load 3D globe"),
                 style: TextStyle(fontSize: 20),
               ),
               const SizedBox(height: 8),

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/database/fpv_database.dart';
@@ -255,7 +257,7 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
           top: 0,
           right: 0,
           child: IconButton.filledTonal(
-            tooltip: 'Remove photo $number',
+            tooltip: context.translate("Remove photo {0}", [number]),
             visualDensity: VisualDensity.compact,
             onPressed: _busy ? null : remove,
             icon: const Icon(Icons.close, size: 18),
@@ -282,7 +284,11 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: AlertDialog(
-      title: Text(widget.spot == null ? 'Add Spot' : 'Edit Spot'),
+      title: Text(
+        widget.spot == null
+            ? context.translate("Add Spot")
+            : context.translate("Edit Spot"),
+      ),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -297,7 +303,9 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                   autofocus: true,
                   enabled: !_saving,
                   maxLength: 120,
-                  decoration: const InputDecoration(labelText: 'Spot name'),
+                  decoration: InputDecoration(
+                    labelText: context.translate("Spot name"),
+                  ),
                   validator: (value) =>
                       (value ?? '').trim().isEmpty ? 'Enter a spot name' : null,
                 ),
@@ -309,8 +317,8 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                     signed: true,
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Latitude (WGS84)',
+                  decoration: InputDecoration(
+                    labelText: context.translate("Latitude (WGS84)"),
                   ),
                   validator: (value) => _validateCoordinate(value, -90, 90),
                 ),
@@ -322,8 +330,8 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                     signed: true,
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Longitude (WGS84)',
+                  decoration: InputDecoration(
+                    labelText: context.translate("Longitude (WGS84)"),
                   ),
                   validator: (value) => _validateCoordinate(value, -180, 180),
                 ),
@@ -334,7 +342,9 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                     onPressed: _busy ? null : _useLocation,
                     icon: const Icon(Icons.my_location),
                     label: Text(
-                      _locating ? 'Locating…' : 'Use current location',
+                      _locating
+                          ? context.translate("Locating…")
+                          : context.translate("Use current location"),
                     ),
                   ),
                 ),
@@ -348,8 +358,10 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                   controller: _notes,
                   enabled: !_saving,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Description / notes (optional)',
+                  decoration: InputDecoration(
+                    labelText: context.translate(
+                      "Description / notes (optional)",
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -367,7 +379,10 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Photos ($_photoCount/${SpotPhotoLimits.maxPhotos})',
+                  context.translate("Photos ({0}/{1})", [
+                    _photoCount,
+                    SpotPhotoLimits.maxPhotos,
+                  ]),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -420,11 +435,13 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                         ? null
                         : _pickPhoto,
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: const Text('Add photo'),
+                    label: Text(context.translate("Add photo")),
                   ),
                 ),
-                const Text(
-                  'JPEG, PNG or WebP · up to 12 MiB and 16 MP each. Photos are resized and stored locally.',
+                Text(
+                  context.translate(
+                    "JPEG, PNG or WebP · up to 12 MiB and 16 MP each. Photos are resized and stored locally.",
+                  ),
                   style: TextStyle(fontSize: 12),
                 ),
                 if (_error != null) ...[
@@ -440,7 +457,7 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                 if (_loadFailed)
                   TextButton(
                     onPressed: _busy ? null : _loadPhotos,
-                    child: const Text('Retry loading photos'),
+                    child: Text(context.translate("Retry loading photos")),
                   ),
               ],
             ),
@@ -450,11 +467,13 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.translate("Cancel")),
         ),
         FilledButton(
           onPressed: _busy || _loadFailed ? null : _save,
-          child: Text(_saving ? 'Saving…' : 'Save'),
+          child: Text(
+            _saving ? context.translate("Saving…") : context.translate("Save"),
+          ),
         ),
       ],
     ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../globe/globe_controller.dart';
 import '../help/guides_screen.dart';
 
@@ -22,8 +24,12 @@ class NavigationEnvironmentSection extends StatelessWidget {
       } catch (_) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('3D-Einstellung konnte nicht übernommen werden.'),
+            SnackBar(
+              content: Text(
+                context.translate(
+                  "3D-Einstellung konnte nicht übernommen werden.",
+                ),
+              ),
             ),
           );
         }
@@ -47,18 +53,18 @@ class NavigationEnvironmentSection extends StatelessWidget {
             child: Text(title, style: Theme.of(context).textTheme.titleMedium),
           ),
           SegmentedButton<NavigationEnvironmentMode>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: NavigationEnvironmentMode.inherit,
-                label: Text('Wie Karte'),
+                label: Text(context.translate("Wie Karte")),
               ),
               ButtonSegment(
                 value: NavigationEnvironmentMode.disabled,
-                label: Text('Aus'),
+                label: Text(context.translate("Aus")),
               ),
               ButtonSegment(
                 value: NavigationEnvironmentMode.enabled,
-                label: Text('Ein'),
+                label: Text(context.translate("Ein")),
               ),
             ],
             selected: {mode},
@@ -73,12 +79,14 @@ class NavigationEnvironmentSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     status == 'partial'
-                        ? 'Einige 3D-Kacheln fehlen.'
-                        : '3D-Daten fehlen oder sind offline nicht verfügbar.',
+                        ? context.translate("Einige 3D-Kacheln fehlen.")
+                        : context.translate(
+                            "3D-Daten fehlen oder sind offline nicht verfügbar.",
+                          ),
                   ),
                 ),
                 IconButton(
-                  tooltip: '$title erneut laden',
+                  tooltip: context.translate("{0} erneut laden", [title]),
                   onPressed: () =>
                       change(() => renderer!.setSceneEnvironment(retry: key)),
                   icon: const Icon(Icons.refresh),
@@ -100,11 +108,11 @@ class NavigationEnvironmentSection extends StatelessWidget {
                 : settings.preferencesLoadFailed
                 ? settings.retryLoadingPreferences
                 : settings.retrySavingPreferences,
-            child: const Text('Erneut versuchen'),
+            child: Text(context.translate("Erneut versuchen")),
           ),
         ],
         Text(
-          '3D-Umgebung in der Navigation',
+          context.translate("3D-Umgebung in der Navigation"),
           style: Theme.of(context).textTheme.titleLarge,
         ),
         layer(

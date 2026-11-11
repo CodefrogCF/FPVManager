@@ -1,0 +1,51 @@
+{
+  "recordedOn": "2026-11-11",
+  "runtime": {
+    "cesium": "1.145.0",
+    "platform": "Windows, headless Chrome with D3D11 requested",
+    "viewportPixels": [1424, 805],
+    "graphicsProfile": "quality",
+    "horizontalFovDegrees": 105,
+    "terrainAndImagery": "swisstopo 3D terrain and satellite imagery",
+    "latitude": 46.7,
+    "longitude": 8.4
+  },
+  "method": "Run two controlled Acro dives starting at 72 m AGL, with a low powerloop attempt between them starting at 12 m AGL. Dives use zero throttle before the full-throttle recovery. Use identical commands, Acro settings and fixed 1/60 s physics steps with the production Cesium rendering and terrain collision code. Record Long Tasks entries during the active maneuvers, inter-frame gaps and GL program waits above 20 ms.",
+  "initialObservation": "The first view of the Sun and Moon during the loop stalled on driver shader work. The exploratory run recorded 205 and 300 ms main-thread tasks. Captured shader sources identified Sun rendering and bloom, and the Moon's logarithmic-depth ellipsoid program.",
+  "comparison": {
+    "previous": {
+      "activeMainThreadTasksAtLeast50Ms": [95, 61, 50, 218, 57],
+      "activeGlProgramWaitsAbove20Ms": [194.8],
+      "diveFrameGapP95Ms": 42.9,
+      "diveFrameGapMaxMs": 176.4,
+      "loopFrameGapP95Ms": 51.6,
+      "loopFrameGapMaxMs": 219.1,
+      "firstPreparationPrograms": 40,
+      "firstShaderPreparationMs": 12661.3,
+      "terrainLoadSlicesMs": [5],
+      "rendererErrors": 0
+    },
+    "updated": {
+      "activeMainThreadTasksAtLeast50Ms": [89],
+      "activeGlProgramWaitsAbove20Ms": [],
+      "diveFrameGapP95Ms": 34.1,
+      "diveFrameGapMaxMs": 139.5,
+      "loopFrameGapP95Ms": 36.4,
+      "loopFrameGapMaxMs": 103.1,
+      "firstPreparationPrograms": 48,
+      "firstShaderPreparationMs": 9576.9,
+      "terrainLoadSlicesMs": [2, 5],
+      "rendererErrors": 0
+    }
+  },
+  "flightOutcome": {
+    "diveMinimumAglMeters": 6.69,
+    "diveMaximumSpeedMetersPerSecond": 28.09,
+    "divesRecoveredPerRun": 2,
+    "loopMinimumAglMeters": 0.5
+  },
+  "limitations": [
+    "The low loop reached the terrain clearance limit in both runs. The flight path uses an example location with live terrain and imagery. Bridge and waterfall geometry from the user's flight were unavailable.",
+    "These instrumented traces describe one browser session per configuration. Network timing, driver caches and host load can change frame gaps. The largest remaining main-thread task was 89 ms."
+  ]
+}

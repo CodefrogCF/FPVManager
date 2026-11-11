@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -137,8 +139,10 @@ class _SpotsScreenState extends State<SpotsScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to update favorite. Please retry.'),
+          SnackBar(
+            content: Text(
+              context.translate("Unable to update favorite. Please retry."),
+            ),
           ),
         );
       }
@@ -174,12 +178,14 @@ class _SpotsScreenState extends State<SpotsScreen> {
               maxLength: 160,
               onChanged: _searchChanged,
               decoration: InputDecoration(
-                labelText: 'Search spots',
-                hintText: 'Name, description, category or tags',
+                labelText: context.translate("Search spots"),
+                hintText: context.translate(
+                  "Name, description, category or tags",
+                ),
                 counterText: '',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
-                  tooltip: 'Clear search',
+                  tooltip: context.translate("Clear search"),
                   onPressed: () {
                     _search.clear();
                     _searchChanged('');
@@ -212,7 +218,11 @@ class _SpotsScreenState extends State<SpotsScreen> {
                   ActionChip(
                     avatar: const Icon(Icons.filter_list, size: 18),
                     label: Text(
-                      'Categories / tags${_labels.category != null || _labels.tags.isNotEmpty ? ' •' : ''}',
+                      context.translate("Categories / tags{0}", [
+                        _labels.category != null || _labels.tags.isNotEmpty
+                            ? ' •'
+                            : '',
+                      ]),
                     ),
                     onPressed: _filters,
                   ),
@@ -241,7 +251,7 @@ class _SpotsScreenState extends State<SpotsScreen> {
                       _labels.tags.isNotEmpty)
                     TextButton(
                       onPressed: _clear,
-                      child: const Text('Clear filters'),
+                      child: Text(context.translate("Clear filters")),
                     ),
                 ],
               ),
@@ -263,7 +273,7 @@ class _SpotsScreenState extends State<SpotsScreen> {
                 ),
               ),
               icon: const Icon(Icons.add),
-              label: const Text('Add Spot'),
+              label: Text(context.translate("Add Spot")),
             ),
     );
   }
@@ -281,11 +291,16 @@ class _SpotsScreenState extends State<SpotsScreen> {
             children: [
               Text(
                 _list.error ??
-                    'No spots found. Add a spot or adjust your filters.',
+                    context.translate(
+                      "No spots found. Add a spot or adjust your filters.",
+                    ),
                 textAlign: TextAlign.center,
               ),
               if (_list.error != null)
-                TextButton(onPressed: _list.retry, child: const Text('Retry')),
+                TextButton(
+                  onPressed: _list.retry,
+                  child: Text(context.translate("Retry")),
+                ),
             ],
           ),
         ),
@@ -318,14 +333,18 @@ class _SpotsScreenState extends State<SpotsScreen> {
                               Text(_list.error!),
                               TextButton(
                                 onPressed: _list.retry,
-                                child: const Text('Retry'),
+                                child: Text(context.translate("Retry")),
                               ),
                             ],
                           )
                         : Text(
                             _list.hasMore
-                                ? 'Weitere Spots werden beim Scrollen geladen.'
-                                : 'Alle ${_list.items.length} Spots geladen.',
+                                ? context.translate(
+                                    "Weitere Spots werden beim Scrollen geladen.",
+                                  )
+                                : context.translate("Alle {0} Spots geladen.", [
+                                    _list.items.length,
+                                  ]),
                           ),
                   ),
                 );
@@ -364,7 +383,9 @@ class _SpotsScreenState extends State<SpotsScreen> {
                 ),
                 onTap: () => _details(spot.id),
                 trailing: IconButton(
-                  tooltip: spot.isFavorite ? 'Remove favorite' : 'Add favorite',
+                  tooltip: spot.isFavorite
+                      ? context.translate("Remove favorite")
+                      : context.translate("Add favorite"),
                   onPressed: _favoriteChanges.contains(spot.id)
                       ? null
                       : () => _favorite(spot),
@@ -420,8 +441,10 @@ class _SpotFiltersDialogState extends State<_SpotFiltersDialog> {
                 tags: true,
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Matches the category and every selected tag. Search and favorites also apply.',
+              Text(
+                context.translate(
+                  "Matches the category and every selected tag. Search and favorites also apply.",
+                ),
               ),
             ],
           ),
@@ -431,7 +454,7 @@ class _SpotFiltersDialogState extends State<_SpotFiltersDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
+        child: Text(context.translate("Cancel")),
       ),
       FilledButton(
         onPressed: () {
@@ -445,7 +468,7 @@ class _SpotFiltersDialogState extends State<_SpotFiltersDialog> {
             );
           }
         },
-        child: const Text('Apply'),
+        child: Text(context.translate("Apply")),
       ),
     ],
   );

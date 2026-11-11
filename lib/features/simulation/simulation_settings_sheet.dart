@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import 'simulation_settings.dart';
@@ -153,9 +155,11 @@ class _SettingsState extends State<_Settings> {
         : fallback;
   }
 
-  String get _controlHelp => _mode == SimulationFlightMode.gps
-      ? 'Links: Bewegung · Rechts: Blick · E/Q: Höhe'
-      : 'Links: Gas / Yaw · Rechts: Pitch / Roll';
+  String get _controlHelp => context.translate(
+    _mode == SimulationFlightMode.gps
+        ? 'Links: Bewegung · Rechts: Blick · E/Q: Höhe'
+        : 'Links: Gas / Yaw · Rechts: Pitch / Roll',
+  );
   String get _acroHoverHelp {
     final ratio = read('acroThrustToWeight'), curve = read('acroThrustCurve');
     if (ratio == null ||
@@ -166,13 +170,17 @@ class _SettingsState extends State<_Settings> {
         !curve.isFinite ||
         curve < 0 ||
         curve > 1) {
-      return 'Gültige Schubwerte für die Schwebeschätzung eingeben.';
+      return context.translate(
+        'Gültige Schubwerte für die Schwebeschätzung eingeben.',
+      );
     }
     final hover = SimulationSettings(
       acroThrustToWeight: ratio,
       acroThrustCurve: curve,
     ).acroHoverThrottle;
-    return 'Schwebeschätzung: ${(hover * 100).toStringAsFixed(0)} % Gas';
+    return context.translate('Schwebeschätzung: {0} % Gas', [
+      (hover * 100).toStringAsFixed(0),
+    ]);
   }
 
   String get _acroSpeedHelp {
@@ -186,13 +194,16 @@ class _SettingsState extends State<_Settings> {
         !terminal.isFinite ||
         terminal < 5 ||
         terminal > 120) {
-      return 'Gültige Schub- und Widerstandswerte eingeben.';
+      return context.translate('Gültige Schub- und Widerstandswerte eingeben.');
     }
     final speed = SimulationSettings(
       acroThrustToWeight: thrust,
       acroTerminalVelocity: terminal,
     ).acroEstimatedLevelSpeedKmh;
-    return 'Geschätztes Horizontaltempo bei Vollgas: ${speed.toStringAsFixed(0)} km/h. Höherer Luftwiderstand senkt diesen Wert; Sturzflug kann ihn überschreiten.';
+    return context.translate(
+      'Geschätztes Horizontaltempo bei Vollgas: {0} km/h. Höherer Luftwiderstand senkt diesen Wert; Sturzflug kann ihn überschreiten.',
+      [speed.toStringAsFixed(0)],
+    );
   }
 
   bool _invalid(String key, double min, double max) {
@@ -209,10 +220,10 @@ class _SettingsState extends State<_Settings> {
         if (key.startsWith('acro')) setState(() {});
       },
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: context.translate(label)),
       validator: (_) {
         return _invalid(key, min, max)
-            ? 'Wert von $min bis $max eingeben.'
+            ? context.translate('Wert von {0} bis {1} eingeben.', [min, max])
             : null;
       },
     ),
@@ -231,7 +242,7 @@ class _SettingsState extends State<_Settings> {
     tilePadding: EdgeInsets.zero,
     childrenPadding: const EdgeInsets.only(top: 8, bottom: 12),
     leading: Icon(icon),
-    title: Text(title),
+    title: Text(context.translate(title)),
     subtitle: subtitle,
     children: children,
   );
@@ -294,7 +305,11 @@ class _SettingsState extends State<_Settings> {
       );
     },
     icon: const Icon(Icons.flight_takeoff),
-    label: Text(widget.configureOnly ? 'Übernehmen' : 'Flug starten'),
+    label: Text(
+      widget.configureOnly
+          ? context.translate("Übernehmen")
+          : context.translate("Flug starten"),
+    ),
   );
 
   @override
@@ -311,13 +326,17 @@ class _SettingsState extends State<_Settings> {
                   180)
                 ListTile(
                   title: Text(
-                    widget.configureOnly ? 'Flug einstellen' : 'Flugsimulator',
+                    widget.configureOnly
+                        ? context.translate("Flug einstellen")
+                        : context.translate("Flugsimulator"),
                   ),
-                  subtitle: const Text(
-                    'Simulation · keine realen Flugeigenschaften',
+                  subtitle: Text(
+                    context.translate(
+                      "Simulation · keine realen Flugeigenschaften",
+                    ),
                   ),
                   trailing: IconButton(
-                    tooltip: 'Flugeinstellungen schließen',
+                    tooltip: context.translate("Flugeinstellungen schließen"),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
@@ -333,21 +352,25 @@ class _SettingsState extends State<_Settings> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
                             widget.hasSelection
-                                ? 'Start am markierten Punkt.'
-                                : 'Start unter der Kartenmitte.',
+                                ? context.translate(
+                                    "Start am markierten Punkt.",
+                                  )
+                                : context.translate(
+                                    "Start unter der Kartenmitte.",
+                                  ),
                           ),
                         ),
                       DropdownButtonFormField<SimulationFlightMode>(
                         initialValue: _mode,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Flugmodus',
+                        decoration: InputDecoration(
+                          labelText: context.translate("Flugmodus"),
                         ),
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: SimulationFlightMode.gps,
                             child: Text(
-                              'GPS · unterstützt',
+                              context.translate("GPS · unterstützt"),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -355,7 +378,7 @@ class _SettingsState extends State<_Settings> {
                           DropdownMenuItem(
                             value: SimulationFlightMode.angle,
                             child: Text(
-                              'Angle · selbststabilisierend',
+                              context.translate("Angle · selbststabilisierend"),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -363,7 +386,7 @@ class _SettingsState extends State<_Settings> {
                           DropdownMenuItem(
                             value: SimulationFlightMode.acro,
                             child: Text(
-                              'Acro · freie Drehraten',
+                              context.translate("Acro · freie Drehraten"),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -375,18 +398,18 @@ class _SettingsState extends State<_Settings> {
                       ),
                       const SizedBox(height: 12),
                       if (_loading) const LinearProgressIndicator(),
-                      if (_error != null) Text(_error!),
+                      if (_error != null) Text(context.translate(_error!)),
                       DropdownButtonFormField<int>(
                         key: ValueKey(_drone),
                         initialValue: _drone,
                         isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Drohnenprofil',
+                        decoration: InputDecoration(
+                          labelText: context.translate("Drohnenprofil"),
                         ),
                         items: [
-                          const DropdownMenuItem<int>(
+                          DropdownMenuItem<int>(
                             value: null,
-                            child: Text('Manuelle Werte'),
+                            child: Text(context.translate("Manuelle Werte")),
                           ),
                           for (final d in _drones)
                             DropdownMenuItem(
@@ -434,17 +457,17 @@ class _SettingsState extends State<_Settings> {
                             key: const ValueKey('simulation-hud'),
                             initialValue: _hud,
                             isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'HUD-Stil',
+                            decoration: InputDecoration(
+                              labelText: context.translate('HUD-Stil'),
                             ),
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: SimulationHudStyle.goggles,
-                                child: Text('Goggles'),
+                                child: Text(context.translate("Goggles")),
                               ),
                               DropdownMenuItem(
                                 value: SimulationHudStyle.betaflight,
-                                child: Text('Betaflight'),
+                                child: Text(context.translate("Betaflight")),
                               ),
                             ],
                             onChanged: (value) {
@@ -453,7 +476,9 @@ class _SettingsState extends State<_Settings> {
                           ),
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
-                            title: const Text('Koordinaten im HUD anzeigen'),
+                            title: Text(
+                              context.translate("Koordinaten im HUD anzeigen"),
+                            ),
                             value: _showCoordinates,
                             onChanged: (value) =>
                                 setState(() => _showCoordinates = value),
@@ -470,25 +495,25 @@ class _SettingsState extends State<_Settings> {
                             key: const ValueKey('simulation-graphics'),
                             initialValue: _graphics,
                             isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Grafikprofil',
+                            decoration: InputDecoration(
+                              labelText: context.translate("Grafikprofil"),
                             ),
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.quality,
-                                child: Text('Quality'),
+                                child: Text(context.translate("Quality")),
                               ),
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.balanced,
-                                child: Text('Balanced'),
+                                child: Text(context.translate("Balanced")),
                               ),
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.performance,
-                                child: Text('Performance'),
+                                child: Text(context.translate("Performance")),
                               ),
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.compatibility,
-                                child: Text('Compatibility'),
+                                child: Text(context.translate("Compatibility")),
                               ),
                             ],
                             onChanged: (value) {
@@ -517,7 +542,7 @@ class _SettingsState extends State<_Settings> {
                           tilePadding: EdgeInsets.zero,
                           childrenPadding: const EdgeInsets.only(top: 8),
                           leading: const Icon(Icons.rotate_right),
-                          title: const Text('Acro-Drehraten'),
+                          title: Text(context.translate("Acro-Drehraten")),
                           subtitle: Text(
                             'Roll ${_fields['acroRollRate']!.text} · Pitch ${_fields['acroPitchRate']!.text} · Yaw ${_fields['acroYawRate']!.text} °/s',
                           ),
@@ -555,7 +580,7 @@ class _SettingsState extends State<_Settings> {
                           tilePadding: EdgeInsets.zero,
                           childrenPadding: const EdgeInsets.only(top: 8),
                           leading: const Icon(Icons.speed),
-                          title: const Text('Acro-Physik'),
+                          title: Text(context.translate("Acro-Physik")),
                           subtitle: Text(_acroHoverHelp),
                           children: [
                             Text(_acroSpeedHelp),
@@ -643,25 +668,39 @@ class _SettingsState extends State<_Settings> {
                           const GuideLink(GuideTopic.controls),
                           Text(_controlHelp),
                           Text(switch (_mode) {
-                            SimulationFlightMode.gps => 'GPS bremst automatisch. Linker Stick: Bewegung; rechter Stick: Blickrichtung.',
-                            SimulationFlightMode.angle => 'Angle stabilisiert die Lage und begrenzt die Neigung auf 50°. Bei Neigung ist mehr Gas zum Halten der Höhe nötig.',
-                            SimulationFlightMode.acro => 'Acro hat keine Selbststabilisierung oder Höhenhaltung. Schub folgt der Drohnenlage; geringer Schub lässt sie frei fallen.',
+                            SimulationFlightMode.gps => context.translate(
+                              "GPS bremst automatisch. Linker Stick: Bewegung; rechter Stick: Blickrichtung.",
+                            ),
+                            SimulationFlightMode.angle => context.translate(
+                              "Angle stabilisiert die Lage und begrenzt die Neigung auf 50°. Bei Neigung ist mehr Gas zum Halten der Höhe nötig.",
+                            ),
+                            SimulationFlightMode.acro => context.translate(
+                              "Acro hat keine Selbststabilisierung oder Höhenhaltung. Schub folgt der Drohnenlage; geringer Schub lässt sie frei fallen.",
+                            ),
                           }),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Zum Verbinden oder Fortsetzen Gas auf null und die übrigen Sticks zentrieren. R / Controller A setzt zurück; Escape / B beendet den Flug. Ein Moduswechsel startet am Ausgangspunkt neu.',
+                          Text(
+                            context.translate(
+                              "Zum Verbinden oder Fortsetzen Gas auf null und die übrigen Sticks zentrieren. R / Controller A setzt zurück; Escape / B beendet den Flug. Ein Moduswechsel startet am Ausgangspunkt neu.",
+                            ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Drohnenprofile übernehmen Geschwindigkeit und Steigrate für Angle und GPS. Acro-Physik und Beschleunigung bleiben geschätzte Modellwerte. Die Kamera beeinflusst nur die Ansicht.',
+                          Text(
+                            context.translate(
+                              "Drohnenprofile übernehmen Geschwindigkeit und Steigrate für Angle und GPS. Acro-Physik und Beschleunigung bleiben geschätzte Modellwerte. Die Kamera beeinflusst nur die Ansicht.",
+                            ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Gelände und unterstützte Modellflächen können die Bewegung stoppen. Hindernisse und Kollisionen sind nicht vollständig erfasst. Die Simulation ist keine reale Leistungs- oder Sicherheitsprüfung.',
+                          Text(
+                            context.translate(
+                              "Gelände und unterstützte Modellflächen können die Bewegung stoppen. Hindernisse und Kollisionen sind nicht vollständig erfasst. Die Simulation ist keine reale Leistungs- oder Sicherheitsprüfung.",
+                            ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Keine automatische Aufzeichnung oder Ausfuhr. Online-Karten- und Geländeabrufe übermitteln den betrachteten Bereich an die Anbieter.',
+                          Text(
+                            context.translate(
+                              "Keine automatische Aufzeichnung oder Ausfuhr. Online-Karten- und Geländeabrufe übermitteln den betrachteten Bereich an die Anbieter.",
+                            ),
                           ),
                         ],
                       ),

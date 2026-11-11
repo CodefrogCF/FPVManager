@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import '../globe/globe_controller.dart';
 import 'wind_field.dart';
 
@@ -24,17 +26,21 @@ class WindControlsLauncher extends StatelessWidget {
     builder: (context, _) => ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.air),
-      title: Text(flight ? 'Wind im Flug' : '3D-Wind und Prognose'),
+      title: Text(
+        flight
+            ? context.translate("Wind im Flug")
+            : context.translate("3D-Wind und Prognose"),
+      ),
       subtitle: Text(
         globe.wind.snapshot == null
-            ? 'Optional · Winddaten noch nicht geladen'
+            ? context.translate("Optional · Winddaten noch nicht geladen")
             : globe.wind.expired
-            ? 'Winddaten abgelaufen'
+            ? context.translate("Winddaten abgelaufen")
             : globe.wind.affectFlight
-            ? 'Wind beeinflusst den Simulator'
+            ? context.translate("Wind beeinflusst den Simulator")
             : globe.wind.visible
-            ? '3D-Pfeile aktiv'
-            : 'Winddarstellung und Einfluss aus',
+            ? context.translate("3D-Pfeile aktiv")
+            : context.translate("Winddarstellung und Einfluss aus"),
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => showWindSettings(context, globe),
@@ -128,38 +134,42 @@ class _WindSettingsState extends State<_WindSettings> {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('3D-Wind und Flugwind'),
+                title: Text(context.translate("3D-Wind und Flugwind")),
                 trailing: IconButton(
-                  tooltip: 'Schließen',
+                  tooltip: context.translate("Schließen"),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('3D-Windpfeile anzeigen'),
+                title: Text(context.translate("3D-Windpfeile anzeigen")),
                 value: wind.visible,
                 onChanged: (v) => wind.flags(arrows: v),
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Wind im Flugsimulator berücksichtigen'),
-                subtitle: const Text(
-                  'Angle/Acro: Abdrift. GPS: Gegenhalten bis zur Leistungsgrenze.',
+                title: Text(
+                  context.translate("Wind im Flugsimulator berücksichtigen"),
+                ),
+                subtitle: Text(
+                  context.translate(
+                    "Angle/Acro: Abdrift. GPS: Gegenhalten bis zur Leistungsgrenze.",
+                  ),
                 ),
                 value: wind.affectFlight,
                 onChanged: (v) => wind.flags(physics: v),
               ),
               DropdownButtonFormField<WindTimeMode>(
                 initialValue: _mode,
-                decoration: const InputDecoration(
-                  labelText: 'Windquelle / Zeit',
+                decoration: InputDecoration(
+                  labelText: context.translate("Windquelle / Zeit"),
                 ),
                 isExpanded: true,
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: WindTimeMode.current,
-                    child: Text('Aktueller Modellwind'),
+                    child: Text(context.translate("Aktueller Modellwind")),
                   ),
                   DropdownMenuItem(
                     value: WindTimeMode.forecast,
@@ -180,8 +190,10 @@ class _WindSettingsState extends State<_WindSettings> {
                 ),
               DropdownButtonFormField<double>(
                 initialValue: _radius,
-                decoration: const InputDecoration(
-                  labelText: 'Ausschnitt um den gewählten Punkt',
+                decoration: InputDecoration(
+                  labelText: context.translate(
+                    "Ausschnitt um den gewählten Punkt",
+                  ),
                 ),
                 items: const [
                   DropdownMenuItem(value: 1500, child: Text('3 × 3 km')),
@@ -194,14 +206,18 @@ class _WindSettingsState extends State<_WindSettings> {
                       },
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Beim Abruf werden die gewählten Kartenkoordinaten an Open-Meteo gesendet. „Aktuell“ sind Modellwerte, keine Live-Messung vor Ort. Daten und Auswahl gelten für diese Sitzung.',
+              Text(
+                context.translate(
+                  "Beim Abruf werden die gewählten Kartenkoordinaten an Open-Meteo gesendet. „Aktuell“ sind Modellwerte, keine Live-Messung vor Ort. Daten und Auswahl gelten für diese Sitzung.",
+                ),
               ),
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: wind.loading || _locating ? null : _load,
                 icon: const Icon(Icons.download_outlined),
-                label: const Text('Winddaten für Punkt / Ansicht laden'),
+                label: Text(
+                  context.translate("Winddaten für Punkt / Ansicht laden"),
+                ),
               ),
               if (wind.loading) const LinearProgressIndicator(),
               if (_error ?? wind.error case final error?)
@@ -214,33 +230,45 @@ class _WindSettingsState extends State<_WindSettings> {
                   '${field.mode == WindTimeMode.current ? 'Aktiver Modellwind' : 'Aktive Prognose'}: ${time(field.validAtUtc)}',
                 ),
                 Text(
-                  'Abgerufen: ${time(field.retrievedUtc)} · ${field.usableNodes}/9 Rasterpunkte',
+                  context.translate("Abgerufen: {0} · {1}/9 Rasterpunkte", [
+                    time(field.retrievedUtc),
+                    field.usableNodes,
+                  ]),
                 ),
                 if (wind.expired)
-                  const Text(
-                    'Abgelaufen: Pfeile und Windeinfluss sind ausgesetzt.',
+                  Text(
+                    context.translate(
+                      "Abgelaufen: Pfeile und Windeinfluss sind ausgesetzt.",
+                    ),
                   ),
                 if (wind.visible && wind.rendererState == 'terrainPending')
-                  const Text('Windpfeile warten auf geladenes 3D-Gelände.'),
+                  Text(
+                    context.translate(
+                      "Windpfeile warten auf geladenes 3D-Gelände.",
+                    ),
+                  ),
                 if (wind.refreshFailed)
-                  const Text(
-                    'Letzte Aktualisierung fehlgeschlagen. Die vorherigen Daten bleiben bis zum Ablauf verfügbar.',
+                  Text(
+                    context.translate(
+                      "Letzte Aktualisierung fehlgeschlagen. Die vorherigen Daten bleiben bis zum Ablauf verfügbar.",
+                    ),
                   ),
                 TextButton.icon(
                   onPressed: wind.loading ? null : wind.refresh,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Diesen Ausschnitt aktualisieren'),
+                  label: Text(
+                    context.translate("Diesen Ausschnitt aktualisieren"),
+                  ),
                 ),
               ],
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
-                title: const Text('Daten und Grenzen'),
-                children: const [
+                title: Text(context.translate("Daten und Grenzen")),
+                children: [
                   Text(
-                    'Open-Meteo · CC BY 4.0; kostenloser Zugang für nicht kommerzielle Nutzung. Aktueller Modellwind wird bei aktiver Darstellung oder im Flug alle 15 Minuten aktualisiert. '
-                    'Prognosen verwenden den nächsten verfügbaren Stundenwert. Sonnenzeit und Windzeit sind unabhängig. '
-                    'Zwischen Rasterpunkten und Modellhöhen (10, 80, 120, 180 m AGL) werden Windvektoren interpoliert. Außerhalb bekannter Höhen wird die nächste Schicht konstant fortgesetzt. '
-                    'Außerhalb des geladenen Ausschnitts oder bei fehlenden Daten gibt es keinen Windeinfluss. Keine zusätzlichen künstlichen Böen und keine Berechnung von Gebäudeverwirbelungen, Thermik oder kleinräumiger Geländeströmung.',
+                    context.translate(
+                      "Open-Meteo · CC BY 4.0; kostenloser Zugang für nicht kommerzielle Nutzung. Aktueller Modellwind wird bei aktiver Darstellung oder im Flug alle 15 Minuten aktualisiert. Prognosen verwenden den nächsten verfügbaren Stundenwert. Sonnenzeit und Windzeit sind unabhängig. Zwischen Rasterpunkten und Modellhöhen (10, 80, 120, 180 m AGL) werden Windvektoren interpoliert. Außerhalb bekannter Höhen wird die nächste Schicht konstant fortgesetzt. Außerhalb des geladenen Ausschnitts oder bei fehlenden Daten gibt es keinen Windeinfluss. Keine zusätzlichen künstlichen Böen und keine Berechnung von Gebäudeverwirbelungen, Thermik oder kleinräumiger Geländeströmung.",
+                    ),
                   ),
                 ],
               ),

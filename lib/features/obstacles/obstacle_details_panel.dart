@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_localizations.dart';
+
 import 'obstacle_models.dart';
 import 'obstacle_layers_section.dart';
 
@@ -39,80 +41,116 @@ class ObstacleDetailsPanel extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Close obstacle details',
+                      tooltip: context.translate("Close obstacle details"),
                       onPressed: onClose,
                       icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
                 Text(
-                  'Type: ${feature.sourceType.isEmpty ? 'unknown' : feature.sourceType} · ${feature.category.label}',
+                  context.translate("Type: {0} · {1}", [
+                    feature.sourceType.isEmpty ? 'unknown' : feature.sourceType,
+                    feature.category.label,
+                  ]),
                 ),
                 SelectableText(
-                  'Source ID: ${feature.id}\nUUID: ${feature.attributes['uuid'] ?? 'unknown'}',
+                  context.translate("Source ID: {0}\nUUID: {1}", [
+                    feature.id,
+                    feature.attributes['uuid'] ?? 'unknown',
+                  ]),
                 ),
                 Text(
-                  'First coordinate: ${first[1].toStringAsFixed(7)}, ${first[0].toStringAsFixed(7)} · WGS84',
+                  context.translate("First coordinate: {0}, {1} · WGS84", [
+                    first[1].toStringAsFixed(7),
+                    first[0].toStringAsFixed(7),
+                  ]),
                 ),
                 Text(
-                  'Top elevation: ${feature.attributes['topElevationAMSL']?.isNotEmpty == true ? '${feature.attributes['topElevationAMSL']} m LN02' : 'unknown'}',
+                  context.translate("Top elevation: {0}", [
+                    feature.attributes['topElevationAMSL']?.isNotEmpty == true
+                        ? '${feature.attributes['topElevationAMSL']} m LN02'
+                        : 'unknown',
+                  ]),
                 ),
                 Text(
-                  'Source maximum height: ${feature.attributes['maxHeightAGL']?.isNotEmpty == true ? '${feature.attributes['maxHeightAGL']} m AGL' : 'unknown'}',
+                  context.translate("Source maximum height: {0}", [
+                    feature.attributes['maxHeightAGL']?.isNotEmpty == true
+                        ? '${feature.attributes['maxHeightAGL']} m AGL'
+                        : 'unknown',
+                  ]),
                 ),
                 for (final p in feature.parts)
                   Text(
-                    '${p.kind}: ${p.coordinates.length} vertices · altitude mode: ${p.mode} · '
-                    '${p.mode == 'absolute' && p.coordinates.every((a) => a.length == 3) ? 'LN02 elevations; 3D where CHGeo2004 covers the position' : 'ground marker at first vertex; elevated geometry unavailable'}',
+                    context.translate(
+                      "{0}: {1} vertices · altitude mode: {2} · {3}",
+                      [
+                        p.kind,
+                        p.coordinates.length,
+                        p.mode,
+                        p.mode == 'absolute' &&
+                                p.coordinates.every((a) => a.length == 3)
+                            ? 'LN02 elevations; 3D where CHGeo2004 covers the position'
+                            : 'ground marker at first vertex; elevated geometry unavailable',
+                      ],
+                    ),
                   ),
                 for (final p in feature.parts)
                   if (p.coordinates.first.length == 3)
                     Text(
-                      'First source vertex height: ${p.coordinates.first[2]} m · '
-                      '${p.mode == 'absolute'
-                          ? 'LN02'
-                          : p.mode == 'relativeToGround'
-                          ? 'relative to ground'
-                          : 'reference not usable for elevated display'}',
+                      context.translate(
+                        "First source vertex height: {0} m · {1}",
+                        [
+                          p.coordinates.first[2],
+                          p.mode == 'absolute'
+                              ? 'LN02'
+                              : p.mode == 'relativeToGround'
+                              ? 'relative to ground'
+                              : 'reference not usable for elevated display',
+                        ],
+                      ),
                     ),
                 if (feature.approximate)
-                  const Text(
-                    'Approximate geometry: straight connections / polygon outlines from the source. '
-                    'Actual cable sag and obstacle surfaces are not defined.',
+                  Text(
+                    context.translate(
+                      "Approximate geometry: straight connections / polygon outlines from the source. Actual cable sag and obstacle surfaces are not defined.",
+                    ),
                   ),
-                const Text(
-                  'Height conversion: CHGeo2004 + HTRANS → ETRS89 ellipsoid (WGS84 approximation). '
-                  'For single Point obstacles with valid AGL, the rendered marker and height stem use local Cesium terrain + source AGL; '
-                  'the source top AMSL remains listed above and may differ. '
-                  'Cable vertices that match a unique published mast (within 2 m horizontally and 5 m in source top elevation) '
-                  'follow its displayed top; offsets between matched supports are interpolated. '
-                  'This is an approximate display correction, not surveyed cable geometry. '
-                  'Unmatched sections retain source heights. Route checks use original source elevations.',
+                Text(
+                  context.translate(
+                    "Height conversion: CHGeo2004 + HTRANS → ETRS89 ellipsoid (WGS84 approximation). For single Point obstacles with valid AGL, the rendered marker and height stem use local Cesium terrain + source AGL; the source top AMSL remains listed above and may differ. Cable vertices that match a unique published mast (within 2 m horizontally and 5 m in source top elevation) follow its displayed top; offsets between matched supports are interpolated. This is an approximate display correction, not surveyed cable geometry. Unmatched sections retain source heights. Route checks use original source elevations.",
+                  ),
                 ),
                 Text(
-                  'Effective date: ${feature.attributes['effectiveDate'] ?? 'unknown'} UTC',
+                  context.translate("Effective date: {0} UTC", [
+                    feature.attributes['effectiveDate'] ?? 'unknown',
+                  ]),
                 ),
                 Text(
-                  'Source updated: ${snapshot?.sourceUpdated?.toIso8601String() ?? 'unknown'}\n'
-                  'Retrieved: ${snapshot?.fetchedAt.toIso8601String() ?? 'unknown'}',
+                  context.translate("Source updated: {0}\nRetrieved: {1}", [
+                    snapshot?.sourceUpdated?.toIso8601String() ?? 'unknown',
+                    snapshot?.fetchedAt.toIso8601String() ?? 'unknown',
+                  ]),
                 ),
                 const Text('BAZL / FOCA · Skyguide · geo.admin.ch'),
                 SelectableText(
-                  snapshot?.assetUrl ?? 'Source asset unavailable',
+                  snapshot?.assetUrl ??
+                      context.translate("Source asset unavailable"),
                 ),
                 if (snapshot?.metadata['datasetUsageRestriction']
                     case final String restriction)
                   Text(restriction),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
-                  title: const Text('Source attributes'),
+                  title: Text(context.translate("Source attributes")),
                   children: [
                     for (final e in feature.attributes.entries)
                       ListTile(
                         dense: true,
                         title: Text(e.key),
                         subtitle: SelectableText(
-                          e.value.isEmpty ? 'Not supplied' : e.value,
+                          e.value.isEmpty
+                              ? context.translate("Not supplied")
+                              : e.value,
                         ),
                       ),
                   ],
