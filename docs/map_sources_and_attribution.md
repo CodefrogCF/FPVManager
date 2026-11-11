@@ -48,9 +48,18 @@ label fallback. Source attribution remains visible with the layer.
 Optional 3D buildings and vegetation use the official GeoAdmin 3D Tiles services:
 `https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json` and
 `https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/tileset.json` (© swisstopo).
-Tiles keep their georeferenced source placement without assumed height offsets.
-Vegetation is a source model, not a current survey of every tree. Streaming is
-limited to the visible level of detail and renderer memory cache; no bulk/offline download.
+Tiles keep their georeferenced source placement. Known swisstopo tree instances
+use six bundled broadleaf and conifer variants. The original position, scale and
+orientation of each instance come from the source tiles.
+
+Tree groups use the [BAFU / WSL Waldmischungsgrad LFI 2023](https://www.geocat.ch/geonetwork/srv/api/records/b07a4589-159b-4c3a-b1e7-dbdad11f7e62)
+to bias the model choice toward broadleaf or conifer. The app bundles a derived
+320 m overview of the 10 m probability raster, prepared by
+[`tool/build_forest_composition.py`](../tool/build_forest_composition.py). The
+overview describes regional composition. Each group shares a model, and areas
+without data use a deterministic visual mix. The [Opendata BY terms](https://opendata.swiss/en/terms-of-use/#terms_by)
+require attribution. The overview is read locally. Source vegetation tiles still
+stream on demand using the configured level of detail and memory cache.
 
 The [Swiss obstacle data specification](https://www.bazl.admin.ch/dam/en/sd-web/CpfHnV604RSJ/dps_obstacle_datenset_aixm.pdf)
 defines absolute KML elevations as LN02 despite the usual KML convention. The

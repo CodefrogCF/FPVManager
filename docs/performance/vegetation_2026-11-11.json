@@ -1,0 +1,235 @@
+{
+  "recordedOn": "2026-11-11",
+  "runtime": {
+    "cesium": "1.145.0",
+    "platform": "Windows, headless Chrome, WebGL 2",
+    "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BCA) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "viewportPixels": [
+      1360,
+      720
+    ],
+    "sourceModels": "swisstopo vegetation.3d v1/20250728 Tree-1.glb through Tree-3.glb"
+  },
+  "modelBudget": {
+    "source": {
+      "trianglesPerTree": 40,
+      "primitivesPerTree": 2,
+      "texturesPerTree": 2
+    },
+    "bundled": {
+      "trianglesPerTree": 40,
+      "primitivesPerTree": 1,
+      "texturesPerTree": 1,
+      "atlasPixels": [
+        256,
+        256
+      ],
+      "modelSizesBytes": [
+        50284,
+        66520
+      ]
+    }
+  },
+  "method": "Use three actual Cesium I3DM batches of 768 trees, with identical positions, scales and rotations in each comparison. Preload all model sets and show one set per pass. Alternate the model sets in original, broadleaf, conifer, conifer, broadleaf, original order at each fixed camera pose. Skip the first 15 frames of each pass and measure the next 45. Measure elapsed time around widget.render() and gl.finish(), and intercept drawElementsInstanced to count WebGL draw calls, indexed triangles and primitive instance submissions.",
+  "treeInstances": 2304,
+  "views": [
+    {
+      "view": "Low near-horizontal approach",
+      "pitchRadians": -0.04,
+      "cameraRangeMeters": 255,
+      "cameraHeightAboveTreeBasesMeters": 10.2,
+      "results": [
+        {
+          "modelSet": "swisstopo originals",
+          "indexedInstancedDrawCallsPerFrame": 6,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 4608,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 3.2,
+              "p95": 4.2
+            },
+            {
+              "median": 2.7,
+              "p95": 3.5
+            }
+          ]
+        },
+        {
+          "modelSet": "three broadleaf variants",
+          "indexedInstancedDrawCallsPerFrame": 3,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 2304,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.9,
+              "p95": 3.9
+            },
+            {
+              "median": 2.5,
+              "p95": 3.2
+            }
+          ]
+        },
+        {
+          "modelSet": "three conifer variants",
+          "indexedInstancedDrawCallsPerFrame": 3,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 2304,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.7,
+              "p95": 3.6
+            },
+            {
+              "median": 2.6,
+              "p95": 3.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "view": "Oblique overview",
+      "pitchRadians": -0.7,
+      "cameraRangeMeters": 470,
+      "cameraHeightAboveTreeBasesMeters": 302.8,
+      "results": [
+        {
+          "modelSet": "swisstopo originals",
+          "indexedInstancedDrawCallsPerFrame": 6,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 4608,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.6,
+              "p95": 3
+            },
+            {
+              "median": 2.4,
+              "p95": 3
+            }
+          ]
+        },
+        {
+          "modelSet": "three broadleaf variants",
+          "indexedInstancedDrawCallsPerFrame": 3,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 2304,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.5,
+              "p95": 3.2
+            },
+            {
+              "median": 2.2,
+              "p95": 2.7
+            }
+          ]
+        },
+        {
+          "modelSet": "three conifer variants",
+          "indexedInstancedDrawCallsPerFrame": 3,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 2304,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.3,
+              "p95": 3
+            },
+            {
+              "median": 2.3,
+              "p95": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "view": "Near-nadir overview",
+      "pitchRadians": -1.42,
+      "cameraRangeMeters": 470,
+      "cameraHeightAboveTreeBasesMeters": 464.7,
+      "results": [
+        {
+          "modelSet": "swisstopo originals",
+          "indexedInstancedDrawCallsPerFrame": 6,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 4608,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.4,
+              "p95": 3
+            },
+            {
+              "median": 2.4,
+              "p95": 3
+            }
+          ]
+        },
+        {
+          "modelSet": "three broadleaf variants",
+          "indexedInstancedDrawCallsPerFrame": 3,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 2304,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.4,
+              "p95": 2.9
+            },
+            {
+              "median": 2.4,
+              "p95": 2.9
+            }
+          ]
+        },
+        {
+          "modelSet": "three conifer variants",
+          "indexedInstancedDrawCallsPerFrame": 3,
+          "submittedTrianglesPerFrame": 92160,
+          "modelPrimitiveInstanceSubmissionsPerFrame": 2304,
+          "renderAndGpuFinishMsByPass": [
+            {
+              "median": 2.2,
+              "p95": 2.7
+            },
+            {
+              "median": 2.6,
+              "p95": 3.1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "liveTilesetCheck": {
+    "method": "Open the normal FPVManager Globe with swisstopo terrain, imagery and vegetation in Cesium. Compare the same camera pose and tile budget with the original and local model selection. Check the corrected index separately in a mixed-forest area.",
+    "cameraComparison": {
+      "latitude": 46.85,
+      "longitude": 9.89,
+      "rasterBroadleafProbabilityAtTarget": 0.04,
+      "selectedTilesInBothRuns": 46,
+      "selectedTreeInstancesInBothRuns": 13748,
+      "originalCesiumCommands": 192,
+      "replacementCesiumCommands": 96,
+      "replacementLocalModelsLoaded": 6,
+      "replacementRemoteTreeModelRequests": 0,
+      "tileAndRendererErrorsInBothRuns": 0
+    },
+    "mixedForestIndexCheck": {
+      "latitude": 47.44,
+      "longitude": 7.04,
+      "rasterBroadleafProbabilityAtTarget": 0.66,
+      "previousIssue": "The official vegetation root referenced bare i3dm URLs that returned HTTP 403. The same tiles under the revision advertised by that root returned HTTP 200.",
+      "readyTilesAfterCorrection": 12,
+      "selectedTreeInstancesAfterCorrection": 4704,
+      "tileAndRendererErrorsAfterCorrection": 0,
+      "forestCompositionCreditPresent": true
+    }
+  },
+  "limitations": [
+    "This isolates tree rendering using synthetic instance positions. The scene has no terrain, imagery, flight physics or remote tile loading.",
+    "The measured render and GPU synchronization time differs from display frame time. Frame tails vary across passes and hardware.",
+    "Android hardware and a live user flight were not measured in this check."
+  ]
+}

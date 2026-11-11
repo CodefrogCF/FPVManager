@@ -1028,6 +1028,7 @@ function postToFlutter(message) {
                 discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose()})
             :null;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
+            forestComposition:globalThis.FPVForestComposition?.create(),
             cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',bridgeSupports,
             getTunnelApertures:()=>tunnelVolumes?.apertureSpecs?.()||[],
             getTunnelApertureRevision:()=>tunnelVolumes?.apertureRevision?.()??0});

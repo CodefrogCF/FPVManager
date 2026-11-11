@@ -25,6 +25,11 @@ device FPS, GPU memory, cold-start latency or network performance.
   transforms, materials, source credits and configured LOD thresholds are
   retained. Local header blobs are capped at 64 MiB per tileset and released
   with their owning layer. Implicit or unsupported trees use ordinary loading.
+- Vegetation reuses swisstopo's instanced tree batches. The replacement meshes
+  use 40 triangles and one primitive each. Model selection runs when a batch
+  loads, using one shared local raster. The
+  [vegetation comparison](performance/vegetation_2026-11-11.json) records WebGL
+  draw calls and timing at ground and overhead views.
 - Geographic model bounds enclose the full source content and child regions,
   including overhanging halls. Late external loads update cached ancestor
   volumes so buildings remain visible at the edge of a wide flight view.

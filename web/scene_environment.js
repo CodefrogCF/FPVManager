@@ -1,9 +1,10 @@
 (function(root,factory){
     const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders,
-        typeof module==='object'&&module.exports?require('./scene_tile_loading.js'):root.FPVSceneTileLoading);
+        typeof module==='object'&&module.exports?require('./scene_tile_loading.js'):root.FPVSceneTileLoading,
+        typeof module==='object'&&module.exports?require('./vegetation_models.js'):root.FPVVegetationModels);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVSceneEnvironment=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(Credits,SceneTileLoading){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits,SceneTileLoading,VegetationModels){
     'use strict';
     const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const sources=Object.freeze({
@@ -51,7 +52,7 @@
     }
     function create(C,viewer,send=()=>{},{urls=sources,timeoutMs=15000,setTimer=setTimeout,clearTimer=clearTimeout,
         cachedOnly=false,isOnline=()=>globalThis.navigator?.onLine!==false,bridgeSupports=null,
-        getTunnelApertures=()=>[],getTunnelApertureRevision=null,now=()=>Date.now()}={}){
+        getTunnelApertures=()=>[],getTunnelApertureRevision=null,forestComposition,now=()=>Date.now()}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
         const tileLoader=SceneTileLoading?.create(C)??{load:(url,options)=>C.Cesium3DTileset.fromUrl(url,options),dispose(){}};
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
@@ -60,10 +61,11 @@
             nightIn:scene.globe.nightFadeInDistance,nightOut:scene.globe.nightFadeOutDistance,
             ambient:scene.globe.vertexShadowDarkness};
         const credit=new C.Credit('© swisstopo',false);
+        const forestCredit=new C.Credit('BAFU / WSL · Waldmischungsgrad LFI 2023',false);
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
             phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null,appliedOpacity:null,detailShader:null}]));
-        let disposed=false,lighting=false,profile='balanced',credited=false,appliedTime=null,structuresOpacity=1;
+        let disposed=false,lighting=false,profile='balanced',credited=false,forestCredited=false,appliedTime=null,structuresOpacity=1;
         let navigating=false;
         let portalApertures=[],portalSignature='',lastPortalCheck=-Infinity,lastPortalView=null,lastPortalRevision=null;
         const mapLayers={buildings:false,vegetation:false,structures:false},navigationLayers={buildings:null,vegetation:null};
@@ -75,8 +77,11 @@
         }
         function credits(){
             const needed=Object.values(layers).some(l=>l.requested);
-            if(needed===credited)return;credited=needed;
-            if(needed)creditApi.retainStaticCredit(creditDisplay,credit);else creditApi.releaseStaticCredit(creditDisplay,credit);
+            if(needed!==credited){credited=needed;
+                if(needed)creditApi.retainStaticCredit(creditDisplay,credit);else creditApi.releaseStaticCredit(creditDisplay,credit);}
+            const forestNeeded=layers.vegetation.requested&&layers.vegetation.usesForestComposition===true;
+            if(forestNeeded!==forestCredited){forestCredited=forestNeeded;
+                if(forestNeeded)creditApi.retainStaticCredit(creditDisplay,forestCredit);else creditApi.releaseStaticCredit(creditDisplay,forestCredit);}
         }
         function options(key){
             const b=budgets[navigating?'navigation':profile],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
@@ -223,6 +228,7 @@
             if(l===layers.structures)bridgeSupports?.setEnabled?.(false);
             clearTimer(l.timer);l.timer=null;
             l.revision++;l.pending=null;for(const remove of l.removers)remove();l.removers=[];
+            l.releaseVegetationModels?.();l.releaseVegetationModels=null;l.usesForestComposition=false;
             if(l.tileset){
                 if(l.detailShader&&l.tileset.customShader===l.detailShader)l.tileset.customShader=undefined;
                 if(l.detailShader){try{l.detailShader.destroy?.();}catch(_){}}
@@ -239,8 +245,19 @@
             const timer=l.timer=setTimer(()=>{
                 if(!current())return;timedOut=true;l.revision++;l.pending=null;l.phase='failed';publish(key);
             },timeoutMs);
-            l.pending=Promise.resolve().then(()=>tileLoader.load(urls[key]??sources[key],options(key))).then(tileset=>{
+            const url=urls[key]??sources[key];
+            const replaceTrees=key==='vegetation'&&url===sources.vegetation&&VegetationModels&&
+                C.Cesium3DTileContentFactory?.i3dm&&globalThis.location?.href;
+            l.pending=Promise.resolve().then(()=>Promise.all([
+                tileLoader.load(replaceTrees?VegetationModels.sourceResource(C,url):url,options(key)),
+                replaceTrees&&forestComposition?.load(),
+            ])).then(([tileset,forestAvailable])=>{
                 if(!current()||timedOut){if(!tileset.isDestroyed())tileset.destroy();return;}
+                if(replaceTrees){
+                    l.releaseVegetationModels=VegetationModels.attach(C,tileset,{sample:forestComposition?.sample});
+                    l.usesForestComposition=!!(l.releaseVegetationModels&&forestAvailable);
+                    credits();
+                }
                 l.tileset=tileset;applyBudget(key);scene.primitives.add(tileset);if(key==='structures')applyStructureStyle();if(key==='buildings')applyBuildingDetail();visibility(key);
                 if(key==='structures')applyModelShader(key);
                 l.phase=isOnline()?'ready':'offline';publish(key);
@@ -410,6 +427,7 @@
                 for(const l of Object.values(layers))release(l);
                 tileLoader.dispose();
                 if(credited)creditApi.releaseStaticCredit(creditDisplay,credit);
+                if(forestCredited)creditApi.releaseStaticCredit(creditDisplay,forestCredit);
             }
         };
     }

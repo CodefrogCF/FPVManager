@@ -2,6 +2,11 @@
 
 ## 2026-11-11
 
+- Replaced the stock tree models with six textured broadleaf and conifer
+  variants at the same triangle count. Existing swisstopo instance groups use
+  a bundled BAFU/WSL forest composition raster to guide model choice.
+- Resolved bare vegetation tile paths against the revision published in the
+  official index, restoring coverage for affected parts of the tileset.
 - Added a German and English language setting for the app, map controls and
   flight interface. The choice is saved on the device.
 - Prepared the Sun, Moon and Sun bloom programs during flight preparation.
