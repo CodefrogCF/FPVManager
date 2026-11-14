@@ -16,7 +16,9 @@
         point(command.pilot);
         if (!Number.isFinite(command.frequencyMhz) || command.frequencyMhz < 10 || command.frequencyMhz > 100000 ||
             !Number.isFinite(command.fraction) || command.fraction < 0 || command.fraction > 1 ||
-            !Number.isInteger(command.selected) || command.selected < 0 || command.selected >= command.rays.length) throw new Error('Invalid Fresnel configuration');
+            !Number.isInteger(command.selected) || command.selected < 0 || command.selected >= command.rays.length ||
+            (command.targetOffset !== undefined && (!Number.isInteger(command.targetOffset) || command.targetOffset < 0 ||
+                command.targetOffset + command.rays.length > 4096))) throw new Error('Invalid Fresnel configuration');
         for (const ray of command.rays) {
             point(ray, true);
             if (!states.includes(ray.state) || !Number.isFinite(ray.ground) || Math.abs(ray.ground) > 100000 ||
@@ -39,7 +41,7 @@
             const colors = [Cesium.Color.GRAY, Cesium.Color.ORANGE, Cesium.Color.MEDIUMPURPLE, Cesium.Color.CYAN];
             command.rays.forEach((ray, index) => {
                 const color = colors[states.indexOf(ray.state)], target = C.fromDegrees(ray.longitude, ray.latitude, ray.height ?? ray.ground);
-                replacement.entities.add({id:`signal-target-${index}`, name:`Radio target ${index + 1}: ${ray.state}`, position:target, point:{pixelSize: index === command.selected ? 12 : 7, color}});
+                replacement.entities.add({id:`signal-target-${index}`, name:`Radio target ${(command.targetOffset ?? 0) + index + 1}: ${ray.state}`, position:target, point:{pixelSize: index === command.selected ? 12 : 7, color}});
                 if (ray.height === null || ray.state === 'unknown') return;
                 replacement.entities.add({id:`signal-ray-${index}`, polyline:{positions:[pilot, target], width: index === command.selected ? 4 : 1, material:color.withAlpha(index === command.selected ? 1 : .35), arcType:Cesium.ArcType.NONE}});
                 if (index !== command.selected) return;

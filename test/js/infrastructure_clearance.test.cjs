@@ -145,3 +145,21 @@ test('bridge volume blocks only deck and real supports, never the void below its
         'a real pier remains solid');
     svc.dispose();
 });
+
+test('the route assessment traverses all long-route chunks and reports a contact on its original segment', async () => {
+    const viewer = {scene:{requestRender(){}}, entities:{add:x=>x,remove(){}}};
+    const service = I.create(null, viewer);
+    service.replace(base);
+    const samples = Array.from({length:1024}, (_,i) => ({latitude:46.8,
+        longitude:8.2001-(1023-i)*.000028, height:i < 1020 ? 120 : 111,
+        segment:Math.min(999,Math.max(0,i-1))}));
+    const report = await service.assessRoute({samples, radiusMeters:.25});
+    assert.ok(report.checkedSamples > 1024);
+    assert.equal(report.processingLimited,false);
+    assert.ok(report.findings.some(f=>f.status==='model-contact' && f.segment===999));
+    const pending = service.assessRoute({samples, radiusMeters:.25});
+    service.setVisible(false, true);
+    await assert.rejects(pending,/superseded/);
+    assert.equal(service.status().hasReport,false);
+    service.dispose();
+});

@@ -88,6 +88,28 @@ test('terrain shaders finish before flight and retain exact bindings without fir
     assert.equal(f.binds.length,count,'Repeat flights reuse Cesium programs');
 });
 
+test('the instanced model render program is prepared before terrain variants',async()=>{
+    const f=fixture();
+    const command={shaderProgram:f.shader('vegetation')};
+    await f.warmup.prepare(f.controller.signal,undefined,async signal=>{
+        assert.equal(signal.aborted,false);
+        return [command];
+    });
+    assert.equal(f.warmup.status().completed,41);
+    assert.equal(f.binds[0],'log fragment vegetation');
+});
+
+test('a stalled local model seed obeys the same preparation deadline',async()=>{
+    const f=fixture({timeoutMs:35});
+    let signal;
+    await f.warmup.prepare(f.controller.signal,undefined,abort=>{
+        signal=abort;
+        return new Promise(()=>{});
+    });
+    assert.equal(signal.aborted,true);
+    assert.equal(f.warmup.status().preparing,false);
+});
+
 test('observing resident tiles does not copy shader options on every frame or change source options',()=>{
     const f=fixture();f.set.getShaderProgram(f.options);const reads=f.reads;
     for(let i=0;i<10000;i++)f.set.getShaderProgram(f.options);

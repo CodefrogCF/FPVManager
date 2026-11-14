@@ -64,20 +64,42 @@
             }
             return result;
         };
-        async function prepare(signal,onProgress=()=>{}){
+        async function prepare(signal,onProgress=()=>{},prepareModels){
             const start=now(),deadline=start+timeoutMs;
             const cancelled=()=>signal?.aborted||scene.isDestroyed?.()||now()>=deadline;
             const check=()=>{signal?.throwIfAborted();return !cancelled();};
-            preparing=true;completed=total=0;onProgress({completed,total});
+            const modelAbort=new AbortController();
+            const abortModels=()=>modelAbort.abort();
+            signal?.addEventListener('abort',abortModels,{once:true});
             try{
+                preparing=true;completed=total=0;onProgress({completed,total});
                 // Let the pending flight pose reach terrain selection before
                 // collecting the normal surface-shader options.
+                let modelCommands=[];
+                let modelsReady=!prepareModels;
+                if(prepareModels)Promise.resolve().then(()=>{
+                    if(check())return prepareModels(modelAbort.signal);
+                }).then(commands=>{modelCommands=commands||[];},()=>{}).finally(()=>{modelsReady=true;});
                 seed=null;scene.requestRender();await pause(0);
                 while(!seed&&check())await pause(16);
                 if(!seed||!check())return;
                 const options=seed,gl=options.frameState.context?._gl;
                 if(!gl||gl.isContextLost?.())return;
                 const programs=new Set(),context=options.frameState.context,encoding=options.surfaceTile.renderedMesh.encoding;
+                // Match Cesium's render pass, including the derived program
+                // used for log depth and HDR. Compile these first so a slow
+                // terrain variant cannot consume the whole preparation budget.
+                while(!modelsReady&&check())await pause(16);
+                if(!check())return;
+                for(const command of modelCommands){
+                    if(!command?.shaderProgram)continue;
+                    const logDepth=scene.logarithmicDepthBuffer
+                        ?C.DerivedCommand.createLogDepthCommand(command,context).command:command;
+                    const draw=scene.highDynamicRange&&C.DerivedCommand.createHdrCommand
+                        ?C.DerivedCommand.createHdrCommand(logDepth,context).command:logDepth;
+                    programs.add(draw.shaderProgram);
+                }
+                if(!check())return;
                 environmentPrograms(programs);
                 for(const quantization of [C.TerrainQuantization.NONE,C.TerrainQuantization.BITS12])
                     for(const enableFog of [false,true])for(const showUndergroundColor of [false,true])
@@ -142,7 +164,10 @@
                 if(signal?.aborted)throw error;
                 // Unsupported private runtime details must not prevent flight.
                 // Ordinary Cesium compilation remains available as fallback.
-            }finally{preparing=false;elapsed=now()-start;}
+            }finally{
+                signal?.removeEventListener('abort',abortModels);abortModels();
+                preparing=false;elapsed=now()-start;
+            }
         }
         return {prepare,status:()=>({supported:true,preparing,completed,total,elapsed})};
     }

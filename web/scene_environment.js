@@ -1,10 +1,11 @@
 (function(root,factory){
     const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders,
         typeof module==='object'&&module.exports?require('./scene_tile_loading.js'):root.FPVSceneTileLoading,
-        typeof module==='object'&&module.exports?require('./vegetation_models.js'):root.FPVVegetationModels);
+        typeof module==='object'&&module.exports?require('./vegetation_models.js'):root.FPVVegetationModels,
+        root.FPVVegetationShaderSeed);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVSceneEnvironment=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(Credits,SceneTileLoading,VegetationModels){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits,SceneTileLoading,VegetationModels,VegetationShaderSeed){
     'use strict';
     const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const sources=Object.freeze({
@@ -55,6 +56,7 @@
         getTunnelApertures=()=>[],getTunnelApertureRevision=null,forestComposition,now=()=>Date.now()}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
         const tileLoader=SceneTileLoading?.create(C)??{load:(url,options)=>C.Cesium3DTileset.fromUrl(url,options),dispose(){}};
+        const vegetationSeed=VegetationShaderSeed?.create(C,viewer);
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
             light:scene.light,lighting:scene.globe.enableLighting,atmosphere:scene.globe.dynamicAtmosphereLightingFromSun,
             lightingIn:scene.globe.lightingFadeInDistance,lightingOut:scene.globe.lightingFadeOutDistance,
@@ -330,6 +332,11 @@
                 if(!generator||generator.colorTexture||typeof generator.update!=='function')return;
                 try{generator.update(state);}catch(_){/* ordinary model update remains the fallback */}
             },
+            prepareVegetationShaders(signal){
+                const layer=layers.vegetation;
+                if(disposed||!layer.requested||(urls.vegetation??sources.vegetation)!==sources.vegetation)return [];
+                return vegetationSeed?.prepare(layer.tileset,signal)??[];
+            },
             set(command){
                 if(disposed)return {};
                 for(const key of ['buildings','vegetation','lighting'])if(typeof command[key]!=='boolean')throw Error('Invalid scene preference');
@@ -425,6 +432,7 @@
                 if(disposed)return;disposed=true;removeUpdate();
                 bridgeSupports?.dispose?.();
                 for(const l of Object.values(layers))release(l);
+                vegetationSeed?.dispose();
                 tileLoader.dispose();
                 if(credited)creditApi.releaseStaticCredit(creditDisplay,credit);
                 if(forestCredited)creditApi.releaseStaticCredit(creditDisplay,forestCredit);
@@ -4174,6 +4182,7 @@
     'use strict';
     const R = 6378137, DEG = Math.PI / 180;
     const MAX_SURFACES = 48, MAX_SECTIONS = 24, MAX_ROUTE = 512, MAX_PROBES = 1024;
+    const MAX_EXTENDED_ROUTE = 4096, MAX_EXTENDED_PROBES = 32768;
     const finite = Number.isFinite;
     const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
     function distance(a, b) {
@@ -4258,8 +4267,13 @@
         return clearance;
     }
     function analyse(input, surfaces = [], model = null, {radiusMeters = .25} = {}) {
+        return analyseSteps(input,surfaces,model,radiusMeters,false).next().value;
+    }
+    function* analyseSteps(input, surfaces, model, radiusMeters, extended) {
+        const maxPoints = extended ? MAX_EXTENDED_ROUTE : MAX_ROUTE;
+        const maxProbes = extended ? MAX_EXTENDED_PROBES : MAX_PROBES;
         if (!input || !Array.isArray(input.samples) || input.samples.length < 2 ||
-            input.samples.length > MAX_ROUTE || !finite(radiusMeters) || radiusMeters < .05 || radiusMeters > 2 ||
+            input.samples.length > maxPoints || !finite(radiusMeters) || radiusMeters < .05 || radiusMeters > 2 ||
             input.samples.some(p => !p || !finite(p.latitude) || !finite(p.longitude) ||
                 Math.abs(p.latitude) > 90 || Math.abs(p.longitude) > 180 ||
                 (p.height !== null && p.height !== undefined && !finite(p.height)) ||
@@ -4272,22 +4286,27 @@
         const samples = input.samples;
         outer: for (let i = 0; i < samples.length - 1; i++) {
             const a = samples[i], b = samples[i + 1], horizontal = distance(a, b);
-            const count = Math.max(1, Math.ceil(horizontal / 2));
-            for (let step = 0; step < count; step++) {
-                if (++used > MAX_PROBES) {clipped = true; break outer;}
+            const heightKnown = a.height != null && b.height != null;
+            const length = extended && heightKnown ? Math.hypot(horizontal, b.height - a.height) : horizontal;
+            const count = Math.max(1, Math.ceil(length / 2));
+            const steps = count + (extended && i === samples.length - 2 ? 1 : 0);
+            for (let step = 0; step < steps; step++) {
+                if (++used > maxProbes) {clipped = true; break outer;}
+                if (extended && used % 128 === 0) yield;
                 const t = step / count;
                 const point = {longitude: a.longitude + (b.longitude - a.longitude) * t,
                     latitude: a.latitude + (b.latitude - a.latitude) * t,
-                    height: a.height == null || b.height == null ? null : a.height + (b.height - a.height) * t};
+                    height: t === 1 ? b.height ?? null : t === 0 && extended ? a.height ?? null :
+                        heightKnown ? a.height + (b.height - a.height) * t : null};
                 if (point.height === null) {unknown++; continue;}
                 for (const surface of surfaces) {
                     const clearance = surfaceClearance(point, surface, radiusMeters);
                     assessed++;
                     if (clearance > 2) continue;
-                    const key = `${a.segment}:${surface.id}`;
+                    const key = `${b.segment}:${surface.id}`;
                     const earlier = hits.get(key);
                     if (!earlier || clearance < earlier.clearanceMeters) hits.set(key, {
-                        segment: a.segment, kind: surface.kind, id: surface.id, name: surface.name,
+                        segment: b.segment, kind: surface.kind, id: surface.id, name: surface.name,
                         source: surface.source, sourceId: surface.sourceId, quality: surface.quality,
                         claimedQuality: surface.claimedQuality,
                         clearanceMeters: clearance, status: clearance <= 0 ? 'model-contact' : 'near-model'});
@@ -4295,10 +4314,10 @@
                 const tunnelMargin = tunnelClearance(point, model, radiusMeters);
                 if (tunnelMargin !== null && tunnelMargin <= 2) {
                     assessed++;
-                    const key = `${a.segment}:tunnel`;
+                    const key = `${b.segment}:tunnel`;
                     const earlier = hits.get(key);
                     if (!earlier || tunnelMargin < earlier.clearanceMeters) hits.set(key, {
-                        segment: a.segment, kind: 'tunnel', id: String(model.identity || 'tunnel'),
+                        segment: b.segment, kind: 'tunnel', id: String(model.identity || 'tunnel'),
                         name: 'Modeled tunnel interior', source: String(model.source || 'local'),
                         sourceId: String(model.sourceId || ''), quality: model.quality || 'unknown',
                         claimedQuality: 'unknown', clearanceMeters: tunnelMargin,
@@ -4306,13 +4325,20 @@
                 }
             }
         }
-        if (used < MAX_PROBES) {
+        if (!extended && used < maxProbes) {
             const last = samples.at(-1);
             if (last.height == null) unknown++;
         }
-        const findings = [...hits.values()].sort((a, b) => a.segment - b.segment || a.clearanceMeters - b.clearanceMeters);
-        if (findings.length > 80) clipped = true;
-        return {findings: findings.slice(0, 80), checkedSamples: Math.min(used, MAX_PROBES),
+        const findings = [...hits.values()];
+        const routeOrder = (a,b) => a.segment - b.segment || a.clearanceMeters - b.clearanceMeters;
+        if (findings.length > 80) {
+            clipped = true;
+            if (extended) findings.sort((a,b) => a.clearanceMeters - b.clearanceMeters || a.segment - b.segment);
+            else findings.sort(routeOrder);
+            findings.length = 80;
+        }
+        findings.sort(routeOrder);
+        return {findings, checkedSamples: Math.min(used, maxProbes),
             unknownHeightSamples: unknown, modelCount: surfaces.length + (model ? 1 : 0),
             incomplete: true, processingLimited: clipped, // Published 3D Tiles are NOT fully surveyed for collisions.
             coverage: surfaces.length || model ? 'local-models-only' : 'unassessed',
@@ -4321,7 +4347,7 @@
     }
     function create(C, viewer, getTunnelModel = () => null) {
         let surfaces = [], source = null, visual = null, visible = false, report = null, route = null, disposed = false;
-        let retainedTunnel = null;
+        let retainedTunnel = null, assessment = 0;
         const scene = viewer.scene;
         function clearVisual() {
             if (visual) {visual.forEach(v => viewer.entities.remove(v));visual = null;}
@@ -4335,9 +4361,9 @@
                 '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
             }[c]));
             for (const hit of report.findings.slice(0, 80)) {
-                const i = route.findIndex(p => p.segment === hit.segment);
-                if (i < 0 || !route[i] || !route[i + 1]) continue;
-                const a = route[i], b = route[i + 1];
+                const i = route.findIndex((p,index) => index > 0 && p.segment === hit.segment);
+                if (i < 1) continue;
+                const a = route[i - 1], b = route[i];
                 if (a.height == null || b.height == null) continue;
                 visual.push(viewer.entities.add({name: `Infrastructure advisory: ${hit.name}`,
                     description: `${escape(hit.status)}; ${escape(hit.quality)}. NOT proof of clearance. Source: ${escape(hit.source)} / ${escape(hit.sourceId)}`,
@@ -4350,18 +4376,39 @@
         function replace(document) {
             if (disposed) throw Error('Infrastructure renderer disposed.');
             const next = validateDocument(document);
-            surfaces = next.surfaces;source = next.source;report = null;route = null;clearVisual();
+            ++assessment;surfaces = next.surfaces;source = next.source;report = null;route = null;clearVisual();
             return {count: surfaces.length, quality: next.quality, source};
         }
         function assess(input) {
             if (disposed) throw Error('Infrastructure renderer disposed.');
-            route = input.samples;
+            ++assessment;
             report = analyse(input, surfaces, getTunnelModel() ?? retainedTunnel, {radiusMeters: input.radiusMeters});
+            route = input.samples;
             render();return report;
         }
-        function setVisible(value) {
-            if (typeof value !== 'boolean') throw Error('Expected infrastructure clearance visibility');
+        async function assessRoute(input, signal) {
+            if (disposed) throw Error('Infrastructure renderer disposed.');
+            const token = ++assessment;
+            const model = getTunnelModel() ?? retainedTunnel;
+            const steps = analyseSteps(input,surfaces,model,input.radiusMeters,true);
+            let step = steps.next();
+            while (!step.done) {
+                await new Promise(resolve=>setTimeout(resolve,0));
+                signal?.throwIfAborted();
+                if (disposed || assessment !== token || model !== (getTunnelModel() ?? retainedTunnel)) {
+                    throw Error('Infrastructure assessment superseded.');
+                }
+                step = steps.next();
+            }
+            signal?.throwIfAborted();
+            route = input.samples;
+            report = step.value;
+            render();return report;
+        }
+        function setVisible(value, clearReport = false) {
+            if (typeof value !== 'boolean' || typeof clearReport !== 'boolean') throw Error('Expected infrastructure clearance visibility');
             if (disposed) return {};
+            if (clearReport) {++assessment;report = route = null;}
             visible = value;render();return {visible};
         }
         let collisionEnabled = false;
@@ -4391,11 +4438,11 @@
             }
             // Retain for route *analysis* after the route editor releases its
             // clipping mesh. Does not enable physical fly-through or terrain clipping.
-            retainedTunnel = model;
+            ++assessment;retainedTunnel = model;
             report = route = null;clearVisual();
         }
-        function forgetTunnel() {retainedTunnel = null; report = route = null;clearVisual();}
-        return {replace, assess, setVisible, setCollisionEnabled, collision, retainTunnel, forgetTunnel,
+        function forgetTunnel() {++assessment;retainedTunnel = null; report = route = null;clearVisual();}
+        return {replace, assess, assessRoute, setVisible, setCollisionEnabled, collision, retainTunnel, forgetTunnel,
             hasUnverifiedTunnel: () => !!(getTunnelModel() ?? retainedTunnel),
             status: () => ({surfaceCount: surfaces.length, source, visible, hasReport: !!report,
                 retainedTunnel: !!retainedTunnel}),

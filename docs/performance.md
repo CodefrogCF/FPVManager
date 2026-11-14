@@ -23,11 +23,13 @@ device FPS, GPU memory, cold-start latency or network performance.
   subtilesets with up to 64 headers each. Preparation yields after about 2 ms;
   construction drains in small batches between frames. Geometry payloads,
   transforms, materials, source credits and configured LOD thresholds are
-  retained. Local header blobs are capped at 64 MiB per tileset and released
-  with their owning layer. Implicit or unsupported trees use ordinary loading.
+  retained. Cesium reads local header fragments from memory, with a 64 MiB cap
+  per tileset. Destruction releases the fragments. Implicit or unsupported
+  trees use ordinary loading.
 - Vegetation reuses swisstopo's instanced tree batches. The replacement meshes
-  use 40 triangles and one primitive each. Model selection runs when a batch
-  loads, using one shared local raster. The
+  use 40 triangles and one primitive each. Foliage meshes omit transparent
+  margins around the atlas cells. Model selection runs when a batch loads,
+  using one shared local raster. The
   [vegetation comparison](performance/vegetation_2026-11-11.json) records WebGL
   draw calls and timing at ground and overhead views.
 - Geographic model bounds enclose the full source content and child regions,
@@ -45,6 +47,10 @@ device FPS, GPU memory, cold-start latency or network performance.
   it. New materials or uncommon variants can still require normal compilation.
   When a 3D layer is enabled, its shared material-lighting lookup is also
   initialized before controls activate; later flights reuse the same texture.
+  With swisstopo vegetation enabled, one hidden instance prepares both tree
+  lighting variants and releases its geometry after obtaining the programs.
+  The [showcase flight comparison](performance/showcase_flight_2026-11-14.json)
+  records shader waits and frame intervals in a dense forest.
 - Flight preparation also initializes the sky, Sun bloom and Moon programs.
   Fast rotations and vertical speeds of at least 10 m/s below 100 m AGL briefly
   reduce Cesium's terrain tile load time slice from 5 ms to 2 ms. This is a

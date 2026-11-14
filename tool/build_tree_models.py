@@ -180,6 +180,19 @@ def paint_foliage(image, sheet, leaves, color, conifer):
                     if alpha > image[offset]:
                         put(image, x0 + ix, y0 + iy, tint(color, shade), alpha)
 
+    # Trim the transparent borders from each card. Keep room for filtered
+    # texels around the outermost leaves and preserve the atlas mapping.
+    visible = [(x, y) for y in range(height) for x in range(width)
+               if image[((y0 + y) * SIZE + x0 + x) * 4 + 3]]
+    if not visible:
+        return 0, 0, 1, 1
+    xs, ys = zip(*visible)
+    padding = 4
+    return (max(0, min(xs) - padding) / (width - 1),
+            max(0, min(ys) - padding) / (height - 1),
+            min(width - 1, max(xs) + padding) / (width - 1),
+            min(height - 1, max(ys) + padding) / (height - 1))
+
 
 BARK_TILE = (208, 0, 48, 112)
 CORE_TILE = (208, 144, 48, 112)
@@ -255,8 +268,9 @@ class Mesh:
             self.face([ring[i], ring[j], low], [crown_normals[i], crown_normals[j], (0, 1, 0)],
                       [uv(CORE_TILE, left, .52), uv(CORE_TILE, right, .52), uv(CORE_TILE, middle, 1)])
 
-    def sheet(self, sheet):
-        corners = [(0, 1), (1, 1), (1, 0), (0, 0)]
+    def sheet(self, sheet, rectangle):
+        left, top, right, bottom = rectangle
+        corners = [(left, bottom), (right, bottom), (right, top), (left, top)]
         positions, normals = [], []
         for u, v in corners:
             point = vector_sum(sheet.origin, sheet.right, (2 * u - 1) * sheet.half_width)
@@ -344,8 +358,8 @@ def build(kind, variant, name):
     leaves = list(foliage(kind, variant, rng))
     paint_solid_surfaces(image, rng, color, variant)
     for sheet in sheets(kind, variant):
-        mesh.sheet(sheet)
-        paint_foliage(image, sheet, leaves, color, kind == 'conifer')
+        rectangle = paint_foliage(image, sheet, leaves, color, kind == 'conifer')
+        mesh.sheet(sheet, rectangle)
     # Source Tree-1 through Tree-3 each contain 40 triangles and two textures.
     if len(mesh.indices) // 3 > 40 or min(p[1] for p in mesh.positions) != BASE:
         raise ValueError('Tree exceeds the source geometry budget or changes the trunk anchor')

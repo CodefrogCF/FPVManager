@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/route_planning_settings.dart';
+import '../../core/models/signal_settings.dart';
+import '../routes/analysis/route_analysis.dart';
 import '../routes/route_editor_controller.dart';
 import 'radio_analysis.dart';
 
@@ -20,8 +23,12 @@ class RadioAnalysisController extends ChangeNotifier {
   bool _disposed = false, loading = false;
   String? error;
   List<RadioPathResult>? result;
-  RadioAnalysisPlan? _plan;
-  List<double>? _heights;
+  List<RouteProfilePoint>? _route;
+  SignalSettings? _signal;
+  double? _pilotGround;
+  RadioPathResult? selectedProfile;
+  bool loadingProfile = false;
+  int _selection = 0;
   final Set<String> methods = {};
   void _remember() {
     _points = editor.points;
@@ -52,8 +59,11 @@ class RadioAnalysisController extends ChangeNotifier {
     ++_operation;
     loading = false;
     result = null;
-    _plan = null;
-    _heights = null;
+    _route = null;
+    _signal = null;
+    _pilotGround = null;
+    selectedProfile = null;
+    loadingProfile = false;
     error = null;
     unawaited(_clearMap());
     if (!_disposed) notifyListeners();
@@ -69,6 +79,8 @@ class RadioAnalysisController extends ChangeNotifier {
     completed = 0;
     total = 0;
     methods.clear();
+    selectedProfile = null;
+    loadingProfile = false;
     unawaited(_clearMap());
     notifyListeners();
     try {
@@ -81,35 +93,49 @@ class RadioAnalysisController extends ChangeNotifier {
           'Detailed terrain is unavailable. Retry after reconnecting terrain.',
         );
       }
-      final plan = RadioAnalysisPlan.create([
-        for (final p in editor.points) p.input,
-      ], settings);
-      total = plan.positions.length;
-      final heights = <double>[];
-      for (var offset = 0; offset < total; offset += 256) {
+      final points = [for (final p in editor.points) p.input];
+      final plan = RouteSamplingPlan.create(points, spacing: 100);
+      total = plan.samples.length;
+      final ground = await _sample([
+        settings.pilot,
+        for (final sample in plan.samples) sample.position,
+      ], current);
+      if (ground == null) return;
+      final route = RouteAnalysis.calculate(
+        points,
+        plan,
+        ground.sublist(1),
+        const RoutePlanningSettings(),
+      ).profile;
+      final paths = <RadioPathResult>[];
+      for (final batch in RadioAnalysisBatch.forRoute(route, settings)) {
+        final heights = await _sample(batch.positions, current);
+        if (heights == null) return;
+        final calculated = await compute(calculateRadioBatch, (
+          batch,
+          settings,
+          ground.first,
+          heights,
+          false,
+        ));
         if (!current()) return;
-        final sample = await editor.globe.queryRouteTerrain(
-          plan.positions.sublist(offset, (offset + 256).clamp(0, total)),
-        );
-        if (!current()) return;
-        heights.addAll(sample.heights);
-        methods.add(sample.samplingMethod);
-        completed = heights.length;
+        paths.addAll(calculated);
+        completed = paths.length;
         notifyListeners();
       }
-      if (!current()) return;
-      final calculated = await compute(calculateRadioAnalysis, (plan, heights));
-      if (!current()) return;
-      _plan = plan;
-      _heights = heights;
-      result = calculated;
+      _route = route;
+      _signal = settings;
+      _pilotGround = ground.first;
+      result = List.unmodifiable(paths);
       selected = 0;
       await _map();
+      if (current()) await _loadProfile();
     } catch (e) {
       if (current()) {
         result = null;
-        _plan = null;
-        _heights = null;
+        _route = null;
+        _signal = null;
+        _pilotGround = null;
         error = '$e';
         await _clearMap();
       }
@@ -121,14 +147,80 @@ class RadioAnalysisController extends ChangeNotifier {
     }
   }
 
+  Future<List<double>?> _sample(
+    List<Wgs84Coordinate> positions,
+    bool Function() current,
+  ) async {
+    final heights = <double>[];
+    for (var offset = 0; offset < positions.length; offset += 256) {
+      if (!current()) return null;
+      final sample = await editor.globe.queryRouteTerrain(
+        positions.sublist(offset, (offset + 256).clamp(0, positions.length)),
+      );
+      if (!current()) return null;
+      heights.addAll(sample.heights);
+      methods.add(sample.samplingMethod);
+    }
+    return current() ? heights : null;
+  }
+
+  Future<void> _loadProfile() async {
+    final paths = result!, target = selected, request = ++_selection;
+    bool current() =>
+        !_disposed && identical(result, paths) && request == _selection;
+    selectedProfile = paths[target];
+    final known = paths[target].state != RadioPathState.unknown;
+    loadingProfile = known;
+    notifyListeners();
+    if (!known || !current()) return;
+    try {
+      final settings = _signal!, pilotGround = _pilotGround!;
+      final batch = RadioAnalysisBatch.forRoute([
+        _route![target],
+      ], settings).single;
+      final heights = await _sample(batch.positions, current);
+      if (heights == null) return;
+      final detailed = await compute(calculateRadioBatch, (
+        batch,
+        settings,
+        pilotGround,
+        heights,
+        true,
+      ));
+      if (current()) selectedProfile = detailed.single;
+    } catch (_) {
+      if (current()) error = 'Communication profile unavailable. Select the path again to retry.';
+    } finally {
+      if (current()) {
+        loadingProfile = false;
+        notifyListeners();
+      }
+    }
+  }
+
   Future<void> select(int index) async {
-    if (result == null || index < 0 || index >= result!.length) return;
+    if (_disposed ||
+        loading ||
+        result == null ||
+        index < 0 ||
+        index >= result!.length) {
+      return;
+    }
+    final paths = result;
     selected = index;
+    selectedProfile = null;
+    ++_selection;
+    final selection = _selection;
+    error = null;
     notifyListeners();
     try {
       await _map();
+      if (!_disposed && identical(paths, result) && selection == _selection) {
+        await _loadProfile();
+      }
     } catch (_) {
-      if (!_disposed) {
+      if (!_disposed && identical(paths, result) && selection == _selection) {
+        loadingProfile = false;
         error = 'Signal overlay unavailable. Recalculate to retry.';
         notifyListeners();
       }
@@ -136,24 +228,27 @@ class RadioAnalysisController extends ChangeNotifier {
   }
 
   Future<void> _map() async {
-    final paths = result, plan = _plan, heights = _heights;
-    if (paths == null || plan == null || heights == null) return;
+    final paths = result, route = _route, settings = _signal;
+    if (paths == null || route == null || settings == null) return;
+    final start = selected ~/ radioMapPageSize * radioMapPageSize;
+    final end = (start + radioMapPageSize).clamp(0, paths.length);
     await editor.globe.setSignalAnalysis({
       'pilot': {
-        'latitude': plan.settings.pilot.latitude,
-        'longitude': plan.settings.pilot.longitude,
-        'height': heights[0] + plan.settings.antennaHeight,
+        'latitude': settings.pilot.latitude,
+        'longitude': settings.pilot.longitude,
+        'height': _pilotGround! + settings.antennaHeight,
       },
-      'frequencyMhz': plan.settings.frequencyMhz,
-      'fraction': plan.settings.clearanceFraction,
-      'selected': selected,
+      'frequencyMhz': settings.frequencyMhz,
+      'fraction': settings.clearanceFraction,
+      'selected': selected - start,
+      'targetOffset': start,
       'rays': [
-        for (var i = 0; i < paths.length; i++)
+        for (var i = start; i < end; i++)
           {
             'latitude': paths[i].target.latitude,
             'longitude': paths[i].target.longitude,
             'height': paths[i].altitude,
-            'ground': heights[i + 1],
+            'ground': route[i].ground,
             'state': paths[i].state.name,
           },
       ],

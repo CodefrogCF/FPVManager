@@ -86,7 +86,7 @@ test('region repair only grows valid global extents and preserves unsupported vo
 
 test('halls retain corrected culling bounds when local header fragments reach their memory cap',async()=>{
     const factory={externalTileset:(_tileset,_tile,_resource,json)=>({json})};
-    const runtime={Resource:C.Resource,Cesium3DTileContentFactory:factory,Cesium3DTileset:{
+    const runtime={Resource:C.Resource,RequestState:C.RequestState,Cesium3DTileContentFactory:factory,Cesium3DTileset:{
         async fromUrl(){return {destroy(){},isDestroyed:()=>false};}}};
     const loader=create(runtime,{headerBudgetBytes:1}),owner=await loader.load('https://example.test/tileset.json',{});
     const original=source();original.root.children=Array.from({length:80},()=>source().root.children[0]);

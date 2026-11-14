@@ -17,9 +17,11 @@ sampled positions and gray unknown. The selected path shows a Fresnel wireframe.
 The LOS model uses a straight WGS84 ECEF chord, including Earth curvature, and
 Cesium/swisstopo terrain in WGS84 ellipsoidal heights. Only explicit AGL or WGS84
 route heights are evaluated; the map's 30 m preview is not an analysis input.
-Route targets are at most 100 m apart; communication profiles at most 25 m apart.
-Limits: 128 targets, 16384 terrain samples, 50 km communication paths. Shorten or
-split routes exceeding these limits. Sampling may miss narrow features.
+All saved waypoints are included. Targets are at most 100 m apart and each
+communication profile is sampled at intervals of at most 25 m. FPVManager
+processes the route in batches and lists the results in order. The map shows
+the group of up to 128 targets containing the selected path. Paths over 50 km
+are marked unknown. Sampling may miss narrow features.
 
 First Fresnel radius: `sqrt(λ*d1*d2/(d1+d2))`, with wavelength and distances in
 metres. The configurable clearance defaults to 60% of the radius. See

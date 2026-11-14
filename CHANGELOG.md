@@ -1,5 +1,15 @@
 # Change summary
 
+## 2026-11-14
+
+- Prepare the instanced vegetation shaders before flight controls activate.
+  Read partitioned 3D tileset headers directly from memory during streaming.
+- Reduce transparent margins on the foliage geometry for the six tree models.
+- Analyze all saved route waypoints for radio coverage in bounded batches.
+  The map shows the page containing the selected result.
+- Preserve the full route profile and original segment indices for local 3D
+  infrastructure checks. Skip distant vector obstacles before detailed checks.
+
 ## 2026-11-11
 
 - Replaced the stock tree models with six textured broadleaf and conifer

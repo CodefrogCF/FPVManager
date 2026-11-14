@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/flight_route.dart';
-import '../../core/models/route_planning_settings.dart';
 import '../../core/models/signal_settings.dart';
 import '../routes/analysis/route_analysis.dart';
 
@@ -41,114 +40,117 @@ class RadioPathResult {
   final List<RadioPathSample> profile;
 }
 
-/// A bounded set of route targets and communication profiles, in WGS84.
-class RadioAnalysisPlan {
-  RadioAnalysisPlan._(
-    this.points,
-    this.settings,
-    this.route,
-    this.positions,
-    this.paths,
-  );
-  final List<RouteWaypointInput> points;
-  final SignalSettings settings;
-  final RouteSamplingPlan route;
+const radioMapPageSize = 128;
+const radioMaximumPathMeters = 50000;
+
+RouteSamplingPlan? _radioLinkPlan(
+  SignalSettings settings,
+  RouteProfilePoint target,
+) {
+  if (target.altitude == null) return null;
+  final distance = routeDistance(settings.pilot, target.sample.position);
+  if (distance < 1 || distance > radioMaximumPathMeters) return null;
+  return RouteSamplingPlan.create([
+    RouteWaypointInput(position: settings.pilot),
+    RouteWaypointInput(position: target.sample.position),
+  ], spacing: 25);
+}
+
+/// Bound peak terrain and isolate memory independently of route waypoint count.
+class RadioAnalysisBatch {
+  const RadioAnalysisBatch._(this.targets, this.positions, this.offsets);
+
+  final List<RouteProfilePoint> targets;
   final List<Wgs84Coordinate> positions;
-  final List<List<int>> paths;
-  factory RadioAnalysisPlan.create(
-    List<RouteWaypointInput> points,
+  final List<int> offsets;
+
+  static Iterable<RadioAnalysisBatch> forRoute(
+    List<RouteProfilePoint> route,
     SignalSettings settings,
-  ) {
-    settings.validate();
-    settings = SignalSettings.fromJson(settings.toJson());
-    final route = RouteSamplingPlan.create(points, spacing: 100);
-    if (route.samples.length > 128) {
-      throw ArgumentError(
-        'Signal analysis supports up to 128 route targets at 100 m. Split this route.',
-      );
-    }
-    final positions = <Wgs84Coordinate>[
-      settings.pilot,
-      ...route.samples.map((s) => s.position),
-    ];
-    final paths = <List<int>>[];
-    for (var i = 0; i < route.samples.length; i++) {
-      final target = route.samples[i].position;
-      if (routeDistance(settings.pilot, target) > 50000) {
-        throw ArgumentError('Communication paths must be shorter than 50 km');
+  ) sync* {
+    var targets = <RouteProfilePoint>[];
+    var positions = <Wgs84Coordinate>[];
+    var offsets = <int>[0];
+    for (final target in route) {
+      final path = _radioLinkPlan(settings, target);
+      final count = path == null ? 0 : path.samples.length - 2;
+      if (targets.length == radioMapPageSize ||
+          positions.length + count > 16384) {
+        yield RadioAnalysisBatch._(targets, positions, offsets);
+        targets = [];
+        positions = [];
+        offsets = [0];
       }
-      final path = RouteSamplingPlan.create([
-        RouteWaypointInput(position: settings.pilot),
-        RouteWaypointInput(position: target),
-      ], spacing: 25);
-      if (positions.length + path.samples.length - 2 > 16384) {
-        throw ArgumentError(
-          'Signal analysis exceeds 16384 terrain samples. Split this route.',
+      targets.add(target);
+      if (path != null) {
+        positions.addAll(
+          path.samples.skip(1).take(count).map((p) => p.position),
         );
       }
-      final indices = <int>[0];
-      for (final sample in path.samples.skip(1).take(path.samples.length - 2)) {
-        indices.add(positions.length);
-        positions.add(sample.position);
-      }
-      indices.add(i + 1);
-      paths.add(List.unmodifiable(indices));
+      offsets.add(positions.length);
     }
-    return RadioAnalysisPlan._(
-      List.unmodifiable(points),
-      settings,
-      route,
-      List.unmodifiable(positions),
-      List.unmodifiable(paths),
-    );
-  }
-  List<RadioPathResult> calculate(List<double> heights) {
-    if (heights.length != positions.length ||
-        heights.any((h) => !h.isFinite || h.abs() > 100000)) {
-      throw ArgumentError('Incomplete terrain profile');
+    if (targets.isNotEmpty) {
+      yield RadioAnalysisBatch._(targets, positions, offsets);
     }
-    final routeResult = RouteAnalysis.calculate(
-      points,
-      route,
-      heights.sublist(1, route.samples.length + 1),
-      const RoutePlanningSettings(),
-    );
-    final pilotHeight = heights[0] + settings.antennaHeight;
-    return List.unmodifiable([
-      for (var i = 0; i < paths.length; i++)
-        _calculatePath(
-          i,
-          heights,
-          routeResult.profile[i].altitude,
-          pilotHeight,
-        ),
-    ]);
   }
 
-  RadioPathResult _calculatePath(
-    int index,
-    List<double> heights,
-    double? altitude,
-    double pilotHeight,
-  ) {
-    final target = route.samples[index].position;
-    if (altitude == null || routeDistance(settings.pilot, target) < 1) {
-      return RadioPathResult(
-        target: target,
-        altitude: altitude,
-        state: RadioPathState.unknown,
+  List<RadioPathResult> calculate(
+    SignalSettings settings,
+    double pilotGround,
+    List<double> heights, {
+    bool includeProfiles = false,
+  }) {
+    if (positions.length != heights.length) {
+      throw ArgumentError('Incomplete terrain profile');
+    }
+    final results = <RadioPathResult>[];
+    for (var i = 0; i < targets.length; i++) {
+      final target = targets[i], position = target.sample.position;
+      final distance = routeDistance(settings.pilot, position);
+      if (target.altitude == null ||
+          distance < 1 ||
+          distance > radioMaximumPathMeters) {
+        results.add(
+          RadioPathResult(
+            target: position,
+            altitude: target.altitude,
+            state: RadioPathState.unknown,
+          ),
+        );
+        continue;
+      }
+      results.add(
+        calculateRadioLink(
+          settings: settings,
+          target: position,
+          altitude: target.altitude!,
+          pilotHeight: pilotGround + settings.antennaHeight,
+          positions: [
+            settings.pilot,
+            ...positions.getRange(offsets[i], offsets[i + 1]),
+            position,
+          ],
+          heights: [
+            pilotGround,
+            ...heights.getRange(offsets[i], offsets[i + 1]),
+            target.ground!,
+          ],
+          includeProfile: includeProfiles,
+        ),
       );
     }
-    return calculateRadioLink(
-      settings: settings,
-      target: target,
-      altitude: altitude,
-      pilotHeight: pilotHeight,
-      positions: [for (final i in paths[index]) positions[i]],
-      heights: [for (final i in paths[index]) heights[i]],
-    );
+    return results;
   }
 }
+
+List<RadioPathResult> calculateRadioBatch(
+  (RadioAnalysisBatch, SignalSettings, double, List<double>, bool) request,
+) => request.$1.calculate(
+  request.$2,
+  request.$3,
+  request.$4,
+  includeProfiles: request.$5,
+);
 
 /// Shared single-link kernel for route planning and live simulation.
 RadioPathResult calculateRadioLink({
@@ -158,6 +160,7 @@ RadioPathResult calculateRadioLink({
   required double pilotHeight,
   required List<Wgs84Coordinate> positions,
   required List<double> heights,
+  bool includeProfile = true,
 }) {
   settings.validate();
   bool validPosition(Wgs84Coordinate p) =>
@@ -218,16 +221,18 @@ RadioPathResult calculateRadioLink({
       fresnelMinimum,
       clearance - settings.clearanceFraction * radius,
     );
-    samples.add(
-      RadioPathSample(
-        p,
-        ground,
-        surface,
-        surface + verticalClearance,
-        radius,
-        clearance,
-      ),
-    );
+    if (includeProfile) {
+      samples.add(
+        RadioPathSample(
+          p,
+          ground,
+          surface,
+          surface + verticalClearance,
+          radius,
+          clearance,
+        ),
+      );
+    }
   }
   return RadioPathResult(
     target: target,
@@ -242,10 +247,6 @@ RadioPathResult calculateRadioLink({
     profile: List.unmodifiable(samples),
   );
 }
-
-List<RadioPathResult> calculateRadioAnalysis(
-  (RadioAnalysisPlan, List<double>) request,
-) => request.$1.calculate(request.$2);
 
 /// First-zone radius, SI units, ITU-R P.526 Annex 1 equation (2), n=1.
 double fresnelRadius(double frequencyMhz, double d1, double d2) {

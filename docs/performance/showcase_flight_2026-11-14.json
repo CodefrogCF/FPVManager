@@ -1,0 +1,48 @@
+{
+  "recordedOn": "2026-11-14",
+  "runtime": {
+    "cesium": "1.145.0",
+    "platform": "Windows, headless Chrome, WebGL 2",
+    "gpu": "Intel UHD Graphics via ANGLE D3D11",
+    "viewportPixels": [1424, 805],
+    "graphicsProfile": "quality",
+    "horizontalFovDegrees": 105,
+    "terrainAndImagery": "swisstopo",
+    "startLatitude": 46.85,
+    "startLongitude": 9.89
+  },
+  "method": "Replay a camera turn followed by a 386 m simulated flight at 75 m AGL with swisstopo vegetation, terrain and satellite imagery. Measure 32 seconds after flight activation in a fresh browser profile. Record post-render timestamps, long tasks and synchronous GL program status waits above 12 ms. Each variant finished with 29 selected tiles and 13,807 selected vegetation instances.",
+  "comparison": {
+    "previous": {
+      "preparationMs": 13683.6,
+      "largestActiveVegetationProgramWaitMs": 371.4,
+      "frameGapMedianMs": 27.3,
+      "frameGapP95Ms": 101.3,
+      "frameGapMaximumMs": 426.9,
+      "loadedVegetationTiles": 29,
+      "rendererErrors": 0
+    },
+    "updated": {
+      "preparationMs": 13229.5,
+      "activeVegetationProgramWaitsAbove12Ms": 0,
+      "frameGapMedianMs": 180.4,
+      "frameGapP95Ms": 222,
+      "frameGapMaximumMs": 259.7,
+      "loadedVegetationTiles": 59,
+      "rendererErrors": 0
+    },
+    "providerTreeModelsWithUpdatedHeaderLoader": {
+      "largestActiveVegetationProgramWaitMs": 321.2,
+      "frameGapP95Ms": 307.7,
+      "frameGapMaximumMs": 389.1,
+      "loadedVegetationTiles": 59,
+      "rendererErrors": 0
+    }
+  },
+  "observations": [
+    "The previous run sampled about 3.3 seconds in URL.createObjectURL for local tileset fragments after flight activation. The updated header loader removes that call site.",
+    "The updated loader reached the dense forest earlier. Full-run frame-gap percentiles reflect different time spent under dense vegetation load.",
+    "Bundled trees still use six variants with their original textures and 40 triangles per tree. Foliage geometry bounds reduce total model triangle surface area by approximately 6–23 percent, depending on the variant.",
+    "Dense vegetation still causes long frame gaps on this GPU. The browser measurement leaves native Windows and Android frame pacing unverified."
+  ]
+}

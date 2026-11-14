@@ -107,10 +107,10 @@ class InfrastructureClearanceReport {
         findings.length > 80 ||
         checked is! int ||
         checked < 0 ||
-        checked > 1024 ||
+        checked > 32768 ||
         unknown is! int ||
         unknown < 0 ||
-        unknown > 1025 ||
+        unknown > checked + 1 ||
         count is! int ||
         count < 0 ||
         count > 49 ||

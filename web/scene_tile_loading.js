@@ -45,7 +45,7 @@
     }
     // Keep the geometry, transforms, metadata and LOD thresholds intact. Only
     // turn large explicit header subtrees into ordinary external tilesets.
-    // Blob contents stay local to this viewer; no new provider is involved.
+    // Fragment contents stay local to this viewer.
     async function partition(json,baseUrl,{maxNodes=64,makeUrl,pause:yieldTask=pause,now:clock=now,
         budgetMs=2,signal,onBoundsExpanded=()=>{}}={}){
         if(!json?.root||!json.asset||!['0.0','1.0','1.1'].includes(json.asset.version)||
@@ -144,11 +144,13 @@
         const factory=C.Cesium3DTileContentFactory,resourcePrototype=C.Resource?.prototype;
         const legacy={load:(url,options)=>C.Cesium3DTileset.fromUrl(url,options),dispose(){},status:()=>({supported:false})};
         if(!factory||typeof factory.externalTileset!=='function'||!resourcePrototype?.getUrlComponent||
-            !globalThis.URL?.createObjectURL||!globalThis.Blob)return legacy;
+            !resourcePrototype?.fetchArrayBuffer||!C.RequestState||!globalThis.TextEncoder)return legacy;
         let registry=registries.get(factory);
         if(!registry){
             const external=factory.externalTileset,getUrl=resourcePrototype.getUrlComponent;
-            const owners=new WeakMap(),blobUrls=new Set(),queue=[];
+            const fetchBuffer=resourcePrototype.fetchArrayBuffer;
+            const owners=new WeakMap(),localFragments=new Map(),queue=[];
+            const encoder=new TextEncoder(),prefix='fpv-scene-fragment://local/';
             let references=0,timer=null,prepared=0,fragments=0,liveBytes=0,expandedBounds=0,maxConstructionMs=0,preparation=Promise.resolve();
             function drain(){
                 timer=null;const deadline=now()+2;
@@ -165,36 +167,49 @@
             });
             function release(owner){
                 owner.abort.abort();
-                for(const url of owner.urls.keys()){URL.revokeObjectURL(url);blobUrls.delete(url);}
+                for(const url of owner.urls.keys())localFragments.delete(url);
                 liveBytes-=owner.bytes;owner.urls.clear();owner.bytes=0;
             }
             function urlComponent(...args){
-                // Derived resources inherit a provider's version query. Local
-                // blob URLs must be fetched without that inherited suffix.
-                return blobUrls.has(this._url)?this._url:getUrl.apply(this,args);
+                // Local fragment identities must omit the inherited provider query.
+                return this._url.startsWith(prefix)?this._url:getUrl.apply(this,args);
+            }
+            function fetchArrayBuffer(...args){
+                if(!this._url.startsWith(prefix))return fetchBuffer.apply(this,args);
+                if(this.request.cancelled){
+                    this.request.state=C.RequestState.CANCELLED;
+                    return Promise.reject(new DOMException('Local tileset request cancelled','AbortError'));
+                }
+                const buffer=localFragments.get(this._url);
+                if(!buffer)return Promise.reject(Error('Local tileset fragment has been released'));
+                // Cesium processes this local JSON through its regular external-
+                // tileset path. Skip the browser's blob registration and fetch.
+                this.request.state=C.RequestState.RECEIVED;
+                return Promise.resolve(buffer);
             }
             async function slicedExternal(tileset,tile,resource,json){
                 const owner=owners.get(tileset);
                 if(!owner)return external(tileset,tile,resource,json);
                 const signal=owner.abort.signal;signal.throwIfAborted();
                 let result=json;
-                if(!blobUrls.has(resource._url)){
+                if(!resource._url.startsWith(prefix)){
                     const created=[];
                     try{
                         const task=preparation.then(()=>partition(json,resource.url,{signal,onBoundsExpanded:count=>{expandedBounds+=count;},makeUrl:data=>{
-                            const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
-                            if(owner.bytes+blob.size>owner.headerBudgetBytes){
+                            const buffer=encoder.encode(JSON.stringify(data)).buffer;
+                            if(owner.bytes+buffer.byteLength>owner.headerBudgetBytes){
                                 const error=Error('Local tileset header budget reached');error.code='FPV_HEADER_BUDGET';throw error;
                             }
-                            const url=URL.createObjectURL(blob);
-                            owner.urls.set(url,blob.size);owner.bytes+=blob.size;liveBytes+=blob.size;blobUrls.add(url);created.push(url);fragments++;return url;
+                            const url=`${prefix}${++fragments}.json`;
+                            owner.urls.set(url,buffer.byteLength);owner.bytes+=buffer.byteLength;liveBytes+=buffer.byteLength;
+                            localFragments.set(url,buffer);created.push(url);return url;
                         }}));
                         preparation=task.catch(()=>{});result=await task;
                         if(result!==json)prepared++;
                     }catch(error){
                         for(const url of created){
-                            URL.revokeObjectURL(url);const size=owner.urls.get(url)||0;
-                            owner.bytes-=size;liveBytes-=size;owner.urls.delete(url);blobUrls.delete(url);
+                            const size=owner.urls.get(url)||0;
+                            owner.bytes-=size;liveBytes-=size;owner.urls.delete(url);localFragments.delete(url);
                         }
                         if(signal.aborted)throw error;
                         result=json;
@@ -213,13 +228,15 @@
                 },signal);
             }
             registry={
-                acquire(){if(references++===0){factory.externalTileset=slicedExternal;resourcePrototype.getUrlComponent=urlComponent;}},
+                acquire(){if(references++===0){factory.externalTileset=slicedExternal;resourcePrototype.getUrlComponent=urlComponent;
+                    resourcePrototype.fetchArrayBuffer=fetchArrayBuffer;}},
                 release(){if(--references===0){
                     if(factory.externalTileset===slicedExternal)factory.externalTileset=external;
                     if(resourcePrototype.getUrlComponent===urlComponent)resourcePrototype.getUrlComponent=getUrl;
+                    if(resourcePrototype.fetchArrayBuffer===fetchArrayBuffer)resourcePrototype.fetchArrayBuffer=fetchBuffer;
                 }},
                 owners,releaseOwner:release,
-                status:()=>({supported:true,prepared,fragments,liveFragments:blobUrls.size,liveBytes,queued:queue.length,expandedBounds,maxConstructionMs})
+                status:()=>({supported:true,prepared,fragments,liveFragments:localFragments.size,liveBytes,queued:queue.length,expandedBounds,maxConstructionMs})
             };
             registries.set(factory,registry);
         }

@@ -32,6 +32,7 @@ class RouteSafetyController extends ChangeNotifier {
   double _buffer = 0;
   int _operation = 0;
   bool _disposed = false, loading = false;
+  bool _checkingInfrastructure = false;
   RouteRuleCheck? rules;
   UasAirspaceCheck? airspace;
   ObstacleProximityReport? proximity;
@@ -117,6 +118,9 @@ class RouteSafetyController extends ChangeNotifier {
   }
 
   void cancel() {
+    if (_checkingInfrastructure || infrastructure != null) {
+      _clearInfrastructure();
+    }
     ++_operation;
     loading = false;
     rules = null;
@@ -216,39 +220,18 @@ class RouteSafetyController extends ChangeNotifier {
     if (!current()) return;
     InfrastructureClearanceReport? infrastructureResult;
     if (infrastructureEnabled) {
+      _checkingInfrastructure = true;
       try {
         final profile = analysis.profile;
-        // The bridge protocol has a bounded request frame. Long routes remain
-        // explicitly incomplete rather than being treated as obstacle-free.
-        final stride = math.max(1, (profile.length / 510).ceil());
-        final selected = <InfrastructureRoutePoint>[
-          for (var i = 0; i < profile.length; i += stride)
+        infrastructureResult = await editor.globe.queryInfrastructureClearance([
+          for (final point in profile)
             InfrastructureRoutePoint(
-              latitude: profile[i].sample.position.latitude,
-              longitude: profile[i].sample.position.longitude,
-              heightMetersWgs84: profile[i].altitude,
-              segment: profile[i].sample.segment,
+              latitude: point.sample.position.latitude,
+              longitude: point.sample.position.longitude,
+              heightMetersWgs84: point.altitude,
+              segment: point.sample.segment,
             ),
-        ];
-        if (selected.length < 512 &&
-            profile.length > 1 &&
-            (selected.last.latitude != profile.last.sample.position.latitude ||
-                selected.last.longitude !=
-                    profile.last.sample.position.longitude)) {
-          selected.add(
-            InfrastructureRoutePoint(
-              latitude: profile.last.sample.position.latitude,
-              longitude: profile.last.sample.position.longitude,
-              heightMetersWgs84: profile.last.altitude,
-              segment: profile.last.sample.segment,
-            ),
-          );
-        }
-        infrastructureResult = await editor.globe.queryInfrastructureClearance(
-          selected,
-          droneRadiusMeters: droneRadiusMeters,
-          truncated: stride > 1,
-        );
+        ], droneRadiusMeters: droneRadiusMeters);
         if (!current()) return;
         await editor.globe.showInfrastructureClearance(
           infrastructureLayerVisible,
@@ -257,6 +240,8 @@ class RouteSafetyController extends ChangeNotifier {
       } catch (_) {
         if (!current()) return;
         infrastructureError = '3D infrastructure assessment unavailable. No clearance was established.';
+      } finally {
+        if (current()) _checkingInfrastructure = false;
       }
     }
     if (!current()) return;
@@ -277,10 +262,19 @@ class RouteSafetyController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _clearInfrastructure() {
+    _checkingInfrastructure = false;
+    unawaited(
+      editor.globe
+          .showInfrastructureClearance(false, clearReport: true)
+          .catchError((Object _) {}),
+    );
+  }
+
   @override
   void dispose() {
     _disposed = true;
-    ++_operation;
+    cancel();
     editor.removeListener(_changed);
     editor.globe.removeListener(_changed);
     super.dispose();

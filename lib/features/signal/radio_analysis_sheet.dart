@@ -282,7 +282,7 @@ class _RadioSheetState extends State<_RadioSheet> {
                       value: c.total == 0 ? null : c.completed / c.total,
                     ),
                     Text(
-                      context.translate("{0} / {1} terrain samples", [
+                      context.translate("{0} / {1} route targets checked", [
                         c.completed,
                         c.total,
                       ]),
@@ -290,7 +290,7 @@ class _RadioSheetState extends State<_RadioSheet> {
                   ],
                   if (_importing) const LinearProgressIndicator(),
                   if (_error != null || c.error != null)
-                    Text(_error ?? c.error!),
+                    Text(context.translate(_error ?? c.error!)),
                   if (c.result case final paths?) ...[
                     Text(
                       context.translate("{0} route targets · terrain: {1}", [
@@ -303,6 +303,18 @@ class _RadioSheetState extends State<_RadioSheet> {
                         "Map: orange = potential obstruction, purple = Fresnel intrusion, cyan = no sampled obstruction, gray = unknown. The selected path shows the configured Fresnel envelope.",
                       ),
                     ),
+                    if (paths.length > radioMapPageSize)
+                      Text(
+                        context.translate("Map targets {0}–{1} of {2}", [
+                          c.selected ~/ radioMapPageSize * radioMapPageSize + 1,
+                          math.min(
+                            (c.selected ~/ radioMapPageSize + 1) *
+                                radioMapPageSize,
+                            paths.length,
+                          ),
+                          paths.length,
+                        ]),
+                      ),
                     DropdownButtonFormField<int>(
                       key: ValueKey(paths),
                       initialValue: c.selected,
@@ -322,11 +334,14 @@ class _RadioSheetState extends State<_RadioSheet> {
                             ),
                           ),
                       ],
-                      onChanged: (i) {
-                        if (i != null) c.select(i);
-                      },
+                      onChanged: c.loading
+                          ? null
+                          : (i) {
+                              if (i != null) c.select(i);
+                            },
                     ),
-                    _profile(paths[c.selected]),
+                    if (c.loadingProfile) const LinearProgressIndicator(),
+                    _profile(c.selectedProfile ?? paths[c.selected]),
                   ],
                   ExpansionTile(
                     title: Text(context.translate("Method, sources & limits")),
@@ -335,7 +350,7 @@ class _RadioSheetState extends State<_RadioSheet> {
                         padding: EdgeInsets.all(8),
                         child: Text(
                           context.translate(
-                            "swisstopo terrain via Cesium, WGS84 ellipsoidal heights. Straight ECEF chord includes Earth curvature; no atmospheric refraction, diffraction loss, multipath, interference, antenna patterns or received-power prediction. First Fresnel radius: √(λ d1 d2 / (d1+d2)), ITU-R P.526 Annex 1 §2.1. Route targets ≤100 m apart, communication profiles ≤25 m apart; narrow obstacles and obstructions beside the sampled centerline may be missed. Imported surface observations are circular, constant AGL additions to sampled terrain. The Fresnel envelope is a wireframe aid, not a surveyed clearance volume. Unknown route heights stay unknown; 30 m display previews are excluded. Up to 128 targets / 16384 terrain samples. Recalculate after route, pilot or terrain changes.",
+                            "swisstopo terrain via Cesium, WGS84 ellipsoidal heights. The straight ECEF line accounts for Earth curvature. Targets are at most 100 m apart and each radio path is sampled at intervals of at most 25 m. Imported surface observations add their specified height within their radius. Targets beyond 50 km or with unknown altitude are marked unknown. The map shows the group of up to 128 paths around the selected result. Recalculate after route, pilot or terrain changes.",
                           ),
                         ),
                       ),

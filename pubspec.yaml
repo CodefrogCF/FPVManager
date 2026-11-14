@@ -115,6 +115,7 @@ flutter:
     - web/flight_rendering.js
     - web/scene_environment.js
     - web/vegetation_models.js
+    - web/vegetation_shader_seed.js
     - web/forest_composition.js
     - web/assets/vegetation/
     - web/scene_tile_loading.js

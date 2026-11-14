@@ -803,12 +803,12 @@ function postToFlutter(message) {
             case 'query-infrastructure-clearance': {
                 if (!infrastructureClearance) throw Error('Infrastructure analysis unavailable.');
                 signal?.throwIfAborted?.();
-                const report = infrastructureClearance.assess(command);
+                const report = await infrastructureClearance.assessRoute(command, signal);
                 signal?.throwIfAborted?.();
                 return report;
             }
             case 'set-infrastructure-clearance-layer':
-                return infrastructureClearance?.setVisible(command.visible) ?? {};
+                return infrastructureClearance?.setVisible(command.visible, command.clearReport) ?? {};
             case 'set-navigation-environment': return sceneEnvironment.navigation(command);
             case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
@@ -1117,7 +1117,7 @@ function postToFlutter(message) {
                     info.textContent=total
                         ?translate('Preparing flight… {0}%',Math.round(100*completed/total))
                         :translate('Preparing flight…');
-                });
+                }, sceneEnvironment.prepareVegetationShaders);
             },
             captureCamera: () => {
                 viewer.camera.cancelFlight();

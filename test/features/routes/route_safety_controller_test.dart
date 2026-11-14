@@ -216,6 +216,59 @@ void main() {
     expect(safety.infrastructure, isNull);
   });
 
+  test('dense saved route retains late cable findings and the full profile for local 3D checks', () async {
+    safety.dispose();
+    editor.dispose();
+    final repo = FlightPlanRepository(db);
+    final route = [
+      for (var i = 0; i < 1000; i++)
+        RouteWaypointInput(
+          position: Wgs84Coordinate(
+            latitude: 46.7,
+            longitude: 8.38801 + .000012 * i,
+          ),
+          height: const AglWaypointHeight(AboveGroundHeight(30)),
+        ),
+    ];
+    final id = await repo.saveRoute(
+      name: 'Cable at the end of the route',
+      waypoints: route,
+    );
+    editor = RouteEditorController(repository: repo, globe: globe, routeId: id);
+    await editor.load();
+    final peer = FakeGlobeRenderer(globe)
+      ..sessionId = 'long-route-renderer'
+      ..attach()
+      ..ready();
+    peer.autoAcknowledge = false;
+    peer.onCommand = (c) => peer.acknowledge(
+      c,
+      result: c['type'] == 'query-infrastructure-clearance'
+          ? {
+              'findings': [],
+              'checkedSamples': 999,
+              'unknownHeightSamples': 0,
+              'modelCount': 1,
+              'incomplete': true,
+              'processingLimited': false,
+              'coverage': 'local-models-only',
+              'message': 'Local model fixture',
+            }
+          : {},
+    );
+    safety = RouteSafetyController(editor)..setInfrastructureEnabled(true);
+    await safety.calculate(analysis());
+    expect(safety.proximity!.hits.last.segment, 998);
+    final query = peer.commands.singleWhere(
+      (c) => c['type'] == 'query-infrastructure-clearance',
+    );
+    final profile = query['samples'] as List;
+    expect(profile.length, 1000);
+    expect((profile.last as Map)['segment'], 998);
+    expect((profile.last as Map)['longitude'], route.last.position.longitude);
+    expect(safety.infrastructure!.processingLimited, isFalse);
+  });
+
   testWidgets('checks tab exposes infrastructure opt-in and model disclaimer', (
     tester,
   ) async {

@@ -125,6 +125,13 @@ invalidates the batch; partial profiles are not used as complete clearance data.
 Cancellation/revision checks prevent obsolete geometry from reappearing;
 `route-preview-error` reports asynchronous rebuild failures for explicit retry.
 
+`set-signal-analysis` draws up to 128 radio paths at a time. `targetOffset`
+keeps their numbering in sync with the complete result list.
+`query-infrastructure-clearance` accepts the full profile of up to 4,096
+samples. The renderer yields during the check and associates findings with
+the original route segments. Its 32,768-probe and 80-finding limits are
+reported as processing limits.
+
 `set-situational-overlay` controls independent road/traffic/aircraft snapshots
 and heliport/wildfire imagery. The independent `avalanche` snapshot carries bounded
 SLF polygons/multipolygons with holes, level 0 (unknown/old) or 1–5, opacity,

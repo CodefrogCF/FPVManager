@@ -27,7 +27,8 @@ function setup() {
 }
 test('radio overlay rejects invalid positions, unknown statuses, nonfinite values and unbounded counts',()=>{
     validate(state); validate({rays:[]});
-    for(const bad of [{...state,frequencyMhz:NaN},{...state,selected:2},{...state,rays:Array(129).fill(state.rays[0])},
+    for(const bad of [{...state,frequencyMhz:NaN},{...state,selected:2},{...state,targetOffset:-1},
+        {...state,targetOffset:4096},{...state,rays:Array(129).fill(state.rays[0])},
         {...state,rays:[{...state.rays[0],state:'safe'}]}, {...state,rays:[{...state.rays[0],height:null}]},
         {...state,pilot:{...state.pilot,latitude:91}}]) assert.throws(()=>validate(bad));
 });
@@ -37,7 +38,8 @@ test('bounded 3D envelope, replacement, unknown heights and cleanup',()=>{
     assert.equal(sources[0].entities.values.filter(e=>e.id.startsWith('signal-envelope')).length,4);
     assert.equal(sources[0].entities.values.find(e=>e.id==='signal-envelope-0').polyline.positions.length,65);
     assert.throws(()=>layer.set({...state,fraction:2})); assert.equal(sources.length,1);
-    layer.set({...state,rays:[{...state.rays[0],height:null,state:'unknown'}]});
+    layer.set({...state,targetOffset:896,rays:[{...state.rays[0],height:null,state:'unknown'}]});
     assert.equal(sources.length,1); assert.equal(sources[0].entities.values.length,2);
+    assert.match(sources[0].entities.values[1].name,/Radio target 897/);
     layer.clear(); assert.equal(sources.length,0); layer.dispose();
 });

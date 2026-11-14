@@ -99,16 +99,18 @@ Future<ObstacleProximityReport> checkObstacleProximity({
   UserPreferences.validateObstacleBuffer(bufferMeters);
   final hits = <ObstacleProximity>[], profile = route.profile;
   var incomplete = false, comparisons = 0;
+  var end = 0;
   Lv95Coordinate xy(_XY p) => Lv95Coordinate(easting: p.x, northing: p.y);
   for (final segment in route.segments) {
-    final samples = profile
-        .where((p) => p.sample.segment == segment.index)
-        .toList();
-    // Shared waypoint belongs to the preceding segment in the sampling plan.
-    final first = segment.index == 0
-        ? profile.first
-        : profile.lastWhere((p) => p.sample.segment == segment.index - 1);
-    final last = samples.last;
+    if (cancelled?.call() == true) {
+      throw StateError('Proximity check cancelled');
+    }
+    if (segment.index % 32 == 0) await Future<void>.delayed(Duration.zero);
+    final first = profile[end];
+    do {
+      end++;
+    } while (profile[end].sample.fraction < 1);
+    final last = profile[end];
     _XY a, b;
     try {
       a = _project([
@@ -123,9 +125,32 @@ Future<ObstacleProximityReport> checkObstacleProximity({
       incomplete = true;
       continue;
     }
+    final start = first.sample.position, finish = last.sample.position;
+    // Conservative geographic bounds for the supported Swiss LV95 domain.
+    // Reject distant features before spending the precise geometry budget.
+    final padding = bufferMeters + 2;
+    final west = math.min(start.longitude, finish.longitude) - padding / 60000;
+    final east = math.max(start.longitude, finish.longitude) + padding / 60000;
+    final south = math.min(start.latitude, finish.latitude) - padding / 100000;
+    final north = math.max(start.latitude, finish.latitude) + padding / 100000;
     for (final feature in obstacles) {
       if (cancelled?.call() == true) {
         throw StateError('Proximity check cancelled');
+      }
+      if (feature.parts.any(
+        (p) => p.kind != 'Point' && p.kind != 'LineString',
+      )) {
+        incomplete = true;
+      }
+      // Long projected chords can depart from their geographic envelope.
+      if (segment.horizontal <= 1000 &&
+          feature.east - feature.west < .01 &&
+          feature.north - feature.south < .01 &&
+          (feature.east < west ||
+              feature.west > east ||
+              feature.north < south ||
+              feature.south > north)) {
+        continue;
       }
       double best = double.infinity;
       double? spatial;

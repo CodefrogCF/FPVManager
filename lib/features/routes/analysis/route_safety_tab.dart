@@ -346,7 +346,7 @@ class RouteSafetyTab extends StatelessWidget {
             if (report.processingLimited)
               Text(
                 context.translate(
-                  "Processing limit reached; additional route sections were not evaluated.",
+                  "Processing limit reached. The assessment or result list is incomplete.",
                 ),
               ),
             Text(report.message),

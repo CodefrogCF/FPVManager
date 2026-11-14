@@ -99,26 +99,32 @@ function fixture(){
     const calls=[];
     const factory={externalTileset:(tileset,tile,resource,json)=>{calls.push(json);return {json};}};
     const original=factory.externalTileset;
-    const runtime={Resource:C.Resource,Cesium3DTileContentFactory:factory,Cesium3DTileset:{
+    const runtime={Resource:C.Resource,RequestState:C.RequestState,Cesium3DTileContentFactory:factory,Cesium3DTileset:{
         async fromUrl(){return {destroyed:false,destroy(){this.destroyed=true;},isDestroyed(){return this.destroyed;}};}}};
     return {runtime,factory,original,calls};
 }
 
-test('only owned scene layers use sliced headers; versioned blob fetches and cleanup work with actual Cesium resources',async()=>{
-    const f=fixture(),getUrl=C.Resource.prototype.getUrlComponent,loader=create(f.runtime),tile=await loader.load(base,{});
+test('only owned scene layers use local headers; versioned fragments and cleanup work with actual Cesium resources',async()=>{
+    const f=fixture(),getUrl=C.Resource.prototype.getUrlComponent,fetchBuffer=C.Resource.prototype.fetchArrayBuffer;
+    const loader=create(f.runtime),tile=await loader.load(base,{});
     try{
         const source=tree(),content=await f.factory.externalTileset(tile,{},new C.Resource(base),source);
         assert.ok(nodes(content.json.root)<=64);assert.ok(loader.status().prepared>0);
-        let proxy=content.json.root;while(!proxy.content?.uri?.startsWith('blob:'))proxy=proxy.children[0];
+        let proxy=content.json.root;while(!proxy.content?.uri?.startsWith('fpv-scene-fragment:'))proxy=proxy.children[0];
         const resource=new C.Resource(base).getDerivedResource({url:proxy.content.uri});
-        assert.equal(resource.url,proxy.content.uri,'Provider query parameters do not corrupt blob URLs');
-        const fragment=await (await fetch(resource.url)).json();assert.ok(fragment.root);
+        assert.equal(resource.url,proxy.content.uri,'Provider query parameters do not corrupt local fragment URLs');
+        const fragment=JSON.parse(new TextDecoder().decode(await resource.clone().fetchArrayBuffer()));
+        assert.ok(fragment.root);
+        assert.equal((await f.factory.externalTileset(tile,{},resource,fragment)).json,fragment);
+        tile.destroy();
+        await assert.rejects(resource.fetchArrayBuffer(),/released/);
         const plain={asset:{version:'1.0'},root:{boundingVolume:{sphere:[0,0,0,1]},geometricError:0}};
         const unowned=await f.factory.externalTileset({}, {},new C.Resource(base),plain);
         assert.equal(unowned.json,plain);
-    }finally{tile.destroy();loader.dispose();}
+    }finally{if(!tile.isDestroyed())tile.destroy();loader.dispose();}
     assert.equal(loader.status().liveFragments,0);assert.equal(f.factory.externalTileset,f.original);
     assert.equal(C.Resource.prototype.getUrlComponent,getUrl);
+    assert.equal(C.Resource.prototype.fetchArrayBuffer,fetchBuffer);
 });
 
 test('concurrent scene owners restore hooks only after disposal and abort unfinished header preparation',async()=>{

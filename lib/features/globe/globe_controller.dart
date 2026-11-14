@@ -710,11 +710,15 @@ class GlobeController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> showInfrastructureClearance(bool visible) async {
+  Future<void> showInfrastructureClearance(
+    bool visible, {
+    bool clearReport = false,
+  }) async {
     if (!_ready || _disposed) return;
     await _send({
       'type': 'set-infrastructure-clearance-layer',
       'visible': visible,
+      if (clearReport) 'clearReport': true,
     });
   }
 
@@ -726,7 +730,7 @@ class GlobeController extends ChangeNotifier {
     bool truncated = false,
   }) async {
     if (points.length < 2 ||
-        points.length > 512 ||
+        points.length > 4096 ||
         !droneRadiusMeters.isFinite ||
         droneRadiusMeters < 0.05 ||
         droneRadiusMeters > 2 ||

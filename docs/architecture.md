@@ -29,8 +29,8 @@ See [bridge protocol](globe_bridge.md) and [renderer assets](cesium_assets.md).
 `web/scene_tile_loading.js` wraps only the external header loading of owned
 scene tilesets. Large explicit trees become small local external subtilesets;
 source content URLs, transforms, materials and LOD thresholds stay intact.
-Preparation and construction yield between tasks, local header blobs have a
-per-tileset memory cap, and destruction releases blobs and shared hooks.
+Preparation and construction yield between tasks. Each tileset holds its local
+header buffers in a bounded cache and releases them on destruction.
 Geographic tile regions also enclose their declared content and child regions.
 Some provider grid cells are smaller than a hall crossing the cell boundary;
 late external headers therefore enlarge cached ancestor volumes too. This
