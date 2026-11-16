@@ -1,5 +1,11 @@
 # Change summary
 
+## 2026-11-15
+
+- Anchor restored spots and their labels to the terrain mesh currently drawn.
+- Retain more terrain around ground view and preload adjacent tiles while the
+  walker is active. Correct the German ground-view tooltip to “Hier starten”.
+
 ## 2026-11-14
 
 - Prepare the instanced vegetation shaders before flight controls activate.

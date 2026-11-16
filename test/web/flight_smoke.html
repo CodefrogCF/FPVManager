@@ -234,6 +234,8 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
     document.getElementById('status').textContent='PASS — flight HUD smoke';return;
   }
   if(new URLSearchParams(location.search).has('cache')){
+    const globe=v.scene.globe;
+    const preloadAncestors=globe.preloadAncestors,preloadSiblings=globe.preloadSiblings;
     for(const flightMode of ['gps','acro','angle']){
       await command('enter-simulation',{latitude:46.7,longitude:8.4,agl:20,flightMode});
       await command('reset-simulation');
@@ -244,9 +246,13 @@ function command(type,fields={}){return new Promise((resolve,reject)=>{
     await command('exit-simulation');
     check(v.scene.globe.tileCacheSize===originalGraphics.tileCacheSize,'Exit did not restore the globe cache budget');
     await command('enter-ground-view',{latitude:46.7,longitude:8.4});
-    check(v.scene.globe.tileCacheSize===originalGraphics.tileCacheSize,'Ground view inherited the flight cache budget');
+    check(globe.tileCacheSize===Math.max(512,originalGraphics.tileCacheSize)&&globe.preloadSiblings&&globe.preloadAncestors,
+      'Ground view did not retain and preload nearby terrain');
+    await until(()=>globe._surface.preloadSiblings,'Cesium ground preloading');
     await command('exit-ground-view');
-    log('Actual Cesium retains the flight tile budget across modes, reset and map style changes; exit restores it and ground view stays independent');
+    check(globe.tileCacheSize===originalGraphics.tileCacheSize&&globe.preloadAncestors===preloadAncestors&&globe.preloadSiblings===preloadSiblings,
+      'Ground view exit did not restore globe terrain settings');
+    log('Actual Cesium retains the flight tile budget across modes, reset and map style changes. Ground view preloads nearby terrain and restores globe settings on exit.');
     document.getElementById('status').textContent='PASS — flight tile cache lifecycle';return;
   }
   canvas.focus();canvas.dispatchEvent(new win.KeyboardEvent('keydown',{key:'w',bubbles:true,cancelable:true}));

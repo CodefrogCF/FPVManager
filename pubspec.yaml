@@ -3,7 +3,7 @@ description: "Open-source FPV flight planning and situational awareness app with
 
 publish_to: 'none'
 
-version: 0.15.0+15
+version: 0.17.0+17
 
 environment:
   sdk: ^3.13.0

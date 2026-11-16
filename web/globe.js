@@ -69,6 +69,7 @@ function postToFlutter(message) {
         if (!event.persisted) sceneEnvironment?.dispose(); tunnels?.dispose(); tunnelVolumes?.dispose(); infrastructureClearance?.dispose(); modelCollisions?.dispose();
         if (!event.persisted) windLayer?.dispose();
         if (!event.persisted) globePositions?.dispose();
+        if (!event.persisted) spotGrounding?.dispose();
         if (!event.persisted) mapLabels?.dispose();
         if (!event.persisted) mapCredits?.dispose();
     });
@@ -483,6 +484,7 @@ function postToFlutter(message) {
     }
 
     let spotsDataSource = null;
+    let spotGrounding = null;
     let lastSpotRevision = -1;
 
     async function setSpotMarkers(command, signal) {
@@ -533,6 +535,7 @@ function postToFlutter(message) {
             spotsDataSource = new Cesium.CustomDataSource(
                 "FPVManager Saved Spots"
             );
+            spotGrounding = FPVGlobePositions.createSpotGrounding(Cesium, activeViewer.scene);
 
             await activeViewer.dataSources.add(
                 spotsDataSource
@@ -557,30 +560,19 @@ function postToFlutter(message) {
 
                 expectedIds.add(id);
 
-                const position =
-                    Cesium.Cartesian3.fromDegrees(
-                        spot.longitude,
-                        spot.latitude,
-                        0
-                    );
-
                 let entity = entities.getById(id);
 
                 if (!entity) {
                     entity = entities.add({
                         id,
                         name: spot.name,
-                        position,
+                        position: new Cesium.ConstantPositionProperty(),
+                        show: false,
                         point: {
                             pixelSize: 13,
                             color: Cesium.Color.CYAN,
                             outlineColor: Cesium.Color.BLACK,
-                            outlineWidth: 2,
-                            heightReference:
-                                // Ground also includes 3D Tiles (tree crowns,
-                                // roofs and decks). Saved spots belong to the
-                                // terrain, including after renderer restart.
-                                Cesium.HeightReference.CLAMP_TO_TERRAIN
+                            outlineWidth: 2
                         },
                         label: {
                             text: spot.name,
@@ -592,8 +584,6 @@ function postToFlutter(message) {
                                 Cesium.LabelStyle.FILL_AND_OUTLINE,
                             pixelOffset:
                                 new Cesium.Cartesian2(0, -25),
-                            heightReference:
-                                Cesium.HeightReference.CLAMP_TO_TERRAIN,
                             distanceDisplayCondition:
                                 new Cesium.DistanceDisplayCondition(
                                     0,
@@ -603,14 +593,15 @@ function postToFlutter(message) {
                     });
                 } else {
                     entity.name = spot.name;
-                    entity.position = position;
                     entity.label.text = spot.name;
                 }
+                spotGrounding.set(entity, spot.longitude, spot.latitude);
             }
 
             for (const entity of [...entities.values]) {
                 if (!expectedIds.has(entity.id)) {
                     entities.removeById(entity.id);
+                    spotGrounding.remove(entity.id);
                 }
             }
         } finally {
@@ -1182,6 +1173,7 @@ function postToFlutter(message) {
                 ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,cameraFovDegrees:state.cameraFovDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,controller:state.controller}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
+            terrainCache:FPVGroundNavigation.createTerrainCache(viewer.scene.globe),
             applyPose:point=>{
                 applyCamera(point);
                 info.hidden=false;
@@ -1257,9 +1249,10 @@ function postToFlutter(message) {
                 document.getElementById('controller-last-interruption').textContent=translate(
                     'Recent interruptions: {0}',controllerInterruptions.map(translateMessage=>translate(translateMessage)).join(' · '));
             },
-            onDevice:message=>{deviceMessage=message;device.textContent=translate(message);flightHud.device(message);}});
+            onDevice:message=>{deviceMessage=message;device.textContent=translate(message);flightHud.device(message);walker.refreshPose();}});
         rendererLanguage.onChange(()=>{
-            if(!flyer?.pending&&!walker?.active)terrainInfo(terrainManager.status());
+            if(walker.active)walker.refreshPose();
+            else if(!flyer?.pending)terrainInfo(terrainManager.status());
             device.textContent=translate(deviceMessage);
             const playback=routePlayback?.status();
             if(playback)playbackDisplay(playback);

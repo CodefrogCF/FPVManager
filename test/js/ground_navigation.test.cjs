@@ -1,18 +1,50 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createWalker, bindControls } = require('../../web/ground_navigation.js');
+const { createWalker, createTerrainCache, bindControls } = require('../../web/ground_navigation.js');
 
-function setup({ sampleHeight = async () => 1000 } = {}) {
+function setup({ sampleHeight = async () => 1000, terrainCache } = {}) {
     let terrain = true, ground = 1000;
     const poses = [], restored = [], states = [];
     const walker = createWalker({ sampleHeight, renderedHeight: () => ground,
         captureCamera: () => ({ heading: 0, marker: 'original camera' }),
         applyPose: pose => poses.push(pose), restoreCamera: saved => restored.push(saved),
-        isTerrainReady: () => terrain, onState: state => states.push(state) });
+        isTerrainReady: () => terrain, onState: state => states.push(state), terrainCache });
     return { walker, poses, restored, states,
         terrain(value) { terrain = value; }, ground(value) { ground = value; } };
 }
 const point = { latitude: 46.7, longitude: 8.4 };
+
+test('ground view retains nearby terrain during observation and restores globe settings on exit', async () => {
+    const initial = { tileCacheSize: 100, preloadAncestors: false, preloadSiblings: false };
+    const globe = { ...initial };
+    const page = setup({ terrainCache: createTerrainCache(globe) });
+    await page.walker.start(point, new AbortController().signal);
+    assert.deepEqual(globe, { tileCacheSize: 512, preloadAncestors: true, preloadSiblings: true });
+    page.walker.look(100, 0);
+    page.walker.tick(0.1);
+    assert.equal(globe.tileCacheSize, 512);
+    page.terrain(false);
+    page.walker.tick(0.1);
+    assert.deepEqual(globe, initial);
+    assert.equal(page.restored.length, 1);
+});
+
+test('stationary observation keeps height and look responsive with no repeated camera writes', async () => {
+    const page = setup();
+    await page.walker.start(point, new AbortController().signal);
+    for (let i = 0; i < 60; i++) page.walker.tick(1 / 60);
+    assert.equal(page.poses.length, 1);
+    page.ground(1001);
+    page.walker.tick(1 / 60);
+    assert.equal(page.poses.at(-1).height, 1003);
+    page.walker.look(10, 0);
+    page.walker.tick(1 / 60);
+    assert.equal(page.poses.length, 3);
+    assert.ok(page.poses.at(-1).heading > 0);
+    assert.deepEqual(page.walker.status().position, point);
+    page.walker.refreshPose();
+    assert.equal(page.poses.length, 4);
+});
 
 test('walking follows changing terrain two metres above ground and permits looking upward', async () => {
     const page = setup();
@@ -37,17 +69,23 @@ test('walking follows changing terrain two metres above ground and permits looki
 
 test('late terrain sampling cannot respawn after exit, cancellation or terrain failure', async () => {
     let resolve;
-    const page = setup({sampleHeight: () => new Promise(done => { resolve = done; })});
+    const settings = { tileCacheSize: 750, preloadAncestors: true, preloadSiblings: false };
+    const globe = { ...settings };
+    const terrainCache = createTerrainCache(globe);
+    const page = setup({sampleHeight: () => new Promise(done => { resolve = done; }), terrainCache});
     const start = page.walker.start(point, new AbortController().signal);
     page.walker.stop(); resolve(2000);
     assert.deepEqual(await start, {cancelled:true});
     assert.equal(page.walker.status().active, false);
     assert.equal(page.poses.length, 0);
-    const next = setup();
+    assert.deepEqual(globe, settings);
+    const next = setup({ terrainCache });
     await next.walker.start(point, new AbortController().signal);
+    assert.equal(globe.tileCacheSize, 750);
     next.terrain(false); next.walker.tick(0.1);
     assert.equal(next.walker.status().active, false);
     assert.equal(next.restored.length, 1);
+    assert.deepEqual(globe, settings);
     await assert.rejects(next.walker.start(point, new AbortController().signal), /terrain/);
 });
 

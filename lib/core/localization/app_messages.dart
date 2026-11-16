@@ -772,7 +772,7 @@ const germanMessages = <String, String>{
   "Source: MeteoSwiss · FSDI STAC · Swiss pollen monitoring network. Coverage is limited to published stations. Data are observations, not medical advice.": "Quelle: MeteoSwiss · FSDI STAC · Schweizer Pollenüberwachungsnetzwerk. Abdeckung beschränkt sich auf veröffentlichte Stationen. Daten sind Beobachtungen, keine medizinische Beratung.",
   "Source: MeteoSwiss · FSDI STAC · online HDF5/WASM · EPSG:2056. Radar can be unavailable on Web or Android if data or decoder access is blocked.": "Quelle: MeteoSwiss · FSDI STAC · online HDF5/WASM · EPSG:2056. Radar kann im Web oder Android nicht verfügbar sein, wenn Daten- oder Decoderzugriff blockiert ist.",
   "Source: swisstopo terrain. Values use a digital terrain model, not measured aircraft height or verified obstacle clearance.": "Quelle: swisstopo Terrain. Werte verwenden ein digitales Geländemodell, nicht gemessene Flugzeughöhe oder geprüfte Hindernisfreiheit.",
-  "Spawn here": "Hier gespachtelt",
+  "Spawn here": "Hier starten",
   "Specification source / measurement context":
       "Spezifikationsquelle / Messkontext",
   "Spot details": "Einzelheiten zum Spot",

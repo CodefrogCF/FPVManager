@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fpvmanager/core/localization/app_localizations.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 import 'package:fpvmanager/features/globe/ground_view_button.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
 
 void main() {
+  test('ground spawn has a usable tooltip in both languages', () {
+    expect(
+      AppLocalizations.message(AppLanguage.german, 'Spawn here', []),
+      'Hier starten',
+    );
+    expect(
+      AppLocalizations.message(AppLanguage.english, 'Spawn here', []),
+      'Spawn here',
+    );
+  });
+
   testWidgets(
     'selected point exposes spawn; active/pending controls exit and flat terrain blocks entry',
     (tester) async {

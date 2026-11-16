@@ -62,5 +62,74 @@
             dispose(){if(disposed)return;disposed=true;for(const remove of cleanups)remove();viewer.dataSources.remove(entities,true);}
         };
     }
-    return {create};
+    function createSpotGrounding(C, scene){
+        const {globe}=scene,ellipsoid=globe.ellipsoid;
+        const ray=new C.Ray(),intersection=new C.Cartesian3(),origin=new C.Cartographic();
+        const spots=new Map(),renderedMeshes=new Map();
+        let pending=null,dirty=true;
+
+        function refresh(){dirty=true;scene.requestRender();}
+
+        function update(){
+            if(!spots.size)return;
+            const tiles=globe._surface?._tilesRenderedThisFrame;
+            if(tiles){
+                let changed=renderedMeshes.size!==tiles.size;
+                if(!changed)for(const tile of tiles){
+                    if(!renderedMeshes.has(tile)||renderedMeshes.get(tile)!==tile.data?.renderedMesh){changed=true;break;}
+                }
+                if(changed){
+                    renderedMeshes.clear();
+                    for(const tile of tiles)renderedMeshes.set(tile,tile.data?.renderedMesh);
+                    dirty=true;
+                }
+            }
+            if(!pending&&dirty){pending=spots.values();dirty=false;}
+            if(!pending)return;
+            const deadline=performance.now()+2;
+            for(let count=0;count<64;count++){
+                const next=pending.next();
+                if(next.done){pending=null;break;}
+                const spot=next.value,{entity,position}=spot;
+                // Follow the mesh actually drawn under the spot. Asynchronous
+                // height references can retain finer or older terrain heights.
+                let tile;
+                if(tiles)for(const candidate of tiles){
+                    if(candidate.data?.renderedMesh&&C.Rectangle.contains(candidate.rectangle,position)&&
+                        (!tile||candidate.level>tile.level))tile=candidate;
+                }
+                const mesh=tile?.data.renderedMesh;
+                if(mesh&&mesh===spot.mesh)continue;
+                let hit;
+                if(tile||!tiles){
+                    origin.longitude=position.longitude;
+                    origin.latitude=position.latitude;
+                    origin.height=100000;
+                    ellipsoid.cartographicToCartesian(origin,ray.origin);
+                    ellipsoid.geodeticSurfaceNormalCartographic(position,ray.direction);
+                    C.Cartesian3.negate(ray.direction,ray.direction);
+                    hit=globe.pick(ray,scene,intersection);
+                }
+                spot.mesh=hit?mesh:undefined;
+                if(hit)entity.position.setValue(hit);
+                if(entity.show!==Boolean(hit))entity.show=Boolean(hit);
+                if(performance.now()>=deadline)break;
+            }
+            if(pending||dirty)scene.requestRender();
+        }
+        const removeUpdate=scene.postRender.addEventListener(update);
+        return {
+            set(entity, longitude, latitude){
+                const previous=spots.get(entity.id);
+                const position=C.Cartographic.fromDegrees(longitude,latitude);
+                if(previous&&C.Cartographic.equals(previous.position,position))return;
+                entity.show=false;
+                spots.set(entity.id,{entity,position});
+                refresh();
+            },
+            remove(id){spots.delete(id);},
+            dispose(){removeUpdate();spots.clear();renderedMeshes.clear();pending=null;}
+        };
+    }
+    return {create,createSpotGrounding};
 });

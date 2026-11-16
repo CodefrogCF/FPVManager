@@ -53,12 +53,22 @@ async function roof(C,v){
 (async()=>{
   const key='fpv-test-saved-spot';localStorage.setItem(key,JSON.stringify([{id:91,name:'Restarted spot',latitude:46.7,longitude:8.4}]));
   for(let generation=0;generation<2;generation++){
-    session=null;ready=false;frame.src='/terrain-globe.html?spot-test='+generation;
+    session=null;ready=false;frame.src='/terrain-globe.html?spotLod&spot-test='+generation;
     await until(()=>session&&ready,'fresh renderer');
     const win=frame.contentWindow,C=win.Cesium,v=win.fixtureViewer;
     v.scene.renderError.addEventListener((_,error)=>errors.push(String(error)));
+    const target=C.Cartographic.fromDegrees(8.4,46.7);
+    const globe=v.scene.globe;
+    const observedTile=()=>[...globe._surface._tilesRenderedThisFrame].find(tile=>C.Rectangle.contains(tile.rectangle,target));
+    const down=new C.Ray(C.Cartesian3.fromDegrees(8.4,46.7,100000),
+      C.Cartesian3.negate(globe.ellipsoid.geodeticSurfaceNormalCartographic(target),new C.Cartesian3()));
+    const visibleGround=()=>{const position=globe.pick(down,v.scene);return position?C.Cartographic.fromCartesian(position).height:NaN;};
+    window.groundDebug=()=>({level:observedTile()?.level,height:visibleGround(),sse:globe.maximumScreenSpaceError,
+      levels:[...new Set([...globe._surface._tilesRenderedThisFrame].map(tile=>tile.level))]});
+    globe.maximumScreenSpaceError=.25;
     v.camera.setView({destination:C.Cartesian3.fromDegrees(8.4,46.699,1100),orientation:{heading:0,pitch:-.8,roll:0}});
-    await until(()=>Math.abs(v.scene.globe.getHeight(C.Cartographic.fromDegrees(8.4,46.7))-1000)<.1,'terrain height');
+    await until(()=>observedTile()?.level>=8&&Math.abs(visibleGround()-1000)<.1,'fine visible terrain');
+    const fineHeight=visibleGround();
     if(generation)await roof(C,v);
     const spots=JSON.parse(localStorage.getItem(key));await command('set-spot-markers',{revision:1,spots});
     const source=v.dataSources.getByName('FPVManager Saved Spots')[0],spot=source.entities.getById('fpv-spot-91');
@@ -68,18 +78,28 @@ async function roof(C,v){
     const height=entity=>visualizer.getBoundingSphere(entity,sphere)===0?C.Cartographic.fromCartesian(sphere.center).height:NaN;
     if(!generation)await roof(C,v);
     await until(()=>Math.abs(height(control)-1007)<.1,'control attaches to 3D surface');
-    check(Math.abs(height(control)-1007)<.1,'Control reproduces generic ground clamping seven metres above terrain');
-    await until(()=>Math.abs(height(spot)-1000)<.1,'saved spot attaches to terrain');
-    check(Math.abs(height(spot)-1000)<.1,generation?'Restored spot stays on terrain when 3D geometry loads first':'Existing spot stays on terrain when 3D geometry arrives later');
-    check(spot.label.heightReference.getValue(v.clock.currentTime)===C.HeightReference.CLAMP_TO_TERRAIN,'Spot label uses the same terrain reference');
+    check(Math.abs(height(control)-1007)<.1,'Control reproduces clamping to a roof above terrain');
+    await until(()=>Math.abs(height(spot)-fineHeight)<.1,'saved spot attaches to terrain');
+    check(Math.abs(height(spot)-fineHeight)<.1,generation?'Restored spot stays on terrain when 3D geometry loads first':'Existing spot stays on terrain when 3D geometry arrives later');
+    check(Math.abs(C.Cartographic.fromCartesian(spot.position.getValue(v.clock.currentTime)).height-fineHeight)<.1,
+      'Point and label share the position on the rendered mesh');
     await command('set-spot-markers',{revision:2,spots});
-    await until(()=>Math.abs(height(spot)-1000)<.1,'spot refresh');
-    check(Math.abs(height(spot)-1000)<.1,'Refreshing persisted spot data retains terrain anchoring');
+    await until(()=>Math.abs(height(spot)-fineHeight)<.1,'spot refresh');
+    check(Math.abs(height(spot)-fineHeight)<.1,'Refreshing persisted spot data retains terrain anchoring');
+    const previousError=globe.maximumScreenSpaceError;
+    globe.maximumScreenSpaceError=15000;
+    v.scene.requestRender();
+    await until(()=>observedTile()?.level<8&&Math.abs(visibleGround()-fineHeight)>2,'different parent terrain');
+    await until(()=>Math.abs(height(spot)-visibleGround())<.1,'spot adopts currently displayed parent terrain');
+    check(Math.abs(height(spot)-visibleGround())<.1,'Spot follows the coarser mesh while the finer tile is still cached');
+    globe.maximumScreenSpaceError=previousError;
+    v.scene.requestRender();
+    await until(()=>observedTile()?.level>=8&&Math.abs(height(spot)-visibleGround())<.1,'spot returns to fine terrain');
   }
   localStorage.removeItem(key);check(!errors.length,'No renderer errors');
   document.getElementById('status').textContent='PASS — saved spots retain terrain height across restart and 3D loading order';
 })().catch(error=>{document.getElementById('status').textContent='FAIL: '+error.message;
   const t=window.roofDebug?.tileset,v=window.roofDebug?.viewer;
-  document.getElementById('log').textContent+=error.stack+'\n'+JSON.stringify(t&&{state:t.root._contentState,selected:t._selectedTiles.length,
+  document.getElementById('log').textContent+=error.stack+'\n'+JSON.stringify(window.groundDebug?.())+'\n'+JSON.stringify(t&&{state:t.root._contentState,selected:t._selectedTiles.length,
     sphere:t.boundingSphere,transform:t.root.computedTransform,position:v.camera.positionCartographic,errors});});
 </script></html>

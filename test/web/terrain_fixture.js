@@ -3,13 +3,16 @@
     const original = Cesium.CesiumTerrainProvider.fromUrl;
     window.fixtureProviderAttempts = 0;
     window.fixtureRootRequests = [];
+    const spotLod = new URLSearchParams(location.search).has('spotLod');
     Cesium.CesiumTerrainProvider.fromUrl = (_url, options) => {
         window.fixtureProviderAttempts++;
         return original.call(Cesium.CesiumTerrainProvider, '/terrain-data/', options).then(provider => {
             const read = provider.requestTileGeometry.bind(provider);
             provider.requestTileGeometry = (...args) => {
                 if (args[2] === 0) window.fixtureRootRequests.push(args.slice(0, 3));
-                return read(...args);
+                const request = read(...args);
+                if (!spotLod || args[2] >= 8 || !request) return request;
+                return request.then(data => {data._buffer.fill(10035);return data;});
             };
             return provider;
         });
