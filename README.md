@@ -27,6 +27,10 @@ The map and simulator are planning/visualization tools. Approximate terrain,
 model geometry and sampled checks do not establish permission to fly or obstacle
 clearance. Retrieval time, source validity and data completeness remain separate.
 
+## Download
+
+[Releases](https://github.com/CodefrogCF/FPVManager/releases/tag/v0.17.0)
+
 ## Run from source
 
 Use **Flutter 3.47.0 stable / Dart 3.13.0**, matching the build configuration.
