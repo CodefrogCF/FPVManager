@@ -2,7 +2,7 @@
 (function(root){
 'use strict';
 const MAX_BYTES=3145728, MAX_PIXELS=1500000, SIDE=256;
-const WASM_URL='https://cdn.jsdelivr.net/npm/h5wasm@0.10.3/dist/esm/hdf5_hl.js';
+const WASM_URL='./vendor/h5wasm/hdf5_hl.js';
 function validate(c){
   if(!c||c.type!=='set-meteoswiss-radar'||!['RZC','CPC'].includes(c.product)||
     c.units!==(c.product==='RZC'?'mm/h':'mm')||c.source!=='Source: MeteoSwiss · STAC FSDI'||

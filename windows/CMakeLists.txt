@@ -87,6 +87,22 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# These are the same NuGet packages restored by webview_flutter_windows.
+# Keep the binary-redistribution terms beside the executable.
+set(FPV_NATIVE_NOTICES "${CMAKE_INSTALL_PREFIX}/licenses")
+install(FILES
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2/LICENSE.txt"
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2/NOTICE.txt"
+  DESTINATION "${FPV_NATIVE_NOTICES}/WebView2" COMPONENT Runtime)
+install(FILES
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.ImplementationLibrary/LICENSE"
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.ImplementationLibrary/ThirdPartyNotices.txt"
+  DESTINATION "${FPV_NATIVE_NOTICES}/WindowsImplementationLibrary" COMPONENT Runtime)
+# Match the C++/WinRT code generator pinned by geolocator_windows.
+install(FILES
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Windows.CppWinRT.2.0.220418.1/LICENSE"
+  DESTINATION "${FPV_NATIVE_NOTICES}/CppWinRT" COMPONENT Runtime)
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

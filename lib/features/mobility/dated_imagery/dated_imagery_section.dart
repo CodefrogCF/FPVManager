@@ -190,6 +190,11 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                 _date(item.acquiredUtc),
               ]),
             ),
+            if (item.product == DatedImageryProduct.swissEo)
+              Text(
+                '© swisstopo, Contains modified Copernicus Sentinel data '
+                '${item.acquiredUtc.toUtc().year}',
+              ),
             Text(
               context.translate("Veröffentlicht: {0}", [
                 _date(item.publishedUtc),
@@ -450,7 +455,6 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
             for (final item in snapshot.items) _record(item),
           ],
           const Text(
-            'swissEO: © swisstopo · Contains modified Copernicus Sentinel data. '
             'Rapid Mapping: Source: FOEN, swisstopo. '
             'Einsatzbezogene Bilder sind nicht kontinuierliche schweizweite Beobachtungen. '
             'Große GeoTIFFs, nicht unterstützte Projektionen und Einzel-/Schrägbilder nur über amtliche Quelle öffnen.',

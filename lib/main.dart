@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/database/repositories/user_preferences_repository.dart';
 import 'core/licensing/bundled_licenses.dart';
 import 'core/localization/app_localizations.dart';
 import 'core/performance/app_lifecycle_probe.dart';
@@ -21,7 +22,9 @@ void main() {
 }
 
 class FPVManagerApp extends StatefulWidget {
-  const FPVManagerApp({super.key});
+  const FPVManagerApp({super.key, this.preferencesRepository});
+
+  final UserPreferencesRepository? preferencesRepository;
 
   @override
   State<FPVManagerApp> createState() => _FPVManagerAppState();
@@ -53,7 +56,10 @@ class _FPVManagerAppState extends State<FPVManagerApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       navigatorObservers: [if (AppLifecycleProbe.enabled) _routeObserver],
-      home: FPVHomeScreen(onLanguageChanged: _setLanguage),
+      home: FPVHomeScreen(
+        preferencesRepository: widget.preferencesRepository,
+        onLanguageChanged: _setLanguage,
+      ),
     );
   }
 }

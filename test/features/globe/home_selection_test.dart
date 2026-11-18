@@ -41,6 +41,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     final controller = tester
         .widget<GlobeView>(find.byType(GlobeView))
         .controller;
@@ -83,6 +84,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       final controller = tester
           .widget<GlobeView>(find.byType(GlobeView))
           .controller;
@@ -135,6 +137,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       final controller = tester
           .widget<GlobeView>(find.byType(GlobeView))
           .controller;

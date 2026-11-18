@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -34,6 +36,7 @@ void main() {
         count++;
         if (request.url.path.endsWith('/items')) {
           expect(request.url.queryParameters['limit'], '16');
+          expect(request.url.queryParameters['sortby'], '-properties.datetime');
           expect(request.url.queryParameters['bbox'], isNotEmpty);
           expect(request.url.queryParameters['datetime'], contains('/..'));
         }
@@ -133,6 +136,71 @@ void main() {
     );
     await service.dispose();
     transport.dispose();
+  });
+
+  test('Blatten search includes both RGB mosaics when a STAC page contains oblique photos', () async {
+    const area = [7.75, 46.37, 7.86, 46.46];
+    final provider = DatedImageryProduct.rapidMapping.collection;
+    Map<String, Object?> item(String id, String date, [Map? assets]) => {
+      'id': id,
+      'collection': provider,
+      'bbox': area,
+      'properties': {'datetime': date},
+      'assets': ?assets,
+    };
+    final transport = MobilityHttp(
+      client: MockClient((request) async {
+        final id = request.url.pathSegments.last;
+        final Object body;
+        if (id == provider) {
+          body = {'id': provider};
+        } else if (id == 'items') {
+          body = {
+            'features': [item('ram-photo', '2025-05-30T09:32:00Z')],
+          };
+        } else {
+          body = item(
+            id,
+            id == blattenFollowupOrthophoto
+                ? '2025-09-19T09:47:00Z'
+                : '2025-05-30T08:09:00Z',
+            {
+              'rgb-mosaic': {
+                'href': 'https://data.geo.admin.ch/$id-rgb-mosaic.tif',
+                'type': 'image/tiff',
+                'proj:epsg': 2056,
+              },
+              'nrgb-16bit': {
+                'href': 'https://data.geo.admin.ch/$id-nrgb-16bit.tif',
+                'type': 'image/tiff',
+                'proj:epsg': 2056,
+              },
+            },
+          );
+        }
+        return http.Response(jsonEncode(body), 200);
+      }),
+    );
+    final service = DatedImageryService(
+      cache: MemoryImageryCache(),
+      transport: transport,
+      clock: () => now,
+    );
+    addTearDown(service.dispose);
+    addTearDown(transport.dispose);
+    final result = await service.search(
+      product: DatedImageryProduct.rapidMapping,
+      latitude: 46.419,
+      longitude: 7.818,
+      radiusMetres: 1000,
+    );
+    expect(
+      result.items
+          .where((item) => item.displayAsset != null)
+          .map((item) => item.id),
+      [blattenFollowupOrthophoto, blattenRapidMappingOrthophoto],
+    );
+    expect(result.items.first.displayAsset!.href, endsWith('-rgb-mosaic.tif'));
   });
 
   test(

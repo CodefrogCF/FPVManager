@@ -1,4 +1,6 @@
 # Preserve upstream bytes so vendor hashes also match Windows checkouts.
+LICENSE -text
 web/cesium/** -text
 web/vendor/geotiff/** -text
+web/vendor/h5wasm/** -text
 assets/geo/*.bin -text

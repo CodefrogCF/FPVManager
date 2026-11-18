@@ -1,8 +1,9 @@
 # Privacy and permissions
 
-FPVManager has no account, automatic record sharing or analytics/tracker
-integration. Personal records stay on the device. Online providers can still
-see network metadata and the areas/queries sent to their services.
+The [privacy policy](../PRIVACY.md) identifies Codefrog and the privacy contact.
+FPVManager has no account, app-managed record sharing or analytics integration.
+It stores personal records on the device. Online providers can receive network
+metadata and the areas or query inputs required for their services.
 
 ## Personal records, files and credentials
 
@@ -17,7 +18,9 @@ Photo import uses the file picker. Stored JPEGs/thumbnails omit source EXIF/GPS
 metadata; the original file is not changed. A native picker may retain an original
 in its own temporary cache. Route/profile/telemetry imports and exports occur
 only through the selected file action. Android automatic cloud backup and device
-transfer are disabled by the app's backup configuration.
+transfer are disabled by the app's backup configuration. On iOS, personal
+records in the app's documents directory can be included in device backups.
+The separate iOS map and public-data cache directory is excluded from backups.
 
 Registered service credentials are kept in the existing local credential vault,
 not plain map preferences, rendered datasets or personal backups. ASTRA situations,
@@ -34,8 +37,9 @@ available, late results cannot replace newer edits, and Save is required.
 
 **Mein Standort** on the globe separately enables foreground position updates.
 They stop when disabled, backgrounded or disposed and are suspended during ground
-inspection/simulation. Following changes the viewed map area; no location history
-is recorded or reported remotely. WGS84/LV95 coordinate parsing is local; submitted
+inspection/simulation. The app keeps no GPS history. Centering and following
+change the viewed map area, which online tile requests can reveal.
+WGS84/LV95 coordinate parsing is local. Submitted
 place/address searches go to swisstopo. Typing alone does not send a search.
 
 Android road navigation starts a separate foreground GPS stream after its dialog.
@@ -53,11 +57,11 @@ areas, including private locations. The main request boundaries are:
 | `wmts.geo.admin.ch`, `wms.geo.admin.ch` | Online imagery/overlay startup, restored enabled layers, map movement or retry; requested layers, tile coordinates or map envelope. |
 | `3d.geo.admin.ch` | Terrain startup/sampling and enabled buildings, vegetation or structures; visible/sampled terrain and model tile identifiers. Lighting time is calculated locally. |
 | `api3.geo.admin.ch` | Submitted place/address searches; enabled place/street labels; bounded bridge/outdoor/BAKOM/EV queries; opened legends. Requests carry the corresponding text or selected area, not personal record bodies. |
-| `data.geo.admin.ch` | National UAS/obstacle and MeteoSwiss files; radar metadata/data; dated imagery and offline source discovery. Area-based STAC queries can include the selected bounds; national downloads do not send a user-position query. |
-| `api.open-meteo.com` | Explicit forecasts/comparisons/overlays and selected wind region; coordinates, requested parameters and forecast range. Active current wind can refresh its region every 15 minutes in the foreground. |
+| `data.geo.admin.ch` | National UAS/obstacle and MeteoSwiss files, radar metadata/data, dated imagery and offline source discovery. Area-based STAC queries can include the selected bounds. The radar decoder is bundled locally. |
+| `api.open-meteo.com` | Explicit forecasts/comparisons/overlays and selected wind region. Sends coordinates, parameters and forecast range. Active current wind can refresh every 15 minutes in the foreground. Free-API logs may contain coordinates and are deleted after 90 days according to [Open-Meteo](https://open-meteo.com/en/terms#privacy). |
 | `data.bafu.admin.ch` | Hydrological station/observation queries; requested sites/criteria can reveal the selected area. |
 | `aws.slf.ch` | Explicit national avalanche bulletin load/refresh; no point or route coordinates. There is no automatic per-viewport bulletin download. |
-| `routing.openstreetmap.de` | Confirmed driving/walking/cycling route calculation; start/destination coordinates. Confirmed road navigation can also send current position/bearing when rerouting. |
+| `routing.openstreetmap.de` | Confirmed driving/walking/cycling route calculation sends start and destination coordinates. Road navigation can also send current position and bearing when rerouting. [FOSSGIS](https://routing.openstreetmap.de/about.html) logs route requests. |
 | `api.opentransportdata.swiss` | Explicit ASTRA/counter or OJP requests with the appropriate own key. Counters send requested site IDs; OJP sends journey endpoints, time and criteria. Optional ASTRA navigation refresh is foreground-only. |
 | `data.opentransportdata.swiss` and the official table-download host | Explicit TMC version downloads; requested table/version, without service keys or a user-position query. |
 | `api.adsb.lol` | Explicit Android aircraft refresh after consent; rounded area centre and search radius. Web can import a local snapshot instead. |
@@ -82,7 +86,9 @@ dated local records rather than live information.
 The viewed base-map/terrain buffer is separate from prepared regions and can be
 incomplete. Android uses the public-data cache database; Web uses origin-local
 storage. **Use cached base map and terrain** prevents remote fallback for those
-providers only. Enabled live overlays and explicit API actions retain their own
+providers only and persists on the device across restarts. Portable backup
+restore preserves the destination device's cache setting. Enabled live overlays
+and explicit API actions retain their own
 network behavior; this is not an application-wide network blocker.
 
 Region preparation queries official STAC metadata for the chosen area and reads

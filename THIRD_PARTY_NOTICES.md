@@ -11,7 +11,9 @@ copyright notices, licences and service terms continue to apply.
 |---|---|
 | Flutter and Dart packages | Retain the resolved packages' licence files. The app's **Einstellungen → Datenquellen → Open-Source-Lizenzen** page includes Flutter's collected package notices and the project licence. |
 | CesiumJS | [Apache-2.0 notice](web/cesium/LICENSE.md); additional bundled components and their notices are recorded in [ThirdParty.json](web/cesium/ThirdParty.json). Do not replace these with the project's licence. |
-| GeoTIFF.js | [MIT licence](web/vendor/geotiff/LICENSE); retain the notice with the bundled code. |
+| GeoTIFF.js 2.1.3 | [MIT licence](web/vendor/geotiff/LICENSE) and [notices for the browser bundle](web/vendor/geotiff/THIRD_PARTY_NOTICES.txt), including pako, Lerc and Zstandard. Both are in the app's licence page. |
+| h5wasm 0.10.3 | Local MeteoSwiss radar decoder from the National Institute of Standards and Technology. Retain the [original licence](web/vendor/h5wasm/LICENSE.txt) and the [HDF5 and runtime notices](web/vendor/h5wasm/THIRD_PARTY_NOTICES.txt). |
+| Windows WebView2 SDK, WIL and C++/WinRT | The Windows build copies the NuGet licences and any included notice files into `licenses/` next to the executable. Include that directory in the Windows ZIP. [WebView2 SDK](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3967.48) · [Windows Implementation Library](https://www.nuget.org/packages/Microsoft.Windows.ImplementationLibrary/1.0.260126.7) · [C++/WinRT](https://www.nuget.org/packages/Microsoft.Windows.CppWinRT/2.0.220418.1) |
 | Components bundled by `image` and `archive` | Their additional upstream notices are retained in [assets/licenses](assets/licenses/README.md) and included in the app's licence page. |
 
 The resolved desktop package graph also includes [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) components (`dbus`,
@@ -37,3 +39,10 @@ Apache-2.0 grants permissions for the project's original material. It does not
 grant access to third-party services, waive attribution or download limits, or
 create rights in other people's data. Preserve the relevant notices in source
 and binary distributions, offline packages and exported datasets.
+
+The FPVManager distribution is non-commercial. Open-Meteo's free API
+is used under its non-commercial service terms. The [showcase credits](docs/showcase_credits.txt)
+identify the published video's separately licensed material. Mixkit music is
+used in the video under the Mixkit Stock Music Free License.
+[Open-Meteo terms](https://open-meteo.com/en/terms) ·
+[Mixkit music licence](https://mixkit.co/license/modal/musicFree/)

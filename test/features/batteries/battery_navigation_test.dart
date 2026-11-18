@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/core/database/repositories/battery_repository.dart';
+import 'package:fpvmanager/core/database/repositories/user_preferences_repository.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 import 'package:fpvmanager/main.dart';
 
@@ -26,6 +27,7 @@ void main() {
         MaterialApp(
           home: FPVHomeScreen(
             spotRepository: SpotRepository(database),
+            preferencesRepository: UserPreferencesRepository(database),
             batteryRepository: batteries,
           ),
         ),

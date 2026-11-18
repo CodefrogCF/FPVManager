@@ -404,7 +404,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
           ),
           subtitle: Text(
             context.translate(
-              "Requests appear in provider logs. No spot names, notes or account data are sent.",
+              "FOSSGIS logs the route request. Spot names and notes stay in the app.",
             ),
           ),
         ),
@@ -482,8 +482,12 @@ class _MobilityScreenState extends State<MobilityScreen> {
           'https://routing.openstreetmap.de/about.html',
         ),
         _link(
-          '© OpenStreetMap contributors · ODbL / fix the map',
-          'https://www.openstreetmap.org/',
+          '© OpenStreetMap contributors · ODbL',
+          'https://www.openstreetmap.org/copyright',
+        ),
+        _link(
+          context.translate('Report a map error'),
+          'https://www.openstreetmap.org/fixthemap',
         ),
       ],
     ),
@@ -514,7 +518,7 @@ class _MobilityScreenState extends State<MobilityScreen> {
               children: [
                 Text(
                   context.translate(
-                    "Während die Navigation geöffnet ist, wird dein Standort laufend genutzt. Bei Routenabweichungen werden Standort und Ziel zur Neuberechnung an FOSSGIS gesendet. Im Hintergrund pausiert die Navigation.",
+                    "Bei Routenabweichungen sendet die App Standort und Ziel an FOSSGIS. Der Dienst protokolliert die Anfrage. Im Hintergrund pausiert die Navigation.",
                   ),
                 ),
                 CheckboxListTile(

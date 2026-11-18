@@ -34,6 +34,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       final globe = tester.widget<GlobeView>(find.byType(GlobeView)).controller;
       final peer = FakeGlobeRenderer(globe)
         ..attach()

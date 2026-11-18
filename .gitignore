@@ -33,6 +33,24 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# A compiled Flutter Web bundle belongs in build/web.
+/web/.last_build_id
+/web/flutter.js
+/web/flutter_service_worker.js
+/web/main.dart.js
+/web/main.dart.js.map
+/web/version.json
+/web/canvaskit/
+/web/assets/AssetManifest.bin
+/web/assets/AssetManifest.bin.json
+/web/assets/FontManifest.json
+/web/assets/NOTICES
+/web/assets/assets/
+/web/assets/fonts/
+/web/assets/packages/
+/web/assets/shaders/
+/web/assets/web/
+
 # Symbolication related
 app.*.symbols
 

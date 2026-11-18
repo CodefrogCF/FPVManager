@@ -1,13 +1,23 @@
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fpvmanager/main.dart';
+import 'package:fpvmanager/core/database/fpv_database.dart';
+import 'package:fpvmanager/core/database/repositories/user_preferences_repository.dart';
 import 'package:fpvmanager/features/globe/globe_view.dart';
+import 'package:fpvmanager/features/offline/base_map_cache_preference.dart';
+import 'package:fpvmanager/main.dart';
 
 void main() {
   testWidgets('FPVManager displays the home screen', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const FPVManagerApp());
+    final database = FpvDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    await BaseMapCachePreference(database).write(true);
+    await tester.pumpWidget(
+      FPVManagerApp(preferencesRepository: UserPreferencesRepository(database)),
+    );
+    await tester.pumpAndSettle();
 
     expect(
       tester.widget<MaterialApp>(find.byType(MaterialApp)).title,
@@ -18,6 +28,7 @@ void main() {
     expect(find.byTooltip('Kartenstatus'), findsOneWidget);
     expect(find.byTooltip('Kartenaktionen'), findsOneWidget);
     expect(find.byType(GlobeView), findsOneWidget);
+    expect(tester.widget<GlobeView>(find.byType(GlobeView)).cachedMaps, isTrue);
 
     expect(find.byType(Scaffold), findsOneWidget);
     await tester.tap(find.byTooltip('Navigationsmenü öffnen'));

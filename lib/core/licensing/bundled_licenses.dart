@@ -13,9 +13,16 @@ void registerBundledLicenses() {
   _registered = true;
   LicenseRegistry.addLicense(() async* {
     for (final entry in const {
+      'FPVManager attribution': 'NOTICE',
       'image (bundled components)': 'assets/licenses/image-LICENSE-other.md',
       'archive (bundled components)':
           'assets/licenses/archive-LICENSE-other.md',
+      'GeoTIFF.js': 'web/vendor/geotiff/LICENSE',
+      'GeoTIFF.js (bundled components)':
+          'web/vendor/geotiff/THIRD_PARTY_NOTICES.txt',
+      'h5wasm (NIST)': 'web/vendor/h5wasm/LICENSE.txt',
+      'h5wasm (bundled components)':
+          'web/vendor/h5wasm/THIRD_PARTY_NOTICES.txt',
     }.entries) {
       final text = await rootBundle.loadString(entry.value);
       yield LicenseEntryWithLineBreaks([entry.key], text);

@@ -1,5 +1,16 @@
 # Change summary
 
+## 2026-11-18
+
+- Include GeoTIFF.js, h5wasm and Windows native component notices. Bundle
+  the MeteoSwiss radar decoder locally.
+- Restore dated imagery in native builds, support the Blatten RGB
+  mosaics and include the acquisition year in swissEO credits.
+- Publish a privacy policy and preserve cache-only base maps across
+  restarts. Add the iOS foreground location purpose and exclude its
+  public-data cache from device backups.
+- Document the showcase credits and checks for built release packages.
+
 ## 2026-11-15
 
 - Anchor restored spots and their labels to the terrain mesh currently drawn.

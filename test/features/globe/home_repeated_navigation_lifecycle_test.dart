@@ -7,6 +7,7 @@ import 'package:fpvmanager/features/globe/globe_controller.dart';
 import 'package:fpvmanager/features/globe/globe_view.dart';
 import 'package:fpvmanager/features/home/home_screen.dart';
 import 'package:fpvmanager/features/home/home_navigation_drawer.dart';
+import 'package:fpvmanager/features/offline/base_map_cache_preference.dart';
 import 'package:fpvmanager/features/settings/app_settings_screen.dart';
 import 'package:fpvmanager/features/spots/data/spot_repository.dart';
 
@@ -27,6 +28,7 @@ void main() {
         latitude: 46.7,
         longitude: 8.4,
       );
+      await BaseMapCachePreference(db).write(true);
       await tester.pumpWidget(
         MaterialApp(
           home: FPVHomeScreen(
@@ -36,7 +38,15 @@ void main() {
           ),
         ),
       );
+      // The very first renderer must use the saved choice.
+      for (final view in tester.widgetList<GlobeView>(find.byType(GlobeView))) {
+        expect(view.cachedMaps, isTrue);
+      }
       await tester.pumpAndSettle();
+      expect(
+        tester.widget<GlobeView>(find.byType(GlobeView)).cachedMaps,
+        isTrue,
+      );
       final globeElement = tester.element(find.byType(GlobeView));
       for (var i = 0; i < 3; i++) {
         await tester.tap(find.byTooltip('Open navigation menu'));
@@ -70,6 +80,10 @@ void main() {
         await tester.pageBack();
         await tester.pumpAndSettle();
         expect(tester.element(find.byType(GlobeView)), same(globeElement));
+        expect(
+          tester.widget<GlobeView>(find.byType(GlobeView)).cachedMaps,
+          isTrue,
+        );
         expect(controller.isReady, isFalse);
       }
       await tester.pumpWidget(const SizedBox.shrink());

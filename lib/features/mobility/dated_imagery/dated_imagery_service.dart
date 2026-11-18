@@ -202,7 +202,7 @@ class DatedImageryService {
       final params = <String, String>{
         'bbox': area.join(','),
         'limit': '16',
-        'sortby': '-datetime',
+        'sortby': '-properties.datetime',
       };
       // Do not omit older event missions by imposing the swissEO rolling window.
       if (product == DatedImageryProduct.swissEo) {
@@ -219,12 +219,17 @@ class DatedImageryService {
         maxBytes: 650000,
         headers: const {'Accept': 'application/geo+json, application/json'},
       );
+      final catalogue =
+          product == DatedImageryProduct.rapidMapping &&
+              boxesOverlap(area, const [7.79, 46.407, 7.852, 46.446])
+          ? await _includeBlattenOrthophotos(base, items)
+          : items;
       if (_disposed) {
         throw StateError('Imagery service disposed');
       }
       final snapshot = parseDatedImageryStac(
         collection,
-        items,
+        catalogue,
         product: product,
         fetchedUtc: _clock().toUtc(),
         requestedBounds: area,
@@ -237,6 +242,55 @@ class DatedImageryService {
       }
       rethrow;
     }
+  }
+
+  Future<String> _includeBlattenOrthophotos(
+    Uri collection,
+    String items,
+  ) async {
+    final catalog = jsonDecode(items);
+    if (catalog is! Map<String, dynamic> || catalog['features'] is! List) {
+      return items;
+    }
+    final features = catalog['features'] as List;
+    if (features.length > 16) return items;
+    const orthophotos = [
+      blattenFollowupOrthophoto,
+      blattenRapidMappingOrthophoto,
+    ];
+    final existing = {
+      for (final item in features.whereType<Map>()) item['id']: item,
+    };
+    // A page sorted by date can be filled with individual oblique photos.
+    // Retrieve the two published mosaics directly for a local Blatten search.
+    final mosaics = await Future.wait(
+      orthophotos.map((id) async {
+        if (existing[id] case final item?) {
+          return item;
+        }
+        try {
+          final text = await _transport.text(
+            collection.replace(path: '${collection.path}/items/$id'),
+            maxBytes: 36000,
+            headers: const {'Accept': 'application/geo+json, application/json'},
+          );
+          final feature = jsonDecode(text);
+          if (feature is Map<String, dynamic> && feature['id'] == id) {
+            return feature;
+          }
+        } catch (_) {
+          // The ordinary spatial results remain available if an item is removed.
+        }
+        return null;
+      }),
+    );
+    catalog['features'] = [
+      ...mosaics.whereType<Map>(),
+      ...features.where(
+        (item) => item is! Map || !orthophotos.contains(item['id']),
+      ),
+    ].take(16).toList();
+    return jsonEncode(catalog);
   }
 
   bool _sameArea(List<double> x, List<double> y) =>

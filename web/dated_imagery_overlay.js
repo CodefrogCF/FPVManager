@@ -127,8 +127,9 @@
         }();
     }
 
-    function imageWindow(image,rect,epsg) {
-        const [originX,originY]=image.getOrigin(),[resX,resY]=image.getResolution();
+    function imageWindow(image,rect,epsg,reference=image) {
+        // This COG stores georeferencing on the full-resolution IFD.
+        const [originX,originY]=reference.getOrigin(),[resX,resY]=image.getResolution(reference);
         if (!Number.isFinite(resX)||!Number.isFinite(resY)||resX<=0||resY>=0 ||
             image.fileDirectory?.ModelTransformation ||
             image.getWidth()>100000 || image.getHeight()>100000) {
@@ -154,23 +155,34 @@
         const source=await T.fromCustomClient(cappedClient(T,command.assetUrl,abort,{maxBytes}),
             {allowFullFile:false,blockSize:65536,cacheSize:2*1024*1024});
         try {
-            const count=Math.min(8,await source.getImageCount());
+            const count=Math.min(16,await source.getImageCount()),base=await source.getImage(0);
+            const baseKeys=base.getGeoKeys();
+            const baseCrs=baseKeys?.ProjectedCSTypeGeoKey??baseKeys?.GeographicTypeGeoKey;
+            if(baseCrs!==command.projection||base.fileDirectory?.ModelTransformation)
+                throw Error('Unsupported rotated or unverified GeoTIFF');
             let image=null,window=null;
+            const masks=[];
             for(let i=0;i<count;i++){
                 if(abort.signal.aborted)throw Error('Cancelled');
-                const candidate=await source.getImage(i);
+                const candidate=i===0?base:await source.getImage(i);
+                const flags=candidate.fileDirectory?.NewSubfileType??0;
+                if(flags&4){masks.push(candidate);continue;}
+                if(image||i>0&&!(flags&1)||candidate.getWidth()>100000||candidate.getHeight()>100000)continue;
                 const keys=candidate.getGeoKeys();
-                const crs=keys.ProjectedCSTypeGeoKey||keys.GeographicTypeGeoKey;
+                const crs=keys?.ProjectedCSTypeGeoKey??keys?.GeographicTypeGeoKey??baseCrs;
                 if(crs!==command.projection) continue;
                 if(candidate.getSamplesPerPixel()<3 || candidate.getSamplesPerPixel()>4)continue;
-                const win=imageWindow(candidate,bounds,crs);
-                if(win.pixels<=2*1024*1024){ image=candidate;window=win;break; }
+                const win=imageWindow(candidate,bounds,crs,keys?candidate:base);
+                if(win.pixels<=2*1024*1024){image=candidate;window=win;}
             }
             if(!image)throw Error('No safe 3/4-channel GeoTIFF overview or verified projection');
             const width=MAX_TILE,height=MAX_TILE;
             const samples=image.getSamplesPerPixel()===4?[0,1,2,3]:[0,1,2];
             const raw=await image.readRasters({window:window.window,width,height,
                 samples,interleave:true,resampleMethod:'nearest'});
+            const mask=masks.find(value=>value.getWidth()===image.getWidth()&&value.getHeight()===image.getHeight());
+            const coverage=mask?await mask.readRasters({window:window.window,width,height,
+                samples:[0],interleave:true,resampleMethod:'nearest'}):null;
             if(abort.signal.aborted)throw Error('Cancelled');
             if(raw.length!==width*height*samples.length)throw Error('Unexpected COG sample count');
             const none=Number(image.getGDALNoData?.());
@@ -186,7 +198,8 @@
                 const ix=Math.floor((srcX-window.window[0])/(window.window[2]-window.window[0])*width);
                 const iy=Math.floor((srcY-window.window[1])/(window.window[3]-window.window[1])*height);
                 if(ix<0||iy<0||ix>=width||iy>=height)continue;
-                const src=(iy*width+ix)*samples.length,dst=(y*width+x)*4;
+                const pixel=iy*width+ix,src=pixel*samples.length,dst=(y*width+x)*4;
+                if(coverage&&!coverage[pixel])continue;
                 const r=raw[src],g=raw[src+1],b=raw[src+2];
                 if (![r,g,b].every(Number.isFinite) ||
                     hasNoData && [r,g,b].every(v=>v===none))continue;
@@ -234,7 +247,7 @@
                         maximumLevel:12,enablePickFeatures:false,
                         rectangle:C.Rectangle.fromDegrees(...CH),
                         parameters:{transparent:true,format:'image/png',styles:'default'},
-                        credit:new C.Credit('© swisstopo · Contains modified Copernicus Sentinel data',true)});
+                        credit:new C.Credit(`© swisstopo, Contains modified Copernicus Sentinel data ${command.acquiredUtc.slice(0,4)}`,true)});
                 } else {
                     const tiff=await getTiff();
                     const raster=await loadCog(tiff,command,controller);
@@ -251,7 +264,8 @@
                     objectUrl=URL.createObjectURL(blob);
                     provider=await C.SingleTileImageryProvider.fromUrl(objectUrl,{
                         rectangle:C.Rectangle.fromDegrees(...raster.bounds),
-                        credit:new C.Credit('Source: FOEN, swisstopo · Rapid Mapping',true)});
+                        credit:new C.Credit(command.id.startsWith('kry-')
+                            ?'© swisstopo · Blatten aerial survey': 'Source: FOEN, swisstopo · Rapid Mapping',true)});
                 }
                 if(!isCurrent())return {status:'cancelled'};
                 const view=getViewer();

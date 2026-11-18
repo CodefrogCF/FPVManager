@@ -4,7 +4,7 @@ FPVManager is a local-first Flutter app for Swiss map exploration, FPV planning
 and flight simulation. Personal records stay on the device; online providers
 supply maps, forecasts and other public information.
 
-https://youtu.be/S1XSDf-Mf1A
+[Showcase Video on Youtube](https://youtu.be/S1XSDf-Mf1A)
 
 ## Main features
 
@@ -48,6 +48,8 @@ Automated builds cover Android and Web; other platform runners need their own
 validation. Build, test and contribution instructions are in [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Documentation
+
+[Privacy policy · Datenschutzerklärung](PRIVACY.md)
 
 The [documentation overview](docs/README.md) links the current guides and explains
 how to clean up retired documents after applying a changes ZIP.

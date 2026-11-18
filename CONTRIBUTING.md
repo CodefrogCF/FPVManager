@@ -54,6 +54,37 @@ requires the generated integrity manifest and a completed online installation.
 Close all app tabs and reopen to activate an updated snapshot. `flutter run`
 without the manifest supports map caching, but not a verified offline app shell.
 
+### Release packaging
+
+Build each release from the same clean tag. Public APKs use the release signing
+configuration. On Windows, archive the whole runner Release directory, including
+`licenses/`, rather than selecting just the executable and DLLs. Deploy the
+fresh `build/web/` output. The source `web/` directory contains Flutter build
+inputs. Check each finished artifact and publish its SHA-256 with the release.
+
+If applying this update as a ZIP over a checkout that still tracks the
+old generated Web bundle, remove its tracked files once from the repository
+root. The list contains the former build output directories and files.
+
+```sh
+git rm -r --ignore-unmatch --pathspec-from-file=docs/obsolete_web_build_paths.txt
+```
+
+```sh
+python tool/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-release.apk
+python tool/check_release_artifacts.py --windows build/windows/x64/runner/Release
+python tool/check_release_artifacts.py --web build/web
+```
+
+Before iOS distribution, archive the Runner on a Mac. Check foreground
+location on a device and verify the purpose string and app
+`PrivacyInfo.xcprivacy` in the archive. Use Xcode's privacy report to review
+the embedded SDK manifests and compare App Store declarations with the
+[privacy policy](PRIVACY.md). Check that an existing prepared map still opens
+after upgrade and that `FPVManagerPublicCache` is excluded from device backup.
+
+### Renderer checks
+
 The SQLite preparation helper downloads ARM/ARM64/x64 libraries using the
 resolved package's expected hashes, reuses verified cache entries and retries
 failed downloads up to three times. Use `--refresh` to request fresh downloads;

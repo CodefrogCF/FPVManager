@@ -5,6 +5,7 @@ import '../../core/localization/app_localizations.dart';
 import 'dart:async';
 
 import '../data_management/data_management_screen.dart';
+import '../offline/base_map_cache_preference.dart';
 import '../offline/offline_region.dart';
 
 import '../../core/database/fpv_database.dart';
@@ -332,11 +333,25 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     }
   });
 
-  bool _cachedMaps = false;
+  bool _cachedMaps = true, _cachedMapsReady = false;
+  Future<void>? _cachedMapsLoad;
+
+  Future<void> _loadCachedMaps() async {
+    try {
+      _cachedMaps = await BaseMapCachePreference(_planningDatabase).read();
+    } catch (_) {
+      // An unreadable setting must never start online tile requests.
+      _cachedMaps = true;
+    }
+    if (mounted) setState(() => _cachedMapsReady = true);
+  }
+
   int _mapCacheRevision = 0;
   OfflineRegion? _pendingOfflineRegion;
   bool _awaitOfflineRenderer = false;
   Future<void> _openData() async {
+    await _cachedMapsLoad;
+    if (!mounted) return;
     await _leaveGroundView();
     if (!mounted) return;
     final database = _planningDatabase;
@@ -1003,6 +1018,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     }
 
     if (database != null) {
+      await _cachedMapsLoad;
       try {
         await _languageOperation;
       } catch (_) {
@@ -1016,6 +1032,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _cachedMapsLoad = _loadCachedMaps();
     if (widget.onLanguageChanged != null) {
       _languageOperation = _loadLanguage();
     }
@@ -1217,13 +1234,15 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     onData: _openData,
                   )
                 : null,
-            globe: GlobeView(
-              menuOpen: _useDesktopWindowsPanels && _drawerOpen,
-              floatingControls: true,
-              cacheRevision: _mapCacheRevision,
-              controller: _globeController,
-              cachedMaps: _cachedMaps,
-            ),
+            globe: _cachedMapsReady
+                ? GlobeView(
+                    menuOpen: _useDesktopWindowsPanels && _drawerOpen,
+                    floatingControls: true,
+                    cacheRevision: _mapCacheRevision,
+                    controller: _globeController,
+                    cachedMaps: _cachedMaps,
+                  )
+                : const ColoredBox(color: Colors.black),
             navigation: ListenableBuilder(
               listenable: _globeController,
               builder: (context, _) => Builder(

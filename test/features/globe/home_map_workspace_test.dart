@@ -78,6 +78,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       final globe = tester.element(find.byType(GlobeView));
       final peer =
           FakeGlobeRenderer(

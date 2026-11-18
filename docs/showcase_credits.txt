@@ -1,0 +1,24 @@
+FPVManager - Quellen zum Vorstellungsvideo
+
+Videoaufnahmen, Originalton und Sprecheraufnahme: Chaos Core FPV
+
+Luftbilder, Gelände und 3D-Geodaten: © swisstopo
+SWISSIMAGE Background: © CNES, Spot Image, swisstopo, NPOC
+Includes material © (2016-2018) Planet. All rights reserved
+https://www.swisstopo.admin.ch/de/orthobilder-swissimage-10-cm
+
+Tunnelachsen: © OpenStreetMap contributors · ODbL
+https://www.openstreetmap.org/copyright
+Datenauszug: Geofabrik · https://download.geofabrik.de/europe/switzerland.html
+Vegetationsmischung: BAFU / WSL · Waldmischungsgrad LFI 2023
+https://www.geocat.ch/geonetwork/srv/api/records/b07a4589-159b-4c3a-b1e4-dbdad11f7e62
+3D-Darstellung: CesiumJS · https://cesium.com/platform/cesiumjs/
+
+Musik über Mixkit · Stock Music Free License
+https://mixkit.co/license/modal/musicFree/
+Echoes - Andrew Ev
+Digital Clouds - Alejandro Magaña (A. M.)
+Trap Electro Vibes - Alejandro Magaña (A. M.)
+Cyberpunk City - Alejandro Magaña (A. M.)
+Epical Drums 05 - Grigoriy Nuzhny
+Games Music - Grigoriy Nuzhny

@@ -142,7 +142,11 @@ const guideArticles = <GuideTopic, GuideArticle>{
   GuideTopic.privacy: GuideArticle('Datenschutz und API-Zugänge', [
     GuideSection(
       'Lokal und online',
-      'Persönliche Einträge bleiben lokal. Kartenanbieter sehen angeforderte Kartenausschnitte; aktivierte Beschriftungen senden ebenfalls nur den benötigten Bereich. Eine bestätigte Route sendet Start/Ziel an den Routingdienst. Orts-/Adresssuchen werden erst beim Absenden übertragen. Standortanzeige ist freiwillig und arbeitet nur im Vordergrund; es wird kein Standortverlauf angelegt.',
+      'FPVManager speichert persönliche Einträge auf dem Gerät. iOS kann sie in seine Gerätesicherung aufnehmen. Beim Zentrieren und Folgen können Online-Kacheln den Standortbereich erkennen lassen. FOSSGIS protokolliert Routenanfragen. Open-Meteo löscht seine Protokolle laut Anbieter nach 90 Tagen.',
+    ),
+    GuideSection(
+      'Datenschutzkontakt',
+      'Codefrog · ribbit@codefrog.ch. Die vollständige Datenschutzerklärung ist unter Offline & Daten verlinkt.',
     ),
     GuideSection(
       'Zugänge',

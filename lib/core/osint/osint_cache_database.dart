@@ -2,16 +2,34 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../features/obstacles/obstacle_models.dart';
 
 /// Downloaded public datasets are separate from user-owned spots and backups.
 /// Staging generations remain invisible until publication in one transaction.
 class OsintCacheDatabase extends GeneratedDatabase {
+  static Future<String>? _iosPath;
+
+  static Future<String> _resolveIosPath() async {
+    const storage = MethodChannel('com.codefrog.fpvmanager/storage');
+    final path = await storage.invokeMethod<String>('publicCachePath');
+    if (path == null || path.isEmpty) {
+      throw StateError('iOS public-data storage is unavailable');
+    }
+    return path;
+  }
+
+  static Future<String> _iosCachePath() => _iosPath ??= _resolveIosPath();
+
   OsintCacheDatabase(super.executor);
   factory OsintCacheDatabase.open() => OsintCacheDatabase(
     driftDatabase(
       name: 'fpvmanager_osint_cache',
+      native: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+          ? DriftNativeOptions(databasePath: _iosCachePath)
+          : null,
       web: DriftWebOptions(
         sqlite3Wasm: Uri.parse('sqlite3.wasm'),
         driftWorker: Uri.parse('drift_worker.js'),

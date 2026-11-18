@@ -105,6 +105,11 @@ styles, including narrow layouts and fallback states. Published
 map screenshots must retain the applicable credits or show them beside the image.
 UAS attribution comes from the displayed dataset's source descriptor.
 
+The swissEO overlay appends the acquisition year to the provider's
+Copernicus notice. The dated Blatten overlays credit BAFU/FOEN and
+swisstopo for Rapid Mapping and swisstopo for the September follow-up.
+[swissEO terms](https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-s2-sr#terms-of-use)
+
 Preserve bundled `web/cesium/LICENSE.md`, `web/cesium/ThirdParty.json` and embedded
 notices. CesiumJS uses Apache-2.0; its dependencies retain their own terms. The
 current app uses direct provider URLs rather than ion assets. Only the optional

@@ -3,11 +3,15 @@ import 'dart:convert';
 /// All sources here are historical/delayed acquisitions, never live imagery.
 enum DatedImageryProduct {
   swissEo('ch.swisstopo.swisseo_s2-sr_v200', 'swissEO Sentinel-2 (v200)'),
-  rapidMapping('ch.swisstopo.spezialbefliegungen', 'Rapid Mapping (events)');
+  rapidMapping('ch.swisstopo.spezialbefliegungen', 'Rapid Mapping / Blatten');
 
   const DatedImageryProduct(this.collection, this.label);
   final String collection, label;
 }
+
+// The special-flight collection also documents the post-event follow-up.
+const blattenRapidMappingOrthophoto = 'ram-2025-05-30t08090000';
+const blattenFollowupOrthophoto = 'kry-2025-09-19t09470000';
 
 enum DatedImageryRenderKind { swissEoWms, rapidCog, externalOnly }
 
@@ -243,8 +247,10 @@ DatedImagerySnapshot parseDatedImageryStac(
     if (id.isEmpty || id.length > 160 || !ids.add(id)) {
       continue;
     }
-    if (product == DatedImageryProduct.rapidMapping && !id.startsWith('ram-')) {
-      continue; // Other special-flight imagery is NOT a Rapid Mapping mission.
+    if (product == DatedImageryProduct.rapidMapping &&
+        !id.startsWith('ram-') &&
+        id != blattenFollowupOrthophoto) {
+      continue;
     }
     final b = raw['bbox'];
     if (b is! List ||
@@ -273,7 +279,14 @@ DatedImagerySnapshot parseDatedImageryStac(
         _optionalDate(props['published']) ??
         _optionalDate(props['created']) ??
         _optionalDate(props['updated']);
-    final title = _safeLabel(props['title'], fallback: id);
+    final title = _safeLabel(
+      props['title'],
+      fallback: switch (id) {
+        blattenRapidMappingOrthophoto => 'Blatten · 30.05.2025 · RGB',
+        blattenFollowupOrthophoto => 'Blatten · 19.09.2025 · RGB',
+        _ => id,
+      },
+    );
     final context = product == DatedImageryProduct.rapidMapping
         ? _safeLabel(
             props['description'] ?? props['event'] ?? props['mission'],
@@ -404,10 +417,9 @@ List<ImageryAsset> _parseAssets(
         url.path.toLowerCase().endsWith('.tif') ||
         url.path.toLowerCase().endsWith('.tiff');
     // No elevation models, oblique photos, raw bands or ungeoreferenced images.
-    final optical = RegExp(
-      'ortho|qdop|dop|rgb|tci',
-      caseSensitive: false,
-    ).hasMatch(key);
+    final optical =
+        RegExp('ortho|qdop|dop|rgb|tci', caseSensitive: false).hasMatch(key) &&
+        !key.toLowerCase().contains('nrgb');
     final render =
         product == DatedImageryProduct.rapidMapping &&
             isTiff &&

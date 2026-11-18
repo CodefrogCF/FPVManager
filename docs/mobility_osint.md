@@ -135,6 +135,12 @@ coverage and event context remain separate. Supported WMS/COG assets can be
 shown on the globe; unsupported assets remain external references. These are
 historical/delayed images, never a live camera or current hazard assessment.
 
+For Blatten, select **Rapid Mapping / Blatten** and search around
+`46.419, 7.818`. The official RGB overlays from
+[30 May 2025](https://www.swisstopo.admin.ch/de/rapidmapping-news-de-20261021)
+and [19 September 2025](https://data.geo.admin.ch/api/stac/v1/collections/ch.swisstopo.spezialbefliegungen/items/kry-2025-09-19t09470000)
+can be displayed where their pixels cover the selected area.
+
 **BAKOM Mobilfunk-Basisstationen** queries official station points after explicit
 area-sharing consent. It displays only supplied station type, power class and
 technology. A station coordinate can describe its first mast; no mast height,

@@ -6,6 +6,7 @@ import '../../core/database/fpv_database.dart';
 import 'backup_codec.dart';
 import 'backup_file_service.dart';
 import 'backup_repository.dart';
+import '../offline/base_map_cache_preference.dart';
 import '../offline/offline_regions_section.dart';
 import '../offline/offline_region.dart';
 
@@ -39,10 +40,34 @@ class DataManagementScreen extends StatefulWidget {
 
 class _DataManagementScreenState extends State<DataManagementScreen> {
   bool _busy = false, _encrypt = true;
+  bool _savingCacheMode = false;
   late bool _cachedMaps = widget.cachedMaps;
   String? _status;
   final _password = TextEditingController(),
       _confirmation = TextEditingController();
+
+  Future<void> _setCachedMaps(bool value) async {
+    if (_savingCacheMode || _cachedMaps == value) return;
+    setState(() => _savingCacheMode = true);
+    try {
+      await BaseMapCachePreference(widget.database).write(value);
+      widget.onCachedMaps?.call(value);
+      if (mounted) setState(() => _cachedMaps = value);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.translate("The map cache preference could not be saved."),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingCacheMode = false);
+    }
+  }
+
   @override
   void dispose() {
     _password.dispose();
@@ -210,13 +235,10 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
             latitude: widget.latitude,
             longitude: widget.longitude,
             cachedMaps: _cachedMaps,
-            enabled: !_busy,
+            enabled: !_busy && !_savingCacheMode,
             onChanged: widget.onRegionsChanged,
             prepareSnapshots: widget.prepareOfflineSnapshots,
-            onCachedMaps: (value) {
-              setState(() => _cachedMaps = value);
-              widget.onCachedMaps?.call(value);
-            },
+            onCachedMaps: _setCachedMaps,
           ),
           const Divider(height: 32),
           Text(

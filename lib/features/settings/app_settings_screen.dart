@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/localization/app_localizations.dart';
 
@@ -274,6 +275,24 @@ class AppSettingsScreen extends StatelessWidget {
                     ),
                     const GuideLink(GuideTopic.offline),
                     const GuideLink(GuideTopic.privacy),
+                    _link(
+                      context,
+                      Icons.open_in_new,
+                      context.translate("Privacy policy"),
+                      () async {
+                        final opened = await launchUrl(
+                          Uri.https(
+                            'github.com',
+                            '/CodefrogCF/FPVManager/blob/main/PRIVACY.md',
+                          ),
+                          mode: LaunchMode.externalApplication,
+                        );
+                        if (!opened) {
+                          throw StateError('Privacy policy unavailable');
+                        }
+                      },
+                      subtitle: 'Codefrog · ribbit@codefrog.ch',
+                    ),
                   ],
                 ],
               ),

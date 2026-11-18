@@ -2,6 +2,11 @@
 // Numbered placeholders receive values from the presentation layer.
 
 const germanMessages = <String, String>{
+  "Privacy policy": "Datenschutzerklärung",
+  "Report a map error": "Kartenfehler melden",
+  "The map cache preference could not be saved.":
+      "Die Karten-Cache-Einstellung konnte nicht gespeichert werden.",
+  "FOSSGIS logs the route request. Spot names and notes stay in the app.": "FOSSGIS protokolliert die Routenanfrage. Spot-Namen und Notizen bleiben in der App.",
   "* = 30 m AGL preview only": "* = nur 30 m AGL Vorschau",
   "1 km local": "1 km vor Ort",
   "1. Open current BAZL map, check every applicable overlapping zone and contact the competent authority when necessary.": "1. Öffnen Sie die aktuelle BAZL-Karte, überprüfen Sie alle anwendbaren überlappenden Zonen und kontaktieren Sie die zuständige Behörde, wenn nötig.",
@@ -986,6 +991,12 @@ const germanMessages = <String, String>{
 };
 
 const englishMessages = <String, String>{
+  "Kein Online-Nachladen für Grundkarte und Gelände, auch nach Neustart. Live-Daten können weiterhin online sein.": "Base map and terrain stay cache-only after restart. Live data can still use the network.",
+  "Kartenbewegung beendet die Verfolgung. Online-Karten können beim Zentrieren und Folgen den Standortbereich erkennen lassen.": "Moving the map stops following. Online tiles can reveal the area when you center or follow.",
+  "Bei Routenabweichungen sendet die App Standort und Ziel an FOSSGIS. Der Dienst protokolliert die Anfrage. Im Hintergrund pausiert die Navigation.": "FPVManager sends your location and destination to FOSSGIS when rerouting. FOSSGIS logs the request. Navigation pauses in the background.",
+  "FPVManager speichert persönliche Einträge auf dem Gerät. iOS kann sie in seine Gerätesicherung aufnehmen. Beim Zentrieren und Folgen können Online-Kacheln den Standortbereich erkennen lassen. FOSSGIS protokolliert Routenanfragen. Open-Meteo löscht seine Protokolle laut Anbieter nach 90 Tagen.": "FPVManager stores personal records on the device. iOS can include them in device backups. Online tiles can reveal your location area when you center or follow. FOSSGIS logs route requests. Open-Meteo says it deletes logs after 90 days.",
+  "Datenschutzkontakt": "Privacy contact",
+  "Codefrog · ribbit@codefrog.ch. Die vollständige Datenschutzerklärung ist unter Offline & Daten verlinkt.": "Codefrog · ribbit@codefrog.ch. The full privacy policy is linked under Offline & personal data.",
   "0 % · unten (Fernsteuerung)": "0 % · bottom (remote control)",
   "3D & Licht": "3D & lighting",
   "3D und Quellen": "3D and Sources",

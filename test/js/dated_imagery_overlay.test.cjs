@@ -38,11 +38,12 @@ test('swissEO uses documented date-specific WMS; replacement/clear leaves basema
   assert.equal(p.layers[0].provider.layers,M.SWISSEO);
   assert.equal(p.layers[0].provider.url,'https://wms.geo.admin.ch/?item=2025-05-30t123025');
   assert.equal(p.layers[0].provider.maximumLevel,12);
-  assert.match(p.layers[0].provider.credit.name,/swisstopo/);
-  await p.layer.replace({...swiss,id:'new',opacity:.4});
+  assert.equal(p.layers[0].provider.credit.name,'© swisstopo, Contains modified Copernicus Sentinel data 2025');
+  await p.layer.replace({...swiss,id:'new',opacity:.4,acquiredUtc:'2026-05-30T12:30:25.000Z'});
   assert.equal(p.layers.length,1);
   assert.equal(p.layers[0].alpha,.4);
   assert.equal(p.layer.selected.id,'new');
+  assert.equal(p.layers[0].provider.credit.name,'© swisstopo, Contains modified Copernicus Sentinel data 2026');
   p.layer.clear(); assert.equal(p.layers.length,0);
   assert.equal(p.events.at(-1).payload.state,'off');
   await p.layer.replace(swiss);
@@ -87,6 +88,24 @@ test('COG decoding rejects missing/no-data pixels without rendering zero as a cl
   const T={fromCustomClient:async()=>({getImageCount:async()=>1,
     getImage:async()=>fakeImage,close:()=>{}}),BaseClient:class{},BaseResponse:class{}};
   await assert.rejects(M.readCog(T,rapid,new AbortController()),/no valid pixels/);
+});
+test('large RGB mosaic inherits georeferencing from the base and honours the overview mask',async()=>{
+  const base={getGeoKeys:()=>({ProjectedCSTypeGeoKey:2056}),
+    getOrigin:()=>[2599000,1201000],getResolution:()=>[.1,-.1],getSamplesPerPixel:()=>3,
+    getWidth:()=>130000,getHeight:()=>110000,fileDirectory:{}};
+  const overview={...base,getGeoKeys:()=>null,getOrigin:()=>{throw Error('no tiepoints');},
+    getResolution:reference=>{assert.equal(reference,base);return [10,-10];},
+    getWidth:()=>200,getHeight:()=>200,fileDirectory:{NewSubfileType:1},
+    readRasters:async({width,height})=>new Uint8Array(width*height*3).fill(85)};
+  const mask={...overview,getSamplesPerPixel:()=>1,fileDirectory:{NewSubfileType:5},
+    readRasters:async({width,height})=>new Uint8Array(width*height).fill(1,width*height/2)};
+  const images=[base,overview,mask];
+  const T={fromCustomClient:async()=>({getImageCount:async()=>images.length,getImage:async i=>images[i]}),
+    BaseClient:class{},BaseResponse:class{}};
+  const rendered=await M.readCog(T,{...rapid,searchBounds:[7.435,46.945,7.443,46.957]},new AbortController());
+  assert.ok(rendered.valid>100000&&rendered.valid<150000);
+  assert.equal(rendered.pixels[3],0);
+  assert.deepEqual(Array.from(rendered.pixels.slice(-4)),[85,85,85,255]);
 });
 test('pending COG decode is cancelled on clear; reload does not restore stale layer',async()=>{
   const p=fake();

@@ -5,7 +5,7 @@ import re
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
-ROOT_DOCS = ('README.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md')
+ROOT_DOCS = ('README.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'PRIVACY.md')
 TICKET = re.compile(r'github\.com/[^\s/)]+/[^\s/)]+/issues(?:\b|/)|'
                     r'\bissues?\s*#?\s*\d+|\bissue[_-]\d+|\bissue\d+', re.I)
 LINK = re.compile(r'!?\[[^\]]*\]\(([^)]+)\)')
@@ -14,7 +14,9 @@ LINK = re.compile(r'!?\[[^\]]*\]\(([^)]+)\)')
 def check(root=ROOT):
     root = Path(root).resolve()
     manifest = root / 'docs/obsolete_files.json'
-    retired = {item['path'] for item in json.loads(manifest.read_text(encoding='utf-8'))['files']}
+    retired = set()
+    if manifest.is_file():
+        retired = {item['path'] for item in json.loads(manifest.read_text(encoding='utf-8'))['files']}
     files = [root / name for name in ROOT_DOCS]
     files += list((root / 'docs').rglob('*.md'))
     files += [root / 'assets/licenses/README.md']

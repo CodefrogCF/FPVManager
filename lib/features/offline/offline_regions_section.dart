@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import '../../core/localization/app_localizations.dart';
@@ -30,7 +31,7 @@ class OfflineRegionsSection extends StatefulWidget {
   });
   final double latitude, longitude;
   final bool cachedMaps, enabled;
-  final ValueChanged<bool> onCachedMaps;
+  final FutureOr<void> Function(bool) onCachedMaps;
   final OfflineMapStorage? storage;
   final ValueChanged<OfflineRegion?>? onChanged;
   final OfflinePackageFiles packageFiles;
@@ -188,7 +189,8 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
       return;
     }
     if (region != null) {
-      widget.onCachedMaps(true);
+      await widget.onCachedMaps(true);
+      if (!mounted) return;
       widget.onChanged?.call(region);
       _notice =
           'Offline-Bereich gespeichert. Quellenlücken und fehlende Live-Daten bleiben erkennbar.\n$snapshotStatus';
@@ -262,7 +264,8 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
     if (!mounted) return;
     await (target as PreparedMapStorage).importPackage(package);
     if (!mounted) return;
-    widget.onCachedMaps(true);
+    await widget.onCachedMaps(true);
+    if (!mounted) return;
     widget.onChanged?.call(package.region);
     await _load();
     if (mounted) {
@@ -312,12 +315,12 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
           title: Text(context.translate("Use cached base map and terrain")),
           subtitle: Text(
             context.translate(
-              "Missing tiles remain unavailable. Live data layers and API actions are separate and may still use the network.",
+              "Kein Online-Nachladen für Grundkarte und Gelände, auch nach Neustart. Live-Daten können weiterhin online sein.",
             ),
           ),
           value: widget.cachedMaps,
           onChanged: widget.enabled && !_busy && _store.rendererReady
-              ? widget.onCachedMaps
+              ? (value) async => widget.onCachedMaps(value)
               : null,
         ),
         Text(
@@ -719,7 +722,8 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                     .toList(),
               );
               if (!mounted) return;
-              if (region.packageId != null) widget.onCachedMaps(true);
+              if (region.packageId != null) await widget.onCachedMaps(true);
+              if (!mounted) return;
               widget.onChanged?.call(region);
               await _load();
             })

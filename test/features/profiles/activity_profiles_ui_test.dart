@@ -320,6 +320,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       final globeElement = tester.element(find.byType(GlobeView));
       final renderer = FakeGlobeRenderer(globe)
         ..attach()

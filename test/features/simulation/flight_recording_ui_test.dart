@@ -36,6 +36,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
       peer.attach();
       peer.ready();
       await tester.pumpAndSettle();

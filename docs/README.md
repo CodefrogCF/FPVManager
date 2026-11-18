@@ -9,7 +9,9 @@ through the app's contextual help.
 | Everyday use, map controls and simulation | [User guide](user_guide.md) |
 | Coordinate formats and height references | [Coordinates and heights](coordinates_and_heights.md) |
 | Personal data, online requests and permissions | [Privacy and permissions](privacy_and_permissions.md) |
+| Privacy policy and project contact | [Privacy policy](../PRIVACY.md) |
 | Map data, attribution and external rights | [Map sources](map_sources_and_attribution.md) |
+| Published video credits | [Showcase credits](showcase_credits.txt) |
 | Weather, radar and simulated wind | [Weather](weather.md) |
 | Preflight checks and signal/terrain analysis | [Preflight and analysis](preflight.md) |
 | Travel, observations and independent data layers | [Mobility and OSINT](mobility_osint.md) |

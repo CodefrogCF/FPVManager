@@ -74,7 +74,9 @@ Future<void> showGlobeLocationSettings(
           contentPadding: EdgeInsets.zero,
           title: Text(context.translate("Standort verfolgen")),
           subtitle: Text(
-            context.translate("Kartenbewegung beendet die Verfolgung."),
+            context.translate(
+              "Kartenbewegung beendet die Verfolgung. Online-Karten können beim Zentrieren und Folgen den Standortbereich erkennen lassen.",
+            ),
           ),
           value: controller.following,
           onChanged: (value) => unawaited(controller.setFollowing(value)),

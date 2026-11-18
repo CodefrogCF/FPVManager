@@ -332,5 +332,8 @@ void main() {
         }
       }
     },
+    // Creating the schema and reopening a real SQLite file can exceed the
+    // default deadline during parallel test runs on Windows.
+    timeout: const Timeout(Duration(minutes: 2)),
   );
 }

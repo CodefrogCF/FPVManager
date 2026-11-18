@@ -14,6 +14,8 @@ void main() {
       for (final path in const [
         'assets/licenses/image-LICENSE-other.md',
         'assets/licenses/archive-LICENSE-other.md',
+        'web/vendor/geotiff/THIRD_PARTY_NOTICES.txt',
+        'web/vendor/h5wasm/THIRD_PARTY_NOTICES.txt',
       ]) {
         final packaged = await rootBundle.loadString(path);
         expect(packaged, File(path).readAsStringSync());
@@ -29,6 +31,8 @@ void main() {
       const packages = {
         'image (bundled components)',
         'archive (bundled components)',
+        'GeoTIFF.js (bundled components)',
+        'h5wasm (bundled components)',
       };
       registerBundledLicenses();
       registerBundledLicenses();
@@ -36,7 +40,7 @@ void main() {
         final entries = await LicenseRegistry.licenses
             .where((entry) => entry.packages.any(packages.contains))
             .toList();
-        expect(entries, hasLength(2));
+        expect(entries, hasLength(packages.length));
         expect(entries.expand((entry) => entry.packages).toSet(), packages);
         for (final entry in entries) {
           expect(entry.paragraphs, isNotEmpty);

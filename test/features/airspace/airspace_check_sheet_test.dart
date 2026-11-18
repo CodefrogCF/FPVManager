@@ -262,6 +262,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     final peer = FakeGlobeRenderer(globe)
       ..attach()
       ..ready();
@@ -306,6 +307,7 @@ void main() {
       );
       final globe = _CheckingGlobe();
       addTearDown(globe.dispose);
+      await tester.pumpAndSettle();
       final peer = FakeGlobeRenderer(globe)
         ..attach()
         ..ready();

@@ -3,7 +3,7 @@ description: "Open-source FPV flight planning and situational awareness app with
 
 publish_to: 'none'
 
-version: 0.17.0+17
+version: 0.17.1+18
 
 environment:
   sdk: ^3.13.0
@@ -46,6 +46,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - NOTICE
     - assets/licenses/image-LICENSE-other.md
     - assets/licenses/archive-LICENSE-other.md
     - web/globe.html
@@ -138,6 +139,7 @@ flutter:
     - web/offline_preparation_engine.js
     - web/offline_preparation_storage.js
     - web/vendor/geotiff/
+    - web/vendor/h5wasm/
     - web/models/obstacles/
     - web/situational_layers.js
     - web/road_navigation.js
@@ -147,6 +149,7 @@ flutter:
     - web/uas_zone_styles.js
     - web/weather_overlay.js
     - web/meteo_radar_overlay.js
+    - web/dated_imagery_overlay.js
     - assets/geo/chgeo2004_ln02.bin
     - assets/geo/chgeo2004_ln02.NOTICE.txt
 
