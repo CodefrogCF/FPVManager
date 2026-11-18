@@ -139,21 +139,30 @@ class RouteAnalysisController extends ChangeNotifier {
         terrainError = 'Terrain profile unavailable. No terrain clearance can be assessed. Retry when detailed terrain is available.';
       }
       if (!current()) return;
-      final calculated = RouteAnalysis.calculate(
-        points,
-        plan,
-        heights,
-        settings,
-      );
       final drone = editor.equipmentError != null
           ? null
           : editor.equipment?.drones
                 .where((d) => d.drone.id == editor.droneId)
                 .firstOrNull;
+      final calculated = RouteAnalysis.calculate(
+        points,
+        plan,
+        heights,
+        settings,
+        recordedTrack: settings.recordedTrack,
+        droneCruiseSpeedMetersPerSecond:
+            drone?.drone.cruiseSpeedMetersPerSecond,
+        droneMaxClimbRateMetersPerSecond:
+            drone?.drone.maxClimbRateMetersPerSecond,
+      );
       final modeled = RouteEnergyEstimate.calculate(
         calculated,
         settings,
         droneMassGrams: drone?.drone.takeoffWeightGrams,
+        droneCruiseSpeedMetersPerSecond:
+            drone?.drone.cruiseSpeedMetersPerSecond,
+        droneHoverPowerWatts: drone?.drone.hoverPowerWatts,
+        droneCruisePowerWatts: drone?.drone.cruisePowerWatts,
       );
       result = calculated;
       energy = modeled;

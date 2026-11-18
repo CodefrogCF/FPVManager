@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../../core/geo/geo_coordinate_service.dart';
 import '../../../core/models/flight_route.dart';
+import '../../../core/models/recorded_route_track.dart';
 import '../../../core/models/route_planning_settings.dart';
 
 const _radius = 6371008.8;
@@ -123,6 +124,17 @@ class RouteProfilePoint {
       ground == null || altitude == null ? null : altitude! - ground!;
 }
 
+/// Explicit provenance for route values used in energy calculations.
+/// A simulated ground-speed sample is not measured airspeed.
+enum RouteValueOrigin {
+  unavailable,
+  planned,
+  simulated,
+  measured,
+  derived,
+  estimated,
+}
+
 class RouteSegmentEstimate {
   const RouteSegmentEstimate({
     required this.index,
@@ -134,6 +146,10 @@ class RouteSegmentEstimate {
     this.returnSeconds,
     this.speed,
     this.minimumClearance,
+    this.groundSpeed,
+    this.speedOrigin = RouteValueOrigin.unavailable,
+    this.durationOrigin = RouteValueOrigin.unavailable,
+    this.heightOrigin = RouteValueOrigin.unavailable,
   });
   final int index;
   final double horizontal, bearing;
@@ -142,7 +158,13 @@ class RouteSegmentEstimate {
       seconds,
       returnSeconds,
       speed,
-      minimumClearance;
+      minimumClearance,
+      groundSpeed;
+  final RouteValueOrigin speedOrigin, durationOrigin, heightOrigin;
+  bool get usesEstimation =>
+      speedOrigin == RouteValueOrigin.estimated ||
+      durationOrigin == RouteValueOrigin.estimated ||
+      heightOrigin == RouteValueOrigin.estimated;
 }
 
 class RouteAnalysis {
@@ -176,9 +198,19 @@ class RouteAnalysis {
     List<RouteWaypointInput> points,
     RouteSamplingPlan plan,
     List<double>? groundHeights,
-    RoutePlanningSettings settings,
-  ) {
+    RoutePlanningSettings settings, {
+    RecordedRouteTrack? recordedTrack,
+    double? droneCruiseSpeedMetersPerSecond,
+    double? droneMaxClimbRateMetersPerSecond,
+  }) {
     settings.validate();
+    // Never attach telemetry to a different or edited route.
+    final track =
+        recordedTrack != null &&
+            recordedTrack.samples.length == points.length &&
+            recordedTrack.waypointSignature == recordedInputSignature(points)
+        ? recordedTrack
+        : null;
     if (groundHeights != null &&
         (groundHeights.length != plan.samples.length ||
             groundHeights.any((h) => !h.isFinite))) {
@@ -208,16 +240,19 @@ class RouteAnalysis {
     double? ground(int index) => groundHeights?[index];
     final altitudes = <double?>[
       for (var i = 0; i < points.length; i++)
-        switch (points[i].height) {
-          AglWaypointHeight(:final height) =>
-            ground(plan.waypointIndices[i]) == null
-                ? null
-                : ground(plan.waypointIndices[i])! + height.meters,
-          AbsoluteWaypointHeight(:final elevation)
-              when elevation.reference == VerticalReference.wgs84Ellipsoid =>
-            elevation.meters,
-          _ => null,
-        },
+        if (track != null)
+          track.samples[i].absoluteElevationMeters
+        else
+          switch (points[i].height) {
+            AglWaypointHeight(:final height) =>
+              ground(plan.waypointIndices[i]) == null
+                  ? null
+                  : ground(plan.waypointIndices[i])! + height.meters,
+            AbsoluteWaypointHeight(:final elevation)
+                when elevation.reference == VerticalReference.wgs84Ellipsoid =>
+              elevation.meters,
+            _ => null,
+          },
     ];
     final profile = <RouteProfilePoint>[];
     for (var i = 0; i < plan.samples.length; i++) {
@@ -253,6 +288,70 @@ class RouteAnalysis {
           .sublist(plan.waypointIndices[i], plan.waypointIndices[i + 1] + 1)
           .map((p) => p.clearance)
           .toList();
+      final recorded = track?.samples[i];
+      final following = track?.samples[i + 1];
+      final knownAir = recorded?.airspeedMetersPerSecond;
+      final profileSpeeds = settings.powerCurve
+          .where((p) => p.speed > 0)
+          .toList();
+      final cruise =
+          droneCruiseSpeedMetersPerSecond != null &&
+              droneCruiseSpeedMetersPerSecond.isFinite &&
+              droneCruiseSpeedMetersPerSecond > 0
+          ? droneCruiseSpeedMetersPerSecond
+          : profileSpeeds.isEmpty
+          ? null
+          : profileSpeeds.first.speed;
+      // A slower speed and nonzero manoeuvre allowance conservatively bias
+      // time/energy upwards. This is an explicitly opted-in assumption, not
+      // a transformation of the simulator's ground speed into airspeed.
+      final estimatedAir =
+          settings.estimateMissingTelemetry && cruise != null && cruise > 0
+          ? math.max(.5, cruise * .8)
+          : null;
+      final airspeed = knownAir ?? a.speedMetersPerSecond ?? estimatedAir;
+      final airspeedOrigin = knownAir != null
+          ? recorded!.airspeedSource == RecordedAirspeedSource.measured
+                ? RouteValueOrigin.measured
+                : RouteValueOrigin.simulated
+          : a.speedMetersPerSecond != null
+          ? RouteValueOrigin.planned
+          : estimatedAir != null
+          ? RouteValueOrigin.estimated
+          : RouteValueOrigin.unavailable;
+      final elapsed = recorded == null || following == null
+          ? null
+          : following.seconds - recorded.seconds;
+      final predicted = _duration(
+        horizontal,
+        distance,
+        bearing,
+        airspeed,
+        settings,
+      );
+      double? duration = elapsed ?? predicted;
+      var durationOrigin = elapsed != null
+          ? RouteValueOrigin.simulated
+          : predicted == null
+          ? RouteValueOrigin.unavailable
+          : airspeedOrigin == RouteValueOrigin.estimated
+          ? RouteValueOrigin.estimated
+          : RouteValueOrigin.derived;
+      if (elapsed == null &&
+          airspeedOrigin == RouteValueOrigin.estimated &&
+          predicted != null) {
+        final climbRate = droneMaxClimbRateMetersPerSecond;
+        final requiredClimbTime =
+            delta != null &&
+                delta > 0 &&
+                climbRate != null &&
+                climbRate.isFinite &&
+                climbRate > 0
+            ? delta / climbRate
+            : 0.0;
+        duration = math.max(predicted, requiredClimbTime) * 1.15;
+        durationOrigin = RouteValueOrigin.estimated;
+      }
       segments.add(
         RouteSegmentEstimate(
           index: i,
@@ -260,19 +359,21 @@ class RouteAnalysis {
           bearing: bearing,
           spatial: distance,
           heightChange: delta,
-          speed: a.speedMetersPerSecond,
-          seconds: _duration(
-            horizontal,
-            distance,
-            bearing,
-            a.speedMetersPerSecond,
-            settings,
-          ),
+          speed: airspeed,
+          speedOrigin: airspeedOrigin,
+          groundSpeed: recorded?.groundSpeedMetersPerSecond,
+          seconds: duration,
+          durationOrigin: durationOrigin,
+          heightOrigin: track != null
+              ? RouteValueOrigin.simulated
+              : delta != null
+              ? RouteValueOrigin.derived
+              : RouteValueOrigin.unavailable,
           returnSeconds: _duration(
             horizontal,
             distance,
             _bearing(b.position, a.position),
-            a.speedMetersPerSecond,
+            airspeed,
             settings,
           ),
           minimumClearance: clearance.any((v) => v == null)

@@ -19,6 +19,7 @@ class RoutePlanningSettings {
     this.useWind = false,
     this.reservePercent = 20,
     this.includeReturn = true,
+    this.estimateMissingTelemetry = false,
     this.optimisticFactor = .8,
     this.conservativeFactor = 1.3,
     this.referenceMassGrams,
@@ -32,7 +33,7 @@ class RoutePlanningSettings {
     this.sceneTime = const SceneTime(),
     this.recordedTrack,
   });
-  final bool useWind, includeReturn;
+  final bool useWind, includeReturn, estimateMissingTelemetry;
   final double windSpeed, windFromDegrees, reservePercent;
   final double optimisticFactor,
       conservativeFactor,
@@ -47,6 +48,12 @@ class RoutePlanningSettings {
 
   /// Optional timestamped telemetry for a route created from simulation.
   final RecordedRouteTrack? recordedTrack;
+
+  RoutePlanningSettings withTelemetryEstimation(bool enabled) {
+    final j = jsonDecode(encode()) as Map<String, dynamic>;
+    j['estimateMissingTelemetry'] = enabled;
+    return RoutePlanningSettings.decode(jsonEncode(j));
+  }
 
   RoutePlanningSettings withRecordedTrack(RecordedRouteTrack? track) {
     final j = jsonDecode(encode()) as Map<String, dynamic>;
@@ -138,6 +145,7 @@ class RoutePlanningSettings {
       'windFromDegrees': windFromDegrees,
       'reservePercent': reservePercent,
       'includeReturn': includeReturn,
+      'estimateMissingTelemetry': estimateMissingTelemetry,
       'optimisticFactor': optimisticFactor,
       'conservativeFactor': conservativeFactor,
       'referenceMassGrams': referenceMassGrams,
@@ -180,6 +188,9 @@ class RoutePlanningSettings {
         windFromDegrees: (j['windFromDegrees'] as num).toDouble(),
         reservePercent: (j['reservePercent'] as num).toDouble(),
         includeReturn: j['includeReturn'] as bool,
+        estimateMissingTelemetry: j['estimateMissingTelemetry'] == null
+            ? false
+            : j['estimateMissingTelemetry'] as bool,
         optimisticFactor: (j['optimisticFactor'] as num).toDouble(),
         conservativeFactor: (j['conservativeFactor'] as num).toDouble(),
         referenceMassGrams: (j['referenceMassGrams'] as num?)?.toDouble(),

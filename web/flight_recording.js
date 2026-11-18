@@ -13,6 +13,10 @@
         function point(s){const p=latest??{};p.latitude=s.position.latitude;p.longitude=s.position.longitude;p.height=s.height;
             p.ground=Number.isFinite(s.agl)&&s.agl>=0&&s.agl<=100000?s.height-s.agl:null;
             p.speed=Number.isFinite(s.speed)&&s.speed>=0&&s.speed<=200?s.speed:null;
+            // This must be an explicitly supplied airspeed, not s.speed (3D
+            // ground speed). Most simulator states intentionally omit it.
+            p.airspeed=Number.isFinite(s.airspeedMetersPerSecond)&&s.airspeedMetersPerSecond>=0&&s.airspeedMetersPerSecond<=200
+                ?s.airspeedMetersPerSecond:null;
             p.time=Math.max(0,(clock()-started)/1000);return p;}
         function distance(a,b){const r=Math.PI/180,n=(a.latitude-b.latitude)*r*6371000,
             e=(a.longitude-b.longitude)*r*6371000*Math.cos((a.latitude+b.latitude)*r/2);return Math.hypot(n,e,a.height-b.height);}
@@ -21,6 +25,8 @@
             const dt=last?p.time-last.time:Infinity;
             const dynamicChange=last&&(
                 (p.speed===null)!==(last.speed===null)||
+                (p.airspeed===null)!==(last.airspeed===null)||
+                (Number.isFinite(p.airspeed)&&Number.isFinite(last.airspeed)&&Math.abs(p.airspeed-last.airspeed)>.75)||
                 (Number.isFinite(p.speed)&&Number.isFinite(last.speed)&&Math.abs(p.speed-last.speed)>.75)||
                 (p.ground===null)!==(last.ground===null)||
                 (Number.isFinite(p.ground)&&Number.isFinite(last.ground)&&
@@ -29,7 +35,9 @@
             if(last&&(dt<=0||(!force&&(dt<.5||(distance(p,last)<1&&dt<2&&!dynamicChange)))))return;
             if(gap||last&&(dt>3||distance(p,last)>2000)){segment++;gap=false;}
             count++;last={...p};
-            emit('flight-recording-sample',{id,sample:[count,segment,p.time,p.latitude,p.longitude,p.height,p.ground,p.speed]});
+            const sample=[count,segment,p.time,p.latitude,p.longitude,p.height,p.ground,p.speed];
+            if(p.airspeed!==null)sample.push(p.airspeed);
+            emit('flight-recording-sample',{id,sample});
             updateControls();
             if(count>=maxSamples)stop('4096-sample recording limit reached');
         }

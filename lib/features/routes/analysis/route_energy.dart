@@ -5,10 +5,26 @@ import '../../../core/models/route_planning_settings.dart';
 import 'route_analysis.dart';
 
 class RouteEnergyEstimate {
-  RouteEnergyEstimate._(this.outboundWh, this.returnWh, this.problem);
+  RouteEnergyEstimate._(
+    this.outboundWh,
+    this.returnWh,
+    this.problem, {
+    this.estimatedWh = 0,
+    this.estimatedSegments = 0,
+    this.recordedDurationSegments = 0,
+    this.powerCurveSource,
+  });
   final List<double> outboundWh;
   final List<double?> returnWh;
   final String? problem;
+
+  /// Outbound Wh from segments that depend on at least one estimated input.
+  /// This is a contribution, not an uncertainty interval.
+  final double estimatedWh;
+  final int estimatedSegments, recordedDurationSegments;
+  final String? powerCurveSource;
+  double? get estimatedFraction =>
+      totalWh == null || totalWh == 0 ? null : estimatedWh / totalWh!;
   bool get available => problem == null;
   bool get returnAvailable => available && returnWh.every((v) => v != null);
   double? get totalWh =>
@@ -25,10 +41,42 @@ class RouteEnergyEstimate {
     RouteAnalysis route,
     RoutePlanningSettings settings, {
     double? droneMassGrams,
+    double? droneCruiseSpeedMetersPerSecond,
+    double? droneHoverPowerWatts,
+    double? droneCruisePowerWatts,
   }) {
     settings.validate();
-    final mass = settings.flightMassGrams ?? droneMassGrams,
-        reference = settings.referenceMassGrams;
+    final mass = settings.flightMassGrams ?? droneMassGrams;
+    final reference =
+        settings.referenceMassGrams ??
+        (settings.estimateMissingTelemetry ? droneMassGrams : null);
+    final canUseDroneCurve =
+        settings.estimateMissingTelemetry &&
+        droneCruiseSpeedMetersPerSecond != null &&
+        droneCruiseSpeedMetersPerSecond.isFinite &&
+        droneCruiseSpeedMetersPerSecond > 0 &&
+        droneHoverPowerWatts != null &&
+        droneHoverPowerWatts.isFinite &&
+        droneHoverPowerWatts > 0 &&
+        droneCruisePowerWatts != null &&
+        droneCruisePowerWatts.isFinite &&
+        droneCruisePowerWatts > 0;
+    final curve = settings.powerCurve.length >= 2
+        ? settings.powerCurve
+        : canUseDroneCurve
+        ? [
+            PowerCurvePoint(0, droneHoverPowerWatts),
+            PowerCurvePoint(
+              droneCruiseSpeedMetersPerSecond,
+              droneCruisePowerWatts,
+            ),
+          ]
+        : const <PowerCurvePoint>[];
+    final curveSource = settings.powerCurve.length >= 2
+        ? settings.curveSource
+        : canUseDroneCurve
+        ? 'Drone profile (estimated hover/cruise power)'
+        : null;
     RouteEnergyEstimate unavailable(String reason) =>
         RouteEnergyEstimate._(const [], const [], reason);
     if (mass == null || !mass.isFinite || mass <= 0 || reference == null) {
@@ -36,13 +84,12 @@ class RouteEnergyEstimate {
         'Enter total takeoff mass and the power curve reference mass. Include the installed battery.',
       );
     }
-    if (settings.powerCurve.length < 2) {
+    if (curve.length < 2) {
       return unavailable(
         'Enter at least two speed/power measurements or estimates for level flight.',
       );
     }
     double? power(double speed) {
-      final curve = settings.powerCurve;
       if (speed < curve.first.speed || speed > curve.last.speed) return null;
       for (var i = 1; i < curve.length; i++) {
         if (speed <= curve[i].speed) {
@@ -58,6 +105,7 @@ class RouteEnergyEstimate {
     }
 
     final outbound = <double>[], returning = <double?>[];
+    var estimatedWh = 0.0, estimatedSegments = 0, recordedDurations = 0;
     for (final segment in route.segments) {
       if (segment.seconds == null ||
           segment.heightChange == null ||
@@ -66,12 +114,25 @@ class RouteEnergyEstimate {
           'Known heights, outgoing airspeeds and an achievable wind-corrected outbound track are required.',
         );
       }
-      final watts = power(segment.speed!);
-      if (watts == null) {
+      final interpolatedWatts = power(segment.speed!);
+      if (interpolatedWatts == null) {
         return unavailable(
           'Airspeed in segment ${segment.index + 1} lies outside the power curve. No extrapolation is applied.',
         );
       }
+      // Opted-in speed estimates carry an extra power allowance. Compare
+      // with the known cruise point (when inside the curve), so choosing a
+      // slower conservative speed cannot silently lower the power estimate.
+      final assumedCruise =
+          droneCruiseSpeedMetersPerSecond ??
+          curve.where((p) => p.speed > 0).firstOrNull?.speed;
+      final referencePower = assumedCruise == null
+          ? null
+          : power(assumedCruise);
+      final watts = segment.speedOrigin == RouteValueOrigin.estimated
+          ? math.max(interpolatedWatts, referencePower ?? interpolatedWatts) *
+                1.1
+          : interpolatedWatts;
       double energy(double duration, double climb) =>
           watts * duration / 3600 +
           mass /
@@ -91,11 +152,23 @@ class RouteEnergyEstimate {
       }
       outbound.add(wh);
       returning.add(back);
+      if (segment.usesEstimation ||
+          (canUseDroneCurve && settings.powerCurve.length < 2)) {
+        estimatedWh += wh;
+        estimatedSegments++;
+      }
+      if (segment.durationOrigin == RouteValueOrigin.simulated) {
+        recordedDurations++;
+      }
     }
     return RouteEnergyEstimate._(
       List.unmodifiable(outbound),
       List.unmodifiable(returning),
       null,
+      estimatedWh: estimatedWh,
+      estimatedSegments: estimatedSegments,
+      recordedDurationSegments: recordedDurations,
+      powerCurveSource: curveSource,
     );
   }
 }

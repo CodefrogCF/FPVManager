@@ -15,6 +15,7 @@ RecordedFlightPoint sample(
   double? ground = 1000,
   double? speed = 8,
   double height = 1040,
+  double? airspeed,
 }) => RecordedFlightPoint(
   sequence: i + 1,
   segment: 0,
@@ -23,6 +24,8 @@ RecordedFlightPoint sample(
   height: height,
   ground: ground,
   speedMetersPerSecond: speed,
+  airspeedMetersPerSecond: airspeed,
+  airspeedSource: airspeed == null ? null : RecordedAirspeedSource.simulator,
 );
 
 void main() {
@@ -43,6 +46,20 @@ void main() {
     ]);
     expect(current.agl, 40);
     expect(current.speedMetersPerSecond, 14);
+    final withAir = RecordedFlightPoint.parse([
+      2,
+      0,
+      .5,
+      46.7,
+      8.4,
+      1040,
+      1000,
+      14,
+      12,
+    ]);
+    expect(withAir.speedMetersPerSecond, 14);
+    expect(withAir.airspeedMetersPerSecond, 12);
+    expect(withAir.airspeedSource, RecordedAirspeedSource.simulator);
     expect(
       current.acquiredAt(DateTime.utc(2026, 11, 4)),
       DateTime.utc(2026, 11, 4).add(const Duration(milliseconds: 500)),
@@ -99,8 +116,8 @@ void main() {
     addTearDown(db.close);
     final repository = FlightPlanRepository(db);
     final values = [
-      sample(0, speed: 2),
-      sample(1, speed: 12, ground: null),
+      sample(0, speed: 2, airspeed: 3),
+      sample(1, speed: 12, ground: null, airspeed: 10),
       sample(2, speed: 5, height: 1050),
     ];
     final flight = RecordedFlight(
@@ -122,6 +139,12 @@ void main() {
     expect(track.startedAtUtc, flight.startedAt);
     expect(track.samples.map((s) => s.seconds), [0, .5, 1]);
     expect(track.samples.map((s) => s.groundSpeedMetersPerSecond), [2, 12, 5]);
+    expect(track.samples.map((s) => s.airspeedMetersPerSecond), [3, 10, null]);
+    expect(
+      track.samples.first.airspeedSource,
+      RecordedAirspeedSource.simulator,
+    );
+    expect(track.durationSeconds, 1);
     expect(track.samples.map((s) => s.aglMeters), [40, null, 50]);
     expect(track.samples.last.absoluteElevationMeters, 1050);
     expect(track.samples[1].terrainElevationMeters, isNull);
@@ -148,6 +171,11 @@ void main() {
         5,
       ]);
       expect(restored.samples.map((s) => s.aglMeters), [40, null, 50]);
+      expect(restored.samples.map((s) => s.airspeedMetersPerSecond), [
+        3,
+        10,
+        null,
+      ]);
       expect(
         restored.waypointSignature,
         recordedInputSignature(decoded.points),
@@ -159,6 +187,10 @@ void main() {
         5,
       );
       expect(storedAgain.recordedTrack?.samples[1].aglMeters, isNull);
+      expect(
+        storedAgain.recordedTrack?.samples.first.airspeedMetersPerSecond,
+        3,
+      );
     }
   });
 

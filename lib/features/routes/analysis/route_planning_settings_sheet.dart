@@ -25,7 +25,9 @@ class _Settings extends StatefulWidget {
 class _SettingsState extends State<_Settings> {
   final _form = GlobalKey<FormState>();
   late final _settings = widget.editor.planning;
-  late bool _wind = _settings.useWind, _return = _settings.includeReturn;
+  late bool _wind = _settings.useWind,
+      _return = _settings.includeReturn,
+      _telemetryEstimate = _settings.estimateMissingTelemetry;
   late final Map<String, TextEditingController> _fields = {
     'wind': TextEditingController(text: '${_settings.windSpeed}'),
     'direction': TextEditingController(text: '${_settings.windFromDegrees}'),
@@ -140,6 +142,7 @@ class _SettingsState extends State<_Settings> {
         climbEfficiency: _read('efficiency')!,
         reservePercent: _read('reserve')!,
         includeReturn: _return,
+        estimateMissingTelemetry: _telemetryEstimate,
         optimisticFactor: _read('optimistic')!,
         conservativeFactor: _read('conservative')!,
         powerCurve: _curve(),
@@ -214,6 +217,17 @@ class _SettingsState extends State<_Settings> {
                     360,
                   ),
                   const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Estimate missing flight telemetry'),
+                    subtitle: const Text(
+                      'Optional: use the selected drone cruise speed and the '
+                      'configured power curve. Never replace recorded values '
+                      'or treat ground speed as measured airspeed.',
+                    ),
+                    value: _telemetryEstimate,
+                    onChanged: (v) => setState(() => _telemetryEstimate = v),
+                  ),
                   Text(
                     context.translate("Level-flight power curve"),
                     style: Theme.of(context).textTheme.titleMedium,

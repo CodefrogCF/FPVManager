@@ -150,6 +150,10 @@ class _ReviewState extends State<_Review> {
       for (final p in selected)
         if (p.speedMetersPerSecond != null) p.speedMetersPerSecond!,
     ];
+    final airspeeds = [
+      for (final p in selected)
+        if (p.airspeedMetersPerSecond != null) p.airspeedMetersPerSecond!,
+    ];
     final measuredGround = selected.where((p) => p.agl != null).length;
     final colors = Theme.of(context).colorScheme;
     return PopScope(
@@ -247,6 +251,17 @@ class _ReviewState extends State<_Review> {
                     ],
                   ),
                 ),
+                Text(
+                  airspeeds.isEmpty
+                      ? 'Airspeed: unavailable (groundspeed is not airspeed). '
+                            'Enable conservative profile estimates in route analysis if needed.'
+                      : 'Simulated airspeed: '
+                            '${airspeeds.reduce(math.min).toStringAsFixed(1)}–'
+                            '${airspeeds.reduce(math.max).toStringAsFixed(1)} m/s '
+                            '(${airspeeds.length}/${selected.length} samples)',
+                ),
+                if (widget.flight.interrupted)
+                  const Text('Recording interrupted; partial track retained.'),
                 Text(
                   context.translate(
                     "UTC start: {0} · Per-point elapsed time retained",

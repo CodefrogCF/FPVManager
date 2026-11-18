@@ -4,6 +4,7 @@ import '../../../core/localization/app_localizations.dart';
 
 import '../waypoint_settings_sheet.dart';
 import 'route_analysis_controller.dart';
+import 'route_analysis.dart';
 import 'route_profile_chart.dart';
 import 'route_planning_settings_sheet.dart';
 import 'route_safety_tab.dart';
@@ -22,6 +23,14 @@ String _meters(double? n) =>
 String _duration(double? n) =>
     n == null ? 'Unknown' : '${(n / 60).toStringAsFixed(1)} min';
 String _wh(double? n) => n == null ? 'Unknown' : '${n.toStringAsFixed(2)} Wh';
+String _origin(RouteValueOrigin source) => switch (source) {
+  RouteValueOrigin.simulated => 'recorded simulation',
+  RouteValueOrigin.measured => 'measured',
+  RouteValueOrigin.planned => 'planned',
+  RouteValueOrigin.derived => 'derived',
+  RouteValueOrigin.estimated => 'estimated',
+  RouteValueOrigin.unavailable => 'unknown',
+};
 
 class _RouteAnalysisSheet extends StatefulWidget {
   const _RouteAnalysisSheet({required this.controller});
@@ -215,7 +224,12 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
       children: [
         _metric('Horizontal distance', _meters(r.horizontalDistance)),
         _metric('Three-dimensional distance', _meters(r.spatialDistance)),
-        _metric('Estimated flight duration', _duration(r.seconds)),
+        _metric(
+          r.segments.any((s) => s.durationOrigin == RouteValueOrigin.simulated)
+              ? 'Recorded / modeled flight duration'
+              : 'Estimated flight duration',
+          _duration(r.seconds),
+        ),
         _metric(
           'Total climb / descent',
           '${_meters(r.climb)} / ${_meters(r.descent)}',
@@ -236,7 +250,7 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
         const SizedBox(height: 12),
         Text(
           context.translate(
-            "Approximate great-circle distances and constant airspeed per segment. No acceleration, hovering, manoeuvre time or gusts are included. The aircraft must be able to achieve the planned speed and climb rate.",
+            "Approximate great-circle distances. Recorded segment times are used when available; modeled times ignore gusts and manoeuvres. Confirm the drone can achieve the required speed and climb rate.",
           ),
         ),
         for (final s in r.segments)
@@ -245,13 +259,16 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             title: Text('Segment ${s.index + 1} → ${s.index + 2}'),
             subtitle: Text(
               context.translate(
-                "{0} horizontal · {1} 3D\nAirspeed {2} m/s · {3} · clearance {4}",
+                "{0} horizontal · {1} 3D\nAirspeed {2} m/s ({3}) · {4} ({5}) · clearance {6}\nGroundspeed: {7} m/s (simulated)",
                 [
                   _meters(s.horizontal),
                   _meters(s.spatial),
                   s.speed?.toStringAsFixed(1) ?? "unknown",
+                  _origin(s.speedOrigin),
                   _duration(s.seconds),
+                  _origin(s.durationOrigin),
                   _meters(s.minimumClearance),
+                  s.groundSpeed?.toStringAsFixed(1) ?? 'unknown',
                 ],
               ),
             ),
@@ -275,6 +292,26 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
       padding: const EdgeInsets.all(16),
       children: [
         _metric('Estimated outbound energy', _wh(energy.totalWh)),
+        if (energy.available) ...[
+          _metric(
+            'Recorded-duration segments',
+            '${energy.recordedDurationSegments} / ${c.result!.segments.length}',
+          ),
+          _metric(
+            'Energy relying on estimated inputs',
+            '${_wh(energy.estimatedWh)} (${((energy.estimatedFraction ?? 0) * 100).toStringAsFixed(0)}%) · ${energy.estimatedSegments} segments',
+          ),
+          const Text(
+            'Recorded simulator positions/timing are not real-flight measurements. '
+            'Estimated airspeed, power and return flight are not flight guarantees.',
+          ),
+        ],
+        if (settings.recordedTrack != null &&
+            settings.recordedTrack!.interrupted)
+          const Text(
+            'Recording was interrupted; only the selected continuous section '
+            'is evaluated.',
+          ),
         if (!c.result!.completeClearance)
           Text(
             context.translate(
@@ -296,7 +333,9 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         Text(
-          context.translate("Power curve source: {0}", [settings.curveSource]),
+          context.translate("Power curve source: {0}", [
+            energy.powerCurveSource ?? settings.curveSource,
+          ]),
         ),
         Text(
           context.translate(

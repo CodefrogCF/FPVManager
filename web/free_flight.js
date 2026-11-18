@@ -74,6 +74,9 @@
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
+            // Simulator-modelled 3D air-relative speed. Never a measured sensor
+            // reading; wind is the current simulated wind vector, not a forecast.
+            airspeedMetersPerSecond:Math.hypot(velocity.north-wind.north,velocity.east-wind.east,velocity.up-wind.up),
             home:spawn&&{...spawn},heightAboveHome:Number.isFinite(homeHeight)?height-homeHeight:null,
             distance:spawn&&position?distance(spawn,position):0,reason};}
         function publish(){onState(status());}

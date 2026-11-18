@@ -61,3 +61,11 @@ test('stationary capture is bounded, long frame gaps split paths and DOM control
     assert.equal(nodes.get('pause-recording').hidden,true);assert.equal(nodes.get('review-recording').hidden,false);
     p.recorder.control({action:'restore',id:'retained',count:45});assert.equal(nodes.get('record-flight').title,'Review flight recording');
 });
+
+test('keeps modeled airspeed distinct from simulator ground speed',()=>{
+    const p=setup();p.state={...p.state,speed:16,airspeedMetersPerSecond:12};p.control('start');
+    assert.deepEqual(p.samples()[0].slice(7),[16,12]);
+    p.time(.6);p.observe({...p.state,speed:17,airspeedMetersPerSecond:null});
+    assert.equal(p.samples().at(-1).length,8);
+    assert.equal(p.samples().at(-1)[7],17);
+});

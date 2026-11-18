@@ -21,6 +21,8 @@ class RecordedFlightPoint {
     required this.height,
     this.ground,
     this.speedMetersPerSecond,
+    this.airspeedMetersPerSecond,
+    this.airspeedSource,
   });
   final int sequence, segment;
   final double seconds, height;
@@ -31,6 +33,10 @@ class RecordedFlightPoint {
 
   /// Simulator 3D ground speed in m/s; not planned airspeed.
   final double? speedMetersPerSecond;
+
+  /// Airspeed is optional and never inferred from the simulator ground speed.
+  final double? airspeedMetersPerSecond;
+  final RecordedAirspeedSource? airspeedSource;
   double? get agl => ground == null ? null : height - ground!;
   DateTime acquiredAt(DateTime recordingStartUtc) => recordingStartUtc
       .toUtc()
@@ -38,7 +44,10 @@ class RecordedFlightPoint {
 
   factory RecordedFlightPoint.parse(Object? raw) {
     if (raw is! List ||
-        (raw.length != 7 && raw.length != 8) ||
+        (raw.length != 7 &&
+            raw.length != 8 &&
+            raw.length != 9 &&
+            raw.length != 10) ||
         raw[0] is! int ||
         raw[1] is! int) {
       throw const FormatException('Invalid recorded sample');
@@ -61,6 +70,12 @@ class RecordedFlightPoint {
     if (ground != null && ground > height) {
       throw const FormatException('Terrain exceeds recorded altitude');
     }
+    if (raw.length == 10 &&
+        raw[9] != null &&
+        raw[9] != 'measured' &&
+        raw[9] != 'simulator') {
+      throw const FormatException('Unknown airspeed source');
+    }
     return RecordedFlightPoint(
       sequence: sequence,
       segment: segment,
@@ -74,6 +89,14 @@ class RecordedFlightPoint {
       speedMetersPerSecond: raw.length == 7 || raw[7] == null
           ? null
           : number(7, 0, 200),
+      airspeedMetersPerSecond: raw.length < 9 || raw[8] == null
+          ? null
+          : number(8, 0, 200),
+      airspeedSource: raw.length < 9 || raw[8] == null
+          ? null
+          : raw.length == 10 && raw[9] == 'measured'
+          ? RecordedAirspeedSource.measured
+          : RecordedAirspeedSource.simulator,
     );
   }
 }
@@ -235,7 +258,8 @@ class FlightRecording extends ChangeNotifier {
     _notify();
   }
 
-  RecordedFlight snapshot() => RecordedFlight(id!, startedAt!, _points);
+  RecordedFlight snapshot() =>
+      RecordedFlight(id!, startedAt!, _points, interrupted: message != null);
 
   @override
   void dispose() {
@@ -245,11 +269,16 @@ class FlightRecording extends ChangeNotifier {
 }
 
 class RecordedFlight {
-  RecordedFlight(this.id, this.startedAt, List<RecordedFlightPoint> points)
-    : points = List.unmodifiable(points);
+  RecordedFlight(
+    this.id,
+    this.startedAt,
+    List<RecordedFlightPoint> points, {
+    this.interrupted = false,
+  }) : points = List.unmodifiable(points);
   final String id;
   final DateTime startedAt;
   final List<RecordedFlightPoint> points;
+  final bool interrupted;
   List<List<RecordedFlightPoint>> get segments {
     final result = <List<RecordedFlightPoint>>[];
     for (final p in points) {
@@ -286,7 +315,10 @@ List<RecordedFlightPoint> simplifyRecording(
     if (previous.segment != current.segment ||
         (previous.ground == null) != (current.ground == null) ||
         (previous.speedMetersPerSecond == null) !=
-            (current.speedMetersPerSecond == null)) {
+            (current.speedMetersPerSecond == null) ||
+        (previous.airspeedMetersPerSecond == null) !=
+            (current.airspeedMetersPerSecond == null) ||
+        previous.airspeedSource != current.airspeedSource) {
       keep.add(i - 1);
       keep.add(i);
     }
@@ -319,6 +351,12 @@ List<RecordedFlightPoint> simplifyRecording(
           ? (speed - (startSpeed + (endSpeed - startSpeed) * fraction)).abs() /
                 0.75
           : 0.0;
+      final startAir = first.airspeedMetersPerSecond;
+      final endAir = last.airspeedMetersPerSecond;
+      final air = current.airspeedMetersPerSecond;
+      final airError = air != null && startAir != null && endAir != null
+          ? (air - (startAir + (endAir - startAir) * fraction)).abs() / .75
+          : 0.0;
       final aglError =
           current.agl != null && first.agl != null && last.agl != null
           ? (current.agl! - (first.agl! + (last.agl! - first.agl!) * fraction))
@@ -327,7 +365,10 @@ List<RecordedFlightPoint> simplifyRecording(
           : 0.0;
       // Pick the *largest* normalized deviation, not simply the last point
       // exceeding any threshold. Each criterion is independently bounded.
-      final error = math.max(spatialError, math.max(speedError, aglError));
+      final error = math.max(
+        spatialError,
+        math.max(math.max(speedError, airError), aglError),
+      );
       if (error > largestError) {
         largestError = error;
         farthest = i;
@@ -447,6 +488,7 @@ class RecordingRouteSave {
         id: flight.id,
         startedAtUtc: flight.startedAt.toUtc(),
         waypointSignature: recordedInputSignature(points),
+        interrupted: flight.interrupted,
         samples: [
           for (final p in recordedPoints)
             RecordedTrackSample(
@@ -454,6 +496,8 @@ class RecordingRouteSave {
               absoluteElevationMeters: p.height,
               terrainElevationMeters: p.ground,
               groundSpeedMetersPerSecond: p.speedMetersPerSecond,
+              airspeedMetersPerSecond: p.airspeedMetersPerSecond,
+              airspeedSource: p.airspeedSource,
             ),
         ],
       );

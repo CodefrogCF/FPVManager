@@ -2,16 +2,21 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-/// Versioned, compact metadata for the recorded samples retained as route
-/// waypoints. This is simulated *ground* speed, not planned airspeed.
-/// The route's actual coordinates and selected waypoint height modes remain in
-/// flight_waypoints. A signature prevents replaying stale telemetry after edits.
+/// The origin of an airspeed reading, not an assertion of sensor accuracy.
+/// Ground speed and WGS84 heights from the simulator are always identified as
+/// simulated values; they must never be relabeled as measured airspeed.
+enum RecordedAirspeedSource { simulator, measured }
+
+/// Compact, route-signature-bound telemetry saved with a simulated route.
+/// Version 1 tracks (four values per sample) remain readable. Version 2 adds
+/// optional airspeed and a clearly identified source; unknown is never zero.
 class RecordedRouteTrack {
   RecordedRouteTrack({
     required this.id,
     required this.startedAtUtc,
     required this.waypointSignature,
     required List<RecordedTrackSample> samples,
+    this.interrupted = false,
   }) : samples = List.unmodifiable(samples) {
     validate();
   }
@@ -20,6 +25,15 @@ class RecordedRouteTrack {
   final DateTime startedAtUtc;
   final String waypointSignature;
   final List<RecordedTrackSample> samples;
+  final bool interrupted;
+
+  /// Duration of the selected continuous track, not an assumed flight time.
+  double get durationSeconds => samples.last.seconds - samples.first.seconds;
+
+  /// Timestamp of a sample in the original recording session (UTC).
+  DateTime timestampAt(RecordedTrackSample sample) => startedAtUtc.add(
+    Duration(microseconds: (sample.seconds * 1000000).round()),
+  );
 
   static String signature(Iterable<List<Object?>> canonicalWaypoints) => sha256
       .convert(utf8.encode(jsonEncode(canonicalWaypoints.toList())))
@@ -45,8 +59,7 @@ class RecordedRouteTrack {
     }
   }
 
-  /// Interpolated telemetry for virtual replay, never a direct measurement.
-  /// Requests outside the captured window are clamped to its endpoints.
+  /// Interpolated *simulated* telemetry for virtual replay, not measurement.
   RecordedTrackSample sampleAt(double elapsedSeconds) {
     if (!elapsedSeconds.isFinite) {
       throw ArgumentError('Replay time must be finite');
@@ -68,6 +81,8 @@ class RecordedRouteTrack {
         first + (last - first) * fraction;
     double? optional(double? first, double? last) =>
         first == null || last == null ? null : blend(first, last);
+    final sameSource =
+        a.airspeedSource != null && a.airspeedSource == b.airspeedSource;
     return RecordedTrackSample(
       seconds: elapsedSeconds,
       absoluteElevationMeters: blend(
@@ -82,23 +97,29 @@ class RecordedRouteTrack {
         a.groundSpeedMetersPerSecond,
         b.groundSpeedMetersPerSecond,
       ),
+      airspeedMetersPerSecond: sameSource
+          ? optional(a.airspeedMetersPerSecond, b.airspeedMetersPerSecond)
+          : null,
+      airspeedSource: sameSource ? a.airspeedSource : null,
     );
   }
 
-  /// Compact numeric arrays bound the 64 KiB planning_json field. Absolute and
-  /// terrain elevations use the WGS84 ellipsoid in metres; null = unavailable.
+  /// Numeric sample arrays are rounded before persistence to keep the 64 KiB
+  /// planning_json limit practical for a 1000-point recording.
   Map<String, Object?> toJson() => {
-    'version': 1,
+    'version': 2,
     'id': id,
     'startedAtUtc': startedAtUtc.toIso8601String(),
     'waypointSignature': waypointSignature,
+    if (interrupted) 'interrupted': true,
     'samples': [for (final sample in samples) sample.toJson()],
   };
 
   factory RecordedRouteTrack.fromJson(Object? value) {
     try {
       final json = value as Map<String, dynamic>;
-      if (json['version'] != 1) {
+      final version = json['version'];
+      if (version != 1 && version != 2) {
         throw const FormatException('Unsupported recorded route version');
       }
       final raw = json['samples'] as List;
@@ -109,11 +130,18 @@ class RecordedRouteTrack {
       if (!start.isUtc || !(json['startedAtUtc'] as String).endsWith('Z')) {
         throw const FormatException('Recording start must be UTC');
       }
+      if (json['interrupted'] != null && json['interrupted'] is! bool) {
+        throw const FormatException('Invalid interruption flag');
+      }
       return RecordedRouteTrack(
         id: json['id'] as String,
         startedAtUtc: start,
         waypointSignature: json['waypointSignature'] as String,
-        samples: [for (final item in raw) RecordedTrackSample.fromJson(item)],
+        interrupted: json['interrupted'] == true,
+        samples: [
+          for (final item in raw)
+            RecordedTrackSample.fromJson(item, version: version as int),
+        ],
       );
     } on FormatException {
       rethrow;
@@ -129,19 +157,25 @@ class RecordedTrackSample {
     required this.absoluteElevationMeters,
     this.terrainElevationMeters,
     this.groundSpeedMetersPerSecond,
+    this.airspeedMetersPerSecond,
+    this.airspeedSource,
   });
 
-  /// Seconds since the recording started (0–1800 s).
+  /// Seconds since session start, 0–1800, including time spent paused.
   final double seconds;
 
-  /// Absolute simulated position in metres, WGS84 ellipsoid reference.
+  /// Simulated altitude (metres, WGS84 ellipsoid); never silently MSL.
   final double absoluteElevationMeters;
 
-  /// Terrain elevation in metres, WGS84 ellipsoid; null means AGL is unknown.
+  /// Simulated terrain elevation (metres, WGS84 ellipsoid), null = unavailable.
   final double? terrainElevationMeters;
 
-  /// Simulator's 3D ground speed (m/s). Null for legacy/unknown readings.
+  /// Simulated 3D ground speed (m/s), not planned or measured airspeed.
   final double? groundSpeedMetersPerSecond;
+
+  /// Separate, optional airspeed (m/s) and its origin.
+  final double? airspeedMetersPerSecond;
+  final RecordedAirspeedSource? airspeedSource;
 
   double? get aglMeters => terrainElevationMeters == null
       ? null
@@ -160,30 +194,48 @@ class RecordedTrackSample {
         (groundSpeedMetersPerSecond != null &&
             (!groundSpeedMetersPerSecond!.isFinite ||
                 groundSpeedMetersPerSecond! < 0 ||
-                groundSpeedMetersPerSecond! > 200))) {
+                groundSpeedMetersPerSecond! > 200)) ||
+        (airspeedMetersPerSecond != null &&
+            (!airspeedMetersPerSecond!.isFinite ||
+                airspeedMetersPerSecond! < 0 ||
+                airspeedMetersPerSecond! > 200)) ||
+        (airspeedMetersPerSecond == null) != (airspeedSource == null)) {
       throw const FormatException('Invalid recorded height, speed or time');
     }
   }
 
+  static double? _compact(double? n, int places) {
+    if (n == null) return null;
+    final multiplier = places == 6 ? 1000000 : 100;
+    return (n * multiplier).round() / multiplier;
+  }
+
   List<Object?> toJson() => [
-    seconds,
-    groundSpeedMetersPerSecond,
-    absoluteElevationMeters,
-    terrainElevationMeters,
+    _compact(seconds, 6),
+    _compact(groundSpeedMetersPerSecond, 2),
+    _compact(absoluteElevationMeters, 2),
+    _compact(terrainElevationMeters, 2),
+    _compact(airspeedMetersPerSecond, 2),
+    airspeedSource?.name,
   ];
 
-  factory RecordedTrackSample.fromJson(Object? raw) {
+  factory RecordedTrackSample.fromJson(Object? raw, {int version = 2}) {
     try {
       final values = raw as List;
-      if (values.length != 4) {
+      if (values.length != (version == 1 ? 4 : 6)) {
         throw const FormatException('Invalid recording sample format');
       }
       double? number(Object? v) => v == null ? null : (v as num).toDouble();
+      final source = version == 2 && values[5] != null
+          ? RecordedAirspeedSource.values.byName(values[5] as String)
+          : null;
       final sample = RecordedTrackSample(
         seconds: number(values[0])!,
         groundSpeedMetersPerSecond: number(values[1]),
         absoluteElevationMeters: number(values[2])!,
         terrainElevationMeters: number(values[3]),
+        airspeedMetersPerSecond: version == 2 ? number(values[4]) : null,
+        airspeedSource: source,
       );
       sample.validate();
       return sample;
