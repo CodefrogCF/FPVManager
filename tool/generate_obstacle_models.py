@@ -64,6 +64,18 @@ class Mesh:
             j=(i+1)%sides
             self.face([a[i],b[i],b[j],a[j]])
 
+    def taper(self, bottom_radius, top_radius, bottom=0, top=1, sides=12):
+        """Lightweight tapered round structure with a single continuous shaft."""
+        a = [(bottom_radius*math.cos(i*math.tau/sides),bottom,
+              bottom_radius*math.sin(i*math.tau/sides)) for i in range(sides)]
+        b = [(top_radius*math.cos(i*math.tau/sides),top,
+              top_radius*math.sin(i*math.tau/sides)) for i in range(sides)]
+        self.face(list(reversed(a)))
+        self.face(b)
+        for i in range(sides):
+            j=(i+1)%sides
+            self.face([a[i],a[j],b[j],b[i]])
+
     def glb(self, name, color):
         # Normalize actual vertex positions, including beam caps and blades.
         # glTF uses metres and Y-up. The bottom is the terrain anchor.
@@ -128,6 +140,30 @@ def generate():
     tower = Mesh()
     lattice(tower, bottom=.10, top=.04)
     result['lattice-tower']=(tower,[.65,.7,.74])
+    # Slender concrete communication tower (e.g. Säntis): schematic, not a
+    # photogrammetric model. Feet/platforms are proportioned to full height.
+    communication = Mesh()
+    communication.taper(.023,.008,0,.93,12)
+    communication.cylinder(.008,.93,1,10)
+    for y,w in [(.24,.056),(.63,.042),(.79,.035)]:
+        communication.box(0,y,0,w,.010,w)
+    for y in [.86,.91]:
+        communication.box(0,y,0,.024,.012,.024)
+    result['communication-tower']=(communication,[.70,.73,.76])
+    latticeComms = Mesh()
+    lattice(latticeComms,height=.91,bottom=.10,top=.026,levels=6)
+    latticeComms.cylinder(.006,.91,1,8)
+    for y in [.67,.84]:
+        latticeComms.box(0,y,0,.085,.015,.085)
+    result['communication-lattice']=(latticeComms,[.68,.73,.78])
+    observation = Mesh()
+    lattice(observation,height=.86,bottom=.11,top=.075,levels=4)
+    observation.box(0,.88,0,.24,.035,.24)
+    for x in [-.115,.115]:
+        for z in [-.115,.115]:
+            observation.beam([x,.90,z],[x,.98,z],.010)
+    observation.box(0,.98,0,.24,.010,.24)
+    result['observation-tower']=(observation,[.56,.62,.64])
     crane = Mesh()
     lattice(crane, height=.96,bottom=.045,top=.045,levels=6)
     crane.box(.24,.90,0,.9,.035,.045)

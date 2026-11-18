@@ -464,10 +464,29 @@ class ObstacleMapController extends ChangeNotifier {
             'heightAgl': ?heightAgl,
           });
         }
+        // Optional OSM-style tags from imported metadata refine only the
+        // schematic model selection. The BAZL obstacle classification and
+        // source geometry remain authoritative for safety/route analysis.
+        const towerKeys = <String>{
+          'man_made',
+          'tower:type',
+          'tower:construction',
+          'construction',
+          'power',
+          'communication:mobile_phone',
+          'communication:radio',
+          'communication:television',
+        };
+        final osmTags = <String, String>{
+          for (final entry in f.attributes.entries)
+            if (towerKeys.contains(entry.key) && entry.value.length <= 100)
+              entry.key: entry.value,
+        };
         payload.add({
           'id': f.id,
           'category': f.category.name,
           'sourceType': f.sourceType,
+          if (osmTags.isNotEmpty) 'osmTags': osmTags,
           if (!categories.contains(f.category)) 'supportOnly': true,
           'parts': converted,
         });

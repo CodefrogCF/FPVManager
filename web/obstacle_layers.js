@@ -243,14 +243,14 @@
         // rendered terrain sample. Never keep the original absolute top while
         // moving only the bottom: doing so changes the displayed object height.
         // Original source elevations remain in Flutter's obstacle attributes.
-        function pointAboveTerrain(coordinate, agl, color, next, heights, models, sourceType) {
+        function pointAboveTerrain(coordinate, agl, color, next, heights, models, sourceType, osmTags) {
             const [lon,lat,sourceElevation] = coordinate;
             const sourceTop = Number.isFinite(sourceElevation) ? sourceElevation : 0;
             const fallbackTop = C.Cartesian3.fromDegrees(lon,lat,sourceTop);
             const marker = next.entities.add({position:fallbackTop, show:false,
                 point:{pixelSize:7,color,outlineColor:C.Color.BLACK,outlineWidth:1,heightReference:C.HeightReference.NONE}});
             const stem = next.entities.add({polyline:{positions:[fallbackTop,fallbackTop],show:false,width:2,material:color,arcType:C.ArcType.NONE}});
-            const model = models?.add(sourceType,agl,fallbackTop,next,marker,stem);
+            const model = models?.add(sourceType,agl,fallbackTop,next,marker,stem,osmTags,[lon,lat]);
             heights.watch([coordinate], ([point]) => {
                 const ground = point.height, visible = ground != null && ground + agl <= 16000;
                 marker.show = visible; stem.polyline.show = visible;
@@ -273,6 +273,9 @@
             for (const f of command.features) {
                 if (typeof f.id !== 'string' || f.id.length > 160 || ids.has(f.id) ||
                     !Object.hasOwn(colors,f.category) || !Array.isArray(f.parts) ||
+                    (f.osmTags != null && (typeof f.osmTags !== 'object' || Array.isArray(f.osmTags) ||
+                        Object.keys(f.osmTags).length>12 || Object.entries(f.osmTags).some(([k,v]) =>
+                            k.length>40 || typeof v!=='string' || v.length>100))) ||
                     (f.sourceType != null && (typeof f.sourceType !== 'string' || f.sourceType.length > 80))) throw new Error('Invalid obstacle feature');
                 ids.add(f.id);
                 for (const p of f.parts) {
@@ -421,7 +424,7 @@
                         const colorPoint = p.kind === 'Point' && p.heightAgl != null;
                         if (colorPoint) {
                             const entities = pointAboveTerrain(p.coordinates[0],p.heightAgl,color,next,bindings,
-                                command.useModels && f.parts.length === 1 ? models : null,f.sourceType);
+                                command.useModels && f.parts.length === 1 ? models : null,f.sourceType,f.osmTags);
                             for (const entity of entities) remember(entity);
                             continue;
                         }

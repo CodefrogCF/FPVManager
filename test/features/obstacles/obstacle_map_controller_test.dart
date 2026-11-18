@@ -192,6 +192,54 @@ void main() {
       isFalse,
     );
   });
+  test('optional OSM model tags are forwarded without changing official source geometry', () async {
+    final key = provider.status.dataset!.data.key;
+    await cache.stageObstacles(key, [
+      ObstacleFeature(
+        id: 'tower-osm-metadata',
+        name: 'Tagged communication tower',
+        attributes: {
+          'obstacleType': 'TOWER',
+          'maxHeightAGL': '80',
+          'man_made': 'tower',
+          'tower:type': 'communication',
+          'tower:construction': 'lattice',
+          'unexpected:key': 'must not be forwarded',
+        },
+        parts: [
+          const ObstaclePart('Point', 'absolute', [
+            [8.4, 46.7, 680],
+          ]),
+        ],
+      ),
+    ]);
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.3,
+      'south': 46.6,
+      'east': 8.5,
+      'north': 46.8,
+    });
+    await globe.obstacles.setVectorsVisible(true);
+    await globe.obstacles.setModelsVisible(true);
+    final command = renderer.commands.lastWhere(
+      (c) =>
+          c['type'] == 'set-obstacle-vectors' &&
+          (c['features'] as List).isNotEmpty,
+    );
+    final feature = (command['features'] as List).cast<Map>().singleWhere(
+      (f) => f['id'] == 'tower-osm-metadata',
+    );
+    expect(feature['sourceType'], 'TOWER');
+    expect(feature['osmTags'], {
+      'man_made': 'tower',
+      'tower:type': 'communication',
+      'tower:construction': 'lattice',
+    });
+    expect((feature['parts'] as List).single['heightAgl'], 80);
+    expect((feature['parts'] as List).single['elevated'], isTrue);
+    expect(globe.obstacles.selected, isNull);
+  });
   test('hazard controls persist independently, restore after reload and select source obstacles', () async {
     renderer.emit({
       'type': 'obstacle-viewport',

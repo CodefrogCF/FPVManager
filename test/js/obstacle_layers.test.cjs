@@ -545,3 +545,49 @@ test('disposing before the initial data-source attachment completes removes its 
  const pending=p.vectors.replace({revision:1,features:[line]});
  p.vectors.dispose();release();await pending;assert.equal(p.sources.length,0);
 });
+
+test('high BAZL poles and OSM-tagged towers select non-wooden geometry with terrain-aligned height',async()=>{
+ const p=setup({groundHeight:()=>2502});
+ const mk=(id,lon,lat,height,osmTags)=>({id,category:'masts',sourceType:'POLE',
+  ...(osmTags?{osmTags}:{}),parts:[{kind:'Point',elevated:true,heightAgl:height,
+   coordinates:[[lon,lat,2600]]}]});
+ const samples=[
+  mk('saentis',9.342444,47.249464,123.5),
+  mk('generic-tall',9.4,47.2,100),
+  mk('utility-pole',9.3,47.2,12),
+  mk('lattice',9.2,47.2,90,{'man_made':'tower','tower:type':'communication','tower:construction':'lattice'}),
+  mk('observation',9.1,47.2,30,{'man_made':'tower','tower:type':'observation'})
+ ];
+ await p.vectors.replace({revision:1,useModels:true,features:samples});
+ const models=p.sources[0].entities.values.filter(e=>e.model);
+ assert.deepEqual(models.map(m=>m.model.uri),[
+  'models/obstacles/communication-tower.glb',
+  'models/obstacles/antenna-mast.glb',
+  'models/obstacles/utility-pole.glb',
+  'models/obstacles/communication-lattice.glb',
+  'models/obstacles/observation-tower.glb'
+ ]);
+ assert.deepEqual(models[0].position,[9.342444,47.249464,2502]);
+ assert.equal(models[0].model.scale,123.5);
+ assert.equal(models[0].model.distanceDisplayCondition.far,12000);
+ assert.equal(models[1].model.distanceDisplayCondition.far,12000);
+ assert.equal(models[2].model.distanceDisplayCondition.far,6000);
+ assert.deepEqual(p.vectors.pick(models[0]),{id:'saentis',revision:1});
+ await p.vectors.replace({revision:2,useModels:false,features:samples});
+ assert.equal(p.sources[0].entities.values.some(e=>e.model),false);
+ p.vectors.dispose();
+});
+
+test('invalid OSM metadata is rejected without loading external assets or replacing committed entities',async()=>{
+ const p=setup({groundHeight:()=>500});
+ const f={id:'tower',category:'masts',sourceType:'TOWER',osmTags:{'man_made':'tower'},
+  parts:[{kind:'Point',elevated:true,heightAgl:100,coordinates:[[8.1,46.9,650]]}]};
+ await p.vectors.replace({revision:1,useModels:true,features:[f]});
+ const count=p.sources[0].entities.values.length;
+ await assert.rejects(p.vectors.replace({revision:2,useModels:true,features:[{...f,
+  osmTags:{'tower:type':42}}]}),/Invalid/);
+ assert.equal(p.sources[0].entities.values.length,count);
+ await assert.rejects(p.vectors.replace({revision:2,useModels:true,features:[{...f,
+  osmTags:{'man_made':'x'.repeat(101)}}]}),/Invalid/);
+ p.vectors.dispose();
+});

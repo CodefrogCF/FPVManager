@@ -34,6 +34,17 @@ void main() {
           greaterThan(0),
         );
       }
+      // Issue #124 uses bundled, generated glTF assets. The app must never
+      // rely on a network request for these obstacle models.
+      for (final model in [
+        'communication-tower',
+        'communication-lattice',
+        'observation-tower',
+      ]) {
+        final asset = 'web/models/obstacles/$model.glb';
+        expect(assets, contains(asset));
+        expect((await rootBundle.load(asset)).lengthInBytes, greaterThan(1000));
+      }
       final html = await rootBundle.loadString('web/globe.html');
       expect(html, contains('"./cesium/"'));
       expect(html, isNot(contains('cdn.jsdelivr.net')));

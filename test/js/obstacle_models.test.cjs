@@ -6,7 +6,7 @@ const C=require('../../web/cesium/index.cjs');
 const Models=require('../../web/obstacle_models.js');
 
 test('all local models contain actual finite unit-height geometry without external dependencies',()=>{
-    const names=['power-pylon','utility-pole','antenna-mast','lattice-tower','tower-crane','chimney','wind-turbine','cableway-support'];
+    const names=['power-pylon','utility-pole','antenna-mast','lattice-tower','communication-tower','communication-lattice','observation-tower','tower-crane','chimney','wind-turbine','cableway-support'];
     for(const name of names){
         const file=fs.readFileSync(path.join(__dirname,'../../web/models/obstacles',name+'.glb'));
         assert.equal(file.readUInt32LE(0),0x46546c67);
@@ -76,7 +76,8 @@ test('actual Cesium ModelGraphics retains metric scale and separate constant ter
 
 test('source classification uses a fixed local asset catalog and unknown types have no assumed model',()=>{
     const mapping={TRANSMISSION_LINE:'power-pylon',POLE:'utility-pole',MAST:'antenna-mast',
-        TOWER:'lattice-tower',CRANE:'tower-crane',STACK:'chimney',WINDMILL:'wind-turbine',
+        TOWER:'lattice-tower',COMMUNICATION_TOWER:'communication-tower',
+        COMMUNICATION_MAST:'antenna-mast',OBSERVATION_TOWER:'observation-tower',CRANE:'tower-crane',STACK:'chimney',WINDMILL:'wind-turbine',
         CABLE_CAR:'cableway-support',CATENARY:'cableway-support'};
     for(const [type,name] of Object.entries(mapping)) assert.equal(Models.uri(type),`models/obstacles/${name}.glb`);
     for(const type of [undefined,'BUILDING','VEGETATION','OTHER','../remote','__proto__','constructor']) assert.equal(Models.uri(type),null);
@@ -99,4 +100,51 @@ test('removed or replaced GPU primitives restore symbols and ignore obsolete mod
  second.readyEvent.raiseEvent();assert.equal(marker.point.distanceDisplayCondition.getValue(time).near,6000);
  models.remove(entity);assert.equal(second.readyEvent.numberOfListeners,0);
  assert.equal(primitives.primitiveRemoved.numberOfListeners,0);models.dispose();
+});
+
+
+test('OSM tags select communications, observation, lattice and power structures deterministically',()=>{
+ const cases=[
+  ['TOWER',130,{'man_made':'tower','tower:type':'communication'},'communication-tower'],
+  ['TOWER',72,{'man_made':'tower','tower:type':'communication','tower:construction':'lattice'},'communication-lattice'],
+  ['MAST',40,{'man_made':'mast','tower:type':'communication'},'antenna-mast'],
+  ['MAST',64,{'man_made':'mast','tower:type':'communication','construction':'lattice'},'communication-lattice'],
+  ['TOWER',20,{'man_made':'tower','tower:type':'observation'},'observation-tower'],
+  ['POLE',9,{'power':'pole'},'utility-pole'],
+  ['TOWER',38,{'power':'tower'},'power-pylon'],
+  ['OTHER',100,{'man_made':'communications_tower'},'communication-tower'],
+  ['OTHER',50,{'man_made':'mast','tower:type':'communication'},'antenna-mast']
+ ];
+ for(const [type,height,tags,expected] of cases){
+  assert.equal(Models.classify(type,height,tags),expected);
+  assert.equal(Models.uri(type,height,tags),`models/obstacles/${expected}.glb`);
+ }
+ assert.equal(Models.classify('OTHER',50,{'man_made':'unknown'}),null);
+ assert.equal(Models.uri('OTHER',20,{'man_made':'tower','power':'tower'}),
+   'models/obstacles/power-pylon.glb');
+});
+
+test('BAZL sparse POLE metadata never makes tall structures look wooden; short poles remain unchanged',()=>{
+ assert.equal(Models.classify('POLE',10),'utility-pole');
+ assert.equal(Models.classify('POLE',29.9),'utility-pole');
+ assert.equal(Models.classify('POLE',30),'antenna-mast');
+ assert.equal(Models.classify('POLE',80),'antenna-mast');
+ assert.equal(Models.classify('TOWER',65),'communication-tower');
+ assert.equal(Models.classify('MAST',120),'antenna-mast');
+ assert.equal(Models.classify('TRANSMISSION_LINE',105),'power-pylon');
+ assert.equal(Models.classify('POLE',null),'utility-pole');
+ assert.equal(Models.rangeFor(20),Models.range);
+ assert.equal(Models.rangeFor(123.5),12000);
+ assert.equal(Models.rangeFor(Infinity),Models.range);
+});
+
+test('Säntis regression: surveyed height is retained and the model is slender communication tower',()=>{
+ const coord=[9.342444,47.249464],height=123.5;
+ assert.equal(Models.nearbySite(coord),true);
+ assert.equal(Models.classify('POLE',height,{},coord),'communication-tower');
+ assert.equal(Models.classify('TOWER',height,{},coord),'communication-tower');
+ assert.equal(Models.classify('MAST',height,{},coord),'communication-tower');
+ assert.equal(Models.classify('POLE',height,{},[9.35,47.25]),'antenna-mast');
+ assert.equal(Models.classify('POLE',40,{},coord),'antenna-mast');
+ assert.equal(Models.nearbySite([9.342444,NaN]),false);
 });
