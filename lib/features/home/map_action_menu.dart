@@ -83,7 +83,10 @@ class MapActionMenu extends StatelessWidget {
           GlobeLocationButton(controller: controller.location),
         if (!compact && _show(ActivityAction.layers))
           IconButton(
-            tooltip: context.translate("Karte & Ansicht"),
+            tooltip: context.localized(
+              "Karte & Ansicht",
+              (l10n) => l10n.commonKarteAnsichtb4cd1571,
+            ),
             onPressed: controller.isReady ? onLayers : null,
             icon: Icon(
               Icons.layers_outlined,
@@ -201,7 +204,10 @@ class MapActionMenu extends StatelessWidget {
   ];
 
   Widget _mobileActions(BuildContext context) => PopupMenuButton<_MapAction>(
-    tooltip: context.translate("Kartenaktionen"),
+    tooltip: context.localized(
+      "Kartenaktionen",
+      (l10n) => l10n.homeKartenaktionen61a84371,
+    ),
     onSelected: (action) => unawaited(_dispatch(context, action)),
     itemBuilder: (_) => [
       for (final entry in _entries())
@@ -239,7 +245,10 @@ class MapActionMenu extends StatelessWidget {
           ),
     ],
     builder: (context, menu, child) => IconButton(
-      tooltip: context.translate("Kartenaktionen"),
+      tooltip: context.localized(
+        "Kartenaktionen",
+        (l10n) => l10n.homeKartenaktionen61a84371,
+      ),
       onPressed: () => menu.isOpen ? menu.close() : menu.open(),
       icon: const Icon(Icons.more_vert),
     ),

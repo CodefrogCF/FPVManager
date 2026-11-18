@@ -12,7 +12,12 @@ class OfflinePreparationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(context.translate("Offline-Bereich vorbereiten")),
+      title: Text(
+        context.localized(
+          "Offline-Bereich vorbereiten",
+          (l10n) => l10n.offlineOfflineBereichVorbereitene86172db,
+        ),
+      ),
     ),
     body: SafeArea(
       child: OfflinePreparationSurface(

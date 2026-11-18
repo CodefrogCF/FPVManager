@@ -258,8 +258,9 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          context.translate(
+          context.localized(
             "Optional nearby points from OpenStreetMap via Overpass. Each request is initiated manually, limited to 2 km and six categories. Missing results do not prove that a facility does not exist. Never use these results as an authoritative source of drinking-water safety or access.",
+            (l10n) => l10n.commonOptionalNearbyPointsFrom6d1c26fc,
           ),
         ),
         const SizedBox(height: 12),
@@ -271,8 +272,9 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                 ? _spotId
                 : null,
             decoration: InputDecoration(
-              labelText: context.translate(
+              labelText: context.localized(
                 "Search around saved spot (optional)",
+                (l10n) => l10n.mobilitySearchAroundSavedSpot88def52e,
               ),
             ),
             isExpanded: true,
@@ -331,7 +333,12 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
           child: OutlinedButton.icon(
             onPressed: _busy ? null : _deviceLocation,
             icon: const Icon(Icons.my_location),
-            label: Text(context.translate("Use device location")),
+            label: Text(
+              context.localized(
+                "Use device location",
+                (l10n) => l10n.mobilityUseDeviceLocation37b5a739,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -339,7 +346,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
           key: ValueKey('osm_poi_radius_$_radius'),
           initialValue: _radius,
           decoration: InputDecoration(
-            labelText: context.translate("Search radius (metres)"),
+            labelText: context.localized(
+              "Search radius (metres)",
+              (l10n) => l10n.mobilitySearchRadiusMetres9f19e093,
+            ),
           ),
           items: [250, 500, 1000, 2000]
               .map((r) => DropdownMenuItem(value: r, child: Text('$r m')))
@@ -353,7 +363,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
         ),
         const SizedBox(height: 12),
         Text(
-          context.translate("Categories"),
+          context.localized(
+            "Categories",
+            (l10n) => l10n.mobilityCategories6ccb6007,
+          ),
           style: Theme.of(context).textTheme.titleSmall,
         ),
         Wrap(
@@ -381,13 +394,15 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
           contentPadding: EdgeInsets.zero,
           value: _consent,
           title: Text(
-            context.translate(
+            context.localized(
               "Send selected center, radius and categories to the public Overpass API.",
+              (l10n) => l10n.commonSendSelectedCenterRadiusdd0ed3a0,
             ),
           ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "No automatic polling. Queries are limited locally to 12/hour and at least 15 seconds apart. The provider may apply stricter limits.",
+              (l10n) => l10n.mobilityNoAutomaticPollingQueries62b013f8,
             ),
           ),
           onChanged: _busy
@@ -401,15 +416,30 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
             FilledButton.icon(
               onPressed: _busy || !_consent ? null : () => _search(),
               icon: const Icon(Icons.search),
-              label: Text(context.translate("Find nearby places")),
+              label: Text(
+                context.localized(
+                  "Find nearby places",
+                  (l10n) => l10n.mobilityFindNearbyPlacesd0091995,
+                ),
+              ),
             ),
             OutlinedButton(
               onPressed: _busy || !_consent ? null : () => _search(force: true),
-              child: Text(context.translate("Refresh from Overpass")),
+              child: Text(
+                context.localized(
+                  "Refresh from Overpass",
+                  (l10n) => l10n.mobilityRefreshFromOverpass6925d82f,
+                ),
+              ),
             ),
             OutlinedButton(
               onPressed: _busy ? null : _cache,
-              child: Text(context.translate("Show saved search offline")),
+              child: Text(
+                context.localized(
+                  "Show saved search offline",
+                  (l10n) => l10n.mobilityShowSavedSearchOffline9f9ba558,
+                ),
+              ),
             ),
           ],
         ),
@@ -425,13 +455,19 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                         'visible': false,
                       });
                     }),
-              child: Text(context.translate("Hide POIs on 3D map")),
+              child: Text(
+                context.localized(
+                  "Hide POIs on 3D map",
+                  (l10n) => l10n.mobilityHidePoisOnD072cee45,
+                ),
+              ),
             ),
           ),
         const SizedBox(height: 8),
         Text(
-          context.translate(
+          context.localized(
             "Web availability depends on the public endpoint’s CORS policy; direct requests may fail in browsers. No proxy or intermediary is configured. This search does not download OSM map tiles.",
+            (l10n) => l10n.mobilityWebAvailabilityDependsOna0047196,
           ),
         ),
         if (_busy) const LinearProgressIndicator(),
@@ -446,41 +482,58 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
         if (snapshot != null) ...[
           const SizedBox(height: 16),
           Text(
-            context.translate("{0} OSM places · retrieved {1}{2}", [
-              snapshot.pois.length,
-              snapshot.fetchedAtUtc.toLocal().toIso8601String(),
-              snapshot.fromCache ? ' · cached snapshot' : '',
-            ]),
+            context.localizedWithArgs(
+              "{0} OSM places · retrieved {1}{2}",
+              [
+                snapshot.pois.length,
+                snapshot.fetchedAtUtc.toLocal().toIso8601String(),
+                snapshot.fromCache ? ' · cached snapshot' : '',
+              ],
+              (l10n, value) => l10n.mobilityOsmPlacesRetrieved45a236fa(
+                value(0),
+                value(1),
+                value(2),
+              ),
+            ),
             style: Theme.of(context).textTheme.titleSmall,
           ),
           if (snapshot.isOutdated(DateTime.now()))
             Text(
-              context.translate(
+              context.localized(
                 "OUTDATED: This offline snapshot may no longer reflect available facilities.",
+                (l10n) => l10n.mobilityOutdatedThisOfflineSnapshot5eb25014,
               ),
             ),
           if (snapshot.fallbackToCache)
             Text(
-              context.translate(
+              context.localized(
                 "Provider unavailable; showing a dated cached snapshot instead.",
+                (l10n) => l10n.mobilityProviderUnavailableShowingA4e8d9841,
               ),
             ),
           if (snapshot.truncated)
             Text(
-              context.translate(
+              context.localized(
                 "Results truncated to protect the device. Reduce your radius or category selection.",
+                (l10n) => l10n.mobilityResultsTruncatedToProtect98dcb26a,
               ),
             ),
           Text(
-            context.translate(
+            context.localized(
               "OpenStreetMap coverage is incomplete and attributes may be absent or outdated.",
+              (l10n) => l10n.mobilityOpenstreetmapCoverageIsIncompletee9ae81d0,
             ),
           ),
           const SizedBox(height: 8),
           FilledButton.tonalIcon(
             onPressed: _busy || snapshot.pois.isEmpty ? null : _showMap,
             icon: const Icon(Icons.map_outlined),
-            label: Text(context.translate("Show POIs on 3D map")),
+            label: Text(
+              context.localized(
+                "Show POIs on 3D map",
+                (l10n) => l10n.mobilityShowPoisOnD87e9f7a8,
+              ),
+            ),
           ),
           for (final poi in snapshot.pois.take(60))
             Card(
@@ -504,7 +557,12 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                       children: [
                         TextButton(
                           onPressed: () => launchUrl(poi.sourceUrl),
-                          child: Text(context.translate("View OSM source")),
+                          child: Text(
+                            context.localized(
+                              "View OSM source",
+                              (l10n) => l10n.mobilityViewOsmSource395c9b71,
+                            ),
+                          ),
                         ),
                         OutlinedButton(
                           onPressed:
@@ -514,10 +572,17 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
                               : () => _savePoi(poi),
                           child: Text(
                             _savedIds.containsKey(poi.reference)
-                                ? context.translate("Saved as spot #{0}", [
-                                    _savedIds[poi.reference],
-                                  ])
-                                : context.translate("Save as personal spot"),
+                                ? context.localizedWithArgs(
+                                    "Saved as spot #{0}",
+                                    [_savedIds[poi.reference]],
+                                    (l10n, value) => l10n
+                                        .mobilitySavedAsSpota5bf3429(value(0)),
+                                  )
+                                : context.localized(
+                                    "Save as personal spot",
+                                    (l10n) =>
+                                        l10n.mobilitySaveAsPersonalSpotc26312fd,
+                                  ),
                           ),
                         ),
                       ],
@@ -528,8 +593,9 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
             ),
           if (snapshot.pois.length > 60)
             Text(
-              context.translate(
+              context.localized(
                 "Showing the first 60 POI detail cards; up to 300 points can be rendered on the map.",
+                (l10n) => l10n.mobilityShowingTheFirstPoie98a81e6,
               ),
             ),
         ],
@@ -546,7 +612,10 @@ class _OsmPoiSectionState extends State<OsmPoiSection> {
             Uri.parse('https://wiki.openstreetmap.org/wiki/Overpass_API'),
           ),
           child: Text(
-            context.translate("Overpass API documentation and fair-use policy"),
+            context.localized(
+              "Overpass API documentation and fair-use policy",
+              (l10n) => l10n.mobilityOverpassApiDocumentationAnd4c33de59,
+            ),
           ),
         ),
       ],

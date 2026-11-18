@@ -93,12 +93,18 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    context.translate("Airspace & flight safety"),
+                    context.localized(
+                      "Airspace & flight safety",
+                      (l10n) => l10n.airspaceAirspaceFlightSafetyfe71cada,
+                    ),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
                 IconButton(
-                  tooltip: context.translate("Close safety panel"),
+                  tooltip: context.localized(
+                    "Close safety panel",
+                    (l10n) => l10n.airspaceCloseSafetyPanelc70c84b5,
+                  ),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -106,13 +112,18 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
             ),
             const SizedBox(height: 12),
             Text(
-              context.translate(
+              context.localized(
                 "Preflight information only. FPVManager cannot issue a flight authorisation or guarantee that a flight is legal or safe.",
+                (l10n) =>
+                    l10n.airspacePreflightInformationOnlyFpvmanager3ddafa1c,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              context.translate("BAZL UAS geographical zones"),
+              context.localized(
+                "BAZL UAS geographical zones",
+                (l10n) => l10n.airspaceBazlUasGeographicalZones729ad95f,
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             _SafetyDetail('Local data state', status.dataState.label),
@@ -134,16 +145,29 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
             ),
             if (status.error != null)
               Text(
-                context.translate("Last refresh failed: {0}", [
-                  status.error!.message,
-                ]),
+                context.localizedWithArgs(
+                  "Last refresh failed: {0}",
+                  [status.error!.message],
+                  (l10n, value) =>
+                      l10n.airspaceLastRefreshFailed7971e026(value(0)),
+                ),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             for (final problem in problems)
-              Text(context.translate("Data limitation: {0}", [problem])),
+              Text(
+                context.localizedWithArgs(
+                  "Data limitation: {0}",
+                  [problem],
+                  (l10n, value) =>
+                      l10n.airspaceDataLimitation1a823833(value(0)),
+                ),
+              ),
             const Divider(height: 32),
             Text(
-              context.translate("Restriction legend (Cesium map)"),
+              context.localized(
+                "Restriction legend (Cesium map)",
+                (l10n) => l10n.airspaceRestrictionLegendCesiumMap50513b33,
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             for (final category in UasRestrictionCategory.values)
@@ -161,8 +185,9 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
                 title: Text(category.label),
               ),
             Text(
-              context.translate(
+              context.localized(
                 "BAZL authorisation subtypes (same category, different applicable conditions):",
+                (l10n) => l10n.commonBazlAuthorisationSubtypesSame4c054fce,
               ),
             ),
             for (final entry in const [
@@ -195,10 +220,12 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
                 in (controller.uasDatasetAssessment?.categoryCounts.entries ??
                     const <MapEntry<UasRestrictionCategory, int>>[]))
               Text(
-                context.translate("{0}: {1} features", [
-                  item.key.label,
-                  item.value,
-                ]),
+                context.localizedWithArgs(
+                  "{0}: {1} features",
+                  [item.key.label, item.value],
+                  (l10n, value) =>
+                      l10n.airspaceFeatures98bdf3c0(value(0), value(1)),
+                ),
               ),
             if (controller.uasDatasetAssessment case final assessment?)
               _SafetyDetail(
@@ -206,24 +233,31 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
                 assessment.timeDependentFeatureCount.toString(),
               ),
             Text(
-              context.translate(
+              context.localized(
                 "Colors describe source restrictions. Blue is not flight clearance; check every overlapping zone and its conditions.",
+                (l10n) => l10n.airspaceColorsDescribeSourceRestrictionsc0980bc9,
               ),
             ),
             const GuideLink(GuideTopic.airspace),
             const Divider(height: 32),
             Text(
-              context.translate("Temporary / time-dependent information"),
+              context.localized(
+                "Temporary / time-dependent information",
+                (l10n) =>
+                    l10n.airspaceTemporaryTimeDependentInformation90a7f86a,
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Check the latest DABS and original NOTAM immediately before flying. DABS is a periodic snapshot.",
+                (l10n) => l10n.airspaceCheckTheLatestDabsf5c81052,
               ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Automatic DABS/NOTAM availability: not connected. No assertion is made that temporary restrictions have been retrieved or checked.",
+                (l10n) => l10n.airspaceAutomaticDabsNotamAvailability2968fe7b,
               ),
             ),
             const SizedBox(height: 8),
@@ -251,27 +285,34 @@ class _AirspaceSafetyPanelState extends State<AirspaceSafetyPanel> {
             ),
             const Divider(height: 32),
             Text(
-              context.translate("Manual preflight checklist"),
+              context.localized(
+                "Manual preflight checklist",
+                (l10n) => l10n.airspaceManualPreflightChecklistb4d4bf28,
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              context.translate(
+              context.localized(
                 "1. Open current BAZL map, check every applicable overlapping zone and contact the competent authority when necessary.",
+                (l10n) => l10n.commonOpenCurrentBazlMap31b230a4,
               ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "2. Read the latest DABS and original NOTAM for the entire flight period and route.",
+                (l10n) => l10n.airspaceReadTheLatestDabs49e90175,
               ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "3. Check altitude references, local/cantonal rules, aerodrome procedures, weather and obstacles.",
+                (l10n) => l10n.commonCheckAltitudeReferencesLocal541cb086,
               ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "4. Recheck immediately before take-off; a recent download or an empty intersection result is not proof of permission.",
+                (l10n) => l10n.airspaceRecheckImmediatelyBeforeTake68acccbc,
               ),
             ),
           ],
@@ -336,8 +377,9 @@ class _SourceReference extends StatelessWidget {
                   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
                     SnackBar(
                       content: Text(
-                        context.translate(
+                        context.localized(
                           "Could not open browser. Copy the URL instead.",
+                          (l10n) => l10n.airspaceCouldNotOpenBrowserfceaf72a,
                         ),
                       ),
                     ),
@@ -345,13 +387,23 @@ class _SourceReference extends StatelessWidget {
                 }
               },
               icon: const Icon(Icons.open_in_new),
-              label: Text(context.translate("Open official source")),
+              label: Text(
+                context.localized(
+                  "Open official source",
+                  (l10n) => l10n.airspaceOpenOfficialSource47aa309c,
+                ),
+              ),
             ),
             TextButton.icon(
               onPressed: () =>
                   Clipboard.setData(ClipboardData(text: uri.toString())),
               icon: const Icon(Icons.copy),
-              label: Text(context.translate("Copy official link")),
+              label: Text(
+                context.localized(
+                  "Copy official link",
+                  (l10n) => l10n.airspaceCopyOfficialLink14342de0,
+                ),
+              ),
             ),
           ],
         ),

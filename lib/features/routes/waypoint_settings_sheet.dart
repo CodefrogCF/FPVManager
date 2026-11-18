@@ -67,9 +67,9 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              context.translate("Waypoint {0}", [
+              context.localizedWithArgs("Waypoint {0}", [
                 widget.editor.points.indexOf(widget.point) + 1,
-              ]),
+              ], (l10n, value) => l10n.routesWaypoint2315aa1f(value(0))),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
@@ -77,16 +77,29 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
               initialValue: _mode,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: context.translate("Height reference"),
+                labelText: context.localized(
+                  "Height reference",
+                  (l10n) => l10n.routesHeightReferenceec9764fc,
+                ),
               ),
               items: [
                 DropdownMenuItem(
                   value: 'none',
-                  child: Text(context.translate("Height not specified")),
+                  child: Text(
+                    context.localized(
+                      "Height not specified",
+                      (l10n) => l10n.routesHeightNotSpecifiedfec716ae,
+                    ),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'agl',
-                  child: Text(context.translate("Above terrain (AGL)")),
+                  child: Text(
+                    context.localized(
+                      "Above terrain (AGL)",
+                      (l10n) => l10n.routesAboveTerrainAgle2867f26,
+                    ),
+                  ),
                 ),
                 for (final r in VerticalReference.values)
                   DropdownMenuItem(value: r.name, child: Text(r.label)),
@@ -117,9 +130,13 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: context.translate("Outgoing airspeed (m/s)"),
-                helperText: context.translate(
+                labelText: context.localized(
+                  "Outgoing airspeed (m/s)",
+                  (l10n) => l10n.routesOutgoingAirspeedMS43d6115b,
+                ),
+                helperText: context.localized(
                   "Empty means unknown. Applies to the next segment.",
+                  (l10n) => l10n.routesEmptyMeansUnknownApplies42bd9aa3,
                 ),
               ),
               validator: (v) {
@@ -132,8 +149,9 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
             ),
             const SizedBox(height: 12),
             Text(
-              context.translate(
+              context.localized(
                 "Terrain uses WGS84 ellipsoid heights. Other absolute references are preserved, but cannot yet be converted for the 3D view or clearance calculation. A * marker shows a 30 m AGL preview only.",
+                (l10n) => l10n.commonTerrainUsesWgsEllipsoid7e8c1f46,
               ),
             ),
             const SizedBox(height: 16),
@@ -141,11 +159,15 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  context.translate("Apply height and speed to all waypoints"),
+                  context.localized(
+                    "Apply height and speed to all waypoints",
+                    (l10n) => l10n.routesApplyHeightAndSpeed4746e071,
+                  ),
                 ),
                 subtitle: Text(
-                  context.translate(
+                  context.localized(
                     "Replaces existing height and speed settings for this draft. Undo is available.",
+                    (l10n) => l10n.routesReplacesExistingHeightAndbb3345ca,
                   ),
                 ),
                 value: _applyAll,
@@ -180,7 +202,12 @@ class _WaypointSettingsState extends State<_WaypointSettings> {
                 }
                 Navigator.pop(context);
               },
-              child: Text(context.translate("Apply waypoint settings")),
+              child: Text(
+                context.localized(
+                  "Apply waypoint settings",
+                  (l10n) => l10n.routesApplyWaypointSettingsd66af84a,
+                ),
+              ),
             ),
           ],
         ),

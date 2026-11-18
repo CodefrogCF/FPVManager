@@ -35,7 +35,10 @@ Future<RouteStartLocation?> showRouteStartLocation(
               title ?? (search ? 'Find a start area' : 'Start at a saved spot'),
             ),
             trailing: IconButton(
-              tooltip: context.translate("Close"),
+              tooltip: context.localized(
+                "Close",
+                (l10n) => l10n.commonClosebbfa773e,
+              ),
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close),
             ),
@@ -48,8 +51,9 @@ Future<RouteStartLocation?> showRouteStartLocation(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          context.translate(
+                          context.localized(
                             "Move the map to a place, then tap the map to set your first waypoint.",
+                            (l10n) => l10n.commonMoveTheMapTob0c48a5b,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -95,7 +99,10 @@ class _SavedStartsState extends State<_SavedStarts> {
         child: TextField(
           maxLength: 120,
           decoration: InputDecoration(
-            labelText: context.translate("Filter saved spots"),
+            labelText: context.localized(
+              "Filter saved spots",
+              (l10n) => l10n.routesFilterSavedSpotsf0054cfd,
+            ),
             counterText: '',
             prefixIcon: Icon(Icons.search),
           ),
@@ -107,8 +114,9 @@ class _SavedStartsState extends State<_SavedStarts> {
         padding: const EdgeInsets.all(16),
         child: Text(
           widget.hint ??
-              context.translate(
+              context.localized(
                 "Choose a spot to add the first waypoint at its saved coordinates.",
+                (l10n) => l10n.routesChooseASpotToc0d9ecad,
               ),
         ),
       ),
@@ -123,7 +131,10 @@ class _SavedStartsState extends State<_SavedStarts> {
                     () => _spots = widget.repository.watchMapSpots(),
                   ),
                   child: Text(
-                    context.translate("Unable to load saved spots. Retry"),
+                    context.localized(
+                      "Unable to load saved spots. Retry",
+                      (l10n) => l10n.routesUnableToLoadSaved7cf6f705,
+                    ),
                   ),
                 ),
               );
@@ -138,10 +149,14 @@ class _SavedStartsState extends State<_SavedStarts> {
               return Center(
                 child: Text(
                   snapshot.data!.isEmpty
-                      ? context.translate(
+                      ? context.localized(
                           "No saved spots yet. Use the place search or tap the map.",
+                          (l10n) => l10n.routesNoSavedSpotsYet044a3542,
                         )
-                      : context.translate("No matching saved spots."),
+                      : context.localized(
+                          "No matching saved spots.",
+                          (l10n) => l10n.routesNoMatchingSavedSpots783f2c6f,
+                        ),
                 ),
               );
             }

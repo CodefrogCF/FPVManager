@@ -226,8 +226,14 @@ class _MobilityScreenState extends State<MobilityScreen> {
                 ),
                 decoration: InputDecoration(
                   labelText: axis == 'Lat'
-                      ? context.translate("Latitude")
-                      : context.translate("Longitude"),
+                      ? context.localized(
+                          "Latitude",
+                          (l10n) => l10n.mobilityLatitudeced3905e,
+                        )
+                      : context.localized(
+                          "Longitude",
+                          (l10n) => l10n.mobilityLongitude6f9f011c,
+                        ),
                 ),
               ),
             ),
@@ -280,8 +286,9 @@ class _MobilityScreenState extends State<MobilityScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          context.translate(
+          context.localized(
             "Driving route to an address, coordinates or saved spot. Times are OSRM baseline estimates. Available traffic can help compare alternatives. Verify parking, private roads and the final approach locally.",
+            (l10n) => l10n.commonDrivingRouteToAn298a4f2a,
           ),
         ),
         const SizedBox(height: 12),
@@ -290,11 +297,21 @@ class _MobilityScreenState extends State<MobilityScreen> {
           segments: [
             ButtonSegment(
               value: false,
-              label: Text(context.translate("Saved spot")),
+              label: Text(
+                context.localized(
+                  "Saved spot",
+                  (l10n) => l10n.commonSavedSpot64ad0674,
+                ),
+              ),
             ),
             ButtonSegment(
               value: true,
-              label: Text(context.translate("Freies Ziel")),
+              label: Text(
+                context.localized(
+                  "Freies Ziel",
+                  (l10n) => l10n.mobilityFreiesZiele762f189,
+                ),
+              ),
             ),
           ],
           selected: {_freeDestination},
@@ -317,20 +334,30 @@ class _MobilityScreenState extends State<MobilityScreen> {
             }),
           ),
           if (_destinationName != null)
-            Text(context.translate("Ziel: {0}", [_destinationName])),
+            Text(
+              context.localizedWithArgs("Ziel: {0}", [
+                _destinationName,
+              ], (l10n, value) => l10n.mobilityZiel85926175(value(0))),
+            ),
           const SizedBox(height: 12),
           _pointFields(
             'destination',
             'Zielkoordinaten (auch direkt eingebbar)',
           ),
         ] else if (snapshot.hasError)
-          Text(context.translate("Saved spots unavailable."))
+          Text(
+            context.localized(
+              "Saved spots unavailable.",
+              (l10n) => l10n.mobilitySavedSpotsUnavailableb5814146,
+            ),
+          )
         else if (!snapshot.hasData)
           const LinearProgressIndicator()
         else if (snapshot.data!.isEmpty)
           Text(
-            context.translate(
+            context.localized(
               "No saved spots. Choose Freies Ziel to enter a destination.",
+              (l10n) => l10n.mobilityNoSavedSpotsChoose44cb95eb,
             ),
           )
         else
@@ -339,7 +366,10 @@ class _MobilityScreenState extends State<MobilityScreen> {
             initialValue: _spot?.id,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: context.translate("Destination spot"),
+              labelText: context.localized(
+                "Destination spot",
+                (l10n) => l10n.mobilityDestinationSpotdfb0a64e,
+              ),
             ),
             items: [
               for (final spot in snapshot.data!)
@@ -359,17 +389,28 @@ class _MobilityScreenState extends State<MobilityScreen> {
         OutlinedButton.icon(
           onPressed: _busy ? null : _deviceOrigin,
           icon: const Icon(Icons.my_location),
-          label: Text(context.translate("Use device location")),
+          label: Text(
+            context.localized(
+              "Use device location",
+              (l10n) => l10n.mobilityUseDeviceLocation37b5a739,
+            ),
+          ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "Location access is requested only when pressed; coordinates are sent to the routing provider only when you calculate.",
+            (l10n) => l10n.mobilityLocationAccessIsRequestedab7f6719,
           ),
         ),
         const SizedBox(height: 16),
         if (!_freeDestination)
           ExpansionTile(
-            title: Text(context.translate("Optional parking & access points")),
+            title: Text(
+              context.localized(
+                "Optional parking & access points",
+                (l10n) => l10n.mobilityOptionalParkingAccessPoints7538207e,
+              ),
+            ),
             children: [
               _pointFields('parking', 'Parking (optional)'),
               _pointFields('access', 'Access point (optional)'),
@@ -389,7 +430,12 @@ class _MobilityScreenState extends State<MobilityScreen> {
                           );
                         }
                       }),
-                child: Text(context.translate("Save access notes locally")),
+                child: Text(
+                  context.localized(
+                    "Save access notes locally",
+                    (l10n) => l10n.mobilitySaveAccessNotesLocallyf5e29d86,
+                  ),
+                ),
               ),
             ],
           ),
@@ -398,13 +444,15 @@ class _MobilityScreenState extends State<MobilityScreen> {
           value: _roadConsent,
           onChanged: (v) => setState(() => _roadConsent = v ?? false),
           title: Text(
-            context.translate(
+            context.localized(
               "Allow sending start and destination to FOSSGIS / OpenStreetMap routing.",
+              (l10n) => l10n.mobilityAllowSendingStartAnde6a35229,
             ),
           ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "FOSSGIS logs the route request. Spot names and notes stay in the app.",
+              (l10n) => l10n.mobilityFossgisLogsTheRoute7ac53fd4,
             ),
           ),
         ),
@@ -431,7 +479,12 @@ class _MobilityScreenState extends State<MobilityScreen> {
                   }
                 }),
           icon: const Icon(Icons.directions_car_outlined),
-          label: Text(context.translate("Calculate driving route")),
+          label: Text(
+            context.localized(
+              "Calculate driving route",
+              (l10n) => l10n.mobilityCalculateDrivingRoute59eac3f8,
+            ),
+          ),
         ),
         if (_route != null) ...[
           const SizedBox(height: 12),
@@ -450,13 +503,18 @@ class _MobilityScreenState extends State<MobilityScreen> {
             ),
           ),
           Text(
-            context.translate("{0} km · {1} min estimated", [
-              (_route!.distanceMeters / 1000).toStringAsFixed(1),
-              (_route!.durationSeconds / 60).ceil(),
-            ]),
+            context.localizedWithArgs(
+              "{0} km · {1} min estimated",
+              [
+                (_route!.distanceMeters / 1000).toStringAsFixed(1),
+                (_route!.durationSeconds / 60).ceil(),
+              ],
+              (l10n, value) =>
+                  l10n.mobilityKmMinEstimated439c5826(value(0), value(1)),
+            ),
           ),
           Text(
-            context.translate(
+            context.localizedWithArgs(
               "Calculated: {0} · {1}. The routing service may snap endpoints to nearby roads.",
               [
                 _route!.retrievedUtc.toIso8601String(),
@@ -464,11 +522,20 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     ? 'Free destination'
                     : 'destination priority: parking → access point → spot',
               ],
+              (l10n, value) => l10n.mobilityCalculatedTheRoutingService9f5e2267(
+                value(0),
+                value(1),
+              ),
             ),
           ),
           FilledButton.tonal(
             onPressed: _busy ? null : () => _run(() => _show(_route!.overlay)),
-            child: Text(context.translate("Show driving route on map")),
+            child: Text(
+              context.localized(
+                "Show driving route on map",
+                (l10n) => l10n.mobilityShowDrivingRouteOn3860ee86,
+              ),
+            ),
           ),
           if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
             FilledButton.icon(
@@ -486,7 +553,10 @@ class _MobilityScreenState extends State<MobilityScreen> {
           'https://www.openstreetmap.org/copyright',
         ),
         _link(
-          context.translate('Report a map error'),
+          context.localized(
+            'Report a map error',
+            (l10n) => l10n.mobilityReportAMapError8ddb12c3,
+          ),
           'https://www.openstreetmap.org/fixthemap',
         ),
       ],
@@ -517,8 +587,10 @@ class _MobilityScreenState extends State<MobilityScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  context.translate(
+                  context.localized(
                     "Bei Routenabweichungen sendet die App Standort und Ziel an FOSSGIS. Der Dienst protokolliert die Anfrage. Im Hintergrund pausiert die Navigation.",
+                    (l10n) =>
+                        l10n.mobilityBeiRoutenabweichungenSendetDie131b098f,
                   ),
                 ),
                 CheckboxListTile(
@@ -528,15 +600,22 @@ class _MobilityScreenState extends State<MobilityScreen> {
                       ? (value) => update(() => useTraffic = value ?? false)
                       : null,
                   title: Text(
-                    context.translate("ASTRA-Verkehrsmeldungen laden"),
+                    context.localized(
+                      "ASTRA-Verkehrsmeldungen laden",
+                      (l10n) =>
+                          l10n.mobilityAstraVerkehrsmeldungenLadenf278469c,
+                    ),
                   ),
                   subtitle: Text(
                     hasKey
-                        ? context.translate(
+                        ? context.localized(
                             "Nutzt deinen gespeicherten Zugang. Aktualisierung bei Bedarf in der Navigation; keine Stauzeiten in der Ankunftsschätzung.",
+                            (l10n) => l10n
+                                .mobilityNutztDeinenGespeichertenZugang06987d0c,
                           )
-                        : context.translate(
+                        : context.localized(
                             "Zuerst im Traffic-Tab den Token für Road traffic - traffic situations speichern und die Anbieterbedingungen akzeptieren.",
+                            (l10n) => l10n.mobilityZuerstImTrafficTab4547f06d,
                           ),
                   ),
                 ),
@@ -545,10 +624,17 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     contentPadding: EdgeInsets.zero,
                     value: useCounters,
                     onChanged: (v) => update(() => useCounters = v ?? false),
-                    title: Text(context.translate("ASTRA-Messwerte laden")),
+                    title: Text(
+                      context.localized(
+                        "ASTRA-Messwerte laden",
+                        (l10n) => l10n.mobilityAstraMesswerteLadencc594459,
+                      ),
+                    ),
                     subtitle: Text(
-                      context.translate(
+                      context.localized(
                         "Geschwindigkeiten und Fahrzeugraten an bis zu 100 Detektoren im gewählten 30-km-Gebiet.",
+                        (l10n) => l10n
+                            .mobilityGeschwindigkeitenUndFahrzeugratenAnba71d451,
                       ),
                     ),
                   ),
@@ -559,11 +645,16 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     onChanged: (v) =>
                         update(() => automaticTraffic = v ?? false),
                     title: Text(
-                      context.translate("Verkehr automatisch aktualisieren"),
+                      context.localized(
+                        "Verkehr automatisch aktualisieren",
+                        (l10n) => l10n
+                            .mobilityVerkehrAutomatischAktualisieren83ed17ce,
+                      ),
                     ),
                     subtitle: Text(
-                      context.translate(
+                      context.localized(
                         "Alle 60 Sekunden, solange die Navigation aktiv ist. Im Hintergrund pausiert der Abruf.",
+                        (l10n) => l10n.commonAlleSekundenSolangeDie8b77bd0f,
                       ),
                     ),
                   ),
@@ -573,11 +664,21 @@ class _MobilityScreenState extends State<MobilityScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text(context.translate("Abbrechen")),
+              child: Text(
+                context.localized(
+                  "Abbrechen",
+                  (l10n) => l10n.commonAbbrechen07af7cb3,
+                ),
+              ),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text(context.translate("Starten")),
+              child: Text(
+                context.localized(
+                  "Starten",
+                  (l10n) => l10n.mobilityStarten2beb7350,
+                ),
+              ),
             ),
           ],
         ),
@@ -720,8 +821,9 @@ class _MobilityScreenState extends State<MobilityScreen> {
     final dataset = provider?.status.dataset, data = dataset?.data;
     if (provider == null) {
       return Text(
-        context.translate(
+        context.localized(
           "No information loaded. Missing data does not mean clear roads or empty airspace.",
+          (l10n) => l10n.mobilityNoInformationLoadedMissing2c3854cc,
         ),
       );
     }
@@ -761,12 +863,13 @@ class _MobilityScreenState extends State<MobilityScreen> {
                   DateTime.now().toUtc().difference(dataset.publishedAtUtc!) >
                       const Duration(seconds: 30)))
             Text(
-              context.translate(
+              context.localized(
                 "Source snapshot is delayed, its publication time is unknown, or the source/device clocks disagree. Retrieval/import time does not make old positions current.",
+                (l10n) => l10n.commonSourceSnapshotIsDelayed341226cb,
               ),
             ),
           Text(
-            context.translate(
+            context.localizedWithArgs(
               "{0}\n{1}\nRetrieved/imported: {2}\nSource publication: {3}\nDataset validity: not declared; individual records may provide dates.",
               [
                 provider.source.attribution,
@@ -774,10 +877,17 @@ class _MobilityScreenState extends State<MobilityScreen> {
                 dataset.fetchedAtUtc.toIso8601String(),
                 dataset.publishedAtUtc?.toIso8601String() ?? "unknown",
               ],
+              (l10n, value) =>
+                  l10n.mobilityRetrievedImportedSourcePublicationadd5e4e8(
+                    value(0),
+                    value(1),
+                    value(2),
+                    value(3),
+                  ),
             ),
           ),
           Text(
-            context.translate(
+            context.localizedWithArgs(
               "{0}\n{1} positioned records · {2} without usable positions · {3} omitted.",
               [
                 data?['coverage'],
@@ -785,12 +895,20 @@ class _MobilityScreenState extends State<MobilityScreen> {
                 data?['unlocated'],
                 data?['omitted'],
               ],
+              (l10n, value) =>
+                  l10n.mobilityPositionedRecordsWithoutUsable456e69a4(
+                    value(0),
+                    value(1),
+                    value(2),
+                    value(3),
+                  ),
             ),
           ),
           if (kind == SituationalKind.aircraft)
             Text(
-              context.translate(
+              context.localized(
                 "Snapshots are delayed and incomplete. Amber markers are older than 30 seconds; positions older than 5 minutes are hidden. Markers sit on the terrain; reported aircraft altitudes are available in details. Never use this to replace visual airspace observation or official aviation information.",
+                (l10n) => l10n.mobilitySnapshotsAreDelayedAnd4458e3d6,
               ),
             ),
           if (features.isNotEmpty)
@@ -804,7 +922,12 @@ class _MobilityScreenState extends State<MobilityScreen> {
                         'features': features,
                       }),
                     ),
-              child: Text(context.translate("Show snapshot on map")),
+              child: Text(
+                context.localized(
+                  "Show snapshot on map",
+                  (l10n) => l10n.mobilityShowSnapshotOnMap1ce6224b,
+                ),
+              ),
             ),
           for (final raw in features.take(100))
             ExpansionTile(
@@ -814,14 +937,17 @@ class _MobilityScreenState extends State<MobilityScreen> {
             ),
           if (features.length > 100)
             Text(
-              context.translate(
+              context.localized(
                 "First 100 details shown here. Other positioned records remain selectable on the map.",
+                (l10n) => l10n.mobilityFirstDetailsShownHere859f2457,
               ),
             ),
           for (final raw in (data?['unlocatedRecords'] as List? ?? const []))
             ExpansionTile(
               title: Text(
-                context.translate("Unlocated · {0}", [(raw as Map)["name"]]),
+                context.localizedWithArgs("Unlocated · {0}", [
+                  (raw as Map)["name"],
+                ], (l10n, value) => l10n.mobilityUnlocated0f6d01d4(value(0))),
               ),
               children: [SelectableText(raw['detail'] as String)],
             ),
@@ -839,8 +965,9 @@ class _MobilityScreenState extends State<MobilityScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        context.translate(
+        context.localized(
           "ASTRA / VMZ-CH traffic situations · Swiss road network. Registered API access is required. TMC-only references require the matching official topology. Unlocated or uncertain messages remain information; sufficiently matched current data can be enabled for route comparison.",
+          (l10n) => l10n.mobilityAstraVmzChTraffic19a07166,
         ),
       ),
       _link(
@@ -853,8 +980,9 @@ class _MobilityScreenState extends State<MobilityScreen> {
       ),
       if (kIsWeb)
         Text(
-          context.translate(
+          context.localized(
             "The ASTRA API rejects direct browser requests (CORS), before a token can be sent. Use Android for direct refresh, or import a DATEX XML snapshot downloaded with your own registered access. No public proxy is used.",
+            (l10n) => l10n.commonTheAstraApiRejectsdfbcd277,
           ),
         ),
       if (!kIsWeb) ...[
@@ -863,8 +991,9 @@ class _MobilityScreenState extends State<MobilityScreen> {
           value: _trafficTerms,
           onChanged: (v) => setState(() => _trafficTerms = v ?? false),
           title: Text(
-            context.translate(
+            context.localized(
               "I have registered access and accepted the provider terms for my own use.",
+              (l10n) => l10n.mobilityIHaveRegisteredAccessa282c504,
             ),
           ),
         ),
@@ -874,16 +1003,21 @@ class _MobilityScreenState extends State<MobilityScreen> {
           enableSuggestions: false,
           autocorrect: false,
           decoration: InputDecoration(
-            labelText: context.translate("Own ASTRA API key"),
-            helperText: context.translate(
+            labelText: context.localized(
+              "Own ASTRA API key",
+              (l10n) => l10n.mobilityOwnAstraApiKey38bbd3b9,
+            ),
+            helperText: context.localized(
               "Use the Token for Road traffic - traffic situations, not Token Hash or OJP.",
+              (l10n) => l10n.commonUseTheTokenFor892c903f,
             ),
             helperMaxLines: 3,
           ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "Keys use device secure storage and are sent only to the official ASTRA endpoint.",
+            (l10n) => l10n.mobilityKeysUseDeviceSecuref60f66e8,
           ),
         ),
       ],
@@ -899,14 +1033,24 @@ class _MobilityScreenState extends State<MobilityScreen> {
                       _key.clear();
                       if (mounted) setState(() => _message = 'API key saved.');
                     }),
-              child: Text(context.translate("Save key")),
+              child: Text(
+                context.localized(
+                  "Save key",
+                  (l10n) => l10n.commonSaveKeyf5216b3a,
+                ),
+              ),
             ),
           if (!kIsWeb)
             TextButton(
               onPressed: _busy
                   ? null
                   : () => _run(() => _vault.remove(astraTrafficAccess)),
-              child: Text(context.translate("Remove key")),
+              child: Text(
+                context.localized(
+                  "Remove key",
+                  (l10n) => l10n.commonRemoveKey582d9a78,
+                ),
+              ),
             ),
           FilledButton(
             onPressed: _busy || !_trafficTerms || kIsWeb
@@ -915,11 +1059,21 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     await _provider(SituationalKind.traffic)
                         .fetch(forceRefresh: true);
                   }),
-            child: Text(context.translate("Refresh traffic")),
+            child: Text(
+              context.localized(
+                "Refresh traffic",
+                (l10n) => l10n.mobilityRefreshTrafficde6624d5,
+              ),
+            ),
           ),
           OutlinedButton(
             onPressed: _busy ? null : () => _import(SituationalKind.traffic),
-            child: Text(context.translate("Import DATEX XML")),
+            child: Text(
+              context.localized(
+                "Import DATEX XML",
+                (l10n) => l10n.mobilityImportDatexXml5eb44537,
+              ),
+            ),
           ),
         ],
       ),
@@ -940,8 +1094,9 @@ class _MobilityScreenState extends State<MobilityScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        context.translate(
+        context.localized(
           "Optional adsb.lol community reception snapshot within 25 nautical miles (≈46 km). No automatic polling, history or extrapolation. No data is downloaded until requested. OpenSky is not used because application integration requires a written licence.",
+          (l10n) => l10n.commonOptionalAdsbLolCommunity571b79fc,
         ),
       ),
       _pointFields('area', 'Search area centre'),
@@ -950,13 +1105,17 @@ class _MobilityScreenState extends State<MobilityScreen> {
         value: _airConsent,
         onChanged: (v) => setState(() => _airConsent = v ?? false),
         title: Text(
-          context.translate("Allow sending this area centre to adsb.lol."),
+          context.localized(
+            "Allow sending this area centre to adsb.lol.",
+            (l10n) => l10n.mobilityAllowSendingThisAread1710796,
+          ),
         ),
       ),
       if (kIsWeb)
         Text(
-          context.translate(
+          context.localized(
             "Direct browser requests are blocked by the provider CORS policy. Import a readsb/adsb.lol JSON snapshot or use Android; no public proxy is involved.",
+            (l10n) => l10n.mobilityDirectBrowserRequestsAre8f6307e5,
           ),
         ),
       Wrap(
@@ -969,11 +1128,21 @@ class _MobilityScreenState extends State<MobilityScreen> {
                     await _provider(SituationalKind.aircraft)
                         .fetch(forceRefresh: true);
                   }),
-            child: Text(context.translate("Refresh aircraft")),
+            child: Text(
+              context.localized(
+                "Refresh aircraft",
+                (l10n) => l10n.mobilityRefreshAircraftcf46fb55,
+              ),
+            ),
           ),
           OutlinedButton(
             onPressed: _busy ? null : () => _import(SituationalKind.aircraft),
-            child: Text(context.translate("Import aircraft JSON")),
+            child: Text(
+              context.localized(
+                "Import aircraft JSON",
+                (l10n) => l10n.mobilityImportAircraftJson444ad3f1,
+              ),
+            ),
           ),
         ],
       ),
@@ -998,7 +1167,12 @@ class _MobilityScreenState extends State<MobilityScreen> {
     initialIndex: widget.initialTab,
     child: Scaffold(
       appBar: AppBar(
-        title: Text(context.translate("Mobility & OSINT")),
+        title: Text(
+          context.localized(
+            "Mobility & OSINT",
+            (l10n) => l10n.mobilityMobilityOsint1a8134ea,
+          ),
+        ),
         bottom: const TabBar(
           isScrollable: true,
           tabs: [

@@ -180,15 +180,17 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
           children: [
             Text(item.title, style: Theme.of(context).textTheme.titleSmall),
             Text(
-              context.translate("Produkt: {0} · {1}", [
-                item.product.label,
-                item.id,
-              ]),
+              context.localizedWithArgs(
+                "Produkt: {0} · {1}",
+                [item.product.label, item.id],
+                (l10n, value) =>
+                    l10n.mobilityProduktbc93422a(value(0), value(1)),
+              ),
             ),
             Text(
-              context.translate("Aufnahme (UTC): {0}", [
+              context.localizedWithArgs("Aufnahme (UTC): {0}", [
                 _date(item.acquiredUtc),
-              ]),
+              ], (l10n, value) => l10n.mobilityAufnahmeUtc809df7be(value(0))),
             ),
             if (item.product == DatedImageryProduct.swissEo)
               Text(
@@ -196,41 +198,57 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                 '${item.acquiredUtc.toUtc().year}',
               ),
             Text(
-              context.translate("Veröffentlicht: {0}", [
-                _date(item.publishedUtc),
-              ]),
+              context.localizedWithArgs(
+                "Veröffentlicht: {0}",
+                [_date(item.publishedUtc)],
+                (l10n, value) => l10n.mobilityVeroeffentlichtf559efaf(value(0)),
+              ),
             ),
             if (item.missionContext != null)
               Text(
-                context.translate("Ereignis / Einsatz: {0}", [
-                  item.missionContext,
-                ]),
+                context.localizedWithArgs(
+                  "Ereignis / Einsatz: {0}",
+                  [item.missionContext],
+                  (l10n, value) =>
+                      l10n.mobilityEreignisEinsatzac1a3fa0(value(0)),
+                ),
               ),
             Text(
-              context.translate("Abdeckung (WGS84): {0}", [
+              context.localizedWithArgs("Abdeckung (WGS84): {0}", [
                 item.bbox.map((x) => x.toStringAsFixed(4)).join(', '),
-              ]),
+              ], (l10n, value) => l10n.mobilityAbdeckungWgsc9cd562f(value(0))),
             ),
             Text(
               item.cloudCoverPercent == null
-                  ? context.translate("Wolkenanteil: nicht angegeben")
-                  : context.translate("Wolkenanteil gemäss Quelle: {0} %", [
-                      item.cloudCoverPercent!.toStringAsFixed(1),
-                    ]),
+                  ? context.localized(
+                      "Wolkenanteil: nicht angegeben",
+                      (l10n) => l10n.mobilityWolkenanteilNichtAngegeben76ffb608,
+                    )
+                  : context.localizedWithArgs(
+                      "Wolkenanteil gemäss Quelle: {0} %",
+                      [item.cloudCoverPercent!.toStringAsFixed(1)],
+                      (l10n, value) => l10n
+                          .mobilityWolkenanteilGemaessQuelle15e9a8e3(value(0)),
+                    ),
             ),
             Text(
               item.qualityAssetAvailable
-                  ? context.translate(
+                  ? context.localized(
                       "Qualitäts-/Wolkenmaske als eigenes Datenasset vorhanden; nicht automatisch als wolkenfrei interpretiert.",
+                      (l10n) =>
+                          l10n.mobilityQualitaetsWolkenmaskeAlsEigenes3ad85811,
                     )
-                  : context.translate(
+                  : context.localized(
                       "Keine überprüfte Qualitätsmaske – Wolken und Bildlücken können vorhanden sein.",
+                      (l10n) => l10n
+                          .mobilityKeineUeberpruefteQualitaetsmaskeWolken490d3ea2,
                     ),
             ),
             if (outside)
               Text(
-                context.translate(
+                context.localized(
                   "Für dieses Einsatzprodukt ist kein georeferenzierter, begrenzt lesbarer RGB-GeoTIFF mit bestätigter Projektion hinterlegt. Kein Kartenbild erfunden.",
+                  (l10n) => l10n.commonFuerDiesesEinsatzproduktIst01b0accb,
                 ),
               ),
             Wrap(
@@ -243,7 +261,10 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                     onPressed: _busy ? null : () => _display(item),
                     icon: const Icon(Icons.layers_outlined),
                     label: Text(
-                      context.translate("Datierte Aufnahme anzeigen"),
+                      context.localized(
+                        "Datierte Aufnahme anzeigen",
+                        (l10n) => l10n.mobilityDatierteAufnahmeAnzeigen461270db,
+                      ),
                     ),
                   ),
                 TextButton.icon(
@@ -254,7 +275,12 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                             : 'https://www.swisstopo.admin.ch/en/service-rapid-mapping'),
                   ),
                   icon: const Icon(Icons.open_in_new),
-                  label: Text(context.translate("Amtliche Quelle / Ansicht")),
+                  label: Text(
+                    context.localized(
+                      "Amtliche Quelle / Ansicht",
+                      (l10n) => l10n.mobilityAmtlicheQuelleAnsicht283a8bdd,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -286,17 +312,22 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
         initiallyExpanded: _expanded,
         onExpansionChanged: (value) => setState(() => _expanded = value),
         title: Text(
-          context.translate("Datierte Satelliten- & Rapid-Mapping-Bilder"),
+          context.localized(
+            "Datierte Satelliten- & Rapid-Mapping-Bilder",
+            (l10n) => l10n.mobilityDatierteSatellitenRapidMappingf807e800,
+          ),
         ),
         subtitle: Text(
-          context.translate(
+          context.localized(
             "swissEO Sentinel-2 v200 / amtliche Ereignisaufnahmen · optional",
+            (l10n) => l10n.mobilitySwisseoSentinelVAmtlichedcab45cb,
           ),
         ),
         children: [
           Text(
-            context.translate(
+            context.localized(
               "Ausgewählte Aufnahmen sind historische bzw. verzögert veröffentlichte Bilddaten. Keine Live-Beobachtung. Es werden nur kleine STAC-Metadaten gespeichert, keine Rohbilddateien. Wolken, Schatten und fehlende Bilddeckung sind keine leeren Flächen.",
+              (l10n) => l10n.commonAusgewaehlteAufnahmenSindHistorische73e77349,
             ),
           ),
           const SizedBox(height: 8),
@@ -305,7 +336,10 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
             isExpanded: true,
             initialValue: _product,
             decoration: InputDecoration(
-              labelText: context.translate("Amtliche Collection"),
+              labelText: context.localized(
+                "Amtliche Collection",
+                (l10n) => l10n.mobilityAmtlicheCollectiond0ebbd40,
+              ),
             ),
             items: [
               for (final product in DatedImageryProduct.values)
@@ -339,7 +373,10 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                   key: const ValueKey('dated_lat'),
                   controller: _lat,
                   decoration: InputDecoration(
-                    labelText: context.translate("Breite (WGS84)"),
+                    labelText: context.localized(
+                      "Breite (WGS84)",
+                      (l10n) => l10n.mobilityBreiteWgsbf85fa1c,
+                    ),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -353,7 +390,10 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                   key: const ValueKey('dated_lon'),
                   controller: _lon,
                   decoration: InputDecoration(
-                    labelText: context.translate("Länge (WGS84)"),
+                    labelText: context.localized(
+                      "Länge (WGS84)",
+                      (l10n) => l10n.mobilityLaengeWgs7a5b794e,
+                    ),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -367,7 +407,10 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
             key: const ValueKey('dated_imagery_radius'),
             initialValue: _radius,
             decoration: InputDecoration(
-              labelText: context.translate("Suchradius"),
+              labelText: context.localized(
+                "Suchradius",
+                (l10n) => l10n.mobilitySuchradius51fb2797,
+              ),
             ),
             items: [
               for (final r in [500, 1000, 2000, 5000])
@@ -388,12 +431,22 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
               FilledButton.tonal(
                 key: const ValueKey('dated_imagery_search'),
                 onPressed: _busy ? null : () => _fetch(refresh: true),
-                child: Text(context.translate("Datierte Bilder suchen")),
+                child: Text(
+                  context.localized(
+                    "Datierte Bilder suchen",
+                    (l10n) => l10n.mobilityDatierteBilderSuchen2f4ff702,
+                  ),
+                ),
               ),
               OutlinedButton(
                 key: const ValueKey('dated_imagery_offline'),
                 onPressed: _busy ? null : () => _fetch(offline: true),
-                child: Text(context.translate("Letzten Katalogstand öffnen")),
+                child: Text(
+                  context.localized(
+                    "Letzten Katalogstand öffnen",
+                    (l10n) => l10n.mobilityLetztenKatalogstandOeffnene2aafc7e,
+                  ),
+                ),
               ),
               if (widget.globe.datedImageryVisible)
                 TextButton.icon(
@@ -401,55 +454,76 @@ class _DatedImagerySectionState extends State<DatedImagerySection> {
                   onPressed: _hide,
                   icon: const Icon(Icons.layers_clear),
                   label: Text(
-                    context.translate("Bildebene entfernen / Basiskarte"),
+                    context.localized(
+                      "Bildebene entfernen / Basiskarte",
+                      (l10n) =>
+                          l10n.mobilityBildebeneEntfernenBasiskarte8d450df2,
+                    ),
                   ),
                 ),
             ],
           ),
           Text(
-            context.translate("Bildlayer: {0}{1}", [
-              widget.globe.datedImageryStatus,
-              widget.globe.datedImageryItemId == null
-                  ? ''
-                  : ' · ${widget.globe.datedImageryItemId}',
-            ]),
+            context.localizedWithArgs(
+              "Bildlayer: {0}{1}",
+              [
+                widget.globe.datedImageryStatus,
+                widget.globe.datedImageryItemId == null
+                    ? ''
+                    : ' · ${widget.globe.datedImageryItemId}',
+              ],
+              (l10n, value) =>
+                  l10n.mobilityBildlayer7779aa56(value(0), value(1)),
+            ),
           ),
           if (widget.globe.datedImageryError != null)
             Text(
-              context.translate("Darstellungsfehler: {0}", [
-                widget.globe.datedImageryError,
-              ]),
+              context.localizedWithArgs(
+                "Darstellungsfehler: {0}",
+                [widget.globe.datedImageryError],
+                (l10n, value) =>
+                    l10n.mobilityDarstellungsfehler750531ab(value(0)),
+              ),
             ),
           if (_message != null) Text(_message!),
           if (_snapshot case final snapshot?) ...[
             Text(
-              context.translate(
+              context.localizedWithArgs(
                 "STAC abgefragt: {0} · {1} Treffer in begrenzter Stichprobe",
                 [_date(snapshot.fetchedUtc), snapshot.items.length],
+                (l10n, value) => l10n.mobilityStacAbgefragtTrefferIn004b3edc(
+                  value(0),
+                  value(1),
+                ),
               ),
             ),
             if (snapshot.fromCache)
               Text(
-                context.translate(
+                context.localized(
                   "Offline-/Cache-Katalog – keine Live-Bestätigung.",
+                  (l10n) => l10n.mobilityOfflineCacheKatalogKeine803aa9f6,
                 ),
               ),
             if (snapshot.isOld(DateTime.now()))
               Text(
-                context.translate(
+                context.localized(
                   "Metadaten älter als 24 h / Uhrzeit unplausibel.",
+                  (l10n) => l10n.mobilityMetadatenAelterAlsHfcd2d03c,
                 ),
               ),
             if (snapshot.refreshFailed)
               Text(
-                context.translate(
+                context.localized(
                   "Letzte Aktualisierung fehlgeschlagen; letzter Stand wird angezeigt.",
+                  (l10n) => l10n
+                      .mobilityLetzteAktualisierungFehlgeschlagenLetzterf5121616,
                 ),
               ),
             if (snapshot.incomplete)
               Text(
-                context.translate(
+                context.localized(
                   "Weitere STAC-Seiten vorhanden bzw. Trefferlimit erreicht. Abdeckung unvollständig.",
+                  (l10n) => l10n.mobilityWeitereStacSeitenVorhanden8ac44f7a,
                 ),
               ),
             for (final item in snapshot.items) _record(item),

@@ -61,26 +61,42 @@ class _TrafficCountersSectionState extends State<TrafficCountersSection> {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     maintainState: true,
-    title: Text(context.translate("Live-Messwerte · Traffic Counters")),
+    title: Text(
+      context.localized(
+        "Live-Messwerte · Traffic Counters",
+        (l10n) => l10n.mobilityLiveMesswerteTrafficCountersaee8a401,
+      ),
+    ),
     subtitle: Text(
-      context.translate("Geschwindigkeiten und Fahrzeugmengen an Messstellen"),
+      context.localized(
+        "Geschwindigkeiten und Fahrzeugmengen an Messstellen",
+        (l10n) => l10n.mobilityGeschwindigkeitenUndFahrzeugmengenAn522f5906,
+      ),
     ),
     children: [
       Text(
-        context.translate(
+        context.localized(
           "Eigener Zugang für Traffic Counters. Der Schlüssel für Verkehrsmeldungen wird dafür nicht wiederverwendet. Daten bleiben in dieser Sitzung.",
+          (l10n) => l10n.mobilityEigenerZugangFuerTraffic1a7bd79b,
         ),
       ),
       if (kIsWeb)
-        Text(context.translate("Direkter Abruf auf Android verfügbar.")),
+        Text(
+          context.localized(
+            "Direkter Abruf auf Android verfügbar.",
+            (l10n) => l10n.mobilityDirekterAbrufAufAndroid7c4ac605,
+          ),
+        ),
       if (!kIsWeb) ...[
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           value: _terms,
           onChanged: (v) => setState(() => _terms = v ?? false),
           title: Text(
-            context.translate(
+            context.localized(
               "Zählstellenzugang freigeschaltet und ASTRA-Bedingungen akzeptiert",
+              (l10n) =>
+                  l10n.mobilityZaehlstellenzugangFreigeschaltetUndAstraa64cddb1,
             ),
           ),
         ),
@@ -90,8 +106,14 @@ class _TrafficCountersSectionState extends State<TrafficCountersSection> {
           enableSuggestions: false,
           autocorrect: false,
           decoration: InputDecoration(
-            labelText: context.translate("Eigener Traffic-Counters-Token"),
-            helperText: context.translate("Token verwenden, nicht Token Hash."),
+            labelText: context.localized(
+              "Eigener Traffic-Counters-Token",
+              (l10n) => l10n.mobilityEigenerTrafficCountersTokenff5ddb8b,
+            ),
+            helperText: context.localized(
+              "Token verwenden, nicht Token Hash.",
+              (l10n) => l10n.commonTokenVerwendenNichtToken28179d00,
+            ),
           ),
         ),
         Wrap(
@@ -99,11 +121,21 @@ class _TrafficCountersSectionState extends State<TrafficCountersSection> {
           children: [
             OutlinedButton(
               onPressed: _saving || !_terms ? null : () => _save(false),
-              child: Text(context.translate("Zählstellen-Token speichern")),
+              child: Text(
+                context.localized(
+                  "Zählstellen-Token speichern",
+                  (l10n) => l10n.mobilityZaehlstellenTokenSpeichern6579a132,
+                ),
+              ),
             ),
             TextButton(
               onPressed: _saving ? null : () => _save(true),
-              child: Text(context.translate("Zählstellen-Token entfernen")),
+              child: Text(
+                context.localized(
+                  "Zählstellen-Token entfernen",
+                  (l10n) => l10n.mobilityZaehlstellenTokenEntfernen15b8092b,
+                ),
+              ),
             ),
           ],
         ),
@@ -159,17 +191,22 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            context.translate(
+            context.localizedWithArgs(
               "Gebiet: {0}, {1} · 30 km · maximal 100 Detektoren",
               [
                 provider.center.latitude.toStringAsFixed(4),
                 provider.center.longitude.toStringAsFixed(4),
               ],
+              (l10n, value) => l10n.commonGebietKmMaximalDetektoren3b49fe28(
+                value(0),
+                value(1),
+              ),
             ),
           ),
           Text(
-            context.translate(
+            context.localized(
               "Punktuelle Messungen der Quelle. Fahrzeugmengen sind Raten in Fahrzeugen pro Stunde. Werte verschiedener Fahrstreifen und Fahrzeuggruppen werden nicht addiert. Keine durchgehende Staukarte.",
+              (l10n) => l10n.mobilityPunktuelleMessungenDerQuellee6b23c9f,
             ),
           ),
           FilledButton.icon(
@@ -182,8 +219,14 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             icon: const Icon(Icons.speed),
             label: Text(
               status.update == OsintUpdateState.loading
-                  ? context.translate("Messwerte werden geladen …")
-                  : context.translate("Messwerte aktualisieren"),
+                  ? context.localized(
+                      "Messwerte werden geladen …",
+                      (l10n) => l10n.mobilityMesswerteWerdenGeladence66c18a,
+                    )
+                  : context.localized(
+                      "Messwerte aktualisieren",
+                      (l10n) => l10n.mobilityMesswerteAktualisierendbc899d0,
+                    ),
             ),
           ),
           if (status.error != null)
@@ -193,21 +236,35 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             ),
           if (dataset != null) ...[
             Text(
-              context.translate("Abruf: {0} · Quellenpublikation: {1}", [
-                trafficTime(dataset.fetchedAtUtc),
-                trafficTime(dataset.publishedAtUtc),
-              ]),
+              context.localizedWithArgs(
+                "Abruf: {0} · Quellenpublikation: {1}",
+                [
+                  trafficTime(dataset.fetchedAtUtc),
+                  trafficTime(dataset.publishedAtUtc),
+                ],
+                (l10n, value) => l10n.mobilityAbrufQuellenpublikation2c701097(
+                  value(0),
+                  value(1),
+                ),
+              ),
             ),
             Text(
-              context.translate(
+              context.localizedWithArgs(
                 "{0} zugeordnete Detektoren · {1} ohne passende Metadaten",
                 [records.length, dataset.data['unknown']],
+                (l10n, value) =>
+                    l10n.mobilityZugeordneteDetektorenOhnePassende637e378d(
+                      value(0),
+                      value(1),
+                    ),
               ),
             ),
             if (status.dataState != OsintDataState.fresh)
               Text(
-                context.translate(
+                context.localized(
                   "Abruf veraltet oder fehlgeschlagen · Messzeit jedes Werts prüfen.",
+                  (l10n) =>
+                      l10n.mobilityAbrufVeraltetOderFehlgeschlagen4afc83f7,
                 ),
               ),
             if (widget.onShowMap != null)
@@ -223,7 +280,12 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
                     }
                   }
                 },
-                child: Text(context.translate("Messstellen auf Karte zeigen")),
+                child: Text(
+                  context.localized(
+                    "Messstellen auf Karte zeigen",
+                    (l10n) => l10n.mobilityMessstellenAufKarteZeigen191576b4,
+                  ),
+                ),
               ),
             if (_mapError != null) Text(_mapError!),
             for (final raw in records.take(_limit))
@@ -231,7 +293,12 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             if (records.length > _limit)
               TextButton(
                 onPressed: () => setState(() => _limit += 20),
-                child: Text(context.translate("Weitere Messstellen")),
+                child: Text(
+                  context.localized(
+                    "Weitere Messstellen",
+                    (l10n) => l10n.mobilityWeitereMessstellene0dab34a,
+                  ),
+                ),
               ),
           ],
         ],
@@ -266,7 +333,12 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
               '${current ? 'Messung' : 'Messzeit unbekannt / veraltet'}: ${trafficTime(time)}',
             ),
             if (summary.isEmpty)
-              Text(context.translate("Keine auswertbaren Messwerte")),
+              Text(
+                context.localized(
+                  "Keine auswertbaren Messwerte",
+                  (l10n) => l10n.mobilityKeineAuswertbarenMesswerte4dc49063,
+                ),
+              ),
             for (final v in summary)
               Text(
                 '${v['kind'] == 'trafficSpeed' ? 'Ø Geschwindigkeit' : 'Fahrzeugrate'}: ${(v['value'] as num).toStringAsFixed(v['kind'] == 'trafficSpeed' ? 1 : 0)} ${v['kind'] == 'trafficSpeed' ? 'km/h' : 'Fahrzeuge/h'} · ${v['vehicle'] == 'car' ? 'Leichte Fahrzeuge' : v['vehicle']}',
@@ -280,16 +352,23 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Detektor: {0} · Fahrstreifen: {1} · Fahrbahntyp: {2}",
                     [record['id'], record['lane'], record['carriageway']],
+                    (l10n, value) =>
+                        l10n.mobilityDetektorFahrstreifenFahrbahntype8312098(
+                          value(0),
+                          value(1),
+                          value(2),
+                        ),
                   ),
                 ),
                 for (final raw in record['values'] as List)
                   _value(Map<String, dynamic>.from(raw as Map), time),
                 Text(
-                  context.translate(
+                  context.localized(
                     "ASTRA / VDP · Best-Effort-Messdaten, keine bestätigte Verkehrsprognose.",
+                    (l10n) => l10n.commonAstraVdpBestEffort6d0423b7,
                   ),
                 ),
               ],
@@ -310,7 +389,7 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
-        context.translate(
+        context.localizedWithArgs(
           "{0} · {1}: {2} {3}\nMesszeit: {4} · Intervall: {5} s{6}",
           [
             vehicle,
@@ -329,6 +408,15 @@ class _TrafficCountersReadoutState extends State<TrafficCountersReadout> {
             value['periodSeconds'] ?? "unbekannt",
             value['error'] == true ? ' · Quellenfehler' : '',
           ],
+          (l10n, value) => l10n.mobilityMesszeitIntervallSd22c606f(
+            value(0),
+            value(1),
+            value(2),
+            value(3),
+            value(4),
+            value(5),
+            value(6),
+          ),
         ),
       ),
     );

@@ -144,14 +144,22 @@ class _RoadDestinationSearchState extends State<RoadDestinationSearch> {
         }),
         onSubmitted: (_) => _submit(),
         decoration: InputDecoration(
-          labelText: context.translate("Adresse oder Ort in der Schweiz"),
+          labelText: context.localized(
+            "Adresse oder Ort in der Schweiz",
+            (l10n) => l10n.mobilityAdresseOderOrtInfa9d68ac,
+          ),
           counterText: '',
         ),
       ),
       OutlinedButton.icon(
         onPressed: _busy ? null : _submit,
         icon: const Icon(Icons.search),
-        label: Text(context.translate("Ziel suchen")),
+        label: Text(
+          context.localized(
+            "Ziel suchen",
+            (l10n) => l10n.mobilityZielSuchen5a773b38,
+          ),
+        ),
       ),
       const Text(
         'Erst „Ziel suchen“ sendet die Eingabe an geo.admin.ch / swisstopo. © swisstopo',

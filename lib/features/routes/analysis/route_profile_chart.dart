@@ -26,7 +26,10 @@ class _RouteProfileChartState extends State<RouteProfileChart> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          context.translate("Terrain and planned altitude · WGS84 ellipsoid"),
+          context.localized(
+            "Terrain and planned altitude · WGS84 ellipsoid",
+            (l10n) => l10n.routesTerrainAndPlannedAltitude8cc1136a,
+          ),
           style: Theme.of(context).textTheme.titleSmall,
         ),
         const SizedBox(height: 8),
@@ -69,19 +72,29 @@ class _RouteProfileChartState extends State<RouteProfileChart> {
         ),
         const SizedBox(height: 8),
         Text(
-          context.translate(
+          context.localized(
             "Tap the profile to inspect a sample. Planned altitude uses the primary colour; terrain uses grey.",
+            (l10n) => l10n.routesTapTheProfileTo8cbd2ae2,
           ),
         ),
         Semantics(
           liveRegion: true,
           child: Text(
-            context.translate("At {0} m: ground {1}, altitude {2}, AGL {3}.", [
-              selected.sample.distance.toStringAsFixed(0),
-              meters(selected.ground),
-              meters(selected.altitude),
-              meters(selected.clearance),
-            ]),
+            context.localizedWithArgs(
+              "At {0} m: ground {1}, altitude {2}, AGL {3}.",
+              [
+                selected.sample.distance.toStringAsFixed(0),
+                meters(selected.ground),
+                meters(selected.altitude),
+                meters(selected.clearance),
+              ],
+              (l10n, value) => l10n.commonAtMGroundAltitude06f0de9e(
+                value(0),
+                value(1),
+                value(2),
+                value(3),
+              ),
+            ),
           ),
         ),
       ],

@@ -133,9 +133,17 @@ class _RadioSheetState extends State<_RadioSheet> {
         builder: (context, _) => Column(
           children: [
             ListTile(
-              title: Text(context.translate("Terrain & radio path")),
+              title: Text(
+                context.localized(
+                  "Terrain & radio path",
+                  (l10n) => l10n.commonTerrainRadioPathe61f3070,
+                ),
+              ),
               trailing: IconButton(
-                tooltip: context.translate("Close signal analysis"),
+                tooltip: context.localized(
+                  "Close signal analysis",
+                  (l10n) => l10n.signalCloseSignalAnalysisad376625,
+                ),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -145,16 +153,24 @@ class _RadioSheetState extends State<_RadioSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 children: [
                   Text(
-                    context.translate(
+                    context.localized(
                       "Geometric visibility and Fresnel clearance are approximations, not measured signal quality or a guaranteed communication range.",
+                      (l10n) =>
+                          l10n.commonGeometricVisibilityAndFresnelcc5d61f4,
                     ),
                   ),
                   ExpansionTile(
                     initiallyExpanded: c.result == null,
-                    title: Text(context.translate("Pilot & frequency")),
+                    title: Text(
+                      context.localized(
+                        "Pilot & frequency",
+                        (l10n) => l10n.signalPilotFrequency12dc826d,
+                      ),
+                    ),
                     subtitle: Text(
-                      context.translate(
+                      context.localized(
                         "Analyze applies inputs; Save the route to keep them",
+                        (l10n) => l10n.signalAnalyzeAppliesInputsSave2af97340,
                       ),
                     ),
                     children: [
@@ -173,34 +189,47 @@ class _RadioSheetState extends State<_RadioSheet> {
                         'First Fresnel zone clearance · % (0–100)',
                       ),
                       Text(
-                        context.translate(
+                        context.localized(
                           "Defaults: 2 m antenna, 5800 MHz and 60% first-zone radius. Set the actual control or video frequency for each analysis.",
+                          (l10n) => l10n.commonDefaultsMAntennaMhz63828140,
                         ),
                       ),
                     ],
                   ),
                   ExpansionTile(
                     title: Text(
-                      context.translate(
+                      context.localized(
                         "Optional building / vegetation observations",
+                        (l10n) => l10n
+                            .signalOptionalBuildingVegetationObservations7a6fce33,
                       ),
                     ),
                     subtitle: Text(
-                      context.translate("{0} local observations · {1}", [
-                        _surfaces.length,
-                        _useSurfaces ? "included" : "disabled",
-                      ]),
+                      context.localizedWithArgs(
+                        "{0} local observations · {1}",
+                        [
+                          _surfaces.length,
+                          _useSurfaces ? "included" : "disabled",
+                        ],
+                        (l10n, value) => l10n.signalLocalObservationsb6dacb84(
+                          value(0),
+                          value(1),
+                        ),
+                      ),
                     ),
                     children: [
                       Text(
-                        context.translate(
+                        context.localized(
                           "No building or canopy service is connected. Import known local footprints as circular AGL height observations. These are approximate site observations, not a complete surface model.",
+                          (l10n) => l10n.commonNoBuildingOrCanopy5fb91054,
                         ),
                       ),
                       SwitchListTile(
                         title: Text(
-                          context.translate(
+                          context.localized(
                             "Include imported surface observations",
+                            (l10n) => l10n
+                                .signalIncludeImportedSurfaceObservations3dc9dc80,
                           ),
                         ),
                         value: _useSurfaces,
@@ -219,7 +248,10 @@ class _RadioSheetState extends State<_RadioSheet> {
                                 ? null
                                 : _importSurface,
                             child: Text(
-                              context.translate("Import surface CSV"),
+                              context.localized(
+                                "Import surface CSV",
+                                (l10n) => l10n.signalImportSurfaceCsv07954aaf,
+                              ),
                             ),
                           ),
                           TextButton(
@@ -234,23 +266,32 @@ class _RadioSheetState extends State<_RadioSheet> {
                                     });
                                   },
                             child: Text(
-                              context.translate("Remove observations"),
+                              context.localized(
+                                "Remove observations",
+                                (l10n) => l10n.signalRemoveObservationsa17d9d68,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       SelectableText(
-                        context.translate(
+                        context.localized(
                           "latitude,longitude,height_m_agl,radius_m,kind,source\nKinds: building, vegetation, other. Up to 100 observations. Heights 0–1000 m AGL, radius 1–1000 m.",
+                          (l10n) => l10n.commonLatitudeLongitudeHeightM29549b09,
                         ),
                       ),
                       for (final s in _surfaces)
                         ListTile(
                           dense: true,
                           title: Text(
-                            context.translate(
+                            context.localizedWithArgs(
                               "{0} · {1} m AGL · {2} m radius",
                               [s.kind, s.height, s.radius],
+                              (l10n, value) => l10n.signalMAglMRadiuscfb648b3(
+                                value(0),
+                                value(1),
+                                value(2),
+                              ),
                             ),
                           ),
                           subtitle: Text(
@@ -265,14 +306,25 @@ class _RadioSheetState extends State<_RadioSheet> {
                       FilledButton.icon(
                         onPressed: c.loading || _importing ? null : _calculate,
                         icon: const Icon(Icons.settings_input_antenna),
-                        label: Text(context.translate("Analyze radio paths")),
+                        label: Text(
+                          context.localized(
+                            "Analyze radio paths",
+                            (l10n) => l10n.signalAnalyzeRadioPathsf3709ab3,
+                          ),
+                        ),
                       ),
                       TextButton(
                         onPressed: c.clear,
                         child: Text(
                           c.loading
-                              ? context.translate("Cancel analysis")
-                              : context.translate("Clear overlay"),
+                              ? context.localized(
+                                  "Cancel analysis",
+                                  (l10n) => l10n.signalCancelAnalysisdf18d195,
+                                )
+                              : context.localized(
+                                  "Clear overlay",
+                                  (l10n) => l10n.commonClearOverlay89f8488e,
+                                ),
                         ),
                       ),
                     ],
@@ -282,10 +334,14 @@ class _RadioSheetState extends State<_RadioSheet> {
                       value: c.total == 0 ? null : c.completed / c.total,
                     ),
                     Text(
-                      context.translate("{0} / {1} route targets checked", [
-                        c.completed,
-                        c.total,
-                      ]),
+                      context.localizedWithArgs(
+                        "{0} / {1} route targets checked",
+                        [c.completed, c.total],
+                        (l10n, value) => l10n.signalRouteTargetsCheckedf545b613(
+                          value(0),
+                          value(1),
+                        ),
+                      ),
                     ),
                   ],
                   if (_importing) const LinearProgressIndicator(),
@@ -293,35 +349,51 @@ class _RadioSheetState extends State<_RadioSheet> {
                     Text(context.translate(_error ?? c.error!)),
                   if (c.result case final paths?) ...[
                     Text(
-                      context.translate("{0} route targets · terrain: {1}", [
-                        paths.length,
-                        c.methods.join(", "),
-                      ]),
+                      context.localizedWithArgs(
+                        "{0} route targets · terrain: {1}",
+                        [paths.length, c.methods.join(", ")],
+                        (l10n, value) => l10n.signalRouteTargetsTerraind0166c82(
+                          value(0),
+                          value(1),
+                        ),
+                      ),
                     ),
                     Text(
-                      context.translate(
+                      context.localized(
                         "Map: orange = potential obstruction, purple = Fresnel intrusion, cyan = no sampled obstruction, gray = unknown. The selected path shows the configured Fresnel envelope.",
+                        (l10n) =>
+                            l10n.commonMapOrangePotentialObstructionbe96635a,
                       ),
                     ),
                     if (paths.length > radioMapPageSize)
                       Text(
-                        context.translate("Map targets {0}–{1} of {2}", [
-                          c.selected ~/ radioMapPageSize * radioMapPageSize + 1,
-                          math.min(
-                            (c.selected ~/ radioMapPageSize + 1) *
-                                radioMapPageSize,
+                        context.localizedWithArgs(
+                          "Map targets {0}–{1} of {2}",
+                          [
+                            c.selected ~/ radioMapPageSize * radioMapPageSize +
+                                1,
+                            math.min(
+                              (c.selected ~/ radioMapPageSize + 1) *
+                                  radioMapPageSize,
+                              paths.length,
+                            ),
                             paths.length,
+                          ],
+                          (l10n, value) => l10n.signalMapTargetsOf0a2ebaa0(
+                            value(0),
+                            value(1),
+                            value(2),
                           ),
-                          paths.length,
-                        ]),
+                        ),
                       ),
                     DropdownButtonFormField<int>(
                       key: ValueKey(paths),
                       initialValue: c.selected,
                       isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: context.translate(
+                        labelText: context.localized(
                           "Inspect communication path",
+                          (l10n) => l10n.signalInspectCommunicationPath2fdd77fe,
                         ),
                       ),
                       items: [
@@ -344,13 +416,20 @@ class _RadioSheetState extends State<_RadioSheet> {
                     _profile(c.selectedProfile ?? paths[c.selected]),
                   ],
                   ExpansionTile(
-                    title: Text(context.translate("Method, sources & limits")),
+                    title: Text(
+                      context.localized(
+                        "Method, sources & limits",
+                        (l10n) => l10n.commonMethodSourcesLimits2cadbcdb,
+                      ),
+                    ),
                     children: [
                       Padding(
                         padding: EdgeInsets.all(8),
                         child: Text(
-                          context.translate(
+                          context.localized(
                             "swisstopo terrain via Cesium, WGS84 ellipsoidal heights. The straight ECEF line accounts for Earth curvature. Targets are at most 100 m apart and each radio path is sampled at intervals of at most 25 m. Imported surface observations add their specified height within their radius. Targets beyond 50 km or with unknown altitude are marked unknown. The map shows the group of up to 128 paths around the selected result. Recalculate after route, pilot or terrain changes.",
+                            (l10n) =>
+                                l10n.commonSwisstopoTerrainViaCesium6cb5e495,
                           ),
                         ),
                       ),
@@ -371,15 +450,21 @@ class _RadioSheetState extends State<_RadioSheet> {
       Text(radioStateLabel(p.state)),
       if (p.minimumClearance != null)
         Text(
-          context.translate("Minimum sampled LOS clearance: {0} m", [
-            p.minimumClearance!.toStringAsFixed(2),
-          ]),
+          context.localizedWithArgs(
+            "Minimum sampled LOS clearance: {0} m",
+            [p.minimumClearance!.toStringAsFixed(2)],
+            (l10n, value) =>
+                l10n.signalMinimumSampledLosClearance8c03754f(value(0)),
+          ),
         ),
       if (p.minimumFresnelClearance != null)
         Text(
-          context.translate("Minimum configured Fresnel margin: {0} m", [
-            p.minimumFresnelClearance!.toStringAsFixed(2),
-          ]),
+          context.localizedWithArgs(
+            "Minimum configured Fresnel margin: {0} m",
+            [p.minimumFresnelClearance!.toStringAsFixed(2)],
+            (l10n, value) =>
+                l10n.signalMinimumConfiguredFresnelMargin119fbdcf(value(0)),
+          ),
         ),
       if (p.profile.isNotEmpty) ...[
         SizedBox(
@@ -394,8 +479,9 @@ class _RadioSheetState extends State<_RadioSheet> {
           ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "Profile: brown terrain/surface · cyan LOS · purple lower Fresnel boundary. Heights in WGS84 ellipsoid.",
+            (l10n) => l10n.signalProfileBrownTerrainSurface4924cb6b,
           ),
         ),
       ],

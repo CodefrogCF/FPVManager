@@ -123,7 +123,9 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
           initialValue: _sources[parameter],
           isExpanded: true,
           decoration: InputDecoration(
-            labelText: context.translate("{0} source", [parameter.label]),
+            labelText: context.localizedWithArgs("{0} source", [
+              parameter.label,
+            ], (l10n, value) => l10n.dronesSource0ef9cdaf(value(0))),
           ),
           items: [
             for (final option in DroneValueSource.values)
@@ -233,8 +235,14 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
         children: [
           Text(
             widget.profile == null
-                ? context.translate("Add drone profile")
-                : context.translate("Edit drone profile"),
+                ? context.localized(
+                    "Add drone profile",
+                    (l10n) => l10n.dronesAddDroneProfile9af5c042,
+                  )
+                : context.localized(
+                    "Edit drone profile",
+                    (l10n) => l10n.dronesEditDroneProfilefc4f435a,
+                  ),
           ),
           if (_error != null)
             Padding(
@@ -267,8 +275,9 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  context.translate(
+                  context.localized(
                     "Leave unknown values empty. Identify each entered value as measured, estimated or source not specified. Editing a number resets its previous source.",
+                    (l10n) => l10n.commonLeaveUnknownValuesEmptyc1fa72a7,
                   ),
                 ),
                 for (final group in DroneParameterGroup.values) ...[
@@ -320,12 +329,19 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: Text(context.translate("Cancel")),
+          child: Text(
+            context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+          ),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: Text(
-            _saving ? context.translate("Saving…") : context.translate("Save"),
+            _saving
+                ? context.localized(
+                    "Saving…",
+                    (l10n) => l10n.commonSaving56a2285c,
+                  )
+                : context.localized("Save", (l10n) => l10n.commonSaveefc007a3),
           ),
         ),
       ],

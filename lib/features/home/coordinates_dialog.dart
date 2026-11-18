@@ -61,7 +61,12 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.translate("Ort oder Koordinaten suchen")),
+    title: Text(
+      context.localized(
+        "Ort oder Koordinaten suchen",
+        (l10n) => l10n.commonOrtOderKoordinatenSuchen6904cb89,
+      ),
+    ),
     scrollable: true,
     content: SizedBox(
       width: 460,
@@ -76,7 +81,10 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
             maxLength: 200,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              labelText: context.translate("Koordinaten, Ort oder Straße"),
+              labelText: context.localized(
+                "Koordinaten, Ort oder Straße",
+                (l10n) => l10n.commonKoordinatenOrtOderStrasseed101593,
+              ),
               counterText: '',
               hintText: '46.7, 8.4 · LV95: 2600000 / 1200000',
             ),
@@ -116,12 +124,16 @@ class CoordinatesDialogState extends State<CoordinatesDialog> {
       const GuideLink(GuideTopic.coordinates, label: 'Koordinatenhilfe'),
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text(context.translate("Cancel")),
+        child: Text(
+          context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+        ),
       ),
       FilledButton.icon(
         onPressed: _busy ? null : _submit,
         icon: const Icon(Icons.search),
-        label: Text(context.translate("Suchen")),
+        label: Text(
+          context.localized("Suchen", (l10n) => l10n.homeSuchen20a96919),
+        ),
       ),
     ],
   );

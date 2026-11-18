@@ -15,8 +15,9 @@ class CachedMapNotice extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            context.translate(
+            context.localized(
               "Cached base map & terrain · coverage may be incomplete or outdated. Live overlays and API actions require separate verification.",
+              (l10n) => l10n.offlineCachedBaseMapTerrainecfb9aaf,
             ),
           ),
           GuideLink(GuideTopic.offline),

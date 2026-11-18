@@ -356,26 +356,40 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                 shrinkWrap: true,
                 children: [
                   Text(
-                    context.translate("Verkehr entlang der Route"),
+                    context.localized(
+                      "Verkehr entlang der Route",
+                      (l10n) => l10n.mobilityVerkehrEntlangDerRoute746b9545,
+                    ),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   Text(
-                    context.translate(
+                    context.localized(
                       "Meldungen im 300-m-Umfeld; Straße und Fahrtrichtung sind nicht bestätigt. Die Ankunftsschätzung enthält keine Stauzeiten.",
+                      (l10n) => l10n.mobilityMeldungenImMUmfeld417f6077,
                     ),
                   ),
                   if (nav.traffic == null && nav.counters == null)
-                    Text(context.translate("Verkehrsdaten ausgeschaltet")),
+                    Text(
+                      context.localized(
+                        "Verkehrsdaten ausgeschaltet",
+                        (l10n) =>
+                            l10n.mobilityVerkehrsdatenAusgeschalteta2ae8d43,
+                      ),
+                    ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      context.translate(
+                      context.localized(
                         "Verkehr bei Neuberechnung berücksichtigen",
+                        (l10n) => l10n
+                            .mobilityVerkehrBeiNeuberechnungBeruecksichtigen47577e32,
                       ),
                     ),
                     subtitle: Text(
-                      context.translate(
+                      context.localized(
                         "Nur ausreichend zugeordnete aktuelle Daten. Neue Meldungen allein lösen keinen Routenwechsel aus.",
+                        (l10n) => l10n
+                            .mobilityNurAusreichendZugeordneteAktuellea3f9bd6d,
                       ),
                     ),
                     value: nav.trafficAwareRouting,
@@ -387,12 +401,18 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                         ? nav.reroute
                         : null,
                     child: Text(
-                      context.translate("Routenalternativen neu berechnen"),
+                      context.localized(
+                        "Routenalternativen neu berechnen",
+                        (l10n) =>
+                            l10n.mobilityRoutenalternativenNeuBerechnen5de70eb6,
+                      ),
                     ),
                   ),
                   Text(
-                    context.translate(
+                    context.localized(
                       "Neuberechnungen sind frühestens alle 30 Sekunden möglich. Die Ankunftsschätzung bleibt ohne Verkehrszuschläge.",
+                      (l10n) => l10n
+                          .mobilityNeuberechnungenSindFruehestensAllea6a83143,
                     ),
                   ),
                   if (nav.routeTrafficEvaluation case final evaluation?) ...[
@@ -406,11 +426,17 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        context.translate("Automatisch aktualisieren"),
+                        context.localized(
+                          "Automatisch aktualisieren",
+                          (l10n) =>
+                              l10n.mobilityAutomatischAktualisierena2f998d7,
+                        ),
                       ),
                       subtitle: Text(
-                        context.translate(
+                        context.localized(
                           "Alle 60 Sekunden während der aktiven Navigation",
+                          (l10n) =>
+                              l10n.mobilityAlleSekundenWaehrendDer0476b439,
                         ),
                       ),
                       value: nav.automaticTrafficUpdates,
@@ -422,7 +448,12 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                           ? null
                           : () => nav.refreshTraffic(),
                       icon: const Icon(Icons.refresh),
-                      label: Text(context.translate("Verkehr aktualisieren")),
+                      label: Text(
+                        context.localized(
+                          "Verkehr aktualisieren",
+                          (l10n) => l10n.mobilityVerkehrAktualisieren7e12eefe,
+                        ),
+                      ),
                     ),
                     TrafficBulletin(
                       provider: nav.traffic!,
@@ -438,7 +469,11 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                   ],
                   if (nav.counters != null) ...[
                     Text(
-                      context.translate("Messstellen im gewählten Gebiet"),
+                      context.localized(
+                        "Messstellen im gewählten Gebiet",
+                        (l10n) =>
+                            l10n.mobilityMessstellenImGewaehltenGebietfb7f4f74,
+                      ),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     TrafficCountersReadout(provider: nav.counters!),
@@ -476,30 +511,58 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
         : step?.instruction ?? 'Der Route folgen';
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.translate("Navigation")),
+        title: Text(
+          context.localized(
+            "Navigation",
+            (l10n) => l10n.mobilityNavigationcf03cf2e,
+          ),
+        ),
         actions: [
           PopupMenuButton<String>(
-            tooltip: context.translate("Kartendarstellung"),
+            tooltip: context.localized(
+              "Kartendarstellung",
+              (l10n) => l10n.mobilityKartendarstellungefb26012,
+            ),
             icon: const Icon(Icons.layers_outlined),
             enabled: _globe.isReady,
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'topographic',
-                child: Text(context.translate("Topografische Karte")),
+                child: Text(
+                  context.localized(
+                    "Topografische Karte",
+                    (l10n) => l10n.mobilityTopografischeKarte0698a0c0,
+                  ),
+                ),
               ),
               PopupMenuItem(
                 value: 'satellite',
-                child: Text(context.translate("Satellitenkarte")),
+                child: Text(
+                  context.localized(
+                    "Satellitenkarte",
+                    (l10n) => l10n.mobilitySatellitenkarte6afd828c,
+                  ),
+                ),
               ),
               CheckedPopupMenuItem(
                 key: const Key('navigation-roads-toggle'),
                 value: 'roads',
                 checked: _globe.roadsVisible,
-                child: Text(context.translate("Straßen und Wege")),
+                child: Text(
+                  context.localized(
+                    "Straßen und Wege",
+                    (l10n) => l10n.commonStrassenUndWegea615580e,
+                  ),
+                ),
               ),
               PopupMenuItem(
                 value: 'environment',
-                child: Text(context.translate("3D-Umgebung")),
+                child: Text(
+                  context.localized(
+                    "3D-Umgebung",
+                    (l10n) => l10n.mobilityDUmgebungb7f47aad,
+                  ),
+                ),
               ),
             ],
             onSelected: (choice) async {
@@ -526,8 +589,15 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
           ),
           IconButton(
             tooltip: _voice
-                ? context.translate("Sprachausgabe ausschalten")
-                : context.translate("Offline-Sprachausgabe einschalten"),
+                ? context.localized(
+                    "Sprachausgabe ausschalten",
+                    (l10n) => l10n.mobilitySprachausgabeAusschalten212e3af6,
+                  )
+                : context.localized(
+                    "Offline-Sprachausgabe einschalten",
+                    (l10n) =>
+                        l10n.mobilityOfflineSprachausgabeEinschalten826f1a70,
+                  ),
             icon: Icon(_voice ? Icons.volume_up : Icons.volume_off),
             onPressed: () {
               setState(() {
@@ -544,7 +614,12 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(context.translate("Beenden")),
+            child: Text(
+              context.localized(
+                "Beenden",
+                (l10n) => l10n.mobilityBeendence9e650e,
+              ),
+            ),
           ),
         ],
       ),
@@ -557,7 +632,12 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                 nav.start();
               },
               icon: const Icon(Icons.my_location),
-              label: Text(context.translate("GPS erneut verbinden")),
+              label: Text(
+                context.localized(
+                  "GPS erneut verbinden",
+                  (l10n) => l10n.mobilityGpsErneutVerbindend3c0a56a,
+                ),
+              ),
             ),
           Material(
             color: scheme.primaryContainer,
@@ -625,15 +705,21 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                tooltip: context.translate("Näher heranzoomen"),
+                                tooltip: context.localized(
+                                  "Näher heranzoomen",
+                                  (l10n) =>
+                                      l10n.mobilityNaeherHeranzoomenccfc2dce,
+                                ),
                                 onPressed: _zoomIndex > 0
                                     ? () => _zoom(-1)
                                     : null,
                                 icon: const Icon(Icons.add),
                               ),
                               IconButton(
-                                tooltip: context.translate(
+                                tooltip: context.localized(
                                   "Weiter herauszoomen",
+                                  (l10n) =>
+                                      l10n.mobilityWeiterHerauszoomen212b4f14,
                                 ),
                                 onPressed:
                                     _zoomIndex < _cameraDistances.length - 1
@@ -648,8 +734,14 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                       FloatingActionButton.small(
                         heroTag: 'navigation-follow',
                         tooltip: _follow
-                            ? context.translate("Karte frei bewegen")
-                            : context.translate("Standort folgen"),
+                            ? context.localized(
+                                "Karte frei bewegen",
+                                (l10n) => l10n.mobilityKarteFreiBewegene1d97140,
+                              )
+                            : context.localized(
+                                "Standort folgen",
+                                (l10n) => l10n.mobilityStandortFolgen5650d84d,
+                              ),
                         onPressed: () {
                           setState(() => _follow = !_follow);
                           _updateMap();
@@ -684,14 +776,25 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                 children: [
                   Text(
                     nav.reliable
-                        ? context.translate("{0} min · {1} · Ankunft {2}:{3}", [
-                            (nav.remainingSeconds / 60).ceil(),
-                            navigationDistance(nav.remainingMeters),
-                            eta.hour.toString().padLeft(2, '0'),
-                            eta.minute.toString().padLeft(2, '0'),
-                          ])
-                        : context.translate(
+                        ? context.localizedWithArgs(
+                            "{0} min · {1} · Ankunft {2}:{3}",
+                            [
+                              (nav.remainingSeconds / 60).ceil(),
+                              navigationDistance(nav.remainingMeters),
+                              eta.hour.toString().padLeft(2, '0'),
+                              eta.minute.toString().padLeft(2, '0'),
+                            ],
+                            (l10n, value) => l10n.mobilityMinAnkunft0b629c3a(
+                              value(0),
+                              value(1),
+                              value(2),
+                              value(3),
+                            ),
+                          )
+                        : context.localized(
                             "Fortschritt pausiert · GPS prüfen",
+                            (l10n) => l10n
+                                .mobilityFortschrittPausiertGpsPruefen63c6fa50,
                           ),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -702,17 +805,24 @@ class _RoadNavigationScreenState extends State<RoadNavigationScreen>
                     onPressed: _traffic,
                     icon: const Icon(Icons.traffic),
                     label: Text(
-                      context.translate("{0} Hinweise · {1}", [
-                        nav.upcomingTraffic.length,
-                        nav.trafficBadge,
-                      ]),
+                      context.localizedWithArgs(
+                        "{0} Hinweise · {1}",
+                        [nav.upcomingTraffic.length, nav.trafficBadge],
+                        (l10n, value) =>
+                            l10n.mobilityHinweisec38e74ed(value(0), value(1)),
+                      ),
                     ),
                   ),
                   if (nav.offRoute)
                     TextButton.icon(
                       onPressed: nav.recalculating ? null : () => nav.reroute(),
                       icon: const Icon(Icons.alt_route),
-                      label: Text(context.translate("Route neu berechnen")),
+                      label: Text(
+                        context.localized(
+                          "Route neu berechnen",
+                          (l10n) => l10n.mobilityRouteNeuBerechnen8225e5ba,
+                        ),
+                      ),
                     ),
                 ],
               ),

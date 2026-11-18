@@ -171,7 +171,9 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        kind == 'origin' ? 'Start' : context.translate("Ziel"),
+        kind == 'origin'
+            ? 'Start'
+            : context.localized("Ziel", (l10n) => l10n.mobilityZiel44d12621),
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 6),
@@ -184,8 +186,10 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
           initialValue: kind == 'origin' ? _originSpotId : _destinationSpotId,
           isExpanded: true,
           decoration: InputDecoration(
-            labelText: context.translate(
+            labelText: context.localized(
               "Gespeicherten Spot übernehmen (optional)",
+              (l10n) =>
+                  l10n.mobilityGespeichertenSpotUebernehmenOptionald048ef49,
             ),
           ),
           items: [
@@ -233,8 +237,14 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                   ),
                   decoration: InputDecoration(
                     labelText: axis == 'Lat'
-                        ? context.translate("Breitengrad")
-                        : context.translate("Längengrad"),
+                        ? context.localized(
+                            "Breitengrad",
+                            (l10n) => l10n.mobilityBreitengradf5eed2f2,
+                          )
+                        : context.localized(
+                            "Längengrad",
+                            (l10n) => l10n.mobilityLaengengrad9436942a,
+                          ),
                   ),
                   onChanged: (_) => setState(() {
                     if (kind == 'origin') {
@@ -281,7 +291,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                     });
                   },
             icon: const Icon(Icons.map_outlined),
-            label: Text(context.translate("Kartenpunkt")),
+            label: Text(
+              context.localized(
+                "Kartenpunkt",
+                (l10n) => l10n.mobilityKartenpunkt8b21f720,
+              ),
+            ),
           ),
           if (kind == 'origin')
             OutlinedButton.icon(
@@ -314,14 +329,21 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                       }
                     },
               icon: const Icon(Icons.my_location),
-              label: Text(context.translate("Gerätestandort")),
+              label: Text(
+                context.localized(
+                  "Gerätestandort",
+                  (l10n) => l10n.mobilityGeraetestandorta680a346,
+                ),
+              ),
             ),
         ],
       ),
       Text(
         kind == 'origin'
             ? 'Start: $_originName'
-            : context.translate("Ziel: {0}", [_destinationName]),
+            : context.localizedWithArgs("Ziel: {0}", [
+                _destinationName,
+              ], (l10n, value) => l10n.mobilityZiel85926175(value(0))),
       ),
     ],
   );
@@ -446,10 +468,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
       children: [
         if (time.timetableUtc != null)
           Text(
-            context.translate("{0} Fahrplan: {1}", [
-              label,
-              _format(time.timetableUtc!),
-            ]),
+            context.localizedWithArgs(
+              "{0} Fahrplan: {1}",
+              [label, _format(time.timetableUtc!)],
+              (l10n, value) =>
+                  l10n.mobilityFahrplan10147b40(value(0), value(1)),
+            ),
           ),
         if (time.estimatedUtc != null)
           Text(
@@ -469,45 +493,72 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         const Divider(),
         Text(
           _savedResult
-              ? context.translate("Gespeicherter Stand (offline nutzbar)")
-              : context.translate("OJP-Abfrageergebnis"),
+              ? context.localized(
+                  "Gespeicherter Stand (offline nutzbar)",
+                  (l10n) =>
+                      l10n.mobilityGespeicherterStandOfflineNutzbarc7dc6f17,
+                )
+              : context.localized(
+                  "OJP-Abfrageergebnis",
+                  (l10n) => l10n.mobilityOjpAbfrageergebnis539abae1,
+                ),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
-          context.translate("Abgerufen am {0} · {1} → {2}", [
-            _format(result.fetchedAtUtc),
-            result.originName,
-            result.destinationName,
-          ]),
+          context.localizedWithArgs(
+            "Abgerufen am {0} · {1} → {2}",
+            [
+              _format(result.fetchedAtUtc),
+              result.originName,
+              result.destinationName,
+            ],
+            (l10n, value) =>
+                l10n.mobilityAbgerufenAma792bdd8(value(0), value(1), value(2)),
+          ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "Fahrplan ist nicht garantiert. Prognosen nur, wenn vom Datenlieferanten verfügbar. Gespeicherte Daten sind niemals live.",
+            (l10n) => l10n.commonFahrplanIstNichtGarantiertc1ec8079,
           ),
         ),
         if (result.journeys.isEmpty)
           Text(
-            context.translate(
+            context.localized(
               "Für diese Anfrage wurden keine Verbindungen gefunden.",
+              (l10n) => l10n.mobilityFuerDieseAnfrageWurden9803db4c,
             ),
           ),
         for (var i = 0; i < result.journeys.length; i++)
           Card(
             child: ExpansionTile(
               title: Text(
-                context.translate("Verbindung {0}: {1} – {2}", [
-                  i + 1,
-                  _format(result.journeys[i].startUtc),
-                  _format(result.journeys[i].endUtc),
-                ]),
+                context.localizedWithArgs(
+                  "Verbindung {0}: {1} – {2}",
+                  [
+                    i + 1,
+                    _format(result.journeys[i].startUtc),
+                    _format(result.journeys[i].endUtc),
+                  ],
+                  (l10n, value) => l10n.mobilityVerbindungc49ec173(
+                    value(0),
+                    value(1),
+                    value(2),
+                  ),
+                ),
               ),
               subtitle: Text(
-                context.translate("{0} Umstiege · {1} Fußwege", [
-                  result.journeys[i].transfers,
-                  result.journeys[i].legs
-                      .where((leg) => leg.kind == OjpLegKind.walk)
-                      .length,
-                ]),
+                context.localizedWithArgs(
+                  "{0} Umstiege · {1} Fußwege",
+                  [
+                    result.journeys[i].transfers,
+                    result.journeys[i].legs
+                        .where((leg) => leg.kind == OjpLegKind.walk)
+                        .length,
+                  ],
+                  (l10n, value) =>
+                      l10n.mobilityUmstiegeFusswege891d4f80(value(0), value(1)),
+                ),
               ),
               children: [
                 for (final leg in result.journeys[i].legs)
@@ -548,8 +599,10 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
             onPressed: _busy ? null : _save,
             icon: const Icon(Icons.save_outlined),
             label: Text(
-              context.translate(
+              context.localized(
                 "Verbindungen offline als Momentaufnahme speichern",
+                (l10n) =>
+                    l10n.mobilityVerbindungenOfflineAlsMomentaufnahme0524e3f4,
               ),
             ),
           ),
@@ -562,21 +615,24 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        context.translate(
+        context.localized(
           "Offizieller Open Journey Planner 2.0 (Schweiz). Verbindungssuche bis zum tatsächlichen gewählten Punkt; Parkplatz- und Autokoordinaten werden nicht eingesetzt.",
+          (l10n) => l10n.mobilityOffiziellerOpenJourneyPlanner328efb58,
         ),
       ),
       const SizedBox(height: 8),
       Text(
-        context.translate(
+        context.localized(
           "Erforderlich: eigener OJP-2.0-API-Schlüssel mit freigeschaltetem Produkt. Zugangsdaten bleiben in lokalem Secure Storage (Web: nur Arbeitsspeicher dieser Sitzung).",
+          (l10n) => l10n.mobilityErforderlichEigenerOjpApi4a8d7c41,
         ),
       ),
       ApiCredentialsSection(policies: [ojp20Access]),
       if (kIsWeb)
         Text(
-          context.translate(
+          context.localized(
             "Web: OJP-CORS und Browser-Zugriff nicht verifiziert. Direkte Anfrage kann fehlschlagen. Kein Relay/Proxy vorhanden; Keys im Browser sind gegenüber Seitenskripten nicht geschützt.",
+            (l10n) => l10n.mobilityWebOjpCorsUndd96e47d9,
           ),
         ),
       const SizedBox(height: 12),
@@ -588,11 +644,21 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         segments: [
           ButtonSegment(
             value: OjpTimeMode.departure,
-            label: Text(context.translate("Abfahrt")),
+            label: Text(
+              context.localized(
+                "Abfahrt",
+                (l10n) => l10n.mobilityAbfahrt3cca3329,
+              ),
+            ),
           ),
           ButtonSegment(
             value: OjpTimeMode.arrival,
-            label: Text(context.translate("Ankunft")),
+            label: Text(
+              context.localized(
+                "Ankunft",
+                (l10n) => l10n.mobilityAnkunft0b4333da,
+              ),
+            ),
           ),
         ],
         selected: {_mode},
@@ -607,16 +673,24 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
         onPressed: _busy ? null : _pickDateTime,
         icon: const Icon(Icons.schedule),
         label: Text(
-          context.translate("{0} {1} (Gerätezeit)", [
-            _mode == OjpTimeMode.departure ? 'Abfahrt ab' : 'Ankunft bis',
-            _format(_localTime.toUtc()),
-          ]),
+          context.localizedWithArgs(
+            "{0} {1} (Gerätezeit)",
+            [
+              _mode == OjpTimeMode.departure ? 'Abfahrt ab' : 'Ankunft bis',
+              _format(_localTime.toUtc()),
+            ],
+            (l10n, value) =>
+                l10n.mobilityGeraetezeit4dd99dec(value(0), value(1)),
+          ),
         ),
       ),
       DropdownButtonFormField<OjpApiPlan>(
         initialValue: _client.plan,
         decoration: InputDecoration(
-          labelText: context.translate("Aktiver OJP-API-Plan (Sitzung)"),
+          labelText: context.localized(
+            "Aktiver OJP-API-Plan (Sitzung)",
+            (l10n) => l10n.mobilityAktiverOjpApiPlan5dce0b6f,
+          ),
         ),
         items: [
           for (final plan in OjpApiPlan.values)
@@ -629,8 +703,9 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
               },
       ),
       Text(
-        context.translate(
+        context.localized(
           "Anfragebudget gilt nur für diese App-Sitzung. Die offiziellen Quoten gelten gemeinsam für alle Geräte mit demselben Schlüssel; HTTP 429 wird respektiert.",
+          (l10n) => l10n.mobilityAnfragebudgetGiltNurFuer8bf6ad74,
         ),
       ),
       CheckboxListTile(
@@ -640,15 +715,21 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
             ? null
             : (value) => setState(() => _consent = value ?? false),
         title: Text(
-          context.translate(
+          context.localized(
             "Start, Ziel und Reisezeit für die Abfrage an opentransportdata.swiss senden.",
+            (l10n) => l10n.commonStartZielUndReisezeit1a5914f9,
           ),
         ),
       ),
       FilledButton.icon(
         onPressed: !_consent || _busy ? null : _calculate,
         icon: const Icon(Icons.directions_transit),
-        label: Text(context.translate("ÖV-Verbindungen suchen")),
+        label: Text(
+          context.localized(
+            "ÖV-Verbindungen suchen",
+            (l10n) => l10n.mobilityOvVerbindungenSuchen7014824a,
+          ),
+        ),
       ),
       if (_busy) const LinearProgressIndicator(),
       if (_message != null)
@@ -662,9 +743,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
       if (_saved.isNotEmpty)
         ExpansionTile(
           title: Text(
-            context.translate("Gespeicherte Verbindungen ({0})", [
-              _saved.length,
-            ]),
+            context.localizedWithArgs(
+              "Gespeicherte Verbindungen ({0})",
+              [_saved.length],
+              (l10n, value) =>
+                  l10n.mobilityGespeicherteVerbindungen895ea994(value(0)),
+            ),
           ),
           children: [
             for (final snapshot in _saved)
@@ -673,9 +757,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
                   '${snapshot.originName} → ${snapshot.destinationName}',
                 ),
                 subtitle: Text(
-                  context.translate("Stand {0} · offline, nicht live", [
-                    _format(snapshot.fetchedAtUtc),
-                  ]),
+                  context.localizedWithArgs(
+                    "Stand {0} · offline, nicht live",
+                    [_format(snapshot.fetchedAtUtc)],
+                    (l10n, value) =>
+                        l10n.commonStandOfflineNichtLive42b1bd9b(value(0)),
+                  ),
                 ),
                 onTap: () => setState(() {
                   _result = snapshot;
@@ -697,7 +784,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
             }
           },
           icon: const Icon(Icons.pedal_bike),
-          label: Text(context.translate("Sharing-Angebote am ÖV-Ziel suchen")),
+          label: Text(
+            context.localized(
+              "Sharing-Angebote am ÖV-Ziel suchen",
+              (l10n) => l10n.mobilitySharingAngeboteAmOvcb5d14df,
+            ),
+          ),
         ),
       TextButton.icon(
         onPressed: () => launchUrl(
@@ -707,7 +799,12 @@ class _PublicTransportSectionState extends State<PublicTransportSection> {
           mode: LaunchMode.externalApplication,
         ),
         icon: const Icon(Icons.open_in_new),
-        label: Text(context.translate("OJP-Dokumentation und Quelle")),
+        label: Text(
+          context.localized(
+            "OJP-Dokumentation und Quelle",
+            (l10n) => l10n.mobilityOjpDokumentationUndQuelle808dc1c2,
+          ),
+        ),
       ),
     ],
   );
@@ -733,7 +830,14 @@ class PublicTransportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("ÖV-Verbindungen · OJP 2.0"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "ÖV-Verbindungen · OJP 2.0",
+          (l10n) => l10n.mobilityOvVerbindungenOjp3ac37a87,
+        ),
+      ),
+    ),
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [

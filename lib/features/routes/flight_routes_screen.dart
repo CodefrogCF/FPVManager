@@ -68,9 +68,9 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
-            dialogContext.translate("Import {0} routes?", [
+            dialogContext.localizedWithArgs("Import {0} routes?", [
               preview.routes.length,
-            ]),
+            ], (l10n, value) => l10n.routesImportRoutes1b71c46b(value(0))),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -78,16 +78,19 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  dialogContext.translate(
+                  dialogContext.localized(
                     "New local copies are created. Existing routes and equipment assignments are preserved.",
+                    (l10n) => l10n.routesNewLocalCopiesArec3efa17b,
                   ),
                 ),
                 for (final route in preview.routes)
                   Text(
-                    dialogContext.translate("{0} · {1} waypoints", [
-                      route.name,
-                      route.points.length,
-                    ]),
+                    dialogContext.localizedWithArgs(
+                      "{0} · {1} waypoints",
+                      [route.name, route.points.length],
+                      (l10n, value) =>
+                          l10n.routesWaypoints31c92956(value(0), value(1)),
+                    ),
                   ),
                 for (final warning in preview.warnings)
                   Padding(
@@ -96,8 +99,9 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
                   ),
                 const SizedBox(height: 8),
                 Text(
-                  dialogContext.translate(
+                  dialogContext.localized(
                     "Review coordinates and height references before planning a flight.",
+                    (l10n) => l10n.routesReviewCoordinatesAndHeight88280ee0,
                   ),
                 ),
               ],
@@ -106,11 +110,21 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(dialogContext.translate("Cancel")),
+              child: Text(
+                dialogContext.localized(
+                  "Cancel",
+                  (l10n) => l10n.commonCancel77dfd213,
+                ),
+              ),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(dialogContext.translate("Import locally")),
+              child: Text(
+                dialogContext.localized(
+                  "Import locally",
+                  (l10n) => l10n.commonImportLocallycfc01f3f,
+                ),
+              ),
             ),
           ],
         ),
@@ -211,10 +225,18 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(context.translate("Flight routes")),
+      title: Text(
+        context.localized(
+          "Flight routes",
+          (l10n) => l10n.routesFlightRoutescf03df8f,
+        ),
+      ),
       actions: [
         IconButton(
-          tooltip: context.translate("Import routes"),
+          tooltip: context.localized(
+            "Import routes",
+            (l10n) => l10n.routesImportRoutesbbcd66ff,
+          ),
           onPressed: _transferring ? null : _import,
           icon: const Icon(Icons.file_upload_outlined),
         ),
@@ -234,13 +256,23 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(context.translate("Unable to load saved routes.")),
+                Text(
+                  context.localized(
+                    "Unable to load saved routes.",
+                    (l10n) => l10n.routesUnableToLoadSavedda813904,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => setState(
                     () =>
                         _routes = widget.repository.watchFlightPlanSummaries(),
                   ),
-                  child: Text(context.translate("Retry")),
+                  child: Text(
+                    context.localized(
+                      "Retry",
+                      (l10n) => l10n.commonRetry9f5cd8a2,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -254,8 +286,9 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                context.translate(
+                context.localized(
                   "No saved flight routes yet. Create a route and place waypoints on the map.",
+                  (l10n) => l10n.routesNoSavedFlightRoutesa271a04f,
                 ),
               ),
             ),
@@ -282,35 +315,57 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
                 ),
                 builder: (context, details) => Text(
                   details.hasError
-                      ? context.translate("Recording details unavailable")
+                      ? context.localized(
+                          "Recording details unavailable",
+                          (l10n) =>
+                              l10n.routesRecordingDetailsUnavailable028143fa,
+                        )
                       : details.data ??
-                            context.translate("Stored on this device"),
+                            context.localized(
+                              "Stored on this device",
+                              (l10n) => l10n.routesStoredOnThisDevicece3661a2,
+                            ),
                 ),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: context.translate("Simulate flight: {0}", [
-                      route.name,
-                    ]),
+                    tooltip: context.localizedWithArgs(
+                      "Simulate flight: {0}",
+                      [route.name],
+                      (l10n, value) =>
+                          l10n.routesSimulateFlight6c31fd20(value(0)),
+                    ),
                     icon: const Icon(Icons.play_circle_outline),
                     onPressed: _transferring
                         ? null
                         : () => Navigator.of(context).pop(route.id),
                   ),
                   PopupMenuButton<RouteFileFormat>(
-                    tooltip: context.translate("Export {0}", [route.name]),
+                    tooltip: context.localizedWithArgs("Export {0}", [
+                      route.name,
+                    ], (l10n, value) => l10n.routesExport98e40159(value(0))),
                     enabled: !_transferring,
                     onSelected: (format) => _export(route.id, format),
                     itemBuilder: (_) => [
                       PopupMenuItem(
                         value: RouteFileFormat.geoJson,
-                        child: Text(context.translate("Export GeoJSON")),
+                        child: Text(
+                          context.localized(
+                            "Export GeoJSON",
+                            (l10n) => l10n.routesExportGeojsonbdc0686f,
+                          ),
+                        ),
                       ),
                       PopupMenuItem(
                         value: RouteFileFormat.gpx,
-                        child: Text(context.translate("Export GPX")),
+                        child: Text(
+                          context.localized(
+                            "Export GPX",
+                            (l10n) => l10n.routesExportGpxed2fd89b,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -325,7 +380,9 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
     floatingActionButton: FloatingActionButton.extended(
       onPressed: _open,
       icon: const Icon(Icons.add),
-      label: Text(context.translate("New route")),
+      label: Text(
+        context.localized("New route", (l10n) => l10n.routesNewRoutef39fa269),
+      ),
     ),
   );
 }

@@ -37,7 +37,14 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("Radio & video equipment"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "Radio & video equipment",
+          (l10n) => l10n.radioRadioVideoEquipment93933cea,
+        ),
+      ),
+    ),
     body: StreamBuilder<List<RadioEquipmentData>>(
       stream: _equipment,
       builder: (context, snapshot) {
@@ -46,12 +53,22 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(context.translate("Unable to load equipment profiles.")),
+                Text(
+                  context.localized(
+                    "Unable to load equipment profiles.",
+                    (l10n) => l10n.radioUnableToLoadEquipment2a0842d8,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => setState(
                     () => _equipment = widget.repository.watchEquipment(),
                   ),
-                  child: Text(context.translate("Retry")),
+                  child: Text(
+                    context.localized(
+                      "Retry",
+                      (l10n) => l10n.commonRetry9f5cd8a2,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -65,8 +82,9 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                context.translate(
+                context.localized(
                   "No equipment profiles yet. Add separate configurations for radio control, video or telemetry.",
+                  (l10n) => l10n.commonNoEquipmentProfilesYet41f7bf08,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -99,7 +117,12 @@ class _RadioEquipmentScreenState extends State<RadioEquipmentScreen> {
     floatingActionButton: FloatingActionButton.extended(
       onPressed: _add,
       icon: const Icon(Icons.add),
-      label: Text(context.translate("Add equipment")),
+      label: Text(
+        context.localized(
+          "Add equipment",
+          (l10n) => l10n.radioAddEquipmentda5d2801,
+        ),
+      ),
     ),
   );
 }

@@ -257,7 +257,9 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
           top: 0,
           right: 0,
           child: IconButton.filledTonal(
-            tooltip: context.translate("Remove photo {0}", [number]),
+            tooltip: context.localizedWithArgs("Remove photo {0}", [
+              number,
+            ], (l10n, value) => l10n.spotsRemovePhoto67e118ac(value(0))),
             visualDensity: VisualDensity.compact,
             onPressed: _busy ? null : remove,
             icon: const Icon(Icons.close, size: 18),
@@ -286,8 +288,11 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
     child: AlertDialog(
       title: Text(
         widget.spot == null
-            ? context.translate("Add Spot")
-            : context.translate("Edit Spot"),
+            ? context.localized("Add Spot", (l10n) => l10n.spotsAddSpot7e93bac9)
+            : context.localized(
+                "Edit Spot",
+                (l10n) => l10n.spotsEditSpot082811c9,
+              ),
       ),
       content: SizedBox(
         width: 460,
@@ -304,7 +309,10 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                   enabled: !_saving,
                   maxLength: 120,
                   decoration: InputDecoration(
-                    labelText: context.translate("Spot name"),
+                    labelText: context.localized(
+                      "Spot name",
+                      (l10n) => l10n.spotsSpotName811bf0db,
+                    ),
                   ),
                   validator: (value) =>
                       (value ?? '').trim().isEmpty ? 'Enter a spot name' : null,
@@ -318,7 +326,10 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: context.translate("Latitude (WGS84)"),
+                    labelText: context.localized(
+                      "Latitude (WGS84)",
+                      (l10n) => l10n.spotsLatitudeWgs060b3235,
+                    ),
                   ),
                   validator: (value) => _validateCoordinate(value, -90, 90),
                 ),
@@ -331,7 +342,10 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: context.translate("Longitude (WGS84)"),
+                    labelText: context.localized(
+                      "Longitude (WGS84)",
+                      (l10n) => l10n.spotsLongitudeWgs39118820,
+                    ),
                   ),
                   validator: (value) => _validateCoordinate(value, -180, 180),
                 ),
@@ -343,8 +357,14 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                     icon: const Icon(Icons.my_location),
                     label: Text(
                       _locating
-                          ? context.translate("Locating…")
-                          : context.translate("Use current location"),
+                          ? context.localized(
+                              "Locating…",
+                              (l10n) => l10n.spotsLocatinge46bab00,
+                            )
+                          : context.localized(
+                              "Use current location",
+                              (l10n) => l10n.spotsUseCurrentLocation622c745f,
+                            ),
                     ),
                   ),
                 ),
@@ -359,8 +379,9 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                   enabled: !_saving,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: context.translate(
+                    labelText: context.localized(
                       "Description / notes (optional)",
+                      (l10n) => l10n.spotsDescriptionNotesOptionalcfd33085,
                     ),
                   ),
                 ),
@@ -379,10 +400,12 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  context.translate("Photos ({0}/{1})", [
-                    _photoCount,
-                    SpotPhotoLimits.maxPhotos,
-                  ]),
+                  context.localizedWithArgs(
+                    "Photos ({0}/{1})",
+                    [_photoCount, SpotPhotoLimits.maxPhotos],
+                    (l10n, value) =>
+                        l10n.spotsPhotosc4363ac9(value(0), value(1)),
+                  ),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -435,12 +458,18 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                         ? null
                         : _pickPhoto,
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: Text(context.translate("Add photo")),
+                    label: Text(
+                      context.localized(
+                        "Add photo",
+                        (l10n) => l10n.spotsAddPhotod1434930,
+                      ),
+                    ),
                   ),
                 ),
                 Text(
-                  context.translate(
+                  context.localized(
                     "JPEG, PNG or WebP · up to 12 MiB and 16 MP each. Photos are resized and stored locally.",
+                    (l10n) => l10n.commonJpegPngOrWebpe13c3bbf,
                   ),
                   style: TextStyle(fontSize: 12),
                 ),
@@ -457,7 +486,12 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
                 if (_loadFailed)
                   TextButton(
                     onPressed: _busy ? null : _loadPhotos,
-                    child: Text(context.translate("Retry loading photos")),
+                    child: Text(
+                      context.localized(
+                        "Retry loading photos",
+                        (l10n) => l10n.spotsRetryLoadingPhotos2e5d214a,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -467,12 +501,19 @@ class _SpotEditorDialogState extends State<SpotEditorDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: Text(context.translate("Cancel")),
+          child: Text(
+            context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+          ),
         ),
         FilledButton(
           onPressed: _busy || _loadFailed ? null : _save,
           child: Text(
-            _saving ? context.translate("Saving…") : context.translate("Save"),
+            _saving
+                ? context.localized(
+                    "Saving…",
+                    (l10n) => l10n.commonSaving56a2285c,
+                  )
+                : context.localized("Save", (l10n) => l10n.commonSaveefc007a3),
           ),
         ),
       ],

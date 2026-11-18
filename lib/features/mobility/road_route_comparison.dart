@@ -138,11 +138,15 @@ class _ComparisonState extends State<RoadRouteComparison> {
       SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
         title: Text(
-          context.translate("Verkehr bei der Routenbewertung berücksichtigen"),
+          context.localized(
+            "Verkehr bei der Routenbewertung berücksichtigen",
+            (l10n) => l10n.mobilityVerkehrBeiDerRoutenbewertung65a144f1,
+          ),
         ),
         subtitle: Text(
-          context.translate(
+          context.localized(
             "Nutzt vorhandene Daten. Beeinflusst auch spätere Neuberechnungen; die Fahrzeit bleibt eine OSRM-Basisschätzung.",
+            (l10n) => l10n.mobilityNutztVorhandeneDatenBeeinflusst7a5969ac,
           ),
         ),
         value: widget.enabled,
@@ -153,7 +157,12 @@ class _ComparisonState extends State<RoadRouteComparison> {
           alignment: Alignment.centerLeft,
           child: TextButton(
             onPressed: widget.onOpenTraffic,
-            child: Text(context.translate("Verkehrsdaten laden / prüfen")),
+            child: Text(
+              context.localized(
+                "Verkehrsdaten laden / prüfen",
+                (l10n) => l10n.mobilityVerkehrsdatenLadenPruefen27aded3f,
+              ),
+            ),
           ),
         ),
       if (_busy) const LinearProgressIndicator(),
@@ -188,14 +197,17 @@ class _ComparisonState extends State<RoadRouteComparison> {
         RouteTrafficExplanation(evaluation: _result!),
       if (widget.routes.first.omittedAlternatives > 0)
         Text(
-          context.translate(
+          context.localizedWithArgs(
             "{0} weitere / ungültige Alternativen nicht dargestellt.",
             [widget.routes.first.omittedAlternatives],
+            (l10n, value) => l10n
+                .mobilityWeitereUngueltigeAlternativenNichtc1e16f33(value(0)),
           ),
         ),
       Text(
-        context.translate(
+        context.localized(
           "OSRM liefert nicht immer Alternativen. Fehlende Meldungen oder Messungen bestätigen keinen freien Verkehrsfluss.",
+          (l10n) => l10n.mobilityOsrmLiefertNichtImmer92919ffd,
         ),
       ),
     ],
@@ -210,32 +222,48 @@ class RouteTrafficAssessmentView extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        context.translate(
+        context.localizedWithArgs(
           "{0} zugeordnete Sperrmeldungen · {1} zugeordnete Quellenhinweise",
           [assessment.closures, assessment.evidence.length],
+          (l10n, value) => l10n
+              .mobilityZugeordneteSperrmeldungenZugeordneteQuellenhinweiseee632e99(
+                value(0),
+                value(1),
+              ),
         ),
       ),
       if (assessment.reportedDelaySeconds != null)
         Text(
-          context.translate(
+          context.localizedWithArgs(
             "Größte publizierte Verzögerung: {0} min · Vergleichswert, nicht zur Ankunftszeit addiert",
             [(assessment.reportedDelaySeconds! / 60).ceil()],
+            (l10n, value) =>
+                l10n.commonGroesstePublizierteVerzoegerungMinc0ec7c7c(value(0)),
           ),
         ),
       if (assessment.incomplete)
         Text(
-          context.translate(
+          context.localized(
             "Bewertung unvollständig · keine verkehrsbasierte Empfehlung",
+            (l10n) => l10n
+                .mobilityBewertungUnvollstaendigKeineVerkehrsbasierte655a9750,
           ),
         ),
       ExpansionTile(
         tilePadding: EdgeInsets.zero,
-        title: Text(context.translate("Zuordnung und Quellen")),
+        title: Text(
+          context.localized(
+            "Zuordnung und Quellen",
+            (l10n) => l10n.mobilityZuordnungUndQuellend088f13c,
+          ),
+        ),
         children: [
           Text(
-            context.translate(
+            context.localizedWithArgs(
               "{0} Datensätze nicht sicher zugeordnet / nicht gewichtet. Fehlende Straßenkennung, Richtung, Ortsauflösung oder Gültigkeit bleiben unbekannt.",
               [assessment.ignored],
+              (l10n, value) =>
+                  l10n.commonDatensaetzeNichtSicherZugeordnet393f5548(value(0)),
             ),
           ),
           for (final e in assessment.evidence.take(30))
@@ -249,9 +277,12 @@ class RouteTrafficAssessmentView extends StatelessWidget {
             ),
           if (assessment.evidence.length > 30)
             Text(
-              context.translate("{0} weitere zugeordnete Hinweise", [
-                assessment.evidence.length - 30,
-              ]),
+              context.localizedWithArgs(
+                "{0} weitere zugeordnete Hinweise",
+                [assessment.evidence.length - 30],
+                (l10n, value) =>
+                    l10n.mobilityWeitereZugeordneteHinweise883d2761(value(0)),
+              ),
             ),
         ],
       ),
@@ -265,25 +296,37 @@ class RouteTrafficExplanation extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
-    title: Text(context.translate("Datenstand und Bewertungsregeln")),
+    title: Text(
+      context.localized(
+        "Datenstand und Bewertungsregeln",
+        (l10n) => l10n.mobilityDatenstandUndBewertungsregeln47599d2e,
+      ),
+    ),
     children: [
       Text(
-        context.translate("Vergleich: {0}", [evaluation.evaluatedAt.toLocal()]),
+        context.localizedWithArgs("Vergleich: {0}", [
+          evaluation.evaluatedAt.toLocal(),
+        ], (l10n, value) => l10n.mobilityVergleichd42555f6(value(0))),
       ),
       Text(evaluation.trafficStatus),
       Text(evaluation.counterStatus),
       Text(
-        context.translate(
+        context.localized(
           "Zuerst werden Routen mit zugeordneten Sperrmeldungen nachrangig angezeigt. Danach zählen OSRM-Basiszeit und der größte publizierte Verzögerungswert. Verzögerungen werden nicht summiert und verändern die angezeigte Ankunftszeit nicht.",
+          (l10n) => l10n.mobilityZuerstWerdenRoutenMit9d2c4bb2,
         ),
       ),
       Text(
         evaluation.speedCompared
-            ? context.translate(
+            ? context.localized(
                 "Vergleichbare Gesamtverkehrs-Messungen aller Alternativen beeinflussen den Vergleich geringfügig (höchstens ein Vergleichspunkt).",
+                (l10n) => l10n
+                    .mobilityVergleichbareGesamtverkehrsMessungenAller0e5faa9f,
               )
-            : context.translate(
+            : context.localized(
                 "Punktuelle Geschwindigkeiten werden ohne vergleichbare Messungen aller Alternativen nicht gewichtet.",
+                (l10n) =>
+                    l10n.mobilityPunktuelleGeschwindigkeitenWerdenOhne74f8b6a6,
               ),
       ),
       const Text(

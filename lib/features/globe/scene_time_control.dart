@@ -54,9 +54,17 @@ class SceneTimeControl extends StatelessWidget {
       children: [
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("Eigene Sonnen- und Mondzeit")),
+          title: Text(
+            context.localized(
+              "Eigene Sonnen- und Mondzeit",
+              (l10n) => l10n.globeEigeneSonnenUndMondzeit785565c8,
+            ),
+          ),
           subtitle: Text(
-            context.translate("Aus: Beleuchtung der Karte verwenden."),
+            context.localized(
+              "Aus: Beleuchtung der Karte verwenden.",
+              (l10n) => l10n.globeAusBeleuchtungDerKarte53fe9a28,
+            ),
           ),
           value: value.enabled,
           onChanged: (enabled) =>
@@ -70,18 +78,26 @@ class SceneTimeControl extends StatelessWidget {
               TextButton.icon(
                 onPressed: () => onChanged(const SceneTime(enabled: true)),
                 icon: const Icon(Icons.update),
-                label: Text(context.translate("Jetzt")),
+                label: Text(
+                  context.localized("Jetzt", (l10n) => l10n.globeJetzt6b627c53),
+                ),
               ),
               TextButton.icon(
                 onPressed: () => _choose(context),
                 icon: const Icon(Icons.event_outlined),
-                label: Text(context.translate("Datum und Uhrzeit")),
+                label: Text(
+                  context.localized(
+                    "Datum und Uhrzeit",
+                    (l10n) => l10n.globeDatumUndUhrzeit6b922369,
+                  ),
+                ),
               ),
             ],
           ),
           Text(
-            context.translate(
+            context.localized(
               "Eingabe in der Zeitzone des Geräts; gespeichert in UTC. Nur Lichtvorschau, keine Wetter- oder Freigabeprüfung.",
+              (l10n) => l10n.commonEingabeInDerZeitzone41488cc9,
             ),
           ),
         ],

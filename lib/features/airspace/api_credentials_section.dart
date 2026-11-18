@@ -22,24 +22,30 @@ class ApiCredentialsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.translate("API access (free services only)"),
+          context.localized(
+            "API access (free services only)",
+            (l10n) => l10n.airspaceApiAccessFreeServicesa6e68dbd,
+          ),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 4),
         if (eligible.isEmpty)
           Text(
-            context.translate(
+            context.localized(
               "No supported airspace provider currently needs a freely obtainable API key. BAZL works without one; Skyguide NOTAM access is not verified as free.",
+              (l10n) => l10n.airspaceNoSupportedAirspaceProviderdcf17faa,
             ),
           ),
         if (eligible.isNotEmpty) ...[
           Text(
             kIsWeb
-                ? context.translate(
+                ? context.localized(
                     "Keys are kept for this browser session only and disappear after reload.",
+                    (l10n) => l10n.airspaceKeysAreKeptFor409824c9,
                   )
-                : context.translate(
+                : context.localized(
                     "Keys are stored locally using encrypted OS-backed storage, not app preferences.",
+                    (l10n) => l10n.commonKeysAreStoredLocally5e3f356a,
                   ),
           ),
           for (final policy in eligible)
@@ -142,8 +148,14 @@ class _CredentialEditorState extends State<_CredentialEditor> {
       Text(widget.policy.name, style: Theme.of(context).textTheme.labelLarge),
       Text(
         _saved
-            ? context.translate("Key configured")
-            : context.translate("No key configured"),
+            ? context.localized(
+                "Key configured",
+                (l10n) => l10n.airspaceKeyConfigured61737de7,
+              )
+            : context.localized(
+                "No key configured",
+                (l10n) => l10n.airspaceNoKeyConfigured697416d1,
+              ),
       ),
       TextField(
         controller: _key,
@@ -152,9 +164,13 @@ class _CredentialEditorState extends State<_CredentialEditor> {
         autocorrect: false,
         enableSuggestions: false,
         decoration: InputDecoration(
-          labelText: context.translate("API key"),
-          helperText: context.translate(
+          labelText: context.localized(
+            "API key",
+            (l10n) => l10n.airspaceApiKeycf678cab,
+          ),
+          helperText: context.localized(
             "Leave existing key unchanged by keeping this empty",
+            (l10n) => l10n.airspaceLeaveExistingKeyUnchanged814b9fe9,
           ),
         ),
       ),
@@ -170,11 +186,21 @@ class _CredentialEditorState extends State<_CredentialEditor> {
             onPressed: _loading || _key.text.trim().isEmpty
                 ? null
                 : () => _mutate(remove: false),
-            child: Text(context.translate("Save key")),
+            child: Text(
+              context.localized(
+                "Save key",
+                (l10n) => l10n.commonSaveKeyf5216b3a,
+              ),
+            ),
           ),
           TextButton(
             onPressed: _loading || !_saved ? null : () => _mutate(remove: true),
-            child: Text(context.translate("Remove key")),
+            child: Text(
+              context.localized(
+                "Remove key",
+                (l10n) => l10n.commonRemoveKey582d9a78,
+              ),
+            ),
           ),
           TextButton.icon(
             onPressed: _loading
@@ -190,7 +216,12 @@ class _CredentialEditorState extends State<_CredentialEditor> {
                     }
                   },
             icon: const Icon(Icons.open_in_new),
-            label: Text(context.translate("Get free API key")),
+            label: Text(
+              context.localized(
+                "Get free API key",
+                (l10n) => l10n.airspaceGetFreeApiKeyb5c8a05f,
+              ),
+            ),
           ),
         ],
       ),

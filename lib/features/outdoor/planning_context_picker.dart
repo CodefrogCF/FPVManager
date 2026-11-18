@@ -22,24 +22,49 @@ Future<List<MobilityPoint>?> choosePlanningContext(
   final choice = await showDialog<String>(
     context: context,
     builder: (context) => SimpleDialog(
-      title: Text(context.translate("Bezug wählen")),
+      title: Text(
+        context.localized(
+          "Bezug wählen",
+          (l10n) => l10n.outdoorBezugWaehlendcf73635,
+        ),
+      ),
       children: [
         if (selected != null)
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'map'),
-            child: Text(context.translate("Ausgewählter Kartenpunkt")),
+            child: Text(
+              context.localized(
+                "Ausgewählter Kartenpunkt",
+                (l10n) => l10n.outdoorAusgewaehlterKartenpunktd902892e,
+              ),
+            ),
           ),
         SimpleDialogOption(
           onPressed: () => Navigator.pop(context, 'search'),
-          child: Text(context.translate("Ort oder Koordinaten suchen")),
+          child: Text(
+            context.localized(
+              "Ort oder Koordinaten suchen",
+              (l10n) => l10n.commonOrtOderKoordinatenSuchen6904cb89,
+            ),
+          ),
         ),
         SimpleDialogOption(
           onPressed: () => Navigator.pop(context, 'spot'),
-          child: Text(context.translate("Gespeicherter Ort")),
+          child: Text(
+            context.localized(
+              "Gespeicherter Ort",
+              (l10n) => l10n.outdoorGespeicherterOrt25ce06f0,
+            ),
+          ),
         ),
         SimpleDialogOption(
           onPressed: () => Navigator.pop(context, 'flight'),
-          child: Text(context.translate("Gespeicherte Flugroute")),
+          child: Text(
+            context.localized(
+              "Gespeicherte Flugroute",
+              (l10n) => l10n.outdoorGespeicherteFlugroutede6dec82,
+            ),
+          ),
         ),
       ],
     ),
@@ -71,7 +96,12 @@ Future<List<MobilityPoint>?> choosePlanningContext(
   final id = await showDialog<int>(
     context: context,
     builder: (context) => SimpleDialog(
-      title: Text(context.translate("Flugroute auswählen · letzte 100")),
+      title: Text(
+        context.localized(
+          "Flugroute auswählen · letzte 100",
+          (l10n) => l10n.outdoorFlugrouteAuswaehlenLetzteeb04100f,
+        ),
+      ),
       children: [
         for (final p in plans)
           SimpleDialogOption(
@@ -81,7 +111,12 @@ Future<List<MobilityPoint>?> choosePlanningContext(
         if (plans.isEmpty)
           Padding(
             padding: EdgeInsets.all(16),
-            child: Text(context.translate("Noch keine Flugrouten gespeichert")),
+            child: Text(
+              context.localized(
+                "Noch keine Flugrouten gespeichert",
+                (l10n) => l10n.outdoorNochKeineFlugroutenGespeichertc7aeb7bc,
+              ),
+            ),
           ),
       ],
     ),

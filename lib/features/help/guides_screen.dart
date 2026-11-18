@@ -20,9 +20,9 @@ class GuideLink extends StatelessWidget {
     icon: const Icon(Icons.help_outline),
     label: Text(
       label == null
-          ? context.translate('Kurzhilfe: {0}', [
+          ? context.localizedWithArgs('Kurzhilfe: {0}', [
               context.translate(guideArticles[topic]!.title),
-            ])
+            ], (l10n, value) => l10n.helpKurzhilfec825661f(value(0)))
           : context.translate(label!),
     ),
   );
@@ -32,7 +32,14 @@ class GuidesScreen extends StatelessWidget {
   const GuidesScreen({super.key});
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("Guides und Hilfe"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "Guides und Hilfe",
+          (l10n) => l10n.helpGuidesUndHilfeecbecc1f,
+        ),
+      ),
+    ),
     body: ListView.builder(
       itemCount: GuideTopic.values.length,
       itemBuilder: (context, index) {

@@ -49,7 +49,10 @@ class SpotMapPreview extends StatelessWidget {
                 ),
               ),
               PopupMenuButton<_SpotAction>(
-                tooltip: context.translate("More spot actions"),
+                tooltip: context.localized(
+                  "More spot actions",
+                  (l10n) => l10n.homeMoreSpotActionsec926581,
+                ),
                 onSelected: (action) => switch (action) {
                   _SpotAction.airspace => onAirspace(),
                   _SpotAction.photos => onPhotos(),
@@ -57,16 +60,29 @@ class SpotMapPreview extends StatelessWidget {
                 itemBuilder: (_) => [
                   PopupMenuItem(
                     value: _SpotAction.airspace,
-                    child: Text(context.translate("Check airspace")),
+                    child: Text(
+                      context.localized(
+                        "Check airspace",
+                        (l10n) => l10n.homeCheckAirspace81aa4af7,
+                      ),
+                    ),
                   ),
                   PopupMenuItem(
                     value: _SpotAction.photos,
-                    child: Text(context.translate("Photos")),
+                    child: Text(
+                      context.localized(
+                        "Photos",
+                        (l10n) => l10n.commonPhotosc8b2e864,
+                      ),
+                    ),
                   ),
                 ],
               ),
               IconButton(
-                tooltip: context.translate("Close spot details"),
+                tooltip: context.localized(
+                  "Close spot details",
+                  (l10n) => l10n.homeCloseSpotDetailsb8c47dc2,
+                ),
                 onPressed: onClose,
                 icon: const Icon(Icons.close),
               ),
@@ -81,12 +97,22 @@ class SpotMapPreview extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onDetails,
                 icon: const Icon(Icons.info_outline),
-                label: Text(context.translate("Details")),
+                label: Text(
+                  context.localized(
+                    "Details",
+                    (l10n) => l10n.homeDetailsdc3decbb,
+                  ),
+                ),
               ),
               FilledButton.icon(
                 onPressed: onFocus,
                 icon: const Icon(Icons.navigation),
-                label: Text(context.translate("Fly to Spot")),
+                label: Text(
+                  context.localized(
+                    "Fly to Spot",
+                    (l10n) => l10n.homeFlyToSpot253cde4f,
+                  ),
+                ),
               ),
             ],
           ),

@@ -24,7 +24,12 @@ class SceneLayersSection extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                context.translate("3D-Aktion fehlgeschlagen: {0}", [message]),
+                context.localizedWithArgs(
+                  "3D-Aktion fehlgeschlagen: {0}",
+                  [message],
+                  (l10n, value) =>
+                      l10n.globeDAktionFehlgeschlagen11f40ae7(value(0)),
+                ),
               ),
             ),
           );
@@ -53,14 +58,19 @@ class SceneLayersSection extends StatelessWidget {
           if (visible && ['failed', 'partial', 'offline'].contains(state)) ...[
             Text(
               state == 'partial'
-                  ? context.translate(
+                  ? context.localized(
                       "Einige 3D-Kacheln fehlen. Geladene Modelle bleiben sichtbar.",
+                      (l10n) => l10n.globeEinigeDKachelnFehlenbf4b88d2,
                     )
                   : state == 'offline'
-                  ? context.translate(
+                  ? context.localized(
                       "3D-Daten offline nicht vollständig verfügbar.",
+                      (l10n) => l10n.globeDDatenOfflineNicht0512f9fe,
                     )
-                  : context.translate("3D-Daten derzeit nicht verfügbar."),
+                  : context.localized(
+                      "3D-Daten derzeit nicht verfügbar.",
+                      (l10n) => l10n.globeDDatenDerzeitNichtec1d811a,
+                    ),
             ),
             TextButton.icon(
               onPressed: enabled
@@ -68,7 +78,12 @@ class SceneLayersSection extends StatelessWidget {
                         change(() => controller.setSceneEnvironment(retry: key))
                   : null,
               icon: const Icon(Icons.refresh),
-              label: Text(context.translate("Erneut laden")),
+              label: Text(
+                context.localized(
+                  "Erneut laden",
+                  (l10n) => l10n.globeErneutLaden9c56689e,
+                ),
+              ),
             ),
           ],
         ],
@@ -78,7 +93,9 @@ class SceneLayersSection extends StatelessWidget {
     return ExpansionTile(
       key: const PageStorageKey('map-3d-environment'),
       tilePadding: EdgeInsets.zero,
-      title: Text(context.translate("3D & Licht")),
+      title: Text(
+        context.localized("3D & Licht", (l10n) => l10n.globeDLicht8b58e045),
+      ),
       children: [
         layer(
           'buildings',
@@ -101,7 +118,14 @@ class SceneLayersSection extends StatelessWidget {
         if (controller.structures3dVisible)
           Row(
             children: [
-              Expanded(child: Text(context.translate("Deckkraft"))),
+              Expanded(
+                child: Text(
+                  context.localized(
+                    "Deckkraft",
+                    (l10n) => l10n.globeDeckkraft3c11c68b,
+                  ),
+                ),
+              ),
               Expanded(
                 child: Slider(
                   value: controller.structuresOpacity,
@@ -121,10 +145,16 @@ class SceneLayersSection extends StatelessWidget {
           ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("3D-Tunnel automatisch laden")),
+          title: Text(
+            context.localized(
+              "3D-Tunnel automatisch laden",
+              (l10n) => l10n.globeDTunnelAutomatischLadena71b41bc,
+            ),
+          ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "Simulation · Online-Ersatzsuche sendet Kartenausschnitt.",
+              (l10n) => l10n.globeSimulationOnlineErsatzsucheSendet67c4c630,
             ),
           ),
           value: controller.schematicTunnel3dEnabled,
@@ -138,10 +168,15 @@ class SceneLayersSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              context.translate("{0} / {1} Tunnel geladen", [
-                controller.schematicTunnelMeshCount,
-                controller.schematicTunnelMeshBudget,
-              ]),
+              context.localizedWithArgs(
+                "{0} / {1} Tunnel geladen",
+                [
+                  controller.schematicTunnelMeshCount,
+                  controller.schematicTunnelMeshBudget,
+                ],
+                (l10n, value) =>
+                    l10n.globeTunnelGeladen76365023(value(0), value(1)),
+              ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -154,8 +189,18 @@ class SceneLayersSection extends StatelessWidget {
           ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("Sonnen- und Mondlicht")),
-          subtitle: Text(context.translate("Tag und Nacht nach Gerätezeit.")),
+          title: Text(
+            context.localized(
+              "Sonnen- und Mondlicht",
+              (l10n) => l10n.globeSonnenUndMondlichtc6291e64,
+            ),
+          ),
+          subtitle: Text(
+            context.localized(
+              "Tag und Nacht nach Gerätezeit.",
+              (l10n) => l10n.globeTagUndNachtNach5c260567,
+            ),
+          ),
           value: controller.realisticLighting,
           onChanged: enabled
               ? (value) => change(
@@ -166,16 +211,26 @@ class SceneLayersSection extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('map-tunnel-tools'),
           tilePadding: EdgeInsets.zero,
-          title: Text(context.translate("Tunnelwerkzeuge")),
+          title: Text(
+            context.localized(
+              "Tunnelwerkzeuge",
+              (l10n) => l10n.globeTunnelwerkzeuge9873b3ba,
+            ),
+          ),
           children: [
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                context.translate("3D-Modellkollisionen (experimentell)"),
+                context.localized(
+                  "3D-Modellkollisionen (experimentell)",
+                  (l10n) => l10n.globeDModellkollisionenExperimentell6ac94586,
+                ),
               ),
               subtitle: Text(
-                context.translate(
+                context.localized(
                   "Experimentell · geladene Modelloberflächen, keine exakte Wandprüfung.",
+                  (l10n) => l10n
+                      .commonExperimentellGeladeneModelloberflaechenKeine5d6ce860,
                 ),
               ),
               value: controller.sceneModelCollisionsEnabled,
@@ -192,21 +247,39 @@ class SceneLayersSection extends StatelessWidget {
                   ? () => change(() => controller.scanTunnelRoutes())
                   : null,
               icon: const Icon(Icons.travel_explore),
-              label: Text(context.translate("Tunnel in der Nähe suchen")),
+              label: Text(
+                context.localized(
+                  "Tunnel in der Nähe suchen",
+                  (l10n) => l10n.globeTunnelInDerNaehe75bf7c66,
+                ),
+              ),
             ),
             if (controller.tunnelScanPending) const LinearProgressIndicator(),
             if (controller.tunnelScanError != null)
               Text(
-                context.translate("Abfrage fehlgeschlagen: {0}", [
-                  controller.tunnelScanError,
-                ]),
+                context.localizedWithArgs(
+                  "Abfrage fehlgeschlagen: {0}",
+                  [controller.tunnelScanError],
+                  (l10n, value) =>
+                      l10n.globeAbfrageFehlgeschlagene25d055d(value(0)),
+                ),
               ),
             if (controller.tunnelScanIncomplete)
-              Text(context.translate("Tunnelabdeckung unvollständig.")),
+              Text(
+                context.localized(
+                  "Tunnelabdeckung unvollständig.",
+                  (l10n) => l10n.globeTunnelabdeckungUnvollstaendigcfa66c0f,
+                ),
+              ),
             if (controller.tunnelRoutes.isEmpty &&
                 !controller.tunnelScanPending &&
                 controller.tunnelScanError == null)
-              Text(context.translate("Noch keine Tunnel gefunden.")),
+              Text(
+                context.localized(
+                  "Noch keine Tunnel gefunden.",
+                  (l10n) => l10n.globeNochKeineTunnelGefundenbdf89230,
+                ),
+              ),
             for (final route in controller.tunnelRoutes)
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -214,7 +287,10 @@ class SceneLayersSection extends StatelessWidget {
                 subtitle: Text('${route['transport']} · ${route['source']}'),
                 isThreeLine: false,
                 trailing: PopupMenuButton<String>(
-                  tooltip: context.translate("Tunnelaktionen"),
+                  tooltip: context.localized(
+                    "Tunnelaktionen",
+                    (l10n) => l10n.globeTunnelaktionenc0d41bdb,
+                  ),
                   onSelected: (action) => change(() async {
                     final id = route['id'] as String;
                     if (action == 'start') {
@@ -228,17 +304,29 @@ class SceneLayersSection extends StatelessWidget {
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'start',
-                      child: Text(context.translate("Zum ersten Achsenpunkt")),
+                      child: Text(
+                        context.localized(
+                          "Zum ersten Achsenpunkt",
+                          (l10n) => l10n.globeZumErstenAchsenpunkt95f01d68,
+                        ),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'end',
-                      child: Text(context.translate("Zum letzten Achsenpunkt")),
+                      child: Text(
+                        context.localized(
+                          "Zum letzten Achsenpunkt",
+                          (l10n) => l10n.globeZumLetztenAchsenpunkt5cbcd957,
+                        ),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'model',
                       child: Text(
-                        context.translate(
+                        context.localized(
                           "3D-Gewölbetunnel erzeugen (synthetisch)",
+                          (l10n) => l10n
+                              .globeDGewoelbetunnelErzeugenSynthetischcf487df5,
                         ),
                       ),
                     ),
@@ -248,45 +336,57 @@ class SceneLayersSection extends StatelessWidget {
             if (controller.tunnelModelPending) const LinearProgressIndicator(),
             if (controller.tunnelModelError != null)
               Text(
-                context.translate("3D-Tunnel: {0}", [
+                context.localizedWithArgs("3D-Tunnel: {0}", [
                   controller.tunnelModelError,
-                ]),
+                ], (l10n, value) => l10n.globeDTunnele1017c1e(value(0))),
               ),
             if (controller.tunnelModelReady) ...[
               if (controller.tunnelModelSource != null)
                 Text(
-                  context.translate("Modellquelle: {0}", [
+                  context.localizedWithArgs("Modellquelle: {0}", [
                     controller.tunnelModelSource,
-                  ]),
+                  ], (l10n, value) => l10n.globeModellquelle05ae7da1(value(0))),
                 ),
               Text(
                 controller.tunnelModelQuality == 'simulation-only'
-                    ? context.translate(
+                    ? context.localized(
                         "Synthetisches Modell · Portale und Abmessungen geschätzt. Nur Simulation, keine reale Durchflugfreigabe.",
+                        (l10n) =>
+                            l10n.commonSynthetischesModellPortaleUnd61794358,
                       )
                     : controller.tunnelModelQuality ==
                           'external-mesh-unverified'
-                    ? context.translate(
+                    ? context.localized(
                         "Importiertes Mesh · Herkunft und Höhenbezug nicht unabhängig geprüft. Geländeöffnung erforderlich.",
+                        (l10n) => l10n.globeImportiertesMeshHerkunftUnd538c26a9,
                       )
-                    : context.translate(
+                    : context.localized(
                         "Importiertes Modell · Herkunft und Lichtraum ungeprüft. Keine reale Durchflugfreigabe.",
+                        (l10n) =>
+                            l10n.globeImportiertesModellHerkunftUnd950bcbe2,
                       ),
               ),
               if (controller.tunnelMeshTriangles != null)
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Sichtdreiecke: {0} · Kollisionsdreiecke: {1}",
                     [
                       controller.tunnelMeshTriangles,
                       controller.tunnelCollisionTriangles ?? 0,
                     ],
+                    (l10n, value) =>
+                        l10n.globeSichtdreieckeKollisionsdreiecke2eeb74c5(
+                          value(0),
+                          value(1),
+                        ),
                   ),
                 ),
               if (!controller.tunnelModelCanFly)
                 Text(
-                  context.translate(
+                  context.localized(
                     "Durchflug nicht verfügbar: Angaben zu Einstieg, Höhenprofil oder Terrain-Ausschnitten.",
+                    (l10n) =>
+                        l10n.commonDurchflugNichtVerfuegbarAngaben4931f578,
                   ),
                 ),
               Wrap(
@@ -303,9 +403,12 @@ class SceneLayersSection extends StatelessWidget {
                             )
                           : null,
                       child: Text(
-                        context.translate("Durchflug: {0}", [
-                          mode.toUpperCase(),
-                        ]),
+                        context.localizedWithArgs(
+                          "Durchflug: {0}",
+                          [mode.toUpperCase()],
+                          (l10n, value) =>
+                              l10n.globeDurchfluge383d59a(value(0)),
+                        ),
                       ),
                     ),
                   TextButton.icon(
@@ -313,7 +416,12 @@ class SceneLayersSection extends StatelessWidget {
                         ? () => change(controller.removeTunnelModel)
                         : null,
                     icon: const Icon(Icons.close),
-                    label: Text(context.translate("3D-Tunnel entfernen")),
+                    label: Text(
+                      context.localized(
+                        "3D-Tunnel entfernen",
+                        (l10n) => l10n.globeDTunnelEntfernenc327e7fe,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -325,11 +433,18 @@ class SceneLayersSection extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.translate("Ausgewähltes Bauwerk")),
                       Text(
-                        context.translate("Quelle: {0}", [
-                          controller.selectedInfrastructure!['datasetSource'],
-                        ]),
+                        context.localized(
+                          "Ausgewähltes Bauwerk",
+                          (l10n) => l10n.globeAusgewaehltesBauwerke74d05ef,
+                        ),
+                      ),
+                      Text(
+                        context.localizedWithArgs(
+                          "Quelle: {0}",
+                          [controller.selectedInfrastructure!['datasetSource']],
+                          (l10n, value) => l10n.commonQuelle25cfc7b8(value(0)),
+                        ),
                       ),
                       if (controller.selectedInfrastructure!['name'] is String)
                         Text(
@@ -338,9 +453,12 @@ class SceneLayersSection extends StatelessWidget {
                       if (controller.selectedInfrastructure!['sourceId'] !=
                           null)
                         Text(
-                          context.translate("Quellkennung: {0}", [
-                            controller.selectedInfrastructure!['sourceId'],
-                          ]),
+                          context.localizedWithArgs(
+                            "Quellkennung: {0}",
+                            [controller.selectedInfrastructure!['sourceId']],
+                            (l10n, value) =>
+                                l10n.globeQuellkennung050247aa(value(0)),
+                          ),
                         ),
                       if (controller.selectedInfrastructure!['attributes']
                           is Map)
@@ -350,8 +468,10 @@ class SceneLayersSection extends StatelessWidget {
                                 .entries)
                           Text('${entry.key}: ${entry.value}'),
                       Text(
-                        context.translate(
+                        context.localized(
                           "Originaldaten · keine Durchflugfreigabe.",
+                          (l10n) => l10n
+                              .globeOriginaldatenKeineDurchflugfreigabeb2bc03bb,
                         ),
                       ),
                       if (controller.selectedInfrastructure!['id'] is String &&
@@ -369,8 +489,9 @@ class SceneLayersSection extends StatelessWidget {
                               : null,
                           icon: const Icon(Icons.view_in_ar),
                           label: Text(
-                            context.translate(
+                            context.localized(
                               "Aus Achse 3D-Gewölbe simulieren",
+                              (l10n) => l10n.globeAusAchseDGewoelbe0d1ef125,
                             ),
                           ),
                         ),
@@ -406,11 +527,17 @@ class SceneLayersSection extends StatelessWidget {
                     })
                   : null,
               icon: const Icon(Icons.upload_file),
-              label: Text(context.translate("Tunnelmodell importieren (JSON)")),
+              label: Text(
+                context.localized(
+                  "Tunnelmodell importieren (JSON)",
+                  (l10n) => l10n.globeTunnelmodellImportierenJson8ffcf7c7,
+                ),
+              ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "JSON mit EPSG:4979, Quelle und separatem Kollisionsmesh. GLB/IFC werden nicht direkt unterstützt.",
+                (l10n) => l10n.commonJsonMitEpsgQuellef95a2fe5,
               ),
             ),
           ],
@@ -418,7 +545,12 @@ class SceneLayersSection extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('map-tunnel-data'),
           tilePadding: EdgeInsets.zero,
-          title: Text(context.translate("Tunnelstatus & Daten")),
+          title: Text(
+            context.localized(
+              "Tunnelstatus & Daten",
+              (l10n) => l10n.globeTunnelstatusDatend6e42b7d,
+            ),
+          ),
           children: [
             if (controller.structures3dVisible) ...[
               if (controller.tunnelAutoState == 'loading')
@@ -426,69 +558,99 @@ class SceneLayersSection extends StatelessWidget {
               Text(switch (controller.tunnelAutoState) {
                 'ready' =>
                   controller.tunnelAutoCount == 0
-                      ? context.translate(
+                      ? context.localized(
                           "Keine im lokalen Index erfassten Tunnel im Kartenausschnitt. Datenabdeckung möglicherweise unvollständig.",
+                          (l10n) => l10n.globeKeineImLokalenIndex7a2d66ae,
                         )
-                      : context.translate(
+                      : context.localizedWithArgs(
                           "{0} Tunnelachsen im Kartenausschnitt gefunden (schematisch).",
                           [controller.tunnelAutoCount],
+                          (l10n, value) => l10n
+                              .globeTunnelachsenImKartenausschnittGefundenbbd7f549(
+                                value(0),
+                              ),
                         ),
-                'partial' => context.translate(
+                'partial' => context.localizedWithArgs(
                   "{0} Tunnelachsen gefunden; Abdeckung unvollständig.",
                   [controller.tunnelAutoCount],
+                  (l10n, value) => l10n
+                      .globeTunnelachsenGefundenAbdeckungUnvollstaendigdabfec20(
+                        value(0),
+                      ),
                 ),
-                'failed' => context.translate(
+                'failed' => context.localized(
                   "Tunnelindex konnte nicht geladen werden. Quelle und Build-Daten prüfen.",
+                  (l10n) => l10n.globeTunnelindexKonnteNichtGeladen03a91e8e,
                 ),
-                'offline' => context.translate(
+                'offline' => context.localized(
                   "Tunnelachsen derzeit offline nicht verfügbar.",
+                  (l10n) => l10n.globeTunnelachsenDerzeitOfflineNicht2a3ab99c,
                 ),
-                'outside' => context.translate(
+                'outside' => context.localized(
                   "Tunnelachsen nur bei bodennaher Schweizer Kartenansicht automatisch laden.",
+                  (l10n) => l10n.globeTunnelachsenNurBeiBodennaherab983e29,
                 ),
-                _ => context.translate(
+                _ => context.localized(
                   "Tunnelachsen werden automatisch für den nahen sichtbaren Kartenausschnitt gesucht.",
+                  (l10n) => l10n.globeTunnelachsenWerdenAutomatischFuer8bbff5f7,
                 ),
               }),
               if (controller.tunnelAutoMessage != null)
                 Text(
-                  context.translate("Tunnel-Datenquelle: {0}", [
-                    controller.tunnelAutoMessage,
-                  ]),
+                  context.localizedWithArgs(
+                    "Tunnel-Datenquelle: {0}",
+                    [controller.tunnelAutoMessage],
+                    (l10n, value) =>
+                        l10n.globeTunnelDatenquellee8c8f0f5(value(0)),
+                  ),
                 ),
             ],
             if (controller.schematicTunnel3dEnabled) ...[
               Text(
-                context.translate(
+                context.localizedWithArgs(
                   "Automatisch dargestellte schematische Tunnel: {0} von maximal {1} (Grafikprofil).",
                   [
                     controller.schematicTunnelMeshCount,
                     controller.schematicTunnelMeshBudget,
                   ],
+                  (l10n, value) => l10n
+                      .globeAutomatischDargestellteSchematischeTunnel4dea34ff(
+                        value(0),
+                        value(1),
+                      ),
                 ),
               ),
               if (controller.schematicTunnelSkipped > 0)
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Nicht modellierbare Tunnelabschnitte: {0} von {1} erfassten Achsen.",
                     [
                       controller.schematicTunnelSkipped,
                       controller.schematicTunnelConsidered,
                     ],
+                    (l10n, value) =>
+                        l10n.globeNichtModellierbareTunnelabschnitteVon25d903e4(
+                          value(0),
+                          value(1),
+                        ),
                   ),
                 ),
               if (controller.schematicTunnelMeshCount > 0)
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Terrain-Aussparungen: {0}. Weitere sichtbare Röhren sind ggf. vom Gelände verdeckt.",
                     [controller.schematicTunnelClipped],
+                    (l10n, value) =>
+                        l10n.globeTerrainAussparungenWeitereSichtbaree67506d9(
+                          value(0),
+                        ),
                   ),
                 ),
               if (controller.schematicTunnelMeshError != null)
                 Text(
-                  context.translate("3D-Tunnel: {0}", [
+                  context.localizedWithArgs("3D-Tunnel: {0}", [
                     controller.schematicTunnelMeshError,
-                  ]),
+                  ], (l10n, value) => l10n.globeDTunnele1017c1e(value(0))),
                 ),
             ],
             if (controller.tunnelRoutes.any(
@@ -499,8 +661,9 @@ class SceneLayersSection extends StatelessWidget {
                 'openstreetmap.org/copyright',
               ),
             Text(
-              context.translate(
+              context.localized(
                 "Tunnel stammen aus dem vorbereiteten Schweizer Offlineindex. Fehlt dieser, sendet die Online-Ersatzsuche den Kartenausschnitt an die Datenquelle. Querschnitt, Portale und Höhen sind nicht vermessen. Nur Simulation, keine reale Durchflugfreigabe.",
+                (l10n) => l10n.commonTunnelStammenAusDema4a6630f,
               ),
             ),
             const SizedBox(height: 8),

@@ -51,8 +51,9 @@ class _ConstraintsState extends State<_Constraints> {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
-        helperText: context.translate(
+        helperText: context.localized(
           "Empty means unverified / not configured.",
+          (l10n) => l10n.routesEmptyMeansUnverifiedNotb3d057c4,
         ),
       ),
       validator: (v) => v!.trim().isEmpty
@@ -81,13 +82,17 @@ class _ConstraintsState extends State<_Constraints> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              context.translate("Route constraints"),
+              context.localized(
+                "Route constraints",
+                (l10n) => l10n.routesRouteConstraints7de90cfc,
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             Text(
-              context.translate(
+              context.localized(
                 "The default 120 m AGL ceiling is a Swiss open-category planning reference. A configured value does not establish the applicable law, an exemption or authorisation. Vertical AGL samples do not evaluate distance to the nearest terrain surface on steep slopes.",
+                (l10n) => l10n.commonTheDefaultMAgld0e44124,
               ),
             ),
             const SizedBox(height: 16),
@@ -98,19 +103,26 @@ class _ConstraintsState extends State<_Constraints> {
               initialValue: _visibility,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: context.translate("Planned visibility scenario"),
+                labelText: context.localized(
+                  "Planned visibility scenario",
+                  (l10n) => l10n.routesPlannedVisibilityScenario8c3dd9f7,
+                ),
               ),
               items: RouteVisibilityMode.values
                   .map(
                     (v) => DropdownMenuItem(
                       value: v,
                       child: Text(switch (v) {
-                        RouteVisibilityMode.unverified => context.translate(
+                        RouteVisibilityMode.unverified => context.localized(
                           "Unverified",
+                          (l10n) => l10n.routesUnverifiedeb27a190,
                         ),
                         RouteVisibilityMode.vlos => 'VLOS',
                         RouteVisibilityMode.fpvWithObserver =>
-                          context.translate("FPV with observer"),
+                          context.localized(
+                            "FPV with observer",
+                            (l10n) => l10n.routesFpvWithObserver0eb784aa,
+                          ),
                         RouteVisibilityMode.bvlos => 'BVLOS',
                       }),
                     ),
@@ -120,8 +132,9 @@ class _ConstraintsState extends State<_Constraints> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.translate(
+              context.localized(
                 "A planning radius is not a VLOS limit. Visibility, aircraft orientation, observers, people, pilot qualifications, local restrictions and approvals require manual verification.",
+                (l10n) => l10n.commonAPlanningRadiusIse6a1033a,
               ),
             ),
             const SizedBox(height: 16),
@@ -140,7 +153,12 @@ class _ConstraintsState extends State<_Constraints> {
                 );
                 Navigator.pop(context);
               },
-              child: Text(context.translate("Apply route constraints")),
+              child: Text(
+                context.localized(
+                  "Apply route constraints",
+                  (l10n) => l10n.routesApplyRouteConstraintsf13386d6,
+                ),
+              ),
             ),
           ],
         ),

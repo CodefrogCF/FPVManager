@@ -1,0 +1,7 @@
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-dir: lib/core/localization/generated
+output-localization-file: fpv_strings.dart
+output-class: FpvStrings
+nullable-getter: false
+use-escaping: true

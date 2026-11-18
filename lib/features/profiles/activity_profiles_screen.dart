@@ -38,8 +38,10 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
             content: Text(
               error is FormatException
                   ? error.message
-                  : context.translate(
+                  : context.localized(
                       "Profilaktion fehlgeschlagen. Bitte erneut versuchen.",
+                      (l10n) => l10n
+                          .profilesProfilaktionFehlgeschlagenBitteErneutfc851528,
                     ),
             ),
           ),
@@ -81,7 +83,12 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text(context.translate("Abbrechen")),
+              child: Text(
+                context.localized(
+                  "Abbrechen",
+                  (l10n) => l10n.commonAbbrechen07af7cb3,
+                ),
+              ),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
@@ -114,7 +121,12 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
     final template = await showDialog<ActivityProfile>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: Text(context.translate("Vorlage wählen")),
+        title: Text(
+          context.localized(
+            "Vorlage wählen",
+            (l10n) => l10n.profilesVorlageWaehlen7df6eb54,
+          ),
+        ),
         children: [
           for (final p in activityProfileTemplates())
             SimpleDialogOption(
@@ -167,7 +179,14 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
       final disabled = _working || c.busy;
       final full = (catalog?.profiles.length ?? 0) >= activityProfileMaxCount;
       return Scaffold(
-        appBar: AppBar(title: Text(context.translate("Aktivitätsprofile"))),
+        appBar: AppBar(
+          title: Text(
+            context.localized(
+              "Aktivitätsprofile",
+              (l10n) => l10n.commonAktivitaetsprofilee88c0015,
+            ),
+          ),
+        ),
         body: SafeArea(
           child: Align(
             alignment: Alignment.topCenter,
@@ -187,29 +206,48 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                   if (catalog == null && !c.busy)
                     TextButton(
                       onPressed: c.load,
-                      child: Text(context.translate("Erneut versuchen")),
+                      child: Text(
+                        context.localized(
+                          "Erneut versuchen",
+                          (l10n) => l10n.commonErneutVersuchen3234b7ec,
+                        ),
+                      ),
                     ),
                   if (catalog != null) ...[
                     Text(
                       catalog.firstUseDone
-                          ? context.translate(
+                          ? context.localized(
                               "Werkzeuge passend zu deiner Aktivität",
+                              (l10n) =>
+                                  l10n.profilesWerkzeugePassendZuDeiner8e101852,
                             )
-                          : context.translate("Womit möchtest du starten?"),
+                          : context.localized(
+                              "Womit möchtest du starten?",
+                              (l10n) =>
+                                  l10n.profilesWomitMoechtestDuStartenee1d09d8,
+                            ),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     Text(
-                      context.translate(
+                      context.localized(
                         "Vorlagen sind frei anpassbar. Alle Werkzeuge bleiben erreichbar.",
+                        (l10n) =>
+                            l10n.profilesVorlagenSindFreiAnpassbarff309b1d,
                       ),
                     ),
                     ListTile(
                       leading: const Icon(Icons.apps),
                       title: Text(
                         catalog.firstUseDone
-                            ? context.translate("Ohne Profil · alle Werkzeuge")
-                            : context.translate(
+                            ? context.localized(
+                                "Ohne Profil · alle Werkzeuge",
+                                (l10n) => l10n
+                                    .profilesOhneProfilAlleWerkzeuge5ab1fd0c,
+                              )
+                            : context.localized(
                                 "Überspringen · alle Werkzeuge",
+                                (l10n) => l10n
+                                    .profilesUberspringenAlleWerkzeuge95410f7f,
                               ),
                       ),
                       selected: catalog.selectedId == null,
@@ -225,9 +263,14 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                         ),
                         title: Text(p.name),
                         subtitle: Text(
-                          context.translate(
+                          context.localizedWithArgs(
                             "{0} Werkzeuge · {1} Schnellaktionen",
                             [p.tools.length, p.actions.length],
+                            (l10n, value) =>
+                                l10n.profilesWerkzeugeSchnellaktionenc271b295(
+                                  value(0),
+                                  value(1),
+                                ),
                           ),
                         ),
                         selected: catalog.selectedId == p.id,
@@ -240,28 +283,50 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                           itemBuilder: (_) => [
                             PopupMenuItem(
                               value: _ProfileAction.edit,
-                              child: Text(context.translate("Bearbeiten")),
+                              child: Text(
+                                context.localized(
+                                  "Bearbeiten",
+                                  (l10n) => l10n.profilesBearbeiten104f3bfd,
+                                ),
+                              ),
                             ),
                             PopupMenuItem(
                               value: _ProfileAction.duplicate,
                               enabled: !full,
-                              child: Text(context.translate("Duplizieren")),
+                              child: Text(
+                                context.localized(
+                                  "Duplizieren",
+                                  (l10n) => l10n.profilesDuplizieren8524c5cd,
+                                ),
+                              ),
                             ),
                             PopupMenuItem(
                               value: _ProfileAction.export,
-                              child: Text(context.translate("Exportieren")),
+                              child: Text(
+                                context.localized(
+                                  "Exportieren",
+                                  (l10n) => l10n.profilesExportieren4e4a0d71,
+                                ),
+                              ),
                             ),
                             PopupMenuItem(
                               value: _ProfileAction.delete,
-                              child: Text(context.translate("Löschen")),
+                              child: Text(
+                                context.localized(
+                                  "Löschen",
+                                  (l10n) => l10n.commonLoeschenffa5a8a7,
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     if (full)
                       Text(
-                        context.translate(
+                        context.localized(
                           "Maximal 32 Profile. Zum Hinzufügen zuerst ein Profil löschen.",
+                          (l10n) =>
+                              l10n.profilesMaximalProfileZumHinzufuegene6d6ba7e,
                         ),
                       ),
                     Wrap(
@@ -270,14 +335,24 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                       children: [
                         OutlinedButton.icon(
                           icon: const Icon(Icons.copy_outlined),
-                          label: Text(context.translate("Aus Vorlage")),
+                          label: Text(
+                            context.localized(
+                              "Aus Vorlage",
+                              (l10n) => l10n.profilesAusVorlage7a27bf2c,
+                            ),
+                          ),
                           onPressed: disabled || full
                               ? null
                               : () => _run(_template),
                         ),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.add),
-                          label: Text(context.translate("Eigenes Profil")),
+                          label: Text(
+                            context.localized(
+                              "Eigenes Profil",
+                              (l10n) => l10n.profilesEigenesProfila1a7ad19,
+                            ),
+                          ),
                           onPressed: disabled || full
                               ? null
                               : () => _run(
@@ -291,7 +366,12 @@ class _ActivityProfilesScreenState extends State<ActivityProfilesScreen> {
                         ),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.file_open_outlined),
-                          label: Text(context.translate("Importieren")),
+                          label: Text(
+                            context.localized(
+                              "Importieren",
+                              (l10n) => l10n.commonImportieren7d4a3f2a,
+                            ),
+                          ),
                           onPressed: disabled || full
                               ? null
                               : () => _run(_import),

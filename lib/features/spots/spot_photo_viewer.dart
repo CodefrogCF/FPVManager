@@ -48,7 +48,9 @@ class _PhotoDialogState extends State<_PhotoDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.translate("Spot photo")),
+    title: Text(
+      context.localized("Spot photo", (l10n) => l10n.spotsSpotPhoto590ebf66),
+    ),
     content: SizedBox(
       width: 800,
       height: MediaQuery.sizeOf(context).height * .6,
@@ -60,10 +62,20 @@ class _PhotoDialogState extends State<_PhotoDialog> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(context.translate("Unable to load this photo.")),
+                  Text(
+                    context.localized(
+                      "Unable to load this photo.",
+                      (l10n) => l10n.spotsUnableToLoadThisc9e4faa4,
+                    ),
+                  ),
                   TextButton(
                     onPressed: () => setState(_load),
-                    child: Text(context.translate("Retry")),
+                    child: Text(
+                      context.localized(
+                        "Retry",
+                        (l10n) => l10n.commonRetry9f5cd8a2,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -75,7 +87,10 @@ class _PhotoDialogState extends State<_PhotoDialog> {
           if (snapshot.data == null) {
             return Center(
               child: Text(
-                context.translate("This photo is no longer available."),
+                context.localized(
+                  "This photo is no longer available.",
+                  (l10n) => l10n.spotsThisPhotoIsNo08b26948,
+                ),
               ),
             );
           }
@@ -85,9 +100,17 @@ class _PhotoDialogState extends State<_PhotoDialog> {
             child: Image.memory(
               snapshot.data!,
               fit: BoxFit.contain,
-              semanticLabel: context.translate("Saved spot photo"),
+              semanticLabel: context.localized(
+                "Saved spot photo",
+                (l10n) => l10n.spotsSavedSpotPhoto279ddf6a,
+              ),
               errorBuilder: (context, error, stack) => Center(
-                child: Text(context.translate("Unable to display this photo.")),
+                child: Text(
+                  context.localized(
+                    "Unable to display this photo.",
+                    (l10n) => l10n.spotsUnableToDisplayThis38f897ec,
+                  ),
+                ),
               ),
             ),
           );
@@ -97,7 +120,9 @@ class _PhotoDialogState extends State<_PhotoDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text(context.translate("Close")),
+        child: Text(
+          context.localized("Close", (l10n) => l10n.commonClosebbfa773e),
+        ),
       ),
     ],
   );
@@ -122,7 +147,11 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
       .watchPhotos(widget.spotId);
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.translate("Photos: {0}", [widget.spotName])),
+    title: Text(
+      context.localizedWithArgs("Photos: {0}", [
+        widget.spotName,
+      ], (l10n, value) => l10n.spotsPhotosa324a5d2(value(0))),
+    ),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -131,8 +160,9 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Text(
-                context.translate(
+                context.localized(
                   "Unable to load photos. Close this window and try again.",
+                  (l10n) => l10n.spotsUnableToLoadPhotos634c2fc3,
                 ),
               );
             }
@@ -141,8 +171,9 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
             }
             if (snapshot.data!.isEmpty) {
               return Text(
-                context.translate(
+                context.localized(
                   "No photos yet. Edit this spot to add photos.",
+                  (l10n) => l10n.spotsNoPhotosYetEdit1cb7ab6f,
                 ),
               );
             }
@@ -162,7 +193,10 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
                       width: 120,
                       height: 100,
                       fit: BoxFit.cover,
-                      semanticLabel: context.translate("Open spot photo"),
+                      semanticLabel: context.localized(
+                        "Open spot photo",
+                        (l10n) => l10n.spotsOpenSpotPhoto9410015a,
+                      ),
                       errorBuilder: (context, error, stack) => const SizedBox(
                         width: 120,
                         height: 100,
@@ -179,7 +213,9 @@ class _SpotPhotosDialogState extends State<SpotPhotosDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text(context.translate("Close")),
+        child: Text(
+          context.localized("Close", (l10n) => l10n.commonClosebbfa773e),
+        ),
       ),
     ],
   );

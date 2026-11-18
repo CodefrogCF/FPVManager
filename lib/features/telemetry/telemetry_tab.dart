@@ -39,7 +39,13 @@ class _TelemetryTabState extends State<TelemetryTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.translate("Telemetry: {0}", [e]))),
+          SnackBar(
+            content: Text(
+              context.localizedWithArgs("Telemetry: {0}", [
+                e,
+              ], (l10n, value) => l10n.telemetryTelemetry9ac39ce5(value(0))),
+            ),
+          ),
         );
       }
     } finally {
@@ -102,24 +108,36 @@ class _TelemetryTabState extends State<TelemetryTab> {
     padding: const EdgeInsets.all(16),
     children: [
       Text(
-        context.translate(
+        context.localized(
           "Import one continuous flight. Raw CSV stays in the local database. No telemetry is uploaded.",
+          (l10n) => l10n.telemetryImportOneContinuousFlight94f89be2,
         ),
       ),
       const SizedBox(height: 8),
       FilledButton.icon(
         onPressed: _busy ? null : () => _run(_import),
         icon: const Icon(Icons.file_open_outlined),
-        label: Text(context.translate("Import telemetry CSV")),
+        label: Text(
+          context.localized(
+            "Import telemetry CSV",
+            (l10n) => l10n.telemetryImportTelemetryCsveb2d1023,
+          ),
+        ),
       ),
       ExpansionTile(
-        title: Text(context.translate("Supported formats")),
+        title: Text(
+          context.localized(
+            "Supported formats",
+            (l10n) => l10n.telemetrySupportedFormatsdf1bdc5f,
+          ),
+        ),
         children: [
           Padding(
             padding: EdgeInsets.all(12),
             child: SelectableText(
-              context.translate(
+              context.localized(
                 "FPVManager CSV v1: time_s,airspeed_m_s,voltage_v,current_a (groundspeed_m_s is also accepted).\nEdgeTX: Date, Time, GSpd(kmh/km/h/m/s/kts), Curr(A), VFAS(V) or Bat(V).\nUse a single voltage and speed column. UTF-8, decimal dot, 2–20000 rows, up to 4 MiB, gaps ≤30 s. Missing measurements are rejected. See docs/preflight.md for an example.",
+                (l10n) => l10n.commonFpvmanagerCsvVTime07c740c7,
               ),
             ),
           ),
@@ -132,8 +150,9 @@ class _TelemetryTabState extends State<TelemetryTab> {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Text(
-              context.translate(
+              context.localized(
                 "Local telemetry unavailable. Reopen this screen to retry.",
+                (l10n) => l10n.telemetryLocalTelemetryUnavailableReopencb8a0598,
               ),
             );
           }
@@ -145,13 +164,18 @@ class _TelemetryTabState extends State<TelemetryTab> {
                   leading: const Icon(Icons.insights),
                   title: Text(row.fileName),
                   subtitle: Text(
-                    context.translate("Imported {0}", [
-                      row.importedAt.toLocal(),
-                    ]),
+                    context.localizedWithArgs(
+                      "Imported {0}",
+                      [row.importedAt.toLocal()],
+                      (l10n, value) => l10n.telemetryImportedbd3c3768(value(0)),
+                    ),
                   ),
                   onTap: _busy ? null : () => _run(() => _open(row.id)),
                   trailing: IconButton(
-                    tooltip: context.translate("Delete local telemetry"),
+                    tooltip: context.localized(
+                      "Delete local telemetry",
+                      (l10n) => l10n.telemetryDeleteLocalTelemetryfa6452e1,
+                    ),
                     icon: const Icon(Icons.delete_outline),
                     onPressed: _busy
                         ? null
@@ -161,19 +185,33 @@ class _TelemetryTabState extends State<TelemetryTab> {
                               context: context,
                               builder: (context) => AlertDialog(
                                 title: Text(
-                                  context.translate("Delete raw telemetry?"),
+                                  context.localized(
+                                    "Delete raw telemetry?",
+                                    (l10n) => l10n
+                                        .telemetryDeleteRawTelemetryad6e4046,
+                                  ),
                                 ),
                                 content: Text(row.fileName),
                                 actions: [
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: Text(context.translate("Cancel")),
+                                    child: Text(
+                                      context.localized(
+                                        "Cancel",
+                                        (l10n) => l10n.commonCancel77dfd213,
+                                      ),
+                                    ),
                                   ),
                                   FilledButton(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
-                                    child: Text(context.translate("Delete")),
+                                    child: Text(
+                                      context.localized(
+                                        "Delete",
+                                        (l10n) => l10n.commonDeletef6fdbe48,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -196,12 +234,15 @@ Widget _measurements(BuildContext context, TelemetryLog log) => Column(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     Text(
-      context.translate('{0} · {1} samples', [log.format, log.samples.length]),
+      context.localizedWithArgs('{0} · {1} samples', [
+        log.format,
+        log.samples.length,
+      ], (l10n, value) => l10n.telemetrySamples49577d36(value(0), value(1))),
     ),
     Text(
-      context.translate('Recorded duration: {0} s', [
+      context.localizedWithArgs('Recorded duration: {0} s', [
         log.duration.toStringAsFixed(1),
-      ]),
+      ], (l10n, value) => l10n.telemetryRecordedDurationSe198ddeb(value(0))),
     ),
     Text(
       context.translate(
@@ -212,14 +253,17 @@ Widget _measurements(BuildContext context, TelemetryLog log) => Column(
       ),
     ),
     Text(
-      context.translate('Measured energy: {0} Wh · average power {1} W', [
-        log.energyWh.toStringAsFixed(3),
-        log.averagePower.toStringAsFixed(1),
-      ]),
+      context.localizedWithArgs(
+        'Measured energy: {0} Wh · average power {1} W',
+        [log.energyWh.toStringAsFixed(3), log.averagePower.toStringAsFixed(1)],
+        (l10n, value) =>
+            l10n.telemetryMeasuredEnergyWhAverage9acf6860(value(0), value(1)),
+      ),
     ),
     Text(
-      context.translate(
+      context.localized(
         'Duration includes all recorded idle/hover time. Trim the log to one flight before importing.',
+        (l10n) => l10n.telemetryDurationIncludesAllRecordedb1545492,
       ),
     ),
   ],
@@ -244,7 +288,12 @@ class _ImportPreviewState extends State<_ImportPreview> {
   int? _drone, _plan;
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.translate("Import telemetry locally?")),
+    title: Text(
+      context.localized(
+        "Import telemetry locally?",
+        (l10n) => l10n.telemetryImportTelemetryLocallyf7626443,
+      ),
+    ),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -259,7 +308,12 @@ class _ImportPreviewState extends State<_ImportPreview> {
               decoration: const InputDecoration(labelText: 'Drone'),
               items: [
                 DropdownMenuItem<int>(
-                  child: Text(context.translate("Unassigned")),
+                  child: Text(
+                    context.localized(
+                      "Unassigned",
+                      (l10n) => l10n.telemetryUnassignede57016ed,
+                    ),
+                  ),
                 ),
                 for (final d in widget.drones)
                   DropdownMenuItem(value: d.id, child: Text(d.name)),
@@ -269,11 +323,19 @@ class _ImportPreviewState extends State<_ImportPreview> {
             DropdownButtonFormField<int>(
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: context.translate("Flight plan for comparison"),
+                labelText: context.localized(
+                  "Flight plan for comparison",
+                  (l10n) => l10n.telemetryFlightPlanForComparison6e3eb9d5,
+                ),
               ),
               items: [
                 DropdownMenuItem<int>(
-                  child: Text(context.translate("Unassigned")),
+                  child: Text(
+                    context.localized(
+                      "Unassigned",
+                      (l10n) => l10n.telemetryUnassignede57016ed,
+                    ),
+                  ),
                 ),
                 for (final p in widget.plans)
                   DropdownMenuItem(value: p.id, child: Text(p.name)),
@@ -287,11 +349,18 @@ class _ImportPreviewState extends State<_ImportPreview> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text(context.translate("Cancel")),
+        child: Text(
+          context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+        ),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, (_drone, _plan)),
-        child: Text(context.translate("Import locally")),
+        child: Text(
+          context.localized(
+            "Import locally",
+            (l10n) => l10n.commonImportLocallycfc01f3f,
+          ),
+        ),
       ),
     ],
   );
@@ -378,21 +447,34 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
-        title: Text(context.translate("Apply route calibration?")),
+        title: Text(
+          context.localized(
+            "Apply route calibration?",
+            (l10n) => l10n.telemetryApplyRouteCalibration5c654485,
+          ),
+        ),
         content: Text(
-          context.translate(
+          context.localizedWithArgs(
             "Scale this saved route’s power curve by {0}. This is a level-flight approximation over the logged speed profile; climbs, wind, aggressive maneuvers and battery/sensor errors can distort it. The original CSV remains stored. Other routes and drone specifications are unchanged.",
             [factor.toStringAsFixed(3)],
+            (l10n, value) => l10n.commonScaleThisSavedRoutes1968fc72(value(0)),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(context.translate("Cancel")),
+            child: Text(
+              context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(context.translate("Apply to this route")),
+            child: Text(
+              context.localized(
+                "Apply to this route",
+                (l10n) => l10n.telemetryApplyToThisRoute1635cca9,
+              ),
+            ),
           ),
         ],
       ),
@@ -433,20 +515,32 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
         _measurements(context, widget.log),
         const Divider(),
         Text(
-          context.translate("Model comparison"),
+          context.localized(
+            "Model comparison",
+            (l10n) => l10n.telemetryModelComparisondaa80a44,
+          ),
           style: TextStyle(fontSize: 20),
         ),
         Text(
-          context.translate(
+          context.localized(
             "The route power curve is evaluated at every recorded speed with its mass correction. Energy uses trapezoidal integration of voltage × current. No climb or maneuver correction is inferred.",
+            (l10n) => l10n.telemetryTheRoutePowerCurvee9b27f2a,
           ),
         ),
         if (!widget.log.isAirspeed)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(context.translate("Use ground speed as airspeed")),
+            title: Text(
+              context.localized(
+                "Use ground speed as airspeed",
+                (l10n) => l10n.telemetryUseGroundSpeedAs5bb04e27,
+              ),
+            ),
             subtitle: Text(
-              context.translate("Approximation for a still-air recording only"),
+              context.localized(
+                "Approximation for a still-air recording only",
+                (l10n) => l10n.telemetryApproximationForAStill90100705,
+              ),
             ),
             value: _stillAir,
             onChanged: _busy ? null : (v) => setState(() => _stillAir = v),
@@ -456,8 +550,10 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
           builder: (_, s) {
             if (s.hasError) {
               return Text(
-                context.translate(
+                context.localized(
                   "Route comparison unavailable. Check the saved route inputs.",
+                  (l10n) =>
+                      l10n.telemetryRouteComparisonUnavailableCheck13192917,
                 ),
               );
             }
@@ -467,8 +563,9 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
             final data = s.data;
             if (data == null) {
               return Text(
-                context.translate(
+                context.localized(
                   "No associated flight plan is available. Associate a plan when importing to compare its model.",
+                  (l10n) => l10n.telemetryNoAssociatedFlightPlan5a0a6161,
                 ),
               );
             }
@@ -485,57 +582,81 @@ class _TelemetryDetailsState extends State<_TelemetryDetails> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  context.translate("Saved outbound route duration: {0}", [
-                    difference(data.duration, widget.log.duration, "s"),
-                  ]),
+                  context.localizedWithArgs(
+                    "Saved outbound route duration: {0}",
+                    [difference(data.duration, widget.log.duration, "s")],
+                    (l10n, value) => l10n
+                        .telemetrySavedOutboundRouteDuration18b87ca4(value(0)),
+                  ),
                 ),
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Saved outbound route mean {0} speed: {1}",
                     [
                       widget.log.isAirspeed ? "air" : "horizontal ground",
                       difference(data.speed, widget.log.averageSpeed, "m/s"),
                     ],
+                    (l10n, value) =>
+                        l10n.telemetrySavedOutboundRouteMean0818ac58(
+                          value(0),
+                          value(1),
+                        ),
                   ),
                 ),
                 Text(
-                  context.translate(
+                  context.localized(
                     "Route comparisons assume the recording covers the same outbound path. Return flights and idle time are not automatically removed.",
+                    (l10n) => l10n.telemetryRouteComparisonsAssumeThed64d19cc,
                   ),
                 ),
                 if (data.mismatch)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Different drones are associated with the log and route. Calibration is disabled.",
+                      (l10n) =>
+                          l10n.telemetryDifferentDronesAreAssociated17ab6eae,
                     ),
                   ),
                 if (result.problem != null)
                   Text(result.problem!)
                 else ...[
                   Text(
-                    context.translate(
+                    context.localizedWithArgs(
                       "Model energy over recorded speeds: {0} Wh",
                       [result.predictedWh!.toStringAsFixed(3)],
+                      (l10n, value) => l10n
+                          .telemetryModelEnergyOverRecorded6bf1955f(value(0)),
                     ),
                   ),
                   Text(
-                    context.translate("Measured − modeled: {0} Wh ({1}%)", [
-                      result.differenceWh!.toStringAsFixed(3),
-                      ((result.factor! - 1) * 100).toStringAsFixed(1),
-                    ]),
+                    context.localizedWithArgs(
+                      "Measured − modeled: {0} Wh ({1}%)",
+                      [
+                        result.differenceWh!.toStringAsFixed(3),
+                        ((result.factor! - 1) * 100).toStringAsFixed(1),
+                      ],
+                      (l10n, value) => l10n.telemetryMeasuredModeledWhae99a8d2(
+                        value(0),
+                        value(1),
+                      ),
+                    ),
                   ),
                   FilledButton(
                     onPressed: !_busy && result.canCalibrate && !data.mismatch
                         ? () => _apply(data, result)
                         : null,
                     child: Text(
-                      context.translate("Preview & apply calibration"),
+                      context.localized(
+                        "Preview & apply calibration",
+                        (l10n) => l10n.telemetryPreviewApplyCalibrationa8b7db04,
+                      ),
                     ),
                   ),
                   if (!result.canCalibrate)
                     Text(
-                      context.translate(
+                      context.localized(
                         "Calibration outside 0.25–4× is not applied. Check units, sensors and flight conditions.",
+                        (l10n) => l10n.commonCalibrationOutsideIsNot45f5bb20,
                       ),
                     ),
                 ],

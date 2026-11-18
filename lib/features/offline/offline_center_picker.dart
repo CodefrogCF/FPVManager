@@ -51,7 +51,12 @@ class _OfflineCenterPickerState extends State<OfflineCenterPicker> {
     final point = _controller.selectedPoint;
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.translate("Mittelpunkt auf Karte wählen")),
+        title: Text(
+          context.localized(
+            "Mittelpunkt auf Karte wählen",
+            (l10n) => l10n.offlineMittelpunktAufKarteWaehlen0129acc2,
+          ),
+        ),
       ),
       body: Stack(
         children: [
@@ -69,8 +74,10 @@ class _OfflineCenterPickerState extends State<OfflineCenterPicker> {
                     children: [
                       Text(
                         point == null
-                            ? context.translate(
+                            ? context.localized(
                                 "Gewünschten Mittelpunkt auf dem Globe antippen.",
+                                (l10n) => l10n
+                                    .offlineGewuenschtenMittelpunktAufDem999be642,
                               )
                             : '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
                       ),
@@ -83,7 +90,11 @@ class _OfflineCenterPickerState extends State<OfflineCenterPicker> {
                               )),
                         icon: const Icon(Icons.check),
                         label: Text(
-                          context.translate("Mittelpunkt übernehmen"),
+                          context.localized(
+                            "Mittelpunkt übernehmen",
+                            (l10n) =>
+                                l10n.offlineMittelpunktUebernehmen654f1ce1,
+                          ),
                         ),
                       ),
                     ],

@@ -45,8 +45,9 @@ class OutdoorLayersSection extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate(
+              context.localized(
                 "Outdoor-Ebene konnte nicht geändert werden. Erneut versuchen.",
+                (l10n) => l10n.outdoorOutdoorEbeneKonnteNichtdae0b0f9,
               ),
             ),
           ),
@@ -68,14 +69,17 @@ class OutdoorLayersSection extends StatelessWidget {
               OutdoorLayerGroup.closures => Icons.warning_amber_outlined,
             }),
             title: Text(switch (group) {
-              OutdoorLayerGroup.nature => context.translate(
+              OutdoorLayerGroup.nature => context.localized(
                 "Natur und Wildruhezonen",
+                (l10n) => l10n.outdoorNaturUndWildruhezonen7304b9ec,
               ),
-              OutdoorLayerGroup.networks => context.translate(
+              OutdoorLayerGroup.networks => context.localized(
                 "Amtliche Wegenetze",
+                (l10n) => l10n.outdoorAmtlicheWegenetzeee6981c0,
               ),
-              OutdoorLayerGroup.closures => context.translate(
+              OutdoorLayerGroup.closures => context.localized(
                 "Sperrungen und Umleitungen",
+                (l10n) => l10n.outdoorSperrungenUndUmleitungenc019df11,
               ),
             }),
             children: [
@@ -116,9 +120,13 @@ class OutdoorLayersSection extends StatelessWidget {
                           if (state == 'loading')
                             const LinearProgressIndicator(),
                           Text(
-                            context.translate(
+                            context.localizedWithArgs(
                               "Kartenebene: {0} · Quelldatum nicht vom Dienst mitgeteilt",
                               [state ?? 'angefordert'],
+                              (l10n, value) => l10n
+                                  .outdoorKartenebeneQuelldatumNichtVom78282b34(
+                                    value(0),
+                                  ),
                             ),
                           ),
                           if (state == 'failed')
@@ -128,7 +136,11 @@ class OutdoorLayersSection extends StatelessWidget {
                                 () => globe.setOutdoorLayer(layer, retry: true),
                               ),
                               child: Text(
-                                context.translate("Kartenkacheln erneut laden"),
+                                context.localized(
+                                  "Kartenkacheln erneut laden",
+                                  (l10n) => l10n
+                                      .outdoorKartenkachelnErneutLadend22d2379,
+                                ),
                               ),
                             ),
                           TextButton.icon(
@@ -138,7 +150,11 @@ class OutdoorLayersSection extends StatelessWidget {
                             ),
                             icon: const Icon(Icons.open_in_new),
                             label: Text(
-                              context.translate("Amtliche Legende und Quelle"),
+                              context.localized(
+                                "Amtliche Legende und Quelle",
+                                (l10n) => l10n
+                                    .outdoorAmtlicheLegendeUndQuelle17cac2a2,
+                              ),
                             ),
                           ),
                           if (globe.selectedPoint != null)
@@ -156,16 +172,20 @@ class OutdoorLayersSection extends StatelessWidget {
                               ),
                               icon: const Icon(Icons.info_outline),
                               label: Text(
-                                context.translate(
+                                context.localized(
                                   "Details um den Kartenpunkt abrufen",
+                                  (l10n) => l10n
+                                      .outdoorDetailsUmDenKartenpunktdbe266e7,
                                 ),
                               ),
                             ),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
-                              context.translate(
+                              context.localized(
                                 "Online-Ebene · Offline-Kacheldownload nicht freigegeben. Abdeckung und Aktualität können lückenhaft sein.",
+                                (l10n) => l10n
+                                    .outdoorOnlineEbeneOfflineKacheldownload52ce6e5a,
                               ),
                             ),
                           ),
@@ -292,24 +312,34 @@ class _OutdoorContextScreenState extends State<OutdoorContextScreen> {
         records = data?.data['records'] as List? ?? [];
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.translate("Amtlicher Outdoor-Kontext")),
+        title: Text(
+          context.localized(
+            "Amtlicher Outdoor-Kontext",
+            (l10n) => l10n.outdoorAmtlicherOutdoorKontextab221e59,
+          ),
+        ),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              context.translate(
+              context.localized(
                 "Der gewählte Ausschnitt wird an geo.admin.ch gesendet. Räumlicher Auszug, keine vollständige Zugänglichkeitsprüfung.",
+                (l10n) => l10n.commonDerGewaehlteAusschnittWird46b1cc5d,
               ),
             ),
             if (busy) const LinearProgressIndicator(),
             Text(provider.status.dataState.label),
             if (data != null)
               Text(
-                context.translate(
+                context.localizedWithArgs(
                   "Abgerufen: {0} · amtliches Publikationsdatum nicht mitgeteilt",
                   [data.fetchedAtUtc.toLocal()],
+                  (l10n, value) => l10n
+                      .outdoorAbgerufenAmtlichesPublikationsdatumNicht1eb563a2(
+                        value(0),
+                      ),
                 ),
               ),
             if (error != null)
@@ -323,32 +353,46 @@ class _OutdoorContextScreenState extends State<OutdoorContextScreen> {
                 FilledButton.icon(
                   onPressed: busy ? null : _refresh,
                   icon: const Icon(Icons.refresh),
-                  label: Text(context.translate("Auszug aktualisieren")),
+                  label: Text(
+                    context.localized(
+                      "Auszug aktualisieren",
+                      (l10n) => l10n.outdoorAuszugAktualisieren55f223d5,
+                    ),
+                  ),
                 ),
                 if (records.isNotEmpty)
                   OutlinedButton(
                     onPressed: _showFeatures,
-                    child: Text(context.translate("Auszug auf Karte anzeigen")),
+                    child: Text(
+                      context.localized(
+                        "Auszug auf Karte anzeigen",
+                        (l10n) => l10n.outdoorAuszugAufKarteAnzeigen9105f450,
+                      ),
+                    ),
                   ),
               ],
             ),
             if (data != null) Text('${data.data['coverage']}'),
             if (data?.data['preciseRouteCheck'] == false)
               Text(
-                context.translate(
+                context.localized(
                   "Route oder Auszug überschreiten das Größenlimit für den vollständigen Einzelabgleich. Bitte einen kürzeren Abschnitt wählen. Die Originalgeometrie bleibt erhalten.",
+                  (l10n) => l10n.outdoorRouteOderAuszugUeberschreitene46a9d8f,
                 ),
               ),
             if (data?.data['atLimit'] == true)
               Text(
-                context.translate(
+                context.localized(
                   "Ergebnisgrenze erreicht · weitere Objekte können fehlen.",
+                  (l10n) =>
+                      l10n.outdoorErgebnisgrenzeErreichtWeitereObjektefa8b4a21,
                 ),
               ),
             if (data != null && records.isEmpty)
               Text(
-                context.translate(
+                context.localized(
                   "Keine Objekte im Auszug gefunden. Das bestätigt keine offene oder freie Route.",
+                  (l10n) => l10n.outdoorKeineObjekteImAuszug3e189c68,
                 ),
               ),
             for (final raw in records)
@@ -402,19 +446,35 @@ class _OutdoorContextScreenState extends State<OutdoorContextScreen> {
                             onPressed: () => _reference('${r['reference']}'),
                             icon: const Icon(Icons.open_in_new),
                             label: Text(
-                              context.translate("Offizielle Details"),
+                              context.localized(
+                                "Offizielle Details",
+                                (l10n) => l10n.outdoorOffizielleDetails573452dd,
+                              ),
                             ),
                           ),
                           ExpansionTile(
-                            title: Text(context.translate("Originalattribute")),
+                            title: Text(
+                              context.localized(
+                                "Originalattribute",
+                                (l10n) => l10n.outdoorOriginalattribute38290624,
+                              ),
+                            ),
                             children: [
                               SelectableText(
-                                context.translate("Quellen-ID: {0}\n{1}", [
-                                  r['id'],
-                                  a.entries
-                                      .map((e) => '${e.key}: ${e.value}')
-                                      .join('\n'),
-                                ]),
+                                context.localizedWithArgs(
+                                  "Quellen-ID: {0}\n{1}",
+                                  [
+                                    r['id'],
+                                    a.entries
+                                        .map((e) => '${e.key}: ${e.value}')
+                                        .join('\n'),
+                                  ],
+                                  (l10n, value) =>
+                                      l10n.outdoorQuellenIdba307a43(
+                                        value(0),
+                                        value(1),
+                                      ),
+                                ),
                               ),
                             ],
                           ),
@@ -425,8 +485,9 @@ class _OutdoorContextScreenState extends State<OutdoorContextScreen> {
                 },
               ),
             Text(
-              context.translate(
+              context.localized(
                 "Diese Detailauszüge werden nur im Arbeitsspeicher gehalten. Kantonsübergreifende Vektorpakete und deren Weitergabe benötigen jeweils passende Nutzungsbedingungen.",
+                (l10n) => l10n.outdoorDieseDetailauszuegeWerdenNur71ff8d83,
               ),
             ),
             const GuideLink(GuideTopic.outdoor),

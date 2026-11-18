@@ -220,8 +220,9 @@ class _EvChargingSectionState extends State<EvChargingSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          context.translate(
+          context.localized(
             "Ladestationen in der Schweiz · BFE / geo.admin.ch. Freie Plätze sind nur eine datierte Meldung und keine Reservierung. Ergebnisse können unvollständig sein.",
+            (l10n) => l10n.mobilityLadestationenInDerSchweiza8bd739c,
           ),
         ),
         const SizedBox(height: 12),
@@ -233,8 +234,10 @@ class _EvChargingSectionState extends State<EvChargingSection> {
                 ? _spotId
                 : null,
             decoration: InputDecoration(
-              labelText: context.translate(
+              labelText: context.localized(
                 "Suchzentrum: gespeicherter Spot (optional)",
+                (l10n) =>
+                    l10n.mobilitySuchzentrumGespeicherterSpotOptional8f6f54a7,
               ),
             ),
             isExpanded: true,
@@ -270,7 +273,10 @@ class _EvChargingSectionState extends State<EvChargingSection> {
                 key: const ValueKey('ev_lat'),
                 controller: _lat,
                 decoration: InputDecoration(
-                  labelText: context.translate("Latitude"),
+                  labelText: context.localized(
+                    "Latitude",
+                    (l10n) => l10n.mobilityLatitudeced3905e,
+                  ),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   signed: true,
@@ -288,7 +294,10 @@ class _EvChargingSectionState extends State<EvChargingSection> {
                 key: const ValueKey('ev_lon'),
                 controller: _lon,
                 decoration: InputDecoration(
-                  labelText: context.translate("Longitude"),
+                  labelText: context.localized(
+                    "Longitude",
+                    (l10n) => l10n.mobilityLongitude6f9f011c,
+                  ),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   signed: true,
@@ -309,7 +318,12 @@ class _EvChargingSectionState extends State<EvChargingSection> {
             OutlinedButton.icon(
               onPressed: _working ? null : _deviceLocation,
               icon: const Icon(Icons.my_location),
-              label: Text(context.translate("Mein Standort")),
+              label: Text(
+                context.localized(
+                  "Mein Standort",
+                  (l10n) => l10n.commonMeinStandort98425c52,
+                ),
+              ),
             ),
             if (routePoints.isNotEmpty)
               for (final item in [
@@ -335,7 +349,10 @@ class _EvChargingSectionState extends State<EvChargingSection> {
           key: ValueKey('ev_radius_$_radius'),
           initialValue: _radius,
           decoration: InputDecoration(
-            labelText: context.translate("Suchradius"),
+            labelText: context.localized(
+              "Suchradius",
+              (l10n) => l10n.mobilitySuchradius51fb2797,
+            ),
           ),
           items: [500, 1000, 2000, 5000]
               .map(
@@ -357,13 +374,15 @@ class _EvChargingSectionState extends State<EvChargingSection> {
           value: _agree,
           onChanged: (v) => setState(() => _agree = v ?? false),
           title: Text(
-            context.translate(
+            context.localized(
               "Suchkoordinaten beim BFE / geo.admin.ch abfragen",
+              (l10n) => l10n.mobilitySuchkoordinatenBeimBfeGeo298d1eb7,
             ),
           ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "Nur durch ausdrückliches Suchen; keine Standortüberwachung.",
+              (l10n) => l10n.mobilityNurDurchAusdruecklichesSuchen62af35c2,
             ),
           ),
         ),
@@ -374,13 +393,23 @@ class _EvChargingSectionState extends State<EvChargingSection> {
             FilledButton.icon(
               onPressed: _working || !_agree ? null : () => _load(),
               icon: const Icon(Icons.ev_station),
-              label: Text(context.translate("Ladestationen suchen")),
+              label: Text(
+                context.localized(
+                  "Ladestationen suchen",
+                  (l10n) => l10n.mobilityLadestationenSuchen805f1685,
+                ),
+              ),
             ),
             OutlinedButton(
               onPressed: _working || !_agree
                   ? null
                   : () => _load(refresh: true),
-              child: Text(context.translate("Aktualisieren")),
+              child: Text(
+                context.localized(
+                  "Aktualisieren",
+                  (l10n) => l10n.mobilityAktualisieren87c65f26,
+                ),
+              ),
             ),
             OutlinedButton(
               onPressed: _working ? null : () => _load(offline: true),
@@ -393,40 +422,58 @@ class _EvChargingSectionState extends State<EvChargingSection> {
         if (snap != null) ...[
           const Divider(),
           Text(
-            context.translate("{0} Ladestandorte · Abruf {1}{2}", [
-              snap.stations.length,
-              snap.fetchedUtc.toLocal(),
-              snap.fromCache ? ' · lokal gespeichert' : '',
-            ]),
+            context.localizedWithArgs(
+              "{0} Ladestandorte · Abruf {1}{2}",
+              [
+                snap.stations.length,
+                snap.fetchedUtc.toLocal(),
+                snap.fromCache ? ' · lokal gespeichert' : '',
+              ],
+              (l10n, value) => l10n.mobilityLadestandorteAbrufe451a0c3(
+                value(0),
+                value(1),
+                value(2),
+              ),
+            ),
             style: Theme.of(context).textTheme.titleSmall,
           ),
           if (snap.refreshFailed)
             Text(
-              context.translate(
+              context.localized(
                 "Aktualisierung fehlgeschlagen: alte Standortdaten; Verfügbarkeit unbekannt.",
+                (l10n) => l10n
+                    .mobilityAktualisierungFehlgeschlagenAlteStandortdatenb2f09fc6,
               ),
             ),
           if (snap.truncated)
             Text(
-              context.translate(
+              context.localized(
                 "Maximale Trefferzahl erreicht: nicht alle Standorte erfasst. Radius verkleinern.",
+                (l10n) => l10n.mobilityMaximaleTrefferzahlErreichtNichtcbd9a35f,
               ),
             ),
           if (snap.isOld(now))
             Text(
-              context.translate(
+              context.localized(
                 "Gespeicherter Abruf ist älter als 15 Minuten.",
+                (l10n) => l10n.mobilityGespeicherterAbrufIstAelterc7e97b86,
               ),
             ),
           Text(
-            context.translate(
+            context.localized(
               "Keine Treffer bedeuten nicht, dass es keine Ladestationen gibt.",
+              (l10n) => l10n.commonKeineTrefferBedeutenNicht4cb792ac,
             ),
           ),
           OutlinedButton.icon(
             onPressed: _working ? null : _onMap,
             icon: const Icon(Icons.map_outlined),
-            label: Text(context.translate("Auf 3D-Karte anzeigen (max. 150)")),
+            label: Text(
+              context.localized(
+                "Auf 3D-Karte anzeigen (max. 150)",
+                (l10n) => l10n.mobilityAufDKarteAnzeigen2ad897d8,
+              ),
+            ),
           ),
           for (final station in snap.stations.take(60))
             Card(
@@ -456,7 +503,11 @@ class _EvChargingSectionState extends State<EvChargingSection> {
                       ),
                     if (station.connectors.isEmpty)
                       Text(
-                        context.translate("Anschlüsse: nicht veröffentlicht"),
+                        context.localized(
+                          "Anschlüsse: nicht veröffentlicht",
+                          (l10n) => l10n
+                              .mobilityAnschluesseNichtVeroeffentlicht1584b8b8,
+                        ),
                       ),
                     for (final id in station.evseIds.take(5))
                       Text(
@@ -464,7 +515,9 @@ class _EvChargingSectionState extends State<EvChargingSection> {
                         ' · ${snap.statuses[id]?.updatedUtc?.toLocal().toString() ?? 'kein Statuszeitpunkt'}',
                       ),
                     Text(
-                      context.translate("Quelle: {0}", [station.id]),
+                      context.localizedWithArgs("Quelle: {0}", [
+                        station.id,
+                      ], (l10n, value) => l10n.commonQuelle25cfc7b8(value(0))),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Align(
@@ -472,7 +525,12 @@ class _EvChargingSectionState extends State<EvChargingSection> {
                       child: TextButton.icon(
                         onPressed: () => widget.onDriveTo(station),
                         icon: const Icon(Icons.directions_car),
-                        label: Text(context.translate("Als Fahrziel wählen")),
+                        label: Text(
+                          context.localized(
+                            "Als Fahrziel wählen",
+                            (l10n) => l10n.mobilityAlsFahrzielWaehlen89ab104c,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -481,15 +539,17 @@ class _EvChargingSectionState extends State<EvChargingSection> {
             ),
           if (snap.stations.length > 60)
             Text(
-              context.translate(
+              context.localized(
                 "Liste auf 60 Einträge begrenzt; Radius verkleinern.",
+                (l10n) => l10n.mobilityListeAufEintraegeBegrenzt47537bf9,
               ),
             ),
         ],
         const Divider(),
         Text(
-          context.translate(
+          context.localized(
             "Datenquelle: Bundesamt für Energie (BFE), Ladepunkte Elektromobilität, geo.admin.ch · O-By-Ask. Nutzung mit Quellenangabe; kommerzielle Nutzung nur mit vorheriger Erlaubnis des Dateninhabers.",
+            (l10n) => l10n.commonDatenquelleBundesamtFuerEnergieb3a50654,
           ),
         ),
         TextButton(
@@ -498,7 +558,11 @@ class _EvChargingSectionState extends State<EvChargingSection> {
             mode: LaunchMode.externalApplication,
           ),
           child: Text(
-            context.translate("BFE-Dokumentation und Nutzungsbedingungen"),
+            context.localized(
+              "BFE-Dokumentation und Nutzungsbedingungen",
+              (l10n) =>
+                  l10n.mobilityBfeDokumentationUndNutzungsbedingungen58dca300,
+            ),
           ),
         ),
       ],

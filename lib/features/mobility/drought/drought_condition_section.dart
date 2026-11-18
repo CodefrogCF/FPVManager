@@ -120,9 +120,13 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
           onChanged: (value) => _set(id, value),
           title: Text(title),
           subtitle: Text(
-            context.translate(
+            context.localizedWithArgs(
               "{0}\nKacheln: {1} · Quelldatum nicht durch Kachelladen bestätigt",
               [caption, status],
+              (l10n, value) => l10n.mobilityKachelnQuelldatumNichtDurch5d14a5bc(
+                value(0),
+                value(1),
+              ),
             ),
           ),
         ),
@@ -131,8 +135,9 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
             key: const ValueKey('drought_index_step'),
             initialValue: _step,
             decoration: InputDecoration(
-              labelText: context.translate(
+              labelText: context.localized(
                 "CDI-Zeitstand (offizieller WMS-Parameter)",
+                (l10n) => l10n.mobilityCdiZeitstandOffiziellerWms68eccda7,
               ),
             ),
             items: [
@@ -151,7 +156,11 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
           ),
         if (id == 'drought-index' && _step.isForecast)
           Text(
-            context.translate("Prognosezeitstand: keine direkte Beobachtung."),
+            context.localized(
+              "Prognosezeitstand: keine direkte Beobachtung.",
+              (l10n) =>
+                  l10n.mobilityPrognosezeitstandKeineDirekteBeobachtungbef744b1,
+            ),
           ),
         if (enabled) ...[
           Slider(
@@ -163,7 +172,12 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
             TextButton.icon(
               onPressed: () => _set(id, true, retry: true),
               icon: const Icon(Icons.refresh),
-              label: Text(context.translate("Kacheln erneut versuchen")),
+              label: Text(
+                context.localized(
+                  "Kacheln erneut versuchen",
+                  (l10n) => l10n.mobilityKachelnErneutVersuchenc1fb6d60,
+                ),
+              ),
             ),
         ],
         Align(
@@ -172,7 +186,11 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
             icon: const Icon(Icons.open_in_new),
             onPressed: () => _open(legendUrl),
             label: Text(
-              context.translate("Amtliche Legende / Produktinformation"),
+              context.localized(
+                "Amtliche Legende / Produktinformation",
+                (l10n) =>
+                    l10n.mobilityAmtlicheLegendeProduktinformation73ec6293,
+              ),
             ),
           ),
         ),
@@ -202,19 +220,24 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
         initiallyExpanded: _expanded,
         onExpansionChanged: (value) => setState(() => _expanded = value),
         title: Text(
-          context.translate(
+          context.localized(
             "Trockenheit & Vegetationszustand (BAFU / swissEO)",
+            (l10n) =>
+                l10n.mobilityTrockenheitVegetationszustandBafuSwisseoa63812c2,
           ),
         ),
         subtitle: Text(
-          context.translate(
+          context.localized(
             "Drei unabhängige amtliche Kartenebenen · optional",
+            (l10n) => l10n.mobilityDreiUnabhaengigeAmtlicheKartenebenen6c0dfad0,
           ),
         ),
         children: [
           Text(
-            context.translate(
+            context.localized(
               "Regionale Indikatoren und satellitengestützte Modelle, keine Messung der lokalen Bodenfeuchte. Weder Feuerverbote noch Wasserentnahmebeschränkungen werden aus diesen Karten abgeleitet. Fehlende Kacheln sind keine Entwarnung.",
+              (l10n) => l10n
+                  .commonRegionaleIndikatorenUndSatellitengestuetzte10059e46,
             ),
           ),
           const SizedBox(height: 8),
@@ -246,13 +269,15 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
             'https://www.swisstopo.admin.ch/en/satelliteimage-swisseo-vhi',
           ),
           Text(
-            context.translate(
+            context.localized(
               "VHI v100 wird laut swisstopo bis Ende 2026 durch v200 ersetzt. Bis zur verifizierten Umstellung ist der aktuelle Layer eine Übergangslösung.",
+              (l10n) => l10n.mobilityVhiVWirdLaute6dca0e6,
             ),
           ),
           Text(
-            context.translate(
+            context.localized(
               "STAC-Metadaten für swissEO VHI werden nur auf Wunsch abgefragt. Der Abrufzeitpunkt und der Beobachtungszeitraum werden getrennt gespeichert. WMS-/WMTS-Kacheln werden nicht als Offline-Datensatz archiviert.",
+              (l10n) => l10n.mobilityStacMetadatenFuerSwisseofe06af42,
             ),
           ),
           if (_checking) const LinearProgressIndicator(),
@@ -263,59 +288,90 @@ class _DroughtConditionSectionState extends State<DroughtConditionSection> {
               OutlinedButton(
                 key: const ValueKey('drought_offline_metadata'),
                 onPressed: _checking ? null : () => _check(offline: true),
-                child: Text(context.translate("Gespeicherten Stand")),
+                child: Text(
+                  context.localized(
+                    "Gespeicherten Stand",
+                    (l10n) => l10n.mobilityGespeichertenStand0b0b171e,
+                  ),
+                ),
               ),
               FilledButton.tonal(
                 key: const ValueKey('drought_refresh_metadata'),
                 onPressed: _checking ? null : () => _check(refresh: true),
-                child: Text(context.translate("STAC-Datenstand prüfen")),
+                child: Text(
+                  context.localized(
+                    "STAC-Datenstand prüfen",
+                    (l10n) => l10n.mobilityStacDatenstandPruefen445b5f79,
+                  ),
+                ),
               ),
             ],
           ),
           if (_message != null) Text(_message!),
           if (data != null) ...[
             Text(
-              context.translate("swissEO VHI · Datenstatus: {0}", [
-                state?.label ?? 'unbekannt',
-              ]),
+              context.localizedWithArgs(
+                "swissEO VHI · Datenstatus: {0}",
+                [state?.label ?? 'unbekannt'],
+                (l10n, value) =>
+                    l10n.mobilitySwisseoVhiDatenstatus0fe52fab(value(0)),
+              ),
             ),
             Text(
-              context.translate("Beobachtungszeit: {0}", [
-                _date(data.observedUtc),
-              ]),
+              context.localizedWithArgs(
+                "Beobachtungszeit: {0}",
+                [_date(data.observedUtc)],
+                (l10n, value) =>
+                    l10n.mobilityBeobachtungszeite60e71e7(value(0)),
+              ),
             ),
             Text(
-              context.translate("Beobachtungszeitraum (STAC): {0} – {1}", [
-                _date(data.periodStartUtc),
-                _date(data.periodEndUtc),
-              ]),
+              context.localizedWithArgs(
+                "Beobachtungszeitraum (STAC): {0} – {1}",
+                [_date(data.periodStartUtc), _date(data.periodEndUtc)],
+                (l10n, value) => l10n.mobilityBeobachtungszeitraumStac7f2d19f8(
+                  value(0),
+                  value(1),
+                ),
+              ),
             ),
             Text(
-              context.translate("Quellenveröffentlichung: {0}", [
-                _date(data.publishedUtc),
-              ]),
+              context.localizedWithArgs(
+                "Quellenveröffentlichung: {0}",
+                [_date(data.publishedUtc)],
+                (l10n, value) =>
+                    l10n.mobilityQuellenveroeffentlichung5456a71d(value(0)),
+              ),
             ),
             Text(
-              context.translate("Metadaten heruntergeladen: {0}", [
-                _date(data.fetchedUtc),
-              ]),
+              context.localizedWithArgs(
+                "Metadaten heruntergeladen: {0}",
+                [_date(data.fetchedUtc)],
+                (l10n, value) =>
+                    l10n.mobilityMetadatenHeruntergeladen4f8bd0e0(value(0)),
+              ),
             ),
             if (data.incompletePage)
               Text(
-                context.translate(
+                context.localized(
                   "Nur begrenzte STAC-Auswahl geprüft; Vollständigkeit nicht bestätigt.",
+                  (l10n) => l10n.mobilityNurBegrenzteStacAuswahla9abd316,
                 ),
               ),
             if (data.fromCache)
               Text(
-                context.translate(
+                context.localized(
                   "Gespeicherter Metadatenstand – keine aktuelle Live-Bestätigung.",
+                  (l10n) => l10n
+                      .mobilityGespeicherterMetadatenstandKeineAktuelle17c89c8f,
                 ),
               ),
             if (data.refreshFailed)
               Text(
-                context.translate(
+                context.localized(
                   "Aktualisierung fehlgeschlagen; vorheriger Stand wird beibehalten.",
+                  (l10n) => l10n
+                      .mobilityAktualisierungFehlgeschlagenVorherigerStand6cb8348b,
                 ),
               ),
           ],

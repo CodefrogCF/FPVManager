@@ -170,9 +170,17 @@ class _SettingsState extends State<_Settings> {
         child: Column(
           children: [
             ListTile(
-              title: Text(context.translate("Planning assumptions")),
+              title: Text(
+                context.localized(
+                  "Planning assumptions",
+                  (l10n) => l10n.routesPlanningAssumptions61ebf317,
+                ),
+              ),
               trailing: IconButton(
-                tooltip: context.translate("Close"),
+                tooltip: context.localized(
+                  "Close",
+                  (l10n) => l10n.commonClosebbfa773e,
+                ),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -187,8 +195,9 @@ class _SettingsState extends State<_Settings> {
                 ),
                 children: [
                   Text(
-                    context.translate(
+                    context.localized(
                       "These values describe a simplified planning model. They do not account for gusts, manoeuvres, battery sag, temperature, battery ageing or unknown obstacles.",
+                      (l10n) => l10n.commonTheseValuesDescribeAa43d2a95,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -200,10 +209,16 @@ class _SettingsState extends State<_Settings> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(context.translate("Include steady wind")),
+                    title: Text(
+                      context.localized(
+                        "Include steady wind",
+                        (l10n) => l10n.routesIncludeSteadyWind4a449918,
+                      ),
+                    ),
                     subtitle: Text(
-                      context.translate(
+                      context.localized(
                         "Manual assumption, not an automatically verified forecast.",
+                        (l10n) => l10n.commonManualAssumptionNotAn31019e80,
                       ),
                     ),
                     value: _wind,
@@ -229,7 +244,10 @@ class _SettingsState extends State<_Settings> {
                     onChanged: (v) => setState(() => _telemetryEstimate = v),
                   ),
                   Text(
-                    context.translate("Level-flight power curve"),
+                    context.localized(
+                      "Level-flight power curve",
+                      (l10n) => l10n.routesLevelFlightPowerCurve5cf82060,
+                    ),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   if (widget.editor.equipment?.drones.any(
@@ -240,8 +258,9 @@ class _SettingsState extends State<_Settings> {
                       onPressed: _useDrone,
                       icon: const Icon(Icons.flight),
                       label: Text(
-                        context.translate(
+                        context.localized(
                           "Copy available drone values for review",
+                          (l10n) => l10n.routesCopyAvailableDroneValues12ac7ef8,
                         ),
                       ),
                     ),
@@ -264,10 +283,14 @@ class _SettingsState extends State<_Settings> {
                     controller: _fields['curve'],
                     maxLines: 5,
                     decoration: InputDecoration(
-                      labelText: context.translate("Airspeed (m/s); power (W)"),
+                      labelText: context.localized(
+                        "Airspeed (m/s); power (W)",
+                        (l10n) => l10n.routesAirspeedMSPower705d4a92,
+                      ),
                       hintText: '0; 150\n10; 180\n20; 300',
-                      helperText: context.translate(
+                      helperText: context.localized(
                         "One pair per line. Level flight only, without climb power. No extrapolation outside the curve.",
+                        (l10n) => l10n.commonOnePairPerLine94168101,
                       ),
                     ),
                     validator: (_) {
@@ -284,8 +307,10 @@ class _SettingsState extends State<_Settings> {
                     controller: _fields['source'],
                     maxLength: 240,
                     decoration: InputDecoration(
-                      labelText: context.translate(
+                      labelText: context.localized(
                         "Curve source / measurement conditions",
+                        (l10n) =>
+                            l10n.routesCurveSourceMeasurementConditions241dc3af,
                       ),
                     ),
                     validator: (v) => v!.trim().isEmpty
@@ -299,21 +324,31 @@ class _SettingsState extends State<_Settings> {
                     1,
                   ),
                   Text(
-                    context.translate(
+                    context.localized(
                       "Power is interpolated by airspeed and scaled by (takeoff mass / reference mass)^1.5. Climb adds m·g·height / efficiency. Descent does not recover energy. This assumes multirotor-like behaviour.",
+                      (l10n) => l10n.routesPowerIsInterpolatedBy90df4a57,
                     ),
                   ),
                   const Divider(),
                   Text(
-                    context.translate("Reserve and uncertainty"),
+                    context.localized(
+                      "Reserve and uncertainty",
+                      (l10n) => l10n.routesReserveAndUncertainty53aafdf4,
+                    ),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(context.translate("Include return to takeoff")),
+                    title: Text(
+                      context.localized(
+                        "Include return to takeoff",
+                        (l10n) => l10n.routesIncludeReturnToTakeoff90a464ac,
+                      ),
+                    ),
                     subtitle: Text(
-                      context.translate(
+                      context.localized(
                         "Retrace the planned path, with reverse-direction wind. No return leg is added at takeoff.",
+                        (l10n) => l10n.commonRetraceThePlannedPathec9e751c,
                       ),
                     ),
                     value: _return,
@@ -342,7 +377,10 @@ class _SettingsState extends State<_Settings> {
                   FilledButton(
                     onPressed: _apply,
                     child: Text(
-                      context.translate("Apply planning assumptions"),
+                      context.localized(
+                        "Apply planning assumptions",
+                        (l10n) => l10n.routesApplyPlanningAssumptions8576b420,
+                      ),
                     ),
                   ),
                 ],

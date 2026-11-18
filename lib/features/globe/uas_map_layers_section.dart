@@ -43,7 +43,11 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.translate("Map layer error: {0}", [error])),
+          content: Text(
+            context.localizedWithArgs("Map layer error: {0}", [
+              error,
+            ], (l10n, value) => l10n.globeMapLayerError65930212(value(0))),
+          ),
         ),
       );
     }
@@ -97,7 +101,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             title: Text(source.name),
             subtitle: Text(
               controller.uasZonesLoading
-                  ? context.translate("Loading zone data...")
+                  ? context.localized(
+                      "Loading zone data...",
+                      (l10n) => l10n.globeLoadingZoneDatacd4362a5,
+                    )
                   : source.publisher,
             ),
             value: controller.uasZonesVisible,
@@ -116,9 +123,9 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
           const SizedBox(height: 12),
 
           Text(
-            context.translate("Polygon fill opacity: {0}%", [
+            context.localizedWithArgs("Polygon fill opacity: {0}%", [
               (opacity * 100).round(),
-            ]),
+            ], (l10n, value) => l10n.globePolygonFillOpacityd148d398(value(0))),
           ),
 
           Slider(
@@ -151,12 +158,18 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             children: [
               Expanded(
                 child: Text(
-                  context.translate("Datenstand"),
+                  context.localized(
+                    "Datenstand",
+                    (l10n) => l10n.globeDatenstand0ce51d29,
+                  ),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
               IconButton(
-                tooltip: context.translate("Refresh UAS data"),
+                tooltip: context.localized(
+                  "Refresh UAS data",
+                  (l10n) => l10n.globeRefreshUasData3aea6b96,
+                ),
                 onPressed:
                     controller.isReady &&
                         controller.canEditPreferences &&
@@ -213,19 +226,30 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
           if (assessment != null && assessment.issues.isNotEmpty)
             Text(assessment.issues.first),
           Text(
-            context.translate(
+            context.localized(
               "Weitere Einschränkungen möglich. Vor dem Flug amtliche Quellen prüfen.",
+              (l10n) => l10n.globeWeitereEinschraenkungenMoeglichVor9c93ae78,
             ),
           ),
           TextButton.icon(
             onPressed: () => showAirspaceSafetyPanel(context, controller),
             icon: const Icon(Icons.verified_user_outlined),
-            label: Text(context.translate("Amtliche Quellen & Sicherheit")),
+            label: Text(
+              context.localized(
+                "Amtliche Quellen & Sicherheit",
+                (l10n) => l10n.globeAmtlicheQuellenSicherheit68a6f080,
+              ),
+            ),
           ),
           ExpansionTile(
             key: const PageStorageKey('map-airspace-source-details'),
             tilePadding: EdgeInsets.zero,
-            title: Text(context.translate("Daten & Quellen")),
+            title: Text(
+              context.localized(
+                "Daten & Quellen",
+                (l10n) => l10n.globeDatenQuellen0b5b5779,
+              ),
+            ),
             children: [
               _InfoRow(label: 'Provider', value: source.publisher),
 
@@ -256,7 +280,12 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                     ? () => _execute(controller.clearUasCache)
                     : null,
                 icon: const Icon(Icons.delete_outline),
-                label: Text(context.translate("Clear UAS dataset cache")),
+                label: Text(
+                  context.localized(
+                    "Clear UAS dataset cache",
+                    (l10n) => l10n.globeClearUasDatasetCacheaad7bb57,
+                  ),
+                ),
               ),
 
               _InfoRow(

@@ -288,12 +288,16 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.translate("Offline map regions"),
+          context.localized(
+            "Offline map regions",
+            (l10n) => l10n.offlineOfflineMapRegionse6d5c4de,
+          ),
           style: Theme.of(context).textTheme.titleLarge,
         ),
         Text(
-          context.translate(
+          context.localized(
             "Bereich bis 25 km Radius direkt auf diesem Gerät vorbereiten: Topografie, SWISSIMAGE-Satellitenbilder, neutrales Relief und 3D-Gelände aus offiziellen Downloadquellen. In der Webversion ist auch die gesamte Schweiz wählbar.",
+            (l10n) => l10n.commonBereichBisKmRadiusfecda995,
           ),
         ),
         const SizedBox(height: 8),
@@ -302,20 +306,32 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               ? _importPackage
               : null,
           icon: const Icon(Icons.file_download_outlined),
-          label: Text(context.translate("Offline-Paket importieren")),
+          label: Text(
+            context.localized(
+              "Offline-Paket importieren",
+              (l10n) => l10n.offlineOfflinePaketImportieren3e6d35a5,
+            ),
+          ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "Ein Laptop ist für die Aufbereitung nicht erforderlich. Bereits erstellte .fpvregion-Pakete bis 64 MiB können weiterhin importiert werden. Quellenlücken, Landesgrenzen und der gewählte Detailgrad begrenzen die Abdeckung.",
+            (l10n) => l10n.commonEinLaptopIstFuer32903d0e,
           ),
         ),
         if (_notice != null) Text(_notice!),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("Use cached base map and terrain")),
+          title: Text(
+            context.localized(
+              "Use cached base map and terrain",
+              (l10n) => l10n.offlineUseCachedBaseMapcac83b59,
+            ),
+          ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "Kein Online-Nachladen für Grundkarte und Gelände, auch nach Neustart. Live-Daten können weiterhin online sein.",
+              (l10n) => l10n.commonKeinOnlineNachladenFuer3b0d241a,
             ),
           ),
           value: widget.cachedMaps,
@@ -324,9 +340,11 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               : null,
         ),
         Text(
-          context.translate(
+          context.localizedWithArgs(
             "Gespeicherte Kartendaten: {0} MiB. Der zusätzliche Puffer für beim Betrachten geladene Kacheln ist auf 256 MiB begrenzt.",
             [(size / 1048576).toStringAsFixed(1)],
+            (l10n, value) =>
+                l10n.offlineGespeicherteKartendatenMibDerf8af680d(value(0)),
           ),
         ),
         const Text(
@@ -341,7 +359,12 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
         TextButton.icon(
           onPressed: widget.enabled && !_busy ? _load : null,
           icon: const Icon(Icons.refresh),
-          label: Text(context.translate("Refresh storage status")),
+          label: Text(
+            context.localized(
+              "Refresh storage status",
+              (l10n) => l10n.offlineRefreshStorageStatus889bb274,
+            ),
+          ),
         ),
         TextButton.icon(
           onPressed: widget.enabled && !_busy
@@ -352,22 +375,36 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               : null,
           icon: const Icon(Icons.cleaning_services_outlined),
           label: Text(
-            context.translate("Unterbrochene Aufbereitung verwerfen"),
+            context.localized(
+              "Unterbrochene Aufbereitung verwerfen",
+              (l10n) => l10n.offlineUnterbrocheneAufbereitungVerwerfenf0149e36,
+            ),
           ),
         ),
         for (final region in _regions) _region(region),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: Text(context.translate("Add offline region")),
+          title: Text(
+            context.localized(
+              "Add offline region",
+              (l10n) => l10n.offlineAddOfflineRegion6d71cdd8,
+            ),
+          ),
           children: [
             if (kIsWeb)
               SwitchListTile(
                 key: const Key('offline-whole-switzerland'),
                 contentPadding: EdgeInsets.zero,
-                title: Text(context.translate("Gesamte Schweiz")),
+                title: Text(
+                  context.localized(
+                    "Gesamte Schweiz",
+                    (l10n) => l10n.offlineGesamteSchweiz533dc2ed,
+                  ),
+                ),
                 subtitle: Text(
-                  context.translate(
+                  context.localized(
                     "Großer Download. Detail und Ebenen bestimmen den Speicherbedarf; der Browser prüft seinen verfügbaren Speicher vor dem Start.",
+                    (l10n) => l10n.offlineGrosserDownloadDetailUnd759ef111,
                   ),
                 ),
                 value: _wholeSwitzerland,
@@ -396,7 +433,10 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               ),
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText: context.translate("Centre latitude"),
+                labelText: context.localized(
+                  "Centre latitude",
+                  (l10n) => l10n.offlineCentreLatitudea76075f4,
+                ),
               ),
             ),
             TextField(
@@ -408,7 +448,10 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               ),
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText: context.translate("Centre longitude"),
+                labelText: context.localized(
+                  "Centre longitude",
+                  (l10n) => l10n.offlineCentreLongitude1cbc4661,
+                ),
               ),
             ),
             OutlinedButton.icon(
@@ -416,7 +459,12 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                   ? _pickCenter
                   : null,
               icon: const Icon(Icons.public),
-              label: Text(context.translate("Mittelpunkt auf Globe markieren")),
+              label: Text(
+                context.localized(
+                  "Mittelpunkt auf Globe markieren",
+                  (l10n) => l10n.offlineMittelpunktAufGlobeMarkierenec84f922,
+                ),
+              ),
             ),
             Text('Radius: ${_radius.toStringAsFixed(2)} km'),
             Slider(
@@ -431,23 +479,41 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             DropdownButtonFormField<String>(
               initialValue: _style,
               decoration: InputDecoration(
-                labelText: context.translate("Supported map"),
+                labelText: context.localized(
+                  "Supported map",
+                  (l10n) => l10n.offlineSupportedMapb531fbb7,
+                ),
               ),
               items: [
                 DropdownMenuItem(
                   value: 'topographic',
-                  child: Text(context.translate("Topographic")),
+                  child: Text(
+                    context.localized(
+                      "Topographic",
+                      (l10n) => l10n.offlineTopographicd28af3fe,
+                    ),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'relief',
-                  child: Text(context.translate("Relief")),
+                  child: Text(
+                    context.localized(
+                      "Relief",
+                      (l10n) => l10n.commonReliefbe53bb74,
+                    ),
+                  ),
                 ),
               ],
               onChanged: widget.enabled && !_busy
                   ? (v) => setState(() => _style = v!)
                   : null,
             ),
-            Text(context.translate("Offline verfügbare Kartenebenen")),
+            Text(
+              context.localized(
+                "Offline verfügbare Kartenebenen",
+                (l10n) => l10n.offlineOfflineVerfuegbareKartenebenen3eca4f37,
+              ),
+            ),
             for (final entry in const {
               'topographic': 'Topografische Karte',
               'satellite': 'Satellitenbilder · SWISSIMAGE 2 m',
@@ -469,11 +535,17 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(context.translate("3D-Gelände")),
+              title: Text(
+                context.localized(
+                  "3D-Gelände",
+                  (l10n) => l10n.offlineDGelaende41d0aed9,
+                ),
+              ),
               value: _includeTerrain,
               subtitle: Text(
-                context.translate(
+                context.localized(
                   "Höhen aus swissALTI3D; gewählte Detailstufe bestimmt die Auflösung im Globe.",
+                  (l10n) => l10n.offlineHoehenAusSwissaltiD5966fff3,
                 ),
               ),
               onChanged: widget.enabled && !_busy
@@ -484,13 +556,20 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               key: ValueKey('imagery-$_wholeSwitzerland'),
               initialValue: _detail,
               decoration: InputDecoration(
-                labelText: context.translate("Maximum imagery detail"),
+                labelText: context.localized(
+                  "Maximum imagery detail",
+                  (l10n) => l10n.offlineMaximumImageryDetaile83a21f6,
+                ),
               ),
               items: [
                 for (final level in [12, 13, 14, 15, 16, 17])
                   DropdownMenuItem(
                     value: level,
-                    child: Text(context.translate("Zoom {0}", [level])),
+                    child: Text(
+                      context.localizedWithArgs("Zoom {0}", [
+                        level,
+                      ], (l10n, value) => l10n.offlineZoomb67baf86(value(0))),
+                    ),
                   ),
               ],
               onChanged: widget.enabled && !_busy
@@ -501,17 +580,22 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               key: ValueKey('terrain-$_wholeSwitzerland'),
               initialValue: _terrainDetail,
               decoration: InputDecoration(
-                labelText: context.translate("Geländedetail für Offline-Paket"),
+                labelText: context.localized(
+                  "Geländedetail für Offline-Paket",
+                  (l10n) => l10n.offlineGelaendedetailFuerOfflinePaketcbde183b,
+                ),
               ),
               items: [
                 for (final level in [12, 13, 14, 15, 16])
                   DropdownMenuItem(
                     value: level,
                     child: Text(
-                      context.translate("Stufe {0}{1}", [
-                        level,
-                        level == 16 ? ' · fein' : '',
-                      ]),
+                      context.localizedWithArgs(
+                        "Stufe {0}{1}",
+                        [level, level == 16 ? ' · fein' : ''],
+                        (l10n, value) =>
+                            l10n.offlineStufed0ed7705(value(0), value(1)),
+                      ),
                     ),
                   ),
               ],
@@ -522,8 +606,9 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             DropdownButtonFormField<int>(
               initialValue: _budgetGiB,
               decoration: InputDecoration(
-                labelText: context.translate(
+                labelText: context.localized(
                   "Speicherlimit für diesen Download",
+                  (l10n) => l10n.offlineSpeicherlimitFuerDiesenDownload142a1d01,
                 ),
               ),
               items: [
@@ -536,12 +621,17 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             ),
             if (preparationEstimate != null)
               Text(
-                context.translate(
+                context.localizedWithArgs(
                   "Geschätzter lokaler Speicher: {0} MiB · {1} Kacheln. Originaldaten und Karteninhalt beeinflussen Downloadmenge und Dauer. Vorhandene Region bleibt bis zum erfolgreichen Abschluss aktiv.",
                   [
                     (preparationEstimate.bytes / 1048576).toStringAsFixed(0),
                     preparationEstimate.tiles,
                   ],
+                  (l10n, value) =>
+                      l10n.offlineGeschaetzterLokalerSpeicherMibae938fa8(
+                        value(0),
+                        value(1),
+                      ),
                 ),
               ),
             FilledButton.icon(
@@ -558,19 +648,29 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
               icon: const Icon(Icons.download_for_offline_outlined),
               label: Text(
                 _wholeSwitzerland
-                    ? context.translate("Gesamte Schweiz offline vorbereiten")
-                    : context.translate("Bereich offline vorbereiten"),
+                    ? context.localized(
+                        "Gesamte Schweiz offline vorbereiten",
+                        (l10n) => l10n
+                            .offlineGesamteSchweizOfflineVorbereiten7cb30202,
+                      )
+                    : context.localized(
+                        "Bereich offline vorbereiten",
+                        (l10n) => l10n.offlineBereichOfflineVorbereiten91421709,
+                      ),
               ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Eigene Spots, Fotos, Ausrüstung, Routen und Checklisten sind bereits lokal. Heruntergeladene UAS-Zonen, Vektorhindernisse und SLF-Bulletins bleiben als datierte Momentaufnahmen verfügbar. Diese Ebenen bei Bedarf vorher in den Kartenebenen aktualisieren. WMS-Bilder, gestreamte Gebäude/Bäume, Verkehr, Flugbewegungen und laufende Wetterdaten werden nicht als vollständige Offline-Datensätze zugesagt.",
+                (l10n) => l10n.commonEigeneSpotsFotosAusruestunga83357cb,
               ),
             ),
             if (widget.prepareSnapshots != null) ...[
               Text(
-                context.translate(
+                context.localized(
                   "Zusätzliche datierte Momentaufnahmen aktualisieren",
+                  (l10n) => l10n
+                      .offlineZusaetzlicheDatierteMomentaufnahmenAktualisieren66eddff9,
                 ),
               ),
               for (final entry in const {
@@ -596,14 +696,16 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
             ],
             ExpansionTile(
               title: Text(
-                context.translate(
+                context.localized(
                   "Ansichtspuffer und optionaler Laptop-Export",
+                  (l10n) =>
+                      l10n.offlineAnsichtspufferUndOptionalerLaptop62f2efd5,
                 ),
               ),
               children: [
                 if (estimate != null && _style == 'topographic')
                   Text(
-                    context.translate(
+                    context.localizedWithArgs(
                       "Offline-Paket grob {0} MiB (Karteninhalt variiert), maximal 64 MiB. Originaldateien für die Aufbereitung können deutlich größer sein.{1}",
                       [
                         (estimate.preparedEstimatedBytes / 1048576)
@@ -613,6 +715,10 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                             ? ' Bereich oder Geländedetail reduzieren.'
                             : '',
                       ],
+                      (l10n, value) => l10n.commonOfflinePaketGrobMibeae634d2(
+                        value(0),
+                        value(1),
+                      ),
                     ),
                   ),
                 FilledButton.icon(
@@ -625,7 +731,12 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                       ? _save
                       : null,
                   icon: const Icon(Icons.add_location_alt_outlined),
-                  label: Text(context.translate("Save region for caching")),
+                  label: Text(
+                    context.localized(
+                      "Save region for caching",
+                      (l10n) => l10n.offlineSaveRegionForCaching87de5600,
+                    ),
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed:
@@ -641,14 +752,18 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                       : null,
                   icon: const Icon(Icons.save_alt),
                   label: Text(
-                    context.translate(
+                    context.localized(
                       "Vorbereitungsdatei für Laptop speichern",
+                      (l10n) => l10n
+                          .offlineVorbereitungsdateiFuerLaptopSpeichern42dca4b8,
                     ),
                   ),
                 ),
                 Text(
-                  context.translate(
+                  context.localized(
                     "Der zusätzliche Ansichtspuffer enthält nur tatsächlich betrachtete Kacheln und kann unvollständig bleiben. Er ist unabhängig vom automatischen offiziellen Regionsdownload oben.",
+                    (l10n) => l10n
+                        .offlineDerZusaetzlicheAnsichtspufferEnthaeltb23a8c6c,
                   ),
                 ),
               ],
@@ -698,13 +813,26 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
                           : null,
                       child: Text(
                         region.preparationVersion == 2
-                            ? context.translate("Region aktualisieren")
-                            : context.translate("Neue Vorbereitungsdatei"),
+                            ? context.localized(
+                                "Region aktualisieren",
+                                (l10n) =>
+                                    l10n.offlineRegionAktualisieren789dbcf6,
+                              )
+                            : context.localized(
+                                "Neue Vorbereitungsdatei",
+                                (l10n) =>
+                                    l10n.offlineNeueVorbereitungsdateif618c1fc,
+                              ),
                       ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text(context.translate("Schließen")),
+                      child: Text(
+                        context.localized(
+                          "Schließen",
+                          (l10n) => l10n.commonSchliessen44424b18,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -731,23 +859,37 @@ class _OfflineRegionsSectionState extends State<OfflineRegionsSection> {
       contentPadding: EdgeInsets.zero,
       title: Text(region.name),
       subtitle: Text(
-        context.translate("{0} / {1} tiles · {2} MiB\n{3} · {4}\n{5}", [
-          tiles.length,
-          region.packageTiles ?? region.expectedTiles,
-          (size / 1048576).toStringAsFixed(1),
-          region.packageId != null && tiles.length == region.packageTiles
-              ? '${region.packageActive ? 'Aktives Offline-Paket' : 'Offline-Paket'} · abgeleitete Karte und Gelände'
-              : 'Partial cache — missing tiles',
-          region.style,
-          region.packageId != null
-              ? 'Quellenausgaben: ${region.sourceDates ?? "nicht angegeben"} · ${stale ? "älteres Paket · " : ""}aufbereitet ${region.preparedAt!.toLocal()}'
-              : oldest == null
-              ? 'Not downloaded'
-              : '${stale ? 'Outdated cache' : 'Cached snapshot'} · oldest retrieval ${oldest.toIso8601String()}',
-        ]),
+        context.localizedWithArgs(
+          "{0} / {1} tiles · {2} MiB\n{3} · {4}\n{5}",
+          [
+            tiles.length,
+            region.packageTiles ?? region.expectedTiles,
+            (size / 1048576).toStringAsFixed(1),
+            region.packageId != null && tiles.length == region.packageTiles
+                ? '${region.packageActive ? 'Aktives Offline-Paket' : 'Offline-Paket'} · abgeleitete Karte und Gelände'
+                : 'Partial cache — missing tiles',
+            region.style,
+            region.packageId != null
+                ? 'Quellenausgaben: ${region.sourceDates ?? "nicht angegeben"} · ${stale ? "älteres Paket · " : ""}aufbereitet ${region.preparedAt!.toLocal()}'
+                : oldest == null
+                ? 'Not downloaded'
+                : '${stale ? 'Outdated cache' : 'Cached snapshot'} · oldest retrieval ${oldest.toIso8601String()}',
+          ],
+          (l10n, value) => l10n.offlineTilesMib2f032565(
+            value(0),
+            value(1),
+            value(2),
+            value(3),
+            value(4),
+            value(5),
+          ),
+        ),
       ),
       trailing: IconButton(
-        tooltip: context.translate("Remove cached region"),
+        tooltip: context.localized(
+          "Remove cached region",
+          (l10n) => l10n.offlineRemoveCachedRegion3fb1230e,
+        ),
         icon: const Icon(Icons.delete_outline),
         onPressed: widget.enabled && !_busy
             ? () async {

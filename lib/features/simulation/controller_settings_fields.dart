@@ -50,11 +50,22 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
   @override
   Widget build(BuildContext context) => ExpansionTile(
     maintainState: true,
-    title: Text(context.translate("Controller")),
+    title: Text(
+      context.localized(
+        "Controller",
+        (l10n) => l10n.simulationControllera36a5ffa,
+      ),
+    ),
     subtitle: Text(
       _zero == ControllerThrottleZero.bottom
-          ? context.translate("Gas null: unten (0 %)")
-          : context.translate("Gas null: Mitte (50 %)"),
+          ? context.localized(
+              "Gas null: unten (0 %)",
+              (l10n) => l10n.simulationGasNullUntenc2617787,
+            )
+          : context.localized(
+              "Gas null: Mitte (50 %)",
+              (l10n) => l10n.simulationGasNullMitte62e44939,
+            ),
     ),
     children: [
       DropdownButtonFormField<ControllerLayout>(
@@ -62,16 +73,29 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
         initialValue: _layout,
         isExpanded: true,
         decoration: InputDecoration(
-          labelText: context.translate("Controllertyp"),
+          labelText: context.localized(
+            "Controllertyp",
+            (l10n) => l10n.simulationControllertyp247db158,
+          ),
         ),
         items: [
           DropdownMenuItem(
             value: ControllerLayout.gamepad,
-            child: Text(context.translate("Gamepad")),
+            child: Text(
+              context.localized(
+                "Gamepad",
+                (l10n) => l10n.simulationGamepad4dde0030,
+              ),
+            ),
           ),
           DropdownMenuItem(
             value: ControllerLayout.radio,
-            child: Text(context.translate("USB-Fernsteuerung")),
+            child: Text(
+              context.localized(
+                "USB-Fernsteuerung",
+                (l10n) => l10n.simulationUsbFernsteuerungdab5ef74,
+              ),
+            ),
           ),
         ],
         onChanged: (value) {
@@ -91,16 +115,29 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
         initialValue: _zero,
         isExpanded: true,
         decoration: InputDecoration(
-          labelText: context.translate("Gas-Nullstellung"),
+          labelText: context.localized(
+            "Gas-Nullstellung",
+            (l10n) => l10n.simulationGasNullstellungd92cd012,
+          ),
         ),
         items: [
           DropdownMenuItem(
             value: ControllerThrottleZero.bottom,
-            child: Text(context.translate("0 % · unten (Fernsteuerung)")),
+            child: Text(
+              context.localized(
+                "0 % · unten (Fernsteuerung)",
+                (l10n) => l10n.simulationUntenFernsteuerungb976566f,
+              ),
+            ),
           ),
           DropdownMenuItem(
             value: ControllerThrottleZero.center,
-            child: Text(context.translate("50 % · Mitte (Gamepad)")),
+            child: Text(
+              context.localized(
+                "50 % · Mitte (Gamepad)",
+                (l10n) => l10n.simulationMitteGamepad3ed3bc49,
+              ),
+            ),
           ),
         ],
         onChanged: (value) {
@@ -111,14 +148,16 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
         },
       ),
       Text(
-        context.translate(
+        context.localized(
           "Angle/Acro: Null unten nutzt den ganzen Gasweg; Null in der Mitte nur die obere Hälfte. Zum Verbinden oder Fortsetzen Gas auf null, übrige Sticks zentrieren.",
+          (l10n) => l10n.commonAngleAcroNullUntena9ccc141,
         ),
       ),
       if (_layout == ControllerLayout.radio) ...[
         Text(
-          context.translate(
+          context.localized(
             "Roll, Pitch, Gas und Yaw benötigen vier verschiedene USB-Kanäle. Zuordnung und Richtung hängen von Fernsteuerung und Betriebssystem ab. Schalter lösen weder Zurücksetzen noch Beenden aus.",
+            (l10n) => l10n.commonRollPitchGasUndf22bbf00,
           ),
         ),
         for (var i = 0; i < 4; i++)
@@ -136,7 +175,14 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
                     for (var a = 0; a < 16; a++)
                       DropdownMenuItem(
                         value: a,
-                        child: Text(context.translate("Kanal {0}", [a + 1])),
+                        child: Text(
+                          context.localizedWithArgs(
+                            "Kanal {0}",
+                            [a + 1],
+                            (l10n, value) =>
+                                l10n.simulationKanale8c667fd(value(0)),
+                          ),
+                        ),
                       ),
                   ],
                   validator: (_) => _axes.toSet().length != 4
@@ -156,15 +202,20 @@ class _ControllerSettingsFieldsState extends State<ControllerSettingsFields> {
               ),
               Checkbox(
                 value: _invert[i],
-                semanticLabel: context.translate("{0} umkehren", [
+                semanticLabel: context.localizedWithArgs("{0} umkehren", [
                   ['Roll', 'Pitch', 'Gas', 'Yaw'][i],
-                ]),
+                ], (l10n, value) => l10n.simulationUmkehren7b06e49a(value(0))),
                 onChanged: (value) {
                   setState(() => _invert[i] = value ?? false);
                   _change();
                 },
               ),
-              Text(context.translate("Umkehren")),
+              Text(
+                context.localized(
+                  "Umkehren",
+                  (l10n) => l10n.simulationUmkehren1e1918e6,
+                ),
+              ),
             ],
           ),
       ],

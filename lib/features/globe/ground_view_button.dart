@@ -28,7 +28,11 @@ class GroundViewButton extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.translate("Ground view: {0}", [error])),
+            content: Text(
+              context.localizedWithArgs("Ground view: {0}", [
+                error,
+              ], (l10n, value) => l10n.globeGroundViewb1f80610(value(0))),
+            ),
           ),
         );
       }
@@ -50,10 +54,19 @@ class GroundViewButton extends StatelessWidget {
           controller.groundViewPending || controller.simulationPending;
       return IconButton(
         tooltip: pending
-            ? context.translate("Cancel spawn")
+            ? context.localized(
+                "Cancel spawn",
+                (l10n) => l10n.globeCancelSpawn701b7923,
+              )
             : running
-            ? context.translate("Return to globe")
-            : context.translate("Spawn here"),
+            ? context.localized(
+                "Return to globe",
+                (l10n) => l10n.globeReturnToGlobe687364e5,
+              )
+            : context.localized(
+                "Spawn here",
+                (l10n) => l10n.globeSpawnHeref28d3450,
+              ),
         onPressed: running
             ? () => _run(context, controller.exitNavigation)
             : controller.isReady &&

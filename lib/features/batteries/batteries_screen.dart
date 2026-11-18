@@ -43,11 +43,13 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
           padding: const EdgeInsets.all(24),
           child: Text(
             types
-                ? context.translate(
+                ? context.localized(
                     "No battery types yet. Add a reusable specification template.",
+                    (l10n) => l10n.batteriesNoBatteryTypesYetc908d855,
                   )
-                : context.translate(
+                : context.localized(
                     "No individual batteries yet. Add a pack to your inventory.",
+                    (l10n) => l10n.batteriesNoIndividualBatteriesYet2f6f284a,
                   ),
             textAlign: TextAlign.center,
           ),
@@ -81,7 +83,12 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
     length: 2,
     child: Scaffold(
       appBar: AppBar(
-        title: Text(context.translate("Battery inventory")),
+        title: Text(
+          context.localized(
+            "Battery inventory",
+            (l10n) => l10n.batteriesBatteryInventory01b473c6,
+          ),
+        ),
         bottom: const TabBar(
           tabs: [
             Tab(text: 'Packs'),
@@ -97,12 +104,22 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(context.translate("Unable to load battery inventory.")),
+                  Text(
+                    context.localized(
+                      "Unable to load battery inventory.",
+                      (l10n) => l10n.batteriesUnableToLoadBattery8a3276bc,
+                    ),
+                  ),
                   TextButton(
                     onPressed: () => setState(
                       () => _batteries = widget.repository.watchBatteries(),
                     ),
-                    child: Text(context.translate("Retry")),
+                    child: Text(
+                      context.localized(
+                        "Retry",
+                        (l10n) => l10n.commonRetry9f5cd8a2,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -128,13 +145,23 @@ class _BatteriesScreenState extends State<BatteriesScreen> {
             heroTag: 'add-battery-type',
             onPressed: () => _add(asType: true),
             icon: const Icon(Icons.copy_all_outlined),
-            label: Text(context.translate("Add type")),
+            label: Text(
+              context.localized(
+                "Add type",
+                (l10n) => l10n.batteriesAddType937e2dfc,
+              ),
+            ),
           ),
           FloatingActionButton.extended(
             heroTag: 'add-battery',
             onPressed: _add,
             icon: const Icon(Icons.add),
-            label: Text(context.translate("Add battery")),
+            label: Text(
+              context.localized(
+                "Add battery",
+                (l10n) => l10n.batteriesAddBattery418deef8,
+              ),
+            ),
           ),
         ],
       ),

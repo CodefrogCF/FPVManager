@@ -21,7 +21,12 @@ class LiveRadioLauncher extends StatelessWidget {
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: () => showLiveRadioSettings(context, globe, spots: spots),
     icon: const Icon(Icons.settings_input_antenna),
-    label: Text(context.translate("Radio line of sight")),
+    label: Text(
+      context.localized(
+        "Radio line of sight",
+        (l10n) => l10n.signalRadioLineOfSight3d11d898,
+      ),
+    ),
   );
 }
 
@@ -165,9 +170,17 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
         child: Column(
           children: [
             ListTile(
-              title: Text(context.translate("Live radio line of sight")),
+              title: Text(
+                context.localized(
+                  "Live radio line of sight",
+                  (l10n) => l10n.signalLiveRadioLineOfb3b60fda,
+                ),
+              ),
               trailing: IconButton(
-                tooltip: context.translate("Close"),
+                tooltip: context.localized(
+                  "Close",
+                  (l10n) => l10n.commonClosebbfa773e,
+                ),
                 onPressed: _working ? null : () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -179,14 +192,19 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      context.translate(
+                      context.localized(
                         "Periodic geometric preview between the transmitter and the simulated drone. This is not measured signal quality or a guaranteed communication range.",
+                        (l10n) =>
+                            l10n.signalPeriodicGeometricPreviewBetweenb75cb376,
                       ),
                     ),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        context.translate("Enable live radio preview"),
+                        context.localized(
+                          "Enable live radio preview",
+                          (l10n) => l10n.signalEnableLiveRadioPreview96c70f99,
+                        ),
                       ),
                       value: _enabled,
                       onChanged: _working
@@ -197,19 +215,29 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                       initialValue: _spawn,
                       isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: context.translate("Transmitter position"),
+                        labelText: context.localized(
+                          "Transmitter position",
+                          (l10n) => l10n.signalTransmitterPositiond87196e3,
+                        ),
                       ),
                       items: [
                         DropdownMenuItem(
                           value: true,
                           child: Text(
-                            context.translate("Current flight launch point"),
+                            context.localized(
+                              "Current flight launch point",
+                              (l10n) =>
+                                  l10n.signalCurrentFlightLaunchPointb1e984c0,
+                            ),
                           ),
                         ),
                         DropdownMenuItem(
                           value: false,
                           child: Text(
-                            context.translate("Fixed spot / coordinates"),
+                            context.localized(
+                              "Fixed spot / coordinates",
+                              (l10n) => l10n.signalFixedSpotCoordinatese71de0f9,
+                            ),
                           ),
                         ),
                       ],
@@ -224,7 +252,12 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                           if (widget.spots != null)
                             TextButton(
                               onPressed: _working ? null : _savedSpot,
-                              child: Text(context.translate("Saved spot")),
+                              child: Text(
+                                context.localized(
+                                  "Saved spot",
+                                  (l10n) => l10n.commonSavedSpot64ad0674,
+                                ),
+                              ),
                             ),
                           if (selected != null)
                             TextButton(
@@ -237,7 +270,10 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                                       ),
                                     ),
                               child: Text(
-                                context.translate("Selected map point"),
+                                context.localized(
+                                  "Selected map point",
+                                  (l10n) => l10n.signalSelectedMapPoint1717e7f7,
+                                ),
                               ),
                             ),
                         ],
@@ -252,8 +288,14 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                           ),
                           decoration: InputDecoration(
                             labelText: key == 'latitude'
-                                ? context.translate("Latitude · WGS84")
-                                : context.translate("Longitude · WGS84"),
+                                ? context.localized(
+                                    "Latitude · WGS84",
+                                    (l10n) => l10n.signalLatitudeWgsd5f5cf6c,
+                                  )
+                                : context.localized(
+                                    "Longitude · WGS84",
+                                    (l10n) => l10n.signalLongitudeWgs63c0ff8c,
+                                  ),
                           ),
                         ),
                     ],
@@ -272,28 +314,41 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                       ),
                     const SizedBox(height: 8),
                     Text(
-                      context.translate(
+                      context.localized(
                         "Transmitter height is above sampled terrain. The receiving endpoint is the drone’s simulated WGS84 ellipsoidal height.",
+                        (l10n) => l10n.signalTransmitterHeightIsAboveb50b536b,
                       ),
                     ),
                     ExpansionTile(
                       title: Text(
-                        context.translate("Local surface observations"),
+                        context.localized(
+                          "Local surface observations",
+                          (l10n) => l10n.signalLocalSurfaceObservations5f83fa58,
+                        ),
                       ),
                       subtitle: Text(
-                        context.translate("{0} imported observations", [
-                          _surfaces.length,
-                        ]),
+                        context.localizedWithArgs(
+                          "{0} imported observations",
+                          [_surfaces.length],
+                          (l10n, value) =>
+                              l10n.signalImportedObservations6dc74f21(value(0)),
+                        ),
                       ),
                       children: [
                         Text(
-                          context.translate(
+                          context.localized(
                             "Optional circular AGL observations, as in preflight analysis. Visible 3D buildings, forests, masts and cables are not automatically included.",
+                            (l10n) => l10n
+                                .commonOptionalCircularAglObservations3ad9fcc1,
                           ),
                         ),
                         SwitchListTile(
                           title: Text(
-                            context.translate("Include imported observations"),
+                            context.localized(
+                              "Include imported observations",
+                              (l10n) => l10n
+                                  .signalIncludeImportedObservations2e110738,
+                            ),
                           ),
                           value: _surfacesEnabled,
                           onChanged: _working
@@ -302,7 +357,12 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                         ),
                         TextButton(
                           onPressed: _working ? null : _import,
-                          child: Text(context.translate("Import surface CSV")),
+                          child: Text(
+                            context.localized(
+                              "Import surface CSV",
+                              (l10n) => l10n.signalImportSurfaceCsv07954aaf,
+                            ),
+                          ),
                         ),
                         if (_surfaces.isNotEmpty)
                           TextButton(
@@ -313,22 +373,34 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                                     _surfacesEnabled = false;
                                   }),
                             child: Text(
-                              context.translate("Clear observations"),
+                              context.localized(
+                                "Clear observations",
+                                (l10n) => l10n.signalClearObservationsc6114e52,
+                              ),
                             ),
                           ),
                       ],
                     ),
                     ExpansionTile(
-                      title: Text(context.translate("Sampling and limits")),
+                      title: Text(
+                        context.localized(
+                          "Sampling and limits",
+                          (l10n) => l10n.signalSamplingAndLimits81b895c4,
+                        ),
+                      ),
                       children: [
                         Text(
-                          context.translate(
+                          context.localized(
                             "swisstopo terrain via Cesium · fixed terrain level 12 · profile points at most 25 m apart · live range 1 m–6 km. A new profile is attempted at most every 2 seconds. Sample heights may be reused for up to 30 seconds. Narrow or finer terrain features may be missed.",
+                            (l10n) =>
+                                l10n.signalSwisstopoTerrainViaCesium5961555e,
                           ),
                         ),
                         Text(
-                          context.translate(
+                          context.localized(
                             "Results expire after 5 seconds. Flight movement, pauses, respawns and unavailable terrain can make a result unknown. Terrain publication time is not supplied by this sampling interface. Radio propagation, interference, antenna patterns and material attenuation are not modelled.",
+                            (l10n) =>
+                                l10n.commonResultsExpireAfterSecondsfc4e5dd8,
                           ),
                         ),
                       ],
@@ -341,7 +413,7 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                           Text(c.status),
                           if (c.calculatedAt != null)
                             Text(
-                              context.translate(
+                              context.localizedWithArgs(
                                 "Last completed profile: {0} · {1}",
                                 [
                                   c.calculatedAt!.toLocal(),
@@ -349,27 +421,40 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                                       ? 'within live window'
                                       : 'not current',
                                 ],
+                                (l10n, value) =>
+                                    l10n.signalLastCompletedProfileaec2638b(
+                                      value(0),
+                                      value(1),
+                                    ),
                               ),
                             ),
                           if (c.result?.minimumClearance != null)
                             Text(
-                              context.translate(
+                              context.localizedWithArgs(
                                 "Minimum sampled geometric clearance: {0} m",
                                 [
                                   c.result!.minimumClearance!.toStringAsFixed(
                                     2,
                                   ),
                                 ],
+                                (l10n, value) => l10n
+                                    .signalMinimumSampledGeometricClearancecf242d36(
+                                      value(0),
+                                    ),
                               ),
                             ),
                           if (c.result?.minimumFresnelClearance != null)
                             Text(
-                              context.translate(
+                              context.localizedWithArgs(
                                 "Minimum configured Fresnel margin: {0} m",
                                 [
                                   c.result!.minimumFresnelClearance!
                                       .toStringAsFixed(2),
                                 ],
+                                (l10n, value) => l10n
+                                    .signalMinimumConfiguredFresnelMargin119fbdcf(
+                                      value(0),
+                                    ),
                               ),
                             ),
                           if (c.transmitter != null)
@@ -381,7 +466,7 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                     ),
                     if (c.obstruction != null)
                       Text(
-                        context.translate(
+                        context.localizedWithArgs(
                           "Potential obstruction: {0}, {1} · surface {2} m WGS84 ellipsoid",
                           [
                             c.obstruction!.position.latitude.toStringAsFixed(5),
@@ -390,6 +475,12 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                             ),
                             c.obstruction!.surface.toStringAsFixed(1),
                           ],
+                          (l10n, value) =>
+                              l10n.commonPotentialObstructionSurfaceMf0e561ae(
+                                value(0),
+                                value(1),
+                                value(2),
+                              ),
                         ),
                       ),
                     if (_error != null)
@@ -402,7 +493,12 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: _working ? null : _apply,
-                      child: Text(context.translate("Apply radio preview")),
+                      child: Text(
+                        context.localized(
+                          "Apply radio preview",
+                          (l10n) => l10n.signalApplyRadioPreview1e94fdf7,
+                        ),
+                      ),
                     ),
                   ],
                 ),

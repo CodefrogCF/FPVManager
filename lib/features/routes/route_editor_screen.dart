@@ -163,7 +163,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate("Map command failed. Please retry."),
+              context.localized(
+                "Map command failed. Please retry.",
+                (l10n) => l10n.routesMapCommandFailedPleasea043b9a7,
+              ),
             ),
           ),
         );
@@ -177,14 +180,27 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
       final discard = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(context.translate("Discard route changes?")),
+          title: Text(
+            context.localized(
+              "Discard route changes?",
+              (l10n) => l10n.routesDiscardRouteChanges71a9dbd8,
+            ),
+          ),
           content: Text(
-            context.translate("The current draft has unsaved changes."),
+            context.localized(
+              "The current draft has unsaved changes.",
+              (l10n) => l10n.routesTheCurrentDraftHas0d9d9939,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text(context.translate("Keep editing")),
+              child: Text(
+                context.localized(
+                  "Keep editing",
+                  (l10n) => l10n.routesKeepEditingd4d9e382,
+                ),
+              ),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
@@ -222,15 +238,26 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(context.translate("Route editor")),
+          title: Text(
+            context.localized(
+              "Route editor",
+              (l10n) => l10n.routesRouteEditor9c06eac0,
+            ),
+          ),
           leading: IconButton(
-            tooltip: context.translate("Back"),
+            tooltip: context.localized(
+              "Back",
+              (l10n) => l10n.routesBackb52b36b7,
+            ),
             onPressed: _editor.saving ? null : _close,
             icon: const Icon(Icons.arrow_back),
           ),
           actions: [
             PopupMenuButton<_RouteAction>(
-              tooltip: context.translate("Route options"),
+              tooltip: context.localized(
+                "Route options",
+                (l10n) => l10n.routesRouteOptions55d80b02,
+              ),
               enabled:
                   !_editor.loading && !_editor.saving && !_editor.loadFailed,
               onSelected: (action) {
@@ -252,29 +279,59 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
               itemBuilder: (_) => [
                 PopupMenuItem(
                   value: _RouteAction.sunTime,
-                  child: Text(context.translate("Sonnen- und Mondzeit")),
+                  child: Text(
+                    context.localized(
+                      "Sonnen- und Mondzeit",
+                      (l10n) => l10n.routesSonnenUndMondzeit1999dfbc,
+                    ),
+                  ),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.equipment,
-                  child: Text(context.translate("Route equipment")),
+                  child: Text(
+                    context.localized(
+                      "Route equipment",
+                      (l10n) => l10n.routesRouteEquipmentc4206690,
+                    ),
+                  ),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.planning,
-                  child: Text(context.translate("Planning assumptions")),
+                  child: Text(
+                    context.localized(
+                      "Planning assumptions",
+                      (l10n) => l10n.routesPlanningAssumptions61ebf317,
+                    ),
+                  ),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.constraints,
-                  child: Text(context.translate("Route constraints")),
+                  child: Text(
+                    context.localized(
+                      "Route constraints",
+                      (l10n) => l10n.routesRouteConstraints7de90cfc,
+                    ),
+                  ),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.signal,
                   enabled: _editor.points.length >= 2,
-                  child: Text(context.translate("Terrain & radio path")),
+                  child: Text(
+                    context.localized(
+                      "Terrain & radio path",
+                      (l10n) => l10n.commonTerrainRadioPathe61f3070,
+                    ),
+                  ),
                 ),
                 PopupMenuItem(
                   value: _RouteAction.layers,
                   enabled: _globe.isReady,
-                  child: Text(context.translate("Map layers")),
+                  child: Text(
+                    context.localized(
+                      "Map layers",
+                      (l10n) => l10n.commonMapLayersfdee4317,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -286,7 +343,10 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              context.translate("Route saved locally"),
+                              context.localized(
+                                "Route saved locally",
+                                (l10n) => l10n.routesRouteSavedLocally324d209a,
+                              ),
                             ),
                           ),
                         );
@@ -296,8 +356,14 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
               icon: const Icon(Icons.save_outlined),
               label: Text(
                 _editor.saving
-                    ? context.translate("Saving…")
-                    : context.translate("Save"),
+                    ? context.localized(
+                        "Saving…",
+                        (l10n) => l10n.commonSaving56a2285c,
+                      )
+                    : context.localized(
+                        "Save",
+                        (l10n) => l10n.commonSaveefc007a3,
+                      ),
               ),
             ),
           ],
@@ -313,13 +379,22 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                       enabled: !_editor.saving && !_editor.loadFailed,
                       maxLength: 120,
                       decoration: InputDecoration(
-                        labelText: context.translate("Route name"),
+                        labelText: context.localized(
+                          "Route name",
+                          (l10n) => l10n.commonRouteName4421bcfb,
+                        ),
                         counterText: '',
                         suffixText: _editor.dirty
-                            ? context.translate("Unsaved")
+                            ? context.localized(
+                                "Unsaved",
+                                (l10n) => l10n.routesUnsaved2ab06e25,
+                              )
                             : _editor.routeId == null
                             ? 'Draft'
-                            : context.translate("Saved"),
+                            : context.localized(
+                                "Saved",
+                                (l10n) => l10n.routesSavedc0ae8f6e,
+                              ),
                       ),
                       onChanged: _editor.rename,
                     ),
@@ -341,7 +416,12 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                                   ? null
                                   : () => _chooseStart(search: false),
                               icon: const Icon(Icons.place_outlined),
-                              label: Text(context.translate("Saved spot")),
+                              label: Text(
+                                context.localized(
+                                  "Saved spot",
+                                  (l10n) => l10n.commonSavedSpot64ad0674,
+                                ),
+                              ),
                             ),
                           OutlinedButton.icon(
                             onPressed:
@@ -351,7 +431,12 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                                 ? null
                                 : () => _chooseStart(search: true),
                             icon: const Icon(Icons.search),
-                            label: Text(context.translate("Search place")),
+                            label: Text(
+                              context.localized(
+                                "Search place",
+                                (l10n) => l10n.routesSearchPlace48c850ed,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -388,7 +473,12 @@ class _RouteEditorScreenState extends State<RouteEditorScreen> {
                           if (_editor.loadFailed)
                             TextButton(
                               onPressed: _load,
-                              child: Text(context.translate("Retry loading")),
+                              child: Text(
+                                context.localized(
+                                  "Retry loading",
+                                  (l10n) => l10n.routesRetryLoading54b15f12,
+                                ),
+                              ),
                             ),
                         ],
                       ),

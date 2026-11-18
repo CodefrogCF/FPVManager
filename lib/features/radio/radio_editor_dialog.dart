@@ -173,8 +173,14 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
             children: [
               Text(
                 widget.profile == null
-                    ? context.translate("Add equipment profile")
-                    : context.translate("Edit equipment profile"),
+                    ? context.localized(
+                        "Add equipment profile",
+                        (l10n) => l10n.radioAddEquipmentProfile85022529,
+                      )
+                    : context.localized(
+                        "Edit equipment profile",
+                        (l10n) => l10n.radioEditEquipmentProfilef984d1a0,
+                      ),
               ),
               if (_error != null)
                 Padding(
@@ -202,7 +208,10 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                       initialValue: _category,
                       isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: context.translate("System category"),
+                        labelText: context.localized(
+                          "System category",
+                          (l10n) => l10n.radioSystemCategorycc8be0ee,
+                        ),
                       ),
                       items: [
                         for (final entry in radioCategories.entries)
@@ -225,8 +234,9 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      context.translate(
+                      context.localized(
                         "Create independent control and video configurations. Leave unknown values empty. Maximum power is the transmitter output before antenna gain and cable loss; record the applicable mode and source below.",
+                        (l10n) => l10n.radioCreateIndependentControlAndf7437069,
                       ),
                     ),
                     for (final group in RadioProfileSection.values) ...[
@@ -250,16 +260,25 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                     ],
                     const SizedBox(height: 24),
                     Text(
-                      context.translate("Associated drones"),
+                      context.localized(
+                        "Associated drones",
+                        (l10n) => l10n.commonAssociatedDrones0b96fd82,
+                      ),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      context.translate(
+                      context.localized(
                         "A drone can use several independent configurations.",
+                        (l10n) => l10n.radioADroneCanUsea385a1c2,
                       ),
                     ),
                     if (snapshot.hasError)
-                      Text(context.translate("Unable to load drone profiles.")),
+                      Text(
+                        context.localized(
+                          "Unable to load drone profiles.",
+                          (l10n) => l10n.commonUnableToLoadDronecc1e0297,
+                        ),
+                      ),
                     if (snapshot.connectionState == ConnectionState.waiting)
                       const LinearProgressIndicator(),
                     TextButton(
@@ -268,12 +287,18 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                           : () => setState(() {
                               _drones = widget.repository.getDrones();
                             }),
-                      child: Text(context.translate("Refresh drones")),
+                      child: Text(
+                        context.localized(
+                          "Refresh drones",
+                          (l10n) => l10n.radioRefreshDronesc1a9ec7c,
+                        ),
+                      ),
                     ),
                     if (drones != null && drones.isEmpty && missing.isEmpty)
                       Text(
-                        context.translate(
+                        context.localized(
                           "No drone profiles yet. You can assign this equipment later.",
+                          (l10n) => l10n.radioNoDroneProfilesYetd1f93a9e,
                         ),
                       ),
                     for (final row in drones ?? <Drone>[])
@@ -295,9 +320,11 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
-                          context.translate(
+                          context.localizedWithArgs(
                             "Removed drone (#{0}) — uncheck to continue",
                             [id],
+                            (l10n, value) => l10n
+                                .radioRemovedDroneUncheckTo9fe8cb40(value(0)),
                           ),
                         ),
                         value: true,
@@ -313,7 +340,12 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
           actions: [
             TextButton(
               onPressed: _saving ? null : () => Navigator.pop(context),
-              child: Text(context.translate("Cancel")),
+              child: Text(
+                context.localized(
+                  "Cancel",
+                  (l10n) => l10n.commonCancel77dfd213,
+                ),
+              ),
             ),
             FilledButton(
               onPressed:
@@ -326,8 +358,14 @@ class _RadioEditorDialogState extends State<RadioEditorDialog> {
                   : _save,
               child: Text(
                 _saving
-                    ? context.translate("Saving...")
-                    : context.translate("Save"),
+                    ? context.localized(
+                        "Saving...",
+                        (l10n) => l10n.commonSavingae7e8875,
+                      )
+                    : context.localized(
+                        "Save",
+                        (l10n) => l10n.commonSaveefc007a3,
+                      ),
               ),
             ),
           ],

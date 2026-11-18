@@ -33,8 +33,9 @@ class MapLayersSheet extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                context.translate(
+                context.localized(
                   "Unable to update map preferences. Please retry.",
+                  (l10n) => l10n.globeUnableToUpdateMap7af0a9ee,
                 ),
               ),
             ),
@@ -60,19 +61,30 @@ class MapLayersSheet extends StatelessWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.layers_outlined),
-                title: Text(context.translate("Karte & Ansicht")),
+                title: Text(
+                  context.localized(
+                    "Karte & Ansicht",
+                    (l10n) => l10n.commonKarteAnsichtb4cd1571,
+                  ),
+                ),
                 dense: true,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (onOpenSettings != null)
                       IconButton(
-                        tooltip: context.translate("Allgemeine Einstellungen"),
+                        tooltip: context.localized(
+                          "Allgemeine Einstellungen",
+                          (l10n) => l10n.globeAllgemeineEinstellungen6f965a12,
+                        ),
                         onPressed: onOpenSettings,
                         icon: const Icon(Icons.settings_outlined),
                       ),
                     IconButton(
-                      tooltip: context.translate("Schließen"),
+                      tooltip: context.localized(
+                        "Schließen",
+                        (l10n) => l10n.commonSchliessen44424b18,
+                      ),
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close),
                     ),
@@ -81,7 +93,13 @@ class MapLayersSheet extends StatelessWidget {
               ),
               if (controller.preferencesLoading) ...[
                 const LinearProgressIndicator(),
-                Text(context.translate("Karteneinstellungen werden geladen …")),
+                Text(
+                  context.localized(
+                    "Karteneinstellungen werden geladen …",
+                    (l10n) =>
+                        l10n.globeKarteneinstellungenWerdenGeladen349c7e7f,
+                  ),
+                ),
                 const SizedBox(height: 12),
               ],
               if (controller.preferencesError != null) ...[
@@ -100,7 +118,12 @@ class MapLayersSheet extends StatelessWidget {
                                   ? controller.retryLoadingPreferences
                                   : controller.retrySavingPreferences,
                             ),
-                      child: Text(context.translate("Erneut versuchen")),
+                      child: Text(
+                        context.localized(
+                          "Erneut versuchen",
+                          (l10n) => l10n.commonErneutVersuchen3234b7ec,
+                        ),
+                      ),
                     ),
                     if (controller.preferencesLoadFailed)
                       TextButton(
@@ -108,7 +131,11 @@ class MapLayersSheet extends StatelessWidget {
                             ? null
                             : () => execute(controller.resetPreferences),
                         child: Text(
-                          context.translate("Karteinstellungen zurücksetzen"),
+                          context.localized(
+                            "Karteinstellungen zurücksetzen",
+                            (l10n) => l10n
+                                .globeKarteinstellungenZuruecksetzen3bd1cc02,
+                          ),
                         ),
                       ),
                   ],
@@ -119,9 +146,24 @@ class MapLayersSheet extends StatelessWidget {
               TabBar(
                 isScrollable: true,
                 tabs: [
-                  Tab(text: context.translate('Karte')),
-                  Tab(text: context.translate('Luftraum')),
-                  Tab(text: context.translate('Hindernisse')),
+                  Tab(
+                    text: context.localized(
+                      'Karte',
+                      (l10n) => l10n.globeKarteb1636a3d,
+                    ),
+                  ),
+                  Tab(
+                    text: context.localized(
+                      'Luftraum',
+                      (l10n) => l10n.globeLuftraum0992aecb,
+                    ),
+                  ),
+                  Tab(
+                    text: context.localized(
+                      'Hindernisse',
+                      (l10n) => l10n.globeHindernissed58845a0,
+                    ),
+                  ),
                   const Tab(text: 'OSINT'),
                 ],
               ),
@@ -151,8 +193,10 @@ class MapLayersSheet extends StatelessWidget {
                       'map-situational',
                       situationalControls ??
                           Text(
-                            context.translate(
+                            context.localized(
                               "Weitere Datenebenen unter Mobilität & OSINT laden.",
+                              (l10n) => l10n
+                                  .globeWeitereDatenebenenUnterMobilitaetd36898b1,
                             ),
                           ),
                     ),

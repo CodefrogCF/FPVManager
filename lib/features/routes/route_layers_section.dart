@@ -23,19 +23,24 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.translate("Flight routes"),
+          context.localized(
+            "Flight routes",
+            (l10n) => l10n.routesFlightRoutescf03df8f,
+          ),
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 8),
         Text(
-          context.translate(
+          context.localized(
             "Configured heights are shown in 3D. Points marked * use a 30 m AGL preview because their height is missing or uses an unsupported datum. Selected routes stay visible in ground view.",
+            (l10n) => l10n.routesConfiguredHeightsAreShowna9eb24e8,
           ),
         ),
         if (!widget.controller.globe.terrainAvailable)
           Text(
-            context.translate(
+            context.localized(
               "3D route preview is hidden until detailed terrain is available.",
+              (l10n) => l10n.routesDRoutePreviewIs18af1855,
             ),
           ),
         if (widget.controller.error != null ||
@@ -49,7 +54,12 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
             onPressed: widget.controller.retrying
                 ? null
                 : widget.controller.retry,
-            child: Text(context.translate("Retry route preview")),
+            child: Text(
+              context.localized(
+                "Retry route preview",
+                (l10n) => l10n.routesRetryRoutePreview25273ee7,
+              ),
+            ),
           ),
         ],
         StreamBuilder<List<FlightPlanSummary>>(
@@ -59,13 +69,23 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(context.translate("Unable to load saved routes.")),
+                  Text(
+                    context.localized(
+                      "Unable to load saved routes.",
+                      (l10n) => l10n.routesUnableToLoadSavedda813904,
+                    ),
+                  ),
                   TextButton(
                     onPressed: () => setState(() {
                       _plans = widget.controller.repository
                           .watchFlightPlanSummaries();
                     }),
-                    child: Text(context.translate("Retry route list")),
+                    child: Text(
+                      context.localized(
+                        "Retry route list",
+                        (l10n) => l10n.routesRetryRouteListd4c0bbae,
+                      ),
+                    ),
                   ),
                 ],
               );
@@ -75,8 +95,9 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
               return Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  context.translate(
+                  context.localized(
                     "No saved routes. Create one in Flight routes.",
+                    (l10n) => l10n.routesNoSavedRoutesCreateca237d75,
                   ),
                 ),
               );
@@ -102,9 +123,12 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
                         ),
                       ),
                       IconButton(
-                        tooltip: context.translate("Show {0} on map", [
-                          plan.name,
-                        ]),
+                        tooltip: context.localizedWithArgs(
+                          "Show {0} on map",
+                          [plan.name],
+                          (l10n, value) =>
+                              l10n.routesShowOnMapa1a4e0a9(value(0)),
+                        ),
                         icon: const Icon(Icons.fit_screen),
                         onPressed:
                             widget.controller.hasGeometry(plan.id) &&
@@ -119,8 +143,10 @@ class _RouteLayersSectionState extends State<RouteLayersSection> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          context.translate(
+                                          context.localized(
                                             "Unable to frame this route. Please retry.",
+                                            (l10n) => l10n
+                                                .routesUnableToFrameThisbad8013a,
                                           ),
                                         ),
                                       ),

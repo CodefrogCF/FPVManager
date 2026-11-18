@@ -56,17 +56,27 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.translate("Swiss aviation obstacles"),
+          context.localized(
+            "Swiss aviation obstacles",
+            (l10n) => l10n.obstaclesSwissAviationObstacles1befa7cf,
+          ),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
-          context.translate(
+          context.localized(
             "Nur veröffentlichte Hindernisse · fehlende Objekte möglich.",
+            (l10n) =>
+                l10n.obstaclesNurVeroeffentlichteHindernisseFehlende874c23fc,
           ),
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("Published obstacles · WMS")),
+          title: Text(
+            context.localized(
+              "Published obstacles · WMS",
+              (l10n) => l10n.obstaclesPublishedObstaclesWms03371ce2,
+            ),
+          ),
           subtitle: Text('BAZL / FOCA · geo.admin.ch · ${controller.wmsState}'),
           value: controller.wmsVisible,
           onChanged: enabled
@@ -75,9 +85,12 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
         ),
         if (controller.wmsState == 'loading') const LinearProgressIndicator(),
         Text(
-          context.translate("Obstacle imagery opacity: {0}%", [
-            (opacity * 100).round(),
-          ]),
+          context.localizedWithArgs(
+            "Obstacle imagery opacity: {0}%",
+            [(opacity * 100).round()],
+            (l10n, value) =>
+                l10n.obstaclesObstacleImageryOpacity83ec0630(value(0)),
+          ),
         ),
         Slider(
           value: opacity,
@@ -96,8 +109,9 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
               : null,
         ),
         Text(
-          context.translate(
+          context.localized(
             "Combined raster symbols: no category filters, object selection or precise 3D heights.",
+            (l10n) => l10n.commonCombinedRasterSymbolsNo01f2553a,
           ),
         ),
         if (controller.wmsError != null) ...[
@@ -110,16 +124,31 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
                 ? () => controller.restoreWms(retry: true)
                 : null,
             icon: const Icon(Icons.refresh),
-            label: Text(context.translate("Retry obstacle imagery")),
+            label: Text(
+              context.localized(
+                "Retry obstacle imagery",
+                (l10n) => l10n.obstaclesRetryObstacleImagerya63bb8aa,
+              ),
+            ),
           ),
         ],
         TextButton.icon(
           icon: const Icon(Icons.legend_toggle),
-          label: Text(context.translate("Official WMS legend")),
+          label: Text(
+            context.localized(
+              "Official WMS legend",
+              (l10n) => l10n.obstaclesOfficialWmsLegenda55cc700,
+            ),
+          ),
           onPressed: () => showDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
-              title: Text(context.translate("BAZL obstacle legend")),
+              title: Text(
+                context.localized(
+                  "BAZL obstacle legend",
+                  (l10n) => l10n.obstaclesBazlObstacleLegend85da8229,
+                ),
+              ),
               content: SizedBox(
                 width: 480,
                 child: SingleChildScrollView(
@@ -129,8 +158,10 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
                       Image.network(
                         ObstacleLayersSection.legendUrl,
                         errorBuilder: (_, error, stack) => Text(
-                          context.translate(
+                          context.localized(
                             "Legend unavailable. Open the official link below.",
+                            (l10n) =>
+                                l10n.obstaclesLegendUnavailableOpenThe1690ecec,
                           ),
                         ),
                       ),
@@ -142,7 +173,12 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text(context.translate("Close")),
+                  child: Text(
+                    context.localized(
+                      "Close",
+                      (l10n) => l10n.commonClosebbfa773e,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -151,10 +187,16 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
         const Divider(),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("Selectable obstacles · 3D vector")),
+          title: Text(
+            context.localized(
+              "Selectable obstacles · 3D vector",
+              (l10n) => l10n.obstaclesSelectableObstaclesDVectore21d36db,
+            ),
+          ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "Amtlicher Datensatz · nach Import offline verfügbar.",
+              (l10n) => l10n.obstaclesAmtlicherDatensatzNachImportd2d6162d,
             ),
           ),
           value: controller.vectorsVisible,
@@ -165,10 +207,16 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
         if (controller.vectorsVisible)
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: Text(context.translate("3D obstacle models")),
+            title: Text(
+              context.localized(
+                "3D obstacle models",
+                (l10n) => l10n.obstaclesDObstacleModels82a00838,
+              ),
+            ),
             subtitle: Text(
-              context.translate(
+              context.localized(
                 "Veröffentlichte Höhe · Form und Breite geschätzt.",
+                (l10n) => l10n.obstaclesVeroeffentlichteHoeheFormUnd8f84873d,
               ),
             ),
             value: controller.modelsVisible,
@@ -178,10 +226,16 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: Text(context.translate("Highlight hazard areas")),
+          title: Text(
+            context.localized(
+              "Highlight hazard areas",
+              (l10n) => l10n.obstaclesHighlightHazardAreas0d0a655e,
+            ),
+          ),
           subtitle: Text(
-            context.translate(
+            context.localized(
               "Planungshilfe · keine Freigabe oder Abstandsprüfung.",
+              (l10n) => l10n.obstaclesPlanungshilfeKeineFreigabeOder3f2c05b6,
             ),
           ),
           value: controller.hazardsVisible,
@@ -190,9 +244,11 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
               : null,
         ),
         Text(
-          context.translate("Horizontal buffer: {0} m", [
-            (_previewBuffer ?? controller.bufferMeters).toStringAsFixed(0),
-          ]),
+          context.localizedWithArgs(
+            "Horizontal buffer: {0} m",
+            [(_previewBuffer ?? controller.bufferMeters).toStringAsFixed(0)],
+            (l10n, value) => l10n.obstaclesHorizontalBufferMc4e67f2c(value(0)),
+          ),
         ),
         Slider(
           value: _previewBuffer ?? controller.bufferMeters,
@@ -211,7 +267,11 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
         ),
         if (busy) const LinearProgressIndicator(),
         Text(controller.provider.progress),
-        Text(context.translate("Data status: {0}", [state.dataState.label])),
+        Text(
+          context.localizedWithArgs("Data status: {0}", [
+            state.dataState.label,
+          ], (l10n, value) => l10n.obstaclesDataStatusef822b6e(value(0))),
+        ),
         if (controller.vectorsVisible || controller.hazardsVisible) ...[
           Text(controller.vectorStatus),
           Wrap(
@@ -244,19 +304,33 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
           Text(
-            context.translate("Local cache: {0} · source validity: {1}", [
-              dataset!.freshnessAt(DateTime.now()).name,
-              dataset.validity?.at(DateTime.now()).name ??
-                  OsintValidity.unknown.name,
-            ]),
+            context.localizedWithArgs(
+              "Local cache: {0} · source validity: {1}",
+              [
+                dataset!.freshnessAt(DateTime.now()).name,
+                dataset.validity?.at(DateTime.now()).name ??
+                    OsintValidity.unknown.name,
+              ],
+              (l10n, value) => l10n.obstaclesLocalCacheSourceValidity2bcad0a6(
+                value(0),
+                value(1),
+              ),
+            ),
           ),
           if (snapshot.metadata['datasetValidFrom'] != null ||
               snapshot.metadata['datasetValidTo'] != null)
             Text(
-              context.translate("Published validity: {0} → {1} UTC", [
-                snapshot.metadata['datasetValidFrom'] ?? '?',
-                snapshot.metadata['datasetValidTo'] ?? '?',
-              ]),
+              context.localizedWithArgs(
+                "Published validity: {0} → {1} UTC",
+                [
+                  snapshot.metadata['datasetValidFrom'] ?? '?',
+                  snapshot.metadata['datasetValidTo'] ?? '?',
+                ],
+                (l10n, value) => l10n.obstaclesPublishedValidityUtcb1c25560(
+                  value(0),
+                  value(1),
+                ),
+              ),
             ),
         ],
         TextButton.icon(
@@ -264,46 +338,71 @@ class _ObstacleLayersSectionState extends State<ObstacleLayersSection> {
           icon: const Icon(Icons.sync),
           label: Text(
             snapshot == null
-                ? context.translate("Download vector dataset")
-                : context.translate("Check source for updates"),
+                ? context.localized(
+                    "Download vector dataset",
+                    (l10n) => l10n.obstaclesDownloadVectorDataset689316d7,
+                  )
+                : context.localized(
+                    "Check source for updates",
+                    (l10n) => l10n.obstaclesCheckSourceForUpdates9b2adfd6,
+                  ),
           ),
         ),
         ExpansionTile(
           key: const PageStorageKey('map-obstacle-source-details'),
           tilePadding: EdgeInsets.zero,
-          title: Text(context.translate("Daten & Höhenbezug")),
+          title: Text(
+            context.localized(
+              "Daten & Höhenbezug",
+              (l10n) => l10n.obstaclesDatenHoehenbezug36af217e,
+            ),
+          ),
           children: [
             if (snapshot != null) ...[
               Text(
-                context.translate(
+                context.localizedWithArgs(
                   "{0} imported objects · {1} unsupported records",
                   [snapshot.count, snapshot.skipped],
+                  (l10n, value) =>
+                      l10n.obstaclesImportedObjectsUnsupportedRecords947e6f13(
+                        value(0),
+                        value(1),
+                      ),
                 ),
               ),
               Text(
-                context.translate("Source updated: {0}", [
-                  snapshot.sourceUpdated?.toIso8601String() ?? 'unknown',
-                ]),
+                context.localizedWithArgs(
+                  "Source updated: {0}",
+                  [snapshot.sourceUpdated?.toIso8601String() ?? 'unknown'],
+                  (l10n, value) =>
+                      l10n.obstaclesSourceUpdated81b6e983(value(0)),
+                ),
               ),
               Text(
-                context.translate("Published: {0} UTC", [
-                  snapshot.metadata['datasetPublishedAt'] ?? 'unknown',
-                ]),
+                context.localizedWithArgs(
+                  "Published: {0} UTC",
+                  [snapshot.metadata['datasetPublishedAt'] ?? 'unknown'],
+                  (l10n, value) => l10n.obstaclesPublishedUtcc490142e(value(0)),
+                ),
               ),
               Text(
-                context.translate("Retrieved: {0}", [
+                context.localizedWithArgs("Retrieved: {0}", [
                   snapshot.fetchedAt.toIso8601String(),
-                ]),
+                ], (l10n, value) => l10n.commonRetrievedc0a8bd29(value(0))),
               ),
               Text(
-                context.translate("Metadata checked: {0}", [
-                  snapshot.checkedAt.toIso8601String(),
-                ]),
+                context.localizedWithArgs(
+                  "Metadata checked: {0}",
+                  [snapshot.checkedAt.toIso8601String()],
+                  (l10n, value) =>
+                      l10n.obstaclesMetadataChecked61ccc766(value(0)),
+                ),
               ),
             ],
             Text(
-              context.translate(
+              context.localized(
                 "Absolute source heights: LN02. Elevated display: CHGeo2004 + HTRANS to the ETRS89 ellipsoid, used as a WGS84 approximation. Unknown line/area elevations are shown only as a ground marker at their first source vertex. Isolated point obstacles with an official AGL height are displayed at that exact height above the currently rendered terrain; their visualized absolute top may differ from the surveyed LN02 top. Extra KML label points on lines/polygons are not drawn as obstacles. Cable vertices matching published masts follow the same terrain-adjusted mast tops, with interpolated display corrections between supports. Other geometry retains source absolute elevations. Cable sag is not reconstructed; route checks use original source geometry.",
+                (l10n) => l10n.commonAbsoluteSourceHeightsLn1571b147,
               ),
             ),
             SelectableText(
@@ -342,7 +441,12 @@ class ObstacleStatusBanner extends StatelessWidget {
           title: Text(error, maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: TextButton(
             onPressed: onDetails,
-            child: Text(context.translate("Map layers")),
+            child: Text(
+              context.localized(
+                "Map layers",
+                (l10n) => l10n.commonMapLayersfdee4317,
+              ),
+            ),
           ),
         ),
       );

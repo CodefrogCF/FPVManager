@@ -282,8 +282,9 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     if (!_supported) {
       return Center(
         child: Text(
-          context.translate(
+          context.localized(
             "Native 3D globe is currently supported on Android and iOS.",
+            (l10n) => l10n.globeNativeDGlobeIsf8235971,
           ),
           textAlign: TextAlign.center,
         ),
@@ -304,7 +305,10 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 16),
               Text(
-                context.translate("Failed to load 3D globe"),
+                context.localized(
+                  "Failed to load 3D globe",
+                  (l10n) => l10n.globeFailedToLoadDd6e93076,
+                ),
                 style: TextStyle(fontSize: 20),
               ),
               const SizedBox(height: 8),

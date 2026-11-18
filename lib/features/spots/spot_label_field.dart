@@ -70,12 +70,21 @@ class _SpotLabelFieldState extends State<SpotLabelField> {
       focusNode: focus,
       enabled: widget.enabled,
       decoration: InputDecoration(
-        labelText: widget.tags ? 'Tags' : context.translate("Category"),
+        labelText: widget.tags
+            ? 'Tags'
+            : context.localized(
+                "Category",
+                (l10n) => l10n.spotsCategorya3c686e7,
+              ),
         helperText: widget.tags
-            ? context.translate(
+            ? context.localized(
                 "Comma separated · up to 10 tags, 32 characters each",
+                (l10n) => l10n.commonCommaSeparatedUpTo0410e8b5,
               )
-            : context.translate("Optional · up to 40 characters"),
+            : context.localized(
+                "Optional · up to 40 characters",
+                (l10n) => l10n.spotsOptionalUpToCharactersbcc00326,
+              ),
         helperMaxLines: 2,
       ),
       validator: (value) => validateSpotLabels(value, tags: widget.tags),

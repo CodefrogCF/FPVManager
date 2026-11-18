@@ -49,19 +49,28 @@ class RouteEditorToolbar extends StatelessWidget {
                           ? null
                           : () => _points(context),
                       child: Text(
-                        context.translate("{0} waypoints", [
-                          editor.points.length,
-                        ]),
+                        context.localizedWithArgs(
+                          "{0} waypoints",
+                          [editor.points.length],
+                          (l10n, value) =>
+                              l10n.routesWaypointsbc27edbc(value(0)),
+                        ),
                       ),
                     ),
                   ),
                   IconButton(
-                    tooltip: context.translate("Route analysis"),
+                    tooltip: context.localized(
+                      "Route analysis",
+                      (l10n) => l10n.routesRouteAnalysise04589ed,
+                    ),
                     onPressed: onAnalysis,
                     icon: const Icon(Icons.insights),
                   ),
                   IconButton(
-                    tooltip: context.translate("Check route airspace"),
+                    tooltip: context.localized(
+                      "Check route airspace",
+                      (l10n) => l10n.routesCheckRouteAirspaced4d383e6,
+                    ),
                     onPressed:
                         !editor.saving &&
                             !editor.loadFailed &&
@@ -79,12 +88,18 @@ class RouteEditorToolbar extends StatelessWidget {
                     icon: const Icon(Icons.shield_outlined),
                   ),
                   IconButton(
-                    tooltip: context.translate("Undo waypoint change"),
+                    tooltip: context.localized(
+                      "Undo waypoint change",
+                      (l10n) => l10n.routesUndoWaypointChange8a12e7bc,
+                    ),
                     onPressed: editor.canUndo ? editor.undo : null,
                     icon: const Icon(Icons.undo),
                   ),
                   IconButton(
-                    tooltip: context.translate("Show entire route"),
+                    tooltip: context.localized(
+                      "Show entire route",
+                      (l10n) => l10n.routesShowEntireRoute7e936417,
+                    ),
                     onPressed: onFrame,
                     icon: const Icon(Icons.fit_screen),
                   ),
@@ -95,18 +110,30 @@ class RouteEditorToolbar extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        context.translate("Waypoint {0} · {1} · {2} m/s", [
-                          editor.points.indexOf(point) + 1,
-                          _height(point.height),
-                          point.speedMetersPerSecond?.toStringAsFixed(1) ?? "?",
-                        ]),
+                        context.localizedWithArgs(
+                          "Waypoint {0} · {1} · {2} m/s",
+                          [
+                            editor.points.indexOf(point) + 1,
+                            _height(point.height),
+                            point.speedMetersPerSecond?.toStringAsFixed(1) ??
+                                "?",
+                          ],
+                          (l10n, value) => l10n.routesWaypointMS5220bb0f(
+                            value(0),
+                            value(1),
+                            value(2),
+                          ),
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
                     PopupMenuButton<_PointAction>(
-                      tooltip: context.translate("Waypoint actions"),
+                      tooltip: context.localized(
+                        "Waypoint actions",
+                        (l10n) => l10n.routesWaypointActionsf5f1d082,
+                      ),
                       enabled: !editor.saving && !editor.loadFailed,
                       onSelected: (action) {
                         switch (action) {
@@ -121,19 +148,35 @@ class RouteEditorToolbar extends StatelessWidget {
                       itemBuilder: (_) => [
                         PopupMenuItem(
                           value: _PointAction.settings,
-                          child: Text(context.translate("Height & speed")),
+                          child: Text(
+                            context.localized(
+                              "Height & speed",
+                              (l10n) => l10n.routesHeightSpeedd20ac922,
+                            ),
+                          ),
                         ),
                         PopupMenuItem(
                           value: _PointAction.move,
                           child: Text(
                             editor.moveId == null
-                                ? context.translate("Move point")
-                                : context.translate("Cancel move"),
+                                ? context.localized(
+                                    "Move point",
+                                    (l10n) => l10n.routesMovePoint4cfb85e2,
+                                  )
+                                : context.localized(
+                                    "Cancel move",
+                                    (l10n) => l10n.routesCancelMove23385b79,
+                                  ),
                           ),
                         ),
                         PopupMenuItem(
                           value: _PointAction.delete,
-                          child: Text(context.translate("Delete point")),
+                          child: Text(
+                            context.localized(
+                              "Delete point",
+                              (l10n) => l10n.routesDeletePoint24dc6e65,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -141,13 +184,18 @@ class RouteEditorToolbar extends StatelessWidget {
                 ),
               Text(
                 editor.moveId != null
-                    ? context.translate("Click the new position on the map.")
-                    : editor.hasRouteWarnings
-                    ? context.translate(
-                        "Red segments: terrain / reserve estimates · Open analysis",
+                    ? context.localized(
+                        "Click the new position on the map.",
+                        (l10n) => l10n.routesClickTheNewPosition88166db4,
                       )
-                    : context.translate(
+                    : editor.hasRouteWarnings
+                    ? context.localized(
+                        "Red segments: terrain / reserve estimates · Open analysis",
+                        (l10n) => l10n.routesRedSegmentsTerrainReservefbd059b9,
+                      )
+                    : context.localized(
                         "Tap map to add · Select a waypoint to edit",
+                        (l10n) => l10n.routesTapMapToAdddf97da9f,
                       ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -161,7 +209,10 @@ class RouteEditorToolbar extends StatelessWidget {
                             VerticalReference.wgs84Ellipsoid),
               ))
                 Text(
-                  context.translate("* = 30 m AGL preview only"),
+                  context.localized(
+                    "* = 30 m AGL preview only",
+                    (l10n) => l10n.routesMAglPreviewOnly1b6aeb60,
+                  ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
@@ -180,9 +231,17 @@ class RouteEditorToolbar extends StatelessWidget {
         child: Column(
           children: [
             ListTile(
-              title: Text(context.translate("Waypoints")),
+              title: Text(
+                context.localized(
+                  "Waypoints",
+                  (l10n) => l10n.routesWaypoints8de9ac08,
+                ),
+              ),
               trailing: IconButton(
-                tooltip: context.translate("Close"),
+                tooltip: context.localized(
+                  "Close",
+                  (l10n) => l10n.commonClosebbfa773e,
+                ),
                 onPressed: () => Navigator.pop(sheetContext),
                 icon: const Icon(Icons.close),
               ),

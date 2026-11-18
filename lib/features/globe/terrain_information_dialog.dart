@@ -117,7 +117,12 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
 
     return AlertDialog(
       scrollable: true,
-      title: Text(context.translate("Terrain Information")),
+      title: Text(
+        context.localized(
+          "Terrain Information",
+          (l10n) => l10n.globeTerrainInformation1a166cb2,
+        ),
+      ),
       content: SizedBox(
         width: 430,
         child: Column(
@@ -125,48 +130,61 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              context.translate("WGS84 latitude: {0}°", [
+              context.localizedWithArgs("WGS84 latitude: {0}°", [
                 terrain.latitude.toStringAsFixed(6),
-              ]),
+              ], (l10n, value) => l10n.globeWgsLatituded60b5fd1(value(0))),
             ),
             Text(
-              context.translate("WGS84 longitude: {0}°", [
+              context.localizedWithArgs("WGS84 longitude: {0}°", [
                 terrain.longitude.toStringAsFixed(6),
-              ]),
+              ], (l10n, value) => l10n.globeWgsLongitudece917f86(value(0))),
             ),
             const SizedBox(height: 16),
             if (position != null) ...[
               Text(
-                context.translate("Swiss coordinates (LV95)"),
+                context.localized(
+                  "Swiss coordinates (LV95)",
+                  (l10n) => l10n.globeSwissCoordinatesLvb62ba2b6,
+                ),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(
-                context.translate("Easting: {0} m", [
+                context.localizedWithArgs("Easting: {0} m", [
                   position.easting.toStringAsFixed(2),
-                ]),
+                ], (l10n, value) => l10n.globeEastingM080f8cea(value(0))),
               ),
               Text(
-                context.translate("Northing: {0} m", [
+                context.localizedWithArgs("Northing: {0} m", [
                   position.northing.toStringAsFixed(2),
-                ]),
+                ], (l10n, value) => l10n.globeNorthingMc882004d(value(0))),
               ),
               Text(
                 _swissHeight == null
-                    ? context.translate(
+                    ? context.localized(
                         "Approximate conversion (swisstopo formulas)",
+                        (l10n) => l10n
+                            .globeApproximateConversionSwisstopoFormulase7bb7ac3,
                       )
-                    : context.translate("Converted with swisstopo REFRAME"),
+                    : context.localized(
+                        "Converted with swisstopo REFRAME",
+                        (l10n) =>
+                            l10n.globeConvertedWithSwisstopoReframe07d146f4,
+                      ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ] else
               Text(
-                context.translate(
+                context.localized(
                   "LV95 conversion unavailable outside the supported Swiss region.",
+                  (l10n) => l10n.globeLvConversionUnavailableOutsidedecfa6d5,
                 ),
               ),
             const SizedBox(height: 20),
             Text(
-              context.translate("Ground elevation"),
+              context.localized(
+                "Ground elevation",
+                (l10n) => l10n.globeGroundElevation5d588142,
+              ),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             Text(
@@ -174,7 +192,9 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
               key: const ValueKey('terrain-ellipsoid-height'),
             ),
             Text(
-              context.translate("Sampling: {0}", [terrain.samplingMethod]),
+              context.localizedWithArgs("Sampling: {0}", [
+                terrain.samplingMethod,
+              ], (l10n, value) => l10n.globeSamplinga7cf9539(value(0))),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -184,7 +204,12 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
                 key: const ValueKey('terrain-ln02-height'),
               )
             else ...[
-              Text(context.translate("AMSL (Swiss LN02): not converted")),
+              Text(
+                context.localized(
+                  "AMSL (Swiss LN02): not converted",
+                  (l10n) => l10n.globeAmslSwissLnNot9423d99b,
+                ),
+              ),
               const SizedBox(height: 8),
               if (supported &&
                   terrain.elevation.reference ==
@@ -193,21 +218,29 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
                   onPressed: _converting ? null : _convert,
                   child: Text(
                     _converting
-                        ? context.translate("Converting…")
-                        : context.translate("Convert to Swiss height (LN02)"),
+                        ? context.localized(
+                            "Converting…",
+                            (l10n) => l10n.globeConverting3985de51,
+                          )
+                        : context.localized(
+                            "Convert to Swiss height (LN02)",
+                            (l10n) => l10n.globeConvertToSwissHeight5c83b28a,
+                          ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  context.translate(
+                  context.localized(
                     "Online conversion sends this position and ground elevation to swisstopo.",
+                    (l10n) => l10n.globeOnlineConversionSendsThis9f4e31f3,
                   ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ] else
                 Text(
-                  context.translate(
+                  context.localized(
                     "Swiss height conversion is unavailable at this position or for this reference.",
+                    (l10n) => l10n.globeSwissHeightConversionIsae058df0,
                   ),
                 ),
             ],
@@ -221,19 +254,24 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ],
             const SizedBox(height: 8),
             Text(
-              context.translate(
+              context.localized(
                 "AMSL is height above mean sea level. Swiss national map heights use LN02; LHN95 is a separate height datum.",
+                (l10n) => l10n.globeAmslIsHeightAbove8e48a714,
               ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 20),
             Text(
-              context.translate("Height above local ground (AGL)"),
+              context.localized(
+                "Height above local ground (AGL)",
+                (l10n) => l10n.globeHeightAboveLocalGround8c1c0da0,
+              ),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "AGL is a distance above this ground point, not a sea-level height.",
+                (l10n) => l10n.commonAglIsADistance519675fb,
               ),
             ),
             const SizedBox(height: 8),
@@ -244,7 +282,10 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: context.translate("Height above terrain (AGL)"),
+                labelText: context.localized(
+                  "Height above terrain (AGL)",
+                  (l10n) => l10n.globeHeightAboveTerrainAglcbf70384,
+                ),
                 suffixText: 'm',
                 errorText: _aglError,
               ),
@@ -252,7 +293,12 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ),
             if (calculate) ...[
               const SizedBox(height: 8),
-              Text(context.translate("Height at this AGL:")),
+              Text(
+                context.localized(
+                  "Height at this AGL:",
+                  (l10n) => l10n.globeHeightAtThisAglfbdc9bdd,
+                ),
+              ),
               Text(
                 _height(
                   altitudes.fromAboveGround(
@@ -275,8 +321,9 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ],
             const SizedBox(height: 16),
             Text(
-              context.translate(
+              context.localized(
                 "Source: swisstopo terrain. Values use a digital terrain model, not measured aircraft height or verified obstacle clearance.",
+                (l10n) => l10n.commonSourceSwisstopoTerrainValues0aaf6e16,
               ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -286,7 +333,9 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(context.translate("Close")),
+          child: Text(
+            context.localized("Close", (l10n) => l10n.commonClosebbfa773e),
+          ),
         ),
       ],
     );

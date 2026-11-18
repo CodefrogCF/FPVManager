@@ -173,25 +173,31 @@ class _PollenSectionState extends State<PollenSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              context.translate("Official MeteoSwiss pollen stations"),
+              context.localized(
+                "Official MeteoSwiss pollen stations",
+                (l10n) => l10n.weatherOfficialMeteoswissPollenStations0d04b249,
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Measured hourly station averages (No/m³, pollen grains per cubic metre); not a forecast or an exposure estimate at the selected spot.",
+                (l10n) => l10n.commonMeasuredHourlyStationAverages6b75bd38,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              context.translate(
+              context.localized(
                 "Automatic observations (from 2023) and historical manual measurements are separate methods. Historical/manual series are not loaded here.",
+                (l10n) => l10n.weatherAutomaticObservationsFromAnda1a45d31,
               ),
             ),
             const SizedBox(height: 8),
             if (widget.latitude == null || widget.longitude == null)
               Text(
-                context.translate(
+                context.localized(
                   "Choose a saved flying spot or a globe coordinate to inspect nearby monitoring stations.",
+                  (l10n) => l10n.weatherChooseASavedFlyingba7ecae9,
                 ),
               )
             else ...[
@@ -202,12 +208,22 @@ class _PollenSectionState extends State<PollenSection> {
                   FilledButton.tonalIcon(
                     onPressed: _busy ? null : () => _discover(),
                     icon: const Icon(Icons.place_outlined),
-                    label: Text(context.translate("Find monitoring stations")),
+                    label: Text(
+                      context.localized(
+                        "Find monitoring stations",
+                        (l10n) => l10n.weatherFindMonitoringStations4d511534,
+                      ),
+                    ),
                   ),
                   OutlinedButton.icon(
                     onPressed: _busy ? null : () => _discover(refresh: true),
                     icon: const Icon(Icons.refresh),
-                    label: Text(context.translate("Refresh station metadata")),
+                    label: Text(
+                      context.localized(
+                        "Refresh station metadata",
+                        (l10n) => l10n.weatherRefreshStationMetadataa5976bc4,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -215,19 +231,30 @@ class _PollenSectionState extends State<PollenSection> {
                 const SizedBox(height: 8),
                 Text(
                   _service.stationMetadataRefreshFailed
-                      ? context.translate(
+                      ? context.localized(
                           "Station directory: cached; last metadata refresh failed (original publication time unavailable).",
+                          (l10n) =>
+                              l10n.weatherStationDirectoryCachedLastf07e00ef,
                         )
                       : _service.stationMetadataFromCache
-                      ? context.translate(
+                      ? context.localized(
                           "Station directory: locally cached (original publication time unavailable).",
+                          (l10n) =>
+                              l10n.weatherStationDirectoryLocallyCached005bbea0,
                         )
-                      : context.translate("Station directory: retrieved {0}", [
-                          _service.stationMetadataCheckedUtc
-                                  ?.toUtc()
-                                  .toIso8601String() ??
-                              'time unknown',
-                        ]),
+                      : context.localizedWithArgs(
+                          "Station directory: retrieved {0}",
+                          [
+                            _service.stationMetadataCheckedUtc
+                                    ?.toUtc()
+                                    .toIso8601String() ??
+                                'time unknown',
+                          ],
+                          (l10n, value) =>
+                              l10n.weatherStationDirectoryRetrieved72729476(
+                                value(0),
+                              ),
+                        ),
                 ),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
@@ -236,7 +263,10 @@ class _PollenSectionState extends State<PollenSection> {
                   ),
                   initialValue: _selected?.id,
                   decoration: InputDecoration(
-                    labelText: context.translate("Nearest monitoring station"),
+                    labelText: context.localized(
+                      "Nearest monitoring station",
+                      (l10n) => l10n.weatherNearestMonitoringStationb112be37,
+                    ),
                   ),
                   items: [
                     for (final s in _near)
@@ -257,12 +287,21 @@ class _PollenSectionState extends State<PollenSection> {
                 ),
                 if (station != null) ...[
                   Text(
-                    context.translate("Station {0}{1} · {2}, {3}", [
-                      station.id,
-                      station.canton == null ? '' : ' · ${station.canton}',
-                      station.latitude.toStringAsFixed(4),
-                      station.longitude.toStringAsFixed(4),
-                    ]),
+                    context.localizedWithArgs(
+                      "Station {0}{1} · {2}, {3}",
+                      [
+                        station.id,
+                        station.canton == null ? '' : ' · ${station.canton}',
+                        station.latitude.toStringAsFixed(4),
+                        station.longitude.toStringAsFixed(4),
+                      ],
+                      (l10n, value) => l10n.commonStation5a5e3cd7(
+                        value(0),
+                        value(1),
+                        value(2),
+                        value(3),
+                      ),
+                    ),
                   ),
                   if (station.detailsUrl != null)
                     TextButton.icon(
@@ -272,13 +311,22 @@ class _PollenSectionState extends State<PollenSection> {
                       ),
                       icon: const Icon(Icons.open_in_new),
                       label: Text(
-                        context.translate("MeteoSwiss station details"),
+                        context.localized(
+                          "MeteoSwiss station details",
+                          (l10n) =>
+                              l10n.weatherMeteoswissStationDetails565885c8,
+                        ),
                       ),
                     ),
                   FilledButton.icon(
                     onPressed: _busy ? null : _fetch,
                     icon: const Icon(Icons.cloud_download_outlined),
-                    label: Text(context.translate("Load hourly observations")),
+                    label: Text(
+                      context.localized(
+                        "Load hourly observations",
+                        (l10n) => l10n.weatherLoadHourlyObservations7bc23c4c,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -292,32 +340,53 @@ class _PollenSectionState extends State<PollenSection> {
             if (snapshot != null) ...[
               const Divider(),
               Text(
-                context.translate("Data state: {0}{1}{2}", [
-                  freshnessLabel,
-                  snapshot.fromCache ? ' · cached' : '',
-                  snapshot.refreshFailed ? ' · refresh failed' : '',
-                ]),
+                context.localizedWithArgs(
+                  "Data state: {0}{1}{2}",
+                  [
+                    freshnessLabel,
+                    snapshot.fromCache ? ' · cached' : '',
+                    snapshot.refreshFailed ? ' · refresh failed' : '',
+                  ],
+                  (l10n, value) => l10n.weatherDataState98888b0e(
+                    value(0),
+                    value(1),
+                    value(2),
+                  ),
+                ),
               ),
               Text(
-                context.translate("Retrieved: {0}", [
+                context.localizedWithArgs("Retrieved: {0}", [
                   _utc(snapshot.fetchedUtc),
-                ]),
+                ], (l10n, value) => l10n.commonRetrievedc0a8bd29(value(0))),
               ),
               Text(
                 snapshot.publishedUtc == null
-                    ? context.translate("Source publication time: not provided")
-                    : context.translate("Source STAC updated: {0}", [
-                        _utc(snapshot.publishedUtc!),
-                      ]),
+                    ? context.localized(
+                        "Source publication time: not provided",
+                        (l10n) => l10n.weatherSourcePublicationTimeNot23697f29,
+                      )
+                    : context.localizedWithArgs(
+                        "Source STAC updated: {0}",
+                        [_utc(snapshot.publishedUtc!)],
+                        (l10n, value) =>
+                            l10n.weatherSourceStacUpdateddde9e800(value(0)),
+                      ),
               ),
               Text(
                 latest == null
-                    ? context.translate(
+                    ? context.localized(
                         "No valid automatic observations published in this file.",
+                        (l10n) =>
+                            l10n.weatherNoValidAutomaticObservationse3251aaa,
                       )
-                    : context.translate(
+                    : context.localizedWithArgs(
                         "Latest station observation: {0} · {1} · hourly average",
                         [_utc(latest.timeUtc), latest.method.name],
+                        (l10n, value) =>
+                            l10n.weatherLatestStationObservationHourly1d766dcb(
+                              value(0),
+                              value(1),
+                            ),
                       ),
               ),
               if (snapshot.samples.length > 1)
@@ -328,8 +397,9 @@ class _PollenSectionState extends State<PollenSection> {
                   ),
                   initialValue: _sampleIndex,
                   decoration: InputDecoration(
-                    labelText: context.translate(
+                    labelText: context.localized(
                       "Inspect hourly observation (UTC)",
+                      (l10n) => l10n.weatherInspectHourlyObservationUtcae90e45a,
                     ),
                   ),
                   items: [
@@ -347,9 +417,12 @@ class _PollenSectionState extends State<PollenSection> {
                 ),
               if (displayed != null) ...[
                 Text(
-                  context.translate("Selected observation: {0}", [
-                    _utc(displayed.timeUtc),
-                  ]),
+                  context.localizedWithArgs(
+                    "Selected observation: {0}",
+                    [_utc(displayed.timeUtc)],
+                    (l10n, value) =>
+                        l10n.weatherSelectedObservation26593d3f(value(0)),
+                  ),
                 ),
                 for (final taxon in PollenTaxon.values)
                   Text(
@@ -358,21 +431,27 @@ class _PollenSectionState extends State<PollenSection> {
               ],
               if (snapshot.unknownParameters.isNotEmpty)
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Unsupported source parameters not classified: {0}",
                     [snapshot.unknownParameters.join(', ')],
+                    (l10n, value) =>
+                        l10n.weatherUnsupportedSourceParametersNot75db504a(
+                          value(0),
+                        ),
                   ),
                 ),
               Text(
-                context.translate(
+                context.localized(
                   "No official severity classes are inferred. Missing is not zero. Readings describe the monitoring station only.",
+                  (l10n) => l10n.weatherNoOfficialSeverityClasses2d4def34,
                 ),
               ),
             ],
             const SizedBox(height: 8),
             Text(
-              context.translate(
+              context.localized(
                 "Source: MeteoSwiss · FSDI STAC · Swiss pollen monitoring network. Coverage is limited to published stations. Data are observations, not medical advice.",
+                (l10n) => l10n.commonSourceMeteoswissFsdiStac0fd2fd76,
               ),
             ),
           ],

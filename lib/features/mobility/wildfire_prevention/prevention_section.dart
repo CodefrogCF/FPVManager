@@ -141,17 +141,24 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
             onExpansionChanged: (value) => setState(() => _expanded = value),
             tilePadding: EdgeInsets.zero,
             title: Text(
-              context.translate("Kantonale Waldbrand-Präventionsmassnahmen"),
+              context.localized(
+                "Kantonale Waldbrand-Präventionsmassnahmen",
+                (l10n) => l10n
+                    .mobilityKantonaleWaldbrandPraeventionsmassnahmena6d2b302,
+              ),
             ),
             subtitle: Text(
-              context.translate(
+              context.localized(
                 "Offizielle Einzelabfrage · unabhängig von der Waldbrand-Gefahrenstufe",
+                (l10n) =>
+                    l10n.mobilityOffizielleEinzelabfrageUnabhaengigVon105d62b9,
               ),
             ),
             children: [
               Text(
-                context.translate(
+                context.localized(
                   "Die Kantone erlassen die verbindlichen Regeln. Eine Gefahrenstufe allein begründet kein Feuerverbot. Fehlende, veraltete oder unvollständige Daten bedeuten keine Entwarnung.",
+                  (l10n) => l10n.commonDieKantoneErlassenDiea929ec2f,
                 ),
               ),
               const SizedBox(height: 8),
@@ -166,7 +173,10 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        labelText: context.translate("Latitude"),
+                        labelText: context.localized(
+                          "Latitude",
+                          (l10n) => l10n.mobilityLatitudeced3905e,
+                        ),
                       ),
                       onChanged: (_) => setState(() => _snapshot = null),
                     ),
@@ -181,7 +191,10 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        labelText: context.translate("Longitude"),
+                        labelText: context.localized(
+                          "Longitude",
+                          (l10n) => l10n.mobilityLongitude6f9f011c,
+                        ),
                       ),
                       onChanged: (_) => setState(() => _snapshot = null),
                     ),
@@ -208,7 +221,11 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         },
                   icon: const Icon(Icons.place_outlined),
                   label: Text(
-                    context.translate("Ausgewählten Kartenpunkt übernehmen"),
+                    context.localized(
+                      "Ausgewählten Kartenpunkt übernehmen",
+                      (l10n) => l10n
+                          .mobilityAusgewaehltenKartenpunktUebernehmen849683eb,
+                    ),
                   ),
                 ),
               ),
@@ -220,8 +237,9 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                     ? null
                     : (value) => setState(() => _allowQuery = value ?? false),
                 title: Text(
-                  context.translate(
+                  context.localized(
                     "Koordinaten für die Abfrage an geo.admin.ch senden",
+                    (l10n) => l10n.mobilityKoordinatenFuerDieAbfrage631e8e79,
                   ),
                 ),
               ),
@@ -233,13 +251,21 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                     key: const ValueKey('fire_prevention_query'),
                     onPressed: _loading ? null : () => _load(refresh: true),
                     child: Text(
-                      context.translate("Amtliche Massnahmen abfragen"),
+                      context.localized(
+                        "Amtliche Massnahmen abfragen",
+                        (l10n) =>
+                            l10n.mobilityAmtlicheMassnahmenAbfragen08c2e83d,
+                      ),
                     ),
                   ),
                   OutlinedButton(
                     onPressed: _loading ? null : () => _load(offline: true),
                     child: Text(
-                      context.translate("Gespeicherte Abfrage anzeigen"),
+                      context.localized(
+                        "Gespeicherte Abfrage anzeigen",
+                        (l10n) =>
+                            l10n.mobilityGespeicherteAbfrageAnzeigen62c7018c,
+                      ),
                     ),
                   ),
                 ],
@@ -253,47 +279,67 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
               if (snapshot != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  context.translate("Abgerufen: {0} (UTC){1}{2}", [
-                    snapshot.fetchedUtc.toIso8601String(),
-                    snapshot.fromCache ? ' · Cache' : '',
-                    snapshot.refreshFailed
-                        ? ' · Aktualisierung fehlgeschlagen'
-                        : '',
-                  ]),
+                  context.localizedWithArgs(
+                    "Abgerufen: {0} (UTC){1}{2}",
+                    [
+                      snapshot.fetchedUtc.toIso8601String(),
+                      snapshot.fromCache ? ' · Cache' : '',
+                      snapshot.refreshFailed
+                          ? ' · Aktualisierung fehlgeschlagen'
+                          : '',
+                    ],
+                    (l10n, value) => l10n.mobilityAbgerufenUtc47bb4052(
+                      value(0),
+                      value(1),
+                      value(2),
+                    ),
+                  ),
                 ),
                 Text(
-                  context.translate("Publikationsstand der Quelle: {0}", [
-                    snapshot.publicationRaw ?? 'unbekannt',
-                  ]),
+                  context.localizedWithArgs(
+                    "Publikationsstand der Quelle: {0}",
+                    [snapshot.publicationRaw ?? 'unbekannt'],
+                    (l10n, value) => l10n
+                        .mobilityPublikationsstandDerQuellec3da8498(value(0)),
+                  ),
                 ),
                 Text(
-                  context.translate("Datenstatus: {0}", [
-                    snapshot.freshnessLabel(DateTime.now()),
-                  ]),
+                  context.localizedWithArgs(
+                    "Datenstatus: {0}",
+                    [snapshot.freshnessLabel(DateTime.now())],
+                    (l10n, value) => l10n.mobilityDatenstatusd3d7b1d5(value(0)),
+                  ),
                 ),
                 if (stale)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Aktualität nicht bestätigt – Angaben können überholt sein. Lokale Anordnungen prüfen.",
+                      (l10n) => l10n
+                          .mobilityAktualitaetNichtBestaetigtAngaben58f3aa99,
                     ),
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 if (snapshot.truncated)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Abfrage begrenzt. Weitere oder überlappende Regeln möglich.",
+                      (l10n) => l10n.mobilityAbfrageBegrenztWeitereOder5efa5f1a,
                     ),
                   ),
                 if (snapshot.measures.isEmpty)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Keine datierten Massnahmen für diesen Punkt ermittelt. Die Abdeckung kann unvollständig sein – KEINE Entwarnung.",
+                      (l10n) =>
+                          l10n.mobilityKeineDatiertenMassnahmenFuer9c369d5c,
                     ),
                   ),
                 if (snapshot.measures.length > 1)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Mehrere amtliche Gebiete überlagern sich. Geltungsbereich und Vorrang bitte bei den Kantonen prüfen.",
+                      (l10n) => l10n
+                          .mobilityMehrereAmtlicheGebieteUeberlagern220c23d0,
                     ),
                   ),
                 for (final measure in snapshot.measures)
@@ -305,36 +351,62 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                         children: [
                           Text(
                             measure.category == PreventionCategory.unknown
-                                ? context.translate(
+                                ? context.localizedWithArgs(
                                     "Nicht klassifiziert: {0}",
                                     [measure.title],
+                                    (l10n, value) =>
+                                        l10n.mobilityNichtKlassifiziert32692a7b(
+                                          value(0),
+                                        ),
                                   )
                                 : preventionCategoryLabel(measure.category),
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                           Text(
-                            context.translate("Amtlicher Titel: {0}", [
-                              measure.title,
-                            ]),
+                            context.localizedWithArgs(
+                              "Amtlicher Titel: {0}",
+                              [measure.title],
+                              (l10n, value) =>
+                                  l10n.mobilityAmtlicherTitelf2b2a993(value(0)),
+                            ),
                           ),
                           if (measure.description != null)
                             Text(measure.description!),
                           Text(
-                            context.translate("Kanton: {0} · Gebiet: {1}", [
-                              measure.canton ?? 'unbekannt',
-                              measure.region ?? 'unbekannt',
-                            ]),
+                            context.localizedWithArgs(
+                              "Kanton: {0} · Gebiet: {1}",
+                              [
+                                measure.canton ?? 'unbekannt',
+                                measure.region ?? 'unbekannt',
+                              ],
+                              (l10n, value) =>
+                                  l10n.mobilityKantonGebiet2306a36c(
+                                    value(0),
+                                    value(1),
+                                  ),
+                            ),
                           ),
                           Text(
-                            context.translate("Gültig seit: {0} · bis: {1}", [
-                              measure.validFromRaw ?? 'nicht angegeben',
-                              measure.validUntilRaw ?? 'nicht angegeben',
-                            ]),
+                            context.localizedWithArgs(
+                              "Gültig seit: {0} · bis: {1}",
+                              [
+                                measure.validFromRaw ?? 'nicht angegeben',
+                                measure.validUntilRaw ?? 'nicht angegeben',
+                              ],
+                              (l10n, value) =>
+                                  l10n.mobilityGueltigSeitBise1e05815(
+                                    value(0),
+                                    value(1),
+                                  ),
+                            ),
                           ),
                           Text(
-                            context.translate("BAFU Feature-ID: {0}", [
-                              measure.sourceId,
-                            ]),
+                            context.localizedWithArgs(
+                              "BAFU Feature-ID: {0}",
+                              [measure.sourceId],
+                              (l10n, value) =>
+                                  l10n.mobilityBafuFeatureId27de0e54(value(0)),
+                            ),
                           ),
                         ],
                       ),
@@ -349,19 +421,29 @@ class _WildfirePreventionSectionState extends State<WildfirePreventionSection> {
                     onPressed: () => _official('aktuelle-massnahmen'),
                     icon: const Icon(Icons.open_in_new),
                     label: Text(
-                      context.translate("Aktuelle amtliche Massnahmen"),
+                      context.localized(
+                        "Aktuelle amtliche Massnahmen",
+                        (l10n) =>
+                            l10n.mobilityAktuelleAmtlicheMassnahmen1078b943,
+                      ),
                     ),
                   ),
                   TextButton.icon(
                     onPressed: () => _official('kantonale-fachstellen'),
                     icon: const Icon(Icons.open_in_new),
-                    label: Text(context.translate("Kantonale Fachstellen")),
+                    label: Text(
+                      context.localized(
+                        "Kantonale Fachstellen",
+                        (l10n) => l10n.mobilityKantonaleFachstellen9b9d1abf,
+                      ),
+                    ),
                   ),
                 ],
               ),
               Text(
-                context.translate(
+                context.localized(
                   "Quelle: BAFU / Kantone · geo.admin.ch · waldbrandgefahr.ch",
+                  (l10n) => l10n.mobilityQuelleBafuKantoneGeo76ff0395,
                 ),
               ),
             ],

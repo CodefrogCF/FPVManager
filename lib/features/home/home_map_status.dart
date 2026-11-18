@@ -59,10 +59,16 @@ class _HomeMapStatusButtonState extends State<HomeMapStatusButton> {
       return Semantics(
         liveRegion: notices.isNotEmpty,
         value: notices.isEmpty
-            ? context.translate("No map data warnings")
+            ? context.localized(
+                "No map data warnings",
+                (l10n) => l10n.homeNoMapDataWarnings4f085b42,
+              )
             : notices.join('. '),
         child: IconButton(
-          tooltip: context.translate("Map status"),
+          tooltip: context.localized(
+            "Map status",
+            (l10n) => l10n.homeMapStatus5f4e7ac0,
+          ),
           onPressed: widget.onPressed,
           icon: Badge.count(
             count: notices.length,
@@ -94,9 +100,14 @@ class HomeMapStatusSheet extends StatelessWidget {
     children: [
       ListTile(
         leading: const Icon(Icons.info_outline),
-        title: Text(context.translate("Map status")),
+        title: Text(
+          context.localized("Map status", (l10n) => l10n.homeMapStatus5f4e7ac0),
+        ),
         trailing: IconButton(
-          tooltip: context.translate("Close map status"),
+          tooltip: context.localized(
+            "Close map status",
+            (l10n) => l10n.homeCloseMapStatusbaaf9b31,
+          ),
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close),
         ),
@@ -112,15 +123,25 @@ class HomeMapStatusSheet extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Text(
                     controller.error != null
-                        ? context.translate("Map error: {0}", [
-                            controller.error,
-                          ])
+                        ? context.localizedWithArgs(
+                            "Map error: {0}",
+                            [controller.error],
+                            (l10n, value) =>
+                                l10n.homeMapError05472eae(value(0)),
+                          )
                         : !controller.isReady
-                        ? context.translate("Loading globe...")
+                        ? context.localized(
+                            "Loading globe...",
+                            (l10n) => l10n.homeLoadingGlobe79eb5f94,
+                          )
                         : controller.terrainAvailable
-                        ? context.translate("3D globe ready")
-                        : context.translate(
+                        ? context.localized(
+                            "3D globe ready",
+                            (l10n) => l10n.homeDGlobeReady1847f54f,
+                          )
+                        : context.localized(
                             "Flat map — terrain heights unavailable",
+                            (l10n) => l10n.homeFlatMapTerrainHeightsd993a5d7,
                           ),
                   ),
                 ),

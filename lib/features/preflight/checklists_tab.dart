@@ -26,7 +26,12 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate("Checklist could not be saved: {0}", [e]),
+              context.localizedWithArgs(
+                "Checklist could not be saved: {0}",
+                [e],
+                (l10n, value) =>
+                    l10n.preflightChecklistCouldNotBe467e09ff(value(0)),
+              ),
             ),
           ),
         );
@@ -72,8 +77,9 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          context.translate(
+          context.localized(
             "Completion is saved on this device. Start a new checklist for each flight; completing it does not grant flight authorization.",
+            (l10n) => l10n.preflightCompletionIsSavedOna7956e8f,
           ),
         ),
         const SizedBox(height: 12),
@@ -88,14 +94,20 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
             OutlinedButton.icon(
               onPressed: _busy ? null : () => _run(() => _edit(template: true)),
               icon: const Icon(Icons.copy_outlined),
-              label: Text(context.translate("New template")),
+              label: Text(
+                context.localized(
+                  "New template",
+                  (l10n) => l10n.preflightNewTemplate865095cf,
+                ),
+              ),
             ),
           ],
         ),
         if (snapshot.hasError)
           Text(
-            context.translate(
+            context.localized(
               "Local checklists unavailable. Reopen this screen to retry.",
+              (l10n) => l10n.preflightLocalChecklistsUnavailableReopende49292a,
             ),
           ),
         if (!snapshot.hasData && !snapshot.hasError)
@@ -112,7 +124,12 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
     } catch (_) {
       return ListTile(
         title: Text(row.name),
-        subtitle: Text(context.translate("Unsupported checklist data")),
+        subtitle: Text(
+          context.localized(
+            "Unsupported checklist data",
+            (l10n) => l10n.preflightUnsupportedChecklistDatabe2cc486,
+          ),
+        ),
       );
     }
     final done = items.where((i) => i.checked).length;
@@ -122,9 +139,12 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
         title: Text(row.name),
         subtitle: Text(
           row.isTemplate
-              ? context.translate("Reusable template · {0} items", [
-                  items.length,
-                ])
+              ? context.localizedWithArgs(
+                  "Reusable template · {0} items",
+                  [items.length],
+                  (l10n, value) =>
+                      l10n.preflightReusableTemplateItems8ec2077a(value(0)),
+                )
               : '$done / ${items.length} checked · ${row.updatedAt.toLocal()}',
         ),
         trailing: PopupMenuButton<String>(
@@ -148,11 +168,21 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: Text(context.translate("Cancel")),
+                      child: Text(
+                        context.localized(
+                          "Cancel",
+                          (l10n) => l10n.commonCancel77dfd213,
+                        ),
+                      ),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: Text(context.translate("Delete")),
+                      child: Text(
+                        context.localized(
+                          "Delete",
+                          (l10n) => l10n.commonDeletef6fdbe48,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -168,11 +198,21 @@ class _ChecklistsTabState extends State<ChecklistsTab> {
               ),
             PopupMenuItem(
               value: 'edit',
-              child: Text(context.translate("Edit items & associations")),
+              child: Text(
+                context.localized(
+                  "Edit items & associations",
+                  (l10n) => l10n.preflightEditItemsAssociations032f939c,
+                ),
+              ),
             ),
             PopupMenuItem(
               value: 'delete',
-              child: Text(context.translate("Delete")),
+              child: Text(
+                context.localized(
+                  "Delete",
+                  (l10n) => l10n.commonDeletef6fdbe48,
+                ),
+              ),
             ),
           ],
         ),
@@ -308,7 +348,10 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
       _template
-          ? context.translate("Checklist template")
+          ? context.localized(
+              "Checklist template",
+              (l10n) => l10n.preflightChecklistTemplate9368b50e,
+            )
           : 'Preflight checklist',
     ),
     content: SizedBox(
@@ -328,9 +371,13 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
               maxLines: 12,
               maxLength: 30100,
               decoration: InputDecoration(
-                labelText: context.translate("Items · one per line"),
-                helperText: context.translate(
+                labelText: context.localized(
+                  "Items · one per line",
+                  (l10n) => l10n.preflightItemsOnePerLinee1c97f47,
+                ),
+                helperText: context.localized(
                   "Up to 100 items. Changed items or associations must be checked again.",
+                  (l10n) => l10n.preflightUpToItemsChangeda0ae0a06,
                 ),
               ),
             ),
@@ -340,7 +387,12 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
               decoration: const InputDecoration(labelText: 'Drone'),
               items: [
                 DropdownMenuItem<int>(
-                  child: Text(context.translate("Any drone")),
+                  child: Text(
+                    context.localized(
+                      "Any drone",
+                      (l10n) => l10n.preflightAnyDrone97497506,
+                    ),
+                  ),
                 ),
                 for (final d in widget.drones)
                   DropdownMenuItem(value: d.id, child: Text(d.name)),
@@ -351,11 +403,19 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
               initialValue: _route,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: context.translate("Flight plan"),
+                labelText: context.localized(
+                  "Flight plan",
+                  (l10n) => l10n.preflightFlightPlan4cb79e47,
+                ),
               ),
               items: [
                 DropdownMenuItem<int>(
-                  child: Text(context.translate("Any flight plan")),
+                  child: Text(
+                    context.localized(
+                      "Any flight plan",
+                      (l10n) => l10n.preflightAnyFlightPlan5d58f177,
+                    ),
+                  ),
                 ),
                 for (final p in widget.routes)
                   DropdownMenuItem(value: p.id, child: Text(p.name)),
@@ -370,14 +430,22 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text(context.translate("Cancel")),
+        child: Text(
+          context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+        ),
       ),
       FilledButton(
         onPressed: _save,
         child: Text(
           widget.fromTemplate
-              ? context.translate("Start with all items unchecked")
-              : context.translate("Save locally"),
+              ? context.localized(
+                  "Start with all items unchecked",
+                  (l10n) => l10n.preflightStartWithAllItems29c20291,
+                )
+              : context.localized(
+                  "Save locally",
+                  (l10n) => l10n.preflightSaveLocally87522ab5,
+                ),
         ),
       ),
     ],

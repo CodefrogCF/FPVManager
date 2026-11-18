@@ -109,12 +109,18 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
             children: [
               Expanded(
                 child: Text(
-                  context.translate("Airspace intersections"),
+                  context.localized(
+                    "Airspace intersections",
+                    (l10n) => l10n.airspaceAirspaceIntersectionsb23b9966,
+                  ),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
               IconButton(
-                tooltip: context.translate("Close airspace check"),
+                tooltip: context.localized(
+                  "Close airspace check",
+                  (l10n) => l10n.airspaceCloseAirspaceCheckeac0670c,
+                ),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -123,20 +129,28 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
           Text(widget.name, style: Theme.of(context).textTheme.titleMedium),
           Text(
             widget.route
-                ? context.translate(
+                ? context.localizedWithArgs(
                     "Route snapshot · {0} waypoints · all connecting segments",
                     [widget.positions.length],
+                    (l10n, value) => l10n
+                        .airspaceRouteSnapshotWaypointsAll292bb6c5(value(0)),
                   )
-                : context.translate("Spot position · {0}, {1}", [
-                    widget.positions.single.latitude.toStringAsFixed(6),
-                    widget.positions.single.longitude.toStringAsFixed(6),
-                  ]),
+                : context.localizedWithArgs(
+                    "Spot position · {0}, {1}",
+                    [
+                      widget.positions.single.latitude.toStringAsFixed(6),
+                      widget.positions.single.longitude.toStringAsFixed(6),
+                    ],
+                    (l10n, value) =>
+                        l10n.commonSpotPositiond64f0e9b(value(0), value(1)),
+                  ),
           ),
           Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              context.translate(
+              context.localized(
                 "Horizontal WGS84 geometry only, including boundary contact. Route segments are straight between waypoints. Height limits, activation times and legal applicability are not evaluated. This check is not flight authorization.",
+                (l10n) => l10n.commonHorizontalWgsGeometryOnly45382b9e,
               ),
             ),
           ),
@@ -145,14 +159,20 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                 showAirspaceSafetyPanel(context, widget.controller),
             icon: const Icon(Icons.shield_outlined),
             label: Text(
-              context.translate(
+              context.localized(
                 "Flight safety & current official publications",
+                (l10n) => l10n.airspaceFlightSafetyCurrentOfficiala1a04e11,
               ),
             ),
           ),
           if (result == null && _error == null) ...[
             const LinearProgressIndicator(),
-            Text(context.translate("Loading UAS data and checking geometry…")),
+            Text(
+              context.localized(
+                "Loading UAS data and checking geometry…",
+                (l10n) => l10n.airspaceLoadingUasDataAndddfb5ec6,
+              ),
+            ),
           ],
           if (_error != null) ...[
             Text(
@@ -161,36 +181,51 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
             ),
             TextButton(
               onPressed: () => _load(refresh: true),
-              child: Text(context.translate("Retry with fresh data")),
+              child: Text(
+                context.localized(
+                  "Retry with fresh data",
+                  (l10n) => l10n.airspaceRetryWithFreshData71969c16,
+                ),
+              ),
             ),
           ],
           if (result != null) ...[
             Text(
               result.intersections.isEmpty
-                  ? context.translate(
+                  ? context.localized(
                       "No horizontal intersections found in the checked data.",
+                      (l10n) =>
+                          l10n.airspaceNoHorizontalIntersectionsFound318ee27f,
                     )
-                  : context.translate("Intersecting zones: {0}", [
-                      result.intersections.length,
-                    ]),
+                  : context.localizedWithArgs(
+                      "Intersecting zones: {0}",
+                      [result.intersections.length],
+                      (l10n, value) =>
+                          l10n.airspaceIntersectingZones8134036b(value(0)),
+                    ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Absence of a match does not establish unrestricted airspace. Source coverage is not independently verified.",
+                (l10n) => l10n.airspaceAbsenceOfAMatch3e743a0d,
               ),
             ),
             const SizedBox(height: 12),
             Text('${result.source.name} · ${result.source.publisher}'),
             Text('Downloaded (UTC): ${result.fetchedAtUtc.toIso8601String()}'),
             Text(
-              context.translate("{0} polygon features checked", [
-                result.checkedFeatureCount,
-              ]),
+              context.localizedWithArgs(
+                "{0} polygon features checked",
+                [result.checkedFeatureCount],
+                (l10n, value) =>
+                    l10n.airspacePolygonFeaturesChecked0b14a2bb(value(0)),
+              ),
             ),
             if (result.freshness != OsintFreshness.fresh)
               Text(
-                context.translate(
+                context.localized(
                   "Dataset cache is stale or its clock is inconsistent.",
+                  (l10n) => l10n.airspaceDatasetCacheIsStale23d0712d,
                 ),
               ),
             for (final limitation in result.limitations)
@@ -201,7 +236,12 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
             TextButton.icon(
               onPressed: () => _load(refresh: true),
               icon: const Icon(Icons.refresh),
-              label: Text(context.translate("Refresh source data")),
+              label: Text(
+                context.localized(
+                  "Refresh source data",
+                  (l10n) => l10n.airspaceRefreshSourceDatae31028f4,
+                ),
+              ),
             ),
             for (final hit in result.intersections)
               Card(
@@ -219,7 +259,11 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                       Text(hit.zone.restriction.category.label),
                       Text(
                         hit.zone.value('restriction') ??
-                            context.translate("Restriction not provided"),
+                            context.localized(
+                              "Restriction not provided",
+                              (l10n) =>
+                                  l10n.airspaceRestrictionNotProvided55e0f3ad,
+                            ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -231,20 +275,30 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       Text(
-                        context.translate("Lower: {0}", [
-                          hit.zone.heightLimit(upper: false),
-                        ]),
+                        context.localizedWithArgs(
+                          "Lower: {0}",
+                          [hit.zone.heightLimit(upper: false)],
+                          (l10n, value) => l10n.airspaceLower082a2966(value(0)),
+                        ),
                       ),
                       Text('Upper: ${hit.zone.heightLimit(upper: true)}'),
                       if (widget.route)
                         Text(
-                          context.translate("Waypoints: {0} · Segments: {1}", [
-                            _indices(hit.geometry.pointIndices),
-                            _indices(
-                              hit.geometry.segmentIndices,
-                              segments: true,
-                            ),
-                          ]),
+                          context.localizedWithArgs(
+                            "Waypoints: {0} · Segments: {1}",
+                            [
+                              _indices(hit.geometry.pointIndices),
+                              _indices(
+                                hit.geometry.segmentIndices,
+                                segments: true,
+                              ),
+                            ],
+                            (l10n, value) =>
+                                l10n.airspaceWaypointsSegments6fa17a75(
+                                  value(0),
+                                  value(1),
+                                ),
+                          ),
                         ),
                       TextButton(
                         onPressed: () => showModalBottomSheet<void>(
@@ -261,7 +315,12 @@ class _AirspaceCheckSheetState extends State<AirspaceCheckSheet> {
                             downloadedAtUtc: result.fetchedAtUtc,
                           ),
                         ),
-                        child: Text(context.translate("Inspect restrictions")),
+                        child: Text(
+                          context.localized(
+                            "Inspect restrictions",
+                            (l10n) => l10n.airspaceInspectRestrictionsdfa16e61,
+                          ),
+                        ),
                       ),
                     ],
                   ),

@@ -58,7 +58,10 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate("The map cache preference could not be saved."),
+              context.localized(
+                "The map cache preference could not be saved.",
+                (l10n) => l10n.datamanagementTheMapCachePreference010bed10,
+              ),
             ),
           ),
         );
@@ -127,20 +130,33 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         password = await showDialog<String>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(context.translate("Backup password")),
+            title: Text(
+              context.localized(
+                "Backup password",
+                (l10n) => l10n.datamanagementBackupPasswordd96a6076,
+              ),
+            ),
             content: TextField(
               onChanged: (value) => input = value,
               obscureText: true,
               enableSuggestions: false,
               autocorrect: false,
               decoration: InputDecoration(
-                labelText: context.translate("Password"),
+                labelText: context.localized(
+                  "Password",
+                  (l10n) => l10n.datamanagementPassword8be3c943,
+                ),
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(context.translate("Cancel")),
+                child: Text(
+                  context.localized(
+                    "Cancel",
+                    (l10n) => l10n.commonCancel77dfd213,
+                  ),
+                ),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, input),
@@ -174,21 +190,32 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.translate("Replace personal data?")),
+        title: Text(
+          context.localized(
+            "Replace personal data?",
+            (l10n) => l10n.datamanagementReplacePersonalData946d9c54,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                context.translate("Backup from {0}", [document['createdAt']]),
+                context.localizedWithArgs(
+                  "Backup from {0}",
+                  [document['createdAt']],
+                  (l10n, value) =>
+                      l10n.datamanagementBackupFrome163c3fa(value(0)),
+                ),
               ),
               const SizedBox(height: 12),
               for (final e in counts.entries) Text('${e.value}: ${e.key}'),
               const SizedBox(height: 12),
               Text(
-                context.translate(
+                context.localized(
                   "This replaces your current spots, equipment, routes, images, checklists, telemetry and backed-up preferences. Restored map preferences can reconnect enabled layers. API keys and downloaded maps/data remain on this device. Create a backup of your current data first.",
+                  (l10n) => l10n.commonThisReplacesYourCurrentf961d89e,
                 ),
               ),
             ],
@@ -197,11 +224,18 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(context.translate("Cancel")),
+            child: Text(
+              context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(context.translate("Replace and restore")),
+            child: Text(
+              context.localized(
+                "Replace and restore",
+                (l10n) => l10n.datamanagementReplaceAndRestoreee68c046,
+              ),
+            ),
           ),
         ],
       ),
@@ -226,7 +260,14 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
     child: Scaffold(
-      appBar: AppBar(title: Text(context.translate("Offline & personal data"))),
+      appBar: AppBar(
+        title: Text(
+          context.localized(
+            "Offline & personal data",
+            (l10n) => l10n.datamanagementOfflinePersonalDatae0f55e89,
+          ),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -242,17 +283,26 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
           ),
           const Divider(height: 32),
           Text(
-            context.translate("Portable backups"),
+            context.localized(
+              "Portable backups",
+              (l10n) => l10n.datamanagementPortableBackups13832bb9,
+            ),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           Text(
-            context.translate(
+            context.localized(
               "Save spots, images, equipment, routes, checklists, telemetry and planning preferences in one local file (up to 64 MiB). Public map/OSINT caches and API keys are excluded.",
+              (l10n) => l10n.commonSaveSpotsImagesEquipmentdd4221ef,
             ),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(context.translate("Protect backup with a password")),
+            title: Text(
+              context.localized(
+                "Protect backup with a password",
+                (l10n) => l10n.datamanagementProtectBackupWithAf8add733,
+              ),
+            ),
             value: _encrypt,
             onChanged: _busy ? null : (v) => setState(() => _encrypt = v),
           ),
@@ -264,8 +314,10 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
               enableSuggestions: false,
               autocorrect: false,
               decoration: InputDecoration(
-                labelText: context.translate(
+                labelText: context.localized(
                   "Password (at least 12 characters)",
+                  (l10n) =>
+                      l10n.datamanagementPasswordAtLeastCharacters518d1ae0,
                 ),
               ),
             ),
@@ -276,28 +328,45 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
               enableSuggestions: false,
               autocorrect: false,
               decoration: InputDecoration(
-                labelText: context.translate("Repeat password"),
+                labelText: context.localized(
+                  "Repeat password",
+                  (l10n) => l10n.datamanagementRepeatPassword366c2415,
+                ),
               ),
             ),
             Text(
-              context.translate("A forgotten password cannot be recovered."),
+              context.localized(
+                "A forgotten password cannot be recovered.",
+                (l10n) => l10n.datamanagementAForgottenPasswordCannot76d00a6a,
+              ),
             ),
           ] else
             Text(
-              context.translate(
+              context.localized(
                 "Unprotected backups contain readable personal data, including coordinates, notes and images.",
+                (l10n) => l10n.commonUnprotectedBackupsContainReadableec1db6d0,
               ),
             ),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: _busy ? null : _export,
             icon: const Icon(Icons.save_alt),
-            label: Text(context.translate("Create backup")),
+            label: Text(
+              context.localized(
+                "Create backup",
+                (l10n) => l10n.datamanagementCreateBackup60e77f3b,
+              ),
+            ),
           ),
           OutlinedButton.icon(
             onPressed: _busy ? null : _import,
             icon: const Icon(Icons.restore),
-            label: Text(context.translate("Restore backup")),
+            label: Text(
+              context.localized(
+                "Restore backup",
+                (l10n) => l10n.datamanagementRestoreBackupa65eaa88,
+              ),
+            ),
           ),
           if (_busy) const LinearProgressIndicator(),
           if (_status != null)

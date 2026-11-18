@@ -195,8 +195,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.translate(
+            context.localized(
               "Arbeitsbereich gewechselt. Kartenstartwerte folgen nach der laufenden Ansicht.",
+              (l10n) => l10n
+                  .homeArbeitsbereichGewechseltKartenstartwerteFolgen74793f38,
             ),
           ),
         ),
@@ -225,8 +227,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate(
+              context.localized(
                 "Kartenstartwerte konnten nicht übernommen werden.",
+                (l10n) =>
+                    l10n.homeKartenstartwerteKonntenNichtUebernommen8dd81e2c,
               ),
             ),
             action: SnackBarAction(
@@ -695,7 +699,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.translate("Map error: {0}", [error]))),
+        SnackBar(
+          content: Text(
+            context.localizedWithArgs("Map error: {0}", [
+              error,
+            ], (l10n, value) => l10n.homeMapError05472eae(value(0))),
+          ),
+        ),
       );
     }
   }
@@ -931,7 +941,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.translate("Terrain query failed: {0}", [error]),
+            context.localizedWithArgs("Terrain query failed: {0}", [
+              error,
+            ], (l10n, value) => l10n.homeTerrainQueryFailed53f78995(value(0))),
           ),
         ),
       );
@@ -996,7 +1008,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  context.translate("Spot marker sync failed: {0}", [error]),
+                  context.localizedWithArgs(
+                    "Spot marker sync failed: {0}",
+                    [error],
+                    (l10n, value) =>
+                        l10n.homeSpotMarkerSyncFailed5c7dee42(value(0)),
+                  ),
                 ),
               ),
             );
@@ -1009,7 +1026,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate("Unable to load stored spots: {0}", [error]),
+              context.localizedWithArgs(
+                "Unable to load stored spots: {0}",
+                [error],
+                (l10n, value) => l10n.homeUnableToLoadStored9e66c17d(value(0)),
+              ),
             ),
           ),
         );
@@ -1157,7 +1178,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text(context.translate("Close")),
+                  child: Text(
+                    context.localized(
+                      "Close",
+                      (l10n) => l10n.commonClosebbfa773e,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1264,7 +1290,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip: context.translate("Open navigation menu"),
+                      tooltip: context.localized(
+                        "Open navigation menu",
+                        (l10n) => l10n.homeOpenNavigationMenu5f83b0b6,
+                      ),
                       onPressed: () => _toggleNavigationMenu(context),
                       icon: const Icon(Icons.menu),
                     ),
@@ -1272,10 +1301,16 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         MediaQuery.sizeOf(context).width >= 360)
                       IconButton(
                         tooltip: _profiles?.selected == null
-                            ? context.translate("Profil wählen")
-                            : context.translate("Aktivitätsprofil: {0}", [
-                                _profiles!.selected!.name,
-                              ]),
+                            ? context.localized(
+                                "Profil wählen",
+                                (l10n) => l10n.homeProfilWaehlencae393b1,
+                              )
+                            : context.localizedWithArgs(
+                                "Aktivitätsprofil: {0}",
+                                [_profiles!.selected!.name],
+                                (l10n, value) => l10n
+                                    .homeAktivitaetsprofilfef983f3(value(0)),
+                              ),
                         onPressed: _openProfiles,
                         icon: const Icon(Icons.person_outline),
                       ),
@@ -1302,8 +1337,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     ),
                     if (_globeController.playbackPhase == 'loading')
                       IconButton(
-                        tooltip: context.translate(
+                        tooltip: context.localized(
                           "Cancel route replay preparation",
+                          (l10n) =>
+                              l10n.homeCancelRouteReplayPreparationb6a2fd00,
                         ),
                         onPressed: () => _runCommand(
                           () => _globeController.controlRoutePlayback('stop'),

@@ -52,20 +52,32 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.translate("Delete spot?")),
+        title: Text(
+          context.localized(
+            "Delete spot?",
+            (l10n) => l10n.spotsDeleteSpot17e145be,
+          ),
+        ),
         content: Text(
-          context.translate("Permanently delete \"{0}\" and its photos?", [
-            details.spot.name,
-          ]),
+          context.localizedWithArgs(
+            "Permanently delete \"{0}\" and its photos?",
+            [details.spot.name],
+            (l10n, value) =>
+                l10n.spotsPermanentlyDeleteAndIts798ab781(value(0)),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(context.translate("Cancel")),
+            child: Text(
+              context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(context.translate("Delete")),
+            child: Text(
+              context.localized("Delete", (l10n) => l10n.commonDeletef6fdbe48),
+            ),
           ),
         ],
       ),
@@ -79,13 +91,25 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("Spot details"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "Spot details",
+          (l10n) => l10n.spotsSpotDetailse32d6442,
+        ),
+      ),
+    ),
     body: StreamBuilder<SpotDetails?>(
       stream: _details,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
-            child: Text(context.translate("Unable to load spot details.")),
+            child: Text(
+              context.localized(
+                "Unable to load spot details.",
+                (l10n) => l10n.spotsUnableToLoadSpot827d0e55,
+              ),
+            ),
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -94,7 +118,12 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
         final details = snapshot.data;
         if (details == null) {
           return Center(
-            child: Text(context.translate("This spot no longer exists.")),
+            child: Text(
+              context.localized(
+                "This spot no longer exists.",
+                (l10n) => l10n.spotsThisSpotNoLongeraffbf566,
+              ),
+            ),
           );
         }
         final spot = details.spot;
@@ -115,8 +144,14 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                     ),
                     IconButton(
                       tooltip: spot.isFavorite
-                          ? context.translate("Remove favorite")
-                          : context.translate("Add favorite"),
+                          ? context.localized(
+                              "Remove favorite",
+                              (l10n) => l10n.spotsRemoveFavorite8b9da771,
+                            )
+                          : context.localized(
+                              "Add favorite",
+                              (l10n) => l10n.spotsAddFavorite4914d44e,
+                            ),
                       onPressed: _changing
                           ? null
                           : () => _change(() async {
@@ -139,7 +174,11 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                 ),
                 if (spot.category != null) ...[
                   const SizedBox(height: 16),
-                  Text(context.translate("Category: {0}", [spot.category])),
+                  Text(
+                    context.localizedWithArgs("Category: {0}", [
+                      spot.category,
+                    ], (l10n, value) => l10n.spotsCategorybe4f88dd(value(0))),
+                  ),
                 ],
                 if (details.tags.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -155,7 +194,10 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                 SelectableText(
                   spot.notes?.isNotEmpty == true
                       ? spot.notes!
-                      : context.translate("No description added."),
+                      : context.localized(
+                          "No description added.",
+                          (l10n) => l10n.spotsNoDescriptionAdded0dc3dae3,
+                        ),
                 ),
                 if (_osmProvenance != null)
                   FutureBuilder<Map<String, dynamic>?>(
@@ -172,9 +214,12 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                         children: [
                           const SizedBox(height: 16),
                           Text(
-                            context.translate("OpenStreetMap source: {0}", [
-                              reference,
-                            ]),
+                            context.localizedWithArgs(
+                              "OpenStreetMap source: {0}",
+                              [reference],
+                              (l10n, value) => l10n
+                                  .spotsOpenstreetmapSource9af4238e(value(0)),
+                            ),
                           ),
                           TextButton(
                             onPressed: () => launchUrl(
@@ -187,8 +232,10 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                             ),
                           ),
                           Text(
-                            context.translate(
+                            context.localized(
                               "Original OSM source reference is kept separately from personal edits.",
+                              (l10n) =>
+                                  l10n.spotsOriginalOsmSourceReferenceebdb9f0a,
                             ),
                           ),
                         ],
@@ -205,7 +252,12 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                           ? null
                           : () => Navigator.pop(context, spot),
                       icon: const Icon(Icons.map_outlined),
-                      label: Text(context.translate("Show on map")),
+                      label: Text(
+                        context.localized(
+                          "Show on map",
+                          (l10n) => l10n.spotsShowOnMap5ed4f4c1,
+                        ),
+                      ),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => showDialog<void>(
@@ -217,13 +269,23 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                         ),
                       ),
                       icon: const Icon(Icons.photo_library_outlined),
-                      label: Text(context.translate("Photos")),
+                      label: Text(
+                        context.localized(
+                          "Photos",
+                          (l10n) => l10n.commonPhotosc8b2e864,
+                        ),
+                      ),
                     ),
                     if (widget.onRoadRoute != null)
                       OutlinedButton.icon(
                         onPressed: _changing ? null : widget.onRoadRoute,
                         icon: const Icon(Icons.directions_car_outlined),
-                        label: Text(context.translate("Driving route")),
+                        label: Text(
+                          context.localized(
+                            "Driving route",
+                            (l10n) => l10n.spotsDrivingRoute9ffe00fc,
+                          ),
+                        ),
                       ),
                     OutlinedButton.icon(
                       onPressed: _changing
@@ -237,12 +299,22 @@ class _SpotDetailsScreenState extends State<SpotDetailsScreen> {
                               ),
                             ),
                       icon: const Icon(Icons.edit_outlined),
-                      label: Text(context.translate("Edit")),
+                      label: Text(
+                        context.localized(
+                          "Edit",
+                          (l10n) => l10n.spotsEdit5301648d,
+                        ),
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: _changing ? null : () => _delete(details),
                       icon: const Icon(Icons.delete_outline),
-                      label: Text(context.translate("Delete")),
+                      label: Text(
+                        context.localized(
+                          "Delete",
+                          (l10n) => l10n.commonDeletef6fdbe48,
+                        ),
+                      ),
                     ),
                   ],
                 ),

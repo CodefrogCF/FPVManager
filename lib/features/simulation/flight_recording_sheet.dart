@@ -102,18 +102,36 @@ class _ReviewState extends State<_Review> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(context.translate("Discard recording?")),
+        title: Text(
+          context.localized(
+            "Discard recording?",
+            (l10n) => l10n.simulationDiscardRecording76dde3d6,
+          ),
+        ),
         content: Text(
-          context.translate("The unsaved simulated flight will be removed."),
+          context.localized(
+            "The unsaved simulated flight will be removed.",
+            (l10n) => l10n.simulationTheUnsavedSimulatedFlight363d0ff5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: Text(context.translate("Keep recording")),
+            child: Text(
+              context.localized(
+                "Keep recording",
+                (l10n) => l10n.simulationKeepRecording77ccc1b0,
+              ),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            child: Text(context.translate("Discard")),
+            child: Text(
+              context.localized(
+                "Discard",
+                (l10n) => l10n.simulationDiscard36fff63c,
+              ),
+            ),
           ),
         ],
       ),
@@ -159,7 +177,12 @@ class _ReviewState extends State<_Review> {
     return PopScope(
       canPop: !_working,
       child: AlertDialog(
-        title: Text(context.translate("Review simulated flight")),
+        title: Text(
+          context.localized(
+            "Review simulated flight",
+            (l10n) => l10n.simulationReviewSimulatedFlight21515c9f,
+          ),
+        ),
         content: SizedBox(
           width: 540,
           child: SingleChildScrollView(
@@ -168,8 +191,9 @@ class _ReviewState extends State<_Review> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  context.translate(
+                  context.localized(
                     "Save a continuous section as a new planning route. Unsaved recordings are lost when closing the app.",
+                    (l10n) => l10n.simulationSaveAContinuousSectionead8234c,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -177,7 +201,10 @@ class _ReviewState extends State<_Review> {
                   DropdownButtonFormField<int>(
                     initialValue: _segment,
                     decoration: InputDecoration(
-                      labelText: context.translate("Continuous section"),
+                      labelText: context.localized(
+                        "Continuous section",
+                        (l10n) => l10n.simulationContinuousSection1042d718,
+                      ),
                     ),
                     isExpanded: true,
                     items: [
@@ -185,10 +212,15 @@ class _ReviewState extends State<_Review> {
                         DropdownMenuItem(
                           value: i,
                           child: Text(
-                            context.translate("Section {0} · {1} samples", [
-                              i + 1,
-                              _segments[i].length,
-                            ]),
+                            context.localizedWithArgs(
+                              "Section {0} · {1} samples",
+                              [i + 1, _segments[i].length],
+                              (l10n, value) =>
+                                  l10n.simulationSectionSamplesb76afcf0(
+                                    value(0),
+                                    value(1),
+                                  ),
+                            ),
                           ),
                         ),
                     ],
@@ -202,9 +234,11 @@ class _ReviewState extends State<_Review> {
                           }),
                   ),
                 Semantics(
-                  label: context.translate(
+                  label: context.localizedWithArgs(
                     "Recorded trajectory, north up, with height profile. {0} metres.",
                     [distance.toStringAsFixed(0)],
+                    (l10n, value) =>
+                        l10n.commonRecordedTrajectoryNorthUp84f04fe5(value(0)),
                   ),
                   child: SizedBox(
                     height: 180,
@@ -220,8 +254,9 @@ class _ReviewState extends State<_Review> {
                   ),
                 ),
                 Text(
-                  context.translate(
+                  context.localized(
                     "Track: north ↑ · Profile: height in metres",
+                    (l10n) => l10n.simulationTrackNorthProfileHeight13701f87,
                   ),
                   style: TextStyle(fontSize: 12),
                 ),
@@ -229,7 +264,7 @@ class _ReviewState extends State<_Review> {
                   'Height: ${heights.reduce(math.min).toStringAsFixed(1)}–${heights.reduce(math.max).toStringAsFixed(1)} m ${_agl && hasAgl ? 'AGL' : 'WGS84 ellipsoid'}',
                 ),
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "{0} m in 3D · {1} s · {2} samples → {3} waypoints",
                     [
                       distance.toStringAsFixed(0),
@@ -237,10 +272,16 @@ class _ReviewState extends State<_Review> {
                       selected.length,
                       points.length,
                     ],
+                    (l10n, value) => l10n.simulationMInDSeefbaac5(
+                      value(0),
+                      value(1),
+                      value(2),
+                      value(3),
+                    ),
                   ),
                 ),
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "Recorded ground speed: {0} · Terrain samples: {1}/{2}",
                     [
                       speeds.isEmpty
@@ -249,6 +290,12 @@ class _ReviewState extends State<_Review> {
                       measuredGround,
                       selected.length,
                     ],
+                    (l10n, value) =>
+                        l10n.simulationRecordedGroundSpeedTerrainb2579dd6(
+                          value(0),
+                          value(1),
+                          value(2),
+                        ),
                   ),
                 ),
                 Text(
@@ -263,21 +310,31 @@ class _ReviewState extends State<_Review> {
                 if (widget.flight.interrupted)
                   const Text('Recording interrupted; partial track retained.'),
                 Text(
-                  context.translate(
+                  context.localizedWithArgs(
                     "UTC start: {0} · Per-point elapsed time retained",
                     [widget.flight.startedAt.toUtc().toIso8601String()],
+                    (l10n, value) =>
+                        l10n.simulationUtcStartPerPoint7a1f6f82(value(0)),
                   ),
                   style: const TextStyle(fontSize: 12),
                 ),
                 if (_segments[_segment].length > 1) ...[
                   const SizedBox(height: 8),
                   Text(
-                    context.translate("Trim section · samples {0}–{1}", [
-                      (_range?.start.round() ?? 0) + 1,
-                      (_range?.end.round() ??
-                              (_segments[_segment].length - 1)) +
-                          1,
-                    ]),
+                    context.localizedWithArgs(
+                      "Trim section · samples {0}–{1}",
+                      [
+                        (_range?.start.round() ?? 0) + 1,
+                        (_range?.end.round() ??
+                                (_segments[_segment].length - 1)) +
+                            1,
+                      ],
+                      (l10n, value) =>
+                          l10n.simulationTrimSectionSamples9e88a826(
+                            value(0),
+                            value(1),
+                          ),
+                    ),
                   ),
                   RangeSlider(
                     values:
@@ -298,8 +355,10 @@ class _ReviewState extends State<_Review> {
                   isExpanded: true,
                   initialValue: _tolerance,
                   decoration: InputDecoration(
-                    labelText: context.translate(
+                    labelText: context.localized(
                       "Maximum simplification deviation",
+                      (l10n) =>
+                          l10n.simulationMaximumSimplificationDeviationd255b933,
                     ),
                   ),
                   items: [
@@ -308,8 +367,17 @@ class _ReviewState extends State<_Review> {
                         value: t,
                         child: Text(
                           t == 0
-                              ? context.translate("Keep all samples")
-                              : context.translate("{0} m in 3D", [t.toInt()]),
+                              ? context.localized(
+                                  "Keep all samples",
+                                  (l10n) =>
+                                      l10n.simulationKeepAllSamples1900da8c,
+                                )
+                              : context.localizedWithArgs(
+                                  "{0} m in 3D",
+                                  [t.toInt()],
+                                  (l10n, value) =>
+                                      l10n.simulationMInD2d9450e4(value(0)),
+                                ),
                         ),
                       ),
                   ],
@@ -320,15 +388,22 @@ class _ReviewState extends State<_Review> {
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    context.translate("Use height above terrain (AGL)"),
+                    context.localized(
+                      "Use height above terrain (AGL)",
+                      (l10n) => l10n.simulationUseHeightAboveTerrain0cc4fd11,
+                    ),
                   ),
                   subtitle: Text(
                     hasAgl
-                        ? context.translate(
+                        ? context.localized(
                             "Based on terrain loaded during recording.",
+                            (l10n) =>
+                                l10n.simulationBasedOnTerrainLoaded058810aa,
                           )
-                        : context.translate(
+                        : context.localized(
                             "Unavailable: terrain height is missing for part of this section.",
+                            (l10n) => l10n
+                                .simulationUnavailableTerrainHeightIs1122a292,
                           ),
                   ),
                   value: _agl && hasAgl,
@@ -338,14 +413,16 @@ class _ReviewState extends State<_Review> {
                 ),
                 if (!_agl || !hasAgl)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Saved height reference: WGS84 ellipsoid. Recorded absolute heights are preserved.",
+                      (l10n) => l10n.simulationSavedHeightReferenceWgs6f44e746,
                     ),
                   ),
                 if (_agl && hasAgl)
                   Text(
-                    context.translate(
+                    context.localized(
                       "AGL follows the terrain between waypoints and may differ from the recorded absolute trajectory.",
+                      (l10n) => l10n.simulationAglFollowsTheTerrain71243353,
                     ),
                   ),
                 const SizedBox(height: 12),
@@ -354,22 +431,29 @@ class _ReviewState extends State<_Review> {
                   enabled: !_working,
                   maxLength: 120,
                   decoration: InputDecoration(
-                    labelText: context.translate("Route name"),
+                    labelText: context.localized(
+                      "Route name",
+                      (l10n) => l10n.commonRouteName4421bcfb,
+                    ),
                   ),
                 ),
                 Text(
-                  context.translate(
+                  context.localized(
                     "Review the saved route before real flight. Sampled motion, terrain and timing are simulated; drone and battery assignments can be added in the route editor.",
+                    (l10n) => l10n.commonReviewTheSavedRoute73d944db,
                   ),
                 ),
                 if (!usable)
                   Text(
                     points.length > 1000
-                        ? context.translate(
+                        ? context.localized(
                             "More than 1000 waypoints: increase simplification or trim the section.",
+                            (l10n) => l10n
+                                .simulationMoreThanWaypointsIncrease766de83d,
                           )
-                        : context.translate(
+                        : context.localized(
                             "Record or select at least two positions with movement.",
+                            (l10n) => l10n.simulationRecordOrSelectAt4a275e16,
                           ),
                     style: TextStyle(color: colors.error),
                   ),
@@ -382,11 +466,21 @@ class _ReviewState extends State<_Review> {
         actions: [
           TextButton(
             onPressed: _working ? null : _discard,
-            child: Text(context.translate("Discard")),
+            child: Text(
+              context.localized(
+                "Discard",
+                (l10n) => l10n.simulationDiscard36fff63c,
+              ),
+            ),
           ),
           TextButton(
             onPressed: _working ? null : () => Navigator.pop(context),
-            child: Text(context.translate("Keep for later")),
+            child: Text(
+              context.localized(
+                "Keep for later",
+                (l10n) => l10n.simulationKeepForLatera212630b,
+              ),
+            ),
           ),
           FilledButton(
             onPressed: _working || !usable
@@ -394,8 +488,14 @@ class _ReviewState extends State<_Review> {
                 : () => _saveRoute(points, agl: _agl && hasAgl),
             child: Text(
               _working
-                  ? context.translate("Saving…")
-                  : context.translate("Save as route"),
+                  ? context.localized(
+                      "Saving…",
+                      (l10n) => l10n.commonSaving56a2285c,
+                    )
+                  : context.localized(
+                      "Save as route",
+                      (l10n) => l10n.simulationSaveAsRouteb13386ba,
+                    ),
             ),
           ),
         ],

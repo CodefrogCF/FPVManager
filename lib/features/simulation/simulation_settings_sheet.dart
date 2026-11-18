@@ -209,17 +209,18 @@ class _SettingsState extends State<_Settings> {
         !curve.isFinite ||
         curve < 0 ||
         curve > 1) {
-      return context.translate(
+      return context.localized(
         'Gültige Schubwerte für die Schwebeschätzung eingeben.',
+        (l10n) => l10n.simulationGueltigeSchubwerteFuerDie9f739082,
       );
     }
     final hover = SimulationSettings(
       acroThrustToWeight: ratio,
       acroThrustCurve: curve,
     ).acroHoverThrottle;
-    return context.translate('Schwebeschätzung: {0} % Gas', [
+    return context.localizedWithArgs('Schwebeschätzung: {0} % Gas', [
       (hover * 100).toStringAsFixed(0),
-    ]);
+    ], (l10n, value) => l10n.simulationSchwebeschaetzungGas487da692(value(0)));
   }
 
   String get _acroSpeedHelp {
@@ -233,15 +234,20 @@ class _SettingsState extends State<_Settings> {
         !terminal.isFinite ||
         terminal < 5 ||
         terminal > 120) {
-      return context.translate('Gültige Schub- und Widerstandswerte eingeben.');
+      return context.localized(
+        'Gültige Schub- und Widerstandswerte eingeben.',
+        (l10n) => l10n.simulationGueltigeSchubUndWiderstandswerted87ecf7c,
+      );
     }
     final speed = SimulationSettings(
       acroThrustToWeight: thrust,
       acroTerminalVelocity: terminal,
     ).acroEstimatedLevelSpeedKmh;
-    return context.translate(
+    return context.localizedWithArgs(
       'Geschätztes Horizontaltempo bei Vollgas: {0} km/h. Höherer Luftwiderstand senkt diesen Wert; Sturzflug kann ihn überschreiten.',
       [speed.toStringAsFixed(0)],
+      (l10n, value) => l10n
+          .simulationGeschaetztesHorizontaltempoBeiVollgasbf685b25(value(0)),
     );
   }
 
@@ -262,7 +268,14 @@ class _SettingsState extends State<_Settings> {
       decoration: InputDecoration(labelText: context.translate(label)),
       validator: (_) {
         return _invalid(key, min, max)
-            ? context.translate('Wert von {0} bis {1} eingeben.', [min, max])
+            ? context.localizedWithArgs(
+                'Wert von {0} bis {1} eingeben.',
+                [min, max],
+                (l10n, value) => l10n.simulationWertVonBisEingeben87edf0e9(
+                  value(0),
+                  value(1),
+                ),
+              )
             : null;
       },
     ),
@@ -293,8 +306,9 @@ class _SettingsState extends State<_Settings> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate(
+              context.localized(
                 'Die niedrige Zellspannung muss höher als die kritische Zellspannung sein.',
+                (l10n) => l10n.simulationDieNiedrigeZellspannungMuss653c3f34,
               ),
             ),
           ),
@@ -375,8 +389,14 @@ class _SettingsState extends State<_Settings> {
     icon: const Icon(Icons.flight_takeoff),
     label: Text(
       widget.configureOnly
-          ? context.translate("Übernehmen")
-          : context.translate("Flug starten"),
+          ? context.localized(
+              "Übernehmen",
+              (l10n) => l10n.simulationUbernehmen59430842,
+            )
+          : context.localized(
+              "Flug starten",
+              (l10n) => l10n.simulationFlugStarten8846a2e4,
+            ),
     ),
   );
 
@@ -395,16 +415,28 @@ class _SettingsState extends State<_Settings> {
                 ListTile(
                   title: Text(
                     widget.configureOnly
-                        ? context.translate("Flug einstellen")
-                        : context.translate("Flugsimulator"),
+                        ? context.localized(
+                            "Flug einstellen",
+                            (l10n) => l10n.simulationFlugEinstellenf142a101,
+                          )
+                        : context.localized(
+                            "Flugsimulator",
+                            (l10n) => l10n.simulationFlugsimulatore761527e,
+                          ),
                   ),
                   subtitle: Text(
-                    context.translate(
+                    context.localized(
                       "Simulation · keine realen Flugeigenschaften",
+                      (l10n) => l10n
+                          .simulationSimulationKeineRealenFlugeigenschaften596363e0,
                     ),
                   ),
                   trailing: IconButton(
-                    tooltip: context.translate("Flugeinstellungen schließen"),
+                    tooltip: context.localized(
+                      "Flugeinstellungen schließen",
+                      (l10n) =>
+                          l10n.simulationFlugeinstellungenSchliessen974d8874,
+                    ),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
@@ -420,11 +452,15 @@ class _SettingsState extends State<_Settings> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
                             widget.hasSelection
-                                ? context.translate(
+                                ? context.localized(
                                     "Start am markierten Punkt.",
+                                    (l10n) => l10n
+                                        .simulationStartAmMarkiertenPunktded1ae8f,
                                   )
-                                : context.translate(
+                                : context.localized(
                                     "Start unter der Kartenmitte.",
+                                    (l10n) => l10n
+                                        .simulationStartUnterDerKartenmitted55a2a7c,
                                   ),
                           ),
                         ),
@@ -432,13 +468,20 @@ class _SettingsState extends State<_Settings> {
                         initialValue: _mode,
                         isExpanded: true,
                         decoration: InputDecoration(
-                          labelText: context.translate("Flugmodus"),
+                          labelText: context.localized(
+                            "Flugmodus",
+                            (l10n) => l10n.simulationFlugmodus699cac43,
+                          ),
                         ),
                         items: [
                           DropdownMenuItem(
                             value: SimulationFlightMode.gps,
                             child: Text(
-                              context.translate("GPS · unterstützt"),
+                              context.localized(
+                                "GPS · unterstützt",
+                                (l10n) =>
+                                    l10n.simulationGpsUnterstuetzt4fba7ae2,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -446,7 +489,11 @@ class _SettingsState extends State<_Settings> {
                           DropdownMenuItem(
                             value: SimulationFlightMode.angle,
                             child: Text(
-                              context.translate("Angle · selbststabilisierend"),
+                              context.localized(
+                                "Angle · selbststabilisierend",
+                                (l10n) => l10n
+                                    .simulationAngleSelbststabilisierenddb3cdc71,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -454,7 +501,11 @@ class _SettingsState extends State<_Settings> {
                           DropdownMenuItem(
                             value: SimulationFlightMode.acro,
                             child: Text(
-                              context.translate("Acro · freie Drehraten"),
+                              context.localized(
+                                "Acro · freie Drehraten",
+                                (l10n) =>
+                                    l10n.simulationAcroFreieDrehratena37d7b4c,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -472,12 +523,20 @@ class _SettingsState extends State<_Settings> {
                         initialValue: _drone,
                         isExpanded: true,
                         decoration: InputDecoration(
-                          labelText: context.translate("Drohnenprofil"),
+                          labelText: context.localized(
+                            "Drohnenprofil",
+                            (l10n) => l10n.simulationDrohnenprofil2c80fbb6,
+                          ),
                         ),
                         items: [
                           DropdownMenuItem<int>(
                             value: null,
-                            child: Text(context.translate("Manuelle Werte")),
+                            child: Text(
+                              context.localized(
+                                "Manuelle Werte",
+                                (l10n) => l10n.simulationManuelleWerte24267a01,
+                              ),
+                            ),
                           ),
                           for (final d in _drones)
                             DropdownMenuItem(
@@ -526,16 +585,29 @@ class _SettingsState extends State<_Settings> {
                             initialValue: _hud,
                             isExpanded: true,
                             decoration: InputDecoration(
-                              labelText: context.translate('HUD-Stil'),
+                              labelText: context.localized(
+                                'HUD-Stil',
+                                (l10n) => l10n.simulationHudStil9e126e51,
+                              ),
                             ),
                             items: [
                               DropdownMenuItem(
                                 value: SimulationHudStyle.goggles,
-                                child: Text(context.translate("Goggles")),
+                                child: Text(
+                                  context.localized(
+                                    "Goggles",
+                                    (l10n) => l10n.simulationGoggles0b34f86f,
+                                  ),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: SimulationHudStyle.betaflight,
-                                child: Text(context.translate("Betaflight")),
+                                child: Text(
+                                  context.localized(
+                                    "Betaflight",
+                                    (l10n) => l10n.simulationBetaflightaaa2dc4d,
+                                  ),
+                                ),
                               ),
                             ],
                             onChanged: (value) {
@@ -545,7 +617,11 @@ class _SettingsState extends State<_Settings> {
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: Text(
-                              context.translate("Koordinaten im HUD anzeigen"),
+                              context.localized(
+                                "Koordinaten im HUD anzeigen",
+                                (l10n) => l10n
+                                    .simulationKoordinatenImHudAnzeigen5180787d,
+                              ),
                             ),
                             value: _showCoordinates,
                             onChanged: (value) =>
@@ -562,13 +638,17 @@ class _SettingsState extends State<_Settings> {
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: Text(
-                              context.translate(
+                              context.localized(
                                 'Geschätzte Akkuspannung anzeigen',
+                                (l10n) => l10n
+                                    .simulationGeschaetzteAkkuspannungAnzeigen3fc4417b,
                               ),
                             ),
                             subtitle: Text(
-                              context.translate(
+                              context.localized(
                                 'SIM: Modellwert, keine echte Akkutelemetrie.',
+                                (l10n) =>
+                                    l10n.commonSimModellwertKeineEchte2ec26181,
                               ),
                             ),
                             value: _showBatteryVoltage,
@@ -580,13 +660,20 @@ class _SettingsState extends State<_Settings> {
                             initialValue: _batteryId,
                             isExpanded: true,
                             decoration: InputDecoration(
-                              labelText: context.translate('Akkuprofil'),
+                              labelText: context.localized(
+                                'Akkuprofil',
+                                (l10n) => l10n.simulationAkkuprofilf5c68edf,
+                              ),
                             ),
                             items: [
                               DropdownMenuItem<int>(
                                 value: null,
                                 child: Text(
-                                  context.translate('Kein Akku ausgewählt'),
+                                  context.localized(
+                                    'Kein Akku ausgewählt',
+                                    (l10n) => l10n
+                                        .simulationKeinAkkuAusgewaehltce2c46d1,
+                                  ),
                                 ),
                               ),
                               for (final battery in _batteries)
@@ -610,8 +697,9 @@ class _SettingsState extends State<_Settings> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            context.translate(
+                            context.localized(
                               'Fehlen im Akku die Startladungsdaten, wird 100 % als editierbare Annahme verwendet. Für eine Spannungsschätzung benötigt das Drohnenprofil Hover- und Cruise-Leistung sowie Cruise-Geschwindigkeit.',
+                              (l10n) => l10n.commonFehlenImAkkuDie64009d59,
                             ),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
@@ -625,8 +713,10 @@ class _SettingsState extends State<_Settings> {
                           SwitchListTile.adaptive(
                             contentPadding: EdgeInsets.zero,
                             title: Text(
-                              context.translate(
+                              context.localized(
                                 'Zellspannung zusätzlich anzeigen',
+                                (l10n) => l10n
+                                    .simulationZellspannungZusaetzlichAnzeigenb25b8602,
                               ),
                             ),
                             value: _showBatteryCellVoltage,
@@ -664,24 +754,49 @@ class _SettingsState extends State<_Settings> {
                             initialValue: _graphics,
                             isExpanded: true,
                             decoration: InputDecoration(
-                              labelText: context.translate("Grafikprofil"),
+                              labelText: context.localized(
+                                "Grafikprofil",
+                                (l10n) => l10n.simulationGrafikprofile6062f50,
+                              ),
                             ),
                             items: [
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.quality,
-                                child: Text(context.translate("Quality")),
+                                child: Text(
+                                  context.localized(
+                                    "Quality",
+                                    (l10n) => l10n.simulationQualitya60f2c73,
+                                  ),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.balanced,
-                                child: Text(context.translate("Balanced")),
+                                child: Text(
+                                  context.localized(
+                                    "Balanced",
+                                    (l10n) => l10n.simulationBalanced03342dbb,
+                                  ),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.performance,
-                                child: Text(context.translate("Performance")),
+                                child: Text(
+                                  context.localized(
+                                    "Performance",
+                                    (l10n) =>
+                                        l10n.simulationPerformance63c90455,
+                                  ),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: SimulationGraphicsProfile.compatibility,
-                                child: Text(context.translate("Compatibility")),
+                                child: Text(
+                                  context.localized(
+                                    "Compatibility",
+                                    (l10n) =>
+                                        l10n.simulationCompatibility5d60c7dd,
+                                  ),
+                                ),
                               ),
                             ],
                             onChanged: (value) {
@@ -710,7 +825,12 @@ class _SettingsState extends State<_Settings> {
                           tilePadding: EdgeInsets.zero,
                           childrenPadding: const EdgeInsets.only(top: 8),
                           leading: const Icon(Icons.rotate_right),
-                          title: Text(context.translate("Acro-Drehraten")),
+                          title: Text(
+                            context.localized(
+                              "Acro-Drehraten",
+                              (l10n) => l10n.simulationAcroDrehratenf7001f19,
+                            ),
+                          ),
                           subtitle: Text(
                             'Roll ${_fields['acroRollRate']!.text} · Pitch ${_fields['acroPitchRate']!.text} · Yaw ${_fields['acroYawRate']!.text} °/s',
                           ),
@@ -748,7 +868,12 @@ class _SettingsState extends State<_Settings> {
                           tilePadding: EdgeInsets.zero,
                           childrenPadding: const EdgeInsets.only(top: 8),
                           leading: const Icon(Icons.speed),
-                          title: Text(context.translate("Acro-Physik")),
+                          title: Text(
+                            context.localized(
+                              "Acro-Physik",
+                              (l10n) => l10n.simulationAcroPhysikdf296beb,
+                            ),
+                          ),
                           subtitle: Text(_acroHoverHelp),
                           children: [
                             Text(_acroSpeedHelp),
@@ -836,38 +961,52 @@ class _SettingsState extends State<_Settings> {
                           const GuideLink(GuideTopic.controls),
                           Text(_controlHelp),
                           Text(switch (_mode) {
-                            SimulationFlightMode.gps => context.translate(
+                            SimulationFlightMode.gps => context.localized(
                               "GPS bremst automatisch. Linker Stick: Bewegung; rechter Stick: Blickrichtung.",
+                              (l10n) => l10n
+                                  .simulationGpsBremstAutomatischLinker62b42159,
                             ),
-                            SimulationFlightMode.angle => context.translate(
+                            SimulationFlightMode.angle => context.localized(
                               "Angle stabilisiert die Lage und begrenzt die Neigung auf 50°. Bei Neigung ist mehr Gas zum Halten der Höhe nötig.",
+                              (l10n) => l10n
+                                  .simulationAngleStabilisiertDieLage73f2f597,
                             ),
-                            SimulationFlightMode.acro => context.translate(
+                            SimulationFlightMode.acro => context.localized(
                               "Acro hat keine Selbststabilisierung oder Höhenhaltung. Schub folgt der Drohnenlage; geringer Schub lässt sie frei fallen.",
+                              (l10n) => l10n
+                                  .simulationAcroHatKeineSelbststabilisierung83a2e981,
                             ),
                           }),
                           const SizedBox(height: 8),
                           Text(
-                            context.translate(
+                            context.localized(
                               "Zum Verbinden oder Fortsetzen Gas auf null und die übrigen Sticks zentrieren. R / Controller A setzt zurück; Escape / B beendet den Flug. Ein Moduswechsel startet am Ausgangspunkt neu.",
+                              (l10n) => l10n
+                                  .simulationZumVerbindenOderFortsetzenb43ff5ab,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            context.translate(
+                            context.localized(
                               "Drohnenprofile übernehmen Geschwindigkeit und Steigrate für Angle und GPS. Acro-Physik und Beschleunigung bleiben geschätzte Modellwerte. Die Kamera beeinflusst nur die Ansicht.",
+                              (l10n) => l10n
+                                  .simulationDrohnenprofileUebernehmenGeschwindigkeitUndb7b1010f,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            context.translate(
+                            context.localized(
                               "Gelände und unterstützte Modellflächen können die Bewegung stoppen. Hindernisse und Kollisionen sind nicht vollständig erfasst. Die Simulation ist keine reale Leistungs- oder Sicherheitsprüfung.",
+                              (l10n) => l10n
+                                  .simulationGelaendeUndUnterstuetzteModellflaechen2d8c2c0b,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            context.translate(
+                            context.localized(
                               "Keine automatische Aufzeichnung oder Ausfuhr. Online-Karten- und Geländeabrufe übermitteln den betrachteten Bereich an die Anbieter.",
+                              (l10n) => l10n
+                                  .simulationKeineAutomatischeAufzeichnungOder98df029c,
                             ),
                           ),
                         ],

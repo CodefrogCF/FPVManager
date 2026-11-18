@@ -18,7 +18,14 @@ class _DronesScreenState extends State<DronesScreen> {
   late Stream<List<Drone>> _drones = widget.repository.watchDrones();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("Drone profiles"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "Drone profiles",
+          (l10n) => l10n.dronesDroneProfilesb57e7452,
+        ),
+      ),
+    ),
     body: StreamBuilder<List<Drone>>(
       stream: _drones,
       builder: (context, snapshot) {
@@ -27,11 +34,21 @@ class _DronesScreenState extends State<DronesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(context.translate("Unable to load drone profiles.")),
+                Text(
+                  context.localized(
+                    "Unable to load drone profiles.",
+                    (l10n) => l10n.commonUnableToLoadDronecc1e0297,
+                  ),
+                ),
                 TextButton(
                   onPressed: () =>
                       setState(() => _drones = widget.repository.watchDrones()),
-                  child: Text(context.translate("Retry")),
+                  child: Text(
+                    context.localized(
+                      "Retry",
+                      (l10n) => l10n.commonRetry9f5cd8a2,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -46,8 +63,9 @@ class _DronesScreenState extends State<DronesScreen> {
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                context.translate(
+                context.localized(
                   "No drone profiles saved yet. Add a profile to record your equipment.",
+                  (l10n) => l10n.dronesNoDroneProfilesSavedca393a7c,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -84,7 +102,9 @@ class _DronesScreenState extends State<DronesScreen> {
         builder: (context) => DroneEditorDialog(repository: widget.repository),
       ),
       icon: const Icon(Icons.add),
-      label: Text(context.translate("Add drone")),
+      label: Text(
+        context.localized("Add drone", (l10n) => l10n.dronesAddDroned971a88b),
+      ),
     ),
   );
 }

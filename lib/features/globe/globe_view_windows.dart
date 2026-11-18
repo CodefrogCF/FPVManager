@@ -297,7 +297,10 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
               ),
               const SizedBox(height: 16),
               Text(
-                context.translate("Failed to load 3D globe"),
+                context.localized(
+                  "Failed to load 3D globe",
+                  (l10n) => l10n.globeFailedToLoadDd6e93076,
+                ),
                 style: TextStyle(fontSize: 20),
               ),
               const SizedBox(height: 8),

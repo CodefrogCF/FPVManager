@@ -66,8 +66,10 @@ class TerrainStatusBanner extends StatelessWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  context.translate(
+                                  context.localized(
                                     "Unable to reconnect to terrain. Please retry.",
+                                    (l10n) =>
+                                        l10n.globeUnableToReconnectTo7f563fb8,
                                   ),
                                 ),
                               ),
@@ -75,7 +77,12 @@ class TerrainStatusBanner extends StatelessWidget {
                           }
                         }
                       : null,
-                  child: Text(context.translate("Retry terrain")),
+                  child: Text(
+                    context.localized(
+                      "Retry terrain",
+                      (l10n) => l10n.globeRetryTerraine3f14f82,
+                    ),
+                  ),
                 );
                 if (constraints.maxWidth < 500) {
                   return Column(

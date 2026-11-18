@@ -236,18 +236,25 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
       bucket: _formStorage,
       child: ExpansionTile(
         key: const ValueKey('mobile_sites_expansion'),
-        title: Text(context.translate("BAKOM Mobilfunk-Basisstationen")),
+        title: Text(
+          context.localized(
+            "BAKOM Mobilfunk-Basisstationen",
+            (l10n) => l10n.mobilityBakomMobilfunkBasisstationenb5426d86,
+          ),
+        ),
         subtitle: Text(
-          context.translate(
+          context.localized(
             "Optional · Stationspunkte, keine Masthöhen oder Signalabdeckung",
+            (l10n) => l10n.commonOptionalStationspunkteKeineMasthoehen32868013,
           ),
         ),
         initiallyExpanded: _open,
         onExpansionChanged: (open) => setState(() => _open = open),
         children: [
           Text(
-            context.translate(
+            context.localized(
               "Offizielle BAKOM-Standorte. Stationstyp, Leistungsklasse und Technologie werden nur nach Quellenangabe angezeigt. Die Koordinaten bezeichnen den ersten Mast einer Station. Sie sind keine Hindernisgeometrie und messen keine FPV-Abdeckung.",
+              (l10n) => l10n.commonOffizielleBakomStandorteStationstyp81519366,
             ),
           ),
           const SizedBox(height: 12),
@@ -258,7 +265,10 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                   key: const ValueKey('mobile_sites_lat'),
                   controller: _lat,
                   decoration: InputDecoration(
-                    labelText: context.translate("Latitude"),
+                    labelText: context.localized(
+                      "Latitude",
+                      (l10n) => l10n.mobilityLatitudeced3905e,
+                    ),
                   ),
                   onChanged: (_) => setState(() => _snapshot = null),
                   keyboardType: const TextInputType.numberWithOptions(
@@ -273,7 +283,10 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                   key: const ValueKey('mobile_sites_lon'),
                   controller: _lon,
                   decoration: InputDecoration(
-                    labelText: context.translate("Longitude"),
+                    labelText: context.localized(
+                      "Longitude",
+                      (l10n) => l10n.mobilityLongitude6f9f011c,
+                    ),
                   ),
                   onChanged: (_) => setState(() => _snapshot = null),
                   keyboardType: const TextInputType.numberWithOptions(
@@ -302,7 +315,11 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                     },
               icon: const Icon(Icons.place_outlined),
               label: Text(
-                context.translate("Ausgewählten Kartenpunkt verwenden"),
+                context.localized(
+                  "Ausgewählten Kartenpunkt verwenden",
+                  (l10n) =>
+                      l10n.mobilityAusgewaehltenKartenpunktVerwenden90ebe0f5,
+                ),
               ),
             ),
           ),
@@ -310,7 +327,10 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
             key: ValueKey('mobile_sites_radius_$_radius'),
             initialValue: _radius,
             decoration: InputDecoration(
-              labelText: context.translate("Suchradius"),
+              labelText: context.localized(
+                "Suchradius",
+                (l10n) => l10n.mobilitySuchradius51fb2797,
+              ),
             ),
             items: [500, 1000, 2000, 5000]
                 .map(
@@ -331,11 +351,15 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
             contentPadding: EdgeInsets.zero,
             value: _allow,
             title: Text(
-              context.translate("Suchkoordinaten an geo.admin.ch senden"),
+              context.localized(
+                "Suchkoordinaten an geo.admin.ch senden",
+                (l10n) => l10n.mobilitySuchkoordinatenAnGeoAdmin3849c24c,
+              ),
             ),
             subtitle: Text(
-              context.translate(
+              context.localized(
                 "Nur nach manuellem Start · begrenzte Abfrage, keine nationalen Downloads",
+                (l10n) => l10n.commonNurNachManuellemStartca69930e,
               ),
             ),
             onChanged: _busy
@@ -350,11 +374,21 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 key: const ValueKey('mobile_sites_search'),
                 onPressed: _busy || !_allow ? null : () => _load(),
                 icon: const Icon(Icons.cell_tower),
-                label: Text(context.translate("Stationen suchen")),
+                label: Text(
+                  context.localized(
+                    "Stationen suchen",
+                    (l10n) => l10n.mobilityStationenSuchen87f44373,
+                  ),
+                ),
               ),
               OutlinedButton(
                 onPressed: _busy || !_allow ? null : () => _load(refresh: true),
-                child: Text(context.translate("Aktualisieren")),
+                child: Text(
+                  context.localized(
+                    "Aktualisieren",
+                    (l10n) => l10n.mobilityAktualisieren87c65f26,
+                  ),
+                ),
               ),
               OutlinedButton(
                 onPressed: _busy ? null : () => _load(offline: true),
@@ -362,7 +396,12 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
               ),
               OutlinedButton(
                 onPressed: _busy ? null : _discover,
-                child: Text(context.translate("STAC-Assets prüfen")),
+                child: Text(
+                  context.localized(
+                    "STAC-Assets prüfen",
+                    (l10n) => l10n.mobilityStacAssetsPruefen15fce27f,
+                  ),
+                ),
               ),
             ],
           ),
@@ -371,66 +410,91 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
           if (_catalog != null) ...[
             const Divider(),
             Text(
-              context.translate("STAC-Stand: {0}", [
+              context.localizedWithArgs("STAC-Stand: {0}", [
                 _catalog!.updatedUtc?.toIso8601String() ?? 'unbekannt',
-              ]),
+              ], (l10n, value) => l10n.mobilityStacStand0f0a2434(value(0))),
             ),
             Text(
-              context.translate(
+              context.localizedWithArgs(
                 "Lizenz-Metadaten: {0} · {1} Asset-Verweise; davon {2} als JSON/CSV klassifiziert.",
                 [
                   _catalog!.licence,
                   _catalog!.assets.length,
                   _catalog!.assets.where((a) => a.supported).length,
                 ],
+                (l10n, value) =>
+                    l10n.mobilityLizenzMetadatenAssetVerweisedcf92706(
+                      value(0),
+                      value(1),
+                      value(2),
+                    ),
               ),
             ),
             if (_catalog!.assets.any((asset) => !asset.supported))
               Text(
-                context.translate(
+                context.localized(
                   "Nicht unterstützte Datei-Assets (z. B. GeoPackage) werden nicht automatisch importiert.",
+                  (l10n) => l10n.mobilityNichtUnterstuetzteDateiAssetsaf920b33,
                 ),
               ),
             if (_catalog!.termsUrl != null)
               TextButton(
                 onPressed: () => _openUrl(_catalog!.termsUrl.toString()),
                 child: Text(
-                  context.translate("Offizielle Nutzungsbedingungen"),
+                  context.localized(
+                    "Offizielle Nutzungsbedingungen",
+                    (l10n) =>
+                        l10n.mobilityOffizielleNutzungsbedingungen7ce05187,
+                  ),
                 ),
               ),
           ],
           if (snapshot != null) ...[
             const Divider(),
             Text(
-              context.translate("{0} Stationen · {1}", [
-                snapshot.stations.length,
-                snapshot.ageDescription,
-              ]),
+              context.localizedWithArgs(
+                "{0} Stationen · {1}",
+                [snapshot.stations.length, snapshot.ageDescription],
+                (l10n, value) =>
+                    l10n.mobilityStationen2bee7a5c(value(0), value(1)),
+              ),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             if (snapshot.fromCache)
               Text(
-                context.translate(
+                context.localized(
                   "Gespeicherte Daten · Aktualität nicht live geprüft",
+                  (l10n) =>
+                      l10n.mobilityGespeicherteDatenAktualitaetNichta41279f4,
                 ),
               ),
             if (snapshot.refreshFailed)
               Text(
-                context.translate(
+                context.localized(
                   "Aktualisierung fehlgeschlagen: vorhandener Stand bleibt erhalten.",
+                  (l10n) => l10n
+                      .mobilityAktualisierungFehlgeschlagenVorhandenerStand6dbee97c,
                 ),
               ),
             if (snapshot.isOld(DateTime.now()))
-              Text(context.translate("Datenabruf älter als 24 Stunden.")),
+              Text(
+                context.localized(
+                  "Datenabruf älter als 24 Stunden.",
+                  (l10n) => l10n.mobilityDatenabrufAelterAlsStundenf8a928a3,
+                ),
+              ),
             if (snapshot.truncated)
               Text(
-                context.translate(
+                context.localized(
                   "Trefferlimit erreicht: keine vollständige Gebietserfassung. Suchradius verkleinern.",
+                  (l10n) => l10n
+                      .mobilityTrefferlimitErreichtKeineVollstaendigedb231641,
                 ),
               ),
             Text(
-              context.translate(
+              context.localized(
                 "Keine Treffer bedeuten nicht, dass keine Anlage vorhanden ist.",
+                (l10n) => l10n.commonKeineTrefferBedeutenNichtdf8f1b9e,
               ),
             ),
             Wrap(
@@ -439,12 +503,22 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 FilledButton.icon(
                   onPressed: _busy ? null : _map,
                   icon: const Icon(Icons.map_outlined),
-                  label: Text(context.translate("Stationen auf dem 3D-Globus")),
+                  label: Text(
+                    context.localized(
+                      "Stationen auf dem 3D-Globus",
+                      (l10n) => l10n.mobilityStationenAufDemD84751cec,
+                    ),
+                  ),
                 ),
                 if (widget.globe.situationalVisible('mobile-sites'))
                   TextButton(
                     onPressed: _busy ? null : _hide,
-                    child: Text(context.translate("Stationslayer ausblenden")),
+                    child: Text(
+                      context.localized(
+                        "Stationslayer ausblenden",
+                        (l10n) => l10n.mobilityStationslayerAusblenden28212b4d,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -453,7 +527,11 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
                 key: ValueKey('mobile_site_${site.id}'),
                 title: Text(site.station),
                 subtitle: Text(
-                  site.technology ?? context.translate("Technologie unbekannt"),
+                  site.technology ??
+                      context.localized(
+                        "Technologie unbekannt",
+                        (l10n) => l10n.mobilityTechnologieUnbekanntbdb10475,
+                      ),
                 ),
                 children: [
                   Align(
@@ -471,7 +549,10 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
             ),
             icon: const Icon(Icons.open_in_new),
             label: Text(
-              context.translate("BAKOM-Erklärungen und amtliche Quelle"),
+              context.localized(
+                "BAKOM-Erklärungen und amtliche Quelle",
+                (l10n) => l10n.mobilityBakomErklaerungenUndAmtliche7dfa13ad,
+              ),
             ),
           ),
           TextButton.icon(
@@ -479,7 +560,12 @@ class _MobileSitesSectionState extends State<MobileSitesSection> {
               'https://data.geo.admin.ch/api/stac/v1/collections/$mobileSiteCollectionId',
             ),
             icon: const Icon(Icons.open_in_new),
-            label: Text(context.translate("Offizielle STAC-Collection")),
+            label: Text(
+              context.localized(
+                "Offizielle STAC-Collection",
+                (l10n) => l10n.mobilityOffizielleStacCollectiond6ac1266,
+              ),
+            ),
           ),
         ],
       ),

@@ -62,24 +62,36 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      context.translate("Route analysis"),
+                      context.localized(
+                        "Route analysis",
+                        (l10n) => l10n.routesRouteAnalysise04589ed,
+                      ),
                       style: TextStyle(fontSize: 20),
                     ),
                   ),
                   IconButton(
-                    tooltip: context.translate("Planning assumptions"),
+                    tooltip: context.localized(
+                      "Planning assumptions",
+                      (l10n) => l10n.routesPlanningAssumptions61ebf317,
+                    ),
                     icon: const Icon(Icons.tune),
                     onPressed: c.loading
                         ? null
                         : () => showRoutePlanningSettings(context, c.editor),
                   ),
                   IconButton(
-                    tooltip: context.translate("Recalculate route"),
+                    tooltip: context.localized(
+                      "Recalculate route",
+                      (l10n) => l10n.routesRecalculateRoute3aa2250f,
+                    ),
                     icon: const Icon(Icons.refresh),
                     onPressed: c.loading ? null : c.calculate,
                   ),
                   IconButton(
-                    tooltip: context.translate("Close analysis"),
+                    tooltip: context.localized(
+                      "Close analysis",
+                      (l10n) => l10n.routesCloseAnalysis232a00e4,
+                    ),
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -96,15 +108,24 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        context.translate("Terrain samples {0}/{1}", [
-                          c.completedSamples,
-                          c.totalSamples,
-                        ]),
+                        context.localizedWithArgs(
+                          "Terrain samples {0}/{1}",
+                          [c.completedSamples, c.totalSamples],
+                          (l10n, value) => l10n.routesTerrainSamples14ad50c1(
+                            value(0),
+                            value(1),
+                          ),
+                        ),
                       ),
                     ),
                     TextButton(
                       onPressed: c.cancel,
-                      child: Text(context.translate("Cancel")),
+                      child: Text(
+                        context.localized(
+                          "Cancel",
+                          (l10n) => l10n.commonCancel77dfd213,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -134,13 +155,21 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                         child: Padding(
                           padding: const EdgeInsets.all(20),
                           child: c.loading
-                              ? Text(context.translate("Calculating route…"))
+                              ? Text(
+                                  context.localized(
+                                    "Calculating route…",
+                                    (l10n) =>
+                                        l10n.routesCalculatingRoute9e861349,
+                                  ),
+                                )
                               : FilledButton.icon(
                                   onPressed: c.calculate,
                                   icon: const Icon(Icons.calculate_outlined),
                                   label: Text(
-                                    context.translate(
+                                    context.localized(
                                       "Calculate current route",
+                                      (l10n) => l10n
+                                          .routesCalculateCurrentRoutea1896281,
                                     ),
                                   ),
                                 ),
@@ -173,11 +202,16 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         Text(
-          context.translate("Terrain sampling: {0}. WGS84 ellipsoid heights.", [
-            c.samplingMethods.isEmpty
-                ? "unavailable"
-                : c.samplingMethods.join(", "),
-          ]),
+          context.localizedWithArgs(
+            "Terrain sampling: {0}. WGS84 ellipsoid heights.",
+            [
+              c.samplingMethods.isEmpty
+                  ? "unavailable"
+                  : c.samplingMethods.join(", "),
+            ],
+            (l10n, value) =>
+                l10n.routesTerrainSamplingWgsEllipsoide722c804(value(0)),
+          ),
         ),
         if (r.profile.any((p) => p.ground != null || p.altitude != null))
           RouteProfileChart(analysis: r),
@@ -191,26 +225,30 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
         ),
         if (!r.completeClearance)
           Text(
-            context.translate(
+            context.localized(
               "Clearance is incomplete: set a height for every waypoint. Absolute heights need WGS84 ellipsoid reference; other datums cannot be converted here.",
+              (l10n) => l10n.routesClearanceIsIncompleteSet1a518685,
             ),
           ),
         const SizedBox(height: 12),
         Text(
-          context.translate(
+          context.localizedWithArgs(
             "{0} terrain samples, at most 50 m apart horizontally. Heights interpolate linearly between waypoints; AGL applies at waypoints and does not imply terrain following.",
             [r.profile.length],
+            (l10n, value) => l10n.commonTerrainSamplesAtMost4dfad6d1(value(0)),
           ),
         ),
         const SizedBox(height: 12),
         Text(
-          context.translate(
+          context.localized(
             "Terrain samples do not prove continuous clearance. Small features between samples, elevation-model errors, cables, trees and other unknown obstacles can be missed. Verify the route on site and with current official information.",
+            (l10n) => l10n.commonTerrainSamplesDoNote2bd895f,
           ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "Red map segments indicate sampled terrain clearance, battery reserve, or findings from the current route checks. Open Checks for the reason; a horizontal zone match does not establish legal applicability.",
+            (l10n) => l10n.commonRedMapSegmentsIndicate9cf68571,
           ),
         ),
       ],
@@ -236,21 +274,27 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
         ),
         Text(
           c.editor.planning.useWind
-              ? context.translate(
+              ? context.localizedWithArgs(
                   "Steady wind assumption: {0} m/s from {1}° true. Crosswind compensation is included; an unachievable track remains unknown.",
                   [
                     c.editor.planning.windSpeed,
                     c.editor.planning.windFromDegrees,
                   ],
+                  (l10n, value) => l10n.routesSteadyWindAssumptionM2884cea1(
+                    value(0),
+                    value(1),
+                  ),
                 )
-              : context.translate(
+              : context.localized(
                   "Wind is excluded. Enable a manual wind assumption in Planning assumptions.",
+                  (l10n) => l10n.routesWindIsExcludedEnablee95610f8,
                 ),
         ),
         const SizedBox(height: 12),
         Text(
-          context.translate(
+          context.localized(
             "Approximate great-circle distances. Recorded segment times are used when available; modeled times ignore gusts and manoeuvres. Confirm the drone can achieve the required speed and climb rate.",
+            (l10n) => l10n.routesApproximateGreatCircleDistances9807e68d,
           ),
         ),
         for (final s in r.segments)
@@ -258,7 +302,7 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             contentPadding: EdgeInsets.zero,
             title: Text('Segment ${s.index + 1} → ${s.index + 2}'),
             subtitle: Text(
-              context.translate(
+              context.localizedWithArgs(
                 "{0} horizontal · {1} 3D\nAirspeed {2} m/s ({3}) · {4} ({5}) · clearance {6}\nGroundspeed: {7} m/s (simulated)",
                 [
                   _meters(s.horizontal),
@@ -270,6 +314,16 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
                   _meters(s.minimumClearance),
                   s.groundSpeed?.toStringAsFixed(1) ?? 'unknown',
                 ],
+                (l10n, value) => l10n.routesHorizontalDAirspeedMeb450600(
+                  value(0),
+                  value(1),
+                  value(2),
+                  value(3),
+                  value(4),
+                  value(5),
+                  value(6),
+                  value(7),
+                ),
               ),
             ),
             trailing: const Icon(Icons.edit_outlined),
@@ -314,16 +368,18 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
           ),
         if (!c.result!.completeClearance)
           Text(
-            context.translate(
+            context.localized(
               "Terrain clearance remains unknown. The energy budget does not establish route safety.",
+              (l10n) => l10n.routesTerrainClearanceRemainsUnknown8f8dbef8,
             ),
           ),
         if (settings.includeReturn &&
             energy.available &&
             !energy.returnAvailable)
           Text(
-            context.translate(
+            context.localized(
               "Return energy is unknown; no complete feasibility estimate is available.",
+              (l10n) => l10n.routesReturnEnergyIsUnknownb2869d98,
             ),
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
@@ -333,38 +389,49 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         Text(
-          context.translate("Power curve source: {0}", [
+          context.localizedWithArgs("Power curve source: {0}", [
             energy.powerCurveSource ?? settings.curveSource,
-          ]),
+          ], (l10n, value) => l10n.routesPowerCurveSource26cb2f6e(value(0))),
         ),
         Text(
-          context.translate(
+          context.localizedWithArgs(
             "Optimistic ×{0} · conservative ×{1} · reserve {2}% of nominal capacity.",
             [
               settings.optimisticFactor,
               settings.conservativeFactor,
               settings.reservePercent,
             ],
+            (l10n, value) => l10n.routesOptimisticConservativeReserveOf8919c819(
+              value(0),
+              value(1),
+              value(2),
+            ),
           ),
         ),
         Text(
           settings.includeReturn
-              ? context.translate(
+              ? context.localized(
                   "Return to takeoff is included by retracing the planned path, with wind recalculated in reverse.",
+                  (l10n) => l10n.commonReturnToTakeoffIs90ab579c,
                 )
-              : context.translate("Return flight is excluded from the budget."),
+              : context.localized(
+                  "Return flight is excluded from the budget.",
+                  (l10n) => l10n.routesReturnFlightIsExcluded22c87afc,
+                ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "The same configured takeoff mass is used for alternative packs. Adjust it for the installed battery.",
+            (l10n) => l10n.routesTheSameConfiguredTakeoff20e0843f,
           ),
         ),
         const SizedBox(height: 12),
         if (c.editor.equipmentError != null) Text(c.editor.equipmentError!),
         if (c.batteries.isEmpty)
           Text(
-            context.translate(
+            context.localized(
               "Assign an individual battery in Route equipment to compare capacity and reserve. Capacities of alternative packs are never added.",
+              (l10n) => l10n.routesAssignAnIndividualBatteryb5d65676,
             ),
           ),
         if (c.batteries.isNotEmpty)
@@ -373,7 +440,10 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
             initialValue: c.selectedBatteryId,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: context.translate("Battery to inspect and highlight"),
+              labelText: context.localized(
+                "Battery to inspect and highlight",
+                (l10n) => l10n.routesBatteryToInspectAnde2d405d0,
+              ),
             ),
             items: [
               for (final b in c.batteries)
@@ -398,35 +468,54 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
           Text(selected.status),
           if (selected.criticalSegments.isNotEmpty)
             Text(
-              context.translate("Critical conservative segments: {0}", [
-                selected.criticalSegments
-                    .map((i) => "${i + 1} → ${i + 2}")
-                    .join(", "),
-              ]),
+              context.localizedWithArgs(
+                "Critical conservative segments: {0}",
+                [
+                  selected.criticalSegments
+                      .map((i) => "${i + 1} → ${i + 2}")
+                      .join(", "),
+                ],
+                (l10n, value) =>
+                    l10n.routesCriticalConservativeSegmentsfecdcba2(value(0)),
+              ),
             ),
           Text(
-            context.translate("Recorded charge: {0}% · pack status: {1}.", [
-              selected.battery.chargePercent?.toStringAsFixed(0) ?? "unknown",
-              selected.battery.availability,
-            ]),
+            context.localizedWithArgs(
+              "Recorded charge: {0}% · pack status: {1}.",
+              [
+                selected.battery.chargePercent?.toStringAsFixed(0) ?? "unknown",
+                selected.battery.availability,
+              ],
+              (l10n, value) => l10n.routesRecordedChargePackStatus6e905850(
+                value(0),
+                value(1),
+              ),
+            ),
           ),
         ],
         const SizedBox(height: 16),
         Text(
-          context.translate(
+          context.localized(
             "Estimates are not guarantees. Scenarios scale consumption; they are not statistical confidence intervals. Validate the model against measured flights. Battery condition, temperature and voltage sag can reduce usable energy.",
+            (l10n) => l10n.commonEstimatesAreNotGuarantees31122c9b,
           ),
         ),
         Text(
-          context.translate(
+          context.localized(
             "The level-flight power curve is interpolated without extrapolation and scaled by mass^1.5. Climb work is added with the configured efficiency; descent has no energy recovery.",
+            (l10n) => l10n.routesTheLevelFlightPower308a2473,
           ),
         ),
         const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: () => showRoutePlanningSettings(context, c.editor),
           icon: const Icon(Icons.tune),
-          label: Text(context.translate("Edit planning assumptions")),
+          label: Text(
+            context.localized(
+              "Edit planning assumptions",
+              (l10n) => l10n.routesEditPlanningAssumptions84735a68,
+            ),
+          ),
         ),
       ],
     );

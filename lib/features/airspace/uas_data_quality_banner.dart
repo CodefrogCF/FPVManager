@@ -78,7 +78,10 @@ class _UasDataQualityBannerState extends State<UasDataQualityBanner> {
                 ),
               ),
               IconButton(
-                tooltip: context.translate("UAS data quality"),
+                tooltip: context.localized(
+                  "UAS data quality",
+                  (l10n) => l10n.airspaceUasDataQuality1458ab06,
+                ),
                 onPressed: widget.onDetails,
                 icon: const Icon(Icons.info_outline),
               ),

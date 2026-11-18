@@ -57,8 +57,9 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.translate(
+            context.localized(
               "Profil wurde nicht gespeichert. Dein Entwurf bleibt erhalten; bitte erneut versuchen.",
+              (l10n) => l10n.profilesProfilWurdeNichtGespeichert24e088e3,
             ),
           ),
         ),
@@ -92,43 +93,72 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
     ],
   );
 
-  Widget _bool(String label, bool? value, ValueChanged<bool?> onChanged) =>
-      DropdownButtonFormField<int>(
-        initialValue: value == null
-            ? -1
-            : value
-            ? 1
-            : 0,
-        isExpanded: true,
-        decoration: InputDecoration(labelText: label),
-        items: [
-          DropdownMenuItem(
-            value: -1,
-            child: Text(context.translate("Beibehalten")),
+  Widget _bool(
+    String label,
+    bool? value,
+    ValueChanged<bool?> onChanged,
+  ) => DropdownButtonFormField<int>(
+    initialValue: value == null
+        ? -1
+        : value
+        ? 1
+        : 0,
+    isExpanded: true,
+    decoration: InputDecoration(labelText: label),
+    items: [
+      DropdownMenuItem(
+        value: -1,
+        child: Text(
+          context.localized(
+            "Beibehalten",
+            (l10n) => l10n.profilesBeibehalten94ebabfe,
           ),
-          DropdownMenuItem(value: 1, child: Text(context.translate("Ein"))),
-          DropdownMenuItem(value: 0, child: Text(context.translate("Aus"))),
-        ],
-        onChanged: (v) => setState(() {
-          _changed = true;
-          onChanged(v == -1 ? null : v == 1);
-        }),
-      );
+        ),
+      ),
+      DropdownMenuItem(
+        value: 1,
+        child: Text(context.localized("Ein", (l10n) => l10n.commonEin3b564e70)),
+      ),
+      DropdownMenuItem(
+        value: 0,
+        child: Text(context.localized("Aus", (l10n) => l10n.commonAus6997e3eb)),
+      ),
+    ],
+    onChanged: (v) => setState(() {
+      _changed = true;
+      onChanged(v == -1 ? null : v == 1);
+    }),
+  );
 
   Future<bool> _mayLeave() async =>
       !_changed ||
       await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: Text(context.translate("Änderungen verwerfen?")),
+              title: Text(
+                context.localized(
+                  "Änderungen verwerfen?",
+                  (l10n) => l10n.profilesAnderungenVerwerfen9af398c1,
+                ),
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text(context.translate("Weiter bearbeiten")),
+                  child: Text(
+                    context.localized(
+                      "Weiter bearbeiten",
+                      (l10n) => l10n.commonWeiterBearbeitencc234070,
+                    ),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: Text(context.translate("Verwerfen")),
+                  child: Text(
+                    context.localized(
+                      "Verwerfen",
+                      (l10n) => l10n.commonVerwerfen24cc57bc,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -148,7 +178,14 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
       }
     },
     child: Scaffold(
-      appBar: AppBar(title: Text(context.translate("Profil bearbeiten"))),
+      appBar: AppBar(
+        title: Text(
+          context.localized(
+            "Profil bearbeiten",
+            (l10n) => l10n.profilesProfilBearbeitend4e69e62,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Form(
           key: _form,
@@ -180,30 +217,57 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        context.translate("Kartenstartwerte beim Aktivieren"),
+                        context.localized(
+                          "Kartenstartwerte beim Aktivieren",
+                          (l10n) => l10n
+                              .profilesKartenstartwerteBeimAktivierenf2e700fc,
+                        ),
                       ),
                       DropdownButtonFormField<String>(
                         initialValue: _style?.name ?? 'keep',
                         isExpanded: true,
                         decoration: InputDecoration(
-                          labelText: context.translate("Hintergrundkarte"),
+                          labelText: context.localized(
+                            "Hintergrundkarte",
+                            (l10n) => l10n.profilesHintergrundkarte2f67406f,
+                          ),
                         ),
                         items: [
                           DropdownMenuItem(
                             value: 'keep',
-                            child: Text(context.translate("Beibehalten")),
+                            child: Text(
+                              context.localized(
+                                "Beibehalten",
+                                (l10n) => l10n.profilesBeibehalten94ebabfe,
+                              ),
+                            ),
                           ),
                           DropdownMenuItem(
                             value: 'satellite',
-                            child: Text(context.translate("Satellit")),
+                            child: Text(
+                              context.localized(
+                                "Satellit",
+                                (l10n) => l10n.profilesSatellit6020d8ce,
+                              ),
+                            ),
                           ),
                           DropdownMenuItem(
                             value: 'topographic',
-                            child: Text(context.translate("Topografisch")),
+                            child: Text(
+                              context.localized(
+                                "Topografisch",
+                                (l10n) => l10n.profilesTopografisch52f1415e,
+                              ),
+                            ),
                           ),
                           DropdownMenuItem(
                             value: 'relief',
-                            child: Text(context.translate("Relief")),
+                            child: Text(
+                              context.localized(
+                                "Relief",
+                                (l10n) => l10n.commonReliefbe53bb74,
+                              ),
+                            ),
                           ),
                         ],
                         onChanged: (value) => setState(() {
@@ -244,8 +308,16 @@ class _ActivityProfileEditorState extends State<ActivityProfileEditor> {
                         icon: const Icon(Icons.save_outlined),
                         label: Text(
                           _saving
-                              ? context.translate("Wird gespeichert…")
-                              : context.translate("Profil speichern"),
+                              ? context.localized(
+                                  "Wird gespeichert…",
+                                  (l10n) =>
+                                      l10n.profilesWirdGespeichert129ed064,
+                                )
+                              : context.localized(
+                                  "Profil speichern",
+                                  (l10n) =>
+                                      l10n.profilesProfilSpeichernfeda7fb0,
+                                ),
                         ),
                         onPressed: _saving ? null : _save,
                       ),

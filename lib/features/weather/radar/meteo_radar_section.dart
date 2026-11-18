@@ -153,19 +153,27 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              context.translate("Official MeteoSwiss precipitation radar"),
+              context.localized(
+                "Official MeteoSwiss precipitation radar",
+                (l10n) =>
+                    l10n.weatherOfficialMeteoswissPrecipitationRadar58cad390,
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Observation, not forecast. Missing pixels and missing dates must not be interpreted as dry weather.",
+                (l10n) => l10n.commonObservationNotForecastMissingb7760aa1,
               ),
             ),
             const SizedBox(height: 6),
             DropdownButtonFormField<MeteoRadarProduct>(
               initialValue: _product,
               decoration: InputDecoration(
-                labelText: context.translate("Radar product"),
+                labelText: context.localized(
+                  "Radar product",
+                  (l10n) => l10n.weatherRadarProducte1ab732e,
+                ),
               ),
               items: [
                 for (final product in MeteoRadarProduct.values)
@@ -197,7 +205,12 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
             FilledButton.tonalIcon(
               onPressed: _busy ? null : _discover,
               icon: const Icon(Icons.cloud_download_outlined),
-              label: Text(context.translate("Discover published radar times")),
+              label: Text(
+                context.localized(
+                  "Discover published radar times",
+                  (l10n) => l10n.weatherDiscoverPublishedRadarTimes9528700a,
+                ),
+              ),
             ),
             if (_busy) const LinearProgressIndicator(),
             if (_error != null)
@@ -207,27 +220,35 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
               ),
             if (selected != null) ...[
               Text(
-                context.translate("Observed: {0} · {1}", [
-                  _format(selected.timestampUtc),
-                  selected.product.unit,
-                ]),
+                context.localizedWithArgs(
+                  "Observed: {0} · {1}",
+                  [_format(selected.timestampUtc), selected.product.unit],
+                  (l10n, value) =>
+                      l10n.weatherObserved6b54f9ec(value(0), value(1)),
+                ),
               ),
               if (selected.catalogueUpdatedUtc != null)
                 Text(
-                  context.translate("STAC updated: {0}", [
-                    _format(selected.catalogueUpdatedUtc!),
-                  ]),
+                  context.localizedWithArgs(
+                    "STAC updated: {0}",
+                    [_format(selected.catalogueUpdatedUtc!)],
+                    (l10n, value) => l10n.weatherStacUpdated73855d9d(value(0)),
+                  ),
                 ),
               if (selected.quality != null)
                 Text(
-                  context.translate("Published CPC quality flag: {0}/9", [
-                    selected.quality,
-                  ]),
+                  context.localizedWithArgs(
+                    "Published CPC quality flag: {0}/9",
+                    [selected.quality],
+                    (l10n, value) =>
+                        l10n.weatherPublishedCpcQualityFlagdf44398e(value(0)),
+                  ),
                 ),
               if (selected.quality == null)
                 Text(
-                  context.translate(
+                  context.localized(
                     "No published quality flag for this frame (quality unknown).",
+                    (l10n) => l10n.weatherNoPublishedQualityFlag88577e1e,
                   ),
                 ),
               Slider(
@@ -253,7 +274,12 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
                   FilledButton.icon(
                     onPressed: _busy ? null : () => _show(_index),
                     icon: const Icon(Icons.radar),
-                    label: Text(context.translate("Show selected frame")),
+                    label: Text(
+                      context.localized(
+                        "Show selected frame",
+                        (l10n) => l10n.weatherShowSelectedFrame26955c78,
+                      ),
+                    ),
                   ),
                   OutlinedButton.icon(
                     onPressed: _busy || _index >= frames.length - 1
@@ -269,7 +295,12 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
                     onPressed: _busy && !_playing ? null : _play,
                     icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
                     label: Text(
-                      _playing ? 'Pause' : context.translate("Play forward"),
+                      _playing
+                          ? 'Pause'
+                          : context.localized(
+                              "Play forward",
+                              (l10n) => l10n.weatherPlayForward4b395db1,
+                            ),
                     ),
                   ),
                   OutlinedButton.icon(
@@ -288,20 +319,28 @@ class _MeteoRadarSectionState extends State<MeteoRadarSection> {
                       await widget.globe.clearMeteoSwissRadar();
                     },
                     icon: const Icon(Icons.layers_clear),
-                    label: Text(context.translate("Clear radar")),
+                    label: Text(
+                      context.localized(
+                        "Clear radar",
+                        (l10n) => l10n.weatherClearRadar66544d4d,
+                      ),
+                    ),
                   ),
                 ],
               ),
               Text(
-                context.translate(
+                context.localizedWithArgs(
                   "{0} published frames (maximum 12). Irregular timestamp gaps are retained.",
                   [frames.length],
+                  (l10n, value) => l10n
+                      .weatherPublishedFramesMaximumIrregular94a6ff40(value(0)),
                 ),
               ),
             ],
             Text(
-              context.translate(
+              context.localized(
                 "Source: MeteoSwiss · FSDI STAC · online HDF5/WASM · EPSG:2056. Radar can be unavailable on Web or Android if data or decoder access is blocked.",
+                (l10n) => l10n.weatherSourceMeteoswissFsdiStacb55f0dac,
               ),
             ),
           ],

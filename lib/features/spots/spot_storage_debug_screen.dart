@@ -43,7 +43,11 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.translate("Delete failed: {0}", [error])),
+          content: Text(
+            context.localizedWithArgs("Delete failed: {0}", [
+              error,
+            ], (l10n, value) => l10n.spotsDeleteFailedfc2c6c69(value(0))),
+          ),
         ),
       );
     }
@@ -58,7 +62,14 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.translate("Local Storage Test"))),
+      appBar: AppBar(
+        title: Text(
+          context.localized(
+            "Local Storage Test",
+            (l10n) => l10n.spotsLocalStorageTest1337323b,
+          ),
+        ),
+      ),
 
       body: StreamBuilder(
         stream: _repository.watchSpots(),
@@ -68,7 +79,11 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  context.translate("Database error: {0}", [snapshot.error]),
+                  context.localizedWithArgs(
+                    "Database error: {0}",
+                    [snapshot.error],
+                    (l10n, value) => l10n.spotsDatabaseErrora227b5c8(value(0)),
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -84,8 +99,9 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
           if (spots.isEmpty) {
             return Center(
               child: Text(
-                context.translate(
+                context.localized(
                   "No spots saved yet.\nAdd a test spot to verify persistence.",
+                  (l10n) => l10n.spotsNoSpotsSavedYet3b576669,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -118,7 +134,12 @@ class _SpotStorageDebugScreenState extends State<SpotStorageDebugScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addTestSpot,
         icon: const Icon(Icons.add),
-        label: Text(context.translate("Add Test Spot")),
+        label: Text(
+          context.localized(
+            "Add Test Spot",
+            (l10n) => l10n.spotsAddTestSpotd92ef505,
+          ),
+        ),
       ),
     );
   }

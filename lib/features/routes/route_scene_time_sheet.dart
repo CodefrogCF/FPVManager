@@ -20,7 +20,12 @@ Future<void> showRouteSceneTime(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text(context.translate("Sonnen- und Mondzeit der Route")),
+              title: Text(
+                context.localized(
+                  "Sonnen- und Mondzeit der Route",
+                  (l10n) => l10n.routesSonnenUndMondzeitDer90b0d9c4,
+                ),
+              ),
             ),
             SceneTimeControl(
               value: editor.planning.sceneTime,
@@ -29,13 +34,19 @@ Future<void> showRouteSceneTime(
               ),
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Wird mit der Route gespeichert. Eine feste Zeit bleibt stehen; „Jetzt“ läuft mit der Gerätezeit.",
+                (l10n) => l10n.routesWirdMitDerRoutece20d1c9,
               ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(context.translate("Fertig")),
+              child: Text(
+                context.localized(
+                  "Fertig",
+                  (l10n) => l10n.routesFertig708ad54e,
+                ),
+              ),
             ),
           ],
         ),

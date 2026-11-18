@@ -32,7 +32,10 @@ class SituationalLayersSection extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate("Layer update failed. Please retry."),
+              context.localized(
+                "Layer update failed. Please retry.",
+                (l10n) => l10n.mobilityLayerUpdateFailedPlease636e8a82,
+              ),
             ),
           ),
         );
@@ -48,8 +51,10 @@ class SituationalLayersSection extends StatelessWidget {
       children: [
         OutdoorLayersSection(globe: globe),
         Text(
-          context.translate(
+          context.localized(
             "Zusätzliche Datenebenen · Angaben können unvollständig oder veraltet sein.",
+            (l10n) =>
+                l10n.mobilityZusaetzlicheDatenebenenAngabenKoennen3a7acd85,
           ),
         ),
         for (final layer in [
@@ -103,7 +108,12 @@ class SituationalLayersSection extends StatelessWidget {
                   'opacity': globe.situationalOpacity(layer.id),
                   'retry': true,
                 }),
-                child: Text(context.translate("Retry tiles")),
+                child: Text(
+                  context.localized(
+                    "Retry tiles",
+                    (l10n) => l10n.mobilityRetryTilesa3340dc4,
+                  ),
+                ),
               ),
           ],
           if (globe.situationalVisible(layer.id))
@@ -115,7 +125,12 @@ class SituationalLayersSection extends StatelessWidget {
                 mode: LaunchMode.externalApplication,
               ),
               icon: const Icon(Icons.open_in_new),
-              label: Text(context.translate("Official legend & source")),
+              label: Text(
+                context.localized(
+                  "Official legend & source",
+                  (l10n) => l10n.mobilityOfficialLegendSourcefc8aaddf,
+                ),
+              ),
             ),
         ],
         WildfirePreventionSection(globe: globe, initialCenter: initialCenter),
@@ -124,11 +139,18 @@ class SituationalLayersSection extends StatelessWidget {
         DatedImagerySection(globe: globe, initialCenter: initialCenter),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: Text(context.translate("Quellen & Grenzen")),
+          title: Text(
+            context.localized(
+              "Quellen & Grenzen",
+              (l10n) => l10n.mobilityQuellenGrenzen4bc8454f,
+            ),
+          ),
           children: [
             Text(
-              context.translate(
+              context.localized(
                 "Rasterkarten senden den Kartenausschnitt an geo.admin.ch. Das SLF-Bulletin wird ohne Standort als nationaler Datensatz geladen. Ladedaten bestätigen keine amtliche Gültigkeit. Flugplatzdaten ersetzen nicht das AIP; Brandgefahrenkarten ersetzen keine lokalen Anordnungen. Die Ebenen erteilen keine Flug- oder Zugangsfreigabe.",
+                (l10n) =>
+                    l10n.mobilityRasterkartenSendenDenKartenausschnittf2f4eb37,
               ),
             ),
           ],
@@ -147,9 +169,18 @@ class SituationalLayersSection extends StatelessWidget {
           if (globe.situationalVisible(id))
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(context.translate("{0} snapshot visible", [id])),
+              title: Text(
+                context.localizedWithArgs(
+                  "{0} snapshot visible",
+                  [id],
+                  (l10n, value) =>
+                      l10n.mobilitySnapshotVisiblec86e4891(value(0)),
+                ),
+              ),
               trailing: IconButton(
-                tooltip: context.translate("Remove {0} layer", [id]),
+                tooltip: context.localizedWithArgs("Remove {0} layer", [
+                  id,
+                ], (l10n, value) => l10n.mobilityRemoveLayer98fc17fe(value(0))),
                 icon: const Icon(Icons.visibility_off_outlined),
                 onPressed: () =>
                     id == 'meteo-stations' || id == 'hydro-stations'
@@ -166,7 +197,12 @@ class SituationalLayersSection extends StatelessWidget {
           FilledButton.tonalIcon(
             onPressed: onOpen,
             icon: const Icon(Icons.travel_explore),
-            label: Text(context.translate("Routes, traffic & aircraft")),
+            label: Text(
+              context.localized(
+                "Routes, traffic & aircraft",
+                (l10n) => l10n.commonRoutesTrafficAircraft309ea855,
+              ),
+            ),
           ),
       ],
     ),

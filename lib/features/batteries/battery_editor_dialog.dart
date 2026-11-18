@@ -111,7 +111,12 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
       keyboardType: TextInputType.numberWithOptions(decimal: !whole),
       decoration: InputDecoration(
         labelText: label,
-        helperText: required ? null : context.translate("Optional"),
+        helperText: required
+            ? null
+            : context.localized(
+                "Optional",
+                (l10n) => l10n.batteriesOptional0c6c4102,
+              ),
       ),
       onChanged: (_) => setState(() {}),
       validator: (text) {
@@ -230,10 +235,15 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                context.translate("{0} battery{1}", [
-                  widget.profile == null ? 'Add' : 'Edit',
-                  _isType ? ' type' : '',
-                ]),
+                context.localizedWithArgs(
+                  "{0} battery{1}",
+                  [
+                    widget.profile == null ? 'Add' : 'Edit',
+                    _isType ? ' type' : '',
+                  ],
+                  (l10n, value) =>
+                      l10n.batteriesBatterycc97f71f(value(0), value(1)),
+                ),
               ),
               if (_error != null)
                 Text(
@@ -254,8 +264,9 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                   children: [
                     if (snapshot.hasError) ...[
                       Text(
-                        context.translate(
+                        context.localized(
                           "Unable to load types and assignments.",
+                          (l10n) => l10n.batteriesUnableToLoadTypesc7010120,
                         ),
                       ),
                       TextButton(
@@ -265,7 +276,12 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                                 () => _options = widget.repository
                                     .getAssignmentOptions(),
                               ),
-                        child: Text(context.translate("Retry loading options")),
+                        child: Text(
+                          context.localized(
+                            "Retry loading options",
+                            (l10n) => l10n.batteriesRetryLoadingOptions99cf637e,
+                          ),
+                        ),
                       ),
                     ] else if (options == null)
                       const LinearProgressIndicator(),
@@ -281,20 +297,32 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                         initialValue: _typeId ?? 0,
                         isExpanded: true,
                         decoration: InputDecoration(
-                          labelText: context.translate(
+                          labelText: context.localized(
                             "Type template (optional)",
+                            (l10n) =>
+                                l10n.batteriesTypeTemplateOptionalbafc4970,
                           ),
                         ),
                         items: [
                           DropdownMenuItem(
                             value: 0,
-                            child: Text(context.translate("No type template")),
+                            child: Text(
+                              context.localized(
+                                "No type template",
+                                (l10n) => l10n.batteriesNoTypeTemplate58240414,
+                              ),
+                            ),
                           ),
                           if (_typeId != null && selectedType == null)
                             DropdownMenuItem(
                               value: _typeId,
                               enabled: false,
-                              child: Text(context.translate("Removed type")),
+                              child: Text(
+                                context.localized(
+                                  "Removed type",
+                                  (l10n) => l10n.batteriesRemovedType24f2204a,
+                                ),
+                              ),
                             ),
                           for (final type in options.types)
                             DropdownMenuItem(
@@ -313,8 +341,9 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                       ),
                       if (_typeId != null && selectedType == null)
                         Text(
-                          context.translate(
+                          context.localized(
                             "The assigned type was removed. Select a type or no template.",
+                            (l10n) => l10n.batteriesTheAssignedTypeWas57b002ba,
                           ),
                         ),
                       TextButton(
@@ -322,12 +351,18 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                             ? null
                             : () => _copyType(selectedType!),
                         child: Text(
-                          context.translate("Copy type specifications"),
+                          context.localized(
+                            "Copy type specifications",
+                            (l10n) =>
+                                l10n.batteriesCopyTypeSpecifications02a95788,
+                          ),
                         ),
                       ),
                       Text(
-                        context.translate(
+                        context.localized(
                           "Packs keep independent specification copies. Later type edits do not change them.",
+                          (l10n) => l10n
+                              .batteriesPacksKeepIndependentSpecificationa8fd26d6,
                         ),
                       ),
                     ],
@@ -342,9 +377,13 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          context.translate(
+                          context.localizedWithArgs(
                             "Calculated nominal energy: {0} Wh (capacity × nominal voltage)",
                             [calculated.toStringAsFixed(2)],
+                            (l10n, value) =>
+                                l10n.batteriesCalculatedNominalEnergyWh30e6efe0(
+                                  value(0),
+                                ),
                           ),
                         ),
                       ),
@@ -353,12 +392,16 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                     if (!_isType) ...[
                       const SizedBox(height: 24),
                       Text(
-                        context.translate("Condition & availability"),
+                        context.localized(
+                          "Condition & availability",
+                          (l10n) => l10n.batteriesConditionAvailability033503de,
+                        ),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
-                        context.translate(
+                        context.localized(
                           "Charge, cycles and condition are recorded manually.",
+                          (l10n) => l10n.commonChargeCyclesAndCondition2b6f03c0,
                         ),
                       ),
                       _numeric('Recorded charge (%)', percent: true),
@@ -368,7 +411,10 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                         initialValue: _availability,
                         isExpanded: true,
                         decoration: InputDecoration(
-                          labelText: context.translate("Availability"),
+                          labelText: context.localized(
+                            "Availability",
+                            (l10n) => l10n.batteriesAvailability681b5b5a,
+                          ),
                         ),
                         items: [
                           for (final value in BatteryAvailability.values)
@@ -390,11 +436,20 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                       if (options != null) ...[
                         const SizedBox(height: 24),
                         Text(
-                          context.translate("Associated drones"),
+                          context.localized(
+                            "Associated drones",
+                            (l10n) => l10n.commonAssociatedDrones0b96fd82,
+                          ),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         if (options.drones.isEmpty)
-                          Text(context.translate("No drone profiles yet.")),
+                          Text(
+                            context.localized(
+                              "No drone profiles yet.",
+                              (l10n) =>
+                                  l10n.batteriesNoDroneProfilesYet036373ca,
+                            ),
+                          ),
                         for (final drone in options.drones)
                           CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
@@ -411,11 +466,21 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                                   }),
                           ),
                         Text(
-                          context.translate("Associated flight plans"),
+                          context.localized(
+                            "Associated flight plans",
+                            (l10n) =>
+                                l10n.batteriesAssociatedFlightPlans1c957aa1,
+                          ),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         if (options.flightPlans.isEmpty)
-                          Text(context.translate("No saved flight plans yet.")),
+                          Text(
+                            context.localized(
+                              "No saved flight plans yet.",
+                              (l10n) =>
+                                  l10n.batteriesNoSavedFlightPlans0eb9aef8,
+                            ),
+                          ),
                         for (final plan in options.flightPlans)
                           CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
@@ -441,14 +506,25 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
           actions: [
             TextButton(
               onPressed: _saving ? null : () => Navigator.pop(context),
-              child: Text(context.translate("Cancel")),
+              child: Text(
+                context.localized(
+                  "Cancel",
+                  (l10n) => l10n.commonCancel77dfd213,
+                ),
+              ),
             ),
             FilledButton(
               onPressed: _saving || options == null ? null : _save,
               child: Text(
                 _saving
-                    ? context.translate("Saving...")
-                    : context.translate("Save"),
+                    ? context.localized(
+                        "Saving...",
+                        (l10n) => l10n.commonSavingae7e8875,
+                      )
+                    : context.localized(
+                        "Save",
+                        (l10n) => l10n.commonSaveefc007a3,
+                      ),
               ),
             ),
           ],

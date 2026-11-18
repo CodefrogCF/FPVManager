@@ -29,21 +29,32 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.translate("Delete drone profile?")),
+        title: Text(
+          context.localized(
+            "Delete drone profile?",
+            (l10n) => l10n.dronesDeleteDroneProfilec10d6154,
+          ),
+        ),
         content: Text(
-          context.translate(
+          context.localizedWithArgs(
             "Permanently delete \"{0}\"? Flight plans will be kept without this drone assignment.",
             [profile.drone.name],
+            (l10n, value) =>
+                l10n.dronesPermanentlyDeleteFlightPlansc2a19a5b(value(0)),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(context.translate("Cancel")),
+            child: Text(
+              context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(context.translate("Delete")),
+            child: Text(
+              context.localized("Delete", (l10n) => l10n.commonDeletef6fdbe48),
+            ),
           ),
         ],
       ),
@@ -80,7 +91,14 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("Drone profile"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "Drone profile",
+          (l10n) => l10n.dronesDroneProfile1ca23ee8,
+        ),
+      ),
+    ),
     body: StreamBuilder<DroneProfile?>(
       stream: _profile,
       builder: (context, snapshot) {
@@ -89,14 +107,24 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(context.translate("Unable to load this drone profile.")),
+                Text(
+                  context.localized(
+                    "Unable to load this drone profile.",
+                    (l10n) => l10n.dronesUnableToLoadThis20f0daab,
+                  ),
+                ),
                 TextButton(
                   onPressed: () => setState(
                     () => _profile = widget.repository.watchProfile(
                       widget.droneId,
                     ),
                   ),
-                  child: Text(context.translate("Retry")),
+                  child: Text(
+                    context.localized(
+                      "Retry",
+                      (l10n) => l10n.commonRetry9f5cd8a2,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -109,7 +137,10 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
         if (profile == null) {
           return Center(
             child: Text(
-              context.translate("This drone profile no longer exists."),
+              context.localized(
+                "This drone profile no longer exists.",
+                (l10n) => l10n.dronesThisDroneProfileNob7ffc857,
+              ),
             ),
           );
         }
@@ -144,12 +175,22 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
                               ),
                             ),
                       icon: const Icon(Icons.edit_outlined),
-                      label: Text(context.translate("Edit profile")),
+                      label: Text(
+                        context.localized(
+                          "Edit profile",
+                          (l10n) => l10n.dronesEditProfile15141eab,
+                        ),
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: _deleting ? null : () => _delete(profile),
                       icon: const Icon(Icons.delete_outline),
-                      label: Text(context.translate("Delete profile")),
+                      label: Text(
+                        context.localized(
+                          "Delete profile",
+                          (l10n) => l10n.dronesDeleteProfile7035d2d9,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -189,7 +230,11 @@ class _DroneDetailsScreenState extends State<DroneDetailsScreen> {
                     Padding(
                       padding: EdgeInsets.only(top: 12),
                       child: Text(
-                        context.translate("No numeric parameters recorded."),
+                        context.localized(
+                          "No numeric parameters recorded.",
+                          (l10n) =>
+                              l10n.dronesNoNumericParametersRecorded530d76ed,
+                        ),
                       ),
                     ),
                 ],

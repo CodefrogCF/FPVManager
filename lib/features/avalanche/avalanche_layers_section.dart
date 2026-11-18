@@ -47,7 +47,12 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(context.translate("Lawinenbulletin · SLF")),
+            title: Text(
+              context.localized(
+                "Lawinenbulletin · SLF",
+                (l10n) => l10n.avalancheLawinenbulletinSlfe00b361e,
+              ),
+            ),
             subtitle: Text(layer.message),
             value: layer.visible,
             onChanged: editable
@@ -66,22 +71,39 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
               initialValue: layer.period,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: context.translate(
+                labelText: context.localized(
                   "Darstellung der publizierten Tagesabschnitte",
+                  (l10n) => l10n
+                      .avalancheDarstellungDerPubliziertenTagesabschnitte07920ee4,
                 ),
               ),
               items: [
                 DropdownMenuItem(
                   value: 'all',
-                  child: Text(context.translate("Tagesübersicht")),
+                  child: Text(
+                    context.localized(
+                      "Tagesübersicht",
+                      (l10n) => l10n.avalancheTagesuebersicht6ec1173c,
+                    ),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'earlier',
-                  child: Text(context.translate("Früherer Tagesabschnitt")),
+                  child: Text(
+                    context.localized(
+                      "Früherer Tagesabschnitt",
+                      (l10n) => l10n.avalancheFruehererTagesabschnittbbaf5db6,
+                    ),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 'later',
-                  child: Text(context.translate("Späterer Tagesabschnitt")),
+                  child: Text(
+                    context.localized(
+                      "Späterer Tagesabschnitt",
+                      (l10n) => l10n.avalancheSpaetererTagesabschnitte6b59639,
+                    ),
+                  ),
                 ),
               ],
               onChanged: editable
@@ -89,8 +111,9 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
                   : null,
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Die Tagesübersicht zeigt die höchste publizierte regionale Stufe. Höhenlagen, Expositionen und Lawinenprobleme stehen in der Beschreibung beim Antippen. Die Farbe gilt nicht pauschal für jeden Hang.",
+                (l10n) => l10n.commonDieTagesuebersichtZeigtDie3e26c236,
               ),
             ),
             if (layer.loading) const LinearProgressIndicator(),
@@ -101,10 +124,17 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
               icon: const Icon(Icons.refresh),
               label: Text(
                 layer.refreshWaitSeconds > 0
-                    ? context.translate("Erneut aktualisieren in {0} s", [
-                        layer.refreshWaitSeconds,
-                      ])
-                    : context.translate("SLF-Bulletin aktualisieren"),
+                    ? context.localizedWithArgs(
+                        "Erneut aktualisieren in {0} s",
+                        [layer.refreshWaitSeconds],
+                        (l10n, value) => l10n
+                            .avalancheErneutAktualisierenInSed2b6e00(value(0)),
+                      )
+                    : context.localized(
+                        "SLF-Bulletin aktualisieren",
+                        (l10n) =>
+                            l10n.avalancheSlfBulletinAktualisieren6cedce41,
+                      ),
               ),
             ),
             if (layer.error ?? _error case final String error)
@@ -114,25 +144,43 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
               ),
             if (data != null) ...[
               Text(
-                context.translate("Abruf / Prüfung: {0}", [
-                  (data.lastCheckedAtUtc ?? data.fetchedAtUtc).toLocal(),
-                ]),
+                context.localizedWithArgs(
+                  "Abruf / Prüfung: {0}",
+                  [(data.lastCheckedAtUtc ?? data.fetchedAtUtc).toLocal()],
+                  (l10n, value) =>
+                      l10n.avalancheAbrufPruefung87671789(value(0)),
+                ),
               ),
               Text(
-                context.translate("Publikation: {0}", [
-                  data.publishedAtUtc?.toLocal() ??
-                      "kein aktives Bulletin / nicht angegeben",
-                ]),
+                context.localizedWithArgs(
+                  "Publikation: {0}",
+                  [
+                    data.publishedAtUtc?.toLocal() ??
+                        "kein aktives Bulletin / nicht angegeben",
+                  ],
+                  (l10n, value) => l10n.avalanchePublikation0e56fdd8(value(0)),
+                ),
               ),
               if (data.validity != null)
                 Text(
-                  context.translate("Gültigkeit: {0} – {1}", [
-                    data.validity!.fromUtc?.toLocal(),
-                    data.validity!.untilUtc?.toLocal(),
-                  ]),
+                  context.localizedWithArgs(
+                    "Gültigkeit: {0} – {1}",
+                    [
+                      data.validity!.fromUtc?.toLocal(),
+                      data.validity!.untilUtc?.toLocal(),
+                    ],
+                    (l10n, value) =>
+                        l10n.avalancheGueltigkeita66abbe1(value(0), value(1)),
+                  ),
                 ),
             ],
-            Text(context.translate("Gefahrenstufen · regionale Übersicht")),
+            Text(
+              context.localized(
+                "Gefahrenstufen · regionale Übersicht",
+                (l10n) =>
+                    l10n.avalancheGefahrenstufenRegionaleUbersicht44dc4622,
+              ),
+            ),
             Wrap(
               spacing: 12,
               runSpacing: 4,
@@ -159,7 +207,11 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
                       Flexible(
                         child: Text(
                           level == 0
-                              ? context.translate("Unbekannt / alter Stand")
+                              ? context.localized(
+                                  "Unbekannt / alter Stand",
+                                  (l10n) =>
+                                      l10n.avalancheUnbekanntAlterStandaba56b7e,
+                                )
                               : '$level · ${avalancheLabels[level]}',
                         ),
                       ),
@@ -168,8 +220,9 @@ class _AvalancheLayersSectionState extends State<AvalancheLayersSection> {
               ],
             ),
             Text(
-              context.translate(
+              context.localized(
                 "Grau: unbekannt oder veralteter / nicht bestätigter Stand. Abgelaufene Flächen werden ausgeblendet. Ein fehlendes Bulletin ist keine Entwarnung.",
+                (l10n) => l10n.avalancheGrauUnbekanntOderVeralteter1feb3e46,
               ),
             ),
           ],

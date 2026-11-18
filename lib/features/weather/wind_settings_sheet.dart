@@ -28,19 +28,40 @@ class WindControlsLauncher extends StatelessWidget {
       leading: const Icon(Icons.air),
       title: Text(
         flight
-            ? context.translate("Wind im Flug")
-            : context.translate("3D-Wind und Prognose"),
+            ? context.localized(
+                "Wind im Flug",
+                (l10n) => l10n.weatherWindImFlugeffc2149,
+              )
+            : context.localized(
+                "3D-Wind und Prognose",
+                (l10n) => l10n.weatherDWindUndPrognose6efb0829,
+              ),
       ),
       subtitle: Text(
         globe.wind.snapshot == null
-            ? context.translate("Optional · Winddaten noch nicht geladen")
+            ? context.localized(
+                "Optional · Winddaten noch nicht geladen",
+                (l10n) => l10n.weatherOptionalWinddatenNochNicht638f2548,
+              )
             : globe.wind.expired
-            ? context.translate("Winddaten abgelaufen")
+            ? context.localized(
+                "Winddaten abgelaufen",
+                (l10n) => l10n.weatherWinddatenAbgelaufend96548ce,
+              )
             : globe.wind.affectFlight
-            ? context.translate("Wind beeinflusst den Simulator")
+            ? context.localized(
+                "Wind beeinflusst den Simulator",
+                (l10n) => l10n.weatherWindBeeinflusstDenSimulator0792a00b,
+              )
             : globe.wind.visible
-            ? context.translate("3D-Pfeile aktiv")
-            : context.translate("Winddarstellung und Einfluss aus"),
+            ? context.localized(
+                "3D-Pfeile aktiv",
+                (l10n) => l10n.weatherDPfeileAktivbfcd3c26,
+              )
+            : context.localized(
+                "Winddarstellung und Einfluss aus",
+                (l10n) => l10n.weatherWinddarstellungUndEinflussAus5d5ce187,
+              ),
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => showWindSettings(context, globe),
@@ -134,27 +155,45 @@ class _WindSettingsState extends State<_WindSettings> {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(context.translate("3D-Wind und Flugwind")),
+                title: Text(
+                  context.localized(
+                    "3D-Wind und Flugwind",
+                    (l10n) => l10n.weatherDWindUndFlugwinda2d72644,
+                  ),
+                ),
                 trailing: IconButton(
-                  tooltip: context.translate("Schließen"),
+                  tooltip: context.localized(
+                    "Schließen",
+                    (l10n) => l10n.commonSchliessen44424b18,
+                  ),
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: Text(context.translate("3D-Windpfeile anzeigen")),
+                title: Text(
+                  context.localized(
+                    "3D-Windpfeile anzeigen",
+                    (l10n) => l10n.weatherDWindpfeileAnzeigenbc5f17dc,
+                  ),
+                ),
                 value: wind.visible,
                 onChanged: (v) => wind.flags(arrows: v),
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  context.translate("Wind im Flugsimulator berücksichtigen"),
+                  context.localized(
+                    "Wind im Flugsimulator berücksichtigen",
+                    (l10n) =>
+                        l10n.weatherWindImFlugsimulatorBeruecksichtigen2a47223c,
+                  ),
                 ),
                 subtitle: Text(
-                  context.translate(
+                  context.localized(
                     "Angle/Acro: Abdrift. GPS: Gegenhalten bis zur Leistungsgrenze.",
+                    (l10n) => l10n.weatherAngleAcroAbdriftGps88b761bf,
                   ),
                 ),
                 value: wind.affectFlight,
@@ -163,13 +202,21 @@ class _WindSettingsState extends State<_WindSettings> {
               DropdownButtonFormField<WindTimeMode>(
                 initialValue: _mode,
                 decoration: InputDecoration(
-                  labelText: context.translate("Windquelle / Zeit"),
+                  labelText: context.localized(
+                    "Windquelle / Zeit",
+                    (l10n) => l10n.weatherWindquelleZeitfc844a65,
+                  ),
                 ),
                 isExpanded: true,
                 items: [
                   DropdownMenuItem(
                     value: WindTimeMode.current,
-                    child: Text(context.translate("Aktueller Modellwind")),
+                    child: Text(
+                      context.localized(
+                        "Aktueller Modellwind",
+                        (l10n) => l10n.weatherAktuellerModellwind402bf323,
+                      ),
+                    ),
                   ),
                   DropdownMenuItem(
                     value: WindTimeMode.forecast,
@@ -191,8 +238,9 @@ class _WindSettingsState extends State<_WindSettings> {
               DropdownButtonFormField<double>(
                 initialValue: _radius,
                 decoration: InputDecoration(
-                  labelText: context.translate(
+                  labelText: context.localized(
                     "Ausschnitt um den gewählten Punkt",
+                    (l10n) => l10n.weatherAusschnittUmDenGewaehlten25af0329,
                   ),
                 ),
                 items: const [
@@ -207,8 +255,9 @@ class _WindSettingsState extends State<_WindSettings> {
               ),
               const SizedBox(height: 12),
               Text(
-                context.translate(
+                context.localized(
                   "Beim Abruf werden die gewählten Kartenkoordinaten an Open-Meteo gesendet. „Aktuell“ sind Modellwerte, keine Live-Messung vor Ort. Daten und Auswahl gelten für diese Sitzung.",
+                  (l10n) => l10n.commonBeimAbrufWerdenDiecd3b9e12,
                 ),
               ),
               const SizedBox(height: 8),
@@ -216,7 +265,10 @@ class _WindSettingsState extends State<_WindSettings> {
                 onPressed: wind.loading || _locating ? null : _load,
                 icon: const Icon(Icons.download_outlined),
                 label: Text(
-                  context.translate("Winddaten für Punkt / Ansicht laden"),
+                  context.localized(
+                    "Winddaten für Punkt / Ansicht laden",
+                    (l10n) => l10n.weatherWinddatenFuerPunktAnsichtfa5e2d66,
+                  ),
                 ),
               ),
               if (wind.loading) const LinearProgressIndicator(),
@@ -230,44 +282,64 @@ class _WindSettingsState extends State<_WindSettings> {
                   '${field.mode == WindTimeMode.current ? 'Aktiver Modellwind' : 'Aktive Prognose'}: ${time(field.validAtUtc)}',
                 ),
                 Text(
-                  context.translate("Abgerufen: {0} · {1}/9 Rasterpunkte", [
-                    time(field.retrievedUtc),
-                    field.usableNodes,
-                  ]),
+                  context.localizedWithArgs(
+                    "Abgerufen: {0} · {1}/9 Rasterpunkte",
+                    [time(field.retrievedUtc), field.usableNodes],
+                    (l10n, value) => l10n.weatherAbgerufenRasterpunkte7532c53d(
+                      value(0),
+                      value(1),
+                    ),
+                  ),
                 ),
                 if (wind.expired)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Abgelaufen: Pfeile und Windeinfluss sind ausgesetzt.",
+                      (l10n) =>
+                          l10n.weatherAbgelaufenPfeileUndWindeinfluss1572fe42,
                     ),
                   ),
                 if (wind.visible && wind.rendererState == 'terrainPending')
                   Text(
-                    context.translate(
+                    context.localized(
                       "Windpfeile warten auf geladenes 3D-Gelände.",
+                      (l10n) =>
+                          l10n.weatherWindpfeileWartenAufGeladenes9bd078a7,
                     ),
                   ),
                 if (wind.refreshFailed)
                   Text(
-                    context.translate(
+                    context.localized(
                       "Letzte Aktualisierung fehlgeschlagen. Die vorherigen Daten bleiben bis zum Ablauf verfügbar.",
+                      (l10n) => l10n
+                          .weatherLetzteAktualisierungFehlgeschlagenDie140dfc53,
                     ),
                   ),
                 TextButton.icon(
                   onPressed: wind.loading ? null : wind.refresh,
                   icon: const Icon(Icons.refresh),
                   label: Text(
-                    context.translate("Diesen Ausschnitt aktualisieren"),
+                    context.localized(
+                      "Diesen Ausschnitt aktualisieren",
+                      (l10n) =>
+                          l10n.weatherDiesenAusschnittAktualisierenf0435deb,
+                    ),
                   ),
                 ),
               ],
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
-                title: Text(context.translate("Daten und Grenzen")),
+                title: Text(
+                  context.localized(
+                    "Daten und Grenzen",
+                    (l10n) => l10n.weatherDatenUndGrenzen98079772,
+                  ),
+                ),
                 children: [
                   Text(
-                    context.translate(
+                    context.localized(
                       "Open-Meteo · CC BY 4.0; kostenloser Zugang für nicht kommerzielle Nutzung. Aktueller Modellwind wird bei aktiver Darstellung oder im Flug alle 15 Minuten aktualisiert. Prognosen verwenden den nächsten verfügbaren Stundenwert. Sonnenzeit und Windzeit sind unabhängig. Zwischen Rasterpunkten und Modellhöhen (10, 80, 120, 180 m AGL) werden Windvektoren interpoliert. Außerhalb bekannter Höhen wird die nächste Schicht konstant fortgesetzt. Außerhalb des geladenen Ausschnitts oder bei fehlenden Daten gibt es keinen Windeinfluss. Keine zusätzlichen künstlichen Böen und keine Berechnung von Gebäudeverwirbelungen, Thermik oder kleinräumiger Geländeströmung.",
+                      (l10n) => l10n.commonOpenMeteoCcBy8eb16c41,
                     ),
                   ),
                 ],

@@ -141,7 +141,10 @@ class _SpotsScreenState extends State<SpotsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.translate("Unable to update favorite. Please retry."),
+              context.localized(
+                "Unable to update favorite. Please retry.",
+                (l10n) => l10n.spotsUnableToUpdateFavorite3001cf8d,
+              ),
             ),
           ),
         );
@@ -178,14 +181,21 @@ class _SpotsScreenState extends State<SpotsScreen> {
               maxLength: 160,
               onChanged: _searchChanged,
               decoration: InputDecoration(
-                labelText: context.translate("Search spots"),
-                hintText: context.translate(
+                labelText: context.localized(
+                  "Search spots",
+                  (l10n) => l10n.spotsSearchSpotsd3145737,
+                ),
+                hintText: context.localized(
                   "Name, description, category or tags",
+                  (l10n) => l10n.commonNameDescriptionCategoryOr5d2460f9,
                 ),
                 counterText: '',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
-                  tooltip: context.translate("Clear search"),
+                  tooltip: context.localized(
+                    "Clear search",
+                    (l10n) => l10n.spotsClearSearch67300d0f,
+                  ),
                   onPressed: () {
                     _search.clear();
                     _searchChanged('');
@@ -218,11 +228,16 @@ class _SpotsScreenState extends State<SpotsScreen> {
                   ActionChip(
                     avatar: const Icon(Icons.filter_list, size: 18),
                     label: Text(
-                      context.translate("Categories / tags{0}", [
-                        _labels.category != null || _labels.tags.isNotEmpty
-                            ? ' •'
-                            : '',
-                      ]),
+                      context.localizedWithArgs(
+                        "Categories / tags{0}",
+                        [
+                          _labels.category != null || _labels.tags.isNotEmpty
+                              ? ' •'
+                              : '',
+                        ],
+                        (l10n, value) =>
+                            l10n.spotsCategoriesTags7627b3f2(value(0)),
+                      ),
                     ),
                     onPressed: _filters,
                   ),
@@ -251,7 +266,12 @@ class _SpotsScreenState extends State<SpotsScreen> {
                       _labels.tags.isNotEmpty)
                     TextButton(
                       onPressed: _clear,
-                      child: Text(context.translate("Clear filters")),
+                      child: Text(
+                        context.localized(
+                          "Clear filters",
+                          (l10n) => l10n.spotsClearFilters41222671,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -273,7 +293,12 @@ class _SpotsScreenState extends State<SpotsScreen> {
                 ),
               ),
               icon: const Icon(Icons.add),
-              label: Text(context.translate("Add Spot")),
+              label: Text(
+                context.localized(
+                  "Add Spot",
+                  (l10n) => l10n.spotsAddSpot7e93bac9,
+                ),
+              ),
             ),
     );
   }
@@ -291,15 +316,21 @@ class _SpotsScreenState extends State<SpotsScreen> {
             children: [
               Text(
                 _list.error ??
-                    context.translate(
+                    context.localized(
                       "No spots found. Add a spot or adjust your filters.",
+                      (l10n) => l10n.spotsNoSpotsFoundAdd55a4157e,
                     ),
                 textAlign: TextAlign.center,
               ),
               if (_list.error != null)
                 TextButton(
                   onPressed: _list.retry,
-                  child: Text(context.translate("Retry")),
+                  child: Text(
+                    context.localized(
+                      "Retry",
+                      (l10n) => l10n.commonRetry9f5cd8a2,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -333,18 +364,30 @@ class _SpotsScreenState extends State<SpotsScreen> {
                               Text(_list.error!),
                               TextButton(
                                 onPressed: _list.retry,
-                                child: Text(context.translate("Retry")),
+                                child: Text(
+                                  context.localized(
+                                    "Retry",
+                                    (l10n) => l10n.commonRetry9f5cd8a2,
+                                  ),
+                                ),
                               ),
                             ],
                           )
                         : Text(
                             _list.hasMore
-                                ? context.translate(
+                                ? context.localized(
                                     "Weitere Spots werden beim Scrollen geladen.",
+                                    (l10n) => l10n
+                                        .spotsWeitereSpotsWerdenBeim1f25ff94,
                                   )
-                                : context.translate("Alle {0} Spots geladen.", [
-                                    _list.items.length,
-                                  ]),
+                                : context.localizedWithArgs(
+                                    "Alle {0} Spots geladen.",
+                                    [_list.items.length],
+                                    (l10n, value) =>
+                                        l10n.spotsAlleSpotsGeladen5c20251b(
+                                          value(0),
+                                        ),
+                                  ),
                           ),
                   ),
                 );
@@ -384,8 +427,14 @@ class _SpotsScreenState extends State<SpotsScreen> {
                 onTap: () => _details(spot.id),
                 trailing: IconButton(
                   tooltip: spot.isFavorite
-                      ? context.translate("Remove favorite")
-                      : context.translate("Add favorite"),
+                      ? context.localized(
+                          "Remove favorite",
+                          (l10n) => l10n.spotsRemoveFavorite8b9da771,
+                        )
+                      : context.localized(
+                          "Add favorite",
+                          (l10n) => l10n.spotsAddFavorite4914d44e,
+                        ),
                   onPressed: _favoriteChanges.contains(spot.id)
                       ? null
                       : () => _favorite(spot),
@@ -442,8 +491,9 @@ class _SpotFiltersDialogState extends State<_SpotFiltersDialog> {
               ),
               const SizedBox(height: 12),
               Text(
-                context.translate(
+                context.localized(
                   "Matches the category and every selected tag. Search and favorites also apply.",
+                  (l10n) => l10n.spotsMatchesTheCategoryAnd2b0693e2,
                 ),
               ),
             ],
@@ -454,7 +504,9 @@ class _SpotFiltersDialogState extends State<_SpotFiltersDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text(context.translate("Cancel")),
+        child: Text(
+          context.localized("Cancel", (l10n) => l10n.commonCancel77dfd213),
+        ),
       ),
       FilledButton(
         onPressed: () {
@@ -468,7 +520,9 @@ class _SpotFiltersDialogState extends State<_SpotFiltersDialog> {
             );
           }
         },
-        child: Text(context.translate("Apply")),
+        child: Text(
+          context.localized("Apply", (l10n) => l10n.spotsApplycfea419c),
+        ),
       ),
     ],
   );

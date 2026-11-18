@@ -16,7 +16,12 @@ class PreflightScreen extends StatelessWidget {
     length: 2,
     child: Scaffold(
       appBar: AppBar(
-        title: Text(context.translate("Preflight & Telemetry")),
+        title: Text(
+          context.localized(
+            "Preflight & Telemetry",
+            (l10n) => l10n.preflightPreflightTelemetry0632b0c8,
+          ),
+        ),
         bottom: const TabBar(
           tabs: [
             Tab(text: 'Checklists'),

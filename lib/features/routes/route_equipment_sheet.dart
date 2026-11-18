@@ -45,14 +45,22 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  context.translate("Route equipment"),
+                  context.localized(
+                    "Route equipment",
+                    (l10n) => l10n.routesRouteEquipmentc4206690,
+                  ),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 if (widget.editor.equipmentError case final error?) ...[
                   Text(error),
                   TextButton(
                     onPressed: widget.editor.loadEquipment,
-                    child: Text(context.translate("Retry")),
+                    child: Text(
+                      context.localized(
+                        "Retry",
+                        (l10n) => l10n.commonRetry9f5cd8a2,
+                      ),
+                    ),
                   ),
                 ] else if (equipment == null)
                   const LinearProgressIndicator(),
@@ -60,8 +68,9 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                   if (_drone != null &&
                       !equipment.drones.any((d) => d.drone.id == _drone))
                     Text(
-                      context.translate(
+                      context.localized(
                         "The assigned drone was deleted. Choose another profile or clear the assignment.",
+                        (l10n) => l10n.routesTheAssignedDroneWas08ea7895,
                       ),
                     ),
                   DropdownButtonFormField<int>(
@@ -70,12 +79,22 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                         ? _drone
                         : null,
                     isExpanded: true,
-                    hint: Text(context.translate("No drone assigned")),
+                    hint: Text(
+                      context.localized(
+                        "No drone assigned",
+                        (l10n) => l10n.routesNoDroneAssigned1a3203b5,
+                      ),
+                    ),
                     decoration: const InputDecoration(labelText: 'Drone'),
                     items: [
                       DropdownMenuItem<int>(
                         value: null,
-                        child: Text(context.translate("No drone assigned")),
+                        child: Text(
+                          context.localized(
+                            "No drone assigned",
+                            (l10n) => l10n.routesNoDroneAssigned1a3203b5,
+                          ),
+                        ),
                       ),
                       for (final d in equipment.drones)
                         DropdownMenuItem(
@@ -87,8 +106,9 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    context.translate(
+                    context.localized(
                       "Batteries are alternative packs for one flight. Their capacities are assessed individually.",
+                      (l10n) => l10n.routesBatteriesAreAlternativePackse90e4726,
                     ),
                   ),
                   Expanded(
@@ -97,8 +117,10 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                         if (equipment.batteries.isEmpty)
                           ListTile(
                             title: Text(
-                              context.translate(
+                              context.localized(
                                 "Create battery profiles in Equipment first.",
+                                (l10n) =>
+                                    l10n.routesCreateBatteryProfilesIn4e35a626,
                               ),
                             ),
                           ),
@@ -107,11 +129,15 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                             contentPadding: EdgeInsets.zero,
                             title: Text(b.name),
                             subtitle: Text(
-                              context.translate("{0}S · {1} mAh · {2}", [
-                                b.cellCount,
-                                b.capacityMah,
-                                b.availability,
-                              ]),
+                              context.localizedWithArgs(
+                                "{0}S · {1} mAh · {2}",
+                                [b.cellCount, b.capacityMah, b.availability],
+                                (l10n, value) => l10n.routesSMah1c86b217(
+                                  value(0),
+                                  value(1),
+                                  value(2),
+                                ),
+                              ),
                             ),
                             value: _batteries.contains(b.id),
                             onChanged: (v) => setState(() {
@@ -137,7 +163,12 @@ class _RouteEquipmentState extends State<_RouteEquipment> {
                       );
                       Navigator.pop(context);
                     },
-                    child: Text(context.translate("Apply equipment")),
+                    child: Text(
+                      context.localized(
+                        "Apply equipment",
+                        (l10n) => l10n.routesApplyEquipmente3cb5483,
+                      ),
+                    ),
                   ),
                 ],
               ],

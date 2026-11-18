@@ -41,7 +41,10 @@ class UasZoneDetailsPanel extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: context.translate("Previous zone"),
+                    tooltip: context.localized(
+                      "Previous zone",
+                      (l10n) => l10n.airspacePreviousZoneb179c069,
+                    ),
                     onPressed: selectedIndex > 0
                         ? () => onZoneSelected?.call(selectedIndex - 1)
                         : null,
@@ -49,15 +52,22 @@ class UasZoneDetailsPanel extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      context.translate("Zone {0} of {1} at this position", [
-                        selectedIndex + 1,
-                        zones.length,
-                      ]),
+                      context.localizedWithArgs(
+                        "Zone {0} of {1} at this position",
+                        [selectedIndex + 1, zones.length],
+                        (l10n, value) => l10n.airspaceZoneOfAtThiscce172f2(
+                          value(0),
+                          value(1),
+                        ),
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
                   IconButton(
-                    tooltip: context.translate("Next zone"),
+                    tooltip: context.localized(
+                      "Next zone",
+                      (l10n) => l10n.airspaceNextZone6c44893a,
+                    ),
                     onPressed: selectedIndex + 1 < zones.length
                         ? () => onZoneSelected?.call(selectedIndex + 1)
                         : null,
@@ -84,7 +94,10 @@ class UasZoneDetailsPanel extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             trailing: IconButton(
-              tooltip: context.translate("Close details"),
+              tooltip: context.localized(
+                "Close details",
+                (l10n) => l10n.airspaceCloseDetails433da6d1,
+              ),
               icon: const Icon(Icons.close),
               onPressed: onClose,
             ),
@@ -93,7 +106,10 @@ class UasZoneDetailsPanel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               zone.value('restriction') ??
-                  context.translate("Restriction not provided by source"),
+                  context.localized(
+                    "Restriction not provided by source",
+                    (l10n) => l10n.airspaceRestrictionNotProvidedBy569286af,
+                  ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -105,7 +121,12 @@ class UasZoneDetailsPanel extends StatelessWidget {
           ),
           TextButton.icon(
             icon: const Icon(Icons.info_outline),
-            label: Text(context.translate("Inspect restrictions")),
+            label: Text(
+              context.localized(
+                "Inspect restrictions",
+                (l10n) => l10n.airspaceInspectRestrictionsdfa16e61,
+              ),
+            ),
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
@@ -155,7 +176,10 @@ class UasZoneDetailsSheet extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: context.translate("Close zone inspection"),
+                tooltip: context.localized(
+                  "Close zone inspection",
+                  (l10n) => l10n.airspaceCloseZoneInspection127a12af,
+                ),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -208,8 +232,9 @@ class UasZoneDetailsSheet extends StatelessWidget {
           _DetailRow('Lower limit', zone.heightLimit(upper: false)),
           _DetailRow('Upper limit', zone.heightLimit(upper: true)),
           Text(
-            context.translate(
+            context.localized(
               "Each limit retains its own source unit and vertical reference.",
+              (l10n) => l10n.airspaceEachLimitRetainsIts3b9913eb,
             ),
           ),
           _heading(context, 'Applicability as supplied'),
@@ -226,8 +251,9 @@ class UasZoneDetailsSheet extends StatelessWidget {
             'endTime': 'Daily end (source time/offset)',
           }),
           Text(
-            context.translate(
+            context.localized(
               "Times and offsets are shown as supplied; applicability is not calculated.",
+              (l10n) => l10n.airspaceTimesAndOffsetsAred587335b,
             ),
           ),
           _heading(context, 'Authority and contact'),
@@ -258,9 +284,12 @@ class UasZoneDetailsSheet extends StatelessWidget {
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
             title: Text(
-              context.translate("All source attributes ({0})", [
-                zone.attributes.length,
-              ]),
+              context.localizedWithArgs(
+                "All source attributes ({0})",
+                [zone.attributes.length],
+                (l10n, value) =>
+                    l10n.airspaceAllSourceAttributes5a87df81(value(0)),
+              ),
             ),
             children: [
               for (final entry in zone.attributes.entries)

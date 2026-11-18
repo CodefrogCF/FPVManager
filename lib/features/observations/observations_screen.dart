@@ -37,7 +37,14 @@ class ObservationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.translate("Messstationen"))),
+    appBar: AppBar(
+      title: Text(
+        context.localized(
+          "Messstationen",
+          (l10n) => l10n.commonMessstationenf5f4587a,
+        ),
+      ),
+    ),
     body: SafeArea(
       child: DefaultTabController(
         length: 2,
@@ -65,21 +72,31 @@ class ObservationsScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(16),
                           children: [
                             Text(
-                              context.translate(
+                              context.localized(
                                 "Gemessene Stationswerte · keine Prognose",
+                                (l10n) => l10n
+                                    .observationsGemesseneStationswerteKeinePrognosef2d35acc,
                               ),
                             ),
                             if (controller.path.isNotEmpty)
                               Text(
-                                context.translate("Bezug: {0} · {1}, {2}", [
-                                  controller.path.length == 1
-                                      ? 'Kartenpunkt'
-                                      : 'Route',
-                                  controller.path.first.latitude
-                                      .toStringAsFixed(4),
-                                  controller.path.first.longitude
-                                      .toStringAsFixed(4),
-                                ]),
+                                context.localizedWithArgs(
+                                  "Bezug: {0} · {1}, {2}",
+                                  [
+                                    controller.path.length == 1
+                                        ? 'Kartenpunkt'
+                                        : 'Route',
+                                    controller.path.first.latitude
+                                        .toStringAsFixed(4),
+                                    controller.path.first.longitude
+                                        .toStringAsFixed(4),
+                                  ],
+                                  (l10n, value) => l10n.commonBezugb64247b0(
+                                    value(0),
+                                    value(1),
+                                    value(2),
+                                  ),
+                                ),
                               ),
                             if (onChooseLocation != null)
                               TextButton.icon(
@@ -87,20 +104,28 @@ class ObservationsScreen extends StatelessWidget {
                                     _run(context, onChooseLocation!),
                                 icon: const Icon(Icons.place_outlined),
                                 label: Text(
-                                  context.translate(
+                                  context.localized(
                                     "Kartenpunkt, Ort oder Route wählen",
+                                    (l10n) => l10n
+                                        .commonKartenpunktOrtOderRoute53c79c56,
                                   ),
                                 ),
                               ),
                             Text(
-                              context.translate(
+                              context.localized(
                                 "Abrufen sendet bei BAFU eine Auswahl naher Stationsnummern; MeteoSwiss wird als landesweite Datei geladen.",
+                                (l10n) => l10n
+                                    .observationsAbrufenSendetBeiBafu0559cc82,
                               ),
                             ),
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
                               title: Text(
-                                context.translate("Stationen auf der Karte"),
+                                context.localized(
+                                  "Stationen auf der Karte",
+                                  (l10n) => l10n
+                                      .observationsStationenAufDerKarte6bbce8f0,
+                                ),
                               ),
                               value: controller.visible.contains(kind),
                               onChanged: controller.path.isEmpty
@@ -122,7 +147,11 @@ class ObservationsScreen extends StatelessWidget {
                                         ),
                                   icon: const Icon(Icons.refresh),
                                   label: Text(
-                                    context.translate("Messwerte abrufen"),
+                                    context.localized(
+                                      "Messwerte abrufen",
+                                      (l10n) => l10n
+                                          .observationsMesswerteAbrufen404711d9,
+                                    ),
                                   ),
                                 ),
                                 if (data != null)
@@ -134,8 +163,10 @@ class ObservationsScreen extends StatelessWidget {
                                             await controller.restoreRenderer();
                                           }),
                                     child: Text(
-                                      context.translate(
+                                      context.localized(
                                         "Lokalen Snapshot löschen",
+                                        (l10n) => l10n
+                                            .observationsLokalenSnapshotLoeschen500f4bea,
                                       ),
                                     ),
                                   ),
@@ -144,11 +175,15 @@ class ObservationsScreen extends StatelessWidget {
                             if (busy) const LinearProgressIndicator(),
                             Text(
                               status?.dataState.label ??
-                                  context.translate("Daten nicht verfügbar"),
+                                  context.localized(
+                                    "Daten nicht verfügbar",
+                                    (l10n) => l10n
+                                        .observationsDatenNichtVerfuegbar85f19360,
+                                  ),
                             ),
                             if (data != null)
                               Text(
-                                context.translate(
+                                context.localizedWithArgs(
                                   "Abgerufen: {0}\nZuletzt geprüft: {1}",
                                   [
                                     _date(context, data.fetchedAtUtc),
@@ -158,6 +193,11 @@ class ObservationsScreen extends StatelessWidget {
                                           data.fetchedAtUtc,
                                     ),
                                   ],
+                                  (l10n, value) => l10n
+                                      .observationsAbgerufenZuletztGeprueft118070fc(
+                                        value(0),
+                                        value(1),
+                                      ),
                                 ),
                               ),
                             if (status?.error != null)
@@ -173,38 +213,50 @@ class ObservationsScreen extends StatelessWidget {
                               Text(controller.renderErrors[kind]!),
                             Text(
                               kind == StationKind.meteo
-                                  ? context.translate(
+                                  ? context.localized(
                                       "Quelle: MeteoSchweiz · SwissMetNet · CC BY 4.0. Wind/Böen in km/h; Niederschlag als 10-Minuten-Summe.",
+                                      (l10n) => l10n
+                                          .observationsQuelleMeteoschweizSwissmetnetCcd346cfc9,
                                     )
-                                  : context.translate(
+                                  : context.localized(
                                       "Quelle: BAFU · Hydrologische Beobachtungen. Live ist unkorrigiert; 10-Minuten-Mittel und Freigabestatus bleiben getrennt.",
+                                      (l10n) => l10n
+                                          .observationsQuelleBafuHydrologischeBeobachtungenc7f7e996,
                                     ),
                             ),
                             if (data != null) Text('${data.data['coverage']}'),
                             if (data?.data['incomplete'] == true)
                               Text(
-                                context.translate(
+                                context.localized(
                                   "Unvollständiger Datenauszug; weitere Messwerte können fehlen.",
+                                  (l10n) => l10n
+                                      .observationsUnvollstaendigerDatenauszugWeitereMesswerte5c0b8d49,
                                 ),
                               ),
                             if ((data?.data['unlocated'] as int? ?? 0) > 0)
                               Text(
-                                context.translate(
+                                context.localizedWithArgs(
                                   "{0} Stationen ohne zuordenbare Metadaten.",
                                   [data!.data['unlocated']],
+                                  (l10n, value) => l10n
+                                      .observationsStationenOhneZuordenbareMetadaten7a9052fc(
+                                        value(0),
+                                      ),
                                 ),
                               ),
                             if (data != null && stations.isEmpty)
                               Text(
-                                context.translate(
+                                context.localized(
                                   "Keine verfügbaren Messstationen im gewählten Umfeld. Fehlende Werte bedeuten keine Entwarnung.",
+                                  (l10n) => l10n
+                                      .observationsKeineVerfuegbarenMessstationenImb3c601f8,
                                 ),
                               ),
                             for (final station in stations)
                               ExpansionTile(
                                 title: Text(station.name),
                                 subtitle: Text(
-                                  context.translate(
+                                  context.localizedWithArgs(
                                     "{0} · {1} verfügbare Werte{2}{3}",
                                     [
                                       station.id,
@@ -222,6 +274,13 @@ class ObservationsScreen extends StatelessWidget {
                                           ? " · veraltet"
                                           : "",
                                     ],
+                                    (l10n, value) => l10n
+                                        .observationsVerfuegbareWerte3495e1b4(
+                                          value(0),
+                                          value(1),
+                                          value(2),
+                                          value(3),
+                                        ),
                                   ),
                                 ),
                                 children: [
@@ -239,8 +298,10 @@ class ObservationsScreen extends StatelessWidget {
                                     TextButton(
                                       onPressed: () => _reference(ref),
                                       child: Text(
-                                        context.translate(
+                                        context.localized(
                                           "Offizielle Stationsdetails",
+                                          (l10n) => l10n
+                                              .observationsOffizielleStationsdetails03ee57d0,
                                         ),
                                       ),
                                     ),
@@ -255,8 +316,10 @@ class ObservationsScreen extends StatelessWidget {
                                     ),
                               icon: const Icon(Icons.open_in_new),
                               label: Text(
-                                context.translate(
+                                context.localized(
                                   "Quelle und Produktbeschreibung",
+                                  (l10n) => l10n
+                                      .observationsQuelleUndProduktbeschreibunga056e6fd,
                                 ),
                               ),
                             ),
