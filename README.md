@@ -63,7 +63,7 @@ how to clean up retired documents after applying a changes ZIP.
 | Use routing, navigation and supplementary information layers | [Navigation and OSINT](docs/mobility_osint.md) |
 | Build, test or extend the app | [Contributing](CONTRIBUTING.md), [architecture](docs/architecture.md) and [performance checks](docs/performance.md) |
 
-The app also bundles **Einstellungen → Hilfe** for offline reading.
+The app also bundles **Settings → Help** for offline reading.
 
 ## License
 
