@@ -1,5 +1,23 @@
 # Change summary
 
+## [0.17.2] - 2026-11-18
+
+- Migrate the German and English Flutter UI translations to official gen-l10n
+  ARB catalogs and generated, type-safe accessors. Preserve saved language
+  preferences and compatibility with remaining dynamic translation keys.
+- Record simulator airspeed separately from ground speed, along with route
+  sample heights and timing. Use known segment telemetry in energy analysis;
+  offer conservative estimates for missing inputs only when enabled, and
+  identify modeled values separately from recorded data.
+- Add an optional SIM BAT voltage indicator to the flight HUD. Estimate
+  pack and per-cell voltage from the selected drone and battery profiles,
+  with configurable warning levels and optional modeled voltage sag. Display
+  simulated values explicitly rather than presenting them as real telemetry.
+- Add lightweight 3D models for communication towers, lattice masts and
+  observation towers. Improve tall-obstacle classification and the conditional
+  Säntis tower visualization without altering source obstacle positions,
+  reported heights or existing collision limitations.
+
 ## 2026-11-18
 
 - Include GeoTIFF.js, h5wasm and Windows native component notices. Bundle

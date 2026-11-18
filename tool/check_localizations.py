@@ -16,6 +16,40 @@ DE = ROOT / 'lib/l10n/app_de.arb'
 OUT = ROOT / 'lib/core/localization/legacy_message_lookup.g.dart'
 ARG = re.compile(r'\{arg(\d+)\}')
 
+# `dart format lib test` can reformat generated `.g.dart` files after they have
+# been written by this script. Check their Dart tokens, not byte-for-byte layout.
+# Preserve string literals and comments so actual localization changes fail CI.
+_DART_TOKEN = re.compile(
+    r"""//[^\n]*|/\*.*?\*/|r?\"(?:\\.|[^\"\\])*\"|r?'(?:\\.|[^'\\])*'|[A-Za-z_$][A-Za-z0-9_$]*|\d+(?:\.\d+)?|[^\s]""",
+    re.DOTALL,
+)
+
+
+def dart_tokens(source: str) -> list[str]:
+    """Return Dart tokens, ignoring whitespace and optional trailing commas.
+
+    Dart 3.7+ may insert/remove trailing commas when formatting multiline
+    parameter and argument lists. They are syntactically insignificant here.
+    """
+    raw = [match.group() for match in _DART_TOKEN.finditer(source)]
+    return [
+        token
+        for index, token in enumerate(raw)
+        if not (token == ',' and index + 1 < len(raw) and raw[index + 1] in (')', ']', '}'))
+    ]
+
+
+def first_token_difference(expected: str, actual: str) -> str | None:
+    """Return a compact diagnostic, or None if only formatting differs."""
+    expected_tokens = dart_tokens(expected)
+    actual_tokens = dart_tokens(actual)
+    for index, (wanted, found) in enumerate(zip(expected_tokens, actual_tokens)):
+        if wanted != found:
+            return f'token {index}: expected {wanted[:100]!r}, found {found[:100]!r}'
+    if len(expected_tokens) != len(actual_tokens):
+        return f'token count: expected {len(expected_tokens)}, found {len(actual_tokens)}'
+    return None
+
 def literal(value: str) -> str:
     # Dart double-quoted constant with explicit escaping of interpolation.
     return json.dumps(value, ensure_ascii=False).replace('$', r'\$')
@@ -95,9 +129,15 @@ def main() -> None:
     if args.write:
         OUT.write_text(data, encoding='utf-8')
         print(f'Updated {OUT.relative_to(ROOT)}')
-    elif not OUT.exists() or OUT.read_text(encoding='utf-8') != data:
-        raise SystemExit('Localization bridge is stale; run python tool/check_localizations.py --write')
+    elif not OUT.exists():
+        raise SystemExit('Localization bridge is missing; run python tool/check_localizations.py --write')
     else:
+        current = OUT.read_text(encoding='utf-8')
+        if difference := first_token_difference(data, current):
+            raise SystemExit(
+                'Localization bridge is stale (' + difference + '); '
+                'run python tool/check_localizations.py --write'
+            )
         print('Localization catalogs and compatibility bridge verified')
 
 if __name__ == '__main__':
