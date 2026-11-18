@@ -195,6 +195,11 @@
                 <div id="flight-camera" hidden><label id="flight-camera-tilt-row">Neigung <output id="flight-camera-value">0°</output><input id="flight-camera-angle" aria-label="FPV camera tilt in degrees" type="range" min="0" max="80" step="1" value="0"></label><label>Sichtfeld <output id="flight-camera-fov-value">90°</output><input id="flight-camera-fov" aria-label="FPV horizontal field of view in degrees" type="range" min="50" max="140" step="1" value="90"></label></div>
                 <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
                 <label><input id="flight-show-coordinates" type="checkbox">Koordinaten</label>
+                <label><input id="flight-battery-enabled" type="checkbox">Geschätzte Akkuspannung (SIM)</label>
+                <label><input id="flight-battery-cell" type="checkbox">Zellspannung anzeigen</label>
+                <label>Warnung (V/Zelle) <input id="flight-battery-low" type="number" min="2.9" max="4.3" step="0.05" value="3.5" aria-label="Low battery voltage per cell"></label>
+                <label>Kritisch (V/Zelle) <input id="flight-battery-critical" type="number" min="2.8" max="4.2" step="0.05" value="3.3" aria-label="Critical battery voltage per cell"></label>
+                <output id="flight-battery-error" aria-live="polite"></output>
                 <label><input id="flight-show-touch" type="checkbox" checked>Touch-Steuerung</label>
             </details>
             <details id="flight-graphics-options" name="flight-options-group"><summary>Grafik &amp; Licht</summary>
@@ -234,7 +239,7 @@
         </div>
         <span id="hud-warning" hidden role="status" aria-live="polite"></span>
         <div id="flight-readout" role="group" aria-label="Flight telemetry">
-            <div class="hud-secondary"><span>V <span id="hud-vertical">—</span> m/s</span><span id="hud-throttle-readout">THR <span id="hud-throttle">—</span>%</span><span id="hud-wind-readout" hidden>WIND <span id="hud-wind">—</span></span><button id="hud-live-radio" type="button" hidden>LOS: ?</button></div>
+            <div class="hud-secondary"><span>V <span id="hud-vertical">—</span> m/s</span><span id="hud-throttle-readout">THR <span id="hud-throttle">—</span>%</span><span id="hud-battery-readout" hidden title="SIM · Geschätzte Spannung, keine Akkutelemetrie"><span id="hud-battery-status">SIM BAT</span> <span id="hud-battery-voltage">—</span><span id="hud-battery-voltage-unit"> V</span><span id="hud-battery-cell-readout" hidden> · <span id="hud-battery-cell-voltage">—</span> V/Z</span></span><span id="hud-wind-readout" hidden>WIND <span id="hud-wind">—</span></span><button id="hud-live-radio" type="button" hidden>LOS: ?</button></div>
             <div class="hud-telemetry">
                 <div class="hud-metric"><span class="hud-label">SPEED</span><span class="hud-value"><span id="hud-speed">—</span><small>km/h</small></span></div>
                 <div class="hud-metric" title="Height above terrain at the current position"><span class="hud-label">AGL</span><span class="hud-value"><span id="hud-agl">—</span><small>m</small></span></div>
@@ -252,6 +257,7 @@
     <script src="controller_input.js"></script>
     <script src="navigation_controls.js"></script>
     <script src="ground_navigation.js"></script>
+    <script src="battery_simulation.js"></script>
     <script src="free_flight.js"></script>
     <script src="flight_recording.js"></script>
     <script src="flight_hud.js"></script>

@@ -42,11 +42,13 @@ void main() {
         contains('createBridge'),
       );
       expect(html, contains('src="terrain_service.js"'));
+      expect(html, contains('id="hud-battery-readout"'));
       expect(html, contains('src="map_providers.js"'));
       for (final module in [
         'ground_navigation.js',
         'navigation_controls.js',
         'controller_input.js',
+        'battery_simulation.js',
         'free_flight.js',
         'flight_hud.js',
         'flight_rendering.js',

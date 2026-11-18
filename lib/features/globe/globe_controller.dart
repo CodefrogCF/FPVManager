@@ -1127,6 +1127,16 @@ class GlobeController extends ChangeNotifier {
   SimulationHudStyle? get simulationHudStyle => _simulationHudStyle;
   bool? _simulationShowCoordinates;
   bool? get simulationShowCoordinates => _simulationShowCoordinates;
+  bool? _simulationShowBatteryVoltage, _simulationShowBatteryCellVoltage;
+  bool? get simulationShowBatteryVoltage => _simulationShowBatteryVoltage;
+  bool? get simulationShowBatteryCellVoltage =>
+      _simulationShowBatteryCellVoltage;
+  double? _simulationLowBatteryCellVoltage,
+      _simulationCriticalBatteryCellVoltage;
+  double? get simulationLowBatteryCellVoltage =>
+      _simulationLowBatteryCellVoltage;
+  double? get simulationCriticalBatteryCellVoltage =>
+      _simulationCriticalBatteryCellVoltage;
   ControllerSettings? _simulationController;
   ControllerSettings? get simulationController => _simulationController;
   bool get navigationActive => _simulationActive || _groundViewActive;
@@ -2447,6 +2457,27 @@ class GlobeController extends ChangeNotifier {
         if (hud != null) _simulationHudStyle = hud;
         if (data['showCoordinates'] is bool) {
           _simulationShowCoordinates = data['showCoordinates'] as bool;
+        }
+        if (data['showBatteryVoltage'] is bool) {
+          _simulationShowBatteryVoltage = data['showBatteryVoltage'] as bool;
+        }
+        if (data['showBatteryCellVoltage'] is bool) {
+          _simulationShowBatteryCellVoltage =
+              data['showBatteryCellVoltage'] as bool;
+        }
+        final lowCell = data['lowBatteryCellVoltage'];
+        final criticalCell = data['criticalBatteryCellVoltage'];
+        if (lowCell is num &&
+            lowCell.isFinite &&
+            lowCell >= 2.9 &&
+            lowCell <= 4.3) {
+          _simulationLowBatteryCellVoltage = lowCell.toDouble();
+        }
+        if (criticalCell is num &&
+            criticalCell.isFinite &&
+            criticalCell >= 2.8 &&
+            criticalCell <= 4.2) {
+          _simulationCriticalBatteryCellVoltage = criticalCell.toDouble();
         }
         final controller = ControllerSettings.tryParse(data['controller']);
         if (controller != null) _simulationController = controller;

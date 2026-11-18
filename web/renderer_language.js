@@ -99,6 +99,13 @@
         'Periodic geometric preview, not measured radio quality. Open details for sampling time and coverage.': 'Geometrische Vorschau ohne Messung der Funkqualität. Abfragezeit und Abdeckung stehen in den Details.',
     };
     const english = {
+        'Geschätzte Akkuspannung (SIM)': 'Estimated battery voltage (SIM)',
+        'Zellspannung anzeigen': 'Show cell voltage',
+        'Warnung (V/Zelle)': 'Low warning (V/cell)',
+        'Kritisch (V/Zelle)': 'Critical (V/cell)',
+        'Warnspannung muss höher als kritische Zellspannung sein.': 'Warning voltage must exceed critical voltage per cell.',
+        'SIM · Spannung aus Flugprofil geschätzt, keine echte Telemetrie.': 'SIM · Voltage estimated from flight profile, not real telemetry.',
+        'SIM · Keine Schätzung möglich: Akku- und Drohnenleistungsdaten prüfen.': 'SIM · Estimate unavailable: check battery and drone power profile.',
         'Nach Norden ausrichten': 'Orient north',
         'Standort verfolgen': 'Follow location',
         'Flugeinstellungen': 'Flight settings',

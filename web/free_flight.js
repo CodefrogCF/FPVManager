@@ -1,8 +1,10 @@
 (function(root,factory){
-    const api=factory(typeof module==='object'&&module.exports?require('./controller_input.js'):root.FPVControllerInput);
+    const isNode=typeof module==='object'&&module.exports;
+    const api=factory(isNode?require('./controller_input.js'):root.FPVControllerInput,
+        isNode?require('./battery_simulation.js'):root.FPVBatterySimulation);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -24,6 +26,9 @@
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
             acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',showCoordinates:c.showCoordinates??false,
+            showBatteryVoltage:c.showBatteryVoltage??false,showBatteryCellVoltage:c.showBatteryCellVoltage??false,
+            lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
+            batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
@@ -38,6 +43,12 @@
         if(!['quality','balanced','performance','compatibility'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
         if(!['goggles','betaflight'].includes(p.hudStyle))throw new Error('Unknown flight HUD style');
         if(typeof p.showCoordinates!=='boolean')throw new Error('Invalid HUD coordinate visibility');
+        if(typeof p.showBatteryVoltage!=='boolean'||typeof p.showBatteryCellVoltage!=='boolean')throw new Error('Invalid battery HUD visibility');
+        if(!Number.isFinite(p.lowBatteryCellVoltage)||!Number.isFinite(p.criticalBatteryCellVoltage)||
+            p.criticalBatteryCellVoltage<2.8||p.lowBatteryCellVoltage>4.3||p.lowBatteryCellVoltage<=p.criticalBatteryCellVoltage)
+            throw new Error('Invalid estimated battery voltage thresholds');
+        if(!Number.isFinite(p.batterySagResistanceOhmsPerCell)||p.batterySagResistanceOhmsPerCell<0||p.batterySagResistanceOhmsPerCell>.1)
+            throw new Error('Invalid estimated battery sag');
         return p;
     }
     // Body forward/right/down -> local north/east/down, a right-handed frame.
@@ -60,6 +71,7 @@
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let lastFrameSeconds=1/60;
         let wind={north:0,east:0,up:0},windInfo=null;
+        let battery=null,lastReplaySeconds=null;
         const keys=new Set();
         // Self-centring sticks: Acro uses only the upper half for motor command.
         function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
@@ -70,7 +82,11 @@
             const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
+            showBatteryCellVoltage:config.showBatteryCellVoltage,lowBatteryCellVoltage:config.lowBatteryCellVoltage,
+            criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
+            battery:config.showBatteryVoltage?(battery?.snapshot(config)??{available:false,estimated:true}):null,
+            controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
@@ -84,7 +100,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;lastFrameSeconds=1/60;active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};
+            windInfo=null;wind={north:0,east:0,up:0};battery=null;lastReplaySeconds=null;
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
         }
@@ -100,7 +116,8 @@
                 signal.throwIfAborted();request.signal.throwIfAborted();
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
-                config=next;saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
+                config=next;lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
+                    {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
                 motorThrust=acroThrust(motorCommand());
                 if(prepareGraphics){
@@ -216,6 +233,17 @@
             q=euler(heading,-pitch,0);
             velocity={north:Math.cos(heading)*point.speed*Math.cos(pitch),
                 east:Math.sin(heading)*point.speed*Math.cos(pitch),up:Math.sin(pitch)*point.speed};
+            if(Number.isFinite(point.seconds)&&point.seconds>=0){
+                if(lastReplaySeconds!==null && point.seconds<lastReplaySeconds){
+                    battery=batterySimulation.create(config.batteryProfile,
+                        {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});
+                }else if(battery && lastReplaySeconds!==null){
+                    // Replay time (not wall time) makes 0.25×/4× and pauses equivalent.
+                    // Replay speed is reconstructed ground speed: only a modelling proxy.
+                    battery.tick(Math.min(.5,point.seconds-lastReplaySeconds),point.speed,velocity.up);
+                }
+                lastReplaySeconds=point.seconds;
+            }
             reason=null;pose();return true;
         }
         function playbackEnd(){playback=false;clearKeys();brake();reason=null;pose();}
@@ -258,6 +286,7 @@
             const dt=seconds>.075 ? Math.min(lastFrameSeconds,1/30) : seconds;
             if(seconds<=.075)lastFrameSeconds=seconds;
             const travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
+            // Consume simulated energy only after collision/terrain checks below.
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
             const modeledContact=modeledCollision({...position,height},{...endpoint,height:height+travel.up});
@@ -290,6 +319,8 @@
                 next=p;nextHeight=z;nextGround=h;
             }
             if(next){position=next;height=nextHeight;ground=nextGround;}
+            if(battery){const airspeed=Math.hypot(velocity.north-wind.north,velocity.east-wind.east,velocity.up-wind.up);
+                battery.tick(dt,airspeed,velocity.up);}
             if(contact){brake();reason=waitingForTunnel ?
                 'Tunnel continuation loading: movement paused':
                 'Terrain contact: movement stopped';}else reason=null;
@@ -308,6 +339,11 @@
             hudStyle(style){
                 if(!['goggles','betaflight'].includes(style))throw new Error('Unknown flight HUD style');
                 config={...config,hudStyle:style};if(active){pose();publish();}
+            },
+            batteryHud({enabled,showCell,low,critical}){
+                const next={...config,showBatteryVoltage:enabled,showBatteryCellVoltage:showCell,
+                    lowBatteryCellVoltage:low,criticalBatteryCellVoltage:critical};
+                parameters(next);config=next;if(active){pose();publish();}
             },
             showCoordinates(value){
                 if(typeof value!=='boolean')throw new Error('Invalid HUD coordinate visibility');

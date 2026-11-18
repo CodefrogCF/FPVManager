@@ -991,6 +991,21 @@ const germanMessages = <String, String>{
 };
 
 const englishMessages = <String, String>{
+  'Simulierter Akku (HUD)': 'Simulated battery (HUD)',
+  'Geschätzte Akkuspannung anzeigen': 'Show estimated battery voltage',
+  'SIM: Modellwert, keine echte Akkutelemetrie.':
+      'SIM: model estimate, not real battery telemetry.',
+  'Akkuprofil': 'Battery profile',
+  'Kein Akku ausgewählt': 'No battery selected',
+  'Fehlen im Akku die Startladungsdaten, wird 100 % als editierbare Annahme verwendet. Für eine Spannungsschätzung benötigt das Drohnenprofil Hover- und Cruise-Leistung sowie Cruise-Geschwindigkeit.': 'If starting charge is unknown, 100% is used as an editable assumption. Estimating voltage requires the drone profile to specify hover power, cruise power and cruise speed.',
+  'Startladung (%) · Schätzung': 'Starting charge (%) · Estimate',
+  'Zellspannung zusätzlich anzeigen': 'Show per-cell voltage',
+  'Warnung Zellspannung (V)': 'Low voltage warning (V/cell)',
+  'Kritische Zellspannung (V)': 'Critical voltage (V/cell)',
+  'Optionaler Innenwiderstand je Zelle (Ω; 0 = aus)':
+      'Optional internal resistance per cell (Ω; 0 = off)',
+  'Die niedrige Zellspannung muss höher als die kritische Zellspannung sein.':
+      'Low voltage warning must be above the critical cell voltage.',
   "Kein Online-Nachladen für Grundkarte und Gelände, auch nach Neustart. Live-Daten können weiterhin online sein.": "Base map and terrain stay cache-only after restart. Live data can still use the network.",
   "Kartenbewegung beendet die Verfolgung. Online-Karten können beim Zentrieren und Folgen den Standortbereich erkennen lassen.": "Moving the map stops following. Online tiles can reveal the area when you center or follow.",
   "Bei Routenabweichungen sendet die App Standort und Ziel an FOSSGIS. Der Dienst protokolliert die Anfrage. Im Hintergrund pausiert die Navigation.": "FPVManager sends your location and destination to FOSSGIS when rerouting. FOSSGIS logs the request. Navigation pauses in the background.",

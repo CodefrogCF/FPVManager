@@ -4,6 +4,8 @@ import '../../core/localization/app_localizations.dart';
 
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
+import '../../core/database/repositories/battery_repository.dart';
+import 'simulation_battery_profile.dart';
 import 'simulation_settings.dart';
 import 'controller_settings.dart';
 import 'controller_settings_fields.dart';
@@ -13,6 +15,7 @@ import '../help/guides_screen.dart';
 Future<SimulationSettings?> showSimulationSettings(
   BuildContext context, {
   required DroneRepository repository,
+  BatteryRepository? batteryRepository,
   SimulationSettings initial = const SimulationSettings(),
   required bool hasSelection,
   Widget? windControls,
@@ -23,6 +26,7 @@ Future<SimulationSettings?> showSimulationSettings(
   isScrollControlled: true,
   builder: (_) => _Settings(
     repository: repository,
+    batteryRepository: batteryRepository,
     initial: initial,
     hasSelection: hasSelection,
     windControls: windControls,
@@ -34,6 +38,7 @@ Future<SimulationSettings?> showSimulationSettings(
 class _Settings extends StatefulWidget {
   const _Settings({
     required this.repository,
+    this.batteryRepository,
     required this.initial,
     required this.hasSelection,
     this.windControls,
@@ -41,6 +46,7 @@ class _Settings extends StatefulWidget {
     this.configureOnly = false,
   });
   final DroneRepository repository;
+  final BatteryRepository? batteryRepository;
   final SimulationSettings initial;
   final bool hasSelection;
   final Widget? windControls;
@@ -55,6 +61,18 @@ class _SettingsState extends State<_Settings> {
   late var _sceneTime = widget.initial.sceneTime;
   late final _fields = <String, TextEditingController>{
     'agl': TextEditingController(text: '${widget.initial.agl}'),
+    'batteryCharge': TextEditingController(
+      text: '${widget.initial.batteryProfile?.chargePercent ?? 100}',
+    ),
+    'batteryLow': TextEditingController(
+      text: '${widget.initial.lowBatteryCellVoltage}',
+    ),
+    'batteryCritical': TextEditingController(
+      text: '${widget.initial.criticalBatteryCellVoltage}',
+    ),
+    'batterySag': TextEditingController(
+      text: '${widget.initial.batterySagResistanceOhmsPerCell}',
+    ),
     'cameraTilt': TextEditingController(
       text: '${widget.initial.cameraTiltDegrees}',
     ),
@@ -95,8 +113,13 @@ class _SettingsState extends State<_Settings> {
   final _acroOptions = ExpansibleController();
   final _ratesOptions = ExpansibleController();
   final _cameraOptions = ExpansibleController();
+  final _batteryOptions = ExpansibleController();
   final _assistedOptions = ExpansibleController();
   List<Drone> _drones = [];
+  List<Battery> _batteries = [];
+  int? _batteryId;
+  late bool _showBatteryVoltage = widget.initial.showBatteryVoltage;
+  late bool _showBatteryCellVoltage = widget.initial.showBatteryCellVoltage;
   int? _drone;
   bool _loading = true;
   late SimulationFlightMode _mode = widget.initial.flightMode;
@@ -114,9 +137,24 @@ class _SettingsState extends State<_Settings> {
   Future<void> _load() async {
     try {
       final drones = await widget.repository.getAllDrones();
+      List<Battery> batteries = [];
+      try {
+        batteries =
+            await widget.batteryRepository?.getAllBatteries() ?? <Battery>[];
+      } catch (_) {
+        // Battery HUD is optional; drone settings must remain available.
+      }
       if (!mounted) return;
       setState(() {
         _drones = drones;
+        _batteries = batteries.where((battery) => !battery.isType).toList();
+        _batteryId =
+            _batteries.any(
+              (battery) =>
+                  battery.id == widget.initial.batteryProfile?.batteryId,
+            )
+            ? widget.initial.batteryProfile?.batteryId
+            : null;
         _drone = drones.any((d) => d.id == widget.initial.droneId)
             ? widget.initial.droneId
             : null;
@@ -142,6 +180,7 @@ class _SettingsState extends State<_Settings> {
     _acroOptions.dispose();
     _ratesOptions.dispose();
     _cameraOptions.dispose();
+    _batteryOptions.dispose();
     _assistedOptions.dispose();
     super.dispose();
   }
@@ -249,6 +288,19 @@ class _SettingsState extends State<_Settings> {
 
   Widget _submit(BuildContext context) => FilledButton.icon(
     onPressed: () {
+      if ((read('batteryLow') ?? 0) <= (read('batteryCritical') ?? 0)) {
+        _batteryOptions.expand();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.translate(
+                'Die niedrige Zellspannung muss höher als die kritische Zellspannung sein.',
+              ),
+            ),
+          ),
+        );
+        return;
+      }
       if (!_form.currentState!.validate()) {
         if (_invalid('cameraFov', 50, 140) ||
             (_mode != SimulationFlightMode.gps &&
@@ -290,6 +342,22 @@ class _SettingsState extends State<_Settings> {
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
+          showBatteryVoltage: _showBatteryVoltage,
+          showBatteryCellVoltage: _showBatteryCellVoltage,
+          lowBatteryCellVoltage: read('batteryLow')!,
+          criticalBatteryCellVoltage: read('batteryCritical')!,
+          batterySagResistanceOhmsPerCell: read('batterySag')!,
+          batteryProfile: _batteryId == null
+              ? null
+              : SimulationBatteryProfile.fromProfiles(
+                  battery: _batteries.firstWhere(
+                    (battery) => battery.id == _batteryId,
+                  ),
+                  drone: _drones
+                      .where((drone) => drone.id == _drone)
+                      .firstOrNull,
+                  chargePercent: read('batteryCharge')!,
+                ),
           controller: _controller,
           cameraTiltDegrees: parameter('cameraTilt', 0, 80, 0),
           cameraFovDegrees: parameter('cameraFov', 50, 140, 90),
@@ -485,6 +553,106 @@ class _SettingsState extends State<_Settings> {
                           ),
                         ],
                         controller: _cameraOptions,
+                      ),
+                      _group(
+                        'simulation-battery-options',
+                        'Simulierter Akku (HUD)',
+                        Icons.battery_charging_full,
+                        [
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.translate(
+                                'Geschätzte Akkuspannung anzeigen',
+                              ),
+                            ),
+                            subtitle: Text(
+                              context.translate(
+                                'SIM: Modellwert, keine echte Akkutelemetrie.',
+                              ),
+                            ),
+                            value: _showBatteryVoltage,
+                            onChanged: (value) =>
+                                setState(() => _showBatteryVoltage = value),
+                          ),
+                          DropdownButtonFormField<int>(
+                            key: ValueKey('simulation-battery-$_batteryId'),
+                            initialValue: _batteryId,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: context.translate('Akkuprofil'),
+                            ),
+                            items: [
+                              DropdownMenuItem<int>(
+                                value: null,
+                                child: Text(
+                                  context.translate('Kein Akku ausgewählt'),
+                                ),
+                              ),
+                              for (final battery in _batteries)
+                                DropdownMenuItem(
+                                  value: battery.id,
+                                  child: Text(
+                                    '${battery.name} (${battery.cellCount}S · ${battery.capacityMah} mAh)',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                            onChanged: (id) => setState(() {
+                              _batteryId = id;
+                              final selected = _batteries
+                                  .where((battery) => battery.id == id)
+                                  .firstOrNull;
+                              _fields['batteryCharge']!.text =
+                                  '${selected?.chargePercent ?? 100}';
+                            }),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            context.translate(
+                              'Fehlen im Akku die Startladungsdaten, wird 100 % als editierbare Annahme verwendet. Für eine Spannungsschätzung benötigt das Drohnenprofil Hover- und Cruise-Leistung sowie Cruise-Geschwindigkeit.',
+                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 12),
+                          number(
+                            'batteryCharge',
+                            'Startladung (%) · Schätzung',
+                            0,
+                            100,
+                          ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.translate(
+                                'Zellspannung zusätzlich anzeigen',
+                              ),
+                            ),
+                            value: _showBatteryCellVoltage,
+                            onChanged: (value) =>
+                                setState(() => _showBatteryCellVoltage = value),
+                          ),
+                          number(
+                            'batteryLow',
+                            'Warnung Zellspannung (V)',
+                            2.9,
+                            4.3,
+                          ),
+                          number(
+                            'batteryCritical',
+                            'Kritische Zellspannung (V)',
+                            2.8,
+                            4.2,
+                          ),
+                          number(
+                            'batterySag',
+                            'Optionaler Innenwiderstand je Zelle (Ω; 0 = aus)',
+                            0,
+                            .1,
+                          ),
+                        ],
+                        controller: _batteryOptions,
                       ),
                       _group(
                         'simulation-display-options',

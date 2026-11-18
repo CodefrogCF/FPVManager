@@ -79,6 +79,12 @@
     width:min(620px,calc(100% - 24px));box-sizing:border-box; }
 .hud-secondary { display:flex;justify-content:center;gap:20px;font-size:12px;margin-bottom:8px;color:#e2e5e8; }
 .hud-secondary { flex-wrap:wrap;row-gap:4px; }
+#hud-battery-readout[data-level="low"] { color:#ffe1a0; }
+#hud-battery-readout[data-level="critical"] { color:#ff9b94;font-weight:700; }
+#hud-battery-readout[data-level="unavailable"] { color:#bfc5c3; }
+#flight-battery-low,#flight-battery-critical { width:72px;min-width:0;padding:5px;
+    color:inherit;background:#1e292b;border:1px solid #ffffff65;border-radius:5px; }
+#flight-battery-error { display:block;margin-top:6px;color:#ffe1a0;font-size:12px; }
 #hud-live-radio { pointer-events:auto;border:1px solid #ffffff65;border-radius:5px;background:#10182080;color:#e2e5e8;font:inherit;padding:2px 5px;cursor:pointer; }
 #hud-live-radio[data-state="obstructed"] { color:#ffc48a; }
 #hud-live-radio[data-state="fresnelIntrusion"] { color:#e6c3ff; }

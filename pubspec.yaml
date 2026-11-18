@@ -109,6 +109,7 @@ flutter:
     - web/ground_navigation.js
     - web/navigation_controls.js
     - web/controller_input.js
+    - web/battery_simulation.js
     - web/free_flight.js
     - web/flight_recording.js
     - web/flight_hud.js

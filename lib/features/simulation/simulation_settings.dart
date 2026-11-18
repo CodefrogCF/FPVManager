@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../core/database/fpv_database.dart';
 import 'controller_settings.dart';
+import 'simulation_battery_profile.dart';
 import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
@@ -24,6 +25,12 @@ class SimulationSettings {
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
     this.hudStyle = SimulationHudStyle.goggles,
     this.showCoordinates = false,
+    this.showBatteryVoltage = false,
+    this.showBatteryCellVoltage = false,
+    this.lowBatteryCellVoltage = 3.5,
+    this.criticalBatteryCellVoltage = 3.3,
+    this.batterySagResistanceOhmsPerCell = 0,
+    this.batteryProfile,
     this.controller = const ControllerSettings(),
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
@@ -45,6 +52,10 @@ class SimulationSettings {
   final SimulationGraphicsProfile graphicsProfile;
   final SimulationHudStyle hudStyle;
   final bool showCoordinates;
+  final bool showBatteryVoltage, showBatteryCellVoltage;
+  final double lowBatteryCellVoltage, criticalBatteryCellVoltage;
+  final double batterySagResistanceOhmsPerCell;
+  final SimulationBatteryProfile? batteryProfile;
   final ControllerSettings controller;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
@@ -53,6 +64,11 @@ class SimulationSettings {
     SimulationGraphicsProfile? graphicsProfile,
     SimulationHudStyle? hudStyle,
     bool? showCoordinates,
+    bool? showBatteryVoltage,
+    bool? showBatteryCellVoltage,
+    double? lowBatteryCellVoltage,
+    double? criticalBatteryCellVoltage,
+    double? batterySagResistanceOhmsPerCell,
     ControllerSettings? controller,
     SceneTime? sceneTime,
   }) => SimulationSettings(
@@ -68,6 +84,15 @@ class SimulationSettings {
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
     hudStyle: hudStyle ?? this.hudStyle,
     showCoordinates: showCoordinates ?? this.showCoordinates,
+    showBatteryVoltage: showBatteryVoltage ?? this.showBatteryVoltage,
+    showBatteryCellVoltage:
+        showBatteryCellVoltage ?? this.showBatteryCellVoltage,
+    lowBatteryCellVoltage: lowBatteryCellVoltage ?? this.lowBatteryCellVoltage,
+    criticalBatteryCellVoltage:
+        criticalBatteryCellVoltage ?? this.criticalBatteryCellVoltage,
+    batterySagResistanceOhmsPerCell:
+        batterySagResistanceOhmsPerCell ?? this.batterySagResistanceOhmsPerCell,
+    batteryProfile: batteryProfile,
     controller: controller ?? this.controller,
     sceneTime: sceneTime ?? this.sceneTime,
     acroThrustToWeight: acroThrustToWeight,
@@ -103,6 +128,17 @@ class SimulationSettings {
   void validate() {
     controller.validate();
     sceneTime.validate();
+    batteryProfile?.validate();
+    if (!lowBatteryCellVoltage.isFinite ||
+        !criticalBatteryCellVoltage.isFinite ||
+        criticalBatteryCellVoltage < 2.8 ||
+        lowBatteryCellVoltage > 4.3 ||
+        lowBatteryCellVoltage <= criticalBatteryCellVoltage ||
+        !batterySagResistanceOhmsPerCell.isFinite ||
+        batterySagResistanceOhmsPerCell < 0 ||
+        batterySagResistanceOhmsPerCell > .1) {
+      throw ArgumentError('Invalid battery HUD configuration');
+    }
     for (final entry in [
       (agl, 1.0, 1000.0),
       (maxSpeed, .5, 100.0),
@@ -141,6 +177,12 @@ class SimulationSettings {
       'graphicsProfile': graphicsProfile.name,
       'hudStyle': hudStyle.name,
       'showCoordinates': showCoordinates,
+      'showBatteryVoltage': showBatteryVoltage,
+      'showBatteryCellVoltage': showBatteryCellVoltage,
+      'lowBatteryCellVoltage': lowBatteryCellVoltage,
+      'criticalBatteryCellVoltage': criticalBatteryCellVoltage,
+      'batterySagResistanceOhmsPerCell': batterySagResistanceOhmsPerCell,
+      'batteryProfile': batteryProfile?.toJson(),
       'controller': controller.toJson(),
       'acroThrustToWeight': acroThrustToWeight,
       'acroThrustCurve': acroThrustCurve,

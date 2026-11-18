@@ -599,6 +599,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       context,
       repository: _droneRepository ??=
           widget.droneRepository ?? DroneRepository(_planningDatabase),
+      batteryRepository: _batteryRepository ??=
+          widget.batteryRepository ?? BatteryRepository(_planningDatabase),
       initial: _simulationSettings.withCameraTilt(
         _globeController.simulationCameraTiltDegrees ??
             _simulationSettings.cameraTiltDegrees,
@@ -616,6 +618,18 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         showCoordinates:
             _globeController.simulationShowCoordinates ??
             _simulationSettings.showCoordinates,
+        showBatteryVoltage:
+            _globeController.simulationShowBatteryVoltage ??
+            _simulationSettings.showBatteryVoltage,
+        showBatteryCellVoltage:
+            _globeController.simulationShowBatteryCellVoltage ??
+            _simulationSettings.showBatteryCellVoltage,
+        lowBatteryCellVoltage:
+            _globeController.simulationLowBatteryCellVoltage ??
+            _simulationSettings.lowBatteryCellVoltage,
+        criticalBatteryCellVoltage:
+            _globeController.simulationCriticalBatteryCellVoltage ??
+            _simulationSettings.criticalBatteryCellVoltage,
         controller:
             _globeController.simulationController ??
             _simulationSettings.controller,

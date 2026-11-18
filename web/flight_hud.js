@@ -33,6 +33,9 @@
         const translate=language?.translate??((message,...values)=>
             message.replace(/\{(\d+)\}/g,(match,index)=>index<values.length?String(values[index]):match));
         const wind=doc.getElementById('hud-wind'),windReadout=doc.getElementById('hud-wind-readout');
+        const battery=doc.getElementById('hud-battery-readout'),batteryCell=doc.getElementById('hud-battery-cell-readout');
+        const batteryVoltage=doc.getElementById('hud-battery-voltage'),batteryCellVoltage=doc.getElementById('hud-battery-cell-voltage');
+        const batteryStatus=doc.getElementById('hud-battery-status');
         function text(key,value){if(elements[key].textContent!==value)elements[key].textContent=value;}
         function warning(){text('warning',translate(reason||inputWarning));elements.warning.hidden=!(reason||inputWarning);}
         function update(state,viewHeading){
@@ -43,6 +46,21 @@
             text('distance-unit',t.distanceUnit);
             text('coordinates',t.coordinates);
             elements.coordinates.hidden=state.showCoordinates!==true;
+            if(battery){
+                battery.hidden=state.showBatteryVoltage!==true;
+                if(!battery.hidden){
+                    const reading=state.battery,available=reading?.available===true;
+                    const set=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
+                    set(batteryVoltage,available?number(reading.packVoltageVolts,1):'—');
+                    set(batteryCellVoltage,available?number(reading.cellVoltageVolts,2):'—');
+                    battery.setAttribute('data-level',available?reading.level:'unavailable');
+                    set(batteryStatus,'SIM BAT'+(available&&reading.level==='critical'?' !':available&&reading.level==='low'?' ↓':''));
+                    if(batteryCell)batteryCell.hidden=state.showBatteryCellVoltage!==true;
+                    battery.title=translate(available
+                        ?'SIM · Spannung aus Flugprofil geschätzt, keine echte Telemetrie.'
+                        :'SIM · Keine Schätzung möglich: Akku- und Drohnenleistungsdaten prüfen.');
+                }
+            }
             elements['throttle-readout'].hidden=state.mode==='gps';
             if(wind&&windReadout){windReadout.hidden=!state.wind?.enabled;wind.textContent=state.wind?.available?`${number(state.wind.speedMs)} m/s`:'—';
                 windReadout.title=translate(state.wind?.available?(state.wind.extrapolated?'Nächste Modellschicht konstant fortgesetzt':'Interpolierter Modellwind'):'Wind fehlt, ist abgelaufen oder liegt außerhalb des geladenen Ausschnitts. Physik ohne Wind.');}
