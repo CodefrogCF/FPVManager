@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../../core/database/fpv_database.dart';
 import 'controller_settings.dart';
 import 'signal_hud_settings.dart';
+import 'failsafe_settings.dart';
 import 'simulation_battery_profile.dart';
 import '../../core/models/scene_time.dart';
 
@@ -27,6 +28,7 @@ class SimulationSettings {
     this.hudStyle = SimulationHudStyle.goggles,
     this.showCoordinates = false,
     this.signalHud = const SignalHudSettings(),
+    this.failsafe = const FailsafeSettings(),
     this.showBatteryVoltage = false,
     this.showBatteryCellVoltage = false,
     this.lowBatteryCellVoltage = 3.5,
@@ -55,6 +57,7 @@ class SimulationSettings {
   final SimulationHudStyle hudStyle;
   final bool showCoordinates;
   final SignalHudSettings signalHud;
+  final FailsafeSettings failsafe;
   final bool showBatteryVoltage, showBatteryCellVoltage;
   final double lowBatteryCellVoltage, criticalBatteryCellVoltage;
   final double batterySagResistanceOhmsPerCell;
@@ -68,6 +71,7 @@ class SimulationSettings {
     SimulationHudStyle? hudStyle,
     bool? showCoordinates,
     SignalHudSettings? signalHud,
+    FailsafeSettings? failsafe,
     bool? showBatteryVoltage,
     bool? showBatteryCellVoltage,
     double? lowBatteryCellVoltage,
@@ -89,6 +93,7 @@ class SimulationSettings {
     hudStyle: hudStyle ?? this.hudStyle,
     showCoordinates: showCoordinates ?? this.showCoordinates,
     signalHud: signalHud ?? this.signalHud,
+    failsafe: failsafe ?? this.failsafe,
     showBatteryVoltage: showBatteryVoltage ?? this.showBatteryVoltage,
     showBatteryCellVoltage:
         showBatteryCellVoltage ?? this.showBatteryCellVoltage,
@@ -135,6 +140,7 @@ class SimulationSettings {
     sceneTime.validate();
     batteryProfile?.validate();
     signalHud.validate();
+    failsafe.validate();
     if (!lowBatteryCellVoltage.isFinite ||
         !criticalBatteryCellVoltage.isFinite ||
         criticalBatteryCellVoltage < 2.8 ||
@@ -184,6 +190,7 @@ class SimulationSettings {
       'hudStyle': hudStyle.name,
       'showCoordinates': showCoordinates,
       'signalHud': signalHud.toJson(),
+      'failsafe': failsafe.toJson(),
       'showBatteryVoltage': showBatteryVoltage,
       'showBatteryCellVoltage': showBatteryCellVoltage,
       'lowBatteryCellVoltage': lowBatteryCellVoltage,

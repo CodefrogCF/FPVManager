@@ -167,6 +167,7 @@
     <div id="look-region"><div id="look-stick" hidden role="group" aria-label="Look or attitude joystick"><div id="look-thumb"></div></div></div>
     <div id="navigation-hud" data-style="goggles" hidden aria-label="Flight simulation HUD">
         <span id="hud-mode">SIM</span>
+        <output id="hud-failsafe" hidden aria-live="polite" role="status" data-phase="normal"></output>
         <div id="hud-signal-edge" hidden aria-hidden="true"></div>
         <div id="hud-analog-noise" hidden aria-hidden="true"></div>
         <div id="hud-signal-bars" hidden aria-label="Simulated signal indicators">
@@ -212,6 +213,25 @@
                     <label>Verlust ab <input id="flight-signal-lost" type="number" min="0" max="0.8" step="0.01" value="0.08"></label>
                     <output id="flight-signal-error" aria-live="polite"></output>
                     <small>SIM · Nur modellierte Werte. Geländevorschau ist keine RF-Messung und löst keinen Failsafe aus.</small>
+                </fieldset>
+                <fieldset id="flight-failsafe-settings"><legend>SIM · RC-Failsafe &amp; GPS Rescue</legend>
+                    <label><input id="flight-failsafe-enabled" type="checkbox">Failsafe-Simulation aktivieren</label>
+                    <label>Aktion <select id="flight-failsafe-mode"><option value="hold">Position halten</option><option value="descend">Langsam sinken</option><option value="gpsRescue">GPS Rescue (Rückkehr zum Start)</option></select></label>
+                    <label>RC-Verlust ab <input id="flight-failsafe-loss" type="number" min="0" max="0.5" step="0.01" value="0.08"></label>
+                    <label>Wiederverbindung ab <input id="flight-failsafe-recovery" type="number" min="0.05" max="1" step="0.05" value="0.35"></label>
+                    <label>Verlustdauer (s) <input id="flight-failsafe-delay" type="number" min="0.1" max="30" step="0.1" value="1.5"></label>
+                    <label>Erholungsdauer (s) <input id="flight-failsafe-recovery-delay" type="number" min="0.1" max="30" step="0.1" value="2"></label>
+                    <label>Rückkehrhöhe über Start (m) <input id="flight-failsafe-altitude" type="number" min="5" max="500" step="1" value="50"></label>
+                    <label>Rückkehrtempo (m/s) <input id="flight-failsafe-speed" type="number" min="0.5" max="50" step="0.5" value="8"></label>
+                    <label>Steigrate (m/s) <input id="flight-failsafe-climb" type="number" min="0.2" max="15" step="0.2" value="3"></label>
+                    <label><input id="flight-failsafe-auto" type="checkbox" checked>Bei stabiler Verbindung automatisch wieder übernehmen</label>
+                    <button id="flight-failsafe-resume" type="button" disabled>Manuell übernehmen</button>
+                    <output id="flight-failsafe-error" aria-live="polite"></output>
+                    <details><summary>RC-Verlust zum Testen auslösen (Simulation)</summary>
+                        <label><input id="flight-failsafe-training" type="checkbox">Explizites RC-Testsignal verwenden</label>
+                        <label>RC-Testqualität <input id="flight-failsafe-training-quality" type="range" min="0" max="100" step="1" value="100"><output id="flight-failsafe-training-value">100 %</output></label>
+                        <small>Nur manuelle Simulation. Terrain-Sichtlinie und Video-Störungen lösen niemals den RC-Failsafe aus. Keine reale Funkprognose.</small>
+                    </details>
                 </fieldset>
                 <label><input id="flight-battery-enabled" type="checkbox">Geschätzte Akkuspannung (SIM)</label>
                 <label><input id="flight-battery-cell" type="checkbox">Zellspannung anzeigen</label>
@@ -277,6 +297,7 @@
     <script src="ground_navigation.js"></script>
     <script src="battery_simulation.js"></script>
     <script src="signal_hud.js"></script>
+    <script src="simulated_failsafe.js"></script>
     <script src="free_flight.js"></script>
     <script src="flight_recording.js"></script>
     <script src="flight_hud.js"></script>

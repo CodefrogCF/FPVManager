@@ -6794,4 +6794,14 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String get signalHudLostThreshold => 'Signalverlust – Schwelle';
+
+  @override
+  String get failsafeSimulationTitle => 'Simulierter RC-Failsafe';
+
+  @override
+  String get failsafeSimulationDisclaimer =>
+      'Nur bei explizit simuliertem RC-Verlust. Keine reale RF-Prognose.';
+
+  @override
+  String get failsafeSimulationAction => 'Failsafe-Aktion';
 }

@@ -10733,6 +10733,24 @@ abstract class FpvStrings {
   /// In en, this message translates to:
   /// **'Signal loss threshold'**
   String get signalHudLostThreshold;
+
+  /// Simulation failsafe settings (issue #129).
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated RC failsafe'**
+  String get failsafeSimulationTitle;
+
+  /// Simulation failsafe settings (issue #129).
+  ///
+  /// In en, this message translates to:
+  /// **'Only explicit simulated RC loss can activate it. Not a real RF prediction.'**
+  String get failsafeSimulationDisclaimer;
+
+  /// Simulation failsafe settings (issue #129).
+  ///
+  /// In en, this message translates to:
+  /// **'Failsafe action'**
+  String get failsafeSimulationAction;
 }
 
 class _FpvStringsDelegate extends LocalizationsDelegate<FpvStrings> {

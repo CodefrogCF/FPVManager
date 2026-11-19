@@ -6727,4 +6727,14 @@ class FpvStringsEn extends FpvStrings {
 
   @override
   String get signalHudLostThreshold => 'Signal loss threshold';
+
+  @override
+  String get failsafeSimulationTitle => 'Simulated RC failsafe';
+
+  @override
+  String get failsafeSimulationDisclaimer =>
+      'Only explicit simulated RC loss can activate it. Not a real RF prediction.';
+
+  @override
+  String get failsafeSimulationAction => 'Failsafe action';
 }

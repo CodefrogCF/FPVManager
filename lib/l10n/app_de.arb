@@ -1776,5 +1776,11 @@
   "signalHudLostThreshold": "Signalverlust – Schwelle",
   "@signalHudLostThreshold": {
     "description": "Simulation signal HUD settings (issue #128)."
-  }
+  },
+  "failsafeSimulationTitle": "Simulierter RC-Failsafe",
+  "@failsafeSimulationTitle": {"description": "Simulation failsafe settings (issue #129)."},
+  "failsafeSimulationDisclaimer": "Nur bei explizit simuliertem RC-Verlust. Keine reale RF-Prognose.",
+  "@failsafeSimulationDisclaimer": {"description": "Simulation failsafe settings (issue #129)."},
+  "failsafeSimulationAction": "Failsafe-Aktion",
+  "@failsafeSimulationAction": {"description": "Simulation failsafe settings (issue #129)."}
 }

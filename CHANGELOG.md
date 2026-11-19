@@ -2,6 +2,12 @@
 
 ### [Unreleased] - 2026-11-19
 
+- Add an opt-in, deterministic simulated RC failsafe with hold, descend and
+  illustrative GPS Rescue to the takeoff point. Sustain loss and recovery
+  thresholds with hysteresis, handle unknown/insufficient navigation and battery
+  information, keep manual/video/RC channels separate, and reuse existing
+  flight collision sweeps. Provide simulation-only HUD status, persisted settings
+  and a session-only manual RC test source; no terrain-only RF-loss assertions.
 - Add opt-in simulated video-link warnings to the goggles HUD and separate
   video/RC strength bars in the Betaflight OSD, with optional analog interference.
   Smooth the visuals and persist thresholds/intensity locally. An explicit

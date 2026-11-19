@@ -8,6 +8,7 @@ import '../../core/database/repositories/battery_repository.dart';
 import 'simulation_battery_profile.dart';
 import 'simulation_settings.dart';
 import 'signal_hud_settings.dart';
+import 'failsafe_settings.dart';
 import 'controller_settings.dart';
 import 'controller_settings_fields.dart';
 import '../globe/scene_time_control.dart';
@@ -123,6 +124,8 @@ class _SettingsState extends State<_Settings> {
   late bool _showBatteryVoltage = widget.initial.showBatteryVoltage;
   late bool _showBatteryCellVoltage = widget.initial.showBatteryCellVoltage;
   late SignalHudSettings _signalHud = widget.initial.signalHud;
+  late bool _failsafeEnabled = widget.initial.failsafe.enabled;
+  late String _failsafeMode = widget.initial.failsafe.mode;
   int? _drone;
   bool _loading = true;
   late SimulationFlightMode _mode = widget.initial.flightMode;
@@ -361,6 +364,11 @@ class _SettingsState extends State<_Settings> {
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
           signalHud: _signalHud,
+          failsafe: FailsafeSettings.fromJson({
+            ...widget.initial.failsafe.toJson(),
+            'enabled': _failsafeEnabled,
+            'mode': _failsafeMode,
+          }),
           showBatteryVoltage: _showBatteryVoltage,
           showBatteryCellVoltage: _showBatteryCellVoltage,
           lowBatteryCellVoltage: read('batteryLow')!,
@@ -468,6 +476,53 @@ class _SettingsState extends State<_Settings> {
                                         .simulationStartUnterDerKartenmitted55a2a7c,
                                   ),
                           ),
+                        ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          context.localized(
+                            'Simulierter RC-Failsafe',
+                            (l10n) => l10n.failsafeSimulationTitle,
+                          ),
+                        ),
+                        subtitle: Text(
+                          context.localized(
+                            'Nur bei explizit simuliertem RC-Verlust. Keine reale RF-Prognose.',
+                            (l10n) => l10n.failsafeSimulationDisclaimer,
+                          ),
+                        ),
+                        value: _failsafeEnabled,
+                        onChanged: (value) =>
+                            setState(() => _failsafeEnabled = value),
+                      ),
+                      if (_failsafeEnabled)
+                        DropdownButtonFormField<String>(
+                          initialValue: _failsafeMode,
+                          decoration: InputDecoration(
+                            labelText: context.localized(
+                              'Failsafe-Aktion',
+                              (l10n) => l10n.failsafeSimulationAction,
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'hold',
+                              child: Text('Hold'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'descend',
+                              child: Text('Descend'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'gpsRescue',
+                              child: Text('GPS Rescue'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _failsafeMode = value);
+                            }
+                          },
                         ),
                       DropdownButtonFormField<SimulationFlightMode>(
                         initialValue: _mode,

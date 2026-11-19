@@ -32,151 +32,141 @@ void main() {
     expect(await database.select(database.appSettings).get(), isEmpty);
   });
 
-  test(
-    'save is an atomic snapshot and upsert; reset preserves unrelated keys',
-    () async {
-      await database
-          .into(database.appSettings)
-          .insert(AppSettingsCompanion.insert(key: 'unrelated', value: 'keep'));
-      final queue = StreamIterator(repository.watchPreferences());
-      addTearDown(queue.cancel);
-      expect(await queue.moveNext(), isTrue);
-      expect(queue.current.mapStyle, GlobeMapStyle.satellite);
-      await repository.savePreferences(
-        const UserPreferences(
-          mapStyle: GlobeMapStyle.relief,
-          uasZonesVisible: true,
-          uasZonesFillOpacity: .8,
-          savedSpotsVisible: false,
-          roadsVisible: true,
-          roadsOpacity: .6,
-          avalancheVisible: true,
-          avalancheOpacity: .4,
-          buildings3dVisible: true,
-          vegetation3dVisible: true,
-          structures3dVisible: true,
-          sceneModelCollisionsEnabled: true,
-          structuresOpacity: .65,
-          tunnelRoutesVisible: true,
-          schematicTunnel3dEnabled: true,
-          tunnelRoutesOpacity: .55,
-          tunnelExplorationEnabled: true,
-          realisticLighting: true,
-          navigationBuildings: NavigationEnvironmentMode.disabled,
-          navigationVegetation: NavigationEnvironmentMode.enabled,
-          hazardAreasVisible: true,
-          obstacleModelsVisible: true,
-          obstacleBufferMeters: 75,
-          overlayOrder: [GlobeOverlay.savedSpots, GlobeOverlay.uasZones],
-        ),
-      );
-      expect(await queue.moveNext(), isTrue);
-      expect(queue.current.mapStyle, GlobeMapStyle.relief);
-      expect(queue.current.uasZonesVisible, isTrue);
-      expect(queue.current.uasZonesFillOpacity, .8);
-      expect(queue.current.savedSpotsVisible, isFalse);
-      expect(queue.current.roadsVisible, isTrue);
-      expect(queue.current.roadsOpacity, .6);
-      expect(queue.current.avalancheVisible, true);
-      expect(queue.current.avalancheOpacity, .4);
-      expect(queue.current.buildings3dVisible, isTrue);
-      expect(queue.current.vegetation3dVisible, isTrue);
-      expect(queue.current.structures3dVisible, isTrue);
-      expect(queue.current.sceneModelCollisionsEnabled, isTrue);
-      expect(queue.current.structuresOpacity, .65);
-      expect(queue.current.tunnelRoutesVisible, isTrue);
-      expect(queue.current.schematicTunnel3dEnabled, isTrue);
-      expect(queue.current.tunnelRoutesOpacity, .55);
-      expect(queue.current.tunnelExplorationEnabled, isTrue);
-      expect(queue.current.realisticLighting, isTrue);
-      final reopened = await UserPreferencesRepository(database)
-          .getPreferences();
-      expect(reopened.navigationBuildings, NavigationEnvironmentMode.disabled);
-      expect(reopened.navigationVegetation, NavigationEnvironmentMode.enabled);
-      expect(reopened.structures3dVisible, isTrue);
-      expect(reopened.sceneModelCollisionsEnabled, isTrue);
-      expect(reopened.structuresOpacity, .65);
-      expect(reopened.tunnelRoutesVisible, isTrue);
-      expect(reopened.schematicTunnel3dEnabled, isTrue);
-      expect(reopened.tunnelRoutesOpacity, .55);
-      expect(reopened.tunnelExplorationEnabled, isTrue);
-      expect(queue.current.hazardAreasVisible, isTrue);
-      expect(queue.current.obstacleModelsVisible, isTrue);
-      expect(
-        (await UserPreferencesRepository(
-          database,
-        ).getPreferences()).obstacleModelsVisible,
-        isTrue,
-      );
-      expect(queue.current.obstacleBufferMeters, 75);
-      expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
-      final rows = await database.select(database.appSettings).get();
-      // 32 FPVManager-owned keys, including the signal HUD settings
-      // and the scene model collision setting, plus the unrelated key.
-      expect(rows, hasLength(33));
-      final stored = {for (final row in rows) row.key: row.value};
-      expect(stored['map.scene.structures'], 'true');
-      expect(stored['map.scene.modelCollisions'], 'true');
-      expect(stored['map.scene.structures.opacity'], '0.65');
-      expect(stored['map.scene.tunnelRoutes'], 'true');
-      expect(stored['map.scene.schematicTunnels3d'], 'true');
-      expect(stored['map.scene.tunnelRoutes.opacity'], '0.55');
-      expect(stored['map.scene.tunnelExploration'], 'true');
-      expect(
-        rows.singleWhere((row) => row.key == 'map.outdoor.v1').value,
-        '{}',
-      );
-      expect(
-        rows
-            .where((row) => row.key != 'unrelated')
-            .map((row) => row.updatedAt)
-            .toSet(),
-        hasLength(1),
-      );
-      await repository.savePreferences(
-        const UserPreferences(
-          mapStyle: GlobeMapStyle.topographic,
-          uasZonesFillOpacity: 0,
-        ),
-      );
-      expect(
-        (await repository.getPreferences()).mapStyle,
-        GlobeMapStyle.topographic,
-      );
-      expect(await database.select(database.appSettings).get(), hasLength(33));
-      final resetToDefaults = await repository.getPreferences();
-      expect(resetToDefaults.structures3dVisible, isFalse);
-      expect(resetToDefaults.sceneModelCollisionsEnabled, isFalse);
-      expect(resetToDefaults.structuresOpacity, 1.0);
-      expect(resetToDefaults.tunnelRoutesVisible, isFalse);
-      expect(resetToDefaults.schematicTunnel3dEnabled, isFalse);
-      expect(resetToDefaults.tunnelRoutesOpacity, .85);
-      expect(resetToDefaults.tunnelExplorationEnabled, isFalse);
-      await repository.resetPreferences();
-      expect(
-        (await repository.getPreferences()).obstacleModelsVisible,
-        isFalse,
-      );
-      expect(
-        (await repository.getPreferences()).mapStyle,
-        GlobeMapStyle.satellite,
-      );
-      expect((await repository.getPreferences()).structures3dVisible, isFalse);
-      expect(
-        (await repository.getPreferences()).sceneModelCollisionsEnabled,
-        isFalse,
-      );
-      expect((await repository.getPreferences()).tunnelRoutesVisible, isFalse);
-      expect(
-        (await repository.getPreferences()).tunnelExplorationEnabled,
-        isFalse,
-      );
-      expect(
-        (await database.select(database.appSettings).get()).single.key,
-        'unrelated',
-      );
-    },
-  );
+  test('save is an atomic snapshot and upsert; reset preserves unrelated keys', () async {
+    await database
+        .into(database.appSettings)
+        .insert(AppSettingsCompanion.insert(key: 'unrelated', value: 'keep'));
+    final queue = StreamIterator(repository.watchPreferences());
+    addTearDown(queue.cancel);
+    expect(await queue.moveNext(), isTrue);
+    expect(queue.current.mapStyle, GlobeMapStyle.satellite);
+    await repository.savePreferences(
+      const UserPreferences(
+        mapStyle: GlobeMapStyle.relief,
+        uasZonesVisible: true,
+        uasZonesFillOpacity: .8,
+        savedSpotsVisible: false,
+        roadsVisible: true,
+        roadsOpacity: .6,
+        avalancheVisible: true,
+        avalancheOpacity: .4,
+        buildings3dVisible: true,
+        vegetation3dVisible: true,
+        structures3dVisible: true,
+        sceneModelCollisionsEnabled: true,
+        structuresOpacity: .65,
+        tunnelRoutesVisible: true,
+        schematicTunnel3dEnabled: true,
+        tunnelRoutesOpacity: .55,
+        tunnelExplorationEnabled: true,
+        realisticLighting: true,
+        navigationBuildings: NavigationEnvironmentMode.disabled,
+        navigationVegetation: NavigationEnvironmentMode.enabled,
+        hazardAreasVisible: true,
+        obstacleModelsVisible: true,
+        obstacleBufferMeters: 75,
+        overlayOrder: [GlobeOverlay.savedSpots, GlobeOverlay.uasZones],
+      ),
+    );
+    expect(await queue.moveNext(), isTrue);
+    expect(queue.current.mapStyle, GlobeMapStyle.relief);
+    expect(queue.current.uasZonesVisible, isTrue);
+    expect(queue.current.uasZonesFillOpacity, .8);
+    expect(queue.current.savedSpotsVisible, isFalse);
+    expect(queue.current.roadsVisible, isTrue);
+    expect(queue.current.roadsOpacity, .6);
+    expect(queue.current.avalancheVisible, true);
+    expect(queue.current.avalancheOpacity, .4);
+    expect(queue.current.buildings3dVisible, isTrue);
+    expect(queue.current.vegetation3dVisible, isTrue);
+    expect(queue.current.structures3dVisible, isTrue);
+    expect(queue.current.sceneModelCollisionsEnabled, isTrue);
+    expect(queue.current.structuresOpacity, .65);
+    expect(queue.current.tunnelRoutesVisible, isTrue);
+    expect(queue.current.schematicTunnel3dEnabled, isTrue);
+    expect(queue.current.tunnelRoutesOpacity, .55);
+    expect(queue.current.tunnelExplorationEnabled, isTrue);
+    expect(queue.current.realisticLighting, isTrue);
+    final reopened = await UserPreferencesRepository(database).getPreferences();
+    expect(reopened.navigationBuildings, NavigationEnvironmentMode.disabled);
+    expect(reopened.navigationVegetation, NavigationEnvironmentMode.enabled);
+    expect(reopened.structures3dVisible, isTrue);
+    expect(reopened.sceneModelCollisionsEnabled, isTrue);
+    expect(reopened.structuresOpacity, .65);
+    expect(reopened.tunnelRoutesVisible, isTrue);
+    expect(reopened.schematicTunnel3dEnabled, isTrue);
+    expect(reopened.tunnelRoutesOpacity, .55);
+    expect(reopened.tunnelExplorationEnabled, isTrue);
+    expect(queue.current.hazardAreasVisible, isTrue);
+    expect(queue.current.obstacleModelsVisible, isTrue);
+    expect(
+      (await UserPreferencesRepository(
+        database,
+      ).getPreferences()).obstacleModelsVisible,
+      isTrue,
+    );
+    expect(queue.current.obstacleBufferMeters, 75);
+    expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
+    final rows = await database.select(database.appSettings).get();
+    // 33 FPVManager-owned keys, including the failsafe and signal HUD settings
+    // and the scene model collision setting, plus the unrelated key.
+    expect(rows, hasLength(34));
+    final stored = {for (final row in rows) row.key: row.value};
+    expect(stored['map.scene.structures'], 'true');
+    expect(stored['map.scene.modelCollisions'], 'true');
+    expect(stored['map.scene.structures.opacity'], '0.65');
+    expect(stored['map.scene.tunnelRoutes'], 'true');
+    expect(stored['map.scene.schematicTunnels3d'], 'true');
+    expect(stored['map.scene.tunnelRoutes.opacity'], '0.55');
+    expect(stored['map.scene.tunnelExploration'], 'true');
+    expect(rows.singleWhere((row) => row.key == 'map.outdoor.v1').value, '{}');
+    expect(
+      rows
+          .where((row) => row.key != 'unrelated')
+          .map((row) => row.updatedAt)
+          .toSet(),
+      hasLength(1),
+    );
+    await repository.savePreferences(
+      const UserPreferences(
+        mapStyle: GlobeMapStyle.topographic,
+        uasZonesFillOpacity: 0,
+      ),
+    );
+    expect(
+      (await repository.getPreferences()).mapStyle,
+      GlobeMapStyle.topographic,
+    );
+    expect(await database.select(database.appSettings).get(), hasLength(34));
+    final resetToDefaults = await repository.getPreferences();
+    expect(resetToDefaults.structures3dVisible, isFalse);
+    expect(resetToDefaults.sceneModelCollisionsEnabled, isFalse);
+    expect(resetToDefaults.structuresOpacity, 1.0);
+    expect(resetToDefaults.tunnelRoutesVisible, isFalse);
+    expect(resetToDefaults.schematicTunnel3dEnabled, isFalse);
+    expect(resetToDefaults.tunnelRoutesOpacity, .85);
+    expect(resetToDefaults.tunnelExplorationEnabled, isFalse);
+    await repository.resetPreferences();
+    expect((await repository.getPreferences()).obstacleModelsVisible, isFalse);
+    expect(
+      (await repository.getPreferences()).mapStyle,
+      GlobeMapStyle.satellite,
+    );
+    expect((await repository.getPreferences()).structures3dVisible, isFalse);
+    expect(
+      (await repository.getPreferences()).sceneModelCollisionsEnabled,
+      isFalse,
+    );
+    expect((await repository.getPreferences()).tunnelRoutesVisible, isFalse);
+    expect(
+      (await repository.getPreferences()).tunnelExplorationEnabled,
+      isFalse,
+    );
+    expect(
+      (await database.select(database.appSettings).get()).single.key,
+      'unrelated',
+    );
+  });
 
   test('invalid opacity cannot overwrite saved preferences', () async {
     await repository.savePreferences(

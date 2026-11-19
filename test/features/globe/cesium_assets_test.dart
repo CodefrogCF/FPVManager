@@ -60,6 +60,7 @@ void main() {
         'navigation_controls.js',
         'controller_input.js',
         'battery_simulation.js',
+        'simulated_failsafe.js',
         'free_flight.js',
         'flight_hud.js',
         'signal_hud.js',

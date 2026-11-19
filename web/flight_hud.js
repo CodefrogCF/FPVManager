@@ -39,12 +39,22 @@
         const battery=doc.getElementById('hud-battery-readout'),batteryCell=doc.getElementById('hud-battery-cell-readout');
         const batteryVoltage=doc.getElementById('hud-battery-voltage'),batteryCellVoltage=doc.getElementById('hud-battery-cell-voltage');
         const batteryStatus=doc.getElementById('hud-battery-status');
+        const failsafeStatus=doc.getElementById('hud-failsafe');
         function text(key,value){if(elements[key].textContent!==value)elements[key].textContent=value;}
         function warning(){text('warning',translate(reason||inputWarning));elements.warning.hidden=!(reason||inputWarning);}
         function update(state,viewHeading,assessment){
             if(lastFlightId!==state.flightId){signalDisplay.reset();lastFlightId=state.flightId;}
             lastState=state;lastHeading=viewHeading;lastAssessment=assessment;
             signalDisplay.update(state,assessment);
+            if(failsafeStatus){const fs=state.failsafe??{phase:'normal'};
+                const labels={pending:'SIM RC · LOSS PENDING',hold:'SIM FAILSAFE · HOLD',
+                    descend:'SIM FAILSAFE · DESCEND',climb:'SIM GPS RESCUE · CLIMB',
+                    return:'SIM GPS RESCUE · RETURN',arrived:'SIM GPS RESCUE · HOME',
+                    unavailable:'SIM RESCUE UNAVAILABLE',awaitingManual:'SIM RC RESTORED · TAKE CONTROL'};
+                failsafeStatus.hidden=!fs.enabled||!labels[fs.phase];
+                if(failsafeStatus.dataset)failsafeStatus.dataset.phase=fs.recovering?'recovering':fs.phase;
+                if(!failsafeStatus.hidden)failsafeStatus.textContent=labels[fs.phase]+(fs.recovering?' · RC RECOVERING':'')+(fs.reason?` · ${fs.reason}`:'');
+            }
             const t=telemetry(state,viewHeading),next=state.hudStyle==='betaflight'?'betaflight':'goggles';
             if(style!==next){style=next;hud.setAttribute('data-style',style);}
             for(const key of ['speed','agl','height','distance','vertical','throttle'])text(key,t[key]);

@@ -18,8 +18,13 @@
             value&&typeof value==='object'&&Number.isFinite(value.quality)&&value.quality>=0&&value.quality<=1&&
             ['rfModel','estimatedModel'].includes(value.source));
         const unknownAssessment=Object.freeze({visibility:'unknown',source:'unavailable',confidence:'unavailable',controlLink:'unknown',videoLink:'unknown'});
-        let currentAssessment=unknownAssessment;
-        function assessment(){return currentAssessment;}
+        let currentAssessment=unknownAssessment,trainingRc=null;
+        function assessment(){return trainingRc===null?currentAssessment:Object.freeze({...currentAssessment,
+            controlLink:Object.freeze({quality:trainingRc,source:'estimatedModel',detail:'manualTraining'})});}
+        function setTrainingRc(value){
+            if(value!==null&&(!Number.isFinite(value)||value<0||value>1))throw Error('Invalid training RC quality');
+            trainingRc=value;onAssessmentChange();
+        }
         function updateLabels(){
             badge.textContent=translate(names[badge.dataset.state]??names.unknown);
             badge.title=translate('Periodic geometric preview, not measured radio quality. Open details for sampling time and coverage.');
@@ -109,7 +114,7 @@
         const settings=()=>emit('flight-radio-settings-request');
         badge.addEventListener('click',settings);doc.getElementById('configure-flight-radio').addEventListener('click',settings);
         toggle.addEventListener('change',()=>emit('flight-radio-toggle',{enabled:toggle.checked}));
-        return {monitor,observe,sample,set,station,assessment,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();drawStation(null);},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
+        return {monitor,observe,sample,set,station,assessment,setTrainingRc,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();drawStation(null);},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
     }
     return {create};
 });

@@ -8956,5 +8956,11 @@
   "signalHudLostThreshold": "Signal loss threshold",
   "@signalHudLostThreshold": {
     "description": "Simulation signal HUD settings (issue #128)."
-  }
+  },
+  "failsafeSimulationTitle": "Simulated RC failsafe",
+  "@failsafeSimulationTitle": {"description": "Simulation failsafe settings (issue #129)."},
+  "failsafeSimulationDisclaimer": "Only explicit simulated RC loss can activate it. Not a real RF prediction.",
+  "@failsafeSimulationDisclaimer": {"description": "Simulation failsafe settings (issue #129)."},
+  "failsafeSimulationAction": "Failsafe action",
+  "@failsafeSimulationAction": {"description": "Simulation failsafe settings (issue #129)."}
 }

@@ -1066,7 +1066,8 @@ function postToFlutter(message) {
         const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
         const flightHud=FPVFlightHud.create(document,rendererLanguage),device=document.getElementById('navigation-device');
         liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,language:rendererLanguage,
-            onAssessmentChange:()=>{if(flyer?.active)flightHud.update(flyer.status(),viewer.camera.heading,liveRadio.assessment());},
+            onAssessmentChange:()=>{if(flyer?.active){flyer.linkAssessment(liveRadio.assessment());
+                flightHud.update(flyer.status(),viewer.camera.heading,liveRadio.assessment());}},
             layer:FPVSignalAnalysis.createLayer(Cesium,viewer,{name:'Simulated radio link'})});
         flightRecording=FPVFlightRecording.create({emit:sendToFlutter,getState:()=>flyer.status()});
         flightRecording.bind(document,rendererLanguage);
@@ -1096,6 +1097,30 @@ function postToFlutter(message) {
             catch(error){signalError.textContent=translate(error.message);}
         }
         for(const input of Object.values(signalElements))input.addEventListener('change',updateSignalOptions);
+        const failsafeFields={enabled:'flight-failsafe-enabled',mode:'flight-failsafe-mode',
+            lossThreshold:'flight-failsafe-loss',recoveryThreshold:'flight-failsafe-recovery',
+            activationDelaySeconds:'flight-failsafe-delay',recoveryDelaySeconds:'flight-failsafe-recovery-delay',
+            rescueAltitudeMeters:'flight-failsafe-altitude',returnSpeedMetersPerSecond:'flight-failsafe-speed',
+            climbSpeedMetersPerSecond:'flight-failsafe-climb',autoRecover:'flight-failsafe-auto'};
+        const failsafeElements=Object.fromEntries(Object.entries(failsafeFields).map(([key,id])=>[key,document.getElementById(id)]));
+        const failsafeError=document.getElementById('flight-failsafe-error'),
+            failsafeResume=document.getElementById('flight-failsafe-resume'),
+            failsafeTraining=document.getElementById('flight-failsafe-training'),
+            failsafeTrainingQuality=document.getElementById('flight-failsafe-training-quality'),
+            failsafeTrainingValue=document.getElementById('flight-failsafe-training-value');
+        function syncFailsafeOptions(value){for(const [key,node] of Object.entries(failsafeElements))
+            if(node.type==='checkbox')node.checked=value[key]===true;else node.value=String(value[key]);}
+        function updateFailsafeOptions(){const values={};for(const [key,node] of Object.entries(failsafeElements))
+            values[key]=node.type==='checkbox'?node.checked:node.tagName==='SELECT'?node.value:Number(node.value);
+            try{FPVSimulatedFailsafe.configuration(values);failsafeError.textContent='';flyer.failsafeSettings(values);}
+            catch(error){failsafeError.textContent=translate(error.message);}}
+        for(const node of Object.values(failsafeElements))node.addEventListener('change',updateFailsafeOptions);
+        function trainingSignal(){const quality=Number(failsafeTrainingQuality.value)/100;
+            failsafeTrainingValue.textContent=`${Math.round(quality*100)} %`;
+            liveRadio.setTrainingRc(failsafeTraining.checked?quality:null);}
+        failsafeTraining.addEventListener('change',trainingSignal);
+        failsafeTrainingQuality.addEventListener('input',trainingSignal);
+        failsafeResume.addEventListener('click',()=>flyer.resumeAfterFailsafe());
         const coordinateToggle=document.getElementById('flight-show-coordinates');
         const cameraButton=document.getElementById('camera-flight'),cameraPanel=document.getElementById('flight-camera');
         const cameraSlider=document.getElementById('flight-camera-angle'),cameraValue=document.getElementById('flight-camera-value');
@@ -1174,7 +1199,8 @@ function postToFlutter(message) {
                 if(!state.active&&!state.pending&&tunnelVolumes?.flight)tunnelVolumes.stop();
                 if(entering)applyFlightTime(requestedFlightTime??undefined);
                 else if(!state.active)sceneEnvironment.setTime({scope:'flight',enabled:false});
-                if(!state.active)windLayer.navigation(null);
+                if(!state.active){windLayer.navigation(null);
+                    failsafeTraining.checked=false;liveRadio.setTrainingRc(null);}
             }
             groundPanel.hidden=!state.active||!touchControlsVisible; flightButtons.hidden=state.mode!=='gps'||!state.active||!touchControlsVisible;
             groundPanel.setAttribute?.('data-mode',state.mode==='gps'?'gps':mode);
@@ -1182,7 +1208,8 @@ function postToFlutter(message) {
             hud.hidden=!flying; info.hidden=flying;
             if(!flying){settingsPanel.hidden=true;settingsButton.setAttribute('aria-expanded','false');}
             else {hudSelect.value=state.hudStyle;coordinateToggle.checked=state.showCoordinates===true;
-                syncSignalOptions(state.signalHud);
+                syncSignalOptions(state.signalHud);syncFailsafeOptions(state.failsafeSettings);
+                failsafeResume.disabled=state.failsafe?.phase!=='awaitingManual';
                 batteryToggle.checked=state.showBatteryVoltage===true;
                 batteryCellToggle.checked=state.showBatteryCellVoltage===true;
                 batteryLow.value=String(state.lowBatteryCellVoltage);
@@ -1205,7 +1232,7 @@ function postToFlutter(message) {
                 ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,cameraFovDegrees:state.cameraFovDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,
                 showBatteryVoltage:state.showBatteryVoltage,showBatteryCellVoltage:state.showBatteryCellVoltage,
                 lowBatteryCellVoltage:state.lowBatteryCellVoltage,criticalBatteryCellVoltage:state.criticalBatteryCellVoltage,
-                signalHud:state.signalHud,
+                signalHud:state.signalHud,failsafe:state.failsafeSettings,
                 controller:state.controller}:{})});
         }
         walker=FPVGroundNavigation.createWalker({...cameraAdapter,
@@ -1234,7 +1261,8 @@ function postToFlutter(message) {
                 const target=tunnelVolumes?.flightCoverageTarget(point);
                 if(target)void tunnels?.prefetchFlight(target).catch(()=>{});
                 flightRecording.observe(point);
-                liveRadio.observe(point);
+                liveRadio.observe(point);flyer.linkAssessment(liveRadio.assessment());
+                failsafeResume.disabled=point.failsafe?.phase!=='awaitingManual';
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
                 flightHud.update(point,viewer.camera.heading,liveRadio.assessment());
             },onState:state=>modeState('flight',state)});

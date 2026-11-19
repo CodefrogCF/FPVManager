@@ -33,6 +33,7 @@ import 'globe_location_controller.dart';
 import '../mobility/navigation_location.dart';
 import '../simulation/simulation_settings.dart';
 import '../simulation/signal_hud_settings.dart';
+import '../simulation/failsafe_settings.dart';
 import '../simulation/controller_settings.dart';
 import '../simulation/flight_recording.dart';
 import '../simulation/route_playback.dart';
@@ -1126,6 +1127,12 @@ class GlobeController extends ChangeNotifier {
       _simulationGraphicsProfile;
   SimulationHudStyle? _simulationHudStyle;
   SimulationHudStyle? get simulationHudStyle => _simulationHudStyle;
+  FailsafeSettings get simulationFailsafe => _preferences.failsafe;
+  Future<void> setSimulationFailsafe(FailsafeSettings value) async {
+    value.validate();
+    await _savePreferences(_preferences.copyWith(failsafe: value));
+  }
+
   SignalHudSettings get simulationSignalHud => _preferences.signalHud;
   Future<void> setSimulationSignalHud(SignalHudSettings value) async {
     value.validate();
@@ -2464,6 +2471,18 @@ class GlobeController extends ChangeNotifier {
             .where((p) => p.name == data['hudStyle'])
             .firstOrNull;
         if (hud != null) _simulationHudStyle = hud;
+        final rawFailsafe = data['failsafe'];
+        if (rawFailsafe is Map<String, dynamic>) {
+          try {
+            final next = FailsafeSettings.fromJson(rawFailsafe);
+            if (jsonEncode(next.toJson()) !=
+                jsonEncode(_preferences.failsafe.toJson())) {
+              unawaited(setSimulationFailsafe(next).catchError((Object _) {}));
+            }
+          } catch (_) {
+            // Invalid WebView input cannot overwrite user preferences.
+          }
+        }
         final rawSignalHud = data['signalHud'];
         if (rawSignalHud is Map<String, dynamic>) {
           try {

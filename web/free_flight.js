@@ -2,10 +2,11 @@
     const isNode=typeof module==='object'&&module.exports;
     const api=factory(isNode?require('./controller_input.js'):root.FPVControllerInput,
         isNode?require('./battery_simulation.js'):root.FPVBatterySimulation,
-        isNode?require('./signal_hud.js'):root.FPVSignalHud);
+        isNode?require('./signal_hud.js'):root.FPVSignalHud,
+        isNode?require('./simulated_failsafe.js'):root.FPVSimulatedFailsafe);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -28,7 +29,7 @@
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
             acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',showCoordinates:c.showCoordinates??false,
             showBatteryVoltage:c.showBatteryVoltage??false,showBatteryCellVoltage:c.showBatteryCellVoltage??false,
-            signalHud:signalHud.settings(c.signalHud??{}),
+            signalHud:signalHud.settings(c.signalHud??{}),failsafe:failsafeModule.configuration(c.failsafe??{}),
             lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
             batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
@@ -73,7 +74,8 @@
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let lastFrameSeconds=1/60;
         let wind={north:0,east:0,up:0},windInfo=null;
-        let battery=null,lastReplaySeconds=null;
+        let battery=null,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
+        const failsafe=failsafeModule.create();
         const keys=new Set();
         // Self-centring sticks: Acro uses only the upper half for motor command.
         function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
@@ -85,7 +87,8 @@
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
         function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
-            showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},lowBatteryCellVoltage:config.lowBatteryCellVoltage,
+            showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
+            failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
             battery:config.showBatteryVoltage?(battery?.snapshot(config)??{available:false,estimated:true}):null,
             controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
@@ -102,7 +105,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;lastFrameSeconds=1/60;active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};battery=null;lastReplaySeconds=null;
+            windInfo=null;wind={north:0,east:0,up:0};battery=null;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
         }
@@ -118,7 +121,7 @@
                 signal.throwIfAborted();request.signal.throwIfAborted();
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
-                config=next;lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
+                config=next;failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
                     {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
                 motorThrust=acroThrust(motorCommand());
@@ -148,6 +151,49 @@
             const e=response(velocity.east,airE+wind.east);
             const z=response(velocity.up,up*config.climbSpeed);
             velocity={north:n.v,east:e.v,up:z.v};return {north:n.d,east:e.d,up:z.d};
+        }
+        // Approximate GPS-assisted autonomous velocity control. It passes through
+        // the SAME segment collision and terrain sweep as manual flight.
+        function automatedStep(seconds,state){
+            const fs=config.failsafe;
+            let targetNorth=0,targetEast=0,targetUp=0;
+            if(['climb','return','arrived'].includes(state.phase)&&position&&spawn&&Number.isFinite(homeHeight)){
+                const meters=distance(position,spawn),altitude=homeHeight+fs.rescueAltitudeMeters;
+                if(state.phase==='climb'){
+                    targetUp=clamp((altitude-height)*.6,0,Math.min(fs.climbSpeedMetersPerSecond,config.climbSpeed));
+                }else if(state.phase==='return'&&meters>3){
+                    const speed=Math.min(fs.returnSpeedMetersPerSecond,config.maxSpeed,meters*.8);
+                    const direction=bearing(position,spawn);
+                    targetNorth=Math.cos(direction)*speed;targetEast=Math.sin(direction)*speed;
+                    targetUp=clamp((altitude-height)*.4,-config.climbSpeed,config.climbSpeed);
+                    const angle=Math.atan2(Math.sin(direction-heading),Math.cos(direction-heading));
+                    heading=wrap(heading+clamp(angle,-1.5*seconds,1.5*seconds));
+                }
+            }else if(state.phase==='descend')targetUp=-Math.min(1,config.climbSpeed);
+            // Use normal deceleration/acceleration and the current wind model,
+            // with no unbounded jump when entering or leaving rescue.
+            const rate=(key,target)=>{
+                const current=velocity[key],speed=key==='up'?config.climbSpeed:config.maxSpeed;
+                const acceleration=target===0?config.deceleration:config.acceleration;
+                const alpha=1-Math.exp(-acceleration*seconds/Math.max(.2,speed));
+                const next=current+(target-current)*alpha;
+                velocity[key]=next;
+                return (current+next)*.5*seconds;
+            };
+            // Approximate GPS wind compensation; uncertainty remains documented.
+            const travel={north:rate('north',targetNorth),east:rate('east',targetEast),up:rate('up',targetUp)};
+            pitch+=(0-pitch)*Math.min(1,seconds*4);roll+=(0-roll)*Math.min(1,seconds*4);
+            q=euler(heading,pitch,roll);
+            return travel;
+        }
+        function insufficientRescueBattery(){
+            if(!battery||!config.batteryProfile)return false; // unknown is not proof of shortage
+            const p=config.batteryProfile,s=battery.snapshot(),capacity=p.energyWh??(p.nominalVoltageVolts*p.capacityMah/1000);
+            if(!Number.isFinite(capacity)||!Number.isFinite(s.remainingPercent))return false;
+            const neededSeconds=(spawn&&position?distance(spawn,position)/Math.max(.5,Math.min(config.maxSpeed,config.failsafe.returnSpeedMetersPerSecond)):0)+
+                Math.max(0,(homeHeight??height)+config.failsafe.rescueAltitudeMeters-height)/Math.max(.2,config.failsafe.climbSpeedMetersPerSecond);
+            const watts=Math.max(p.hoverPowerWatts??0,p.cruisePowerWatts??0);
+            return s.remainingPercent<=3||watts>0&&capacity*s.remainingPercent/100 < 1.3*watts*neededSeconds/3600;
         }
         // Angle: 50° tilt limit/self-level. Acro: configurable body rates, no leveling.
         // Angle retains its centred hover aid. Acro throttle is a motor command
@@ -223,6 +269,7 @@
                !valid(point)||!Number.isFinite(point.height)||
                !Number.isFinite(point.heading)||!Number.isFinite(point.pitch)||
                !Number.isFinite(point.speed))throw Error('Invalid replay pose');
+            failsafe.reset();wasFailsafeControlled=false;
             if(playback && position && modeledCollision({...position,height},
                 {latitude:point.latitude,longitude:point.longitude,height:point.height})) {
                 clearKeys();brake();reason='Simulated infrastructure model contact; replay paused';
@@ -248,7 +295,7 @@
             }
             reason=null;pose();return true;
         }
-        function playbackEnd(){playback=false;clearKeys();brake();reason=null;pose();}
+        function playbackEnd(){failsafe.reset();wasFailsafeControlled=false;playback=false;clearKeys();brake();reason=null;pose();}
         // An explicit user action enters validated SIMULATION-ONLY cross sections.
         // The caller verifies the generated model and owns terrain clipping.
         function enterTunnel(point){
@@ -287,7 +334,11 @@
             // backlog. The resumed step remains no larger than a 30 Hz frame.
             const dt=seconds>.075 ? Math.min(lastFrameSeconds,1/30) : seconds;
             if(seconds<=.075)lastFrameSeconds=seconds;
-            const travel=config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
+            const fs=failsafe.step(dt,linkAssessment,{playback,position,home:spawn,height,homeHeight,
+                distanceToHome:spawn&&position?distance(spawn,position):null,batteryInsufficient:insufficientRescueBattery()});
+            const controlled=fs.active;
+            if(controlled&&!wasFailsafeControlled)clearKeys();wasFailsafeControlled=controlled;
+            const travel=controlled?automatedStep(dt,fs):config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
             // Consume simulated energy only after collision/terrain checks below.
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
@@ -342,6 +393,12 @@
                 if(!['goggles','betaflight'].includes(style))throw new Error('Unknown flight HUD style');
                 config={...config,hudStyle:style};if(active){pose();publish();}
             },
+            failsafeSettings(value){
+                config={...config,failsafe:failsafeModule.configuration(value)};
+                failsafe.setConfiguration(config.failsafe);clearKeys();if(active){pose();publish();}
+            },
+            linkAssessment(value){linkAssessment=value??null;},
+            resumeAfterFailsafe(){if(failsafe.recover()){clearKeys();if(active){pose();publish();}return true;}return false;},
             signalHudSettings(value){
                 config={...config,signalHud:signalHud.settings(value)};if(active){pose();publish();}
             },
@@ -370,14 +427,14 @@
                 if(active){pose();publish();}
             },
             reconfigure(command,signal){if(!active||!spawn)throw new Error('No active simulation');return start({...command,...spawn},signal);},
-            look(dx,dy){if(active&&!playback&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
+            look(dx,dy){if(active&&!playback&&!failsafe.status().active&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
                 heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},
-            key(key,down){if(playback)return;if(down&&active)keys.add(key);else keys.delete(key);},
-            stick(f,r){if(!playback&&Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
-            flightInput(frame){if(active&&!playback&&frame&&Number.isFinite(frame.throttle)&&Number.isFinite(frame.yaw)&&Number.isFinite(frame.pitch)&&Number.isFinite(frame.roll)){
+            key(key,down){if(playback||failsafe.status().active)return;if(down&&active)keys.add(key);else keys.delete(key);},
+            stick(f,r){if(!playback&&!failsafe.status().active&&Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
+            flightInput(frame){if(active&&!playback&&!failsafe.status().active&&frame&&Number.isFinite(frame.throttle)&&Number.isFinite(frame.yaw)&&Number.isFinite(frame.pitch)&&Number.isFinite(frame.roll)){
                 input.throttle=clamp(frame.throttle,-1,1);input.yaw=clamp(frame.yaw,-1,1);
                 input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);}},
-            vertical(v){if(!playback&&Number.isFinite(v))vertical=clamp(v,-1,1);},
+            vertical(v){if(!playback&&!failsafe.status().active&&Number.isFinite(v))vertical=clamp(v,-1,1);},
             pause(value){if(!playback&&paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};
     }
