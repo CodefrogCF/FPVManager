@@ -7,6 +7,7 @@ import '../../core/database/repositories/drone_repository.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import 'simulation_battery_profile.dart';
 import 'simulation_settings.dart';
+import 'signal_hud_settings.dart';
 import 'controller_settings.dart';
 import 'controller_settings_fields.dart';
 import '../globe/scene_time_control.dart';
@@ -114,12 +115,14 @@ class _SettingsState extends State<_Settings> {
   final _ratesOptions = ExpansibleController();
   final _cameraOptions = ExpansibleController();
   final _batteryOptions = ExpansibleController();
+  final _signalOptions = ExpansibleController();
   final _assistedOptions = ExpansibleController();
   List<Drone> _drones = [];
   List<Battery> _batteries = [];
   int? _batteryId;
   late bool _showBatteryVoltage = widget.initial.showBatteryVoltage;
   late bool _showBatteryCellVoltage = widget.initial.showBatteryCellVoltage;
+  late SignalHudSettings _signalHud = widget.initial.signalHud;
   int? _drone;
   bool _loading = true;
   late SimulationFlightMode _mode = widget.initial.flightMode;
@@ -181,6 +184,7 @@ class _SettingsState extends State<_Settings> {
     _ratesOptions.dispose();
     _cameraOptions.dispose();
     _batteryOptions.dispose();
+    _signalOptions.dispose();
     _assistedOptions.dispose();
     super.dispose();
   }
@@ -356,6 +360,7 @@ class _SettingsState extends State<_Settings> {
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
+          signalHud: _signalHud,
           showBatteryVoltage: _showBatteryVoltage,
           showBatteryCellVoltage: _showBatteryCellVoltage,
           lowBatteryCellVoltage: read('batteryLow')!,
@@ -629,6 +634,181 @@ class _SettingsState extends State<_Settings> {
                           ),
                         ],
                         controller: _cameraOptions,
+                      ),
+                      _group(
+                        'simulation-signal-hud-options',
+                        'Simuliertes Funksignal im HUD',
+                        Icons.network_check,
+                        [
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'DJI: Signalwarnung am unteren Bildrand',
+                                (l10n) => l10n.signalHudDjiWarning,
+                              ),
+                            ),
+                            value: _signalHud.djiWarning,
+                            onChanged: (v) => setState(
+                              () => _signalHud = _signalHud.copyWith(
+                                djiWarning: v,
+                              ),
+                            ),
+                          ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Betaflight: Signalbalken anzeigen',
+                                (l10n) => l10n.signalHudBetaflightBars,
+                              ),
+                            ),
+                            value: _signalHud.betaflightBars,
+                            onChanged: (v) => setState(
+                              () => _signalHud = _signalHud.copyWith(
+                                betaflightBars: v,
+                              ),
+                            ),
+                          ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Betaflight: analoges Videorauschen',
+                                (l10n) => l10n.signalHudAnalogNoise,
+                              ),
+                            ),
+                            value: _signalHud.analogNoise,
+                            onChanged: (v) => setState(
+                              () => _signalHud = _signalHud.copyWith(
+                                analogNoise: v,
+                              ),
+                            ),
+                          ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Geländerisiko als Videoeffekt illustrieren',
+                                (l10n) => l10n.signalHudTerrainIllustration,
+                              ),
+                            ),
+                            subtitle: Text(
+                              context.localized(
+                                'Nur eine Illustration, keine RF-Messung. RC-Signal bleibt unbekannt.',
+                                (l10n) => l10n.signalHudTerrainDisclaimer,
+                              ),
+                            ),
+                            value: _signalHud.terrainIllustration,
+                            onChanged: (v) => setState(
+                              () => _signalHud = _signalHud.copyWith(
+                                terrainIllustration: v,
+                              ),
+                            ),
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Intensität des Bildrauschens',
+                                (l10n) => l10n.signalHudIntensity,
+                              ),
+                            ),
+                            subtitle: Slider(
+                              value: _signalHud.analogIntensity,
+                              min: 0,
+                              max: 1,
+                              divisions: 20,
+                              label:
+                                  '${(_signalHud.analogIntensity * 100).round()} %',
+                              onChanged: (v) => setState(
+                                () => _signalHud = _signalHud.copyWith(
+                                  analogIntensity: v,
+                                ),
+                              ),
+                            ),
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Schwaches Signal – Schwelle',
+                                (l10n) => l10n.signalHudWeakThreshold,
+                              ),
+                            ),
+                            subtitle: Slider(
+                              value: _signalHud.weakThreshold,
+                              min: 0,
+                              max: 1,
+                              divisions: 100,
+                              label:
+                                  '${(_signalHud.weakThreshold * 100).round()} %',
+                              onChanged: (v) {
+                                if (v > _signalHud.criticalThreshold) {
+                                  setState(
+                                    () => _signalHud = _signalHud.copyWith(
+                                      weakThreshold: v,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Kritisches Signal – Schwelle',
+                                (l10n) => l10n.signalHudCriticalThreshold,
+                              ),
+                            ),
+                            subtitle: Slider(
+                              value: _signalHud.criticalThreshold,
+                              min: 0,
+                              max: 1,
+                              divisions: 100,
+                              label:
+                                  '${(_signalHud.criticalThreshold * 100).round()} %',
+                              onChanged: (v) {
+                                if (v > _signalHud.lostThreshold &&
+                                    v < _signalHud.weakThreshold) {
+                                  setState(
+                                    () => _signalHud = _signalHud.copyWith(
+                                      criticalThreshold: v,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Signalverlust – Schwelle',
+                                (l10n) => l10n.signalHudLostThreshold,
+                              ),
+                            ),
+                            subtitle: Slider(
+                              value: _signalHud.lostThreshold,
+                              min: 0,
+                              max: 1,
+                              divisions: 100,
+                              label:
+                                  '${(_signalHud.lostThreshold * 100).round()} %',
+                              onChanged: (v) {
+                                if (v < _signalHud.criticalThreshold) {
+                                  setState(
+                                    () => _signalHud = _signalHud.copyWith(
+                                      lostThreshold: v,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                        controller: _signalOptions,
                       ),
                       _group(
                         'simulation-battery-options',

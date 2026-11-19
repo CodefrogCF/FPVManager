@@ -32,6 +32,7 @@ import 'route_map_state.dart';
 import 'globe_location_controller.dart';
 import '../mobility/navigation_location.dart';
 import '../simulation/simulation_settings.dart';
+import '../simulation/signal_hud_settings.dart';
 import '../simulation/controller_settings.dart';
 import '../simulation/flight_recording.dart';
 import '../simulation/route_playback.dart';
@@ -1125,6 +1126,12 @@ class GlobeController extends ChangeNotifier {
       _simulationGraphicsProfile;
   SimulationHudStyle? _simulationHudStyle;
   SimulationHudStyle? get simulationHudStyle => _simulationHudStyle;
+  SignalHudSettings get simulationSignalHud => _preferences.signalHud;
+  Future<void> setSimulationSignalHud(SignalHudSettings value) async {
+    value.validate();
+    await _savePreferences(_preferences.copyWith(signalHud: value));
+  }
+
   bool? _simulationShowCoordinates;
   bool? get simulationShowCoordinates => _simulationShowCoordinates;
   bool? _simulationShowBatteryVoltage, _simulationShowBatteryCellVoltage;
@@ -2457,6 +2464,18 @@ class GlobeController extends ChangeNotifier {
             .where((p) => p.name == data['hudStyle'])
             .firstOrNull;
         if (hud != null) _simulationHudStyle = hud;
+        final rawSignalHud = data['signalHud'];
+        if (rawSignalHud is Map<String, dynamic>) {
+          try {
+            final next = SignalHudSettings.fromJson(rawSignalHud);
+            if (jsonEncode(next.toJson()) !=
+                jsonEncode(_preferences.signalHud.toJson())) {
+              unawaited(setSimulationSignalHud(next).catchError((Object _) {}));
+            }
+          } catch (_) {
+            // Malformed WebView input must not alter persisted settings.
+          }
+        }
         if (data['showCoordinates'] is bool) {
           _simulationShowCoordinates = data['showCoordinates'] as bool;
         }

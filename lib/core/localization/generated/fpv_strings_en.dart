@@ -6698,4 +6698,33 @@ class FpvStringsEn extends FpvStrings {
   @override
   String get signalChooseGroundStationFromMap =>
       'Select a point on the 3D map, then reopen this panel and choose “Selected map point”.';
+
+  @override
+  String get signalHudDjiWarning => 'DJI: bottom-edge signal warning';
+
+  @override
+  String get signalHudBetaflightBars => 'Betaflight: signal bars';
+
+  @override
+  String get signalHudAnalogNoise => 'Betaflight: analog video interference';
+
+  @override
+  String get signalHudTerrainIllustration =>
+      'Visualize terrain risk as video interference';
+
+  @override
+  String get signalHudTerrainDisclaimer =>
+      'Illustration only, not an RF measurement. RC quality remains unknown.';
+
+  @override
+  String get signalHudIntensity => 'Analog noise intensity';
+
+  @override
+  String get signalHudWeakThreshold => 'Weak signal threshold';
+
+  @override
+  String get signalHudCriticalThreshold => 'Critical signal threshold';
+
+  @override
+  String get signalHudLostThreshold => 'Signal loss threshold';
 }

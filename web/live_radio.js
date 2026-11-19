@@ -1,5 +1,5 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVLiveRadio=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
-    function create({C,viewer,terrain,ready,emit,layer,doc,language,clock=()=>performance.now(),wallClock=()=>Date.now()}){
+    function create({C,viewer,terrain,ready,emit,layer,doc,language,onAssessmentChange=()=>{},clock=()=>performance.now(),wallClock=()=>Date.now()}){
         const cache=new Map();let epoch=0,busy=null,enabled=false,showPath=true,showMarker=true,useSpawn=true,last=-Infinity,lastMode=null,flightId=-1,active=false,paused=false,revision=0,disposed=false,expiry=null,resultAt=-Infinity;
         const badge=doc.getElementById('hud-live-radio'),toggle=doc.getElementById('flight-radio-enabled'),details=doc.getElementById('flight-radio-status');
         const names={unknown:'LOS: ?',obstructed:'LOS: obstruction',fresnelIntrusion:'LOS: Fresnel',noSampledObstruction:'LOS: sampled'};
@@ -12,6 +12,11 @@
             layer.setStation?.(position);
             stationKey=key;
         }
+        // Only explicitly identified link models can supply UI quality. Terrain
+        // visibility remains geometric and cannot assert a video/RC loss.
+        const validModeledLink=value=>value==='unknown'||(
+            value&&typeof value==='object'&&Number.isFinite(value.quality)&&value.quality>=0&&value.quality<=1&&
+            ['rfModel','estimatedModel'].includes(value.source));
         const unknownAssessment=Object.freeze({visibility:'unknown',source:'unavailable',confidence:'unavailable',controlLink:'unknown',videoLink:'unknown'});
         let currentAssessment=unknownAssessment;
         function assessment(){return currentAssessment;}
@@ -21,7 +26,7 @@
             details.textContent=translate(detailMessage);
         }
         const removeLanguage=language?.onChange(updateLabels);
-        function unknown(){clearTimeout(expiry);expiry=null;resultAt=-Infinity;currentAssessment=unknownAssessment;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();}
+        function unknown(){clearTimeout(expiry);expiry=null;resultAt=-Infinity;currentAssessment=unknownAssessment;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();onAssessmentChange();}
         function monitor(c){
             if(disposed)throw Error('Live radio disposed');
             if(typeof c.enabled!=='boolean'||!Number.isInteger(c.revision)||c.revision<0)throw Error('Invalid live radio monitor');
@@ -77,10 +82,12 @@
                 if(!a||!['unknown','clear','fresnelIntrusion','obstructed'].includes(a.visibility)||
                     !['unavailable','sampledTerrain'].includes(a.source)||
                     !['unavailable','approximate'].includes(a.confidence)||
-                    a.controlLink!=='unknown'||a.videoLink!=='unknown'||
+                    !validModeledLink(a.controlLink)||!validModeledLink(a.videoLink)||
                     (a.visibility!=='unknown'&&a.visibility!==({noSampledObstruction:'clear'}[c.state]??c.state)))
                     throw Error('Inconsistent live link assessment');
-                currentAssessment=Object.freeze({...a});
+                currentAssessment=Object.freeze({...a,
+                    controlLink:a.controlLink==='unknown'?'unknown':Object.freeze({...a.controlLink}),
+                    videoLink:a.videoLink==='unknown'?'unknown':Object.freeze({...a.videoLink})});
             }else currentAssessment=unknownAssessment;
             // A successful, flight-matched profile can restore the station even
             // if its earlier standalone marker command arrived out of order.
@@ -90,7 +97,7 @@
             revision=c.revision;badge.dataset.state=c.state;
             clearTimeout(expiry);resultAt=c.state==='unknown'?-Infinity:clock();
             if(c.state!=='unknown'){const token=revision;expiry=setTimeout(()=>{if(!disposed&&revision===token)unknown();},Math.min(5000,c.expiresAtMs-wallClock()));}
-            detailMessage=String(c.message??'Unknown').slice(0,160);updateLabels();return {};
+            detailMessage=String(c.message??'Unknown').slice(0,160);updateLabels();onAssessmentChange();return {};
         }
         function station(c){
             if(disposed||!enabled||!Number.isInteger(c.revision)||c.revision<revision)return {};

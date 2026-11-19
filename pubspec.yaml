@@ -114,6 +114,7 @@ flutter:
     - web/battery_simulation.js
     - web/free_flight.js
     - web/flight_recording.js
+    - web/signal_hud.js
     - web/flight_hud.js
     - web/flight_hud.css
     - web/flight_rendering.js

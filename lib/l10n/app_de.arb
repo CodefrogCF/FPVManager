@@ -1740,5 +1740,41 @@
   "signalChooseGroundStationFromMap": "Wähle einen Punkt auf der 3D-Karte aus. Öffne dieses Fenster erneut und tippe auf „Ausgewählter Kartenpunkt“.",
   "@signalChooseGroundStationFromMap": {
     "description": "Live simulation ground station setting."
+  },
+  "signalHudDjiWarning": "DJI: Signalwarnung am unteren Bildrand",
+  "@signalHudDjiWarning": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudBetaflightBars": "Betaflight: Signalbalken anzeigen",
+  "@signalHudBetaflightBars": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudAnalogNoise": "Betaflight: analoges Videorauschen",
+  "@signalHudAnalogNoise": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudTerrainIllustration": "Geländerisiko als Videoeffekt illustrieren",
+  "@signalHudTerrainIllustration": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudTerrainDisclaimer": "Nur eine Illustration, keine RF-Messung. RC-Signal bleibt unbekannt.",
+  "@signalHudTerrainDisclaimer": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudIntensity": "Intensität des Bildrauschens",
+  "@signalHudIntensity": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudWeakThreshold": "Schwaches Signal – Schwelle",
+  "@signalHudWeakThreshold": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudCriticalThreshold": "Kritisches Signal – Schwelle",
+  "@signalHudCriticalThreshold": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudLostThreshold": "Signalverlust – Schwelle",
+  "@signalHudLostThreshold": {
+    "description": "Simulation signal HUD settings (issue #128)."
   }
 }

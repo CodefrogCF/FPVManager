@@ -2,6 +2,13 @@
 
 ### [Unreleased] - 2026-11-19
 
+- Add opt-in simulated video-link warnings to the goggles HUD and separate
+  video/RC strength bars in the Betaflight OSD, with optional analog interference.
+  Smooth the visuals and persist thresholds/intensity locally. An explicit
+  terrain-only demonstration can illustrate possible video degradation without
+  asserting measured RF quality or RC failure; unknown conditions show no
+  invented reception. All effects are presentation-only and cannot trigger
+  failsafe.
 - Extend the existing live geometric radio preview with a separately visible
   ground station marker, independently controlled sightline, and an explicit
   takeoff reset/map-selection workflow. Share an immutable assessment model

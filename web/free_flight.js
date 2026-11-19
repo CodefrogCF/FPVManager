@@ -1,10 +1,11 @@
 (function(root,factory){
     const isNode=typeof module==='object'&&module.exports;
     const api=factory(isNode?require('./controller_input.js'):root.FPVControllerInput,
-        isNode?require('./battery_simulation.js'):root.FPVBatterySimulation);
+        isNode?require('./battery_simulation.js'):root.FPVBatterySimulation,
+        isNode?require('./signal_hud.js'):root.FPVSignalHud);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -27,6 +28,7 @@
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
             acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',showCoordinates:c.showCoordinates??false,
             showBatteryVoltage:c.showBatteryVoltage??false,showBatteryCellVoltage:c.showBatteryCellVoltage??false,
+            signalHud:signalHud.settings(c.signalHud??{}),
             lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
             batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
@@ -83,7 +85,7 @@
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
         function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
-            showBatteryCellVoltage:config.showBatteryCellVoltage,lowBatteryCellVoltage:config.lowBatteryCellVoltage,
+            showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
             battery:config.showBatteryVoltage?(battery?.snapshot(config)??{available:false,estimated:true}):null,
             controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
@@ -339,6 +341,9 @@
             hudStyle(style){
                 if(!['goggles','betaflight'].includes(style))throw new Error('Unknown flight HUD style');
                 config={...config,hudStyle:style};if(active){pose();publish();}
+            },
+            signalHudSettings(value){
+                config={...config,signalHud:signalHud.settings(value)};if(active){pose();publish();}
             },
             batteryHud({enabled,showCell,low,critical}){
                 const next={...config,showBatteryVoltage:enabled,showBatteryCellVoltage:showCell,

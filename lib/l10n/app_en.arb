@@ -8920,5 +8920,41 @@
   "signalChooseGroundStationFromMap": "Select a point on the 3D map, then reopen this panel and choose “Selected map point”.",
   "@signalChooseGroundStationFromMap": {
     "description": "Live simulation ground station setting."
+  },
+  "signalHudDjiWarning": "DJI: bottom-edge signal warning",
+  "@signalHudDjiWarning": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudBetaflightBars": "Betaflight: signal bars",
+  "@signalHudBetaflightBars": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudAnalogNoise": "Betaflight: analog video interference",
+  "@signalHudAnalogNoise": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudTerrainIllustration": "Visualize terrain risk as video interference",
+  "@signalHudTerrainIllustration": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudTerrainDisclaimer": "Illustration only, not an RF measurement. RC quality remains unknown.",
+  "@signalHudTerrainDisclaimer": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudIntensity": "Analog noise intensity",
+  "@signalHudIntensity": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudWeakThreshold": "Weak signal threshold",
+  "@signalHudWeakThreshold": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudCriticalThreshold": "Critical signal threshold",
+  "@signalHudCriticalThreshold": {
+    "description": "Simulation signal HUD settings (issue #128)."
+  },
+  "signalHudLostThreshold": "Signal loss threshold",
+  "@signalHudLostThreshold": {
+    "description": "Simulation signal HUD settings (issue #128)."
   }
 }

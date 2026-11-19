@@ -1,8 +1,10 @@
 (function(root,factory){
-    const api=factory(typeof module==='object'&&module.exports?require('./free_flight.js'):root.FPVFreeFlight);
+    const isNode=typeof module==='object'&&module.exports;
+    const api=factory(isNode?require('./free_flight.js'):root.FPVFreeFlight,
+        isNode?require('./signal_hud.js'):root.FPVSignalHud);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFlightHud=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(flight){
+})(typeof globalThis!=='undefined'?globalThis:this,function(flight,signalHud){
     'use strict';
     const degrees=180/Math.PI;
     const number=(value,digits=1)=>Number.isFinite(value)
@@ -29,17 +31,20 @@
         const hud=doc.getElementById('navigation-hud');
         const elements=Object.fromEntries(['speed','agl','height','distance','distance-unit','vertical','throttle','throttle-readout','mode','warning','home-arrow','home-marker','coordinates']
             .map(key=>[key,doc.getElementById('hud-'+key)]));
-        let style,reason=null,inputWarning='',lastState,lastHeading;
+        let style,reason=null,inputWarning='',lastState,lastHeading,lastAssessment,lastFlightId=null;
         const translate=language?.translate??((message,...values)=>
             message.replace(/\{(\d+)\}/g,(match,index)=>index<values.length?String(values[index]):match));
+        const signalDisplay=signalHud.create(doc,{translate});
         const wind=doc.getElementById('hud-wind'),windReadout=doc.getElementById('hud-wind-readout');
         const battery=doc.getElementById('hud-battery-readout'),batteryCell=doc.getElementById('hud-battery-cell-readout');
         const batteryVoltage=doc.getElementById('hud-battery-voltage'),batteryCellVoltage=doc.getElementById('hud-battery-cell-voltage');
         const batteryStatus=doc.getElementById('hud-battery-status');
         function text(key,value){if(elements[key].textContent!==value)elements[key].textContent=value;}
         function warning(){text('warning',translate(reason||inputWarning));elements.warning.hidden=!(reason||inputWarning);}
-        function update(state,viewHeading){
-            lastState=state;lastHeading=viewHeading;
+        function update(state,viewHeading,assessment){
+            if(lastFlightId!==state.flightId){signalDisplay.reset();lastFlightId=state.flightId;}
+            lastState=state;lastHeading=viewHeading;lastAssessment=assessment;
+            signalDisplay.update(state,assessment);
             const t=telemetry(state,viewHeading),next=state.hudStyle==='betaflight'?'betaflight':'goggles';
             if(style!==next){style=next;hud.setAttribute('data-style',style);}
             for(const key of ['speed','agl','height','distance','vertical','throttle'])text(key,t[key]);
@@ -74,7 +79,7 @@
                 arrow.setAttribute('aria-label',translate('Home direction {0}° from view heading',number(t.angle*degrees,0)));
             }
         }
-        language?.onChange(()=>{if(lastState)update(lastState,lastHeading);else warning();});
+        language?.onChange(()=>{if(lastState)update(lastState,lastHeading,lastAssessment);else warning();});
         return {update,device(message){inputWarning=message==='Controller ready'?'':message;warning();}};
     }
     return {homeDirection,telemetry,create};

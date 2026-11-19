@@ -1,5 +1,6 @@
 import '../../features/obstacles/obstacle_models.dart';
 import 'outdoor_layer.dart';
+import '../../features/simulation/signal_hud_settings.dart';
 
 enum GlobeMapStyle { satellite, topographic, relief }
 
@@ -26,6 +27,7 @@ class UserPreferences {
     this.uasZonesFillOpacity = 0.20,
     this.savedSpotsVisible = true,
     this.touchControlsVisible = true,
+    this.signalHud = const SignalHudSettings(),
     this.roadsVisible = false,
     this.labelsVisible = false,
     this.roadsOpacity = .8,
@@ -59,6 +61,7 @@ class UserPreferences {
   final double uasZonesFillOpacity;
   final bool savedSpotsVisible;
   final bool touchControlsVisible;
+  final SignalHudSettings signalHud;
   final bool roadsVisible;
   final bool labelsVisible;
   final double roadsOpacity;
@@ -87,6 +90,7 @@ class UserPreferences {
     double? uasZonesFillOpacity,
     bool? savedSpotsVisible,
     bool? touchControlsVisible,
+    SignalHudSettings? signalHud,
     bool? roadsVisible,
     bool? labelsVisible,
     double? roadsOpacity,
@@ -119,6 +123,7 @@ class UserPreferences {
     uasZonesFillOpacity: uasZonesFillOpacity ?? this.uasZonesFillOpacity,
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
     touchControlsVisible: touchControlsVisible ?? this.touchControlsVisible,
+    signalHud: signalHud ?? this.signalHud,
     roadsVisible: roadsVisible ?? this.roadsVisible,
     labelsVisible: labelsVisible ?? this.labelsVisible,
     roadsOpacity: roadsOpacity ?? this.roadsOpacity,

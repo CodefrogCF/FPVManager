@@ -111,9 +111,9 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      // 31 FPVManager-owned keys, including the schematic tunnel setting
+      // 32 FPVManager-owned keys, including the signal HUD settings
       // and the scene model collision setting, plus the unrelated key.
-      expect(rows, hasLength(32));
+      expect(rows, hasLength(33));
       final stored = {for (final row in rows) row.key: row.value};
       expect(stored['map.scene.structures'], 'true');
       expect(stored['map.scene.modelCollisions'], 'true');
@@ -143,7 +143,7 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(32));
+      expect(await database.select(database.appSettings).get(), hasLength(33));
       final resetToDefaults = await repository.getPreferences();
       expect(resetToDefaults.structures3dVisible, isFalse);
       expect(resetToDefaults.sceneModelCollisionsEnabled, isFalse);

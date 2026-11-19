@@ -97,3 +97,20 @@ test('link assessment is immutable, expires, and cannot equate geometric loss wi
     assert.equal(p.api.assessment().visibility,'unknown');
     p.api.dispose();
 });
+
+test('explicit modelled RC/video readings are accepted independently, while terrain-only values stay unknown',()=>{
+    const p=setup();p.api.monitor({enabled:true,revision:1});
+    p.api.observe({active:true,paused:false,flightId:1});
+    const assessment={visibility:'clear',source:'sampledTerrain',confidence:'approximate',
+        controlLink:{quality:.9,source:'estimatedModel'},videoLink:{quality:.23,source:'rfModel'}};
+    const command={revision:2,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',
+        rays:[{state:'noSampledObstruction'}],assessment};
+    p.api.set(command);
+    assert.equal(p.api.assessment().controlLink.quality,.9);
+    assert.equal(p.api.assessment().videoLink.quality,.23);
+    assert.throws(()=>p.api.set({...command,revision:3,assessment:{...assessment,controlLink:{quality:1.5,source:'rfModel'}}}),/Inconsistent/);
+    assert.throws(()=>p.api.set({...command,revision:3,assessment:{...assessment,videoLink:{quality:0,source:'measured'}}}),/Inconsistent/);
+    p.clock(6000);p.api.observe({active:true,paused:false,flightId:1});
+    assert.equal(p.api.assessment().videoLink,'unknown');
+    p.api.dispose();
+});

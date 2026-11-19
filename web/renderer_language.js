@@ -36,6 +36,9 @@
         'FPV camera tilt in degrees': 'FPV-Kameraneigung in Grad',
         'FPV horizontal field of view in degrees': 'Horizontales FPV-Sichtfeld in Grad',
         'Flight HUD style': 'HUD-Stil im Flug',
+        'SIM TERRAIN': 'SIM GELÄNDE',
+        'SIM VIDEO': 'SIM VIDEO',
+        'SIM RC': 'SIM RC',
         'Flight graphics profile': 'Grafikprofil im Flug',
         'Quality': 'Qualität',
         'Balanced': 'Ausgewogen',
@@ -100,6 +103,17 @@
     };
     const english = {
         'Geschätzte Akkuspannung (SIM)': 'Estimated battery voltage (SIM)',
+        'Simuliertes Funksignal · HUD': 'Simulated signal · HUD',
+        'DJI: Signalwarnung am unteren Bildrand': 'DJI: bottom-edge signal warning',
+        'Betaflight: Signalbalken (Video / RC getrennt)': 'Betaflight: signal bars (separate video / RC)',
+        'Betaflight: analoges Bildrauschen': 'Betaflight: analog video interference',
+        'Geländerisiko als Videovorschau darstellen (nur Illustration)': 'Visualize terrain risk as video effect (illustration only)',
+        'Störintensität': 'Interference intensity',
+        'Schwach ab': 'Weak below',
+        'Kritisch ab': 'Critical below',
+        'Verlust ab': 'Lost below',
+        'SIM · Nur modellierte Werte. Geländevorschau ist keine RF-Messung und löst keinen Failsafe aus.': 'SIM · Modeled values only. Terrain illustration is not RF telemetry and cannot trigger failsafe.',
+
         'Zellspannung anzeigen': 'Show cell voltage',
         'Warnung (V/Zelle)': 'Low warning (V/cell)',
         'Kritisch (V/Zelle)': 'Critical (V/cell)',

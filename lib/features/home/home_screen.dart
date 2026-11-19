@@ -622,6 +622,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         showCoordinates:
             _globeController.simulationShowCoordinates ??
             _simulationSettings.showCoordinates,
+        signalHud: _globeController.simulationSignalHud,
         showBatteryVoltage:
             _globeController.simulationShowBatteryVoltage ??
             _simulationSettings.showBatteryVoltage,
@@ -649,6 +650,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     );
     if (settings == null || !mounted) return;
     _simulationSettings = settings;
+    await _globeController.setSimulationSignalHud(settings.signalHud);
     if (configureOnly) return;
     await _runCommand(
       () => _globeController.enterSimulation(

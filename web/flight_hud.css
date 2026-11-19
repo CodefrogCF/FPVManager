@@ -137,3 +137,49 @@
     color:#fff;border-radius:6px;padding:5px 7px;cursor:pointer;}
 #route-playback button:disabled {opacity:.45;cursor:default;}
 #route-playback label {display:flex;align-items:center;gap:4px;}
+
+/* Issue #128: signal indicators remain overlay-only, never simulator controls. */
+#flight-signal-hud-settings { border:1px solid #ffffff35;border-radius:8px;margin:10px 0;padding:8px;min-width:0; }
+#flight-signal-hud-settings legend { padding:0 4px;font-size:12px; }
+#flight-signal-hud-settings label { font-size:12px;line-height:1.3; }
+#flight-signal-hud-settings input[type="number"] { width:60px;box-sizing:border-box;color:#fff;background:#1e292b;border:1px solid #ffffff65;border-radius:5px;padding:4px; }
+#flight-signal-hud-settings input[type="range"] { width:105px;accent-color:#a0d39a; }
+#flight-signal-hud-settings small { display:block;margin-top:8px;line-height:1.4;color:#d5dbd5; }
+#flight-signal-error {display:block;margin-top:4px;color:#ffe1a0;font-size:12px;}
+#hud-signal-edge { position:absolute;left:0;right:0;bottom:0;height:clamp(8px,2.7vh,26px);pointer-events:none;z-index:0;
+    background:linear-gradient(to top,#f68b25d9,#ed973a98 35%,transparent); }
+#hud-signal-edge[data-level="critical"],#hud-signal-edge[data-level="lost"] {
+    background:linear-gradient(to top,#e82e39e8,#e43b46a8 40%,transparent); }
+#hud-signal-edge[data-level="lost"] { height:clamp(12px,3.5vh,32px); }
+#hud-signal-bars { position:absolute;top:max(62px,calc(env(safe-area-inset-top) + 52px));right:max(10px,env(safe-area-inset-right));
+    display:grid;gap:5px;max-width:160px;font:700 11px/1.3 "Courier New",monospace;letter-spacing:.02em;pointer-events:none; }
+#hud-signal-bars[hidden],#hud-signal-edge[hidden],#hud-analog-noise[hidden] { display:none; }
+.hud-signal-bars-row { display:flex;gap:9px;justify-content:space-between;align-items:center; }
+.hud-signal-meter { display:flex;gap:2px;align-items:flex-end;height:15px; }
+.hud-signal-meter i { display:block;width:5px;border:1px solid #c3cdd0a0;opacity:.45;box-sizing:border-box; }
+.hud-signal-meter i:nth-child(1) {height:5px;} .hud-signal-meter i:nth-child(2) {height:7px;}
+.hud-signal-meter i:nth-child(3) {height:10px;} .hud-signal-meter i:nth-child(4) {height:12px;}
+.hud-signal-meter i:nth-child(5) {height:15px;}
+.hud-signal-bars-row[data-bars="1"] i:nth-child(-n+1),.hud-signal-bars-row[data-bars="2"] i:nth-child(-n+2),
+.hud-signal-bars-row[data-bars="3"] i:nth-child(-n+3),.hud-signal-bars-row[data-bars="4"] i:nth-child(-n+4),
+.hud-signal-bars-row[data-bars="5"] i:nth-child(-n+5) { background:#e8f1eb;opacity:1; }
+.hud-signal-bars-row[data-level="weak"] .hud-signal-meter i { border-color:#ffc274; }
+.hud-signal-bars-row[data-level="critical"] .hud-signal-meter i,.hud-signal-bars-row[data-level="lost"] .hud-signal-meter i {border-color:#ff7171;}
+.hud-signal-bars-row[data-known="false"] { opacity:.7; }
+.hud-signal-bars-row[data-known="false"] .hud-signal-meter i {display:none;}
+.hud-signal-bars-row[data-known="false"] .hud-signal-meter::after {content:"?";font-weight:700;font-size:15px;}
+#hud-signal-video[data-source="terrainIllustration"] > span:first-child { color:#f4cba2; }
+#hud-signal-video[data-source="terrainIllustration"] > span:first-child::after {content:" *";}
+#hud-analog-noise { position:absolute;inset:0;pointer-events:none;z-index:0;will-change:opacity;
+    background-image: repeating-linear-gradient(0deg, #fff9 0 1px,transparent 1px 4px,#0009 4px 6px,transparent 6px 11px),
+        repeating-linear-gradient(104deg,transparent 0 9px,#f5f5f544 9px 10px,transparent 10px 17px);
+    background-size:100% 112px,151px 163px;mix-blend-mode:screen; }
+#hud-analog-noise::after { content:"";position:absolute;left:0;right:0;top:var(--tear-position,35%);
+    height:clamp(2px,1vh,10px);background:linear-gradient(180deg,#ffffffa0,#222a,transparent);
+    opacity:var(--tear-strength,.15);pointer-events:none; }
+#hud-analog-noise[data-level="critical"]::after,#hud-analog-noise[data-level="lost"]::after {
+    height:clamp(5px,2vh,22px);background:linear-gradient(180deg,#e8e8e8ab,#1117,transparent); }
+#hud-analog-noise[data-level="lost"] { background-color:#1119; }
+#hud-analog-noise[data-dropout="true"] { background:#08090b;mix-blend-mode:normal; }
+@media (max-width:480px) { #hud-signal-bars {top:max(54px,calc(env(safe-area-inset-top) + 46px));right:8px;font-size:10px;} }
+@media (prefers-reduced-motion:reduce) { #hud-analog-noise {will-change:auto;} }

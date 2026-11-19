@@ -10679,6 +10679,60 @@ abstract class FpvStrings {
   /// In en, this message translates to:
   /// **'Select a point on the 3D map, then reopen this panel and choose “Selected map point”.'**
   String get signalChooseGroundStationFromMap;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'DJI: bottom-edge signal warning'**
+  String get signalHudDjiWarning;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Betaflight: signal bars'**
+  String get signalHudBetaflightBars;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Betaflight: analog video interference'**
+  String get signalHudAnalogNoise;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Visualize terrain risk as video interference'**
+  String get signalHudTerrainIllustration;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration only, not an RF measurement. RC quality remains unknown.'**
+  String get signalHudTerrainDisclaimer;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Analog noise intensity'**
+  String get signalHudIntensity;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Weak signal threshold'**
+  String get signalHudWeakThreshold;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Critical signal threshold'**
+  String get signalHudCriticalThreshold;
+
+  /// Simulation signal HUD settings (issue #128).
+  ///
+  /// In en, this message translates to:
+  /// **'Signal loss threshold'**
+  String get signalHudLostThreshold;
 }
 
 class _FpvStringsDelegate extends LocalizationsDelegate<FpvStrings> {

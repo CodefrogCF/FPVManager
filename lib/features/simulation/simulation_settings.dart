@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../core/database/fpv_database.dart';
 import 'controller_settings.dart';
+import 'signal_hud_settings.dart';
 import 'simulation_battery_profile.dart';
 import '../../core/models/scene_time.dart';
 
@@ -25,6 +26,7 @@ class SimulationSettings {
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
     this.hudStyle = SimulationHudStyle.goggles,
     this.showCoordinates = false,
+    this.signalHud = const SignalHudSettings(),
     this.showBatteryVoltage = false,
     this.showBatteryCellVoltage = false,
     this.lowBatteryCellVoltage = 3.5,
@@ -52,6 +54,7 @@ class SimulationSettings {
   final SimulationGraphicsProfile graphicsProfile;
   final SimulationHudStyle hudStyle;
   final bool showCoordinates;
+  final SignalHudSettings signalHud;
   final bool showBatteryVoltage, showBatteryCellVoltage;
   final double lowBatteryCellVoltage, criticalBatteryCellVoltage;
   final double batterySagResistanceOhmsPerCell;
@@ -64,6 +67,7 @@ class SimulationSettings {
     SimulationGraphicsProfile? graphicsProfile,
     SimulationHudStyle? hudStyle,
     bool? showCoordinates,
+    SignalHudSettings? signalHud,
     bool? showBatteryVoltage,
     bool? showBatteryCellVoltage,
     double? lowBatteryCellVoltage,
@@ -84,6 +88,7 @@ class SimulationSettings {
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
     hudStyle: hudStyle ?? this.hudStyle,
     showCoordinates: showCoordinates ?? this.showCoordinates,
+    signalHud: signalHud ?? this.signalHud,
     showBatteryVoltage: showBatteryVoltage ?? this.showBatteryVoltage,
     showBatteryCellVoltage:
         showBatteryCellVoltage ?? this.showBatteryCellVoltage,
@@ -129,6 +134,7 @@ class SimulationSettings {
     controller.validate();
     sceneTime.validate();
     batteryProfile?.validate();
+    signalHud.validate();
     if (!lowBatteryCellVoltage.isFinite ||
         !criticalBatteryCellVoltage.isFinite ||
         criticalBatteryCellVoltage < 2.8 ||
@@ -177,6 +183,7 @@ class SimulationSettings {
       'graphicsProfile': graphicsProfile.name,
       'hudStyle': hudStyle.name,
       'showCoordinates': showCoordinates,
+      'signalHud': signalHud.toJson(),
       'showBatteryVoltage': showBatteryVoltage,
       'showBatteryCellVoltage': showBatteryCellVoltage,
       'lowBatteryCellVoltage': lowBatteryCellVoltage,

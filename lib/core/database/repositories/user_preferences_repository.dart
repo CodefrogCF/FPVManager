@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/user_preferences.dart';
+import '../../../features/simulation/signal_hud_settings.dart';
 import '../../models/outdoor_layer.dart';
 import '../../../features/obstacles/obstacle_models.dart';
 import '../fpv_database.dart';
@@ -31,6 +32,7 @@ final class DriftUserPreferencesRepository
   static const _opacity = 'map.uas.fillOpacity';
   static const _spotsVisible = 'map.spots.visible';
   static const _touchControls = 'simulation.touchControls.visible';
+  static const _signalHud = 'simulation.hud.signal.v1';
   static const _roadsVisible = 'map.roads.visible';
   static const _labelsVisible = 'map.labels.visible';
   static const _roadsOpacity = 'map.roads.opacity';
@@ -63,6 +65,7 @@ final class DriftUserPreferencesRepository
     _opacity,
     _spotsVisible,
     _touchControls,
+    _signalHud,
     _order,
     _roadsVisible,
     _labelsVisible,
@@ -198,6 +201,9 @@ final class DriftUserPreferencesRepository
           _touchControls,
           defaults.touchControlsVisible,
         ),
+        signalHud: values[_signalHud] == null
+            ? defaults.signalHud
+            : SignalHudSettings.fromJson(jsonDecode(values[_signalHud]!)),
         roadsOpacity: roadsOpacity,
         avalancheVisible: readBool(
           _avalancheVisible,
@@ -298,6 +304,7 @@ final class DriftUserPreferencesRepository
             _labelsVisible: snapshot.labelsVisible.toString(),
             _roadsOpacity: snapshot.roadsOpacity.toString(),
             _touchControls: snapshot.touchControlsVisible.toString(),
+            _signalHud: jsonEncode(snapshot.signalHud.toJson()),
             _avalancheVisible: snapshot.avalancheVisible.toString(),
             _avalancheOpacity: snapshot.avalancheOpacity.toString(),
             _buildings: snapshot.buildings3dVisible.toString(),

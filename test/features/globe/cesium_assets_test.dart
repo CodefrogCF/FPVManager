@@ -62,6 +62,7 @@ void main() {
         'battery_simulation.js',
         'free_flight.js',
         'flight_hud.js',
+        'signal_hud.js',
         'flight_rendering.js',
         'bridge_supports.js',
         'bridge_source.js',
