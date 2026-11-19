@@ -131,4 +131,48 @@ void main() {
     expect(globe.liveRadio.settings.enabled, false);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets(
+    'ground station marker and sightline options remain independently configurable',
+    (tester) async {
+      final globe = GlobeController();
+      addTearDown(globe.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showLiveRadioSettings(context, globe),
+                child: const Text('Configure'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Configure'));
+      await tester.pumpAndSettle();
+      final marker = find.widgetWithText(
+        SwitchListTile,
+        'Show ground station marker',
+      );
+      final path = find.widgetWithText(
+        SwitchListTile,
+        'Show live line of sight',
+      );
+      expect(tester.widget<SwitchListTile>(marker).value, true);
+      expect(tester.widget<SwitchListTile>(path).value, true);
+      await tester.ensureVisible(marker);
+      await tester.tap(marker);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(path);
+      await tester.tap(path);
+      await tester.pumpAndSettle();
+      final apply = find.text('Apply radio preview');
+      await tester.ensureVisible(apply);
+      await tester.tap(apply);
+      await tester.pumpAndSettle();
+      expect(globe.liveRadio.settings.showGroundStationMarker, false);
+      expect(globe.liveRadio.settings.showSignalPath, false);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

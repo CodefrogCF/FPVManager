@@ -1,29 +1,44 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVLiveRadio=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
     function create({C,viewer,terrain,ready,emit,layer,doc,language,clock=()=>performance.now(),wallClock=()=>Date.now()}){
-        const cache=new Map();let epoch=0,busy=null,enabled=false,last=-Infinity,lastMode=null,flightId=-1,active=false,paused=false,revision=0,disposed=false,expiry=null,resultAt=-Infinity;
+        const cache=new Map();let epoch=0,busy=null,enabled=false,showPath=true,showMarker=true,useSpawn=true,last=-Infinity,lastMode=null,flightId=-1,active=false,paused=false,revision=0,disposed=false,expiry=null,resultAt=-Infinity;
         const badge=doc.getElementById('hud-live-radio'),toggle=doc.getElementById('flight-radio-enabled'),details=doc.getElementById('flight-radio-status');
         const names={unknown:'LOS: ?',obstructed:'LOS: obstruction',fresnelIntrusion:'LOS: Fresnel',noSampledObstruction:'LOS: sampled'};
         const translate=source=>language?.translate(source)??source;
         let detailMessage='Aus';
+        let stationKey='';
+        function drawStation(position){
+            const key=position?`${position.latitude},${position.longitude}`:'';
+            if(key===stationKey)return;
+            layer.setStation?.(position);
+            stationKey=key;
+        }
+        const unknownAssessment=Object.freeze({visibility:'unknown',source:'unavailable',confidence:'unavailable',controlLink:'unknown',videoLink:'unknown'});
+        let currentAssessment=unknownAssessment;
+        function assessment(){return currentAssessment;}
         function updateLabels(){
             badge.textContent=translate(names[badge.dataset.state]??names.unknown);
             badge.title=translate('Periodic geometric preview, not measured radio quality. Open details for sampling time and coverage.');
             details.textContent=translate(detailMessage);
         }
         const removeLanguage=language?.onChange(updateLabels);
-        function unknown(){clearTimeout(expiry);expiry=null;resultAt=-Infinity;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();}
+        function unknown(){clearTimeout(expiry);expiry=null;resultAt=-Infinity;currentAssessment=unknownAssessment;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();}
         function monitor(c){
             if(disposed)throw Error('Live radio disposed');
             if(typeof c.enabled!=='boolean'||!Number.isInteger(c.revision)||c.revision<0)throw Error('Invalid live radio monitor');
             if(c.revision<revision)return {};
-            enabled=c.enabled;revision=c.revision;last=-Infinity;lastMode=null;toggle.checked=enabled;badge.hidden=!enabled;unknown();return {};
+            if(c.showSignalPath!==undefined&&typeof c.showSignalPath!=='boolean'||
+                c.showGroundStationMarker!==undefined&&typeof c.showGroundStationMarker!=='boolean'||
+                c.useSpawn!==undefined&&typeof c.useSpawn!=='boolean')throw Error('Invalid live radio visibility settings');
+            enabled=c.enabled;showPath=c.showSignalPath!==false;showMarker=c.showGroundStationMarker!==false;useSpawn=c.useSpawn!==false;
+            revision=c.revision;last=-Infinity;lastMode=null;toggle.checked=enabled;badge.hidden=!enabled;
+            unknown();drawStation(null);return {};
         }
         function observe(s){
             if(!enabled||disposed)return;
             if(enabled&&clock()-resultAt>=5000&&resultAt!==-Infinity)unknown();
             const mode=`${!!s.active}/${!!s.paused}/${s.flightId}`;
             if(mode===lastMode&&clock()-last<1000)return;
-            if(lastMode!==null&&mode!==lastMode)unknown();
+            if(lastMode!==null&&mode!==lastMode){unknown();if(useSpawn&&s.flightId!==flightId)drawStation(null);}
             last=clock();lastMode=mode;flightId=s.flightId;active=!!s.active;paused=!!s.paused;
             emit('flight-radio-position',{active:!!s.active,paused:!!s.paused,flightId:s.flightId,
                 latitude:s.position?.latitude,longitude:s.position?.longitude,height:s.height,homeLatitude:s.home?.latitude,homeLongitude:s.home?.longitude});
@@ -57,15 +72,37 @@
             if(c.state!=='unknown'&&(!active||paused||c.flightId!==flightId)){unknown();return {};}
             if(!Array.isArray(c.rays)||c.rays.length>1||!c.rays.length&&c.state!=='unknown'||c.rays.some(r=>r.state!==c.state))throw Error('Inconsistent live radio result');
             if(c.state!=='unknown'&&(!Number.isFinite(c.expiresAtMs)||c.expiresAtMs<=wallClock()||c.expiresAtMs>wallClock()+10000)){revision=c.revision;unknown();return {};}
-            layer.set(c);revision=c.revision;badge.dataset.state=c.state;
+            if(c.assessment!==undefined){
+                const a=c.assessment;
+                if(!a||!['unknown','clear','fresnelIntrusion','obstructed'].includes(a.visibility)||
+                    !['unavailable','sampledTerrain'].includes(a.source)||
+                    !['unavailable','approximate'].includes(a.confidence)||
+                    a.controlLink!=='unknown'||a.videoLink!=='unknown'||
+                    (a.visibility!=='unknown'&&a.visibility!==({noSampledObstruction:'clear'}[c.state]??c.state)))
+                    throw Error('Inconsistent live link assessment');
+                currentAssessment=Object.freeze({...a});
+            }else currentAssessment=unknownAssessment;
+            // A successful, flight-matched profile can restore the station even
+            // if its earlier standalone marker command arrived out of order.
+            if(c.pilot&&Number.isFinite(c.pilot.latitude)&&Number.isFinite(c.pilot.longitude))
+                drawStation(showMarker?{latitude:c.pilot.latitude,longitude:c.pilot.longitude}:null);
+            if(showPath)layer.set({...c,showPilot:false});else layer.clear();
+            revision=c.revision;badge.dataset.state=c.state;
             clearTimeout(expiry);resultAt=c.state==='unknown'?-Infinity:clock();
             if(c.state!=='unknown'){const token=revision;expiry=setTimeout(()=>{if(!disposed&&revision===token)unknown();},Math.min(5000,c.expiresAtMs-wallClock()));}
             detailMessage=String(c.message??'Unknown').slice(0,160);updateLabels();return {};
         }
+        function station(c){
+            if(disposed||!enabled||!Number.isInteger(c.revision)||c.revision<revision)return {};
+            if(c.position!==null&&(!c.position||!Number.isFinite(c.position.latitude)||Math.abs(c.position.latitude)>90||
+                !Number.isFinite(c.position.longitude)||Math.abs(c.position.longitude)>180))throw Error('Invalid ground station position');
+            drawStation(showMarker?c.position:null);
+            return {};
+        }
         const settings=()=>emit('flight-radio-settings-request');
         badge.addEventListener('click',settings);doc.getElementById('configure-flight-radio').addEventListener('click',settings);
         toggle.addEventListener('change',()=>emit('flight-radio-toggle',{enabled:toggle.checked}));
-        return {monitor,observe,sample,set,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
+        return {monitor,observe,sample,set,station,assessment,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();drawStation(null);},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
     }
     return {create};
 });

@@ -1724,5 +1724,21 @@
   "weatherWindquelleZeitfc844a65": "Windquelle / Zeit",
   "weatherZusaetzlichesPrognoseraster279c3ee9": "Zusätzliches Prognoseraster",
   "commonSavedRouteCount": "{count, plural, =0{Keine gespeicherten Routen} =1{Eine gespeicherte Route} other{{count} gespeicherte Routen}}",
-  "commonUpdatedOn": "Aktualisiert am {date}"
+  "commonUpdatedOn": "Aktualisiert am {date}",
+  "signalShowGroundStationMarker": "Bodenstationsmarkierung anzeigen",
+  "@signalShowGroundStationMarker": {
+    "description": "Live simulation ground station setting."
+  },
+  "signalShowLiveSignalPath": "Live-Sichtlinie anzeigen",
+  "@signalShowLiveSignalPath": {
+    "description": "Live simulation ground station setting."
+  },
+  "signalUseTakeoffAsGroundStation": "Auf Startposition zurücksetzen",
+  "@signalUseTakeoffAsGroundStation": {
+    "description": "Live simulation ground station setting."
+  },
+  "signalChooseGroundStationFromMap": "Wähle einen Punkt auf der 3D-Karte aus. Öffne dieses Fenster erneut und tippe auf „Ausgewählter Kartenpunkt“.",
+  "@signalChooseGroundStationFromMap": {
+    "description": "Live simulation ground station setting."
+  }
 }

@@ -1,5 +1,13 @@
 # Change summary
 
+### [Unreleased] - 2026-11-19
+
+- Extend the existing live geometric radio preview with a separately visible
+  ground station marker, independently controlled sightline, and an explicit
+  takeoff reset/map-selection workflow. Share an immutable assessment model
+  for future HUD/failsafe work while keeping RC and video reception unknown
+  without a dedicated RF model. Existing route radio analysis is reused.
+
 ### [0.17.2] - 2026-11-18
 
 - Simplify generated 3D road and railway tunnel portals to the existing

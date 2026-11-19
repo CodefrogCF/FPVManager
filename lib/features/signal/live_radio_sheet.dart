@@ -53,6 +53,8 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
   LiveRadioController get c => widget.globe.liveRadio;
   late bool _enabled = c.settings.enabled,
       _spawn = c.settings.useSpawn,
+      _marker = c.settings.showGroundStationMarker,
+      _path = c.settings.showSignalPath,
       _surfacesEnabled = c.settings.signal.useSurfaces;
   late List<SurfaceObservation> _surfaces = c.settings.signal.surfaces;
   late final _fields = <String, TextEditingController>{
@@ -144,6 +146,8 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
         LiveRadioSettings(
           enabled: _enabled,
           useSpawn: _spawn,
+          showGroundStationMarker: _marker,
+          showSignalPath: _path,
           signal: settings,
         ),
       );
@@ -211,6 +215,32 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                           ? null
                           : (v) => setState(() => _enabled = v),
                     ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        context.localized(
+                          "Show ground station marker",
+                          (l10n) => l10n.signalShowGroundStationMarker,
+                        ),
+                      ),
+                      value: _marker,
+                      onChanged: _working
+                          ? null
+                          : (v) => setState(() => _marker = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        context.localized(
+                          "Show live line of sight",
+                          (l10n) => l10n.signalShowLiveSignalPath,
+                        ),
+                      ),
+                      value: _path,
+                      onChanged: _working
+                          ? null
+                          : (v) => setState(() => _path = v),
+                    ),
                     DropdownButtonFormField<bool>(
                       initialValue: _spawn,
                       isExpanded: true,
@@ -246,6 +276,24 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                           : (v) => setState(() => _spawn = v!),
                     ),
                     if (!_spawn) ...[
+                      Text(
+                        context.localized(
+                          "Select a point on the 3D map, then reopen this panel and choose “Selected map point”.",
+                          (l10n) => l10n.signalChooseGroundStationFromMap,
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.restart_alt),
+                        onPressed: _working
+                            ? null
+                            : () => setState(() => _spawn = true),
+                        label: Text(
+                          context.localized(
+                            "Reset to takeoff position",
+                            (l10n) => l10n.signalUseTakeoffAsGroundStation,
+                          ),
+                        ),
+                      ),
                       Wrap(
                         spacing: 8,
                         children: [

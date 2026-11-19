@@ -5,6 +5,7 @@ import 'package:fpvmanager/core/geo/geo_coordinate_service.dart';
 import 'package:fpvmanager/core/models/signal_settings.dart';
 import 'package:fpvmanager/features/signal/live_radio_controller.dart';
 import 'package:fpvmanager/features/signal/radio_analysis.dart';
+import 'package:fpvmanager/features/signal/live_link_assessment.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 
 import '../../helpers/fake_globe_renderer.dart';
@@ -271,5 +272,63 @@ void main() {
     c.telemetry({...pose(), 'height': double.nan});
     expect(c.current, false);
     expect(c.status, contains('invalid'));
+  });
+
+  test('station marker follows the launch point, supports fixed coordinates and keeps RC/video unknown', () async {
+    final sent = <Map<String, dynamic>>[];
+    final controller = LiveRadioController(
+      send: (message) async {
+        sent.add(message);
+      },
+      sample: (positions) async => List.filled(positions.length, 500),
+    );
+    addTearDown(controller.dispose);
+    controller.renderer(true);
+    await controller.configure(const LiveRadioSettings(enabled: true));
+    controller.telemetry(pose());
+    await controller.settled;
+    expect(controller.groundStation?.longitude, 8);
+    expect(
+      sent
+          .where((m) => m['type'] == 'set-live-radio-ground-station')
+          .last['position']['longitude'],
+      8,
+    );
+    expect(controller.assessment.visibility, LivePathVisibility.clear);
+    expect(controller.assessment.source, LiveAssessmentSource.sampledTerrain);
+    expect(controller.assessment.rcQuality, LiveRadioQuality.unknown);
+    expect(controller.assessment.videoQuality, LiveRadioQuality.unknown);
+    controller.telemetry(pose(paused: true));
+    expect(controller.assessment.hasCurrentGeometry, false);
+    expect(
+      controller.groundStation?.longitude,
+      8,
+      reason: 'pause keeps transmitter location',
+    );
+    await controller.configure(
+      const LiveRadioSettings(
+        enabled: true,
+        useSpawn: false,
+        showGroundStationMarker: false,
+        showSignalPath: false,
+        signal: SignalSettings(
+          pilot: Wgs84Coordinate(latitude: 47, longitude: 8.002),
+        ),
+      ),
+    );
+    expect(controller.groundStation?.longitude, 8.002);
+    final monitor = sent.lastWhere(
+      (m) => m['type'] == 'set-flight-radio-monitor',
+    );
+    expect(monitor['showGroundStationMarker'], false);
+    expect(monitor['showSignalPath'], false);
+    controller.telemetry(pose(id: 2));
+    await controller.settled;
+    expect(controller.groundStation?.longitude, 8.002);
+    await controller.configure(const LiveRadioSettings(enabled: true));
+    controller.telemetry(pose(id: 3, lon: 8.006));
+    await controller.settled;
+    expect(controller.groundStation?.longitude, 8);
+    expect(controller.assessment.hasCurrentGeometry, true);
   });
 }

@@ -2359,6 +2359,8 @@ class GlobeController extends ChangeNotifier {
                   LiveRadioSettings(
                     enabled: data['enabled'] as bool,
                     useSpawn: s.useSpawn,
+                    showGroundStationMarker: s.showGroundStationMarker,
+                    showSignalPath: s.showSignalPath,
                     signal: s.signal,
                   ),
                 )

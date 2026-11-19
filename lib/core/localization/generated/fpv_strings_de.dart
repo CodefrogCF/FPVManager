@@ -6750,4 +6750,19 @@ class FpvStringsDe extends FpvStrings {
 
     return 'Aktualisiert am $dateString';
   }
+
+  @override
+  String get signalShowGroundStationMarker =>
+      'Bodenstationsmarkierung anzeigen';
+
+  @override
+  String get signalShowLiveSignalPath => 'Live-Sichtlinie anzeigen';
+
+  @override
+  String get signalUseTakeoffAsGroundStation =>
+      'Auf Startposition zurücksetzen';
+
+  @override
+  String get signalChooseGroundStationFromMap =>
+      'Wähle einen Punkt auf der 3D-Karte aus. Öffne dieses Fenster erneut und tippe auf „Ausgewählter Kartenpunkt“.';
 }

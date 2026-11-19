@@ -43,3 +43,20 @@ test('bounded 3D envelope, replacement, unknown heights and cleanup',()=>{
     assert.match(sources[0].entities.values[1].name,/Radio target 897/);
     layer.clear(); assert.equal(sources.length,0); layer.dispose();
 });
+
+test('ground station marker survives expired/cleared rays and can be hidden independently',()=>{
+    const {layer,sources}=setup();
+    const point={latitude:47,longitude:8};
+    layer.setStation(point);
+    assert.equal(sources.length,1);
+    assert.equal(sources[0].entities.values[0].id,'live-radio-ground-station');
+    layer.set({...state,showPilot:false});
+    assert.equal(sources.length,2);
+    assert.equal(sources[1].entities.values.some(e=>e.id==='signal-pilot'),false);
+    layer.clear();
+    assert.equal(sources.length,1,'unknown LOS must keep ground station marker');
+    layer.setStation(null);
+    assert.equal(sources.length,0);
+    assert.throws(()=>layer.setStation({latitude:95,longitude:8}));
+    layer.dispose();
+});

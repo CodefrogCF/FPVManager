@@ -10655,6 +10655,30 @@ abstract class FpvStrings {
   /// In en, this message translates to:
   /// **'Updated on {date}'**
   String commonUpdatedOn(DateTime date);
+
+  /// Live simulation ground station setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Show ground station marker'**
+  String get signalShowGroundStationMarker;
+
+  /// Live simulation ground station setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Show live line of sight'**
+  String get signalShowLiveSignalPath;
+
+  /// Live simulation ground station setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to takeoff position'**
+  String get signalUseTakeoffAsGroundStation;
+
+  /// Live simulation ground station setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a point on the 3D map, then reopen this panel and choose “Selected map point”.'**
+  String get signalChooseGroundStationFromMap;
 }
 
 class _FpvStringsDelegate extends LocalizationsDelegate<FpvStrings> {

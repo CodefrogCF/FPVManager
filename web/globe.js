@@ -697,6 +697,7 @@ function postToFlutter(message) {
             case 'set-flight-radio-monitor': return liveRadio.monitor(command);
             case 'query-live-radio-terrain': return liveRadio.sample(command,signal);
             case 'set-live-radio-result': return liveRadio.set(command);
+            case 'set-live-radio-ground-station': return liveRadio.station(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-scene-environment': {
                 const result=sceneEnvironment.set(command);

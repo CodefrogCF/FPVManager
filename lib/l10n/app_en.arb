@@ -8904,5 +8904,21 @@
         "format": "yMd"
       }
     }
+  },
+  "signalShowGroundStationMarker": "Show ground station marker",
+  "@signalShowGroundStationMarker": {
+    "description": "Live simulation ground station setting."
+  },
+  "signalShowLiveSignalPath": "Show live line of sight",
+  "@signalShowLiveSignalPath": {
+    "description": "Live simulation ground station setting."
+  },
+  "signalUseTakeoffAsGroundStation": "Reset to takeoff position",
+  "@signalUseTakeoffAsGroundStation": {
+    "description": "Live simulation ground station setting."
+  },
+  "signalChooseGroundStationFromMap": "Select a point on the 3D map, then reopen this panel and choose “Selected map point”.",
+  "@signalChooseGroundStationFromMap": {
+    "description": "Live simulation ground station setting."
   }
 }

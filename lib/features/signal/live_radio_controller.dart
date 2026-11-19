@@ -6,17 +6,20 @@ import '../../core/geo/geo_coordinate_service.dart';
 import '../../core/models/flight_route.dart';
 import '../../core/models/signal_settings.dart';
 import '../routes/analysis/route_analysis.dart';
+import 'live_link_assessment.dart';
 import 'radio_analysis.dart';
 
 class LiveRadioSettings {
   const LiveRadioSettings({
     this.enabled = false,
     this.useSpawn = true,
+    this.showGroundStationMarker = true,
+    this.showSignalPath = true,
     this.signal = const SignalSettings(
       pilot: Wgs84Coordinate(latitude: 46.8, longitude: 8.3),
     ),
   });
-  final bool enabled, useSpawn;
+  final bool enabled, useSpawn, showGroundStationMarker, showSignalPath;
   final SignalSettings signal;
 }
 
@@ -32,6 +35,10 @@ class LiveRadioController extends ChangeNotifier {
   LiveRadioSettings settings = const LiveRadioSettings();
   String status = 'Disabled';
   RadioPathResult? result;
+  LiveLinkAssessment assessment = const LiveLinkAssessment();
+
+  /// Last known ground station, independent of the aircraft's moving position.
+  Wgs84Coordinate? groundStation;
   RadioPathSample? obstruction;
   DateTime? calculatedAt;
   Wgs84Coordinate? transmitter;
@@ -58,6 +65,8 @@ class LiveRadioController extends ChangeNotifier {
     settings = LiveRadioSettings(
       enabled: value.enabled,
       useSpawn: value.useSpawn,
+      showGroundStationMarker: value.showGroundStationMarker,
+      showSignalPath: value.showSignalPath,
       signal: SignalSettings.fromJson(value.signal.toJson()),
     );
     _pose = null;
@@ -67,7 +76,11 @@ class LiveRadioController extends ChangeNotifier {
     status = value.enabled ? 'Waiting for an active flight' : 'Disabled';
     _notify();
     await _syncMonitor();
-    if (settings.enabled) _schedule();
+    if (settings.enabled) {
+      // Fixed stations can be marked before flight telemetry arrives.
+      _publishStation(settings.useSpawn ? null : settings.signal.pilot);
+      _schedule();
+    }
   }
 
   void renderer(bool available) {
@@ -79,13 +92,24 @@ class LiveRadioController extends ChangeNotifier {
     _invalidate(clear: true);
     status = settings.enabled ? 'Terrain / renderer unavailable' : 'Disabled';
     _notify();
-    if (available) unawaited(_syncMonitor().catchError((Object _) {}));
+    if (available) {
+      unawaited(
+        _syncMonitor()
+            .then((_) {
+              if (settings.enabled && !settings.useSpawn) {
+                _publishStation(settings.signal.pilot);
+              }
+            })
+            .catchError((Object _) {}),
+      );
+    }
   }
 
   void _invalidate({bool clear = false}) {
     ++_revision;
     current = false;
     loading = false;
+    assessment = const LiveLinkAssessment();
     _expiry?.cancel();
     if (clear) {
       result = null;
@@ -93,6 +117,7 @@ class LiveRadioController extends ChangeNotifier {
       calculatedAt = null;
       transmitter = null;
       transmitterHeight = null;
+      groundStation = null;
     }
     unawaited(_mapUnknown());
   }
@@ -120,7 +145,17 @@ class LiveRadioController extends ChangeNotifier {
         ? 'Terrain changed; awaiting a new profile'
         : 'Terrain unavailable';
     _notify();
-    if (available) unawaited(_syncMonitor().catchError((Object _) {}));
+    if (available) {
+      unawaited(
+        _syncMonitor()
+            .then((_) {
+              if (settings.enabled && !settings.useSpawn) {
+                _publishStation(settings.signal.pilot);
+              }
+            })
+            .catchError((Object _) {}),
+      );
+    }
   }
 
   Future<void> _syncMonitor() async {
@@ -132,8 +167,27 @@ class LiveRadioController extends ChangeNotifier {
       'type': 'set-flight-radio-monitor',
       'revision': _revision,
       'enabled': enabled,
+      'useSpawn': settings.useSpawn,
+      'showGroundStationMarker': settings.showGroundStationMarker,
+      'showSignalPath': settings.showSignalPath,
     });
     _monitorEnabled = enabled;
+  }
+
+  // The marker is separate from the ray layer: a missing or expired terrain
+  // profile must not make the operator's chosen ground location disappear.
+  void _publishStation(Wgs84Coordinate? point) {
+    groundStation = point;
+    if (!_available || _disposed || !settings.enabled) return;
+    unawaited(
+      send({
+        'type': 'set-live-radio-ground-station',
+        'revision': _revision,
+        'position': point == null
+            ? null
+            : {'latitude': point.latitude, 'longitude': point.longitude},
+      }).catchError((Object _) {}),
+    );
   }
 
   void telemetry(Map<String, dynamic> data) {
@@ -180,6 +234,11 @@ class LiveRadioController extends ChangeNotifier {
         ),
         height: read('height', -100000, 100000),
       );
+      final station = settings.useSpawn ? _pose!.home : settings.signal.pilot;
+      if (groundStation?.latitude != station.latitude ||
+          groundStation?.longitude != station.longitude) {
+        _publishStation(station);
+      }
       if (current &&
           result != null &&
           (routeDistance(_pose!.position, result!.target) > 100 ||
@@ -270,10 +329,15 @@ class LiveRadioController extends ChangeNotifier {
           (_pose!.height - pose.height).abs() > 30) {
         status = 'Unknown: profile overtaken by flight';
         current = false;
+        assessment = const LiveLinkAssessment();
         await _mapUnknown();
         return;
       }
       result = calculated;
+      assessment = LiveLinkAssessment.fromTerrainProfile(
+        calculated,
+        sampledAt: now(),
+      );
       transmitter = pilot;
       transmitterHeight = heights.first + signal.antennaHeight;
       calculatedAt = now();
@@ -305,6 +369,8 @@ class LiveRadioController extends ChangeNotifier {
             .add(const Duration(seconds: 5))
             .millisecondsSinceEpoch,
         'state': calculated.state.name,
+        'showPilot': false,
+        'assessment': assessment.toJson(),
         'message': status,
         'pilot': {
           'latitude': pilot.latitude,
@@ -336,6 +402,7 @@ class LiveRadioController extends ChangeNotifier {
       if (valid()) {
         current = false;
         status = 'Unknown: terrain profile unavailable';
+        assessment = const LiveLinkAssessment();
         await _mapUnknown();
       }
     } finally {
@@ -361,6 +428,7 @@ class LiveRadioController extends ChangeNotifier {
       if (!_disposed && settings.enabled && current && calculatedAt == stamp) {
         status = 'Unknown: profile older than 5 seconds';
         current = false;
+        assessment = const LiveLinkAssessment();
         unawaited(_mapUnknown());
         _notify();
       }

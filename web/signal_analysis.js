@@ -19,6 +19,7 @@
             !Number.isInteger(command.selected) || command.selected < 0 || command.selected >= command.rays.length ||
             (command.targetOffset !== undefined && (!Number.isInteger(command.targetOffset) || command.targetOffset < 0 ||
                 command.targetOffset + command.rays.length > 4096))) throw new Error('Invalid Fresnel configuration');
+        if (command.showPilot !== undefined && typeof command.showPilot !== 'boolean') throw Error('Invalid ground station display');
         for (const ray of command.rays) {
             point(ray, true);
             if (!states.includes(ray.state) || !Number.isFinite(ray.ground) || Math.abs(ray.ground) > 100000 ||
@@ -26,7 +27,27 @@
         }
     }
     function createLayer(Cesium, viewer, {name='Geometric radio analysis'}={}) {
-        let source = null;
+        let source = null, stationSource = null;
+        // Separate from the ephemeral Fresnel/ray visualization. A ground
+        // station remains visible when sampled LOS is unknown or expires.
+        function setStation(position) {
+            if (position !== null) {
+                if (!position || !Number.isFinite(position.latitude) || Math.abs(position.latitude) > 90 ||
+                    !Number.isFinite(position.longitude) || Math.abs(position.longitude) > 180) throw Error('Invalid ground station');
+            }
+            if (stationSource) viewer.dataSources.remove(stationSource, true);
+            stationSource = null;
+            if (position) {
+                stationSource = new Cesium.CustomDataSource('Simulated ground station');
+                stationSource.entities.add({id:'live-radio-ground-station', name:'Ground station (simulated)',
+                    position:Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude),
+                    point:{pixelSize:12, color:Cesium.Color.YELLOW,
+                        heightReference:Cesium.HeightReference?.CLAMP_TO_GROUND,
+                        disableDepthTestDistance:Number.POSITIVE_INFINITY}});
+                viewer.dataSources.add(stationSource);
+            }
+            viewer.scene.requestRender();
+        }
         function clear() { if (source) viewer.dataSources.remove(source, true); source = null; viewer.scene.requestRender(); }
         function set(command) {
             validate(command);
@@ -35,7 +56,7 @@
             const replacement = new Cesium.CustomDataSource(name);
             const C = Cesium.Cartesian3;
             const pilot = C.fromDegrees(command.pilot.longitude, command.pilot.latitude, command.pilot.height);
-            replacement.entities.add({id:'signal-pilot', name:'Pilot antenna', position:pilot, point:{pixelSize:12, color:Cesium.Color.YELLOW}});
+            if (command.showPilot !== false) replacement.entities.add({id:'signal-pilot', name:'Pilot antenna', position:pilot, point:{pixelSize:12, color:Cesium.Color.YELLOW}});
             if(command.obstruction)replacement.entities.add({id:'signal-obstruction',name:'Potential sampled obstruction',
                 position:C.fromDegrees(command.obstruction.longitude,command.obstruction.latitude,command.obstruction.height),point:{pixelSize:12,color:Cesium.Color.ORANGE,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
             const colors = [Cesium.Color.GRAY, Cesium.Color.ORANGE, Cesium.Color.MEDIUMPURPLE, Cesium.Color.CYAN];
@@ -61,7 +82,7 @@
             });
             clear(); source = replacement; viewer.dataSources.add(source); viewer.scene.requestRender(); return {};
         }
-        return {set, clear, dispose:clear};
+        return {set, clear, setStation, dispose(){ clear(); setStation(null); }};
     }
     return {validate, createLayer};
 });

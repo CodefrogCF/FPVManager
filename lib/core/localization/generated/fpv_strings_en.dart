@@ -6685,4 +6685,17 @@ class FpvStringsEn extends FpvStrings {
 
     return 'Updated on $dateString';
   }
+
+  @override
+  String get signalShowGroundStationMarker => 'Show ground station marker';
+
+  @override
+  String get signalShowLiveSignalPath => 'Show live line of sight';
+
+  @override
+  String get signalUseTakeoffAsGroundStation => 'Reset to takeoff position';
+
+  @override
+  String get signalChooseGroundStationFromMap =>
+      'Select a point on the 3D map, then reopen this panel and choose “Selected map point”.';
 }
