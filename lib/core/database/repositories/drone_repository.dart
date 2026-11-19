@@ -211,6 +211,12 @@ final class DriftDroneRepository implements DroneRepository {
       hoverPowerWatts: Value(input.value(DroneParameter.hoverPowerWatts)),
       cruisePowerWatts: Value(input.value(DroneParameter.cruisePowerWatts)),
       maxPowerWatts: Value(input.value(DroneParameter.maxPowerWatts)),
+      escContinuousCurrentAmpsPerChannel: Value(
+        input.value(DroneParameter.escContinuousCurrentAmpsPerChannel),
+      ),
+      motorContinuousCurrentAmpsPerMotor: Value(
+        input.value(DroneParameter.motorContinuousCurrentAmpsPerMotor),
+      ),
       referenceVoltageVolts: Value(
         input.value(DroneParameter.referenceVoltageVolts),
       ),

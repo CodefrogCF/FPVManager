@@ -62,7 +62,8 @@ test('cell thresholds and optional sag respond without violating model voltage b
     const exhausted=create({...profile,chargePercent:0});
     exhausted.tick(.1,10,10);
     assert.equal(exhausted.snapshot().consumedWh,0);
-    assert.ok(exhausted.snapshot().cellVoltageVolts>=3);
+    assert.ok(exhausted.snapshot().cellVoltageVolts>=2.8);
+    assert.equal(exhausted.snapshot().remainingEnergyWh,0);
 });
 
 test('simulator reset, pause and battery HUD toggle preserve or reset state correctly',async()=>{
@@ -115,4 +116,16 @@ test('flight battery parameters reject invalid toggle, thresholds and resistance
     assert.throws(()=>parameters({showBatteryCellVoltage:'true'}));
     assert.throws(()=>parameters({lowBatteryCellVoltage:3.1,criticalBatteryCellVoltage:3.2}));
     assert.throws(()=>parameters({batterySagResistanceOhmsPerCell:Infinity}));
+});
+
+
+test('battery HUD labels the independent ESC and motor proxy warnings as estimates',()=>{
+    const nodes=new Map();const doc={getElementById(id){if(!nodes.has(id))nodes.set(id,{hidden:false,
+        textContent:'',style:{},dataset:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
+    const hud=makeHud(doc);
+    hud.update({mode:'gps',hudStyle:'goggles',showBatteryVoltage:true,
+        battery:{available:true,packVoltageVolts:22.0,cellVoltageVolts:3.67,level:'normal',
+            escPossiblyOverloaded:true,motorPossiblyOverloaded:false}},0);
+    assert.ok(nodes.get('hud-battery-status').textContent.includes('ESC?'));
+    assert.ok(!nodes.get('hud-battery-status').textContent.includes('MOTOR?'));
 });

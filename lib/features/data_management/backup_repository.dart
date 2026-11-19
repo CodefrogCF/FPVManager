@@ -261,6 +261,35 @@ class BackupRepository {
             if (field == 'planning_json') RoutePlanningSettings.decode(text);
           }
         }
+        if (name == 'batteries') {
+          for (final field in <String, double>{
+            'continuous_discharge_c': 1000,
+            'burst_discharge_c': 1000,
+            'burst_duration_seconds': 3600,
+            'internal_resistance_milli_ohms_per_cell': 500,
+          }.entries) {
+            final raw = row[field.key];
+            if (raw != null &&
+                (raw is! num ||
+                    !raw.isFinite ||
+                    raw <
+                        (field.key == 'internal_resistance_milli_ohms_per_cell'
+                            ? 0
+                            : 0.000001) ||
+                    raw > field.value)) {
+              throw const FormatException(
+                'Invalid battery electrical specification',
+              );
+            }
+          }
+          final burst = row['burst_discharge_c'];
+          final duration = row['burst_duration_seconds'];
+          final continuous = row['continuous_discharge_c'];
+          if ((burst == null) != (duration == null) ||
+              (continuous is num && burst is num && burst < continuous)) {
+            throw const FormatException('Invalid battery burst specification');
+          }
+        }
         if (name == 'flight_waypoints') {
           FlightPlanRepository.validatePersistedWaypoint(
             FlightWaypoint(

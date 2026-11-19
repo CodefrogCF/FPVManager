@@ -44,6 +44,14 @@ void main() {
     expect(saved.drone.propellerDescription, 'Three blades');
     expect(saved.drone.motorDescription, '2207');
     expect(saved.drone.escDescription, '4-in-1');
+    expect(
+      saved.drone.escContinuousCurrentAmpsPerChannel,
+      DroneParameter.escContinuousCurrentAmpsPerChannel.index + 1,
+    );
+    expect(
+      saved.drone.motorContinuousCurrentAmpsPerMotor,
+      DroneParameter.motorContinuousCurrentAmpsPerMotor.index + 1,
+    );
     expect(saved.drone.measurementContext, contains('reference voltage'));
     for (final parameter in DroneParameter.values) {
       expect(

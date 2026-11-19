@@ -32,6 +32,7 @@
             showBatteryVoltage:c.showBatteryVoltage??false,showBatteryCellVoltage:c.showBatteryCellVoltage??false,
             signalHud:signalHud.settings(c.signalHud??{}),failsafe:failsafeModule.configuration(c.failsafe??{}),
             lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
+            batteryUseChemistryThresholds:c.batteryUseChemistryThresholds??true,
             batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
@@ -49,8 +50,9 @@
         if(typeof p.showCoordinates!=='boolean')throw new Error('Invalid HUD coordinate visibility');
         if(typeof p.showBatteryVoltage!=='boolean'||typeof p.showBatteryCellVoltage!=='boolean')throw new Error('Invalid battery HUD visibility');
         if(!Number.isFinite(p.lowBatteryCellVoltage)||!Number.isFinite(p.criticalBatteryCellVoltage)||
-            p.criticalBatteryCellVoltage<2.8||p.lowBatteryCellVoltage>4.3||p.lowBatteryCellVoltage<=p.criticalBatteryCellVoltage)
+            p.criticalBatteryCellVoltage<.5||p.criticalBatteryCellVoltage>4.4||p.lowBatteryCellVoltage<.6||p.lowBatteryCellVoltage>4.5||p.lowBatteryCellVoltage<=p.criticalBatteryCellVoltage)
             throw new Error('Invalid estimated battery voltage thresholds');
+        if(typeof p.batteryUseChemistryThresholds!=='boolean')throw new Error('Invalid chemistry threshold mode');
         if(!Number.isFinite(p.batterySagResistanceOhmsPerCell)||p.batterySagResistanceOhmsPerCell<0||p.batterySagResistanceOhmsPerCell>.1)
             throw new Error('Invalid estimated battery sag');
         return p;
@@ -91,7 +93,8 @@
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
             failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
-            battery:config.showBatteryVoltage?(battery?.snapshot(config)??{available:false,estimated:true}):null,
+            batteryUseChemistryThresholds:config.batteryUseChemistryThresholds,
+            battery:config.showBatteryVoltage?(battery?.snapshot(config.batteryUseChemistryThresholds?{}:{lowVoltagePerCell:config.lowBatteryCellVoltage,criticalVoltagePerCell:config.criticalBatteryCellVoltage})??{available:false,estimated:true}):null,
             controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
@@ -158,18 +161,28 @@
         function automatedStep(seconds,state){
             const fs=config.failsafe;
             let targetNorth=0,targetEast=0,targetUp=0;
-            if(['climb','return','arrived'].includes(state.phase)&&position&&spawn&&Number.isFinite(homeHeight)){
-                const meters=distance(position,spawn),altitude=homeHeight+fs.rescueAltitudeMeters;
+            if(['rescueHold','climb','turn','return','landing','landed'].includes(state.phase)&&position&&spawn&&Number.isFinite(homeHeight)){
+                const meters=distance(position,spawn),altitude=state.targetAltitudeMeters??height;
                 if(state.phase==='climb'){
                     targetUp=clamp((altitude-height)*.6,0,Math.min(fs.climbSpeedMetersPerSecond,config.climbSpeed));
+                }else if(state.phase==='turn'){
+                    const direction=bearing(position,spawn);
+                    const angle=Math.atan2(Math.sin(direction-heading),Math.cos(direction-heading));
+                    heading=wrap(heading+clamp(angle,-1.5*seconds,1.5*seconds));
+                    targetUp=clamp((altitude-height)*.5,-config.climbSpeed,config.climbSpeed);
                 }else if(state.phase==='return'&&meters>3){
                     const speed=rescueVelocity.approachSpeed(meters,
                         Math.min(fs.returnSpeedMetersPerSecond,config.maxSpeed),config.deceleration);
                     const direction=bearing(position,spawn);
                     targetNorth=Math.cos(direction)*speed;targetEast=Math.sin(direction)*speed;
-                    targetUp=clamp((altitude-height)*.4,-config.climbSpeed,config.climbSpeed);
-                    const angle=Math.atan2(Math.sin(direction-heading),Math.cos(direction-heading));
-                    heading=wrap(heading+clamp(angle,-1.5*seconds,1.5*seconds));
+                    // Return at the attained rescue altitude, without a continuous yaw turn.
+                    targetUp=clamp((altitude-height)*.5,-config.climbSpeed,config.climbSpeed);
+                }else if(state.phase==='landing'){
+                    // Complete horizontal braking near home, then descend slowly.
+                    if(meters>1){const direction=bearing(position,spawn);
+                        const speed=Math.min(2,rescueVelocity.approachSpeed(meters,2,config.deceleration));
+                        targetNorth=Math.cos(direction)*speed;targetEast=Math.sin(direction)*speed;}
+                    if(meters<=3)targetUp=-Math.min(1.5,config.climbSpeed);
                 }
             }else if(state.phase==='descend')targetUp=-Math.min(1,config.climbSpeed);
             // Use normal deceleration/acceleration and the current wind model,
@@ -190,12 +203,12 @@
         }
         function insufficientRescueBattery(){
             if(!battery||!config.batteryProfile)return false; // unknown is not proof of shortage
-            const p=config.batteryProfile,s=battery.snapshot(),capacity=p.energyWh??(p.nominalVoltageVolts*p.capacityMah/1000);
+            const p=config.batteryProfile,s=battery.snapshot(),capacity=s.remainingEnergyWh;
             if(!Number.isFinite(capacity)||!Number.isFinite(s.remainingPercent))return false;
             const neededSeconds=(spawn&&position?distance(spawn,position)/Math.max(.5,Math.min(config.maxSpeed,config.failsafe.returnSpeedMetersPerSecond)):0)+
-                Math.max(0,(homeHeight??height)+config.failsafe.rescueAltitudeMeters-height)/Math.max(.2,config.failsafe.climbSpeedMetersPerSecond);
+                config.failsafe.rescueAltitudeMeters/Math.max(.2,config.failsafe.climbSpeedMetersPerSecond);
             const watts=Math.max(p.hoverPowerWatts??0,p.cruisePowerWatts??0);
-            return s.remainingPercent<=3||watts>0&&capacity*s.remainingPercent/100 < 1.3*watts*neededSeconds/3600;
+            return s.remainingPercent<=3||watts>0&&capacity < 1.3*watts*neededSeconds/3600;
         }
         // Angle: 50° tilt limit/self-level. Acro: configurable body rates, no leveling.
         // Angle retains its centred hover aid. Acro throttle is a motor command
@@ -336,8 +349,11 @@
             // backlog. The resumed step remains no larger than a 30 Hz frame.
             const dt=seconds>.075 ? Math.min(lastFrameSeconds,1/30) : seconds;
             if(seconds<=.075)lastFrameSeconds=seconds;
+            const desiredHeading=spawn&&position?bearing(position,spawn):null;
             const fs=failsafe.step(dt,linkAssessment,{playback,position,home:spawn,height,homeHeight,
+                headingErrorRadians:desiredHeading===null?null:Math.atan2(Math.sin(desiredHeading-heading),Math.cos(desiredHeading-heading)),
                 distanceToHome:spawn&&position?distance(spawn,position):null,batteryInsufficient:insufficientRescueBattery()});
+            if(fs.phase==='landed'){brake();reason='GPS Rescue: simulated landing complete';pose();return;}
             const controlled=fs.active;
             if(controlled&&!wasFailsafeControlled)clearKeys();wasFailsafeControlled=controlled;
             const travel=controlled?automatedStep(dt,fs):config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
@@ -404,8 +420,8 @@
             signalHudSettings(value){
                 config={...config,signalHud:signalHud.settings(value)};if(active){pose();publish();}
             },
-            batteryHud({enabled,showCell,low,critical}){
-                const next={...config,showBatteryVoltage:enabled,showBatteryCellVoltage:showCell,
+            batteryHud({enabled,showCell,low,critical,useChemistryThresholds}){
+                const next={...config,batteryUseChemistryThresholds:useChemistryThresholds??config.batteryUseChemistryThresholds,showBatteryVoltage:enabled,showBatteryCellVoltage:showCell,
                     lowBatteryCellVoltage:low,criticalBatteryCellVoltage:critical};
                 parameters(next);config=next;if(active){pose();publish();}
             },
@@ -431,12 +447,27 @@
             reconfigure(command,signal){if(!active||!spawn)throw new Error('No active simulation');return start({...command,...spawn},signal);},
             look(dx,dy){if(active&&!playback&&!failsafe.status().active&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
                 heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},
-            key(key,down){if(playback||failsafe.status().active)return;if(down&&active)keys.add(key);else keys.delete(key);},
-            stick(f,r){if(!playback&&!failsafe.status().active&&Number.isFinite(f)&&Number.isFinite(r)){forward=clamp(f,-1,1);right=clamp(r,-1,1);}},
-            flightInput(frame){if(active&&!playback&&!failsafe.status().active&&frame&&Number.isFinite(frame.throttle)&&Number.isFinite(frame.yaw)&&Number.isFinite(frame.pitch)&&Number.isFinite(frame.roll)){
+            key(key,down){if(playback)return;
+                if(failsafe.status().active){if(down&&['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','i','j','k','l','e','q'].includes(key)&&failsafe.recover()){
+                    clearKeys();keys.add(key);pose();publish();}return;}
+                if(down&&active)keys.add(key);else keys.delete(key);},
+            stick(f,r){if(playback||!Number.isFinite(f)||!Number.isFinite(r))return;
+                if(failsafe.status().active){if(Math.max(Math.abs(f),Math.abs(r))<.3||!failsafe.recover())return;clearKeys();}
+                forward=clamp(f,-1,1);right=clamp(r,-1,1);},
+            flightInput(frame){if(!active||playback||!frame||
+                ![frame.throttle,frame.yaw,frame.pitch,frame.roll].every(Number.isFinite))return;
+                if(failsafe.status().active){
+                    // As in Betaflight, recover only after a sustained RC link AND
+                    // deliberate yaw/pitch/roll movement, not an idle throttle.
+                    if(Math.max(Math.abs(frame.yaw),Math.abs(frame.pitch),Math.abs(frame.roll))<.3||
+                        !failsafe.recover())return;
+                    clearKeys();
+                }
                 input.throttle=clamp(frame.throttle,-1,1);input.yaw=clamp(frame.yaw,-1,1);
-                input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);}},
-            vertical(v){if(!playback&&!failsafe.status().active&&Number.isFinite(v))vertical=clamp(v,-1,1);},
+                input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);},
+            vertical(v){if(playback||!Number.isFinite(v))return;
+                if(failsafe.status().active){if(Math.abs(v)<.3||!failsafe.recover())return;clearKeys();}
+                vertical=clamp(v,-1,1);},
             pause(value){if(!playback&&paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};
     }

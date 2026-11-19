@@ -45,7 +45,7 @@ class LocalizationCatalogTest(unittest.TestCase):
 
     def test_de_and_en_catalogs_contain_all_legacy_entries(self):
         data = {
-            language: json.loads((ROOT / f'lib/l10n/app_{language}.arb').read_text())
+            language: json.loads((ROOT / f'lib/l10n/app_{language}.arb').read_text(encoding='utf-8'))
             for language in ('en', 'de')
         }
         legacy = [

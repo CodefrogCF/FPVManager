@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
+import 'package:fpvmanager/core/localization/generated/fpv_strings.dart';
 import 'package:fpvmanager/features/globe/globe_controller.dart';
 import 'package:fpvmanager/features/globe/ground_view_button.dart';
 import 'package:fpvmanager/features/simulation/simulation_settings.dart';
@@ -33,7 +34,37 @@ class _Drones implements DroneRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Match the production app's generated localization setup in widget tests.
+Widget _localizedTestApp({
+  required Widget home,
+  Key? key,
+  TransitionBuilder? builder,
+}) => MaterialApp(
+  key: key,
+  builder: builder,
+  locale: const Locale('de'),
+  supportedLocales: FpvStrings.supportedLocales,
+  localizationsDelegates: FpvStrings.localizationsDelegates,
+  home: home,
+);
+
 void main() {
+  testWidgets(
+    'simulation settings test host supplies German gen-l10n strings',
+    (tester) async {
+      await tester.pumpWidget(
+        _localizedTestApp(
+          home: Builder(
+            builder: (context) =>
+                Text(FpvStrings.of(context).simulationFlugsimulatore761527e),
+          ),
+        ),
+      );
+      expect(find.text('Flugsimulator'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test(
     'profile selection uses recorded limits, defaults and supported bounds',
     () {
@@ -361,7 +392,7 @@ void main() {
       'shared map button cancels pending flight and exits active flight',
       (tester) async {
         await tester.pumpWidget(
-          MaterialApp(
+          _localizedTestApp(
             home: Scaffold(body: GroundViewButton(controller: globe)),
           ),
         );
@@ -371,7 +402,10 @@ void main() {
           'pending': true,
         });
         await tester.pump();
-        await tester.tap(find.byTooltip('Cancel spawn'));
+        final l10n = FpvStrings.of(
+          tester.element(find.byType(GroundViewButton)),
+        );
+        await tester.tap(find.byTooltip(l10n.globeCancelSpawn701b7923));
         await tester.pump();
         expect(peer.commands.last['type'], 'exit-simulation');
         peer.emit({
@@ -380,7 +414,7 @@ void main() {
           'pending': false,
         });
         await tester.pump();
-        await tester.tap(find.byTooltip('Return to globe'));
+        await tester.tap(find.byTooltip(l10n.globeReturnToGlobe687364e5));
         await tester.pump();
         expect(peer.commands.last['type'], 'exit-simulation');
         await tester.pumpWidget(const SizedBox.shrink());
@@ -397,7 +431,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       SimulationSettings? chosen;
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedTestApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
@@ -416,11 +450,14 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+      final l10n = FpvStrings.of(tester.element(find.byType(Scaffold).first));
       await tester.tap(
         find.byType(DropdownButtonFormField<SimulationFlightMode>),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Acro · freie Drehraten').last);
+      await tester.tap(
+        find.text(l10n.simulationAcroFreieDrehratena37d7b4c).last,
+      );
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(DropdownButtonFormField<int>));
       await tester.tap(find.byType(DropdownButtonFormField<int>));
@@ -459,13 +496,13 @@ void main() {
       await tester.ensureVisible(graphics);
       await tester.tap(graphics);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Performance').last);
+      await tester.tap(find.text(l10n.simulationPerformance63c90455).last);
       await tester.pumpAndSettle();
       final hud = find.byKey(const ValueKey('simulation-hud'));
       await tester.ensureVisible(hud);
       await tester.tap(hud);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Betaflight').last);
+      await tester.tap(find.text(l10n.simulationBetaflightaaa2dc4d).last);
       await tester.pumpAndSettle();
       final coordinates = find.widgetWithText(
         SwitchListTile,
@@ -496,7 +533,7 @@ void main() {
     (tester) async {
       SimulationSettings? chosen;
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedTestApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
@@ -578,7 +615,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       SimulationSettings? chosen;
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedTestApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
@@ -672,7 +709,7 @@ void main() {
             ? SimulationFlightMode.acro
             : SimulationFlightMode.gps;
         await tester.pumpWidget(
-          MaterialApp(
+          _localizedTestApp(
             key: ValueKey(source),
             home: Scaffold(
               body: Builder(
@@ -739,7 +776,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
+      _localizedTestApp(
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
@@ -775,7 +812,7 @@ void main() {
         tester.view.physicalSize = size;
         SimulationSettings? chosen;
         await tester.pumpWidget(
-          MaterialApp(
+          _localizedTestApp(
             key: ValueKey(size),
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context)

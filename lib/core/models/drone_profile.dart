@@ -62,6 +62,16 @@ enum DroneParameter {
   hoverPowerWatts('Hover power', 'W', DroneParameterGroup.performance),
   cruisePowerWatts('Cruise power', 'W', DroneParameterGroup.performance),
   maxPowerWatts('Maximum power', 'W', DroneParameterGroup.performance),
+  escContinuousCurrentAmpsPerChannel(
+    'ESC continuous current per channel (input equivalent)',
+    'A',
+    DroneParameterGroup.propulsion,
+  ),
+  motorContinuousCurrentAmpsPerMotor(
+    'Motor continuous current per motor (input equivalent)',
+    'A',
+    DroneParameterGroup.propulsion,
+  ),
   referenceVoltageVolts(
     'Reference voltage',
     'V',
@@ -96,6 +106,10 @@ enum DroneParameter {
     hoverPowerWatts => drone.hoverPowerWatts,
     cruisePowerWatts => drone.cruisePowerWatts,
     maxPowerWatts => drone.maxPowerWatts,
+    escContinuousCurrentAmpsPerChannel =>
+      drone.escContinuousCurrentAmpsPerChannel,
+    motorContinuousCurrentAmpsPerMotor =>
+      drone.motorContinuousCurrentAmpsPerMotor,
     referenceVoltageVolts => drone.referenceVoltageVolts,
   })?.toDouble();
 

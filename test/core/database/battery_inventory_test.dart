@@ -304,4 +304,135 @@ void main() {
     expect(result.drones.single.id, droneId);
     expect(result.flightPlans.single.id, planId);
   });
+  test(
+    'electrical ratings survive a database round trip and clear explicitly',
+    () async {
+      final id = await repository.saveProfile(
+        BatteryInput(
+          name: 'Long range 6S',
+          chemistry: 'LiIon',
+          cellCount: 6,
+          capacityMah: 4500,
+          continuousDischargeC: 18,
+          burstDischargeC: 35,
+          burstDurationSeconds: 8,
+          internalResistanceMilliOhmsPerCell: 12.5,
+        ),
+      );
+      final original = (await repository.getBattery(id))!;
+      expect(original.continuousDischargeC, 18);
+      expect(original.burstDischargeC, 35);
+      expect(original.burstDurationSeconds, 8);
+      expect(original.internalResistanceMilliOhmsPerCell, 12.5);
+      await repository.saveProfile(
+        BatteryInput(
+          name: 'Long range 6S',
+          chemistry: 'LiIon',
+          cellCount: 6,
+          capacityMah: 4500,
+        ),
+        id: id,
+      );
+      final cleared = (await repository.getBattery(id))!;
+      expect(cleared.continuousDischargeC, isNull);
+      expect(cleared.burstDischargeC, isNull);
+      expect(cleared.burstDurationSeconds, isNull);
+      expect(cleared.internalResistanceMilliOhmsPerCell, isNull);
+    },
+  );
+
+  test(
+    'unsupported old chemistry is retained and electrical ratings validated',
+    () async {
+      final id = await repository.saveProfile(
+        BatteryInput(
+          name: 'Legacy',
+          chemistry: 'Old custom chemistry',
+          cellCount: 4,
+          capacityMah: 2000,
+        ),
+      );
+      expect(
+        (await repository.getBattery(id))!.chemistry,
+        'Old custom chemistry',
+      );
+      for (final bad in <BatteryInput>[
+        BatteryInput(
+          name: 'Invalid',
+          cellCount: 4,
+          capacityMah: 2000,
+          continuousDischargeC: -2,
+        ),
+        BatteryInput(
+          name: 'Invalid',
+          cellCount: 4,
+          capacityMah: 2000,
+          burstDischargeC: 30,
+        ),
+        BatteryInput(
+          name: 'Invalid',
+          cellCount: 4,
+          capacityMah: 2000,
+          burstDurationSeconds: 5,
+        ),
+        BatteryInput(
+          name: 'Invalid',
+          cellCount: 4,
+          capacityMah: 2000,
+          continuousDischargeC: 40,
+          burstDischargeC: 20,
+          burstDurationSeconds: 5,
+        ),
+        BatteryInput(
+          name: 'Invalid',
+          cellCount: 4,
+          capacityMah: 2000,
+          internalResistanceMilliOhmsPerCell: -1,
+        ),
+        BatteryInput(
+          name: 'Invalid',
+          cellCount: 4,
+          capacityMah: 2000,
+          internalResistanceMilliOhmsPerCell: double.nan,
+        ),
+      ]) {
+        await expectLater(repository.saveProfile(bad), throwsArgumentError);
+      }
+      expect(
+        (await repository.getBattery(id))!.chemistry,
+        'Old custom chemistry',
+      );
+    },
+  );
+
+  test('legacy quick update preserves pack electrical metadata', () async {
+    final id = await repository.saveProfile(
+      BatteryInput(
+        name: 'Original',
+        cellCount: 4,
+        capacityMah: 1500,
+        continuousDischargeC: 30,
+        burstDischargeC: 50,
+        burstDurationSeconds: 5,
+        internalResistanceMilliOhmsPerCell: 9,
+      ),
+    );
+    expect(
+      await repository.updateBattery(
+        id: id,
+        name: 'Renamed',
+        cellCount: 4,
+        capacityMah: 1500,
+      ),
+      isTrue,
+    );
+    final battery = (await repository.getBattery(id))!;
+    expect(battery.name, 'Renamed');
+    expect(battery.continuousDischargeC, 30);
+    expect(battery.burstDurationSeconds, 5);
+    expect(battery.internalResistanceMilliOhmsPerCell, 9);
+  });
 }
+
+// Tests for the v11 optional electrical pack parameters are part of the
+// existing battery inventory suite below, not an additional runner.

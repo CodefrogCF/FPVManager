@@ -73,6 +73,11 @@ class Drones extends Table {
   RealColumn get hoverPowerWatts => real().nullable()();
   RealColumn get cruisePowerWatts => real().nullable()();
   RealColumn get maxPowerWatts => real().nullable()();
+
+  /// Independent manufacturer ratings in amperes per ESC channel / per motor.
+  /// The simulator's equal-share DC input proxy is NOT measured phase current.
+  RealColumn get escContinuousCurrentAmpsPerChannel => real().nullable()();
+  RealColumn get motorContinuousCurrentAmpsPerMotor => real().nullable()();
   RealColumn get referenceVoltageVolts => real().nullable()();
   TextColumn get configuration => text().nullable()();
   TextColumn get propellerDescription => text().nullable()();
@@ -119,6 +124,14 @@ class Batteries extends Table {
   )();
   RealColumn get nominalVoltageVolts => real().nullable()();
   RealColumn get energyWh => real().nullable()();
+
+  /// Explicit pack ratings. Null means use a labeled chemistry assumption.
+  RealColumn get continuousDischargeC => real().nullable()();
+  RealColumn get burstDischargeC => real().nullable()();
+  RealColumn get burstDurationSeconds => real().nullable()();
+
+  /// User-facing milli-ohms for each *series cell* (not the complete pack).
+  RealColumn get internalResistanceMilliOhmsPerCell => real().nullable()();
   RealColumn get chargePercent => real().nullable()();
   TextColumn get availability =>
       text().withDefault(const Constant('unknown'))();
@@ -331,7 +344,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -437,6 +450,10 @@ class FpvDatabase extends _$FpvDatabase {
                 batteries.chargePercent,
                 batteries.availability,
                 batteries.conditionNotes,
+                batteries.continuousDischargeC,
+                batteries.burstDischargeC,
+                batteries.burstDurationSeconds,
+                batteries.internalResistanceMilliOhmsPerCell,
               ],
             ),
           );
@@ -482,6 +499,20 @@ class FpvDatabase extends _$FpvDatabase {
         await m.createTable(telemetryFlights);
       }
       if (from < 10) await m.createTable(groundRoutes);
+      if (from >= 2 && from < 12) {
+        await m.addColumn(drones, drones.escContinuousCurrentAmpsPerChannel);
+        await m.addColumn(drones, drones.motorContinuousCurrentAmpsPerMotor);
+      }
+      if (from >= 6 && from < 11) {
+        for (final column in [
+          batteries.continuousDischargeC,
+          batteries.burstDischargeC,
+          batteries.burstDurationSeconds,
+          batteries.internalResistanceMilliOhmsPerCell,
+        ]) {
+          await m.addColumn(batteries, column);
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

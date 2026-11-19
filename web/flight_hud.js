@@ -48,12 +48,12 @@
             signalDisplay.update(state,assessment);
             if(failsafeStatus){const fs=state.failsafe??{phase:'normal'};
                 const labels={pending:'SIM RC · LOSS PENDING',hold:'SIM FAILSAFE · HOLD',
-                    descend:'SIM FAILSAFE · DESCEND',climb:'SIM GPS RESCUE · CLIMB',
-                    return:'SIM GPS RESCUE · RETURN',arrived:'SIM GPS RESCUE · HOME',
+                    descend:'SIM FAILSAFE · DESCEND',rescueHold:'SIM GPS RESCUE · HOLD',climb:'SIM GPS RESCUE · CLIMB',turn:'SIM GPS RESCUE · TURN',
+                    return:'SIM GPS RESCUE · RETURN',landing:'SIM GPS RESCUE · LANDING',landed:'SIM GPS RESCUE · LANDED',
                     unavailable:'SIM RESCUE UNAVAILABLE',awaitingManual:'SIM RC RESTORED · TAKE CONTROL'};
                 failsafeStatus.hidden=!fs.enabled||!labels[fs.phase];
                 if(failsafeStatus.dataset)failsafeStatus.dataset.phase=fs.recovering?'recovering':fs.phase;
-                if(!failsafeStatus.hidden)failsafeStatus.textContent=labels[fs.phase]+(fs.recovering?' · RC RECOVERING':'')+(fs.reason?` · ${fs.reason}`:'');
+                if(!failsafeStatus.hidden)failsafeStatus.textContent=labels[fs.phase]+(fs.recoveryReady?' · STICK TO TAKE OVER':fs.recovering?' · RC RECOVERING':'')+(fs.reason?` · ${fs.reason}`:'');
             }
             const t=telemetry(state,viewHeading),next=state.hudStyle==='betaflight'?'betaflight':'goggles';
             if(style!==next){style=next;hud.setAttribute('data-style',style);}
@@ -69,7 +69,11 @@
                     set(batteryVoltage,available?number(reading.packVoltageVolts,1):'—');
                     set(batteryCellVoltage,available?number(reading.cellVoltageVolts,2):'—');
                     battery.setAttribute('data-level',available?reading.level:'unavailable');
-                    set(batteryStatus,'SIM BAT'+(available&&reading.level==='critical'?' !':available&&reading.level==='low'?' ↓':''));
+                    // ESC/motor comparisons are only DC equal-share proxies;
+                    // the '?' avoids presenting them as measured phase-current alarms.
+                    const drive=available?(reading.escPossiblyOverloaded===true?' · ESC?':'')+
+                        (reading.motorPossiblyOverloaded===true?' · MOTOR?':''):'';
+                    set(batteryStatus,'SIM BAT'+(available&&reading.level==='critical'?' !':available&&reading.level==='low'?' ↓':'')+drive);
                     if(batteryCell)batteryCell.hidden=state.showBatteryCellVoltage!==true;
                     battery.title=translate(available
                         ?'SIM · Spannung aus Flugprofil geschätzt, keine echte Telemetrie.'

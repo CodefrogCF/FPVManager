@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
-import '../../../core/database/fpv_database.dart' show Battery;
+import '../../../core/database/fpv_database.dart' show Battery, Drone;
+import '../../../core/models/propulsion_current_limits.dart';
 import '../../../core/models/route_planning_settings.dart';
+import '../../../core/models/battery_chemistry.dart';
 import 'route_analysis.dart';
 
 class RouteEnergyEstimate {
@@ -182,11 +184,25 @@ class BatteryRouteAssessment {
     required this.conservativeWh,
     required this.criticalSegments,
     required this.status,
+    required this.maxEstimatedCurrentAmps,
+    required this.estimatedCurrentLimitAmps,
+    required this.loadLimitedSegments,
+    required this.escLimitedSegments,
+    required this.motorLimitedSegments,
+    required this.peakEstimatedPerUnitCurrentAmps,
   });
   final Battery battery;
   final double? availableWh, budgetWh, optimisticWh, conservativeWh;
   final Set<int> criticalSegments;
   final String status;
+
+  /// Generic chemistry-based current estimate, NOT a manufacturer specification.
+  final double? maxEstimatedCurrentAmps, estimatedCurrentLimitAmps;
+  final Set<int> loadLimitedSegments;
+  final Set<int> escLimitedSegments, motorLimitedSegments;
+
+  /// DC current divided by the recorded motor count, not winding/ESC phase current.
+  final double? peakEstimatedPerUnitCurrentAmps;
   bool get known =>
       budgetWh != null && optimisticWh != null && conservativeWh != null;
 
@@ -196,12 +212,29 @@ class BatteryRouteAssessment {
     Battery battery,
     RouteAnalysis route,
     RouteEnergyEstimate energy,
-    RoutePlanningSettings settings,
-  ) {
-    final voltage = battery.nominalVoltageVolts;
+    RoutePlanningSettings settings, {
+    Drone? drone,
+  }) {
+    final propulsion = PropulsionCurrentLimits(
+      motorCount: drone?.motorCount,
+      escContinuousCurrentAmpsPerChannel:
+          drone?.escContinuousCurrentAmpsPerChannel,
+      motorContinuousCurrentAmpsPerMotor:
+          drone?.motorContinuousCurrentAmpsPerMotor,
+    );
+    final chemistry = BatteryChemistryDefinition.lookup(battery.chemistry);
+    final voltage =
+        battery.nominalVoltageVolts ??
+        (chemistry == null ? null : chemistry.nominalVolts * battery.cellCount);
+    // Chemistry reference voltage can support approximate load diagnostics,
+    // but must not turn an undocumented pack into a confirmed energy budget.
+    // A usable capacity estimate requires recorded Wh or a user-specified
+    // nominal pack voltage alongside capacity.
     final capacity =
         battery.energyWh ??
-        (voltage == null ? null : voltage * battery.capacityMah / 1000);
+        (battery.nominalVoltageVolts == null
+            ? null
+            : battery.nominalVoltageVolts! * battery.capacityMah / 1000);
     final charge = battery.chargePercent;
     final available =
         capacity != null &&
@@ -217,6 +250,15 @@ class BatteryRouteAssessment {
         ? null
         : available - capacity! * (settings.reservePercent / 100);
     final critical = <int>{};
+    final loadLimited = <int>{};
+    final escLimited = <int>{}, motorLimited = <int>{};
+    double? peakPerUnitCurrent;
+    var burstTimeUsedSeconds = 0.0;
+    double? maxEstimatedCurrent;
+    final estimatedLimit = chemistry?.currentLimitAmps(
+      battery.capacityMah.toDouble(),
+      dischargeC: battery.continuousDischargeC,
+    );
     double? optimistic, conservative;
     if (energy.available &&
         (!settings.includeReturn || energy.returnAvailable) &&
@@ -224,6 +266,48 @@ class BatteryRouteAssessment {
         route.segments.isNotEmpty) {
       var spent = 0.0, back = 0.0, finalRequired = 0.0;
       for (var i = 0; i < route.segments.length; i++) {
+        // The same chemistry registry that drives the flight HUD also supplies
+        // route-load estimates. Do not silently cap requested power or assume
+        // that a generic C value is a manufacturer's continuous rating.
+        if (chemistry != null &&
+            voltage != null &&
+            voltage.isFinite &&
+            charge != null &&
+            charge.isFinite &&
+            route.segments[i].seconds != null &&
+            route.segments[i].seconds! > 0 &&
+            energy.outboundWh[i].isFinite) {
+          final load = chemistry.estimateLoad(
+            cells: battery.cellCount,
+            capacityMah: battery.capacityMah.toDouble(),
+            soc: charge / 100,
+            requestedWatts:
+                energy.outboundWh[i] * 3600 / route.segments[i].seconds!,
+            dischargeC: battery.continuousDischargeC,
+            resistanceOhmsPerCell:
+                battery.internalResistanceMilliOhmsPerCell == null
+                ? null
+                : battery.internalResistanceMilliOhmsPerCell! / 1000,
+            burstDischargeC: battery.burstDischargeC,
+            burstDurationSeconds: battery.burstDurationSeconds,
+            loadDurationSeconds:
+                burstTimeUsedSeconds + route.segments[i].seconds!,
+          );
+          maxEstimatedCurrent = math.max(
+            maxEstimatedCurrent ?? 0.0,
+            load.currentAmps,
+          );
+          final drive = propulsion.assess(load.currentAmps);
+          if (drive.estimatedPerUnitInputAmps case final share?) {
+            peakPerUnitCurrent = math.max(peakPerUnitCurrent ?? 0, share);
+          }
+          if (drive.escPossiblyOverloaded == true) escLimited.add(i);
+          if (drive.motorPossiblyOverloaded == true) motorLimited.add(i);
+          if (load.currentAmps > load.currentLimitAmps) {
+            burstTimeUsedSeconds += route.segments[i].seconds!;
+          }
+          if (load.exceedsReferenceCurrent) loadLimited.add(i);
+        }
         spent += energy.outboundWh[i];
         back += energy.returnWh[i] ?? 0;
         final endpoint = route.profile
@@ -246,7 +330,7 @@ class BatteryRouteAssessment {
       optimistic = finalRequired * settings.optimisticFactor;
       conservative = finalRequired * settings.conservativeFactor;
     }
-    final status = !energy.available
+    final baseStatus = !energy.available
         ? energy.problem!
         : settings.includeReturn && !energy.returnAvailable
         ? 'Return energy is unknown because the wind-corrected return track cannot be achieved.'
@@ -258,7 +342,14 @@ class BatteryRouteAssessment {
         ? 'No assessable route segments.'
         : critical.isNotEmpty
         ? 'Conservative reserve is exceeded on the highlighted segments.'
+        : loadLimited.isNotEmpty
+        ? 'Estimated chemistry reference current exceeded on some segments; verify the pack C rating and voltage sag.'
+        : escLimited.isNotEmpty || motorLimited.isNotEmpty
+        ? 'Possible ESC/motor current limitation: equal-share pack DC current is a proxy, not actual motor phase current.'
         : 'Within the configured model budget. This is an estimate, not a flight guarantee.';
+    final status = battery.nominalVoltageVolts == null && chemistry != null
+        ? '$baseStatus Chemistry reference voltage is used only for estimated load diagnostics; it does not confirm available energy.'
+        : baseStatus;
     return BatteryRouteAssessment._(
       battery: battery,
       availableWh: available,
@@ -267,6 +358,12 @@ class BatteryRouteAssessment {
       conservativeWh: conservative,
       criticalSegments: Set.unmodifiable(critical),
       status: status,
+      maxEstimatedCurrentAmps: maxEstimatedCurrent,
+      estimatedCurrentLimitAmps: estimatedLimit,
+      loadLimitedSegments: Set.unmodifiable(loadLimited),
+      escLimitedSegments: Set.unmodifiable(escLimited),
+      motorLimitedSegments: Set.unmodifiable(motorLimited),
+      peakEstimatedPerUnitCurrentAmps: peakPerUnitCurrent,
     );
   }
 }

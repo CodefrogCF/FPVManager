@@ -1,22 +1,35 @@
 // FPVManager – simulation-only, approximate RF link budgets and ideal free-space range.
-// CE reference: DJI O4 Pro 5.8 GHz <14 dBm EIRP; Crossfire EU 868 MHz / 25 mW.
+// EU/FCC simulation scenarios. DJI ideal free-air range is used ONLY as an
+// illustrative model calibration; thresholds are not measured sensitivities.
 // Receiver thresholds, fade margins and additional terrain attenuation are
 // user-configurable ASSUMPTIONS, not measured RF performance or guaranteed range.
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVRfEstimation=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
-    const defaults=Object.freeze({enabled:true,
-        video:Object.freeze({frequencyMhz:5800,eirpDbm:14,receiverThresholdDbm:-105,fadeMarginDb:12}),
-        control:Object.freeze({frequencyMhz:868,eirpDbm:14,receiverThresholdDbm:-120,fadeMarginDb:10})});
+    const presets=Object.freeze({
+        video:Object.freeze({
+            eu:Object.freeze({frequencyMhz:5800,eirpDbm:13.9,receiverThresholdDbm:-124,fadeMarginDb:12}),
+            fcc:Object.freeze({frequencyMhz:5800,eirpDbm:32.9,receiverThresholdDbm:-110.3,fadeMarginDb:12})}),
+        control:Object.freeze({
+            eu:Object.freeze({frequencyMhz:868,eirpDbm:14,receiverThresholdDbm:-120,fadeMarginDb:10}),
+            // Illustrative 250 mW, not a manufacturer-supported limit for every TX.
+            fcc:Object.freeze({frequencyMhz:915,eirpDbm:24,receiverThresholdDbm:-120,fadeMarginDb:10})})});
+    const defaults=Object.freeze({enabled:true,videoScenario:'eu',controlScenario:'eu',
+        video:presets.video.eu,control:presets.control.eu});
     const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
     const round=(v,digits=1)=>Number(v.toFixed(digits));
     function configuration(options={}){
         if(!options||typeof options!=='object'||Array.isArray(options))throw Error('Invalid RF profile settings');
         const cfg={enabled:options.enabled??defaults.enabled};
+        for(const type of ['video','control']){
+            const region=options[`${type}Scenario`]??defaults[`${type}Scenario`];
+            if(!['eu','fcc','custom'].includes(region))throw Error(`Invalid RF ${type} regulatory scenario`);
+            cfg[`${type}Scenario`]=region;
+        }
         if(typeof cfg.enabled!=='boolean')throw Error('Invalid RF simulation state');
         for(const type of ['video','control']){
             const override=options[type]??{};
             if(!override||typeof override!=='object'||Array.isArray(override))throw Error('Invalid RF profile');
-            const profile={...defaults[type],...override};
+            const profile={...(presets[type][cfg[`${type}Scenario`]]??defaults[type]),...override};
             for(const [key,min,max] of [['frequencyMhz',100,8000],['eirpDbm',-30,50],
                 ['receiverThresholdDbm',-150,-40],['fadeMarginDb',0,50]])
                 if(!Number.isFinite(profile[key])||profile[key]<min||profile[key]>max)throw Error(`Invalid RF ${type} ${key}`);
@@ -53,8 +66,10 @@
         // Heuristic, not calibrated diffraction or real material attenuation.
         const intrusion=Math.max(0,Number.isFinite(minimumFresnelMargin)?-minimumFresnelMargin:0);
         const blocking=Math.max(0,Number.isFinite(minimumClearance)?-minimumClearance:0);
-        return visibility==='obstructed'?(25+Math.min(35,blocking*.65)):
-            visibility==='fresnelIntrusion'?(6+Math.min(18,intrusion*.35)):0;
+        // Obstructed terrain is treated as a high-risk *scenario* (not a proven
+        // outage). Deep ridge blockage must degrade the modeled RC link as well.
+        return visibility==='obstructed'?(38+Math.min(55,blocking*.9)):
+            visibility==='fresnelIntrusion'?(6+Math.min(20,intrusion*.45)):0;
     }
     function one(profile,distance,visibility,minimumClearance,minimumFresnelMargin){
         const freeSpaceDb=freeSpaceLossDb(distance,profile.frequencyMhz);
@@ -84,5 +99,5 @@
         return {controlLink:one(cfg.control,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters),
             videoLink:one(cfg.video,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters)};
     }
-    return {defaults,configuration,distanceMeters,freeSpaceLossDb,theoreticalRangeMeters,excessTerrainLossDb,assess};
+    return {defaults,presets,configuration,distanceMeters,freeSpaceLossDb,theoreticalRangeMeters,excessTerrainLossDb,assess};
 });

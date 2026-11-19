@@ -34,6 +34,7 @@ class SimulationSettings {
     this.lowBatteryCellVoltage = 3.5,
     this.criticalBatteryCellVoltage = 3.3,
     this.batterySagResistanceOhmsPerCell = 0,
+    this.batteryUseChemistryThresholds = true,
     this.batteryProfile,
     this.controller = const ControllerSettings(),
     this.acroThrustToWeight = 4,
@@ -60,6 +61,9 @@ class SimulationSettings {
   final FailsafeSettings failsafe;
   final bool showBatteryVoltage, showBatteryCellVoltage;
   final double lowBatteryCellVoltage, criticalBatteryCellVoltage;
+
+  /// Chemistry-derived warning levels are used unless explicitly overridden.
+  final bool batteryUseChemistryThresholds;
   final double batterySagResistanceOhmsPerCell;
   final SimulationBatteryProfile? batteryProfile;
   final ControllerSettings controller;
@@ -77,6 +81,7 @@ class SimulationSettings {
     double? lowBatteryCellVoltage,
     double? criticalBatteryCellVoltage,
     double? batterySagResistanceOhmsPerCell,
+    bool? batteryUseChemistryThresholds,
     ControllerSettings? controller,
     SceneTime? sceneTime,
   }) => SimulationSettings(
@@ -102,6 +107,8 @@ class SimulationSettings {
         criticalBatteryCellVoltage ?? this.criticalBatteryCellVoltage,
     batterySagResistanceOhmsPerCell:
         batterySagResistanceOhmsPerCell ?? this.batterySagResistanceOhmsPerCell,
+    batteryUseChemistryThresholds:
+        batteryUseChemistryThresholds ?? this.batteryUseChemistryThresholds,
     batteryProfile: batteryProfile,
     controller: controller ?? this.controller,
     sceneTime: sceneTime ?? this.sceneTime,
@@ -143,8 +150,10 @@ class SimulationSettings {
     failsafe.validate();
     if (!lowBatteryCellVoltage.isFinite ||
         !criticalBatteryCellVoltage.isFinite ||
-        criticalBatteryCellVoltage < 2.8 ||
-        lowBatteryCellVoltage > 4.3 ||
+        criticalBatteryCellVoltage < .5 ||
+        criticalBatteryCellVoltage > 4.4 ||
+        lowBatteryCellVoltage < .6 ||
+        lowBatteryCellVoltage > 4.5 ||
         lowBatteryCellVoltage <= criticalBatteryCellVoltage ||
         !batterySagResistanceOhmsPerCell.isFinite ||
         batterySagResistanceOhmsPerCell < 0 ||
@@ -196,6 +205,7 @@ class SimulationSettings {
       'lowBatteryCellVoltage': lowBatteryCellVoltage,
       'criticalBatteryCellVoltage': criticalBatteryCellVoltage,
       'batterySagResistanceOhmsPerCell': batterySagResistanceOhmsPerCell,
+      'batteryUseChemistryThresholds': batteryUseChemistryThresholds,
       'batteryProfile': batteryProfile?.toJson(),
       'controller': controller.toJson(),
       'acroThrustToWeight': acroThrustToWeight,

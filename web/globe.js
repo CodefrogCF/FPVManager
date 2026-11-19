@@ -1075,6 +1075,7 @@ function postToFlutter(message) {
         const hudSelect=document.getElementById('flight-hud-style');
         const batteryToggle=document.getElementById('flight-battery-enabled'),
             batteryCellToggle=document.getElementById('flight-battery-cell'),
+            batteryAutoThresholds=document.getElementById('flight-battery-auto-thresholds'),
             batteryLow=document.getElementById('flight-battery-low'),
             batteryCritical=document.getElementById('flight-battery-critical'),
             batteryError=document.getElementById('flight-battery-error');
@@ -1209,9 +1210,10 @@ function postToFlutter(message) {
             if(!flying){settingsPanel.hidden=true;settingsButton.setAttribute('aria-expanded','false');}
             else {hudSelect.value=state.hudStyle;coordinateToggle.checked=state.showCoordinates===true;
                 syncSignalOptions(state.signalHud);syncFailsafeOptions(state.failsafeSettings);
-                failsafeResume.disabled=state.failsafe?.phase!=='awaitingManual';
+                failsafeResume.disabled=state.failsafe?.recoveryReady!==true;
                 batteryToggle.checked=state.showBatteryVoltage===true;
                 batteryCellToggle.checked=state.showBatteryCellVoltage===true;
+                batteryAutoThresholds.checked=state.batteryUseChemistryThresholds===true;
                 batteryLow.value=String(state.lowBatteryCellVoltage);
                 batteryCritical.value=String(state.criticalBatteryCellVoltage);
                 flightHud.update(state,viewer.camera.heading,liveRadio.assessment());controllerPanel.update(state.controller);}
@@ -1262,7 +1264,7 @@ function postToFlutter(message) {
                 if(target)void tunnels?.prefetchFlight(target).catch(()=>{});
                 flightRecording.observe(point);
                 liveRadio.observe(point);flyer.linkAssessment(liveRadio.assessment());
-                failsafeResume.disabled=point.failsafe?.phase!=='awaitingManual';
+                failsafeResume.disabled=point.failsafe?.recoveryReady!==true;
                 const now=performance.now();if(now-lastHud<100&&point.reason===lastReason)return;lastHud=now;lastReason=point.reason;
                 flightHud.update(point,viewer.camera.heading,liveRadio.assessment());
             },onState:state=>modeState('flight',state)});
@@ -1338,13 +1340,14 @@ function postToFlutter(message) {
         coordinateToggle.addEventListener('change',()=>flyer.showCoordinates(coordinateToggle.checked));
         const updateBatteryHud=()=>{
             const low=Number(batteryLow.value),critical=Number(batteryCritical.value);
-            if(!Number.isFinite(low)||!Number.isFinite(critical)||critical<2.8||critical>4.2||low<2.9||low>4.3||low<=critical){
+            if(!Number.isFinite(low)||!Number.isFinite(critical)||critical<.5||critical>4.4||low<.6||low>4.5||low<=critical){
                 batteryError.textContent=translate('Warnspannung muss höher als kritische Zellspannung sein.');return;
             }
             batteryError.textContent='';
-            flyer.batteryHud({enabled:batteryToggle.checked,showCell:batteryCellToggle.checked,low,critical});
+            flyer.batteryHud({enabled:batteryToggle.checked,showCell:batteryCellToggle.checked,low,critical,
+                useChemistryThresholds:batteryAutoThresholds.checked});
         };
-        for(const item of [batteryToggle,batteryCellToggle,batteryLow,batteryCritical])item.addEventListener('change',updateBatteryHud);
+        for(const item of [batteryToggle,batteryCellToggle,batteryAutoThresholds,batteryLow,batteryCritical])item.addEventListener('change',updateBatteryHud);
         cameraButton.addEventListener('click',()=>{
             cameraPanel.hidden=!cameraPanel.hidden;cameraButton.setAttribute('aria-expanded',String(!cameraPanel.hidden));
         });

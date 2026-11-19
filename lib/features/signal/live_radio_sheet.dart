@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/localization/app_localizations.dart';
+import '../../core/database/fpv_database.dart';
+import '../../core/database/repositories/radio_equipment_repository.dart';
 
 import 'package:flutter/material.dart';
 
@@ -12,15 +14,27 @@ import '../routes/route_start_sheet.dart';
 import '../spots/data/spot_repository.dart';
 import 'live_radio_controller.dart';
 import 'rf_profile_settings.dart';
+import 'rf_equipment_adapter.dart';
 import 'surface_csv.dart';
 
 class LiveRadioLauncher extends StatelessWidget {
-  const LiveRadioLauncher({super.key, required this.globe, this.spots});
+  const LiveRadioLauncher({
+    super.key,
+    required this.globe,
+    this.spots,
+    this.equipment,
+  });
   final GlobeController globe;
   final SpotRepository? spots;
+  final RadioEquipmentRepository? equipment;
   @override
   Widget build(BuildContext context) => TextButton.icon(
-    onPressed: () => showLiveRadioSettings(context, globe, spots: spots),
+    onPressed: () => showLiveRadioSettings(
+      context,
+      globe,
+      spots: spots,
+      equipment: equipment,
+    ),
     icon: const Icon(Icons.settings_input_antenna),
     label: Text(
       context.localized(
@@ -35,17 +49,20 @@ Future<void> showLiveRadioSettings(
   BuildContext context,
   GlobeController globe, {
   SpotRepository? spots,
+  RadioEquipmentRepository? equipment,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   useSafeArea: true,
-  builder: (_) => _LiveRadioSheet(globe: globe, spots: spots),
+  builder: (_) =>
+      _LiveRadioSheet(globe: globe, spots: spots, equipment: equipment),
 );
 
 class _LiveRadioSheet extends StatefulWidget {
-  const _LiveRadioSheet({required this.globe, this.spots});
+  const _LiveRadioSheet({required this.globe, this.spots, this.equipment});
   final GlobeController globe;
   final SpotRepository? spots;
+  final RadioEquipmentRepository? equipment;
   @override
   State<_LiveRadioSheet> createState() => _LiveRadioSheetState();
 }
@@ -58,6 +75,8 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
       _path = c.settings.showSignalPath,
       _surfacesEnabled = c.settings.signal.useSurfaces,
       _rfEnabled = c.settings.rfProfiles.enabled;
+  late RfScenario _videoScenario = c.settings.rfProfiles.videoScenario;
+  late RfScenario _controlScenario = c.settings.rfProfiles.controlScenario;
   late List<SurfaceObservation> _surfaces = c.settings.signal.surfaces;
   late final _fields = <String, TextEditingController>{
     'latitude': TextEditingController(
@@ -152,6 +171,111 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
     }
   }
 
+  Future<void> _useStoredEquipment(String category) async {
+    if (_working || widget.equipment == null) return;
+    try {
+      final equipment = (await widget.equipment!.getAllEquipment())
+          .where((item) => item.category == category)
+          .toList();
+      if (!mounted) return;
+      final selected = await showDialog<RadioEquipmentData>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: Text(
+            category == 'video'
+                ? 'Videosystem auswählen'
+                : 'RC-System auswählen',
+          ),
+          children: equipment.isEmpty
+              ? [
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Keine gespeicherten Geräte dieser Kategorie.'),
+                  ),
+                ]
+              : equipment
+                    .map(
+                      (item) => SimpleDialogOption(
+                        onPressed: () => Navigator.pop(dialogContext, item),
+                        child: Text(item.name),
+                      ),
+                    )
+                    .toList(),
+        ),
+      );
+      if (!mounted || selected == null) return;
+      final prefix = category == 'video' ? 'video' : 'rc';
+      final fallback = RfBandProfile(
+        frequencyMhz: _value('${prefix}Frequency'),
+        eirpDbm: _value('${prefix}Power'),
+        receiverThresholdDbm: _value('${prefix}Threshold'),
+        fadeMarginDb: _value('${prefix}Fade'),
+      );
+      final updated = rfBandFromEquipment(selected, fallback: fallback);
+      setState(() {
+        if (category == 'video') {
+          _videoScenario = RfScenario.custom;
+        } else {
+          _controlScenario = RfScenario.custom;
+        }
+        _fields['${prefix}Frequency']!.text = '${updated.frequencyMhz}';
+        _fields['${prefix}Power']!.text = updated.eirpDbm.toStringAsFixed(2);
+        _fields['${prefix}Threshold']!.text = '${updated.receiverThresholdDbm}';
+        _error = null;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Gespeicherte Funkdaten konnten nicht übernommen werden.',
+        );
+      }
+    }
+  }
+
+  void _selectScenario(String type, RfScenario scenario) {
+    setState(() {
+      if (type == 'video') {
+        _videoScenario = scenario;
+      } else {
+        _controlScenario = scenario;
+      }
+      if (scenario == RfScenario.custom) return;
+      final profile = type == 'video'
+          ? RfReferencePresets.video(scenario)
+          : RfReferencePresets.control(scenario);
+      final prefix = type == 'video' ? 'video' : 'rc';
+      _fields['${prefix}Frequency']!.text = '${profile.frequencyMhz}';
+      _fields['${prefix}Power']!.text = '${profile.eirpDbm}';
+      _fields['${prefix}Threshold']!.text = '${profile.receiverThresholdDbm}';
+      _fields['${prefix}Fade']!.text = '${profile.fadeMarginDb}';
+      _error = null;
+    });
+  }
+
+  Widget _scenarioSelector(String type, String title) {
+    final current = type == 'video' ? _videoScenario : _controlScenario;
+    return DropdownButtonFormField<RfScenario>(
+      key: ValueKey('rf-scenario-$type-$current'),
+      initialValue: current,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: title),
+      items: const [
+        DropdownMenuItem(value: RfScenario.eu, child: Text('EU / CE · SIM')),
+        DropdownMenuItem(value: RfScenario.fcc, child: Text('FCC · SIM')),
+        DropdownMenuItem(
+          value: RfScenario.custom,
+          child: Text('Benutzerdefiniert / Custom'),
+        ),
+      ],
+      onChanged: _working
+          ? null
+          : (value) {
+              if (value != null) _selectScenario(type, value);
+            },
+    );
+  }
+
   Future<void> _apply() async {
     try {
       final settings = SignalSettings(
@@ -170,6 +294,8 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
       settings.validate();
       final rf = RfProfileSettings(
         enabled: _rfEnabled,
+        videoScenario: _videoScenario,
+        controlScenario: _controlScenario,
         video: RfBandProfile(
           frequencyMhz: _value('videoFrequency'),
           eirpDbm: _value('videoPower'),
@@ -433,6 +559,40 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                               ? null
                               : (value) => setState(() => _rfEnabled = value),
                         ),
+                        if (widget.equipment != null)
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              TextButton.icon(
+                                onPressed: _working
+                                    ? null
+                                    : () => _useStoredEquipment('video'),
+                                icon: const Icon(Icons.file_download_outlined),
+                                label: const Text('Videosystem übernehmen'),
+                              ),
+                              TextButton.icon(
+                                onPressed: _working
+                                    ? null
+                                    : () => _useStoredEquipment('control'),
+                                icon: const Icon(Icons.file_download_outlined),
+                                label: const Text('RC-System übernehmen'),
+                              ),
+                            ],
+                          ),
+                        _scenarioSelector(
+                          'video',
+                          'DJI O4 Pro · Region / scenario',
+                        ),
+                        _scenarioSelector(
+                          'control',
+                          'TBS Crossfire · Region / scenario',
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'SIM ONLY: EU/CE und FCC sind Modell-Szenarien, keine Geräteumstellung oder Betriebsfreigabe. DJI-Reichweitenwerte dienen nur zur theoretischen Kalibrierung. Crossfire-FCC verwendet beispielhaft 250 mW. 40 MHz ist Bandbreite, kein Leistungsfaktor.',
+                          ),
+                        ),
                         for (final field in [
                           ('videoFrequency', 'O4 Pro · MHz'),
                           ('videoPower', 'O4 Pro · EIRP dBm'),
@@ -452,7 +612,14 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                           TextField(
                             controller: _fields[field.$1],
                             enabled: !_working,
-                            onChanged: (_) => setState(() {}),
+                            onChanged: (_) => setState(() {
+                              if (field.$1.startsWith('video')) {
+                                _videoScenario = RfScenario.custom;
+                              }
+                              if (field.$1.startsWith('rc')) {
+                                _controlScenario = RfScenario.custom;
+                              }
+                            }),
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                               signed: true,

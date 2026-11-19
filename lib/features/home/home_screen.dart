@@ -645,6 +645,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       windControls: WindControlsLauncher(globe: _globeController, flight: true),
       radioControls: LiveRadioLauncher(
         globe: _globeController,
+        equipment: _radioEquipmentRepository ??=
+            widget.radioEquipmentRepository ??
+            RadioEquipmentRepository(_planningDatabase),
         spots: _spotRepository ??=
             widget.spotRepository ?? SpotRepository(_planningDatabase),
       ),
@@ -675,6 +678,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       await showLiveRadioSettings(
         context,
         _globeController,
+        equipment: _radioEquipmentRepository ??=
+            widget.radioEquipmentRepository ??
+            RadioEquipmentRepository(_planningDatabase),
         spots: _spotRepository ??=
             widget.spotRepository ?? SpotRepository(_planningDatabase),
       );

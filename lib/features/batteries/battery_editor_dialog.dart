@@ -5,6 +5,9 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/models/battery_profile.dart';
+import '../../core/models/battery_chemistry.dart';
+import '../../core/models/generated/battery_chemistries.g.dart';
+import 'battery_chemistry_label.dart';
 
 class BatteryEditorDialog extends StatefulWidget {
   const BatteryEditorDialog({
@@ -27,9 +30,13 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
   Battery? get _seed => widget.profile?.battery ?? widget.fromType;
   bool get _isType => widget.profile?.battery.isType ?? widget.asType;
   late final _name = TextEditingController(text: widget.profile?.battery.name);
-  late final _chemistry = TextEditingController(
-    text: _seed?.chemistry ?? 'LiPo',
-  );
+
+  /// Preserve unsupported legacy chemistry until a user explicitly selects a preset.
+  late String _chemistry =
+      BatteryChemistryDefinition.lookup(_seed?.chemistry)?.id ??
+      _seed?.chemistry ??
+      'LiPo';
+
   late final _numbers = <String, TextEditingController>{
     'Cell count': TextEditingController(text: _seed?.cellCount.toString()),
     'Capacity (mAh)': TextEditingController(
@@ -42,6 +49,18 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
       text: _seed?.energyWh?.toString(),
     ),
     'Weight (g)': TextEditingController(text: _seed?.weightGrams?.toString()),
+    'Continuous discharge (C)': TextEditingController(
+      text: _seed?.continuousDischargeC?.toString(),
+    ),
+    'Burst discharge (C)': TextEditingController(
+      text: _seed?.burstDischargeC?.toString(),
+    ),
+    'Burst duration (s)': TextEditingController(
+      text: _seed?.burstDurationSeconds?.toString(),
+    ),
+    'Internal resistance (mΩ/cell)': TextEditingController(
+      text: _seed?.internalResistanceMilliOhmsPerCell?.toString(),
+    ),
     'Recorded charge (%)': TextEditingController(
       text: widget.profile?.battery.chargePercent?.toString(),
     ),
@@ -103,6 +122,8 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
     bool whole = false,
     bool zero = false,
     bool percent = false,
+    String? translatedLabel,
+    double? maxValue,
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
@@ -110,7 +131,7 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
       enabled: !_saving,
       keyboardType: TextInputType.numberWithOptions(decimal: !whole),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: translatedLabel ?? label,
         helperText: required
             ? null
             : context.localized(
@@ -128,6 +149,7 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
             !value.isFinite ||
             (zero || percent ? value < 0 : value <= 0) ||
             (percent && value > 100) ||
+            (maxValue != null && value > maxValue) ||
             (whole &&
                 (value != value.truncateToDouble() ||
                     value > 9007199254740991))) {
@@ -144,13 +166,20 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
 
   void _copyType(Battery type) {
     setState(() {
-      _chemistry.text = type.chemistry;
+      _chemistry =
+          BatteryChemistryDefinition.lookup(type.chemistry)?.id ??
+          type.chemistry;
       for (final entry in <String, num?>{
         'Cell count': type.cellCount,
         'Capacity (mAh)': type.capacityMah,
         'Nominal voltage (V)': type.nominalVoltageVolts,
         'Recorded energy (Wh)': type.energyWh,
         'Weight (g)': type.weightGrams,
+        'Continuous discharge (C)': type.continuousDischargeC,
+        'Burst discharge (C)': type.burstDischargeC,
+        'Burst duration (s)': type.burstDurationSeconds,
+        'Internal resistance (mΩ/cell)':
+            type.internalResistanceMilliOhmsPerCell,
       }.entries) {
         _numbers[entry.key]!.text = entry.value?.toString() ?? '';
       }
@@ -159,6 +188,19 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
 
   Future<void> _save() async {
     if (_saving || !_form.currentState!.validate()) return;
+    final continuous = _number('Continuous discharge (C)');
+    final burst = _number('Burst discharge (C)');
+    final duration = _number('Burst duration (s)');
+    if ((burst == null) != (duration == null) ||
+        (continuous != null && burst != null && burst < continuous)) {
+      setState(
+        () => _error = context.localized(
+          'Enter burst rating and duration together; burst rating must not be lower than continuous rating.',
+          (l10n) => l10n.batteryBurstValidation,
+        ),
+      );
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -167,7 +209,14 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
       final id = await widget.repository.saveProfile(
         BatteryInput(
           name: _name.text,
-          chemistry: _chemistry.text,
+          chemistry:
+              BatteryChemistryDefinition.lookup(_chemistry)?.id ?? _chemistry,
+          continuousDischargeC: _number('Continuous discharge (C)'),
+          burstDischargeC: _number('Burst discharge (C)'),
+          burstDurationSeconds: _number('Burst duration (s)'),
+          internalResistanceMilliOhmsPerCell: _number(
+            'Internal resistance (mΩ/cell)',
+          ),
           cellCount: _number('Cell count')!.toInt(),
           capacityMah: _number('Capacity (mAh)')!.toInt(),
           nominalVoltageVolts: _number('Nominal voltage (V)'),
@@ -199,13 +248,7 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
 
   @override
   void dispose() {
-    for (final controller in [
-      _name,
-      _chemistry,
-      _notes,
-      _condition,
-      ..._numbers.values,
-    ]) {
+    for (final controller in [_name, _notes, _condition, ..._numbers.values]) {
       controller.dispose();
     }
     super.dispose();
@@ -366,7 +409,119 @@ class _BatteryEditorDialogState extends State<BatteryEditorDialog> {
                         ),
                       ),
                     ],
-                    _text(_chemistry, 'Chemistry', required: true),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey('battery-chemistry:$_chemistry'),
+                        initialValue: _chemistry,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: context.localized(
+                            'Battery chemistry',
+                            (l10n) => l10n.batteryChemistryField,
+                          ),
+                        ),
+                        items: [
+                          if (!batteryChemistryPresets.any(
+                            (entry) => entry.id == _chemistry,
+                          ))
+                            DropdownMenuItem<String>(
+                              value: _chemistry,
+                              child: Text(
+                                context.localized(
+                                      'Unsupported (preserved): ',
+                                      (l10n) => l10n.batteryUnknownChemistry,
+                                    ) +
+                                    _chemistry,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          for (final chemistry in batteryChemistryPresets)
+                            DropdownMenuItem<String>(
+                              value: chemistry.id,
+                              child: Text(
+                                localizedBatteryChemistry(
+                                  context,
+                                  chemistry.id,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  setState(() => _chemistry = value);
+                                }
+                              },
+                      ),
+                    ),
+                    if (BatteryChemistryDefinition.lookup(_chemistry)
+                        case final chemistry?)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 4),
+                        child: Text(
+                          chemistry.maxChargeVoltsPerCell != null
+                              ? context.localizedWithArgs(
+                                  'Charging reference: CC/CV, max {0} V per cell. Verify the cell manufacturer specifications.',
+                                  [
+                                    chemistry.maxChargeVoltsPerCell!
+                                        .toStringAsFixed(2),
+                                  ],
+                                  (l10n, value) =>
+                                      l10n.batteryChargingVoltageHint(value(0)),
+                                )
+                              : context.localized(
+                                  'Charging reference: nickel cells require delta-peak/temperature monitoring; no fixed voltage-only cutoff applies.',
+                                  (l10n) => l10n.batteryNickelChargingHint,
+                                ),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    _numeric(
+                      'Continuous discharge (C)',
+                      maxValue: 1000,
+                      translatedLabel: context.localized(
+                        'Continuous rating (C)',
+                        (l10n) => l10n.batteryContinuousDischarge,
+                      ),
+                    ),
+                    _numeric(
+                      'Burst discharge (C)',
+                      maxValue: 1000,
+                      translatedLabel: context.localized(
+                        'Burst rating (C)',
+                        (l10n) => l10n.batteryBurstDischarge,
+                      ),
+                    ),
+                    _numeric(
+                      'Burst duration (s)',
+                      maxValue: 3600,
+                      translatedLabel: context.localized(
+                        'Burst duration (s)',
+                        (l10n) => l10n.batteryBurstDuration,
+                      ),
+                    ),
+                    _numeric(
+                      'Internal resistance (mΩ/cell)',
+                      zero: true,
+                      maxValue: 500,
+                      translatedLabel: context.localized(
+                        'Internal resistance (mΩ/cell)',
+                        (l10n) => l10n.batteryInternalResistance,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        context.localized(
+                          'Optional pack-specific values override chemistry assumptions. Burst rating and duration must be set together.',
+                          (l10n) => l10n.batteryElectricalHint,
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
                     _numeric('Cell count', required: true, whole: true),
                     _numeric('Capacity (mAh)', required: true, whole: true),
                     _numeric('Nominal voltage (V)'),

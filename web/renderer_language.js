@@ -103,6 +103,7 @@
     };
     const english = {
         'Geschätzte Akkuspannung (SIM)': 'Estimated battery voltage (SIM)',
+        'Warnschwellen nach Akkuchemie (SIM)': 'Chemistry-based battery warnings (SIM)',
         'Simuliertes Funksignal · HUD': 'Simulated signal · HUD',
         'DJI: Signalwarnung am unteren Bildrand': 'DJI: bottom-edge signal warning',
         'Betaflight: Signalbalken (Video / RC getrennt)': 'Betaflight: signal bars (separate video / RC)',

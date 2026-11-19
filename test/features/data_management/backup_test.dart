@@ -23,7 +23,7 @@ void main() {
       "INSERT INTO spots(id,name,latitude,longitude,notes,search_text) VALUES(7,'Secret spot',46.7,8.4,'Private notes','secret spot private notes')",
       "INSERT INTO drones(id,name) VALUES(2,'Freestyle')",
       "INSERT INTO batteries(id,name,cell_count,capacity_mah,is_type) VALUES(3,'6S template',6,1300,1)",
-      "INSERT INTO batteries(id,name,cell_count,capacity_mah,type_id) VALUES(4,'Pack',6,1300,3)",
+      "INSERT INTO batteries(id,name,cell_count,capacity_mah,type_id,continuous_discharge_c,burst_discharge_c,burst_duration_seconds,internal_resistance_milli_ohms_per_cell) VALUES(4,'Pack',6,1300,3,40,70,5,15.5)",
       "INSERT INTO flight_plans(id,name,drone_id,start_spot_id,planning_json) VALUES(5,'Route',2,7,'{}')",
       "INSERT INTO flight_waypoints(plan_id,sequence_number,latitude,longitude,height_meters,altitude_mode) VALUES(5,0,46.7,8.4,30,'aboveGroundLevel')",
       "INSERT INTO battery_drones VALUES(4,2)",
@@ -64,6 +64,10 @@ void main() {
     await seed();
     final bytes = await repository.create();
     expect(isEncryptedBackup(bytes), isFalse);
+    final beforePack = (await database.select(database.batteries).get())
+        .firstWhere((b) => b.id == 4);
+    expect(beforePack.continuousDischargeC, 40);
+    expect(beforePack.internalResistanceMilliOhmsPerCell, 15.5);
     expect(utf8.decode(bytes.sublist(69)), isNot(contains('DO NOT EXPORT')));
     final document = await repository.preview(bytes);
     final before = {
@@ -86,11 +90,34 @@ void main() {
         reason: t.actualTableName,
       );
     }
+    final restoredPack = (await database.select(database.batteries).get())
+        .firstWhere((b) => b.id == 4);
+    expect(restoredPack.continuousDischargeC, 40);
+    expect(restoredPack.burstDischargeC, 70);
+    expect(restoredPack.burstDurationSeconds, 5);
+    expect(restoredPack.internalResistanceMilliOhmsPerCell, 15.5);
     expect(
       (await database.customSelect('PRAGMA foreign_key_check').get()),
       isEmpty,
     );
   });
+  test(
+    'invalid battery electrical specifications in a backup are rejected',
+    () async {
+      await seed();
+      final pristine = await repository.preview(await repository.create());
+      final corrupt = jsonDecode(jsonEncode(pristine)) as Map<String, dynamic>;
+      final entries = (corrupt['tables'] as Map)['batteries'] as List;
+      final pack = entries.cast<Map>().firstWhere((entry) => entry['id'] == 4);
+      pack['burst_duration_seconds'] = -1;
+      await expectLater(repository.restore(corrupt), throwsFormatException);
+      final original = (await database.select(database.batteries).get())
+          .firstWhere((battery) => battery.id == 4);
+      expect(original.burstDurationSeconds, 5);
+      expect(original.continuousDischargeC, 40);
+    },
+  );
+
   test('AES-GCM authenticates password, ciphertext, nonce and header; salt and nonce are fresh', () async {
     final payload = Uint8List.fromList(
       utf8.encode(

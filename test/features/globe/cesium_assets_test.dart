@@ -59,6 +59,7 @@ void main() {
         'ground_navigation.js',
         'navigation_controls.js',
         'controller_input.js',
+        'battery_chemistries.generated.js',
         'battery_simulation.js',
         'simulated_failsafe.js',
         'free_flight.js',

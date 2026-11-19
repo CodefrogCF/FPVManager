@@ -8958,9 +8958,100 @@
     "description": "Simulation signal HUD settings (issue #128)."
   },
   "failsafeSimulationTitle": "Simulated RC failsafe",
-  "@failsafeSimulationTitle": {"description": "Simulation failsafe settings (issue #129)."},
+  "@failsafeSimulationTitle": {
+    "description": "Simulation failsafe settings (issue #129)."
+  },
   "failsafeSimulationDisclaimer": "Only explicit simulated RC loss can activate it. Not a real RF prediction.",
-  "@failsafeSimulationDisclaimer": {"description": "Simulation failsafe settings (issue #129)."},
+  "@failsafeSimulationDisclaimer": {
+    "description": "Simulation failsafe settings (issue #129)."
+  },
   "failsafeSimulationAction": "Failsafe action",
-  "@failsafeSimulationAction": {"description": "Simulation failsafe settings (issue #129)."}
+  "@failsafeSimulationAction": {
+    "description": "Simulation failsafe settings (issue #129)."
+  },
+  "batteryChemistryAutoThresholds": "Chemistry-based warning thresholds (SIM)",
+  "@batteryChemistryAutoThresholds": {
+    "description": "Battery chemistry simulation (shared model)."
+  },
+  "batteryChemistryAutoThresholdsHint": "Uses the selected battery chemistry; disable for custom voltages.",
+  "@batteryChemistryAutoThresholdsHint": {
+    "description": "Battery chemistry simulation (shared model)."
+  },
+  "batteryChemistryResistanceAutomatic": "Cell resistance (Ω; 0 = chemistry estimate)",
+  "@batteryChemistryResistanceAutomatic": {
+    "description": "Battery chemistry simulation (shared model)."
+  },
+  "batteryChemistryField": "Battery chemistry",
+  "@batteryChemistryField": {
+    "description": "Battery profile setting."
+  },
+  "batteryUnknownChemistry": "Unsupported (preserved): ",
+  "@batteryUnknownChemistry": {
+    "description": "Battery profile setting."
+  },
+  "batteryContinuousDischarge": "Continuous rating (C)",
+  "@batteryContinuousDischarge": {
+    "description": "Battery profile setting."
+  },
+  "batteryBurstDischarge": "Burst rating (C)",
+  "@batteryBurstDischarge": {
+    "description": "Battery profile setting."
+  },
+  "batteryBurstDuration": "Burst duration (s)",
+  "@batteryBurstDuration": {
+    "description": "Battery profile setting."
+  },
+  "batteryInternalResistance": "Internal resistance (mΩ/cell)",
+  "@batteryInternalResistance": {
+    "description": "Battery profile setting."
+  },
+  "batteryElectricalHint": "Optional pack-specific values override chemistry assumptions. Burst rating and duration must be set together.",
+  "@batteryElectricalHint": {
+    "description": "Battery profile setting."
+  },
+  "batteryBurstValidation": "Enter burst rating and duration together; burst rating must not be lower than continuous rating.",
+  "@batteryBurstValidation": {
+    "description": "Battery profile setting."
+  },
+  "batteryTypeLiPo": "LiPo — Lithium polymer",
+  "@batteryTypeLiPo": {
+    "description": "Battery profile setting."
+  },
+  "batteryTypeLiHV": "LiHV — High-voltage lithium polymer",
+  "@batteryTypeLiHV": {
+    "description": "Battery profile setting."
+  },
+  "batteryTypeLiIon": "Li-ion — Lithium-ion",
+  "@batteryTypeLiIon": {
+    "description": "Battery profile setting."
+  },
+  "batteryTypeLiFePO4": "LiFePO4 — Lithium iron phosphate",
+  "@batteryTypeLiFePO4": {
+    "description": "Battery profile setting."
+  },
+  "batteryTypeNiMH": "NiMH — Nickel-metal hydride",
+  "@batteryTypeNiMH": {
+    "description": "Battery profile setting."
+  },
+  "batteryTypeNiCd": "NiCd — Nickel-cadmium",
+  "@batteryTypeNiCd": {
+    "description": "Battery profile setting."
+  },
+  "batteryChargingVoltageHint": "Charging reference: CC/CV, max {value} V per cell. Verify the cell manufacturer specifications.",
+  "@batteryChargingVoltageHint": {
+    "description": "Chemistry-specific charge reference, not a charging instruction",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "batteryNickelChargingHint": "Charging reference: nickel cells require delta-peak/temperature monitoring; no fixed voltage-only cutoff applies.",
+  "@batteryNickelChargingHint": {
+    "description": "Chemistry-specific charge reference, not a charging instruction"
+  },
+  "droneCurrentLimitsHint": "Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.",
+  "@droneCurrentLimitsHint": {
+    "description": "Clarify comparison of ESC/motor current with pack input current"
+  }
 }

@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 1,
+  "description": "Approximate RC battery discharge and charge reference. Lithium chemistries use chemistry-specific CC/CV terminal voltage; nickel packs require chemistry-specific peak/temperature charge detection and have no fixed voltage-only charging cutoff. Values are illustrative, not charger instructions.",
+  "chemistries": [
+    {
+      "id": "LiPo",
+      "label": "Lithium polymer (LiPo)",
+      "aliases": [
+        "lipo",
+        "lithium polymer",
+        "lipoly"
+      ],
+      "nominalVolts": 3.7,
+      "lowVolts": 3.5,
+      "criticalVolts": 3.3,
+      "resistanceOhmsAt1Ah": 0.02,
+      "referenceContinuousC": 15,
+      "curve": [
+        [
+          0,
+          3.1
+        ],
+        [
+          0.1,
+          3.48
+        ],
+        [
+          0.25,
+          3.69
+        ],
+        [
+          0.5,
+          3.79
+        ],
+        [
+          0.75,
+          3.89
+        ],
+        [
+          0.9,
+          4.02
+        ],
+        [
+          1,
+          4.2
+        ]
+      ],
+      "chargeMethod": "cc_cv",
+      "maxChargeVoltsPerCell": 4.2
+    },
+    {
+      "id": "LiHV",
+      "label": "High voltage lithium polymer (LiHV)",
+      "aliases": [
+        "lihv",
+        "lipo hv",
+        "lipo-hv"
+      ],
+      "nominalVolts": 3.8,
+      "lowVolts": 3.55,
+      "criticalVolts": 3.35,
+      "resistanceOhmsAt1Ah": 0.022,
+      "referenceContinuousC": 12,
+      "curve": [
+        [
+          0,
+          3.1
+        ],
+        [
+          0.1,
+          3.5
+        ],
+        [
+          0.25,
+          3.73
+        ],
+        [
+          0.5,
+          3.85
+        ],
+        [
+          0.75,
+          4.03
+        ],
+        [
+          0.9,
+          4.2
+        ],
+        [
+          1,
+          4.35
+        ]
+      ],
+      "chargeMethod": "cc_cv",
+      "maxChargeVoltsPerCell": 4.35
+    },
+    {
+      "id": "LiIon",
+      "label": "Lithium ion (Li-ion)",
+      "aliases": [
+        "liion",
+        "li-ion",
+        "lion",
+        "lithiumion",
+        "lithium ion"
+      ],
+      "nominalVolts": 3.6,
+      "lowVolts": 3.3,
+      "criticalVolts": 3.0,
+      "resistanceOhmsAt1Ah": 0.065,
+      "referenceContinuousC": 5,
+      "curve": [
+        [
+          0,
+          2.8
+        ],
+        [
+          0.1,
+          3.22
+        ],
+        [
+          0.25,
+          3.48
+        ],
+        [
+          0.5,
+          3.67
+        ],
+        [
+          0.75,
+          3.83
+        ],
+        [
+          0.9,
+          3.99
+        ],
+        [
+          1,
+          4.2
+        ]
+      ],
+      "chargeMethod": "cc_cv",
+      "maxChargeVoltsPerCell": 4.2
+    },
+    {
+      "id": "LiFePO4",
+      "label": "Lithium iron phosphate (LiFePO4)",
+      "aliases": [
+        "lifepo4",
+        "lithium iron phosphate",
+        "lfp"
+      ],
+      "nominalVolts": 3.2,
+      "lowVolts": 3.05,
+      "criticalVolts": 2.8,
+      "resistanceOhmsAt1Ah": 0.04,
+      "referenceContinuousC": 10,
+      "curve": [
+        [
+          0,
+          2.5
+        ],
+        [
+          0.1,
+          3.1
+        ],
+        [
+          0.25,
+          3.23
+        ],
+        [
+          0.5,
+          3.28
+        ],
+        [
+          0.75,
+          3.31
+        ],
+        [
+          0.9,
+          3.36
+        ],
+        [
+          1,
+          3.65
+        ]
+      ],
+      "chargeMethod": "cc_cv",
+      "maxChargeVoltsPerCell": 3.65
+    },
+    {
+      "id": "NiMH",
+      "label": "Nickel metal hydride (NiMH)",
+      "aliases": [
+        "nimh",
+        "nickel metal hydride"
+      ],
+      "nominalVolts": 1.2,
+      "lowVolts": 1.12,
+      "criticalVolts": 1.0,
+      "resistanceOhmsAt1Ah": 0.055,
+      "referenceContinuousC": 5,
+      "curve": [
+        [
+          0,
+          0.95
+        ],
+        [
+          0.1,
+          1.08
+        ],
+        [
+          0.25,
+          1.16
+        ],
+        [
+          0.5,
+          1.23
+        ],
+        [
+          0.75,
+          1.31
+        ],
+        [
+          0.9,
+          1.36
+        ],
+        [
+          1,
+          1.45
+        ]
+      ],
+      "chargeMethod": "delta_peak_temperature",
+      "maxChargeVoltsPerCell": null
+    },
+    {
+      "id": "NiCd",
+      "label": "Nickel cadmium (NiCd)",
+      "aliases": [
+        "nicd",
+        "nickel cadmium"
+      ],
+      "nominalVolts": 1.2,
+      "lowVolts": 1.1,
+      "criticalVolts": 0.95,
+      "resistanceOhmsAt1Ah": 0.035,
+      "referenceContinuousC": 8,
+      "curve": [
+        [
+          0,
+          0.9
+        ],
+        [
+          0.1,
+          1.09
+        ],
+        [
+          0.25,
+          1.17
+        ],
+        [
+          0.5,
+          1.24
+        ],
+        [
+          0.75,
+          1.3
+        ],
+        [
+          0.9,
+          1.36
+        ],
+        [
+          1,
+          1.45
+        ]
+      ],
+      "chargeMethod": "delta_peak_temperature",
+      "maxChargeVoltsPerCell": null
+    }
+  ]
+}

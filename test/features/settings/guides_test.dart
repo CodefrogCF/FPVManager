@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
 import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
+import 'package:fpvmanager/core/localization/app_localizations.dart';
+import 'package:fpvmanager/core/localization/generated/fpv_strings.dart';
 import 'package:fpvmanager/features/help/guide_topics.dart';
 import 'package:fpvmanager/features/simulation/simulation_settings_sheet.dart';
 
@@ -34,6 +36,9 @@ void main() {
       Object? result;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('de'),
+          supportedLocales: FpvStrings.supportedLocales,
+          localizationsDelegates: FpvStrings.localizationsDelegates,
           home: Builder(
             builder: (context) => Scaffold(
               body: TextButton(
@@ -65,8 +70,15 @@ void main() {
       );
       await tester.tap(find.text('Kurzhilfe: Steuerung und Simulation'));
       await tester.pumpAndSettle();
-      expect(find.text('Sticks'), findsOneWidget);
-      await tester.pageBack();
+      expect(
+        find.text(
+          AppLocalizations.message(AppLanguage.german, 'Sticks', const []),
+        ),
+        findsOneWidget,
+      );
+      // Simulate the system back action. The guide route does not expose
+      // the specific navigation-bar BackButton required by pageBack().
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(
         tester

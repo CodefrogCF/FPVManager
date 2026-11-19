@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/core/database/fpv_database.dart';
 
 import '../../generated_migrations/schema.dart';
+import '../../support/current_schema_verifier.dart';
 import '../../generated_migrations/schema_v1.dart' as v1;
 import '../../generated_migrations/schema_v2.dart' as v2;
 import '../../generated_migrations/schema_v3.dart' as v3;
@@ -14,6 +15,7 @@ import '../../generated_migrations/schema_v5.dart' as v5;
 import '../../generated_migrations/schema_v6.dart' as v6;
 import '../../generated_migrations/schema_v7.dart' as v7;
 import '../../generated_migrations/schema_v8.dart' as v8;
+import '../../generated_migrations/schema_v10.dart' as v10;
 
 import 'package:fpvmanager/core/database/repositories/drone_repository.dart';
 import 'package:fpvmanager/core/models/drone_profile.dart';
@@ -25,9 +27,108 @@ import 'dart:typed_data';
 
 void main() {
   late SchemaVerifier verifier;
+  late Map<String, Object?> expectedCurrentSchema;
 
-  setUpAll(() {
+  setUpAll(() async {
     verifier = SchemaVerifier(GeneratedHelper());
+    // Snapshot the fresh schema before any migrated database is opened.
+    expectedCurrentSchema = await captureFreshCurrentSchema();
+  });
+
+  test('v10 battery and drone migrate to current schema v12', () async {
+    final schema = await verifier.schemaAt(10);
+    final old = v10.DatabaseAtV10(schema.newConnection());
+    await old
+        .into(old.batteries)
+        .insert(
+          v10.BatteriesCompanion.insert(
+            name: 'Existing pack',
+            cellCount: 6,
+            capacityMah: 4500,
+          ),
+        );
+    await old
+        .into(old.drones)
+        .insert(
+          v10.DronesCompanion.insert(
+            name: 'Existing drone',
+            motorCount: const Value(4),
+            maxPowerWatts: const Value(1600),
+          ),
+        );
+    await old.close();
+    final database = FpvDatabase(schema.newConnection());
+    await migrateAndValidateCurrentSchema(
+      database,
+      expectedSchema: expectedCurrentSchema,
+    );
+    final pack = await database.select(database.batteries).getSingle();
+    expect(pack.name, 'Existing pack');
+    expect(pack.continuousDischargeC, isNull);
+    expect(pack.burstDischargeC, isNull);
+    expect(pack.internalResistanceMilliOhmsPerCell, isNull);
+    // The v12 optional per-unit current ratings are absent in all legacy profiles.
+    final existingDrone = await (database.select(
+      database.drones,
+    )..where((table) => table.name.equals('Existing drone'))).getSingle();
+    expect(existingDrone.motorCount, 4);
+    expect(existingDrone.maxPowerWatts, 1600);
+    expect(existingDrone.escContinuousCurrentAmpsPerChannel, isNull);
+    expect(existingDrone.motorContinuousCurrentAmpsPerMotor, isNull);
+    final droneId = await database
+        .into(database.drones)
+        .insert(DronesCompanion.insert(name: 'Fresh drone on migrated schema'));
+    final migratedDrone = await (database.select(
+      database.drones,
+    )..where((table) => table.id.equals(droneId))).getSingle();
+    expect(migratedDrone.escContinuousCurrentAmpsPerChannel, isNull);
+    expect(migratedDrone.motorContinuousCurrentAmpsPerMotor, isNull);
+    await database.close();
+  });
+
+  test('v11 battery ratings survive upgrade to schema v12', () async {
+    final schema = await verifier.schemaAt(10);
+    final old = v10.DatabaseAtV10(schema.newConnection());
+    await old
+        .into(old.batteries)
+        .insert(
+          v10.BatteriesCompanion.insert(
+            name: 'Existing LiPo',
+            cellCount: 6,
+            capacityMah: 4500,
+          ),
+        );
+    // Reconstruct the v11 battery-only schema change from the committed
+    // v10 snapshot. v12 adds the two independent drone limits.
+    for (final column in [
+      'continuous_discharge_c',
+      'burst_discharge_c',
+      'burst_duration_seconds',
+      'internal_resistance_milli_ohms_per_cell',
+    ]) {
+      await old.customStatement(
+        'ALTER TABLE batteries ADD COLUMN $column REAL NULL',
+      );
+    }
+    await old.customStatement('PRAGMA user_version = 11');
+    await old.close();
+    final database = FpvDatabase(schema.newConnection());
+    await migrateAndValidateCurrentSchema(
+      database,
+      expectedSchema: expectedCurrentSchema,
+    );
+    final battery = await database.select(database.batteries).getSingle();
+    expect(battery.name, 'Existing LiPo');
+    expect(battery.capacityMah, 4500);
+    final drone = await database
+        .into(database.drones)
+        .insert(DronesCompanion.insert(name: 'New v12 drone'));
+    final row = await (database.select(
+      database.drones,
+    )..where((d) => d.id.equals(drone))).getSingle();
+    expect(row.escContinuousCurrentAmpsPerChannel, isNull);
+    expect(row.motorContinuousCurrentAmpsPerMotor, isNull);
+    await database.close();
   });
 
   test(
@@ -49,7 +150,10 @@ void main() {
           );
       await old.close();
       final database = FpvDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(database, 10);
+      await migrateAndValidateCurrentSchema(
+        database,
+        expectedSchema: expectedCurrentSchema,
+      );
       expect(
         (await database.select(database.drones).getSingle()).name,
         'Existing quad',
@@ -89,7 +193,10 @@ void main() {
           );
       await old.close();
       final database = FpvDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(database, 10);
+      await migrateAndValidateCurrentSchema(
+        database,
+        expectedSchema: expectedCurrentSchema,
+      );
       final point = await database.select(database.flightWaypoints).getSingle();
       expect(point.heightMeters, 500);
       expect(point.heightReference, 'ln02');
@@ -102,7 +209,7 @@ void main() {
     },
   );
 
-  test('migrates v1 to v9 without losing spots', () async {
+  test('migrates v1 to v12 without losing spots', () async {
     final schema = await verifier.schemaAt(1);
 
     // Create a database with the original v1 schema.
@@ -123,7 +230,10 @@ void main() {
     // Open the same database with the new schema.
     final database = FpvDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 10);
+    await migrateAndValidateCurrentSchema(
+      database,
+      expectedSchema: expectedCurrentSchema,
+    );
 
     // The original spot must still exist.
     final spots = await database.select(database.spots).get();
@@ -156,7 +266,7 @@ void main() {
   });
 
   test(
-    'migrates v2 to v9 preserving personal records and references',
+    'migrates v2 to v12 preserving personal records and references',
     () async {
       final schema = await verifier.schemaAt(2);
       final old = v2.DatabaseAtV2(schema.newConnection());
@@ -220,7 +330,10 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 10);
+      await migrateAndValidateCurrentSchema(
+        database,
+        expectedSchema: expectedCurrentSchema,
+      );
       expect(
         (await database.select(database.spots).get()).single.name,
         'Private spot',
@@ -255,7 +368,7 @@ void main() {
     },
   );
 
-  test('v3 to v9 preserves photos and favorites and backfills Unicode search in batches', () async {
+  test('v3 to v12 preserves photos and favorites and backfills Unicode search in batches', () async {
     final schema = await verifier.schemaAt(3);
     final old = v3.DatabaseAtV3(schema.newConnection());
     for (var i = 0; i < 405; i++) {
@@ -286,7 +399,10 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 10);
+    await migrateAndValidateCurrentSchema(
+      database,
+      expectedSchema: expectedCurrentSchema,
+    );
     final repository = SpotRepository(database);
     final page = await repository.getSpotPage(
       filter: SpotFilter(query: 'älpler 404 über', favoritesOnly: true),
@@ -304,7 +420,7 @@ void main() {
     expect(await repository.getPhotos(405), isEmpty);
   });
 
-  test('v4 to v9 preserves classified spots and drones without inventing provenance', () async {
+  test('v4 to v12 preserves classified spots and drones without inventing provenance', () async {
     final schema = await verifier.schemaAt(4);
     final old = v4.DatabaseAtV4(schema.newConnection());
     final spotId = await old
@@ -357,7 +473,10 @@ void main() {
     await old.close();
     final database = FpvDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 10);
+    await migrateAndValidateCurrentSchema(
+      database,
+      expectedSchema: expectedCurrentSchema,
+    );
     final profile = (await DroneRepository(database).getProfile(droneId))!;
     expect(profile.drone.name, 'Existing drone');
     expect(profile.drone.type, 'fixed-wing');
@@ -392,7 +511,7 @@ void main() {
   });
 
   test(
-    'v5 to v9 preserves battery records without inventing state or type',
+    'v5 to v12 preserves battery records without inventing state or type',
     () async {
       final schema = await verifier.schemaAt(5);
       final old = v5.DatabaseAtV5(schema.newConnection());
@@ -432,7 +551,10 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 10);
+      await migrateAndValidateCurrentSchema(
+        database,
+        expectedSchema: expectedCurrentSchema,
+      );
       final battery = await (database.select(
         database.batteries,
       )..where((t) => t.id.equals(batteryId))).getSingle();
@@ -479,7 +601,7 @@ void main() {
   );
 
   test(
-    'v6 to v9 preserves legacy RF values, categories and battery links',
+    'v6 to v12 preserves legacy RF values, categories and battery links',
     () async {
       final schema = await verifier.schemaAt(6);
       final old = v6.DatabaseAtV6(schema.newConnection());
@@ -515,7 +637,10 @@ void main() {
       await old.close();
       final database = FpvDatabase(schema.newConnection());
       addTearDown(database.close);
-      await verifier.migrateAndValidate(database, 10);
+      await migrateAndValidateCurrentSchema(
+        database,
+        expectedSchema: expectedCurrentSchema,
+      );
       final row = await database.select(database.radioEquipment).getSingle();
       expect(row.id, id);
       expect(row.name, 'Old RX');
@@ -557,7 +682,7 @@ void main() {
     },
   );
 
-  test('new v9 database creates all tables', () async {
+  test('new v12 database creates all tables', () async {
     final database = FpvDatabase(NativeDatabase.memory());
 
     // Trigger database initialization.

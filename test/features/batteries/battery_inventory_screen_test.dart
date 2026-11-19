@@ -260,4 +260,31 @@ void main() {
       await dispose(tester);
     },
   );
+  testWidgets('chemistry preset and user C-ratings persist from the editor', (
+    tester,
+  ) async {
+    await open(tester);
+    await tap(tester, 'Add battery');
+    await requiredFields(tester, 'Custom Li-ion');
+    final chemistryFinder = find.byKey(
+      const ValueKey('battery-chemistry:LiPo'),
+    );
+    await tester.ensureVisible(chemistryFinder);
+    await tester.tap(chemistryFinder);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Li-ion').last);
+    await tester.pumpAndSettle();
+    await enter(tester, 'Continuous rating (C)', '20');
+    await enter(tester, 'Burst rating (C)', '30');
+    await enter(tester, 'Burst duration (s)', '5');
+    await enter(tester, 'Internal resistance (mΩ/cell)', '12,5');
+    await tap(tester, 'Save');
+    final pack = (await repository.getAllBatteries()).single;
+    expect(pack.chemistry, 'LiIon');
+    expect(pack.continuousDischargeC, 20);
+    expect(pack.burstDischargeC, 30);
+    expect(pack.burstDurationSeconds, 5);
+    expect(pack.internalResistanceMilliOhmsPerCell, 12.5);
+    await dispose(tester);
+  });
 }

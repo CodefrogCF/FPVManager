@@ -6737,4 +6737,73 @@ class FpvStringsEn extends FpvStrings {
 
   @override
   String get failsafeSimulationAction => 'Failsafe action';
+
+  @override
+  String get batteryChemistryAutoThresholds =>
+      'Chemistry-based warning thresholds (SIM)';
+
+  @override
+  String get batteryChemistryAutoThresholdsHint =>
+      'Uses the selected battery chemistry; disable for custom voltages.';
+
+  @override
+  String get batteryChemistryResistanceAutomatic =>
+      'Cell resistance (Ω; 0 = chemistry estimate)';
+
+  @override
+  String get batteryChemistryField => 'Battery chemistry';
+
+  @override
+  String get batteryUnknownChemistry => 'Unsupported (preserved): ';
+
+  @override
+  String get batteryContinuousDischarge => 'Continuous rating (C)';
+
+  @override
+  String get batteryBurstDischarge => 'Burst rating (C)';
+
+  @override
+  String get batteryBurstDuration => 'Burst duration (s)';
+
+  @override
+  String get batteryInternalResistance => 'Internal resistance (mΩ/cell)';
+
+  @override
+  String get batteryElectricalHint =>
+      'Optional pack-specific values override chemistry assumptions. Burst rating and duration must be set together.';
+
+  @override
+  String get batteryBurstValidation =>
+      'Enter burst rating and duration together; burst rating must not be lower than continuous rating.';
+
+  @override
+  String get batteryTypeLiPo => 'LiPo — Lithium polymer';
+
+  @override
+  String get batteryTypeLiHV => 'LiHV — High-voltage lithium polymer';
+
+  @override
+  String get batteryTypeLiIon => 'Li-ion — Lithium-ion';
+
+  @override
+  String get batteryTypeLiFePO4 => 'LiFePO4 — Lithium iron phosphate';
+
+  @override
+  String get batteryTypeNiMH => 'NiMH — Nickel-metal hydride';
+
+  @override
+  String get batteryTypeNiCd => 'NiCd — Nickel-cadmium';
+
+  @override
+  String batteryChargingVoltageHint(String value) {
+    return 'Charging reference: CC/CV, max $value V per cell. Verify the cell manufacturer specifications.';
+  }
+
+  @override
+  String get batteryNickelChargingHint =>
+      'Charging reference: nickel cells require delta-peak/temperature monitoring; no fixed voltage-only cutoff applies.';
+
+  @override
+  String get droneCurrentLimitsHint =>
+      'Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.';
 }

@@ -10751,6 +10751,126 @@ abstract class FpvStrings {
   /// In en, this message translates to:
   /// **'Failsafe action'**
   String get failsafeSimulationAction;
+
+  /// Battery chemistry simulation (shared model).
+  ///
+  /// In en, this message translates to:
+  /// **'Chemistry-based warning thresholds (SIM)'**
+  String get batteryChemistryAutoThresholds;
+
+  /// Battery chemistry simulation (shared model).
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the selected battery chemistry; disable for custom voltages.'**
+  String get batteryChemistryAutoThresholdsHint;
+
+  /// Battery chemistry simulation (shared model).
+  ///
+  /// In en, this message translates to:
+  /// **'Cell resistance (Ω; 0 = chemistry estimate)'**
+  String get batteryChemistryResistanceAutomatic;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery chemistry'**
+  String get batteryChemistryField;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported (preserved): '**
+  String get batteryUnknownChemistry;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuous rating (C)'**
+  String get batteryContinuousDischarge;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Burst rating (C)'**
+  String get batteryBurstDischarge;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Burst duration (s)'**
+  String get batteryBurstDuration;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal resistance (mΩ/cell)'**
+  String get batteryInternalResistance;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional pack-specific values override chemistry assumptions. Burst rating and duration must be set together.'**
+  String get batteryElectricalHint;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter burst rating and duration together; burst rating must not be lower than continuous rating.'**
+  String get batteryBurstValidation;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'LiPo — Lithium polymer'**
+  String get batteryTypeLiPo;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'LiHV — High-voltage lithium polymer'**
+  String get batteryTypeLiHV;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Li-ion — Lithium-ion'**
+  String get batteryTypeLiIon;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'LiFePO4 — Lithium iron phosphate'**
+  String get batteryTypeLiFePO4;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'NiMH — Nickel-metal hydride'**
+  String get batteryTypeNiMH;
+
+  /// Battery profile setting.
+  ///
+  /// In en, this message translates to:
+  /// **'NiCd — Nickel-cadmium'**
+  String get batteryTypeNiCd;
+
+  /// Chemistry-specific charge reference, not a charging instruction
+  ///
+  /// In en, this message translates to:
+  /// **'Charging reference: CC/CV, max {value} V per cell. Verify the cell manufacturer specifications.'**
+  String batteryChargingVoltageHint(String value);
+
+  /// Chemistry-specific charge reference, not a charging instruction
+  ///
+  /// In en, this message translates to:
+  /// **'Charging reference: nickel cells require delta-peak/temperature monitoring; no fixed voltage-only cutoff applies.'**
+  String get batteryNickelChargingHint;
+
+  /// Clarify comparison of ESC/motor current with pack input current
+  ///
+  /// In en, this message translates to:
+  /// **'Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.'**
+  String get droneCurrentLimitsHint;
 }
 
 class _FpvStringsDelegate extends LocalizationsDelegate<FpvStrings> {

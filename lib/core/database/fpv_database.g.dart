@@ -1440,6 +1440,28 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _escContinuousCurrentAmpsPerChannelMeta =
+      const VerificationMeta('escContinuousCurrentAmpsPerChannel');
+  @override
+  late final GeneratedColumn<double> escContinuousCurrentAmpsPerChannel =
+      GeneratedColumn<double>(
+        'esc_continuous_current_amps_per_channel',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _motorContinuousCurrentAmpsPerMotorMeta =
+      const VerificationMeta('motorContinuousCurrentAmpsPerMotor');
+  @override
+  late final GeneratedColumn<double> motorContinuousCurrentAmpsPerMotor =
+      GeneratedColumn<double>(
+        'motor_continuous_current_amps_per_motor',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _referenceVoltageVoltsMeta =
       const VerificationMeta('referenceVoltageVolts');
   @override
@@ -1547,6 +1569,8 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
     hoverPowerWatts,
     cruisePowerWatts,
     maxPowerWatts,
+    escContinuousCurrentAmpsPerChannel,
+    motorContinuousCurrentAmpsPerMotor,
     referenceVoltageVolts,
     configuration,
     propellerDescription,
@@ -1705,6 +1729,24 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
         ),
       );
     }
+    if (data.containsKey('esc_continuous_current_amps_per_channel')) {
+      context.handle(
+        _escContinuousCurrentAmpsPerChannelMeta,
+        escContinuousCurrentAmpsPerChannel.isAcceptableOrUnknown(
+          data['esc_continuous_current_amps_per_channel']!,
+          _escContinuousCurrentAmpsPerChannelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('motor_continuous_current_amps_per_motor')) {
+      context.handle(
+        _motorContinuousCurrentAmpsPerMotorMeta,
+        motorContinuousCurrentAmpsPerMotor.isAcceptableOrUnknown(
+          data['motor_continuous_current_amps_per_motor']!,
+          _motorContinuousCurrentAmpsPerMotorMeta,
+        ),
+      );
+    }
     if (data.containsKey('reference_voltage_volts')) {
       context.handle(
         _referenceVoltageVoltsMeta,
@@ -1852,6 +1894,14 @@ class $DronesTable extends Drones with TableInfo<$DronesTable, Drone> {
         DriftSqlType.double,
         data['${effectivePrefix}max_power_watts'],
       ),
+      escContinuousCurrentAmpsPerChannel: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}esc_continuous_current_amps_per_channel'],
+      ),
+      motorContinuousCurrentAmpsPerMotor: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}motor_continuous_current_amps_per_motor'],
+      ),
       referenceVoltageVolts: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}reference_voltage_volts'],
@@ -1912,6 +1962,11 @@ class Drone extends DataClass implements Insertable<Drone> {
   final double? hoverPowerWatts;
   final double? cruisePowerWatts;
   final double? maxPowerWatts;
+
+  /// Independent manufacturer ratings in amperes per ESC channel / per motor.
+  /// The simulator's equal-share DC input proxy is NOT measured phase current.
+  final double? escContinuousCurrentAmpsPerChannel;
+  final double? motorContinuousCurrentAmpsPerMotor;
   final double? referenceVoltageVolts;
   final String? configuration;
   final String? propellerDescription;
@@ -1939,6 +1994,8 @@ class Drone extends DataClass implements Insertable<Drone> {
     this.hoverPowerWatts,
     this.cruisePowerWatts,
     this.maxPowerWatts,
+    this.escContinuousCurrentAmpsPerChannel,
+    this.motorContinuousCurrentAmpsPerMotor,
     this.referenceVoltageVolts,
     this.configuration,
     this.propellerDescription,
@@ -2006,6 +2063,16 @@ class Drone extends DataClass implements Insertable<Drone> {
     }
     if (!nullToAbsent || maxPowerWatts != null) {
       map['max_power_watts'] = Variable<double>(maxPowerWatts);
+    }
+    if (!nullToAbsent || escContinuousCurrentAmpsPerChannel != null) {
+      map['esc_continuous_current_amps_per_channel'] = Variable<double>(
+        escContinuousCurrentAmpsPerChannel,
+      );
+    }
+    if (!nullToAbsent || motorContinuousCurrentAmpsPerMotor != null) {
+      map['motor_continuous_current_amps_per_motor'] = Variable<double>(
+        motorContinuousCurrentAmpsPerMotor,
+      );
     }
     if (!nullToAbsent || referenceVoltageVolts != null) {
       map['reference_voltage_volts'] = Variable<double>(referenceVoltageVolts);
@@ -2084,6 +2151,14 @@ class Drone extends DataClass implements Insertable<Drone> {
       maxPowerWatts: maxPowerWatts == null && nullToAbsent
           ? const Value.absent()
           : Value(maxPowerWatts),
+      escContinuousCurrentAmpsPerChannel:
+          escContinuousCurrentAmpsPerChannel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(escContinuousCurrentAmpsPerChannel),
+      motorContinuousCurrentAmpsPerMotor:
+          motorContinuousCurrentAmpsPerMotor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(motorContinuousCurrentAmpsPerMotor),
       referenceVoltageVolts: referenceVoltageVolts == null && nullToAbsent
           ? const Value.absent()
           : Value(referenceVoltageVolts),
@@ -2145,6 +2220,12 @@ class Drone extends DataClass implements Insertable<Drone> {
       hoverPowerWatts: serializer.fromJson<double?>(json['hoverPowerWatts']),
       cruisePowerWatts: serializer.fromJson<double?>(json['cruisePowerWatts']),
       maxPowerWatts: serializer.fromJson<double?>(json['maxPowerWatts']),
+      escContinuousCurrentAmpsPerChannel: serializer.fromJson<double?>(
+        json['escContinuousCurrentAmpsPerChannel'],
+      ),
+      motorContinuousCurrentAmpsPerMotor: serializer.fromJson<double?>(
+        json['motorContinuousCurrentAmpsPerMotor'],
+      ),
       referenceVoltageVolts: serializer.fromJson<double?>(
         json['referenceVoltageVolts'],
       ),
@@ -2191,6 +2272,12 @@ class Drone extends DataClass implements Insertable<Drone> {
       'hoverPowerWatts': serializer.toJson<double?>(hoverPowerWatts),
       'cruisePowerWatts': serializer.toJson<double?>(cruisePowerWatts),
       'maxPowerWatts': serializer.toJson<double?>(maxPowerWatts),
+      'escContinuousCurrentAmpsPerChannel': serializer.toJson<double?>(
+        escContinuousCurrentAmpsPerChannel,
+      ),
+      'motorContinuousCurrentAmpsPerMotor': serializer.toJson<double?>(
+        motorContinuousCurrentAmpsPerMotor,
+      ),
       'referenceVoltageVolts': serializer.toJson<double?>(
         referenceVoltageVolts,
       ),
@@ -2223,6 +2310,8 @@ class Drone extends DataClass implements Insertable<Drone> {
     Value<double?> hoverPowerWatts = const Value.absent(),
     Value<double?> cruisePowerWatts = const Value.absent(),
     Value<double?> maxPowerWatts = const Value.absent(),
+    Value<double?> escContinuousCurrentAmpsPerChannel = const Value.absent(),
+    Value<double?> motorContinuousCurrentAmpsPerMotor = const Value.absent(),
     Value<double?> referenceVoltageVolts = const Value.absent(),
     Value<String?> configuration = const Value.absent(),
     Value<String?> propellerDescription = const Value.absent(),
@@ -2270,6 +2359,14 @@ class Drone extends DataClass implements Insertable<Drone> {
     maxPowerWatts: maxPowerWatts.present
         ? maxPowerWatts.value
         : this.maxPowerWatts,
+    escContinuousCurrentAmpsPerChannel:
+        escContinuousCurrentAmpsPerChannel.present
+        ? escContinuousCurrentAmpsPerChannel.value
+        : this.escContinuousCurrentAmpsPerChannel,
+    motorContinuousCurrentAmpsPerMotor:
+        motorContinuousCurrentAmpsPerMotor.present
+        ? motorContinuousCurrentAmpsPerMotor.value
+        : this.motorContinuousCurrentAmpsPerMotor,
     referenceVoltageVolts: referenceVoltageVolts.present
         ? referenceVoltageVolts.value
         : this.referenceVoltageVolts,
@@ -2333,6 +2430,14 @@ class Drone extends DataClass implements Insertable<Drone> {
       maxPowerWatts: data.maxPowerWatts.present
           ? data.maxPowerWatts.value
           : this.maxPowerWatts,
+      escContinuousCurrentAmpsPerChannel:
+          data.escContinuousCurrentAmpsPerChannel.present
+          ? data.escContinuousCurrentAmpsPerChannel.value
+          : this.escContinuousCurrentAmpsPerChannel,
+      motorContinuousCurrentAmpsPerMotor:
+          data.motorContinuousCurrentAmpsPerMotor.present
+          ? data.motorContinuousCurrentAmpsPerMotor.value
+          : this.motorContinuousCurrentAmpsPerMotor,
       referenceVoltageVolts: data.referenceVoltageVolts.present
           ? data.referenceVoltageVolts.value
           : this.referenceVoltageVolts,
@@ -2377,6 +2482,12 @@ class Drone extends DataClass implements Insertable<Drone> {
           ..write('hoverPowerWatts: $hoverPowerWatts, ')
           ..write('cruisePowerWatts: $cruisePowerWatts, ')
           ..write('maxPowerWatts: $maxPowerWatts, ')
+          ..write(
+            'escContinuousCurrentAmpsPerChannel: $escContinuousCurrentAmpsPerChannel, ',
+          )
+          ..write(
+            'motorContinuousCurrentAmpsPerMotor: $motorContinuousCurrentAmpsPerMotor, ',
+          )
           ..write('referenceVoltageVolts: $referenceVoltageVolts, ')
           ..write('configuration: $configuration, ')
           ..write('propellerDescription: $propellerDescription, ')
@@ -2409,6 +2520,8 @@ class Drone extends DataClass implements Insertable<Drone> {
     hoverPowerWatts,
     cruisePowerWatts,
     maxPowerWatts,
+    escContinuousCurrentAmpsPerChannel,
+    motorContinuousCurrentAmpsPerMotor,
     referenceVoltageVolts,
     configuration,
     propellerDescription,
@@ -2441,6 +2554,10 @@ class Drone extends DataClass implements Insertable<Drone> {
           other.hoverPowerWatts == this.hoverPowerWatts &&
           other.cruisePowerWatts == this.cruisePowerWatts &&
           other.maxPowerWatts == this.maxPowerWatts &&
+          other.escContinuousCurrentAmpsPerChannel ==
+              this.escContinuousCurrentAmpsPerChannel &&
+          other.motorContinuousCurrentAmpsPerMotor ==
+              this.motorContinuousCurrentAmpsPerMotor &&
           other.referenceVoltageVolts == this.referenceVoltageVolts &&
           other.configuration == this.configuration &&
           other.propellerDescription == this.propellerDescription &&
@@ -2470,6 +2587,8 @@ class DronesCompanion extends UpdateCompanion<Drone> {
   final Value<double?> hoverPowerWatts;
   final Value<double?> cruisePowerWatts;
   final Value<double?> maxPowerWatts;
+  final Value<double?> escContinuousCurrentAmpsPerChannel;
+  final Value<double?> motorContinuousCurrentAmpsPerMotor;
   final Value<double?> referenceVoltageVolts;
   final Value<String?> configuration;
   final Value<String?> propellerDescription;
@@ -2497,6 +2616,8 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     this.hoverPowerWatts = const Value.absent(),
     this.cruisePowerWatts = const Value.absent(),
     this.maxPowerWatts = const Value.absent(),
+    this.escContinuousCurrentAmpsPerChannel = const Value.absent(),
+    this.motorContinuousCurrentAmpsPerMotor = const Value.absent(),
     this.referenceVoltageVolts = const Value.absent(),
     this.configuration = const Value.absent(),
     this.propellerDescription = const Value.absent(),
@@ -2525,6 +2646,8 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     this.hoverPowerWatts = const Value.absent(),
     this.cruisePowerWatts = const Value.absent(),
     this.maxPowerWatts = const Value.absent(),
+    this.escContinuousCurrentAmpsPerChannel = const Value.absent(),
+    this.motorContinuousCurrentAmpsPerMotor = const Value.absent(),
     this.referenceVoltageVolts = const Value.absent(),
     this.configuration = const Value.absent(),
     this.propellerDescription = const Value.absent(),
@@ -2553,6 +2676,8 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     Expression<double>? hoverPowerWatts,
     Expression<double>? cruisePowerWatts,
     Expression<double>? maxPowerWatts,
+    Expression<double>? escContinuousCurrentAmpsPerChannel,
+    Expression<double>? motorContinuousCurrentAmpsPerMotor,
     Expression<double>? referenceVoltageVolts,
     Expression<String>? configuration,
     Expression<String>? propellerDescription,
@@ -2587,6 +2712,12 @@ class DronesCompanion extends UpdateCompanion<Drone> {
       if (hoverPowerWatts != null) 'hover_power_watts': hoverPowerWatts,
       if (cruisePowerWatts != null) 'cruise_power_watts': cruisePowerWatts,
       if (maxPowerWatts != null) 'max_power_watts': maxPowerWatts,
+      if (escContinuousCurrentAmpsPerChannel != null)
+        'esc_continuous_current_amps_per_channel':
+            escContinuousCurrentAmpsPerChannel,
+      if (motorContinuousCurrentAmpsPerMotor != null)
+        'motor_continuous_current_amps_per_motor':
+            motorContinuousCurrentAmpsPerMotor,
       if (referenceVoltageVolts != null)
         'reference_voltage_volts': referenceVoltageVolts,
       if (configuration != null) 'configuration': configuration,
@@ -2619,6 +2750,8 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     Value<double?>? hoverPowerWatts,
     Value<double?>? cruisePowerWatts,
     Value<double?>? maxPowerWatts,
+    Value<double?>? escContinuousCurrentAmpsPerChannel,
+    Value<double?>? motorContinuousCurrentAmpsPerMotor,
     Value<double?>? referenceVoltageVolts,
     Value<String?>? configuration,
     Value<String?>? propellerDescription,
@@ -2651,6 +2784,12 @@ class DronesCompanion extends UpdateCompanion<Drone> {
       hoverPowerWatts: hoverPowerWatts ?? this.hoverPowerWatts,
       cruisePowerWatts: cruisePowerWatts ?? this.cruisePowerWatts,
       maxPowerWatts: maxPowerWatts ?? this.maxPowerWatts,
+      escContinuousCurrentAmpsPerChannel:
+          escContinuousCurrentAmpsPerChannel ??
+          this.escContinuousCurrentAmpsPerChannel,
+      motorContinuousCurrentAmpsPerMotor:
+          motorContinuousCurrentAmpsPerMotor ??
+          this.motorContinuousCurrentAmpsPerMotor,
       referenceVoltageVolts:
           referenceVoltageVolts ?? this.referenceVoltageVolts,
       configuration: configuration ?? this.configuration,
@@ -2730,6 +2869,16 @@ class DronesCompanion extends UpdateCompanion<Drone> {
     if (maxPowerWatts.present) {
       map['max_power_watts'] = Variable<double>(maxPowerWatts.value);
     }
+    if (escContinuousCurrentAmpsPerChannel.present) {
+      map['esc_continuous_current_amps_per_channel'] = Variable<double>(
+        escContinuousCurrentAmpsPerChannel.value,
+      );
+    }
+    if (motorContinuousCurrentAmpsPerMotor.present) {
+      map['motor_continuous_current_amps_per_motor'] = Variable<double>(
+        motorContinuousCurrentAmpsPerMotor.value,
+      );
+    }
     if (referenceVoltageVolts.present) {
       map['reference_voltage_volts'] = Variable<double>(
         referenceVoltageVolts.value,
@@ -2782,6 +2931,12 @@ class DronesCompanion extends UpdateCompanion<Drone> {
           ..write('hoverPowerWatts: $hoverPowerWatts, ')
           ..write('cruisePowerWatts: $cruisePowerWatts, ')
           ..write('maxPowerWatts: $maxPowerWatts, ')
+          ..write(
+            'escContinuousCurrentAmpsPerChannel: $escContinuousCurrentAmpsPerChannel, ',
+          )
+          ..write(
+            'motorContinuousCurrentAmpsPerMotor: $motorContinuousCurrentAmpsPerMotor, ',
+          )
           ..write('referenceVoltageVolts: $referenceVoltageVolts, ')
           ..write('configuration: $configuration, ')
           ..write('propellerDescription: $propellerDescription, ')
@@ -3207,6 +3362,50 @@ class $BatteriesTable extends Batteries
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _continuousDischargeCMeta =
+      const VerificationMeta('continuousDischargeC');
+  @override
+  late final GeneratedColumn<double> continuousDischargeC =
+      GeneratedColumn<double>(
+        'continuous_discharge_c',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _burstDischargeCMeta = const VerificationMeta(
+    'burstDischargeC',
+  );
+  @override
+  late final GeneratedColumn<double> burstDischargeC = GeneratedColumn<double>(
+    'burst_discharge_c',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _burstDurationSecondsMeta =
+      const VerificationMeta('burstDurationSeconds');
+  @override
+  late final GeneratedColumn<double> burstDurationSeconds =
+      GeneratedColumn<double>(
+        'burst_duration_seconds',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _internalResistanceMilliOhmsPerCellMeta =
+      const VerificationMeta('internalResistanceMilliOhmsPerCell');
+  @override
+  late final GeneratedColumn<double> internalResistanceMilliOhmsPerCell =
+      GeneratedColumn<double>(
+        'internal_resistance_milli_ohms_per_cell',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _chargePercentMeta = const VerificationMeta(
     'chargePercent',
   );
@@ -3263,6 +3462,10 @@ class $BatteriesTable extends Batteries
     typeId,
     nominalVoltageVolts,
     energyWh,
+    continuousDischargeC,
+    burstDischargeC,
+    burstDurationSeconds,
+    internalResistanceMilliOhmsPerCell,
     chargePercent,
     availability,
     conditionNotes,
@@ -3358,6 +3561,42 @@ class $BatteriesTable extends Batteries
         energyWh.isAcceptableOrUnknown(data['energy_wh']!, _energyWhMeta),
       );
     }
+    if (data.containsKey('continuous_discharge_c')) {
+      context.handle(
+        _continuousDischargeCMeta,
+        continuousDischargeC.isAcceptableOrUnknown(
+          data['continuous_discharge_c']!,
+          _continuousDischargeCMeta,
+        ),
+      );
+    }
+    if (data.containsKey('burst_discharge_c')) {
+      context.handle(
+        _burstDischargeCMeta,
+        burstDischargeC.isAcceptableOrUnknown(
+          data['burst_discharge_c']!,
+          _burstDischargeCMeta,
+        ),
+      );
+    }
+    if (data.containsKey('burst_duration_seconds')) {
+      context.handle(
+        _burstDurationSecondsMeta,
+        burstDurationSeconds.isAcceptableOrUnknown(
+          data['burst_duration_seconds']!,
+          _burstDurationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('internal_resistance_milli_ohms_per_cell')) {
+      context.handle(
+        _internalResistanceMilliOhmsPerCellMeta,
+        internalResistanceMilliOhmsPerCell.isAcceptableOrUnknown(
+          data['internal_resistance_milli_ohms_per_cell']!,
+          _internalResistanceMilliOhmsPerCellMeta,
+        ),
+      );
+    }
     if (data.containsKey('charge_percent')) {
       context.handle(
         _chargePercentMeta,
@@ -3444,6 +3683,22 @@ class $BatteriesTable extends Batteries
         DriftSqlType.double,
         data['${effectivePrefix}energy_wh'],
       ),
+      continuousDischargeC: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}continuous_discharge_c'],
+      ),
+      burstDischargeC: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}burst_discharge_c'],
+      ),
+      burstDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}burst_duration_seconds'],
+      ),
+      internalResistanceMilliOhmsPerCell: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}internal_resistance_milli_ohms_per_cell'],
+      ),
       chargePercent: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}charge_percent'],
@@ -3481,6 +3736,14 @@ class Battery extends DataClass implements Insertable<Battery> {
   final int? typeId;
   final double? nominalVoltageVolts;
   final double? energyWh;
+
+  /// Explicit pack ratings. Null means use a labeled chemistry assumption.
+  final double? continuousDischargeC;
+  final double? burstDischargeC;
+  final double? burstDurationSeconds;
+
+  /// User-facing milli-ohms for each *series cell* (not the complete pack).
+  final double? internalResistanceMilliOhmsPerCell;
   final double? chargePercent;
   final String availability;
   final String? conditionNotes;
@@ -3497,6 +3760,10 @@ class Battery extends DataClass implements Insertable<Battery> {
     this.typeId,
     this.nominalVoltageVolts,
     this.energyWh,
+    this.continuousDischargeC,
+    this.burstDischargeC,
+    this.burstDurationSeconds,
+    this.internalResistanceMilliOhmsPerCell,
     this.chargePercent,
     required this.availability,
     this.conditionNotes,
@@ -3525,6 +3792,20 @@ class Battery extends DataClass implements Insertable<Battery> {
     }
     if (!nullToAbsent || energyWh != null) {
       map['energy_wh'] = Variable<double>(energyWh);
+    }
+    if (!nullToAbsent || continuousDischargeC != null) {
+      map['continuous_discharge_c'] = Variable<double>(continuousDischargeC);
+    }
+    if (!nullToAbsent || burstDischargeC != null) {
+      map['burst_discharge_c'] = Variable<double>(burstDischargeC);
+    }
+    if (!nullToAbsent || burstDurationSeconds != null) {
+      map['burst_duration_seconds'] = Variable<double>(burstDurationSeconds);
+    }
+    if (!nullToAbsent || internalResistanceMilliOhmsPerCell != null) {
+      map['internal_resistance_milli_ohms_per_cell'] = Variable<double>(
+        internalResistanceMilliOhmsPerCell,
+      );
     }
     if (!nullToAbsent || chargePercent != null) {
       map['charge_percent'] = Variable<double>(chargePercent);
@@ -3562,6 +3843,19 @@ class Battery extends DataClass implements Insertable<Battery> {
       energyWh: energyWh == null && nullToAbsent
           ? const Value.absent()
           : Value(energyWh),
+      continuousDischargeC: continuousDischargeC == null && nullToAbsent
+          ? const Value.absent()
+          : Value(continuousDischargeC),
+      burstDischargeC: burstDischargeC == null && nullToAbsent
+          ? const Value.absent()
+          : Value(burstDischargeC),
+      burstDurationSeconds: burstDurationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(burstDurationSeconds),
+      internalResistanceMilliOhmsPerCell:
+          internalResistanceMilliOhmsPerCell == null && nullToAbsent
+          ? const Value.absent()
+          : Value(internalResistanceMilliOhmsPerCell),
       chargePercent: chargePercent == null && nullToAbsent
           ? const Value.absent()
           : Value(chargePercent),
@@ -3594,6 +3888,16 @@ class Battery extends DataClass implements Insertable<Battery> {
         json['nominalVoltageVolts'],
       ),
       energyWh: serializer.fromJson<double?>(json['energyWh']),
+      continuousDischargeC: serializer.fromJson<double?>(
+        json['continuousDischargeC'],
+      ),
+      burstDischargeC: serializer.fromJson<double?>(json['burstDischargeC']),
+      burstDurationSeconds: serializer.fromJson<double?>(
+        json['burstDurationSeconds'],
+      ),
+      internalResistanceMilliOhmsPerCell: serializer.fromJson<double?>(
+        json['internalResistanceMilliOhmsPerCell'],
+      ),
       chargePercent: serializer.fromJson<double?>(json['chargePercent']),
       availability: serializer.fromJson<String>(json['availability']),
       conditionNotes: serializer.fromJson<String?>(json['conditionNotes']),
@@ -3615,6 +3919,12 @@ class Battery extends DataClass implements Insertable<Battery> {
       'typeId': serializer.toJson<int?>(typeId),
       'nominalVoltageVolts': serializer.toJson<double?>(nominalVoltageVolts),
       'energyWh': serializer.toJson<double?>(energyWh),
+      'continuousDischargeC': serializer.toJson<double?>(continuousDischargeC),
+      'burstDischargeC': serializer.toJson<double?>(burstDischargeC),
+      'burstDurationSeconds': serializer.toJson<double?>(burstDurationSeconds),
+      'internalResistanceMilliOhmsPerCell': serializer.toJson<double?>(
+        internalResistanceMilliOhmsPerCell,
+      ),
       'chargePercent': serializer.toJson<double?>(chargePercent),
       'availability': serializer.toJson<String>(availability),
       'conditionNotes': serializer.toJson<String?>(conditionNotes),
@@ -3634,6 +3944,10 @@ class Battery extends DataClass implements Insertable<Battery> {
     Value<int?> typeId = const Value.absent(),
     Value<double?> nominalVoltageVolts = const Value.absent(),
     Value<double?> energyWh = const Value.absent(),
+    Value<double?> continuousDischargeC = const Value.absent(),
+    Value<double?> burstDischargeC = const Value.absent(),
+    Value<double?> burstDurationSeconds = const Value.absent(),
+    Value<double?> internalResistanceMilliOhmsPerCell = const Value.absent(),
     Value<double?> chargePercent = const Value.absent(),
     String? availability,
     Value<String?> conditionNotes = const Value.absent(),
@@ -3652,6 +3966,19 @@ class Battery extends DataClass implements Insertable<Battery> {
         ? nominalVoltageVolts.value
         : this.nominalVoltageVolts,
     energyWh: energyWh.present ? energyWh.value : this.energyWh,
+    continuousDischargeC: continuousDischargeC.present
+        ? continuousDischargeC.value
+        : this.continuousDischargeC,
+    burstDischargeC: burstDischargeC.present
+        ? burstDischargeC.value
+        : this.burstDischargeC,
+    burstDurationSeconds: burstDurationSeconds.present
+        ? burstDurationSeconds.value
+        : this.burstDurationSeconds,
+    internalResistanceMilliOhmsPerCell:
+        internalResistanceMilliOhmsPerCell.present
+        ? internalResistanceMilliOhmsPerCell.value
+        : this.internalResistanceMilliOhmsPerCell,
     chargePercent: chargePercent.present
         ? chargePercent.value
         : this.chargePercent,
@@ -3682,6 +4009,19 @@ class Battery extends DataClass implements Insertable<Battery> {
           ? data.nominalVoltageVolts.value
           : this.nominalVoltageVolts,
       energyWh: data.energyWh.present ? data.energyWh.value : this.energyWh,
+      continuousDischargeC: data.continuousDischargeC.present
+          ? data.continuousDischargeC.value
+          : this.continuousDischargeC,
+      burstDischargeC: data.burstDischargeC.present
+          ? data.burstDischargeC.value
+          : this.burstDischargeC,
+      burstDurationSeconds: data.burstDurationSeconds.present
+          ? data.burstDurationSeconds.value
+          : this.burstDurationSeconds,
+      internalResistanceMilliOhmsPerCell:
+          data.internalResistanceMilliOhmsPerCell.present
+          ? data.internalResistanceMilliOhmsPerCell.value
+          : this.internalResistanceMilliOhmsPerCell,
       chargePercent: data.chargePercent.present
           ? data.chargePercent.value
           : this.chargePercent,
@@ -3709,6 +4049,12 @@ class Battery extends DataClass implements Insertable<Battery> {
           ..write('typeId: $typeId, ')
           ..write('nominalVoltageVolts: $nominalVoltageVolts, ')
           ..write('energyWh: $energyWh, ')
+          ..write('continuousDischargeC: $continuousDischargeC, ')
+          ..write('burstDischargeC: $burstDischargeC, ')
+          ..write('burstDurationSeconds: $burstDurationSeconds, ')
+          ..write(
+            'internalResistanceMilliOhmsPerCell: $internalResistanceMilliOhmsPerCell, ',
+          )
           ..write('chargePercent: $chargePercent, ')
           ..write('availability: $availability, ')
           ..write('conditionNotes: $conditionNotes, ')
@@ -3730,6 +4076,10 @@ class Battery extends DataClass implements Insertable<Battery> {
     typeId,
     nominalVoltageVolts,
     energyWh,
+    continuousDischargeC,
+    burstDischargeC,
+    burstDurationSeconds,
+    internalResistanceMilliOhmsPerCell,
     chargePercent,
     availability,
     conditionNotes,
@@ -3750,6 +4100,11 @@ class Battery extends DataClass implements Insertable<Battery> {
           other.typeId == this.typeId &&
           other.nominalVoltageVolts == this.nominalVoltageVolts &&
           other.energyWh == this.energyWh &&
+          other.continuousDischargeC == this.continuousDischargeC &&
+          other.burstDischargeC == this.burstDischargeC &&
+          other.burstDurationSeconds == this.burstDurationSeconds &&
+          other.internalResistanceMilliOhmsPerCell ==
+              this.internalResistanceMilliOhmsPerCell &&
           other.chargePercent == this.chargePercent &&
           other.availability == this.availability &&
           other.conditionNotes == this.conditionNotes &&
@@ -3768,6 +4123,10 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
   final Value<int?> typeId;
   final Value<double?> nominalVoltageVolts;
   final Value<double?> energyWh;
+  final Value<double?> continuousDischargeC;
+  final Value<double?> burstDischargeC;
+  final Value<double?> burstDurationSeconds;
+  final Value<double?> internalResistanceMilliOhmsPerCell;
   final Value<double?> chargePercent;
   final Value<String> availability;
   final Value<String?> conditionNotes;
@@ -3784,6 +4143,10 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     this.typeId = const Value.absent(),
     this.nominalVoltageVolts = const Value.absent(),
     this.energyWh = const Value.absent(),
+    this.continuousDischargeC = const Value.absent(),
+    this.burstDischargeC = const Value.absent(),
+    this.burstDurationSeconds = const Value.absent(),
+    this.internalResistanceMilliOhmsPerCell = const Value.absent(),
     this.chargePercent = const Value.absent(),
     this.availability = const Value.absent(),
     this.conditionNotes = const Value.absent(),
@@ -3801,6 +4164,10 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     this.typeId = const Value.absent(),
     this.nominalVoltageVolts = const Value.absent(),
     this.energyWh = const Value.absent(),
+    this.continuousDischargeC = const Value.absent(),
+    this.burstDischargeC = const Value.absent(),
+    this.burstDurationSeconds = const Value.absent(),
+    this.internalResistanceMilliOhmsPerCell = const Value.absent(),
     this.chargePercent = const Value.absent(),
     this.availability = const Value.absent(),
     this.conditionNotes = const Value.absent(),
@@ -3820,6 +4187,10 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     Expression<int>? typeId,
     Expression<double>? nominalVoltageVolts,
     Expression<double>? energyWh,
+    Expression<double>? continuousDischargeC,
+    Expression<double>? burstDischargeC,
+    Expression<double>? burstDurationSeconds,
+    Expression<double>? internalResistanceMilliOhmsPerCell,
     Expression<double>? chargePercent,
     Expression<String>? availability,
     Expression<String>? conditionNotes,
@@ -3838,6 +4209,14 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
       if (nominalVoltageVolts != null)
         'nominal_voltage_volts': nominalVoltageVolts,
       if (energyWh != null) 'energy_wh': energyWh,
+      if (continuousDischargeC != null)
+        'continuous_discharge_c': continuousDischargeC,
+      if (burstDischargeC != null) 'burst_discharge_c': burstDischargeC,
+      if (burstDurationSeconds != null)
+        'burst_duration_seconds': burstDurationSeconds,
+      if (internalResistanceMilliOhmsPerCell != null)
+        'internal_resistance_milli_ohms_per_cell':
+            internalResistanceMilliOhmsPerCell,
       if (chargePercent != null) 'charge_percent': chargePercent,
       if (availability != null) 'availability': availability,
       if (conditionNotes != null) 'condition_notes': conditionNotes,
@@ -3857,6 +4236,10 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     Value<int?>? typeId,
     Value<double?>? nominalVoltageVolts,
     Value<double?>? energyWh,
+    Value<double?>? continuousDischargeC,
+    Value<double?>? burstDischargeC,
+    Value<double?>? burstDurationSeconds,
+    Value<double?>? internalResistanceMilliOhmsPerCell,
     Value<double?>? chargePercent,
     Value<String>? availability,
     Value<String?>? conditionNotes,
@@ -3874,6 +4257,12 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
       typeId: typeId ?? this.typeId,
       nominalVoltageVolts: nominalVoltageVolts ?? this.nominalVoltageVolts,
       energyWh: energyWh ?? this.energyWh,
+      continuousDischargeC: continuousDischargeC ?? this.continuousDischargeC,
+      burstDischargeC: burstDischargeC ?? this.burstDischargeC,
+      burstDurationSeconds: burstDurationSeconds ?? this.burstDurationSeconds,
+      internalResistanceMilliOhmsPerCell:
+          internalResistanceMilliOhmsPerCell ??
+          this.internalResistanceMilliOhmsPerCell,
       chargePercent: chargePercent ?? this.chargePercent,
       availability: availability ?? this.availability,
       conditionNotes: conditionNotes ?? this.conditionNotes,
@@ -3919,6 +4308,24 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
     if (energyWh.present) {
       map['energy_wh'] = Variable<double>(energyWh.value);
     }
+    if (continuousDischargeC.present) {
+      map['continuous_discharge_c'] = Variable<double>(
+        continuousDischargeC.value,
+      );
+    }
+    if (burstDischargeC.present) {
+      map['burst_discharge_c'] = Variable<double>(burstDischargeC.value);
+    }
+    if (burstDurationSeconds.present) {
+      map['burst_duration_seconds'] = Variable<double>(
+        burstDurationSeconds.value,
+      );
+    }
+    if (internalResistanceMilliOhmsPerCell.present) {
+      map['internal_resistance_milli_ohms_per_cell'] = Variable<double>(
+        internalResistanceMilliOhmsPerCell.value,
+      );
+    }
     if (chargePercent.present) {
       map['charge_percent'] = Variable<double>(chargePercent.value);
     }
@@ -3948,6 +4355,12 @@ class BatteriesCompanion extends UpdateCompanion<Battery> {
           ..write('typeId: $typeId, ')
           ..write('nominalVoltageVolts: $nominalVoltageVolts, ')
           ..write('energyWh: $energyWh, ')
+          ..write('continuousDischargeC: $continuousDischargeC, ')
+          ..write('burstDischargeC: $burstDischargeC, ')
+          ..write('burstDurationSeconds: $burstDurationSeconds, ')
+          ..write(
+            'internalResistanceMilliOhmsPerCell: $internalResistanceMilliOhmsPerCell, ',
+          )
           ..write('chargePercent: $chargePercent, ')
           ..write('availability: $availability, ')
           ..write('conditionNotes: $conditionNotes, ')
@@ -9073,7 +9486,12 @@ class $$SpotsTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (spotTagsRefs)
-                        await $_getPrefetchedData<Spot, $SpotsTable, SpotTag>(
+                        await $_getPrefetchedDataByColumns<
+                          Spot,
+                          $SpotsTable,
+                          SpotTag,
+                          $SpotTagsTable
+                        >(
                           currentTable: table,
                           referencedTable: $$SpotsTableReferences
                               ._spotTagsRefsTable(db),
@@ -9083,14 +9501,17 @@ class $$SpotsTableTableManager
                                 table,
                                 p0,
                               ).spotTagsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.spotId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'spot_id',
                           typedResults: items,
                         ),
                       if (spotPhotosRefs)
-                        await $_getPrefetchedData<Spot, $SpotsTable, SpotPhoto>(
+                        await $_getPrefetchedDataByColumns<
+                          Spot,
+                          $SpotsTable,
+                          SpotPhoto,
+                          $SpotPhotosTable
+                        >(
                           currentTable: table,
                           referencedTable: $$SpotsTableReferences
                               ._spotPhotosRefsTable(db),
@@ -9100,17 +9521,16 @@ class $$SpotsTableTableManager
                                 table,
                                 p0,
                               ).spotPhotosRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.spotId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'spot_id',
                           typedResults: items,
                         ),
                       if (flightPlansRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Spot,
                           $SpotsTable,
-                          FlightPlan
+                          FlightPlan,
+                          $FlightPlansTable
                         >(
                           currentTable: table,
                           referencedTable: $$SpotsTableReferences
@@ -9121,10 +9541,8 @@ class $$SpotsTableTableManager
                                 table,
                                 p0,
                               ).flightPlansRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.startSpotId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'start_spot_id',
                           typedResults: items,
                         ),
                     ];
@@ -9754,6 +10172,8 @@ typedef $$DronesTableCreateCompanionBuilder = DronesCompanion Function({
   Value<double?> hoverPowerWatts,
   Value<double?> cruisePowerWatts,
   Value<double?> maxPowerWatts,
+  Value<double?> escContinuousCurrentAmpsPerChannel,
+  Value<double?> motorContinuousCurrentAmpsPerMotor,
   Value<double?> referenceVoltageVolts,
   Value<String?> configuration,
   Value<String?> propellerDescription,
@@ -9782,6 +10202,8 @@ typedef $$DronesTableUpdateCompanionBuilder = DronesCompanion Function({
   Value<double?> hoverPowerWatts,
   Value<double?> cruisePowerWatts,
   Value<double?> maxPowerWatts,
+  Value<double?> escContinuousCurrentAmpsPerChannel,
+  Value<double?> motorContinuousCurrentAmpsPerMotor,
   Value<double?> referenceVoltageVolts,
   Value<String?> configuration,
   Value<String?> propellerDescription,
@@ -10025,6 +10447,18 @@ class $$DronesTableFilterComposer
     column: $table.maxPowerWatts,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<double> get escContinuousCurrentAmpsPerChannel =>
+      $composableBuilder(
+        column: $table.escContinuousCurrentAmpsPerChannel,
+        builder: (column) => ColumnFilters(column),
+      );
+
+  ColumnFilters<double> get motorContinuousCurrentAmpsPerMotor =>
+      $composableBuilder(
+        column: $table.motorContinuousCurrentAmpsPerMotor,
+        builder: (column) => ColumnFilters(column),
+      );
 
   ColumnFilters<double> get referenceVoltageVolts => $composableBuilder(
     column: $table.referenceVoltageVolts,
@@ -10317,6 +10751,18 @@ class $$DronesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get escContinuousCurrentAmpsPerChannel =>
+      $composableBuilder(
+        column: $table.escContinuousCurrentAmpsPerChannel,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<double> get motorContinuousCurrentAmpsPerMotor =>
+      $composableBuilder(
+        column: $table.motorContinuousCurrentAmpsPerMotor,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<double> get referenceVoltageVolts => $composableBuilder(
     column: $table.referenceVoltageVolts,
     builder: (column) => ColumnOrderings(column),
@@ -10442,6 +10888,18 @@ class $$DronesTableAnnotationComposer
     column: $table.maxPowerWatts,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get escContinuousCurrentAmpsPerChannel =>
+      $composableBuilder(
+        column: $table.escContinuousCurrentAmpsPerChannel,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<double> get motorContinuousCurrentAmpsPerMotor =>
+      $composableBuilder(
+        column: $table.motorContinuousCurrentAmpsPerMotor,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<double> get referenceVoltageVolts => $composableBuilder(
     column: $table.referenceVoltageVolts,
@@ -10688,6 +11146,10 @@ class $$DronesTableTableManager
                 Value<double?> hoverPowerWatts = const Value.absent(),
                 Value<double?> cruisePowerWatts = const Value.absent(),
                 Value<double?> maxPowerWatts = const Value.absent(),
+                Value<double?> escContinuousCurrentAmpsPerChannel =
+                    const Value.absent(),
+                Value<double?> motorContinuousCurrentAmpsPerMotor =
+                    const Value.absent(),
                 Value<double?> referenceVoltageVolts = const Value.absent(),
                 Value<String?> configuration = const Value.absent(),
                 Value<String?> propellerDescription = const Value.absent(),
@@ -10715,6 +11177,10 @@ class $$DronesTableTableManager
                 hoverPowerWatts: hoverPowerWatts,
                 cruisePowerWatts: cruisePowerWatts,
                 maxPowerWatts: maxPowerWatts,
+                escContinuousCurrentAmpsPerChannel:
+                    escContinuousCurrentAmpsPerChannel,
+                motorContinuousCurrentAmpsPerMotor:
+                    motorContinuousCurrentAmpsPerMotor,
                 referenceVoltageVolts: referenceVoltageVolts,
                 configuration: configuration,
                 propellerDescription: propellerDescription,
@@ -10746,6 +11212,10 @@ class $$DronesTableTableManager
                 Value<double?> hoverPowerWatts = const Value.absent(),
                 Value<double?> cruisePowerWatts = const Value.absent(),
                 Value<double?> maxPowerWatts = const Value.absent(),
+                Value<double?> escContinuousCurrentAmpsPerChannel =
+                    const Value.absent(),
+                Value<double?> motorContinuousCurrentAmpsPerMotor =
+                    const Value.absent(),
                 Value<double?> referenceVoltageVolts = const Value.absent(),
                 Value<String?> configuration = const Value.absent(),
                 Value<String?> propellerDescription = const Value.absent(),
@@ -10773,6 +11243,10 @@ class $$DronesTableTableManager
                 hoverPowerWatts: hoverPowerWatts,
                 cruisePowerWatts: cruisePowerWatts,
                 maxPowerWatts: maxPowerWatts,
+                escContinuousCurrentAmpsPerChannel:
+                    escContinuousCurrentAmpsPerChannel,
+                motorContinuousCurrentAmpsPerMotor:
+                    motorContinuousCurrentAmpsPerMotor,
                 referenceVoltageVolts: referenceVoltageVolts,
                 configuration: configuration,
                 propellerDescription: propellerDescription,
@@ -10813,10 +11287,11 @@ class $$DronesTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (droneParameterSourcesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Drone,
                           $DronesTable,
-                          DroneParameterSource
+                          DroneParameterSource,
+                          $DroneParameterSourcesTable
                         >(
                           currentTable: table,
                           referencedTable: $$DronesTableReferences
@@ -10827,17 +11302,16 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).droneParameterSourcesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.droneId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'drone_id',
                           typedResults: items,
                         ),
                       if (batteryDronesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Drone,
                           $DronesTable,
-                          BatteryDrone
+                          BatteryDrone,
+                          $BatteryDronesTable
                         >(
                           currentTable: table,
                           referencedTable: $$DronesTableReferences
@@ -10848,17 +11322,16 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).batteryDronesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.droneId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'drone_id',
                           typedResults: items,
                         ),
                       if (flightPlansRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Drone,
                           $DronesTable,
-                          FlightPlan
+                          FlightPlan,
+                          $FlightPlansTable
                         >(
                           currentTable: table,
                           referencedTable: $$DronesTableReferences
@@ -10869,17 +11342,16 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).flightPlansRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.droneId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'drone_id',
                           typedResults: items,
                         ),
                       if (radioEquipmentDronesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Drone,
                           $DronesTable,
-                          RadioEquipmentDrone
+                          RadioEquipmentDrone,
+                          $RadioEquipmentDronesTable
                         >(
                           currentTable: table,
                           referencedTable: $$DronesTableReferences
@@ -10890,17 +11362,16 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).radioEquipmentDronesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.droneId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'drone_id',
                           typedResults: items,
                         ),
                       if (preflightChecklistsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Drone,
                           $DronesTable,
-                          PreflightChecklist
+                          PreflightChecklist,
+                          $PreflightChecklistsTable
                         >(
                           currentTable: table,
                           referencedTable: $$DronesTableReferences
@@ -10911,17 +11382,16 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).preflightChecklistsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.droneId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'drone_id',
                           typedResults: items,
                         ),
                       if (telemetryFlightsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Drone,
                           $DronesTable,
-                          TelemetryFlight
+                          TelemetryFlight,
+                          $TelemetryFlightsTable
                         >(
                           currentTable: table,
                           referencedTable: $$DronesTableReferences
@@ -10932,10 +11402,8 @@ class $$DronesTableTableManager
                                 table,
                                 p0,
                               ).telemetryFlightsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.droneId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'drone_id',
                           typedResults: items,
                         ),
                     ];
@@ -11281,6 +11749,10 @@ typedef $$BatteriesTableCreateCompanionBuilder = BatteriesCompanion Function({
   Value<int?> typeId,
   Value<double?> nominalVoltageVolts,
   Value<double?> energyWh,
+  Value<double?> continuousDischargeC,
+  Value<double?> burstDischargeC,
+  Value<double?> burstDurationSeconds,
+  Value<double?> internalResistanceMilliOhmsPerCell,
   Value<double?> chargePercent,
   Value<String> availability,
   Value<String?> conditionNotes,
@@ -11298,6 +11770,10 @@ typedef $$BatteriesTableUpdateCompanionBuilder = BatteriesCompanion Function({
   Value<int?> typeId,
   Value<double?> nominalVoltageVolts,
   Value<double?> energyWh,
+  Value<double?> continuousDischargeC,
+  Value<double?> burstDischargeC,
+  Value<double?> burstDurationSeconds,
+  Value<double?> internalResistanceMilliOhmsPerCell,
   Value<double?> chargePercent,
   Value<String> availability,
   Value<String?> conditionNotes,
@@ -11423,6 +11899,27 @@ class $$BatteriesTableFilterComposer
     column: $table.energyWh,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<double> get continuousDischargeC => $composableBuilder(
+    column: $table.continuousDischargeC,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get burstDischargeC => $composableBuilder(
+    column: $table.burstDischargeC,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get burstDurationSeconds => $composableBuilder(
+    column: $table.burstDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get internalResistanceMilliOhmsPerCell =>
+      $composableBuilder(
+        column: $table.internalResistanceMilliOhmsPerCell,
+        builder: (column) => ColumnFilters(column),
+      );
 
   ColumnFilters<double> get chargePercent => $composableBuilder(
     column: $table.chargePercent,
@@ -11577,6 +12074,27 @@ class $$BatteriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get continuousDischargeC => $composableBuilder(
+    column: $table.continuousDischargeC,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get burstDischargeC => $composableBuilder(
+    column: $table.burstDischargeC,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get burstDurationSeconds => $composableBuilder(
+    column: $table.burstDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get internalResistanceMilliOhmsPerCell =>
+      $composableBuilder(
+        column: $table.internalResistanceMilliOhmsPerCell,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<double> get chargePercent => $composableBuilder(
     column: $table.chargePercent,
     builder: (column) => ColumnOrderings(column),
@@ -11667,6 +12185,27 @@ class $$BatteriesTableAnnotationComposer
 
   GeneratedColumn<double> get energyWh =>
       $composableBuilder(column: $table.energyWh, builder: (column) => column);
+
+  GeneratedColumn<double> get continuousDischargeC => $composableBuilder(
+    column: $table.continuousDischargeC,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get burstDischargeC => $composableBuilder(
+    column: $table.burstDischargeC,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get burstDurationSeconds => $composableBuilder(
+    column: $table.burstDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get internalResistanceMilliOhmsPerCell =>
+      $composableBuilder(
+        column: $table.internalResistanceMilliOhmsPerCell,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<double> get chargePercent => $composableBuilder(
     column: $table.chargePercent,
@@ -11804,6 +12343,11 @@ class $$BatteriesTableTableManager
                 Value<int?> typeId = const Value.absent(),
                 Value<double?> nominalVoltageVolts = const Value.absent(),
                 Value<double?> energyWh = const Value.absent(),
+                Value<double?> continuousDischargeC = const Value.absent(),
+                Value<double?> burstDischargeC = const Value.absent(),
+                Value<double?> burstDurationSeconds = const Value.absent(),
+                Value<double?> internalResistanceMilliOhmsPerCell =
+                    const Value.absent(),
                 Value<double?> chargePercent = const Value.absent(),
                 Value<String> availability = const Value.absent(),
                 Value<String?> conditionNotes = const Value.absent(),
@@ -11820,6 +12364,11 @@ class $$BatteriesTableTableManager
                 typeId: typeId,
                 nominalVoltageVolts: nominalVoltageVolts,
                 energyWh: energyWh,
+                continuousDischargeC: continuousDischargeC,
+                burstDischargeC: burstDischargeC,
+                burstDurationSeconds: burstDurationSeconds,
+                internalResistanceMilliOhmsPerCell:
+                    internalResistanceMilliOhmsPerCell,
                 chargePercent: chargePercent,
                 availability: availability,
                 conditionNotes: conditionNotes,
@@ -11838,6 +12387,11 @@ class $$BatteriesTableTableManager
                 Value<int?> typeId = const Value.absent(),
                 Value<double?> nominalVoltageVolts = const Value.absent(),
                 Value<double?> energyWh = const Value.absent(),
+                Value<double?> continuousDischargeC = const Value.absent(),
+                Value<double?> burstDischargeC = const Value.absent(),
+                Value<double?> burstDurationSeconds = const Value.absent(),
+                Value<double?> internalResistanceMilliOhmsPerCell =
+                    const Value.absent(),
                 Value<double?> chargePercent = const Value.absent(),
                 Value<String> availability = const Value.absent(),
                 Value<String?> conditionNotes = const Value.absent(),
@@ -11854,6 +12408,11 @@ class $$BatteriesTableTableManager
                 typeId: typeId,
                 nominalVoltageVolts: nominalVoltageVolts,
                 energyWh: energyWh,
+                continuousDischargeC: continuousDischargeC,
+                burstDischargeC: burstDischargeC,
+                burstDurationSeconds: burstDurationSeconds,
+                internalResistanceMilliOhmsPerCell:
+                    internalResistanceMilliOhmsPerCell,
                 chargePercent: chargePercent,
                 availability: availability,
                 conditionNotes: conditionNotes,
@@ -11912,10 +12471,11 @@ class $$BatteriesTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (batteryDronesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Battery,
                           $BatteriesTable,
-                          BatteryDrone
+                          BatteryDrone,
+                          $BatteryDronesTable
                         >(
                           currentTable: table,
                           referencedTable: $$BatteriesTableReferences
@@ -11926,17 +12486,16 @@ class $$BatteriesTableTableManager
                                 table,
                                 p0,
                               ).batteryDronesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.batteryId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'battery_id',
                           typedResults: items,
                         ),
                       if (batteryFlightPlansRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           Battery,
                           $BatteriesTable,
-                          BatteryFlightPlan
+                          BatteryFlightPlan,
+                          $BatteryFlightPlansTable
                         >(
                           currentTable: table,
                           referencedTable: $$BatteriesTableReferences
@@ -11947,10 +12506,8 @@ class $$BatteriesTableTableManager
                                 table,
                                 p0,
                               ).batteryFlightPlansRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.batteryId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'battery_id',
                           typedResults: items,
                         ),
                     ];
@@ -13045,10 +13602,11 @@ class $$FlightPlansTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (batteryFlightPlansRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           FlightPlan,
                           $FlightPlansTable,
-                          BatteryFlightPlan
+                          BatteryFlightPlan,
+                          $BatteryFlightPlansTable
                         >(
                           currentTable: table,
                           referencedTable: $$FlightPlansTableReferences
@@ -13059,17 +13617,16 @@ class $$FlightPlansTableTableManager
                                 table,
                                 p0,
                               ).batteryFlightPlansRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.planId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'plan_id',
                           typedResults: items,
                         ),
                       if (flightWaypointsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           FlightPlan,
                           $FlightPlansTable,
-                          FlightWaypoint
+                          FlightWaypoint,
+                          $FlightWaypointsTable
                         >(
                           currentTable: table,
                           referencedTable: $$FlightPlansTableReferences
@@ -13080,17 +13637,16 @@ class $$FlightPlansTableTableManager
                                 table,
                                 p0,
                               ).flightWaypointsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.planId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'plan_id',
                           typedResults: items,
                         ),
                       if (preflightChecklistsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           FlightPlan,
                           $FlightPlansTable,
-                          PreflightChecklist
+                          PreflightChecklist,
+                          $PreflightChecklistsTable
                         >(
                           currentTable: table,
                           referencedTable: $$FlightPlansTableReferences
@@ -13101,17 +13657,16 @@ class $$FlightPlansTableTableManager
                                 table,
                                 p0,
                               ).preflightChecklistsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.planId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'plan_id',
                           typedResults: items,
                         ),
                       if (telemetryFlightsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           FlightPlan,
                           $FlightPlansTable,
-                          TelemetryFlight
+                          TelemetryFlight,
+                          $TelemetryFlightsTable
                         >(
                           currentTable: table,
                           referencedTable: $$FlightPlansTableReferences
@@ -13122,10 +13677,8 @@ class $$FlightPlansTableTableManager
                                 table,
                                 p0,
                               ).telemetryFlightsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.planId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'plan_id',
                           typedResults: items,
                         ),
                     ];
@@ -14113,10 +14666,11 @@ class $$RadioEquipmentTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (radioEquipmentDronesRefs)
-                    await $_getPrefetchedData<
+                    await $_getPrefetchedDataByColumns<
                       RadioEquipmentData,
                       $RadioEquipmentTable,
-                      RadioEquipmentDrone
+                      RadioEquipmentDrone,
+                      $RadioEquipmentDronesTable
                     >(
                       currentTable: table,
                       referencedTable: $$RadioEquipmentTableReferences
@@ -14127,10 +14681,8 @@ class $$RadioEquipmentTableTableManager
                             table,
                             p0,
                           ).radioEquipmentDronesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.equipmentId == item.id,
-                          ),
+                      currentColumn: 'id',
+                      referencedColumn: 'equipment_id',
                       typedResults: items,
                     ),
                 ];

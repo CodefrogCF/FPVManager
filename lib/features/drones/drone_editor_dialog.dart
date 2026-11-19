@@ -305,6 +305,14 @@ class _DroneEditorDialogState extends State<DroneEditorDialog> {
                     _text(_motors, 'Motor description', limit: 120),
                     const SizedBox(height: 12),
                     _text(_esc, 'ESC description', limit: 120),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.localized(
+                        'Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.',
+                        (l10n) => l10n.droneCurrentLimitsHint,
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                   for (final parameter in DroneParameter.values.where(
                     (parameter) => parameter.group == group,

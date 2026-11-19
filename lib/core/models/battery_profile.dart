@@ -22,6 +22,10 @@ class BatteryInput {
     this.chemistry = 'LiPo',
     this.nominalVoltageVolts,
     this.energyWh,
+    this.continuousDischargeC,
+    this.burstDischargeC,
+    this.burstDurationSeconds,
+    this.internalResistanceMilliOhmsPerCell,
     this.weightGrams,
     this.isType = false,
     this.typeId,
@@ -38,6 +42,8 @@ class BatteryInput {
   final String name, chemistry;
   final int cellCount, capacityMah;
   final double? nominalVoltageVolts, energyWh, weightGrams, chargePercent;
+  final double? continuousDischargeC, burstDischargeC, burstDurationSeconds;
+  final double? internalResistanceMilliOhmsPerCell;
   final bool isType;
   final int? typeId, cycleCount;
   final BatteryAvailability availability;
@@ -53,8 +59,32 @@ class BatteryInput {
       'nominalVoltageVolts': nominalVoltageVolts,
       'energyWh': energyWh,
       'weightGrams': weightGrams,
+      'continuousDischargeC': continuousDischargeC,
+      'burstDischargeC': burstDischargeC,
+      'burstDurationSeconds': burstDurationSeconds,
     }.entries) {
       RepositoryValidation.positive(entry.value, entry.key);
+    }
+    if (internalResistanceMilliOhmsPerCell != null &&
+        (!internalResistanceMilliOhmsPerCell!.isFinite ||
+            internalResistanceMilliOhmsPerCell! < 0 ||
+            internalResistanceMilliOhmsPerCell! > 500)) {
+      throw ArgumentError('Per-cell internal resistance must be 0–500 mΩ');
+    }
+    if (continuousDischargeC != null && continuousDischargeC! > 1000 ||
+        burstDischargeC != null && burstDischargeC! > 1000 ||
+        burstDurationSeconds != null && burstDurationSeconds! > 3600) {
+      throw ArgumentError('Discharge rating exceeds supported range');
+    }
+    if ((burstDischargeC == null) != (burstDurationSeconds == null)) {
+      throw ArgumentError(
+        'Burst rating and burst duration must be set together',
+      );
+    }
+    if (burstDischargeC != null &&
+        continuousDischargeC != null &&
+        burstDischargeC! < continuousDischargeC!) {
+      throw ArgumentError('Burst rating cannot be below continuous rating');
     }
     if (nominalVoltageVolts != null &&
         !(nominalVoltageVolts! * (capacityMah / 1000)).isFinite) {

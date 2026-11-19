@@ -123,6 +123,8 @@ class _SettingsState extends State<_Settings> {
   int? _batteryId;
   late bool _showBatteryVoltage = widget.initial.showBatteryVoltage;
   late bool _showBatteryCellVoltage = widget.initial.showBatteryCellVoltage;
+  late bool _batteryUseChemistryThresholds =
+      widget.initial.batteryUseChemistryThresholds;
   late SignalHudSettings _signalHud = widget.initial.signalHud;
   late bool _failsafeEnabled = widget.initial.failsafe.enabled;
   late String _failsafeMode = widget.initial.failsafe.mode;
@@ -374,6 +376,7 @@ class _SettingsState extends State<_Settings> {
           lowBatteryCellVoltage: read('batteryLow')!,
           criticalBatteryCellVoltage: read('batteryCritical')!,
           batterySagResistanceOhmsPerCell: read('batterySag')!,
+          batteryUseChemistryThresholds: _batteryUseChemistryThresholds,
           batteryProfile: _batteryId == null
               ? null
               : SimulationBatteryProfile.fromProfiles(
@@ -958,21 +961,43 @@ class _SettingsState extends State<_Settings> {
                             onChanged: (value) =>
                                 setState(() => _showBatteryCellVoltage = value),
                           ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              context.localized(
+                                'Chemieabhängige Warnschwellen (SIM)',
+                                (l10n) => l10n.batteryChemistryAutoThresholds,
+                              ),
+                            ),
+                            subtitle: Text(
+                              context.localized(
+                                'Orientiert sich an der gewählten Akkuchemie; für eigene Spannungen deaktivieren.',
+                                (l10n) =>
+                                    l10n.batteryChemistryAutoThresholdsHint,
+                              ),
+                            ),
+                            value: _batteryUseChemistryThresholds,
+                            onChanged: (value) => setState(
+                              () => _batteryUseChemistryThresholds = value,
+                            ),
+                          ),
                           number(
                             'batteryLow',
                             'Warnung Zellspannung (V)',
-                            2.9,
-                            4.3,
+                            .6,
+                            4.5,
                           ),
                           number(
                             'batteryCritical',
                             'Kritische Zellspannung (V)',
-                            2.8,
-                            4.2,
+                            .5,
+                            4.4,
                           ),
                           number(
                             'batterySag',
-                            'Optionaler Innenwiderstand je Zelle (Ω; 0 = aus)',
+                            context
+                                .fpvStrings
+                                .batteryChemistryResistanceAutomatic,
                             0,
                             .1,
                           ),

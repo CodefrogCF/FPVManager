@@ -2,34 +2,80 @@
 
 ### [Unreleased] - 2026-11-19
 
-- Extend simulated DJI O4 Pro and Crossfire RF estimation with derived free-space
-  maximum ranges, receive power, path loss and remaining link margins for each
-  band, retaining conservative terrain uncertainty and custom parameters.
-  Expose estimates in radio details/HUD tooltips, not as measured reception.
-- Stabilize Flutter tests affected by additional renderer radio setup commands:
-  verify feature-specific commands rather than absolute command-list positions,
-  and compare preference resets against the current HUD defaults.
-- Add default, explicitly approximate DJI O4 Air Unit Pro video and TBS Crossfire
-  RC link-budget profiles with optional custom radio parameters. Expose independent
-  video/RC signal estimates when fresh terrain profiles exist, retain unknown
-  reception on unavailable data, and feed the existing optional failsafe.
+- Refine simulation-only GPS Rescue to hold, climb approximately 100 m above
+  current loss altitude, turn toward home, return at controlled cruise altitude
+  and speed, then land automatically near the home-point ground surface.
+  Recovered RC alone does not cancel rescue: a deliberate yaw/pitch/roll stick
+  input is required; retain bounded terrain and model collision sweeps.
+- Make modeled terrain obstruction more influential in RC/video link budgets;
+  shorten default simulated failsafe activation/recovery delays while retaining
+  user controls, hysteresis and unavailable-terrain safeguards.
+- Introduce independent EU/CE and FCC reference scenarios for DJI O4 Pro video
+  and TBS Crossfire RC, plus custom numeric profiles. Preset EIRP/frequencies
+  reflect documented bands or explicitly labeled simulation assumptions;
+  derived receiver thresholds are NOT measured hardware sensitivities.
+  Selecting an RF scenario never configures an actual transmitter or grants
+  radio-operation permission.
+- Add chemistry-dependent charge references: lithium CC/CV per-cell maximums and
+  explicit nickel delta-peak/temperature cutoff guidance (no invented fixed
+  nickel charge voltage). Both languages show the appropriate battery-editor hint.
+- Persist independent optional ESC continuous per-channel and motor continuous
+  per-motor current ratings in drone profile schema v12. Show distinct estimated
+  limit warnings in route analysis and live battery estimates using a clearly
+  labeled equal-share DC current proxy; motor phase currents are not measured.
+- Retain existing battery, drone, and backup records across the nullable schema
+  migration. Unknown electrical limits remain unknown, not assumed adequate.
+- Replace free-text battery chemistry with localized LiPo, LiHV, Li-ion,
+  LiFePO₄, NiMH, and NiCd selections; preserve unsupported legacy chemistry
+  strings.
+- Persist individual continuous/burst C-ratings, burst duration, and per-cell
+  internal resistance (mΩ) in database schema v11; copy values from type
+  templates.
+- Pass specifications into the existing chemistry-aware live-voltage
+  simulation and route energy/load analysis. Chemistry defaults remain
+  explicitly approximate.
+- Correct known German localization defects including Betaflight branding and
+  simulator spawn labels.
+- Centralize estimated RC battery chemistry behavior with generated, shared
+  Dart/JavaScript reference presets (LiPo, LiHV, Li-ion, LiFePO4, NiMH and
+  NiCd). The flight HUD now uses chemistry-specific discharge voltage and
+  load sag, charge/energy accounting and automatic low-voltage warnings;
+  route energy assessments flag estimated current requirements above generic
+  chemistry reference limits without overwriting recorded Wh. Custom warning
+  thresholds remain available, and existing battery records/backups are
+  unchanged.
+- Extend simulated DJI O4 Pro and Crossfire RF estimation with derived
+  free-space maximum ranges, receive power, path loss and remaining link
+  margins for each band, retaining conservative terrain uncertainty and
+  custom parameters. Expose estimates in radio details/HUD tooltips, not as
+  measured reception.
+- Stabilize Flutter tests affected by additional renderer radio setup
+  commands: verify feature-specific commands rather than absolute
+  command-list positions, and compare preference resets against the current
+  HUD defaults.
+- Add default, explicitly approximate DJI O4 Air Unit Pro video and TBS
+  Crossfire RC link-budget profiles with optional custom radio parameters.
+  Expose independent video/RC signal estimates when fresh terrain profiles
+  exist, retain unknown reception on unavailable data, and feed the existing
+  optional failsafe.
 - Improve adaptive live sightline sampling at higher flight speeds, keep rays
   strictly visualization-only and non-collidable, increase optional analog
   video interference at poor simulated reception and speed up GPS Rescue
   target-speed tracking with bounded acceleration and braking.
 - Add an opt-in, deterministic simulated RC failsafe with hold, descend and
   illustrative GPS Rescue to the takeoff point. Sustain loss and recovery
-  thresholds with hysteresis, handle unknown/insufficient navigation and battery
-  information, keep manual/video/RC channels separate, and reuse existing
-  flight collision sweeps. Provide simulation-only HUD status, persisted settings
-  and a session-only manual RC test source; no terrain-only RF-loss assertions.
+  thresholds with hysteresis, handle unknown/insufficient navigation and
+  battery information, keep manual/video/RC channels separate, and reuse
+  existing flight collision sweeps. Provide simulation-only HUD status,
+  persisted settings and a session-only manual RC test source; no terrain-only
+  RF-loss assertions.
 - Add opt-in simulated video-link warnings to the goggles HUD and separate
-  video/RC strength bars in the Betaflight OSD, with optional analog interference.
-  Smooth the visuals and persist thresholds/intensity locally. An explicit
-  terrain-only demonstration can illustrate possible video degradation without
-  asserting measured RF quality or RC failure; unknown conditions show no
-  invented reception. All effects are presentation-only and cannot trigger
-  failsafe.
+  video/RC strength bars in the Betaflight OSD, with optional analog
+  interference. Smooth the visuals and persist thresholds/intensity locally.
+  An explicit terrain-only demonstration can illustrate possible video
+  degradation without asserting measured RF quality or RC failure; unknown
+  conditions show no invented reception. All effects are presentation-only and
+  cannot trigger failsafe.
 - Extend the existing live geometric radio preview with a separately visible
   ground station marker, independently controlled sightline, and an explicit
   takeoff reset/map-selection workflow. Share an immutable assessment model

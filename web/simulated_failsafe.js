@@ -1,10 +1,11 @@
-// FPVManager Issue #129 – deterministic, simulation-only RC failsafe state machine.
-// Geometric LOS and visualization-only video estimates MUST NOT drive this model.
+// Deterministic, simulation-only RC failsafe and Betaflight-inspired GPS Rescue.
+// Geometric LOS and video-only effects never trigger a control loss.
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVSimulatedFailsafe=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
-    const defaults=Object.freeze({enabled:false,mode:'hold',lossThreshold:.08,recoveryThreshold:.35,
-        activationDelaySeconds:1.5,recoveryDelaySeconds:2,rescueAltitudeMeters:50,
-        returnSpeedMetersPerSecond:8,climbSpeedMetersPerSecond:3,autoRecover:true});
+    const defaults=Object.freeze({enabled:false,mode:'hold',lossThreshold:.20,recoveryThreshold:.45,
+        activationDelaySeconds:.6,recoveryDelaySeconds:.6,rescueAltitudeMeters:100,
+        returnSpeedMetersPerSecond:8,climbSpeedMetersPerSecond:5,autoRecover:false});
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
     function configuration(value={}){
         if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid simulated failsafe configuration');
         const s={...defaults,...value};
@@ -20,60 +21,75 @@
     }
     function rcQuality(assessment){
         const link=assessment?.controlLink;
-        // Only an explicit radio model or the opt-in manual training signal
-        // can cause a simulated RC loss. Unknown and terrainIllustration never can.
         if(!link||typeof link!=='object'||!Number.isFinite(link.quality)||link.quality<0||link.quality>1||
             !['rfModel','estimatedModel'].includes(link.source))return null;
         return link.quality;
     }
     function create(settings=defaults){
-        let cfg=configuration(settings),phase='normal',lossTime=0,recoveryTime=0,reason=null,quality=null;
-        function reset(){phase='normal';lossTime=0;recoveryTime=0;reason=null;quality=null;}
+        let cfg=configuration(settings),phase='normal',lossTime=0,recoveryTime=0,phaseTime=0;
+        let reason=null,quality=null,targetAltitude=null;
+        function reset(){phase='normal';lossTime=0;recoveryTime=0;phaseTime=0;reason=null;quality=null;targetAltitude=null;}
         function setConfiguration(value){cfg=configuration(value);reset();}
+        function setPhase(next){if(next!==phase){phase=next;phaseTime=0;}}
         function status(){return {enabled:cfg.enabled,mode:cfg.mode,phase,reason,rcQuality:quality,
-            active:!['normal','pending'].includes(phase),recoveryReady:phase==='awaitingManual',
-            recovering:recoveryTime>0&&!['normal','pending','awaitingManual'].includes(phase)};}
+            active:!['normal','pending'].includes(phase),recoveryReady:recoveryTime>=cfg.recoveryDelaySeconds&&
+                !['normal','pending','landed'].includes(phase),
+            recovering:recoveryTime>0&&!['normal','pending','landed'].includes(phase),
+            targetAltitudeMeters:targetAltitude};}
         function takeControl(context){
-            if(cfg.mode!=='gpsRescue')return cfg.mode;
+            if(cfg.mode!=='gpsRescue'){setPhase(cfg.mode);return;}
             if(!context?.position||!context?.home||![context.height,context.homeHeight].every(Number.isFinite)){
-                phase='unavailable';reason='navigation';return 'hold';
+                setPhase('unavailable');reason='navigation';return;
             }
-            if(context.batteryInsufficient===true){phase='unavailable';reason='battery';return 'hold';}
-            phase='climb';reason=null;return 'gpsRescue';
+            if(context.batteryInsufficient===true){setPhase('unavailable');reason='battery';return;}
+            // Betaflight-inspired CURRENT altitude + configured initial climb,
+            // never a descent to a lower height above the home point.
+            targetAltitude=Math.max(context.height,context.homeHeight)+cfg.rescueAltitudeMeters;
+            setPhase('rescueHold');reason=null;
         }
         function step(dt,assessment,context={}){
             if(!cfg.enabled||context.playback){reset();return status();}
-            const seconds=Number.isFinite(dt)?Math.max(0,Math.min(dt,.1)):0;
+            const seconds=Number.isFinite(dt)?clamp(dt,0,.1):0;
             quality=rcQuality(assessment);
             if(phase==='normal'||phase==='pending'){
-                // An unknown link cannot arm a failsafe, even behind terrain.
-                if(quality===null||quality>cfg.lossThreshold){phase='normal';lossTime=0;}
-                else {lossTime+=seconds;phase=lossTime>=cfg.activationDelaySeconds?'active':'pending';
-                    if(phase==='active'){phase=cfg.mode;takeControl(context);}}
+                if(quality===null||quality>cfg.lossThreshold){setPhase('normal');lossTime=0;}
+                else {lossTime+=seconds;setPhase('pending');
+                    if(lossTime>=cfg.activationDelaySeconds)takeControl(context);}
                 return status();
             }
+            phaseTime+=seconds;
+            // Unknown RF data is neither a loss nor a restored RC connection.
             if(quality!==null&&quality>=cfg.recoveryThreshold){
-                recoveryTime+=seconds;
-                if(recoveryTime>=cfg.recoveryDelaySeconds){
-                    if(cfg.autoRecover){reset();quality=rcQuality(assessment);return status();}
-                    phase='awaitingManual';reason='manualRecovery';
+                recoveryTime=Math.min(cfg.recoveryDelaySeconds,recoveryTime+seconds);
+                // GPS Rescue is never cancelled just because RF returns: a
+                // deliberate post-recovery stick command is required.
+                if(cfg.mode!=='gpsRescue'&&cfg.autoRecover&&recoveryTime>=cfg.recoveryDelaySeconds){
+                    reset();return status();
                 }
             }else recoveryTime=0;
-            if(phase==='awaitingManual')return status();
-            if(phase==='climb'||phase==='return'||phase==='arrived'){
+            if(phase==='landed')return status();
+            if(['rescueHold','climb','turn','return','landing'].includes(phase)){
                 if(!context.position||!context.home||![context.height,context.homeHeight].every(Number.isFinite)){
-                    phase='unavailable';reason='navigation';
-                }else if(context.batteryInsufficient===true){phase='unavailable';reason='battery';}
-                else {
-                    const altitude=context.homeHeight+cfg.rescueAltitudeMeters;
-                    const delta=altitude-context.height;
-                    if(phase==='climb'&&delta<=1)phase='return';
-                    if(phase==='return'&&Number.isFinite(context.distanceToHome)&&context.distanceToHome<3)phase='arrived';
+                    setPhase('unavailable');reason='navigation';
+                }else if(context.batteryInsufficient===true){
+                    setPhase('unavailable');reason='battery';
+                }else if(phase==='rescueHold'&&phaseTime>=.5){
+                    setPhase('climb');
+                }else if(phase==='climb'&&context.height>=targetAltitude-1){
+                    setPhase('turn');
+                }else if(phase==='turn'&&Number.isFinite(context.headingErrorRadians)&&
+                    Math.abs(context.headingErrorRadians)<=.05){
+                    setPhase('return');
+                }else if(phase==='return'&&Number.isFinite(context.distanceToHome)&&context.distanceToHome<=3){
+                    setPhase('landing');
+                }else if(phase==='landing'&&Number.isFinite(context.distanceToHome)&&context.distanceToHome<=4&&
+                    context.height<=context.homeHeight+.7){
+                    setPhase('landed');reason='simulatedLanding';
                 }
             }
             return status();
         }
-        function recover(){if(phase!=='awaitingManual')return false;reset();return true;}
+        function recover(){if(!status().recoveryReady)return false;reset();return true;}
         return {step,reset,recover,status,setConfiguration,get settings(){return {...cfg};}};
     }
     return {defaults,configuration,rcQuality,create};

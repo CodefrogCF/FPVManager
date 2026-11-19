@@ -154,15 +154,26 @@ void main() {
       ).known,
       isFalse,
     );
-    expect(
-      BatteryRouteAssessment.calculate(
-        _battery(voltage: null, wh: null),
-        route,
-        energy,
-        _model,
-      ).known,
-      isFalse,
+    final inferredOnly = BatteryRouteAssessment.calculate(
+      _battery(voltage: null, wh: null),
+      route,
+      energy,
+      _model,
     );
+    expect(inferredOnly.known, isFalse);
+    expect(inferredOnly.budgetWh, isNull);
+    expect(inferredOnly.status, contains('Chemistry reference voltage'));
+    expect(inferredOnly.status, isNot(contains('Within')));
+    // Recorded Wh is sufficient for a budget even without a voltage reading;
+    // only load-current diagnostics then use chemistry reference voltage.
+    final recordedWh = BatteryRouteAssessment.calculate(
+      _battery(voltage: null, wh: 10),
+      route,
+      energy,
+      _model,
+    );
+    expect(recordedWh.known, isTrue);
+    expect(recordedWh.availableWh, 10);
     final unknown = BatteryRouteAssessment.calculate(
       _battery(wh: 20, availability: 'unknown'),
       route,
@@ -180,6 +191,114 @@ void main() {
     expect(half.availableWh, 5);
     expect(half.budgetWh, 3);
   });
+  test('chemistry reference current influences route warnings without changing flight Wh', () {
+    const fast = RoutePlanningSettings(
+      referenceMassGrams: 1000,
+      flightMassGrams: 1000,
+      includeReturn: false,
+      powerCurve: [PowerCurvePoint(0, 900), PowerCurvePoint(20, 900)],
+    );
+    final route = _route(settings: fast);
+    final energy = RouteEnergyEstimate.calculate(route, fast);
+    Battery pack(String chemistry, double nominal) => Battery(
+      id: 19,
+      name: chemistry,
+      chemistry: chemistry,
+      cellCount: 6,
+      capacityMah: 4500,
+      isType: false,
+      availability: 'available',
+      nominalVoltageVolts: nominal,
+      energyWh: nominal * 4.5,
+      chargePercent: 100,
+    );
+    final lipo = BatteryRouteAssessment.calculate(
+      pack('LiPo', 22.2),
+      route,
+      energy,
+      fast,
+    );
+    final liion = BatteryRouteAssessment.calculate(
+      pack('LiIon', 21.6),
+      route,
+      energy,
+      fast,
+    );
+    expect(lipo.loadLimitedSegments, isEmpty);
+    expect(liion.loadLimitedSegments, isNotEmpty);
+    expect(
+      liion.estimatedCurrentLimitAmps,
+      lessThan(lipo.estimatedCurrentLimitAmps!),
+    );
+    expect(lipo.conservativeWh, liion.conservativeWh);
+    expect(
+      liion.maxEstimatedCurrentAmps,
+      greaterThan(liion.estimatedCurrentLimitAmps!),
+    );
+  });
+
+  test(
+    'ESC and motor limits are assessed independently from battery C rating',
+    () {
+      const fast = RoutePlanningSettings(
+        referenceMassGrams: 1000,
+        flightMassGrams: 1000,
+        includeReturn: false,
+        powerCurve: [PowerCurvePoint(0, 900), PowerCurvePoint(20, 900)],
+      );
+      final route = _route(settings: fast);
+      final energy = RouteEnergyEstimate.calculate(route, fast);
+      final pack = Battery(
+        id: 45,
+        name: 'high C pack',
+        chemistry: 'LiPo',
+        cellCount: 6,
+        capacityMah: 4500,
+        continuousDischargeC: 120,
+        isType: false,
+        availability: 'available',
+        nominalVoltageVolts: 22.2,
+        energyWh: 99.9,
+        chargePercent: 100,
+      );
+      final drone = Drone(
+        id: 2,
+        name: 'quad',
+        type: 'quadcopter',
+        createdAt: DateTime.utc(2026),
+        motorCount: 4,
+        escContinuousCurrentAmpsPerChannel: 8,
+        motorContinuousCurrentAmpsPerMotor: 30,
+      );
+      final assessed = BatteryRouteAssessment.calculate(
+        pack,
+        route,
+        energy,
+        fast,
+        drone: drone,
+      );
+      expect(assessed.loadLimitedSegments, isEmpty);
+      expect(assessed.escLimitedSegments, isNotEmpty);
+      expect(assessed.motorLimitedSegments, isEmpty);
+      expect(assessed.peakEstimatedPerUnitCurrentAmps, isNotNull);
+      final unknownCount = BatteryRouteAssessment.calculate(
+        pack,
+        route,
+        energy,
+        fast,
+        drone: Drone(
+          id: 3,
+          name: 'unknown motors',
+          type: 'quadcopter',
+          createdAt: DateTime.utc(2026),
+          escContinuousCurrentAmpsPerChannel: 1,
+        ),
+      );
+      expect(unknownCount.escLimitedSegments, isEmpty); // unknown, not safe
+      expect(unknownCount.peakEstimatedPerUnitCurrentAmps, isNull);
+    },
+  );
+
   test('takeoff mass scales power and climb energy; measurements outside the curve remain unsupported', () {
     final route = _route();
     final baseline = RouteEnergyEstimate.calculate(route, _model);

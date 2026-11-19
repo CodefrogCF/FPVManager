@@ -14,6 +14,10 @@ void main() {
     availability: 'available',
     nominalVoltageVolts: 22.2,
     chargePercent: 90,
+    continuousDischargeC: 25,
+    burstDischargeC: 40,
+    burstDurationSeconds: 5,
+    internalResistanceMilliOhmsPerCell: 15,
   );
   final drone = Drone(
     id: 4,
@@ -24,6 +28,9 @@ void main() {
     hoverPowerWatts: 180,
     cruisePowerWatts: 290,
     maxPowerWatts: 1100,
+    motorCount: 4,
+    escContinuousCurrentAmpsPerChannel: 60,
+    motorContinuousCurrentAmpsPerMotor: 40,
     cruiseSpeedMetersPerSecond: 17,
     maxSpeedMetersPerSecond: 45,
   );
@@ -47,7 +54,14 @@ void main() {
     expect(json['batteryId'], 7);
     expect(json['cellCount'], 6);
     expect(json['capacityMah'], 4500);
+    expect(json['continuousDischargeC'], 25);
+    expect(json['burstDischargeC'], 40);
+    expect(json['burstDurationSeconds'], 5);
+    expect(json['resistanceOhmsPerCell'], closeTo(0.015, 1e-9));
     expect(json['chargePercent'], 85);
+    expect(json['motorCount'], 4);
+    expect(json['escContinuousCurrentAmpsPerChannel'], 60);
+    expect(json['motorContinuousCurrentAmpsPerMotor'], 40);
     expect(json['hoverPowerWatts'], 180);
     expect(json['cruisePowerWatts'], 290);
     expect(json['cruiseSpeedMetersPerSecond'], 17);
@@ -55,6 +69,7 @@ void main() {
     expect(command['showBatteryVoltage'], true);
     expect(command['showBatteryCellVoltage'], true);
     expect(command['criticalBatteryCellVoltage'], 3.3);
+    expect(command['batteryUseChemistryThresholds'], true);
     final updated = settings.withCameraTilt(
       10,
       showBatteryVoltage: false,
@@ -64,6 +79,19 @@ void main() {
     expect(updated.showBatteryVoltage, false);
     expect(updated.lowBatteryCellVoltage, 3.6);
     expect(updated.criticalBatteryCellVoltage, 3.3);
+    expect(updated.batteryUseChemistryThresholds, true);
+  });
+
+  test('manual low-voltage nickel warnings remain configurable', () {
+    const settings = SimulationSettings(
+      lowBatteryCellVoltage: 1.12,
+      criticalBatteryCellVoltage: 1.0,
+      batteryUseChemistryThresholds: false,
+    );
+    settings.validate();
+    final command = settings.toCommand();
+    expect(command['batteryUseChemistryThresholds'], false);
+    expect(command['lowBatteryCellVoltage'], 1.12);
   });
 
   test('invalid thresholds and battery inputs are rejected', () {
@@ -94,6 +122,8 @@ void main() {
       chargePercent: 100,
     );
     expect(profile.toJson()['hoverPowerWatts'], isNull);
+    expect(profile.toJson()['motorCount'], isNull);
+    expect(profile.toJson()['escContinuousCurrentAmpsPerChannel'], isNull);
     expect(profile.toJson()['cruisePowerWatts'], isNull);
     expect(const SimulationSettings().toCommand()['batteryProfile'], isNull);
     expect(const SimulationSettings().toCommand()['showBatteryVoltage'], false);

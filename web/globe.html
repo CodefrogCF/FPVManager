@@ -210,22 +210,23 @@
                     <label>Störintensität <input id="flight-signal-intensity" type="range" min="0" max="100" step="5" value="65"></label>
                     <label>Schwach ab <input id="flight-signal-weak" type="number" min="0.1" max="1" step="0.05" value="0.55"></label>
                     <label>Kritisch ab <input id="flight-signal-critical" type="number" min="0.05" max="0.9" step="0.05" value="0.25"></label>
-                    <label>Verlust ab <input id="flight-signal-lost" type="number" min="0" max="0.8" step="0.01" value="0.08"></label>
+                    <label>Verlust ab <input id="flight-signal-lost" type="number" min="0" max="0.8" step="0.01" value="0.20"></label>
                     <output id="flight-signal-error" aria-live="polite"></output>
                     <small>SIM · Nur modellierte Werte. Geländevorschau ist keine RF-Messung und löst keinen Failsafe aus.</small>
                 </fieldset>
                 <fieldset id="flight-failsafe-settings"><legend>SIM · RC-Failsafe &amp; GPS Rescue</legend>
                     <label><input id="flight-failsafe-enabled" type="checkbox">Failsafe-Simulation aktivieren</label>
                     <label>Aktion <select id="flight-failsafe-mode"><option value="hold">Position halten</option><option value="descend">Langsam sinken</option><option value="gpsRescue">GPS Rescue (Rückkehr zum Start)</option></select></label>
-                    <label>RC-Verlust ab <input id="flight-failsafe-loss" type="number" min="0" max="0.5" step="0.01" value="0.08"></label>
-                    <label>Wiederverbindung ab <input id="flight-failsafe-recovery" type="number" min="0.05" max="1" step="0.05" value="0.35"></label>
-                    <label>Verlustdauer (s) <input id="flight-failsafe-delay" type="number" min="0.1" max="30" step="0.1" value="1.5"></label>
-                    <label>Erholungsdauer (s) <input id="flight-failsafe-recovery-delay" type="number" min="0.1" max="30" step="0.1" value="2"></label>
-                    <label>Rückkehrhöhe über Start (m) <input id="flight-failsafe-altitude" type="number" min="5" max="500" step="1" value="50"></label>
+                    <label>RC-Verlust ab <input id="flight-failsafe-loss" type="number" min="0" max="0.5" step="0.01" value="0.20"></label>
+                    <label>Wiederverbindung ab <input id="flight-failsafe-recovery" type="number" min="0.05" max="1" step="0.05" value="0.45"></label>
+                    <label>Verlustdauer (s) <input id="flight-failsafe-delay" type="number" min="0.1" max="30" step="0.1" value="0.6"></label>
+                    <label>Erholungsdauer (s) <input id="flight-failsafe-recovery-delay" type="number" min="0.1" max="30" step="0.1" value="0.6"></label>
+                    <label>Initialer Steigflug über Ausfallhöhe (m) <input id="flight-failsafe-altitude" type="number" min="5" max="500" step="1" value="100"></label>
                     <label>Rückkehrtempo (m/s) <input id="flight-failsafe-speed" type="number" min="0.5" max="50" step="0.5" value="8"></label>
-                    <label>Steigrate (m/s) <input id="flight-failsafe-climb" type="number" min="0.2" max="15" step="0.2" value="3"></label>
-                    <label><input id="flight-failsafe-auto" type="checkbox" checked>Bei stabiler Verbindung automatisch wieder übernehmen</label>
+                    <label>Steigrate (m/s) <input id="flight-failsafe-climb" type="number" min="0.2" max="15" step="0.2" value="5"></label>
+                    <label><input id="flight-failsafe-auto" type="checkbox">Automatische Rückübernahme nur für Halten/Sinken (nicht GPS Rescue)</label>
                     <button id="flight-failsafe-resume" type="button" disabled>Manuell übernehmen</button>
+                    <small>GPS Rescue: Halten → +100 m steigen → zum Homepoint drehen → mit konstanter Rückkehrhöhe fliegen → automatisch landen. Nach stabiler RC-Wiederherstellung beendet eine deutliche Steuerbewegung (ab 30 %) den Rettungsflug.</small>
                     <output id="flight-failsafe-error" aria-live="polite"></output>
                     <details><summary>RC-Verlust zum Testen auslösen (Simulation)</summary>
                         <label><input id="flight-failsafe-training" type="checkbox">Explizites RC-Testsignal verwenden</label>
@@ -235,8 +236,9 @@
                 </fieldset>
                 <label><input id="flight-battery-enabled" type="checkbox">Geschätzte Akkuspannung (SIM)</label>
                 <label><input id="flight-battery-cell" type="checkbox">Zellspannung anzeigen</label>
-                <label>Warnung (V/Zelle) <input id="flight-battery-low" type="number" min="2.9" max="4.3" step="0.05" value="3.5" aria-label="Low battery voltage per cell"></label>
-                <label>Kritisch (V/Zelle) <input id="flight-battery-critical" type="number" min="2.8" max="4.2" step="0.05" value="3.3" aria-label="Critical battery voltage per cell"></label>
+                <label><input id="flight-battery-auto-thresholds" type="checkbox" checked> Warnschwellen nach Akkuchemie (SIM)</label>
+                <label>Warnung (V/Zelle) <input id="flight-battery-low" type="number" min="0.6" max="4.5" step="0.05" value="3.5" aria-label="Low battery voltage per cell"></label>
+                <label>Kritisch (V/Zelle) <input id="flight-battery-critical" type="number" min="0.5" max="4.4" step="0.05" value="3.3" aria-label="Critical battery voltage per cell"></label>
                 <output id="flight-battery-error" aria-live="polite"></output>
                 <label><input id="flight-show-touch" type="checkbox" checked>Touch-Steuerung</label>
             </details>
@@ -295,6 +297,7 @@
     <script src="controller_input.js"></script>
     <script src="navigation_controls.js"></script>
     <script src="ground_navigation.js"></script>
+    <script src="battery_chemistries.generated.js"></script>
     <script src="battery_simulation.js"></script>
     <script src="signal_hud.js"></script>
     <script src="rf_estimation.js"></script>

@@ -70,31 +70,31 @@
   "batteriesAddType937e2dfc": "Typ hinzufügen",
   "batteriesAssociatedFlightPlans1c957aa1": "Zugehörige Flugpläne",
   "batteriesAvailability681b5b5a": "Verfügbarkeit",
-  "batteriesBatteryDetails139e0037": "Angaben zur Batterie",
+  "batteriesBatteryDetails139e0037": "Akkudetails",
   "batteriesBatteryInventory01b473c6": "Batteriebestand",
   "batteriesBatteryTypeReusableTemplate7a43b0a1": "Batterietyp · wiederverwendbare Vorlage",
-  "batteriesBatterycc97f71f": "{arg0} Batterie{arg1}",
+  "batteriesBatterycc97f71f": "{arg0} Akku{arg1}",
   "batteriesCalculatedNominalEnergyWh30e6efe0": "Berechnete Nennenergie: {arg0} Wh (Kapazität × Nennspannung)",
   "batteriesConditionAvailability033503de": "Zustand & Verfügbarkeit",
-  "batteriesCopyTypeSpecifications02a95788": "Spezifikationen für Kopieren",
+  "batteriesCopyTypeSpecifications02a95788": "Typdaten übernehmen",
   "batteriesDeleteBattery7407e336": "Batterie löschen{arg0}?",
   "batteriesEditBattery29162bfe": "Akku bearbeiten",
-  "batteriesIndividualBattery211df7bd": "Individuelle Batterie",
+  "batteriesIndividualBattery211df7bd": "Einzelner Akku",
   "batteriesNoBatteryTypesYetc908d855": "Noch keine Batterietypen. Fügen Sie eine wiederverwendbare Spezifikationsvorlage hinzu.",
   "batteriesNoDroneProfilesYet036373ca": "Noch keine Drohnenprofile.",
-  "batteriesNoIndividualBatteriesYet2f6f284a": "Noch keine einzelnen Batterien. Fügen Sie ein Paket zu Ihrem Inventar hinzu.",
-  "batteriesNoSavedFlightPlans0eb9aef8": "Noch keine geretteten Flugpläne.",
+  "batteriesNoIndividualBatteriesYet2f6f284a": "Noch keine einzelnen Akkus erfasst. Füge einen Akku zum Bestand hinzu.",
+  "batteriesNoSavedFlightPlans0eb9aef8": "Noch keine gespeicherten Flugpläne.",
   "batteriesNoTypeTemplate58240414": "Keine Mustervorlage",
-  "batteriesOptional0c6c4102": "Fakultativ",
-  "batteriesPacksKeepIndependentSpecificationa8fd26d6": "Pakete behalten unabhängige Spezifikationskopien. Spätere Typ-Edits ändern sie nicht.",
+  "batteriesOptional0c6c4102": "Optional",
+  "batteriesPacksKeepIndependentSpecificationa8fd26d6": "Akkus behalten ihre eigenen technischen Daten. Spätere Änderungen an der Typvorlage wirken sich nicht rückwirkend aus.",
   "batteriesRemovedType24f2204a": "Entfernter Typ",
-  "batteriesRetryLoadingOptions99cf637e": "Ladeoptionen erneut testen",
+  "batteriesRetryLoadingOptions99cf637e": "Ladeversuch wiederholen",
   "batteriesTheAssignedTypeWas57b002ba": "Der zugewiesene Typ wurde entfernt. Wählen Sie einen Typ oder keine Vorlage.",
   "batteriesThisBatteryNoLongere1b6ecdf": "Diese Batterie existiert nicht mehr.",
-  "batteriesTypeTemplateOptionalbafc4970": "Mustervorlage (fakultativ)",
+  "batteriesTypeTemplateOptionalbafc4970": "Typvorlage (optional)",
   "batteriesUnableToLoadBattery8a3276bc": "Batteriebestand kann nicht geladen werden.",
   "batteriesUnableToLoadThis46eed388": "Diese Batterie kann nicht geladen werden.",
-  "batteriesUnableToLoadTypesc7010120": "Type und Zuordnungen können nicht geladen werden.",
+  "batteriesUnableToLoadTypesc7010120": "Typvorlagen und Zuordnungen konnten nicht geladen werden.",
   "commonAPlanningRadiusIse6a1033a": "Ein Planungsradius ist keine VLOS-Grenze. Sichtbarkeit, Flugzeugausrichtung, Beobachter, Personen, Pilotenqualifikationen, lokale Einschränkungen und Zulassungen erfordern eine manuelle Überprüfung.",
   "commonAbbrechen07af7cb3": "Abbrechen",
   "commonAbrufzeitIstNichtVeroeffentlichungszeit8d993e52": "Abrufzeit ist nicht Veröffentlichungszeit. Gültig von/bis beschreibt den angegebenen Zeitraum; ein frischer Download beweist nicht, dass der gesamte Inhalt aktuell ist. Fehlende Zeitangaben werden nicht ergänzt.",
@@ -350,7 +350,7 @@
   "commonPlanungshilfen4c6529d9": "Planungshilfen",
   "commonPlaygrounds2472110c": "Spielplätze",
   "commonPotentialObstructionSurfaceMf0e561ae": "Mögliche Behinderung: {arg0}, {arg1} · Oberfläche {arg2} m WGS84 ellipsoid",
-  "commonPowerPerformance72b3155b": "Leistung & Leistung",
+  "commonPowerPerformance72b3155b": "Leistung & Flugverhalten",
   "commonPreparationa8bc3820": "Vorbereitung",
   "commonProfileUndAuswahlSindd905de42": "Profile und Auswahl sind Bestandteil persönlicher Backups. Einzelne Profile können als versionierte .fpvprofile-Datei exportiert werden. Der Import zeigt eine Vorschau und ergänzt ein inaktives Profil, ohne vorhandene Profile zu überschreiben. Unterstützt werden höchstens 32 Profile und Dateien bis 128 KiB.",
   "commonPropellerCount0e5ac786": "Propellerzahl",
@@ -562,7 +562,7 @@
   "globeBeschriftungenTeilweiseVerfuegbar5ada98f5": "Beschriftungen teilweise verfügbar.",
   "globeBeschriftungenWerdenGeladenb8c71bdb": "Beschriftungen werden geladen …",
   "globeBringForwardcf73f6a1": "{arg0} vorwärts bringen",
-  "globeCancelSpawn701b7923": "Laichen absagen",
+  "globeCancelSpawn701b7923": "Start abbrechen",
   "globeClearUasDatasetCacheaad7bb57": "Zwischenspeicher für UAS-Daten leeren",
   "globeConvertToSwissHeight5c83b28a": "Schweizer Höhe (LN02) umrechnen",
   "globeConvertedWithSwisstopoReframe07d146f4": "Konvertiert mit swisstopo REFRAME",
@@ -627,7 +627,7 @@
   "globeRefreshUasData3aea6b96": "UAS-Daten aktualisieren",
   "globeReihenfolgeDerEbenenf736c2db": "Reihenfolge der Ebenen",
   "globeRetryTerraine3f14f82": "Gelände erneut laden",
-  "globeReturnToGlobe687364e5": "Zurück zur Karte",
+  "globeReturnToGlobe687364e5": "Zurück zum 3D-Globus",
   "globeSamplinga7cf9539": "Höhenabfrage: {arg0}",
   "globeSatellited1ffec93": "Satellit",
   "globeSavedSpotsf65c2504": "Gespeicherte Stellen",
@@ -1475,7 +1475,7 @@
   "simulationAngleStabilisiertDieLage73f2f597": "Angle stabilisiert die Lage und begrenzt die Neigung auf 50°. Bei Neigung ist mehr Gas zum Halten der Höhe nötig.",
   "simulationBalanced03342dbb": "Ausgewogen",
   "simulationBasedOnTerrainLoaded058810aa": "Basiert auf dem während der Aufzeichnung geladenen Gelände.",
-  "simulationBetaflightaaa2dc4d": "Betaflug",
+  "simulationBetaflightaaa2dc4d": "Betaflight",
   "simulationCompatibility5d60c7dd": "Kompatibilität",
   "simulationContinuousSection1042d718": "Zusammenhängender Abschnitt",
   "simulationControllera36a5ffa": "Controller",
@@ -1778,9 +1778,58 @@
     "description": "Simulation signal HUD settings (issue #128)."
   },
   "failsafeSimulationTitle": "Simulierter RC-Failsafe",
-  "@failsafeSimulationTitle": {"description": "Simulation failsafe settings (issue #129)."},
+  "@failsafeSimulationTitle": {
+    "description": "Simulation failsafe settings (issue #129)."
+  },
   "failsafeSimulationDisclaimer": "Nur bei explizit simuliertem RC-Verlust. Keine reale RF-Prognose.",
-  "@failsafeSimulationDisclaimer": {"description": "Simulation failsafe settings (issue #129)."},
+  "@failsafeSimulationDisclaimer": {
+    "description": "Simulation failsafe settings (issue #129)."
+  },
   "failsafeSimulationAction": "Failsafe-Aktion",
-  "@failsafeSimulationAction": {"description": "Simulation failsafe settings (issue #129)."}
+  "@failsafeSimulationAction": {
+    "description": "Simulation failsafe settings (issue #129)."
+  },
+  "batteryChemistryAutoThresholds": "Chemieabhängige Warnschwellen (SIM)",
+  "@batteryChemistryAutoThresholds": {
+    "description": "Battery chemistry simulation (shared model)."
+  },
+  "batteryChemistryAutoThresholdsHint": "Orientiert sich an der gewählten Akkuchemie; für eigene Spannungen deaktivieren.",
+  "@batteryChemistryAutoThresholdsHint": {
+    "description": "Battery chemistry simulation (shared model)."
+  },
+  "batteryChemistryResistanceAutomatic": "Innenwiderstand je Zelle (Ω; 0 = Chemie-Schätzwert)",
+  "@batteryChemistryResistanceAutomatic": {
+    "description": "Battery chemistry simulation (shared model)."
+  },
+  "batteryChemistryField": "Akkuchemie",
+  "batteryUnknownChemistry": "Nicht unterstützt (beibehalten): ",
+  "batteryContinuousDischarge": "Dauerbelastbarkeit (C)",
+  "batteryBurstDischarge": "Kurzzeitbelastbarkeit (C)",
+  "batteryBurstDuration": "Kurzzeitdauer (s)",
+  "batteryInternalResistance": "Innenwiderstand (mΩ/Zelle)",
+  "batteryElectricalHint": "Individuelle Akkuwerte haben Vorrang vor Chemie-Schätzwerten. Kurzzeitbelastbarkeit und Dauer müssen gemeinsam angegeben werden.",
+  "batteryBurstValidation": "Kurzzeitbelastbarkeit und Dauer gemeinsam eingeben. Die Kurzzeitbelastbarkeit darf nicht unter der Dauerbelastbarkeit liegen.",
+  "batteryTypeLiPo": "LiPo — Lithium-Polymer",
+  "batteryTypeLiHV": "LiHV — Hochvolt-Lithium-Polymer",
+  "batteryTypeLiIon": "Li-ion — Lithium-Ionen",
+  "batteryTypeLiFePO4": "LiFePO₄ — Lithium-Eisenphosphat",
+  "batteryTypeNiMH": "NiMH — Nickel-Metallhydrid",
+  "batteryTypeNiCd": "NiCd — Nickel-Cadmium",
+  "batteryChargingVoltageHint": "Ladehinweis: CC/CV, maximal {value} V je Zelle. Herstellerangaben der Zellen prüfen.",
+  "@batteryChargingVoltageHint": {
+    "description": "Chemistry-specific charge reference, not a charging instruction",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "batteryNickelChargingHint": "Ladehinweis: Nickel-Zellen benötigen Delta-Peak-/Temperaturüberwachung. Es gibt keine feste Ladeschlussspannung als alleinige Abschaltbedingung.",
+  "@batteryNickelChargingHint": {
+    "description": "Chemistry-specific charge reference, not a charging instruction"
+  },
+  "droneCurrentLimitsHint": "Optionale ESC- und Motor-Dauerstromgrenzen gelten je ESC-Kanal bzw. Motor. Der Akkustrom geteilt durch die Motoranzahl ist nur ein grober Näherungswert und kein gemessener Phasenstrom.",
+  "@droneCurrentLimitsHint": {
+    "description": "Clarify comparison of ESC/motor current with pack input current"
+  }
 }

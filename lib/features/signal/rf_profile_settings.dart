@@ -57,23 +57,67 @@ class RfBandProfile {
   }
 }
 
+/// Regulatory modes here describe simulations only, not a hardware configuration.
+/// 'custom' means that the user supplied independent RF properties.
+enum RfScenario { eu, fcc, custom }
+
+/// Reference scenarios for DJI O4 Air Unit Pro and TBS Crossfire.
+/// The effective receiver thresholds are NOT hardware sensitivity specifications.
+/// O4 thresholds are *illustrative calibrations* against DJI's ideal clear-air
+/// 8 km CE / 15 km FCC reference ranges. Crossfire figures are generic assumptions.
+abstract final class RfReferencePresets {
+  static const videoEu = RfBandProfile(
+    frequencyMhz: 5800,
+    eirpDbm: 13.9,
+    receiverThresholdDbm: -124,
+    fadeMarginDb: 12,
+  );
+  static const videoFcc = RfBandProfile(
+    frequencyMhz: 5800,
+    eirpDbm: 32.9,
+    receiverThresholdDbm: -110.3,
+    fadeMarginDb: 12,
+  );
+  static const controlEu = RfBandProfile(
+    frequencyMhz: 868,
+    eirpDbm: 14,
+    receiverThresholdDbm: -120,
+    fadeMarginDb: 10,
+  );
+  // An illustrative 250 mW Crossfire scenario, NOT a universal FCC max.
+  static const controlFcc = RfBandProfile(
+    frequencyMhz: 915,
+    eirpDbm: 24,
+    receiverThresholdDbm: -120,
+    fadeMarginDb: 10,
+  );
+
+  static RfBandProfile video(RfScenario region) => switch (region) {
+    RfScenario.eu => videoEu,
+    RfScenario.fcc => videoFcc,
+    RfScenario.custom => throw ArgumentError(
+      'Custom video settings have no preset',
+    ),
+  };
+  static RfBandProfile control(RfScenario region) => switch (region) {
+    RfScenario.eu => controlEu,
+    RfScenario.fcc => controlFcc,
+    RfScenario.custom => throw ArgumentError(
+      'Custom control settings have no preset',
+    ),
+  };
+}
+
 class RfProfileSettings {
   const RfProfileSettings({
     this.enabled = true,
-    this.video = const RfBandProfile(
-      frequencyMhz: 5800,
-      eirpDbm: 14,
-      receiverThresholdDbm: -105,
-      fadeMarginDb: 12,
-    ),
-    this.control = const RfBandProfile(
-      frequencyMhz: 868,
-      eirpDbm: 14,
-      receiverThresholdDbm: -120,
-      fadeMarginDb: 10,
-    ),
+    this.videoScenario = RfScenario.eu,
+    this.controlScenario = RfScenario.eu,
+    this.video = RfReferencePresets.videoEu,
+    this.control = RfReferencePresets.controlEu,
   });
   final bool enabled;
+  final RfScenario videoScenario, controlScenario;
   final RfBandProfile video, control;
   void validate() {
     video.validate();
@@ -86,6 +130,8 @@ class RfProfileSettings {
       'enabled': enabled,
       'video': video.toJson(),
       'control': control.toJson(),
+      'videoScenario': videoScenario.name,
+      'controlScenario': controlScenario.name,
     };
   }
 }

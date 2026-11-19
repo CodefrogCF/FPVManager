@@ -281,7 +281,7 @@ class FpvStringsDe extends FpvStrings {
   String get batteriesAvailability681b5b5a => 'Verfügbarkeit';
 
   @override
-  String get batteriesBatteryDetails139e0037 => 'Angaben zur Batterie';
+  String get batteriesBatteryDetails139e0037 => 'Akkudetails';
 
   @override
   String get batteriesBatteryInventory01b473c6 => 'Batteriebestand';
@@ -292,7 +292,7 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String batteriesBatterycc97f71f(String arg0, String arg1) {
-    return '$arg0 Batterie$arg1';
+    return '$arg0 Akku$arg1';
   }
 
   @override
@@ -305,8 +305,7 @@ class FpvStringsDe extends FpvStrings {
       'Zustand & Verfügbarkeit';
 
   @override
-  String get batteriesCopyTypeSpecifications02a95788 =>
-      'Spezifikationen für Kopieren';
+  String get batteriesCopyTypeSpecifications02a95788 => 'Typdaten übernehmen';
 
   @override
   String batteriesDeleteBattery7407e336(String arg0) {
@@ -317,7 +316,7 @@ class FpvStringsDe extends FpvStrings {
   String get batteriesEditBattery29162bfe => 'Akku bearbeiten';
 
   @override
-  String get batteriesIndividualBattery211df7bd => 'Individuelle Batterie';
+  String get batteriesIndividualBattery211df7bd => 'Einzelner Akku';
 
   @override
   String get batteriesNoBatteryTypesYetc908d855 =>
@@ -329,28 +328,27 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String get batteriesNoIndividualBatteriesYet2f6f284a =>
-      'Noch keine einzelnen Batterien. Fügen Sie ein Paket zu Ihrem Inventar hinzu.';
+      'Noch keine einzelnen Akkus erfasst. Füge einen Akku zum Bestand hinzu.';
 
   @override
   String get batteriesNoSavedFlightPlans0eb9aef8 =>
-      'Noch keine geretteten Flugpläne.';
+      'Noch keine gespeicherten Flugpläne.';
 
   @override
   String get batteriesNoTypeTemplate58240414 => 'Keine Mustervorlage';
 
   @override
-  String get batteriesOptional0c6c4102 => 'Fakultativ';
+  String get batteriesOptional0c6c4102 => 'Optional';
 
   @override
   String get batteriesPacksKeepIndependentSpecificationa8fd26d6 =>
-      'Pakete behalten unabhängige Spezifikationskopien. Spätere Typ-Edits ändern sie nicht.';
+      'Akkus behalten ihre eigenen technischen Daten. Spätere Änderungen an der Typvorlage wirken sich nicht rückwirkend aus.';
 
   @override
   String get batteriesRemovedType24f2204a => 'Entfernter Typ';
 
   @override
-  String get batteriesRetryLoadingOptions99cf637e =>
-      'Ladeoptionen erneut testen';
+  String get batteriesRetryLoadingOptions99cf637e => 'Ladeversuch wiederholen';
 
   @override
   String get batteriesTheAssignedTypeWas57b002ba =>
@@ -361,8 +359,7 @@ class FpvStringsDe extends FpvStrings {
       'Diese Batterie existiert nicht mehr.';
 
   @override
-  String get batteriesTypeTemplateOptionalbafc4970 =>
-      'Mustervorlage (fakultativ)';
+  String get batteriesTypeTemplateOptionalbafc4970 => 'Typvorlage (optional)';
 
   @override
   String get batteriesUnableToLoadBattery8a3276bc =>
@@ -374,7 +371,7 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String get batteriesUnableToLoadTypesc7010120 =>
-      'Type und Zuordnungen können nicht geladen werden.';
+      'Typvorlagen und Zuordnungen konnten nicht geladen werden.';
 
   @override
   String get commonAPlanningRadiusIse6a1033a =>
@@ -1308,7 +1305,7 @@ class FpvStringsDe extends FpvStrings {
   }
 
   @override
-  String get commonPowerPerformance72b3155b => 'Leistung & Leistung';
+  String get commonPowerPerformance72b3155b => 'Leistung & Flugverhalten';
 
   @override
   String get commonPreparationa8bc3820 => 'Vorbereitung';
@@ -2077,7 +2074,7 @@ class FpvStringsDe extends FpvStrings {
   }
 
   @override
-  String get globeCancelSpawn701b7923 => 'Laichen absagen';
+  String get globeCancelSpawn701b7923 => 'Start abbrechen';
 
   @override
   String get globeClearUasDatasetCacheaad7bb57 =>
@@ -2330,7 +2327,7 @@ class FpvStringsDe extends FpvStrings {
   String get globeRetryTerraine3f14f82 => 'Gelände erneut laden';
 
   @override
-  String get globeReturnToGlobe687364e5 => 'Zurück zur Karte';
+  String get globeReturnToGlobe687364e5 => 'Zurück zum 3D-Globus';
 
   @override
   String globeSamplinga7cf9539(String arg0) {
@@ -5741,7 +5738,7 @@ class FpvStringsDe extends FpvStrings {
       'Basiert auf dem während der Aufzeichnung geladenen Gelände.';
 
   @override
-  String get simulationBetaflightaaa2dc4d => 'Betaflug';
+  String get simulationBetaflightaaa2dc4d => 'Betaflight';
 
   @override
   String get simulationCompatibility5d60c7dd => 'Kompatibilität';
@@ -6804,4 +6801,73 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String get failsafeSimulationAction => 'Failsafe-Aktion';
+
+  @override
+  String get batteryChemistryAutoThresholds =>
+      'Chemieabhängige Warnschwellen (SIM)';
+
+  @override
+  String get batteryChemistryAutoThresholdsHint =>
+      'Orientiert sich an der gewählten Akkuchemie; für eigene Spannungen deaktivieren.';
+
+  @override
+  String get batteryChemistryResistanceAutomatic =>
+      'Innenwiderstand je Zelle (Ω; 0 = Chemie-Schätzwert)';
+
+  @override
+  String get batteryChemistryField => 'Akkuchemie';
+
+  @override
+  String get batteryUnknownChemistry => 'Nicht unterstützt (beibehalten): ';
+
+  @override
+  String get batteryContinuousDischarge => 'Dauerbelastbarkeit (C)';
+
+  @override
+  String get batteryBurstDischarge => 'Kurzzeitbelastbarkeit (C)';
+
+  @override
+  String get batteryBurstDuration => 'Kurzzeitdauer (s)';
+
+  @override
+  String get batteryInternalResistance => 'Innenwiderstand (mΩ/Zelle)';
+
+  @override
+  String get batteryElectricalHint =>
+      'Individuelle Akkuwerte haben Vorrang vor Chemie-Schätzwerten. Kurzzeitbelastbarkeit und Dauer müssen gemeinsam angegeben werden.';
+
+  @override
+  String get batteryBurstValidation =>
+      'Kurzzeitbelastbarkeit und Dauer gemeinsam eingeben. Die Kurzzeitbelastbarkeit darf nicht unter der Dauerbelastbarkeit liegen.';
+
+  @override
+  String get batteryTypeLiPo => 'LiPo — Lithium-Polymer';
+
+  @override
+  String get batteryTypeLiHV => 'LiHV — Hochvolt-Lithium-Polymer';
+
+  @override
+  String get batteryTypeLiIon => 'Li-ion — Lithium-Ionen';
+
+  @override
+  String get batteryTypeLiFePO4 => 'LiFePO₄ — Lithium-Eisenphosphat';
+
+  @override
+  String get batteryTypeNiMH => 'NiMH — Nickel-Metallhydrid';
+
+  @override
+  String get batteryTypeNiCd => 'NiCd — Nickel-Cadmium';
+
+  @override
+  String batteryChargingVoltageHint(String value) {
+    return 'Ladehinweis: CC/CV, maximal $value V je Zelle. Herstellerangaben der Zellen prüfen.';
+  }
+
+  @override
+  String get batteryNickelChargingHint =>
+      'Ladehinweis: Nickel-Zellen benötigen Delta-Peak-/Temperaturüberwachung. Es gibt keine feste Ladeschlussspannung als alleinige Abschaltbedingung.';
+
+  @override
+  String get droneCurrentLimitsHint =>
+      'Optionale ESC- und Motor-Dauerstromgrenzen gelten je ESC-Kanal bzw. Motor. Der Akkustrom geteilt durch die Motoranzahl ist nur ein grober Näherungswert und kein gemessener Phasenstrom.';
 }

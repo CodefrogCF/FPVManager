@@ -111,6 +111,7 @@ flutter:
     - web/ground_navigation.js
     - web/navigation_controls.js
     - web/controller_input.js
+    - web/battery_chemistries.generated.js
     - web/battery_simulation.js
     - web/simulated_failsafe.js
     - web/free_flight.js

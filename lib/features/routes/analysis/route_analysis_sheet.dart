@@ -459,6 +459,29 @@ class _RouteAnalysisSheetState extends State<_RouteAnalysisSheet> {
           _metric('Usable after reserve', _wh(selected.budgetWh)),
           _metric('Optimistic requirement', _wh(selected.optimisticWh)),
           _metric('Conservative requirement', _wh(selected.conservativeWh)),
+          if (selected.maxEstimatedCurrentAmps != null &&
+              selected.estimatedCurrentLimitAmps != null)
+            _metric(
+              'Estimated peak current / chemistry reference limit',
+              '${selected.maxEstimatedCurrentAmps!.toStringAsFixed(1)} A / ${selected.estimatedCurrentLimitAmps!.toStringAsFixed(1)} A (${selected.battery.continuousDischargeC == null ? 'chemistry assumption' : 'battery rating'})',
+            ),
+          if (selected.loadLimitedSegments.isNotEmpty)
+            Text(
+              'Battery current capability potentially exceeded in ${selected.loadLimitedSegments.length} segments.',
+            ),
+          if (selected.escLimitedSegments.isNotEmpty)
+            Text(
+              'ESC current rating potentially exceeded in ${selected.escLimitedSegments.length} segments (equal-share DC proxy, not phase current).',
+            ),
+          if (selected.motorLimitedSegments.isNotEmpty)
+            Text(
+              'Motor current rating potentially exceeded in ${selected.motorLimitedSegments.length} segments (equal-share DC proxy, not winding current).',
+            ),
+          if (selected.peakEstimatedPerUnitCurrentAmps != null)
+            _metric(
+              'Peak estimated input-equivalent current per motor',
+              '${selected.peakEstimatedPerUnitCurrentAmps!.toStringAsFixed(1)} A (approximate)',
+            ),
           _metric(
             'Approximate outbound consumption',
             energy.approximateMah(selected.battery.nominalVoltageVolts) == null

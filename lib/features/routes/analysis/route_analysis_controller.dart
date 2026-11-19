@@ -176,6 +176,7 @@ class RouteAnalysisController extends ChangeNotifier {
                     calculated,
                     modeled,
                     settings,
+                    drone: drone?.drone,
                   ),
             ];
       if (!batteries.any((b) => b.battery.id == selectedBatteryId)) {

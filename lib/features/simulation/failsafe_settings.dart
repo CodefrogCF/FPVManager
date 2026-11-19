@@ -4,14 +4,14 @@ final class FailsafeSettings {
   const FailsafeSettings({
     this.enabled = false,
     this.mode = 'hold',
-    this.lossThreshold = .08,
-    this.recoveryThreshold = .35,
-    this.activationDelaySeconds = 1.5,
-    this.recoveryDelaySeconds = 2,
-    this.rescueAltitudeMeters = 50,
+    this.lossThreshold = .20,
+    this.recoveryThreshold = .45,
+    this.activationDelaySeconds = .6,
+    this.recoveryDelaySeconds = .6,
+    this.rescueAltitudeMeters = 100,
     this.returnSpeedMetersPerSecond = 8,
-    this.climbSpeedMetersPerSecond = 3,
-    this.autoRecover = true,
+    this.climbSpeedMetersPerSecond = 5,
+    this.autoRecover = false,
   });
 
   final bool enabled;

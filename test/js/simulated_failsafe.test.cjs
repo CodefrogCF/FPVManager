@@ -23,7 +23,7 @@ test('failsafe is opt-in and rejects invalid config and implicit LOS/video signa
     const machine=F.create();assert.equal(steps(machine,0,5).phase,'normal');
 });
 test('short glitches and unknown terrain cannot trigger; sustained modeled RC loss can',()=>{
-    const machine=F.create({enabled:true,mode:'hold',activationDelaySeconds:1,recoveryDelaySeconds:1});
+    const machine=F.create({enabled:true,mode:'hold',activationDelaySeconds:1,recoveryDelaySeconds:1,autoRecover:true});
     assert.equal(steps(machine,0,.6).phase,'pending');
     assert.equal(steps(machine,null,2).phase,'normal');
     assert.equal(steps(machine,0,1.2).phase,'hold');
@@ -36,7 +36,7 @@ test('manual recovery needs stable RC quality and an explicit resume',()=>{
     const machine=F.create({enabled:true,mode:'descend',activationDelaySeconds:.2,recoveryDelaySeconds:.3,autoRecover:false});
     assert.equal(steps(machine,0,.4).phase,'descend');
     assert.equal(machine.recover(),false);
-    assert.equal(steps(machine,.6,.4).phase,'awaitingManual');
+    assert.equal(steps(machine,.6,.4).phase,'descend');assert.equal(machine.status().recoveryReady,true);
     assert.equal(machine.recover(),true);assert.equal(machine.status().phase,'normal');
 });
 test('GPS rescue checks navigation and known insufficient energy before entering return',()=>{
@@ -46,9 +46,13 @@ test('GPS rescue checks navigation and known insufficient energy before entering
     const drained=F.create(settings);
     assert.equal(steps(drained,0,.2,{...context,batteryInsufficient:true}).reason,'battery');
     const available=F.create(settings);
-    assert.equal(steps(available,0,.2).phase,'climb');
-    assert.equal(available.step(1/60,rc(0),{...context,height:1055}).phase,'return');
-    assert.equal(available.step(1/60,rc(0),{...context,height:1055,distanceToHome:2}).phase,'arrived');
+    assert.equal(steps(available,0,.2).phase,'rescueHold');
+    assert.equal(steps(available,0,.6).phase,'climb');
+    assert.equal(available.status().targetAltitudeMeters,1120);
+    assert.equal(available.step(1/60,rc(0),{...context,height:1120}).phase,'turn');
+    assert.equal(available.step(1/60,rc(0),{...context,height:1120,headingErrorRadians:0}).phase,'return');
+    assert.equal(available.step(1/60,rc(0),{...context,height:1120,distanceToHome:2}).phase,'landing');
+    assert.equal(available.step(1/60,rc(0),{...context,height:1000.5,distanceToHome:1}).phase,'landed');
 });
 test('video-only loss leaves simulated manual flight and RC state unchanged',async()=>{
     const {model}=flight();await start(model,{failsafe:{enabled:true,mode:'hold',activationDelaySeconds:.2}});
@@ -59,17 +63,22 @@ test('video-only loss leaves simulated manual flight and RC state unchanged',asy
 });
 test('GPS rescue returns smoothly using normal terrain probes, recovers and resets',async()=>{
     const page=flight(),m=page.model;await start(m,{maxSpeed:12,failsafe:{enabled:true,mode:'gpsRescue',
-        activationDelaySeconds:.3,recoveryDelaySeconds:.3,rescueAltitudeMeters:50,
+        activationDelaySeconds:.3,recoveryDelaySeconds:.3,rescueAltitudeMeters:5,
         returnSpeedMetersPerSecond:6,climbSpeedMetersPerSecond:2}});
     m.stick(1,0);run(m,5);const away=m.status().distance;assert.ok(away>5);
-    m.linkAssessment(rc(0));run(m,.6);assert.equal(m.status().failsafe.phase,'return');
+    m.linkAssessment(rc(0));run(m,.6);assert.ok(['rescueHold','climb'].includes(m.status().failsafe.phase));
+    run(m,6);assert.equal(m.status().failsafe.phase,'return');
     // Even at high control rates the normal collision/terrain sweep protects movement.
     const startPos=m.status().position;
     m.stick(-1,0);run(m,1);
     assert.equal(m.status().failsafe.phase,'return');
     assert.ok(m.status().distance<away+20,'bounded acceleration and braking while rescuing');
     assert.ok(distance(startPos,m.status().position)<12,'no teleport');
-    m.linkAssessment(rc(.9));run(m,.6);assert.equal(m.status().failsafe.phase,'normal');
+    m.linkAssessment(rc(.9));run(m,.6);assert.equal(m.status().failsafe.phase,'return');
+    m.flightInput({throttle:-1,yaw:0,pitch:0,roll:0});
+    assert.equal(m.status().failsafe.phase,'return','idle throttle cannot cancel rescue');
+    m.flightInput({throttle:0,yaw:.6,pitch:0,roll:0});
+    assert.equal(m.status().failsafe.phase,'normal','deliberate stick input takes control');
     m.linkAssessment(rc(0));run(m,.5);assert.ok(m.status().failsafe.active);
     await m.reset();assert.equal(m.status().failsafe.phase,'normal');
     m.stop();assert.equal(m.status().failsafe.phase,'normal');
@@ -116,10 +125,56 @@ test('default RF estimates can drive optional RC failsafe but a video-only model
 
 test('GPS rescue approaches commanded speed while far from home, then brakes continuously',async()=>{
     const {model:m}=flight();await start(m,{maxSpeed:22,acceleration:9,deceleration:6,
-        failsafe:{enabled:true,mode:'gpsRescue',activationDelaySeconds:.1,returnSpeedMetersPerSecond:14,rescueAltitudeMeters:50}});
+        failsafe:{enabled:true,mode:'gpsRescue',activationDelaySeconds:.1,returnSpeedMetersPerSecond:14,rescueAltitudeMeters:5}});
     m.stick(1,0);run(m,26);assert.ok(m.status().distance>200);
-    m.linkAssessment(rc(0));run(m,.25);assert.equal(m.status().failsafe.phase,'return');
+    m.linkAssessment(rc(0));run(m,.25);assert.ok(m.status().failsafe.active);
+    run(m,7);assert.equal(m.status().failsafe.phase,'return');
     run(m,7);assert.ok(m.status().horizontalSpeed>12.5,'feasible 14 m/s target after bounded reversal');
     const before=m.status().distance;assert.ok(before>100,'speed test is still far from home');
     run(m,18);assert.ok(m.status().distance<before-100,'return closes the distance without teleporting');
+});
+
+test('simulated shallow obstruction degrades modeled RC without using video quality',()=>{
+    const rf=require('../../web/rf_estimation.js');
+    const a={latitude:47,longitude:8},b={latitude:47,longitude:8.02};
+    const blocked={source:'sampledTerrain',confidence:'approximate',visibility:'obstructed',
+        minimumClearanceMeters:-60,minimumFresnelMarginMeters:-60};
+    const clear={...blocked,visibility:'clear'};
+    const occluded=rf.assess(blocked,a,b),visible=rf.assess(clear,a,b);
+    assert.ok(occluded.controlLink.quality<visible.controlLink.quality);
+    const machine=F.create({enabled:true,mode:'hold',activationDelaySeconds:.2});
+    steps(machine,0,.3);
+    assert.equal(machine.status().phase,'hold');
+});
+
+test('full GPS Rescue sequence holds, climbs, turns, returns and completes a modeled landing',async()=>{
+    const {model:m}=flight();await start(m,{agl:10,maxSpeed:12,climbSpeed:5,acceleration:9,deceleration:7,
+        failsafe:{enabled:true,mode:'gpsRescue',activationDelaySeconds:.2,recoveryDelaySeconds:.3,
+            rescueAltitudeMeters:5,returnSpeedMetersPerSecond:7}});
+    m.stick(1,0);run(m,4);const away=m.status().distance;
+    assert.ok(away>20);
+    m.linkAssessment(rc(0));run(m,.3);assert.equal(m.status().failsafe.phase,'rescueHold');
+    const seen=new Set();for(let i=0;i<30;i++){
+        run(m,1);seen.add(m.status().failsafe.phase);
+        if(m.status().failsafe.phase==='landed')break;
+    }
+    for(const phase of ['climb','turn','return','landing','landed'])
+        assert.ok(seen.has(phase),`missing rescue phase ${phase}`);
+    assert.ok(m.status().distance<4);
+    assert.ok(m.status().height>=1000.5&&m.status().height<=1000.8);
+});
+
+test('controller can reclaim only after stable RF recovery and deliberate non-throttle input',async()=>{
+    const {model:m}=flight();await start(m,{failsafe:{enabled:true,mode:'gpsRescue',
+        activationDelaySeconds:.1,recoveryDelaySeconds:.2,rescueAltitudeMeters:5}});
+    m.stick(1,0);run(m,3);m.linkAssessment(rc(0));run(m,.3);
+    assert.ok(m.status().failsafe.active);
+    m.flightInput({throttle:0,yaw:.9,pitch:0,roll:0});
+    assert.ok(m.status().failsafe.active,'no takeover on lost RC');
+    m.linkAssessment(rc(.8));run(m,.3);
+    assert.ok(m.status().failsafe.recoveryReady);
+    m.flightInput({throttle:-1,yaw:0,pitch:0,roll:0});
+    assert.ok(m.status().failsafe.active,'throttle alone does not imply pilot intent');
+    m.flightInput({throttle:-1,yaw:0,pitch:.7,roll:0});
+    assert.equal(m.status().failsafe.phase,'normal');
 });

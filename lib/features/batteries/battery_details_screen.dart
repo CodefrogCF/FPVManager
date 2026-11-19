@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/localization/app_localizations.dart';
+import 'battery_chemistry_label.dart';
 
 import '../../core/database/repositories/battery_repository.dart';
 import '../../core/models/battery_profile.dart';
@@ -242,7 +243,45 @@ class _BatteryDetailsScreenState extends State<BatteryDetailsScreen> {
                     ),
                   if (!battery.isType)
                     _field('Type template', profile.type?.name),
-                  _field('Chemistry', battery.chemistry),
+                  _field(
+                    context.localized(
+                      'Battery chemistry',
+                      (l10n) => l10n.batteryChemistryField,
+                    ),
+                    localizedBatteryChemistry(context, battery.chemistry),
+                  ),
+                  if (battery.continuousDischargeC != null)
+                    _field(
+                      context.localized(
+                        'Continuous rating (C)',
+                        (l10n) => l10n.batteryContinuousDischarge,
+                      ),
+                      battery.continuousDischargeC,
+                    ),
+                  if (battery.burstDischargeC != null)
+                    _field(
+                      context.localized(
+                        'Burst rating (C)',
+                        (l10n) => l10n.batteryBurstDischarge,
+                      ),
+                      battery.burstDischargeC,
+                    ),
+                  if (battery.burstDurationSeconds != null)
+                    _field(
+                      context.localized(
+                        'Burst duration (s)',
+                        (l10n) => l10n.batteryBurstDuration,
+                      ),
+                      battery.burstDurationSeconds,
+                    ),
+                  if (battery.internalResistanceMilliOhmsPerCell != null)
+                    _field(
+                      context.localized(
+                        'Internal resistance (mΩ/cell)',
+                        (l10n) => l10n.batteryInternalResistance,
+                      ),
+                      battery.internalResistanceMilliOhmsPerCell,
+                    ),
                   _field('Cell count', battery.cellCount, 'S'),
                   _field('Capacity', battery.capacityMah, 'mAh'),
                   _field('Nominal voltage', battery.nominalVoltageVolts, 'V'),

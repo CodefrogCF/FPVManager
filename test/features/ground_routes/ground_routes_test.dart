@@ -17,6 +17,7 @@ import 'package:fpvmanager/features/ground_routes/ground_router.dart';
 import 'package:fpvmanager/features/mobility/road_routing.dart';
 
 import '../../generated_migrations/schema.dart';
+import '../../support/current_schema_verifier.dart';
 import '../../generated_migrations/schema_v9.dart' as v9;
 
 GroundRoutePlan sample({GroundTravelMode mode = GroundTravelMode.walking}) =>
@@ -35,6 +36,10 @@ GroundRoutePlan sample({GroundTravelMode mode = GroundTravelMode.walking}) =>
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Map<String, Object?> expectedCurrentSchema;
+  setUpAll(() async {
+    expectedCurrentSchema = await captureFreshCurrentSchema();
+  });
   test('walking and cycling use their own documented routing profile and coalesce duplicates', () async {
     var time = DateTime.utc(2026, 10, 30, 12), calls = 0;
     final router = GroundRouter(
@@ -207,7 +212,10 @@ void main() {
     await old.close();
     final db = FpvDatabase(schema.newConnection());
     addTearDown(db.close);
-    await verifier.migrateAndValidate(db, 10);
+    await migrateAndValidateCurrentSchema(
+      db,
+      expectedSchema: expectedCurrentSchema,
+    );
     expect((await db.select(db.flightPlans).getSingle()).id, id);
     expect(await db.select(db.groundRoutes).get(), isEmpty);
   });

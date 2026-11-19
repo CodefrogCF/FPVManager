@@ -109,10 +109,25 @@ final class DriftBatteryRepository implements BatteryRepository {
       notes: notes,
     );
     input.validate();
+    // Legacy quick edits must not erase pack-specific electrical values,
+    // recorded charge, template references, or drone/route assignments.
     return _database.transaction(() async {
       if (await getBattery(id) == null) return false;
-      await saveProfile(input, id: id);
-      return true;
+      final updated =
+          await (_database.update(
+            _database.batteries,
+          )..where((t) => t.id.equals(id))).write(
+            BatteriesCompanion(
+              name: Value(input.name.trim()),
+              chemistry: Value(input.chemistry.trim()),
+              cellCount: Value(input.cellCount),
+              capacityMah: Value(input.capacityMah),
+              weightGrams: Value(input.weightGrams),
+              cycleCount: Value(input.cycleCount),
+              notes: Value(input.notes),
+            ),
+          );
+      return updated == 1;
     });
   }
 
@@ -146,6 +161,12 @@ final class DriftBatteryRepository implements BatteryRepository {
         typeId: Value(input.typeId),
         nominalVoltageVolts: Value(input.nominalVoltageVolts),
         energyWh: Value(input.energyWh),
+        continuousDischargeC: Value(input.continuousDischargeC),
+        burstDischargeC: Value(input.burstDischargeC),
+        burstDurationSeconds: Value(input.burstDurationSeconds),
+        internalResistanceMilliOhmsPerCell: Value(
+          input.internalResistanceMilliOhmsPerCell,
+        ),
         chargePercent: Value(input.chargePercent),
         availability: Value(input.availability.name),
         conditionNotes: Value(input.conditionNotes),

@@ -5,7 +5,7 @@ const geometry=visibility=>({source:'sampledTerrain',confidence:'approximate',vi
     minimumClearanceMeters:visibility==='obstructed'?-20:10,minimumFresnelMarginMeters:visibility==='fresnelIntrusion'?-4:8});
 test('default CE reference bands and model assumptions are explicit and separately configurable',()=>{
     assert.equal(rf.defaults.video.frequencyMhz,5800);assert.equal(rf.defaults.control.frequencyMhz,868);
-    assert.equal(rf.defaults.video.eirpDbm,14);assert.equal(rf.defaults.control.eirpDbm,14);
+    assert.equal(rf.defaults.video.eirpDbm,13.9);assert.equal(rf.defaults.control.eirpDbm,14);
     assert.equal(rf.configuration({video:{eirpDbm:12}}).control.eirpDbm,14);
     assert.throws(()=>rf.configuration({control:{frequencyMhz:Infinity}}),/Invalid/);
     assert.throws(()=>rf.configuration({enabled:'true'}),/Invalid/);
@@ -88,4 +88,23 @@ test('3D slant range uses known heights without pretending to know absent terrai
     assert.equal(rf.distanceMeters(a,{latitude:91,longitude:8}),null);
     assert.equal(rf.freeSpaceLossDb(0,5800),null);
     assert.equal(rf.assess({source:'unavailable',visibility:'clear',confidence:'unavailable'},a,b).videoLink,'unknown');
+});
+
+test('EU/CE and FCC reference scenarios change only the selected band and preserve custom numbers',()=>{
+    assert.equal(rf.presets.video.eu.frequencyMhz,5800);
+    assert.equal(rf.presets.video.fcc.eirpDbm,32.9);
+    assert.equal(rf.presets.control.eu.frequencyMhz,868);
+    assert.equal(rf.presets.control.fcc.frequencyMhz,915);
+    const fcc=rf.configuration({videoScenario:'fcc',controlScenario:'eu',
+        video:rf.presets.video.fcc,control:rf.presets.control.eu});
+    assert.equal(fcc.video.eirpDbm,32.9);
+    assert.equal(fcc.control.frequencyMhz,868);
+    const override=rf.configuration({videoScenario:'custom',video:{frequencyMhz:5700,eirpDbm:25}});
+    assert.equal(override.video.eirpDbm,25);
+    assert.equal(override.video.frequencyMhz,5700);
+    assert.throws(()=>rf.configuration({videoScenario:'other'}),/Invalid/);
+    const euRange=rf.theoreticalRangeMeters(rf.presets.video.eu);
+    const fccRange=rf.theoreticalRangeMeters(rf.presets.video.fcc);
+    assert.ok(euRange>6000&&euRange<11000,'EU illustrative open-air calibration');
+    assert.ok(fccRange>11000&&fccRange<18000,'FCC illustrative open-air calibration');
 });
