@@ -2199,11 +2199,8 @@
                 m.diffuse=vec3(concrete*.91,concrete*.96,concrete)*(.88+.12*panel);
             }else if(materialId<3.5){
                 m.diffuse=vec3(.88,.75,.40); // centre markings
-            }else if(materialId<4.5){
-                m.diffuse=vec3(.83,.78,.57); // side stripes
             }else{
-                float stone=.38+.14*mottled+.08*grain;
-                m.diffuse=vec3(stone*.91,stone*.95,stone*.90);
+                m.diffuse=vec3(.83,.78,.57); // side stripes
             }
             m.specular=.08;m.shininess=12.0;m.alpha=1.0;
             return m;
@@ -2211,9 +2208,10 @@
     function texturedSurfaceGeometries(C,model){
         if(!C.MaterialAppearance||!C.Material||!C.ComponentDatatype?.FLOAT||
             !C.GeometryAttribute)return null;
-        const ordinary=surfaceGeometries(C,model).concat(
-            C.ClippingPlaneCollection&&C.ClippingPlane&&C.Transforms?
-                portalSurroundGeometries(C,model):[]);
+        // Keep the portal aperture visually open. The orange endpoint
+        // outlines are drawn separately by updateAutoPortals(); no front
+        // annulus is part of the material or collision geometry.
+        const ordinary=surfaceGeometries(C,model);
         const sections=model.sections,origin=C.Cartesian3.fromDegrees(sections[0].longitude,
             sections[0].latitude,sections[0].floorMetersWgs84);
         const lat=sections[0].latitude*DEG,lon=sections[0].longitude*DEG;
@@ -2225,7 +2223,7 @@
         const dot3=(v,a)=>v[0]*a[0]+v[1]*a[1]+v[2]*a[2];
         return ordinary.map(surface=>{
             const values=surface.geometry.attributes.position.values;
-            const kinds=['road','walls','ceiling','marking','wall-band','portal-surround'];
+            const kinds=['road','walls','ceiling','marking','wall-band'];
             const id=Math.max(0,kinds.indexOf(surface.kind));
             const st=new Float32Array(values.length/3*2),normal=new Float32Array(values.length);
             for(let i=0;i<values.length;i+=3){
@@ -2254,50 +2252,6 @@
                 indices:surface.geometry.indices,primitiveType:C.PrimitiveType.TRIANGLES,
                 boundingSphere:surface.geometry.boundingSphere})};
         });
-    }
-    // A small, visual-only portal surround. Unlike a solid facade this annulus
-    // does not close the road/rail opening and adds NO collision triangles.
-    // It is a local schematic rock/concrete transition, not reconstructed terrain.
-    function portalSurroundGeometries(C,model){
-        if(!model?.sections||model.kind!=='tunnel')return [];
-        const surfaces=[];
-        for(const end of [0,1]){
-            if(model.portalEnds?.[end]===false)continue; // never cap a tiled window
-            const i=end===0?0:model.sections.length-1,inner=ringAt(model,i),s=model.sections[i];
-            const next=model.sections[end===0?1:i-1];
-            const tangent=xy(next,s),distance=Math.hypot(tangent.x,tangent.y);
-            if(distance<.5)continue;
-            const moveEast=-tangent.x/distance*.32,
-                moveNorth=-tangent.y/distance*.32;
-            const dLon=moveEast/(R*DEG*Math.cos(s.latitude*DEG)),
-                dLat=moveNorth/(R*DEG),half=s.widthMeters/2;
-            const outer=inner.map(p=>{
-                const height=p[2]-s.floorMetersWgs84;
-                const t=1+1.7/half;
-                return [s.longitude+(p[0]-s.longitude)*t+dLon,
-                    s.latitude+(p[1]-s.latitude)*t+dLat,
-                    s.floorMetersWgs84-1.0+height*(s.heightMeters+3.1)/s.heightMeters];
-            });
-            const face=[];
-            for(let j=0;j<inner.length;j++){
-                const k=(j+1)%inner.length;
-                // Leave the complete inner aperture empty. The visible ring
-                // continues to the actual modeled floor, walls and roof.
-                face.push([inner[j],outer[j],outer[k]],[inner[j],outer[k],inner[k]]);
-            }
-            const values=[],indices=[];
-            for(const triangle of face)for(const point of triangle){
-                const xyz=C.Cartesian3.fromDegrees(...point);
-                indices.push(values.length/3);values.push(xyz.x,xyz.y,xyz.z);
-            }
-            const geometry=new C.Geometry({attributes:{position:new C.GeometryAttribute({
-                componentDatatype:C.ComponentDatatype.DOUBLE,componentsPerAttribute:3,
-                values:new Float64Array(values)})},indices:new Uint16Array(indices),
-                primitiveType:C.PrimitiveType.TRIANGLES,
-                boundingSphere:C.BoundingSphere.fromVertices(values)});
-            surfaces.push({geometry,color:[115,120,114,255],kind:'portal-surround'});
-        }
-        return surfaces;
     }
     // Match the local portal frame and road grade. Source endpoints may lie
     // several metres inside a rock face, so retain a short outside approach.
@@ -2847,9 +2801,7 @@
             const detailedSurfaces=detailed?texturedSurfaceGeometries(C,next):null;
             const surfaces=detailedSurfaces??(next.kind==='georeferenced-trimesh'
                 ? [{geometry:geometry(C,next),color:[75,120,133,255]}]
-                : surfaceGeometries(C,next).concat(
-                    C.ClippingPlaneCollection&&C.ClippingPlane&&C.Transforms
-                        ?portalSurroundGeometries(C,next):[]));
+                : surfaceGeometries(C,next));
             let appearance=null;
             if(detailedSurfaces){
                 try{appearance=new C.MaterialAppearance({material:new C.Material({fabric:{
@@ -4254,7 +4206,7 @@
     return {procedural,importSections,importGeoreferencedMesh,validateSections,validateTriMesh,
         closest,inside,portalApproachFloor,collision,collisionMesh,rings,geometry,surfaceGeometries,texturedSurfaceGeometries,
         TUNNEL_MATERIAL_SOURCE,
-        portalSurroundGeometries,boundedClipSpec,flightClipSpec,flightClipSpecs,clippingVolume,
+        boundedClipSpec,flightClipSpec,flightClipSpecs,clippingVolume,
         slopeClipMaterial,updateSlopeClipMaterial,updateSlopeClipSpecs,SLOPE_CLIP_MATERIAL_SOURCE,portalClipShaderSource,apertureUniforms,
         MAX_PORTAL_APERTURES,PORTAL_APERTURE_BUDGETS,
         create,MAX_SECTIONS,MAX_LENGTH,

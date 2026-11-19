@@ -2,6 +2,9 @@
 
 ### [0.17.2] - 2026-11-18
 
+- Simplify generated 3D road and railway tunnel portals to the existing
+  yellow/orange outline. Remove the oversized, visual-only front facades while
+  preserving tunnel shells, lane markings, terrain apertures and collisions.
 - Refine automatic 3D tunnel elevation handling for steep Alpine terrain.
   Accept short, native-bridge-supported portal transitions; recheck suspect
   terrain samples with bounded detailed centre-and-shoulder probes instead of

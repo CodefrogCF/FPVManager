@@ -475,7 +475,7 @@ test('automatic tunnel portal footprints stay short and floor materials are batc
     await f.service.setAutomaticRoutes([{...source,kind:'tunnel'}],{longitude:8.2001,latitude:46.8});
     const primitive=f.added.find(p=>p.geometryInstances);
     assert.ok(primitive);
-    assert.equal(primitive.geometryInstances.length,7,'five material groups plus two hollow portal surrounds');
+    assert.equal(primitive.geometryInstances.length,5,'five tunnel materials without portal front faces');
     assert.equal(f.viewer.scene.globe.clippingPolygons.length,0,
         'non-buried preview must not cut roads or fields');
     f.service.dispose();
@@ -1201,17 +1201,20 @@ test('a real portal receives a height-bounded vaulted clipping volume, no artifi
     assert.ok(T.boundedClipSpec(partial,1),'real end remains eligible');
 });
 
-test('schematic portal surround leaves the vaulted opening hollow and collision unchanged',()=>{
+test('minimal portal visuals retain the original open bore and its collision triangles',()=>{
     const C=require('../../web/cesium/index.cjs');
     const m=T.procedural({...source,kind:'tunnel'},[510,511,520,510],{profile:'vaulted'});
-    const before=T.collisionMesh(m).triangleCount;
-    const surrounds=T.portalSurroundGeometries(C,m);
-    assert.equal(surrounds.length,2);
-    assert.ok(surrounds.every(s=>s.kind==='portal-surround'&&s.geometry.indices.length>0));
-    assert.equal(T.collisionMesh(m).triangleCount,before,'portal trim must never be a collision bulkhead');
+    const collisionBefore=T.collisionMesh(m).triangleCount;
+    const visual=T.surfaceGeometries(C,m);
+    const detailed=T.texturedSurfaceGeometries(C,m);
+    assert.deepEqual(visual.map(s=>s.kind),detailed.map(s=>s.kind));
+    assert.ok(visual.every(s=>s.kind!=='portal-surround'));
+    assert.ok(detailed.every(s=>s.kind!=='portal-surround'));
+    assert.equal(T.collisionMesh(m).triangleCount,collisionBefore,
+        'the decorative front must not modify the flyable collision tube');
     const cropped={...m,portalEnds:[false,true],partial:true};
-    assert.equal(T.portalSurroundGeometries(C,cropped).length,1,
-        'the 1.8-km Gotthard window has no synthetic end-cap');
+    assert.equal(T.surfaceGeometries(C,cropped).length,visual.length,
+        'a tiled window retains the same tube without inventing a front cap');
 });
 
 test('bridge-to-cliff portal uses clipped vertical bounds and restores owned globe state',async()=>{
@@ -1276,8 +1279,8 @@ test('active tunnel flight replaces long vertical polygon cut with a moving boun
     const group=f.added.find(p=>p instanceof C.PrimitiveCollection);
     assert.ok(group,'detailed graphics retain one atomic scene object');
     assert.equal(group.length,2,'textured tunnel and painted road markings use separate passes');
-    assert.equal(group.get(0).geometryInstances.length,6,
-        'textured base retains road, walls, ceiling, wall bands and two portal surrounds');
+    assert.equal(group.get(0).geometryInstances.length,4,
+        'textured base retains road, walls, ceiling and wall bands without front faces');
     assert.equal(group.get(1).geometryInstances.length,1,
         'centre markings remain visible above asphalt in their own opaque primitive');
     // Fly past the portal: the local clipping box follows the interior pose.
