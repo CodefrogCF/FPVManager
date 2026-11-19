@@ -487,6 +487,137 @@ test('implausible gorge crossings do not become floating tunnel meshes',()=>{
         {profile:'vaulted'}),/terrain depression/i);
 });
 
+test('deep mountain cover is allowed without an arbitrary terrain elevation cap',()=>{
+    const r={...source,kind:'tunnel',coordinates:Array.from({length:7},(_,i)=>
+        [8.2+i*.00035,46.8])};
+    const m=T.procedural(r,[1000,1850,2600,2800,2400,1900,1000],{profile:'vaulted'});
+    assert.ok(m.sections[1].floorMetersWgs84<1020);
+    assert.ok(m.sections[2].floorMetersWgs84<1020);
+    assert.equal(T.collision(m,point(m.sections[1]),point(m.sections[2])),false);
+});
+
+test('a measured bridge approach permits a short deep portal transition, never a floating gorge crossing',()=>{
+    const road=Array.from({length:5},(_,i)=>[8.2-(i+1)*.000055,46.8]);
+    const r={id:'bridge-mouth',kind:'tunnel',transport:'road',
+        coordinates:Array.from({length:7},(_,i)=>[8.2+i*.00035,46.8]),
+        roadApproaches:[road,null],roadApproachKinds:['bridge',null],
+        bridgeDeckSampled:[true,false]};
+    const elevations=[1000,875,1120,1200,1200,1120,1000];
+    const settings={profile:'vaulted',portalApproachHeights:Array(10).fill(1000)};
+    const m=T.procedural(r,elevations,settings);
+    assert.deepEqual(m.bridgeSupportedSections,[1]);
+    assert.equal(m.portalFloorMethods[0],'connected-bridge-surface');
+    assert.ok(Math.abs(m.sections[1].floorMetersWgs84-999.9)<1);
+    assert.equal(T.inside(m,point(m.sections[1])),true);
+    assert.equal(T.collision(m,point(m.sections[1]),point(m.sections[2])),false);
+    assert.equal(m.portalClipMask[0],false,'a bridge-to-tunnel portal must not excavate the ravine');
+    assert.throws(()=>T.procedural({...r,bridgeDeckSampled:[false,false]},elevations,settings),
+        /terrain depression/i,'OSM bridge tag alone is not a measured road deck');
+    assert.throws(()=>T.procedural({...r,portalEnds:[false,true]},elevations,settings),
+        /terrain depression/i,'cropped/artificial portal edges cannot authorize elevated geometry');
+    assert.throws(()=>T.procedural(r,[1000,1120,1120,850,1120,1120,1000],settings),
+        /terrain depression/i,'a deep ravine away from the verified portal remains invalid');
+});
+
+test('coarse terrain depression is rechecked with bounded detailed centerline and shoulder samples',async()=>{
+    const f=fake();f.service.dispose();
+    const r={...source,id:'coarse-tile',kind:'tunnel'};
+    const [badLon]=r.coordinates[1];let detailedProbes=0;
+    f.viewer.scene.globe.getHeight=cart=>Math.abs(cart.longitude-badLon)<.000001?700:1000;
+    const svc=T.create(f.C,f.viewer,()=>{}, {sampleTerrain:async points=>points.map(p=>{
+        if(Math.abs(p.longitude-badLon)<.000001){detailedProbes++;return 1120;}
+        return 1000;
+    })});
+    svc.setAutomaticEnabled(true);
+    assert.equal((await svc.setAutomaticRoutes([r],{longitude:8.2001,latitude:46.8})).count,1);
+    assert.ok(detailedProbes>=3,'both shoulders and the suspect center were re-sampled');
+    assert.equal(svc.diagnostics().entries[0].terrainRefinedSamples,1);
+    assert.equal(svc.diagnostics().skipped,0);
+    svc.dispose();
+});
+
+test('normal automatic tunnel generation does not add terrain refinement probes',async()=>{
+    const f=fake();f.service.dispose();let requested=0;
+    f.viewer.scene.globe.getHeight=()=>1000;
+    const svc=T.create(f.C,f.viewer,()=>{}, {sampleTerrain:async points=>{
+        requested+=points.length;return points.map(()=>1000);
+    }});
+    svc.setAutomaticEnabled(true);
+    assert.equal((await svc.setAutomaticRoutes([{...source,kind:'tunnel'}],
+        {longitude:8.2001,latitude:46.8})).count,1);
+    assert.equal(requested,14,'only the original portal and cross-slope probes are needed');
+    assert.equal(svc.diagnostics().entries[0].terrainRefinedSamples,0);
+    svc.dispose();
+});
+
+test('unconfirmed ravine keeps its model rejected while independent tunnels load and can retry',async()=>{
+    const f=fake();f.service.dispose();let clock=10_000,verified=false;
+    const failing={...source,id:'unverified-gorge',kind:'tunnel'};
+    const okay={...source,id:'independent-tunnel',kind:'tunnel',
+        coordinates:source.coordinates.map(([lon,lat])=>[lon+.02,lat])};
+    const target=failing.coordinates[1][0];
+    f.viewer.scene.globe.getHeight=cart=>Math.abs(cart.longitude-target)<.000001?700:1000;
+    const svc=T.create(f.C,f.viewer,()=>{}, {now:()=>clock,
+        sampleTerrain:async points=>points.map(p=>
+            Math.abs(p.longitude-target)<.000001?(verified?1120:700):1000)});
+    svc.setAutomaticEnabled(true);
+    const first=await svc.setAutomaticRoutes([failing,okay],{longitude:8.2,latitude:46.8});
+    assert.equal(first.count,1,'only the independently valid model is installed');
+    assert.equal(svc.diagnostics().skipped,1);
+    assert.match(svc.diagnostics().skippedRoutes[0].reason,/Elevation: Tunnel terrain depression/i);
+    assert.equal(svc.diagnostics().skippedRoutes[0].category,'elevation-conflict');
+    assert.equal(svc.diagnostics().skippedRoutes[0].retryable,true);
+    assert.ok(!svc.diagnostics().entries.some(e=>e.id===failing.id));
+    assert.equal((await svc.setAutomaticRoutes([failing,okay],{longitude:8.2,latitude:46.8})).reused,true);
+    verified=true;clock+=21_000;
+    const retried=await svc.setAutomaticRoutes([failing,okay],{longitude:8.2,latitude:46.8});
+    assert.equal(retried.count,2,'the failed model is rechecked after the bounded cache window');
+    assert.equal(svc.diagnostics().skipped,0);
+    svc.dispose();
+});
+
+test('missing detailed samples or inconsistent terrain shoulders never authorize a sky tunnel',async()=>{
+    for(const mode of ['missing','gorge','unavailable']){
+        const f=fake();f.service.dispose();
+        const r={...source,id:`unverified:${mode}`,kind:'tunnel'};
+        const target=r.coordinates[1][0];
+        f.viewer.scene.globe.getHeight=cart=>Math.abs(cart.longitude-target)<.000001?700:1000;
+        let probes=0;
+        const svc=T.create(f.C,f.viewer,()=>{}, {sampleTerrain:async points=>{
+            if(points.length===3){
+                probes++;
+                if(mode==='unavailable')throw Error('temporary terrain provider failure');
+                if(mode==='missing')return [1120,null,1120];
+                return [1120,700,1120];
+            }
+            return points.map(()=>1000);
+        }});
+        svc.setAutomaticEnabled(true);
+        assert.equal((await svc.setAutomaticRoutes([r],{longitude:8.2001,latitude:46.8})).count,0);
+        assert.equal(probes,1,`${mode} was checked exactly once with three bounded probes`);
+        assert.equal(svc.diagnostics().entries.length,0);
+        assert.equal(svc.diagnostics().skippedRoutes[0].category,'elevation-conflict');
+        svc.dispose();
+    }
+});
+
+test('manual tunnel preparation also resolves outdated coarse terrain without changing portal elevations',async()=>{
+    const f=fake();f.service.dispose();
+    const route={...source,kind:'tunnel'};
+    const suspect=route.coordinates[1][0];
+    f.viewer.scene.globe.getHeight=p=>Math.abs(p.longitude-suspect)<.000001?700:1000;
+    const svc=T.create(f.C,f.viewer,()=>{}, {sampleTerrain:async points=>points.map(p=>
+        Math.abs(p.longitude-suspect)<.000001?1120:1000)});
+    const prepared=await svc.prepare(route,{profile:'vaulted'});
+    assert.equal(prepared.ready,true);
+    const m=svc.model;
+    assert.equal(m.terrainRefinedSamples,1);
+    assert.ok(Math.abs(m.sections[0].floorMetersWgs84-999.9)<.01);
+    assert.ok(Math.abs(m.sections.at(-1).floorMetersWgs84-999.9)<.01);
+    assert.equal(T.collision(m,point(m.sections[1]),point(m.sections[2])),false);
+    svc.dispose();
+});
+
 test('two close parallel OSM carriageways become one wider synthetic passage',async()=>{
     const a={id:'osm:101:0',name:'Bodenstrasse',kind:'underpass',transport:'road',
         source:'OpenStreetMap',sourceId:'way/101',coordinates:[[8.2,46.8],[8.201,46.8]]};

@@ -1533,19 +1533,52 @@
         if(pts.some((p,i)=>kindAt(i)==='underpass'&&i>0&&i<pts.length-1&&
             base[i]-p.terrain>4))
             throw Error('Covered route appears elevated above the terrain.');
-        if(pts.some((p,i)=>i>0&&i<pts.length-1&&base[i]-p.terrain>40))
-            throw Error('Tunnel terrain depression exceeds the supported schematic elevation range.');
         // A roof that protrudes through the ground is not an underground
         // tunnel. Limit inward corrections by an approximate road grade;
         // reject impossible hill/valley profiles instead of drawing sky tubes.
         const subsurfaceAt=i=>kindAt(i)==='tunnel'&&
             ((intervalAt(i)?intervalAt(i).end-intervalAt(i).start:total)>=45||route.transport==='railway');
         const subsurface=pts.some((_,i)=>subsurfaceAt(i));
+        const terrainError=(message,indices)=>{
+            const error=Error(message);
+            error.code='TUNNEL_TERRAIN_ELEVATION_CONFLICT';
+            // These exact source samples can be rechecked against the detailed
+            // terrain provider. Do not silently substitute guessed elevations.
+            error.suspects=indices.map(i=>({index:i,floor:base[i]}));
+            return error;
+        };
+        const coveredBeyondBridge=[0,1].map(end=>pts.some((p,j)=>j>0&&
+            j<pts.length-1&&subsurfaceAt(j)&&
+            (end===0?distances[j]:total-distances[j])>32&&
+            p.terrain-base[j]>=heightMeters+cover+1));
+        // Where a native bridge surface was actually sampled on the connected
+        // approach, the first metres inside the portal may still lie over the
+        // ravine beneath the deck. This is NOT evidence for a floating bore
+        // farther into the mountain or at a synthetic viewport endpoint.
+        const bridgeTransitionAt=i=>{
+            if(i===0||i===pts.length-1||route.transport==='railway'||!subsurfaceAt(i))return false;
+            const end=distances[i]<=total-distances[i]?0:1;
+            const fromPortal=end===0?distances[i]:total-distances[i];
+            if(fromPortal>32||route.portalEnds?.[end]===false||
+                route.roadApproachKinds?.[end]!=='bridge'||route.bridgeDeckSampled?.[end]!==true||
+                [firstAnchor,lastAnchor][end].method!=='connected-bridge-surface')return false;
+            // The remaining centreline must visibly enter covered ground;
+            // otherwise this is merely a 2D road line crossing a valley.
+            return coveredBeyondBridge[end];
+        };
+        const bridgeTransitions=new Set(pts.map((p,i)=>base[i]-p.terrain>0&&bridgeTransitionAt(i)?i:-1)
+            .filter(i=>i>=0));
+        const depressed=pts.flatMap((p,i)=>i>0&&i<pts.length-1&&
+            base[i]-p.terrain>40&&!bridgeTransitions.has(i)?[i]:[]);
+        if(depressed.length)throw terrainError(
+            'Tunnel terrain depression: inferred floor is above sampled ground outside a verified bridge transition; detailed terrain or surveyed elevations required.',
+            depressed);
         if(subsurface&&!pts.slice(1,-1).some((p,i)=>subsurfaceAt(i+1)&&
             p.terrain-base[i+1]>=heightMeters+cover+1))
             throw Error('Tunnel roof cannot fit below terrain; no covered interval is established.');
         const raw=base.map((floor,i)=>{
             if(!subsurfaceAt(i)||i===0||i===pts.length-1)return floor;
+            if(bridgeTransitions.has(i))return floor;
             const distanceToEnd=endDistanceAt(i);
             if(distanceToEnd<5)return floor;
             const roofCap=pts[i].terrain-heightMeters-cover;
@@ -1556,7 +1589,7 @@
             // because terrain tiles near the mouth still describe the road.
             const gradeLimit=Math.max(6,.16*distanceToEnd);
             if(floor-constrained>gradeLimit+1.5)
-                throw Error('Tunnel roof cannot fit below terrain at a plausible road grade.');
+                throw terrainError('Tunnel roof cannot fit below terrain at a plausible road grade.',[i]);
             return floor-(floor-constrained)*Math.min(1,distanceToEnd/40);
         });
         const floors=raw.map((value,i)=>i===0?firstFloor:
@@ -1568,7 +1601,7 @@
             const cap=pts[i].terrain-heightMeters-cover;
             if(floors[i]>cap){
                 if(base[i]-cap> .16*endDistanceAt(i)+1.5)
-                    throw Error('Schematic tunnel would emerge above the terrain.');
+                    throw terrainError('Schematic tunnel would emerge above the terrain.',[i]);
                 floors[i]=cap;
             }
         }
@@ -1653,6 +1686,7 @@
                 route.roadApproachKinds?.[end]==='bridge'?'bridge':'road'),
             kind:route.kind==='underpass'?'covered-way':'tunnel',
             portalEnds,transport:route.transport==='railway'?'railway':'road',partial:!!route.partial,profileStartDistance:route.profileStartDistance??0,
+            bridgeSupportedSections:[...bridgeTransitions],
             junctions:route.junctions?.map(node=>({...node})),
             junctionEndpoints:route.junctionEndpoints?.map(node=>node&&({...node})),
             junctionEndpointFloors:route.junctionEndpoints?.map((node,end)=>node?junctionEndpointHeights[end]:null),
@@ -3424,6 +3458,55 @@
             }
             return {heights,terrainError};
         }
+        // getHeight() reflects the currently rendered terrain LOD. A coarse
+        // mountain tile can place one centreline sample in a ravine while the
+        // detailed provider resolves the tunnel roof. Only retry the actual
+        // offending points, once, with bounded centre + shoulder probes.
+        // Genuine valleys and unavailable detailed terrain remain rejected.
+        async function proceduralWithTerrainCheck(route,heights,options,signal){
+            try{return procedural(route,heights,options);}
+            catch(error){
+                const suspects=error?.code==='TUNNEL_TERRAIN_ELEVATION_CONFLICT'?
+                    error.suspects:null;
+                if(!Array.isArray(suspects)||!suspects.length||suspects.length>8||
+                    !suspects.every(item=>Number.isInteger(item.index)&&
+                        item.index>0&&item.index<route.coordinates.length-1&&finite(item.floor)))throw error;
+                const samples=[];
+                const width=Math.min(15,Math.max(3,options.widthMeters||6));
+                for(const {index} of suspects){
+                    const current=route.coordinates[index],a=route.coordinates[index-1],
+                        b=route.coordinates[index+1],vector=xy({longitude:b[0],latitude:b[1]},
+                            {longitude:a[0],latitude:a[1]});
+                    const mag=Math.hypot(vector.x,vector.y);
+                    if(mag<.5)throw error;
+                    const normal={east:-vector.y/mag,north:vector.x/mag};
+                    const point=(offset)=>({longitude:current[0]+normal.east*offset/
+                        (R*DEG*Math.cos(current[1]*DEG)),latitude:current[1]+normal.north*offset/(R*DEG)});
+                    const shoulder=width/2+1;
+                    samples.push(point(0),point(-shoulder),point(shoulder));
+                }
+                let checked;
+                try{signal?.throwIfAborted?.();checked=await sampleTerrain(samples,signal);
+                    signal?.throwIfAborted?.();}
+                catch(_){throw error;}
+                if(!Array.isArray(checked)||checked.length!==samples.length||!checked.every(finite))throw error;
+                const corrected=heights.slice();let count=0;
+                for(let j=0;j<suspects.length;j++){
+                    const {index,floor}=suspects[j];
+                    const [center,left,right]=checked.slice(j*3,j*3+3);
+                    // Both shoulders independently corroborate the detailed
+                    // value. Do not construct a sky tube from a single high
+                    // tile surrounded by a genuine steep-sided gorge.
+                    if(Math.max(Math.abs(center-left),Math.abs(center-right))>8||
+                        center<floor+(options.heightMeters||5)+.65||
+                        center<=heights[index]+2)throw error;
+                    corrected[index]=center;count++;
+                }
+                const model=procedural(route,corrected,options);
+                model.terrainRefinedSamples=count;
+                return model;
+            }
+        }
         async function setAutomaticRoutes(routes,center){
             if(disposed||!autoEnabled)return {count:autoModels.length};
             if(!Array.isArray(routes)||routes.length>160)throw Error('Invalid automatic tunnel routes');
@@ -3464,6 +3547,7 @@
                 if(!bounded){
                     skipped++;
                     if(earlyRejected.length<16)earlyRejected.push({id:String(route.id),
+                        category:'source-geometry',retryable:false,
                         reason:'Source window cannot be modeled with available centreline geometry'});
                     continue;
                 }
@@ -3537,7 +3621,10 @@
             const errors=new Map(),skippedRoutes=earlyRejected.slice();
             const note=(reason,id=null)=>{
                 errors.set(reason,(errors.get(reason)||0)+1);
-                if(id!==null&&skippedRoutes.length<16)skippedRoutes.push({id:String(id),reason});
+                const category=reason.startsWith('Elevation:')?'elevation-conflict':
+                    reason.startsWith('Terrain:')?'terrain-unavailable':'geometry';
+                if(id!==null&&skippedRoutes.length<16)skippedRoutes.push({id:String(id),
+                    category,retryable:category!=='geometry',reason});
             };
             let sampleFailed=0;
             // Retain existing geometry while preparing the new viewport. A
@@ -3588,7 +3675,7 @@
                     offset+=positions.length+14+(entry.route.partial?
                         (entry.route.originalPortalSegments?12:2):0);
                     if(heights.length!==positions.length||heights.some(h=>!finite(h))){
-                        skipped++;note('No usable terrain elevations',entry.id);
+                        skipped++;note('Terrain: No usable terrain elevations',entry.id);
                         const resident=previousById.get(entry.id);
                         if(entry.route.roadApproachKinds?.includes('bridge')&&resident?.renderProfile===autoProfile&&closeEnough(resident,entry))
                             chosen.push({...resident,key:entry.key,lastSeenAt:now(),bridgeHeightCheckedAt:now()});
@@ -3616,10 +3703,15 @@
                             return sameJunctions&&finite(oldJunctionModel?.junctionEndpointFloors?.[end])?
                                 oldJunctionModel.junctionEndpointFloors[end]:null;
                         });
-                        const next=procedural(entry.route,heights,
+                        const next=await proceduralWithTerrainCheck(entry.route,heights,
                             {widthMeters:entry.route.widthMeters||6,heightMeters:5,profile:'vaulted',
                                 portalApproachHeights:approaches,portalContextHeights:lateral,
                                 globalEndpointHeights:entry.route.resolvedSourceEndpointHeights||originalHeights,junctionEndpointHeights});
+                        if(token!==autoRevision||disposed){
+                            for(const staged of added)scene.primitives.remove(staged.primitive);
+                            if(token===autoRevision)autoInFlightSignature=null;
+                            return {count:autoModels.length,cancelled:true};
+                        }
                         // A newly sampled window may use a different terrain
                         // LOD. Before replacing the old window, reconcile the
                         // actual overlapping cross-sections to avoid a step at
@@ -3642,9 +3734,10 @@
                         bridgeHeightCheckedAt:now()};
                         added.push(created);chosen.push(created);
                     }catch(error){
-                        skipped++;note(`Geometry: ${String(error.message||error).slice(0,95)}`,entry.id);
+                        skipped++;note(`${error?.code==='TUNNEL_TERRAIN_ELEVATION_CONFLICT'?'Elevation':'Geometry'}: ${
+                            String(error.message||error).slice(0,95)}`,entry.id);
                         const resident=previousById.get(entry.id);
-                        if(entry.route.roadApproachKinds?.includes('bridge')&&resident?.renderProfile===autoProfile&&closeEnough(resident,entry))
+                        if(resident?.key===entry.key&&resident?.renderProfile===autoProfile&&closeEnough(resident,entry))
                             chosen.push({...resident,key:entry.key,lastSeenAt:now(),bridgeHeightCheckedAt:now()});
                     }
                 }
@@ -3855,10 +3948,10 @@
                 const sampled=await elevations([{route}],signal);
                 signal?.throwIfAborted?.();
                 if(token!==revision||disposed)throw Error('Tunnel preparation superseded.');
-                const next=procedural(route,sampled.heights.slice(0,points.length),{
+                const next=await proceduralWithTerrainCheck(route,sampled.heights.slice(0,points.length),{
                     ...settings,portalApproachHeights:sampled.heights.slice(points.length,points.length+10),
                     portalContextHeights:sampled.heights.slice(points.length+10,points.length+14),
-                    globalEndpointHeights:sampled.heights.slice(points.length+14)});
+                    globalEndpointHeights:sampled.heights.slice(points.length+14)},signal);
                 return show(next);
             } catch(err){if(token===revision){pending=false;publish(String(err.message||err));}throw err;}
             finally{if(token===revision){pending=false;publish();}}
@@ -4133,6 +4226,8 @@
                 boundedAperturePlanes:0,groundProtected:true,apertureCount:activeApertureSpecs.length,
                 entries:autoModels.slice(0,64).map(entry=>({id:entry.id,
                     kind:entry.model.kind||'unverified',
+                    terrainRefinedSamples:entry.model.terrainRefinedSamples||0,
+                    bridgeSupportedSections:entry.model.bridgeSupportedSections||[],
                     members:entry.model.mergedRouteIds||[entry.id],
                     sections:entry.model.sections.length,
                     floorEnds:entry.model.sections.length?[

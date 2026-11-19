@@ -1,7 +1,12 @@
 # Change summary
 
-## [0.17.2] - 2026-11-18
+### [0.17.2] - 2026-11-18
 
+- Refine automatic 3D tunnel elevation handling for steep Alpine terrain.
+  Accept short, native-bridge-supported portal transitions; recheck suspect
+  terrain samples with bounded detailed centre-and-shoulder probes instead of
+  rejecting all deviations above 40 m. Continue to reject unverified floating
+  bores, preserve route continuity and collision, and clarify diagnostics.
 - Migrate the German and English Flutter UI translations to official gen-l10n
   ARB catalogs and generated, type-safe accessors. Preserve saved language
   preferences and compatibility with remaining dynamic translation keys.
@@ -18,7 +23,7 @@
   Säntis tower visualization without altering source obstacle positions,
   reported heights or existing collision limitations.
 
-## 2026-11-18
+## [0.17.1] - 2026-11-18
 
 - Include GeoTIFF.js, h5wasm and Windows native component notices. Bundle
   the MeteoSwiss radar decoder locally.
