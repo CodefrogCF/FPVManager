@@ -768,10 +768,30 @@ void main() {
           commands.every((command) => command['sessionId'] == 'renderer-2'),
           isTrue,
         );
-        expect(commands.first['style'], 'topographic');
-        expect(commands[1]['opacity'], 0.45);
-        expect(commands[2]['spots'], hasLength(1));
-        expect(commands.last['geojson'], isNotNull);
+        expect(
+          commands.singleWhere(
+            (command) => command['type'] == 'set-map-style',
+          )['style'],
+          'topographic',
+        );
+        expect(
+          commands.singleWhere(
+            (command) => command['type'] == 'set-uas-opacity',
+          )['opacity'],
+          0.45,
+        );
+        expect(
+          commands.singleWhere(
+            (command) => command['type'] == 'set-spot-markers',
+          )['spots'],
+          hasLength(1),
+        );
+        expect(
+          commands.singleWhere(
+            (command) => command['type'] == 'set-uas-zones',
+          )['geojson'],
+          isNotNull,
+        );
       },
     );
 

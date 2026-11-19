@@ -194,7 +194,8 @@
     opacity:var(--tear-strength,.15);pointer-events:none; }
 #hud-analog-noise[data-level="critical"]::after,#hud-analog-noise[data-level="lost"]::after {
     height:clamp(5px,2vh,22px);background:linear-gradient(180deg,#e8e8e8ab,#1117,transparent); }
-#hud-analog-noise[data-level="lost"] { background-color:#1119; }
+#hud-analog-noise[data-level="critical"] { background-color:#17171950;filter:contrast(1.4); }
+#hud-analog-noise[data-level="lost"] { background-color:#111c;filter:contrast(1.8); }
 #hud-analog-noise[data-dropout="true"] { background:#08090b;mix-blend-mode:normal; }
 @media (max-width:480px) { #hud-signal-bars {top:max(54px,calc(env(safe-area-inset-top) + 46px));right:8px;font-size:10px;} }
 @media (prefers-reduced-motion:reduce) { #hud-analog-noise {will-change:auto;} }

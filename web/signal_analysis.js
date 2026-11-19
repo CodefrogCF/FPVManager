@@ -20,6 +20,7 @@
             (command.targetOffset !== undefined && (!Number.isInteger(command.targetOffset) || command.targetOffset < 0 ||
                 command.targetOffset + command.rays.length > 4096))) throw new Error('Invalid Fresnel configuration');
         if (command.showPilot !== undefined && typeof command.showPilot !== 'boolean') throw Error('Invalid ground station display');
+        if (command.showTargetMarkers !== undefined && typeof command.showTargetMarkers !== 'boolean') throw Error('Invalid target marker visibility');
         for (const ray of command.rays) {
             point(ray, true);
             if (!states.includes(ray.state) || !Number.isFinite(ray.ground) || Math.abs(ray.ground) > 100000 ||
@@ -54,6 +55,7 @@
             if (!command.rays.length) { clear(); return {}; }
             if(command.obstruction)point(command.obstruction);
             const replacement = new Cesium.CustomDataSource(name);
+            replacement.fpvVisualOnly = true;
             const C = Cesium.Cartesian3;
             const pilot = C.fromDegrees(command.pilot.longitude, command.pilot.latitude, command.pilot.height);
             if (command.showPilot !== false) replacement.entities.add({id:'signal-pilot', name:'Pilot antenna', position:pilot, point:{pixelSize:12, color:Cesium.Color.YELLOW}});
@@ -62,9 +64,9 @@
             const colors = [Cesium.Color.GRAY, Cesium.Color.ORANGE, Cesium.Color.MEDIUMPURPLE, Cesium.Color.CYAN];
             command.rays.forEach((ray, index) => {
                 const color = colors[states.indexOf(ray.state)], target = C.fromDegrees(ray.longitude, ray.latitude, ray.height ?? ray.ground);
-                replacement.entities.add({id:`signal-target-${index}`, name:`Radio target ${(command.targetOffset ?? 0) + index + 1}: ${ray.state}`, position:target, point:{pixelSize: index === command.selected ? 12 : 7, color}});
+                if(command.showTargetMarkers!==false)replacement.entities.add({id:`signal-target-${index}`, name:`Radio target ${(command.targetOffset ?? 0) + index + 1}: ${ray.state}`, position:target, point:{pixelSize: index === command.selected ? 12 : 7, color}});
                 if (ray.height === null || ray.state === 'unknown') return;
-                replacement.entities.add({id:`signal-ray-${index}`, polyline:{positions:[pilot, target], width: index === command.selected ? 4 : 1, material:color.withAlpha(index === command.selected ? 1 : .35), arcType:Cesium.ArcType.NONE}});
+                replacement.entities.add({id:`signal-ray-${index}`, properties:{fpvNonCollidable:true}, polyline:{positions:[pilot, target], width: index === command.selected ? 4 : 1, material:color.withAlpha(index === command.selected ? 1 : .35), arcType:Cesium.ArcType.NONE}});
                 if (index !== command.selected) return;
                 const delta = C.subtract(target, pilot, new C()), length = C.magnitude(delta);
                 if (length < 1) return;
@@ -77,8 +79,8 @@
                     return C.add(center, C.add(C.multiplyByScalar(u, radius * Math.cos(angle), new C()), C.multiplyByScalar(v, radius * Math.sin(angle), new C()), new C()), new C());
                 }
                 const material = Cesium.Color.MEDIUMPURPLE.withAlpha(.65);
-                for (let edge = 0; edge < 4; edge++) replacement.entities.add({id:`signal-envelope-${edge}`, polyline:{positions:Array.from({length:65}, (_,i) => envelope(i / 64, edge * Math.PI / 2)), width:1, material, arcType:Cesium.ArcType.NONE}});
-                for (const [i,t] of [.25,.5,.75].entries()) replacement.entities.add({id:`signal-ring-${i}`, polyline:{positions:Array.from({length:33}, (_,n) => envelope(t, n * Math.PI / 16)), width:1, material, arcType:Cesium.ArcType.NONE}});
+                for (let edge = 0; edge < 4; edge++) replacement.entities.add({id:`signal-envelope-${edge}`, properties:{fpvNonCollidable:true}, polyline:{positions:Array.from({length:65}, (_,i) => envelope(i / 64, edge * Math.PI / 2)), width:1, material, arcType:Cesium.ArcType.NONE}});
+                for (const [i,t] of [.25,.5,.75].entries()) replacement.entities.add({id:`signal-ring-${i}`, properties:{fpvNonCollidable:true}, polyline:{positions:Array.from({length:33}, (_,n) => envelope(t, n * Math.PI / 16)), width:1, material, arcType:Cesium.ArcType.NONE}});
             });
             clear(); source = replacement; viewer.dataSources.add(source); viewer.scene.requestRender(); return {};
         }

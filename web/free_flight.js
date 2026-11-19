@@ -3,10 +3,11 @@
     const api=factory(isNode?require('./controller_input.js'):root.FPVControllerInput,
         isNode?require('./battery_simulation.js'):root.FPVBatterySimulation,
         isNode?require('./signal_hud.js'):root.FPVSignalHud,
-        isNode?require('./simulated_failsafe.js'):root.FPVSimulatedFailsafe);
+        isNode?require('./simulated_failsafe.js'):root.FPVSimulatedFailsafe,
+        isNode?require('./rescue_velocity.js'):root.FPVRescueVelocity);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -162,7 +163,8 @@
                 if(state.phase==='climb'){
                     targetUp=clamp((altitude-height)*.6,0,Math.min(fs.climbSpeedMetersPerSecond,config.climbSpeed));
                 }else if(state.phase==='return'&&meters>3){
-                    const speed=Math.min(fs.returnSpeedMetersPerSecond,config.maxSpeed,meters*.8);
+                    const speed=rescueVelocity.approachSpeed(meters,
+                        Math.min(fs.returnSpeedMetersPerSecond,config.maxSpeed),config.deceleration);
                     const direction=bearing(position,spawn);
                     targetNorth=Math.cos(direction)*speed;targetEast=Math.sin(direction)*speed;
                     targetUp=clamp((altitude-height)*.4,-config.climbSpeed,config.climbSpeed);
@@ -172,16 +174,16 @@
             }else if(state.phase==='descend')targetUp=-Math.min(1,config.climbSpeed);
             // Use normal deceleration/acceleration and the current wind model,
             // with no unbounded jump when entering or leaving rescue.
-            const rate=(key,target)=>{
-                const current=velocity[key],speed=key==='up'?config.climbSpeed:config.maxSpeed;
-                const acceleration=target===0?config.deceleration:config.acceleration;
-                const alpha=1-Math.exp(-acceleration*seconds/Math.max(.2,speed));
-                const next=current+(target-current)*alpha;
-                velocity[key]=next;
-                return (current+next)*.5*seconds;
-            };
-            // Approximate GPS wind compensation; uncertainty remains documented.
-            const travel={north:rate('north',targetNorth),east:rate('east',targetEast),up:rate('up',targetUp)};
+            // Coupled vector controller reaches the feasible commanded speed without
+            // applying the manual-stick smoothing twice. Braking distance limits
+            // the approach speed; all travel still uses the normal collision sweep.
+            const planar=rescueVelocity.advance(velocity,{north:targetNorth,east:targetEast},seconds,
+                config.acceleration,config.deceleration,config.maxSpeed);
+            velocity.north=planar.next.north;velocity.east=planar.next.east;
+            const upChange=clamp(targetUp-velocity.up,-config.deceleration*seconds,config.acceleration*seconds);
+            const nextUp=clamp(velocity.up+upChange,-config.climbSpeed,config.climbSpeed);
+            const travel={...planar.travel,up:(velocity.up+nextUp)*.5*seconds};
+            velocity.up=nextUp;
             pitch+=(0-pitch)*Math.min(1,seconds*4);roll+=(0-roll)*Math.min(1,seconds*4);
             q=euler(heading,pitch,roll);
             return travel;

@@ -64,6 +64,8 @@ void main() {
         'free_flight.js',
         'flight_hud.js',
         'signal_hud.js',
+        'rf_estimation.js',
+        'rescue_velocity.js',
         'flight_rendering.js',
         'bridge_supports.js',
         'bridge_source.js',

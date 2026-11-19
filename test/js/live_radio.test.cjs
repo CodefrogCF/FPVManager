@@ -15,7 +15,7 @@ test('live pose bridge is opt-in and bounded; controls expose settings without s
     const p=setup(),state={active:true,paused:false,flightId:1,position:{latitude:46.7,longitude:8.4},height:1100,home:{latitude:46.7,longitude:8.3}};
     p.api.observe(state);assert.equal(p.events.length,0);p.api.monitor({enabled:true,revision:1});
     for(let i=0;i<120;i++){p.clock(i*1000/60);p.api.observe(state);}
-    assert.equal(p.events.length,2);p.api.observe({...state,active:false},true);assert.equal(p.events.at(-1).active,false);
+    assert.equal(p.events.length,3);p.api.observe({...state,active:false},true);assert.equal(p.events.at(-1).active,false);
     p.nodes.get('hud-live-radio').listeners.click();assert.equal(p.events.at(-1).type,'flight-radio-settings-request');
     p.nodes.get('flight-radio-enabled').checked=false;p.nodes.get('flight-radio-enabled').listeners.change();assert.equal(p.events.at(-1).enabled,false);
     p.api.monitor({enabled:false,revision:3});assert.equal(p.nodes.get('hud-live-radio').hidden,true);
@@ -112,5 +112,50 @@ test('explicit modelled RC/video readings are accepted independently, while terr
     assert.throws(()=>p.api.set({...command,revision:3,assessment:{...assessment,videoLink:{quality:0,source:'measured'}}}),/Inconsistent/);
     p.clock(6000);p.api.observe({active:true,paused:false,flightId:1});
     assert.equal(p.api.assessment().videoLink,'unknown');
+    p.api.dispose();
+});
+
+test('automatic RF estimation exposes independent simulated links, supports CE custom profiles and never treats missing terrain as loss',()=>{
+    const p=setup();p.api.monitor({enabled:true,revision:1,rfProfiles:{video:{eirpDbm:14},control:{eirpDbm:14}}});
+    p.api.observe({active:true,paused:false,flightId:1});
+    const assessment={visibility:'clear',source:'sampledTerrain',confidence:'approximate',controlLink:'unknown',videoLink:'unknown',
+        minimumClearanceMeters:20,minimumFresnelMarginMeters:10};
+    const sample={revision:2,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',
+        pilot:{latitude:47,longitude:8,height:1200},
+        rays:[{state:'noSampledObstruction',latitude:47,longitude:8.01,height:1200,ground:1000}],assessment};
+    p.api.set(sample);
+    assert.equal(p.api.assessment().controlLink.source,'rfModel');
+    assert.equal(p.api.assessment().videoLink.source,'rfModel');
+    assert.ok(p.api.assessment().controlLink.quality>=p.api.assessment().videoLink.quality);
+    p.api.setTrainingRc(0);assert.equal(p.api.assessment().controlLink.quality,0);
+    assert.ok(p.api.assessment().videoLink.quality>=0);
+    p.api.setTrainingRc(null);
+    p.api.set({...sample,revision:3,state:'unknown',rays:[],assessment:{visibility:'unknown',source:'unavailable',confidence:'unavailable',controlLink:'unknown',videoLink:'unknown'}});
+    assert.equal(p.api.assessment().controlLink,'unknown');
+});
+
+test('fast flight uses bounded faster pose updates and reports modeled speed',()=>{
+    const p=setup();p.api.monitor({enabled:true,revision:1});
+    const state={active:true,paused:false,flightId:1,position:{latitude:47,longitude:8},
+        home:{latitude:47,longitude:8},height:1100,speed:60};
+    p.api.observe(state);assert.equal(p.events.length,1);assert.equal(p.events[0].speed,60);
+    p.clock(190);p.api.observe(state);assert.equal(p.events.length,1);
+    p.clock(230);p.api.observe(state);assert.equal(p.events.length,2);
+    p.clock(400);p.api.observe(state);assert.equal(p.events.length,2);
+    p.api.dispose();
+});
+
+test('live radio details show model-derived range separately from geometry, never invented data',()=>{
+    const p=setup();p.api.monitor({enabled:true,revision:1});
+    p.api.observe({active:true,paused:false,flightId:10});
+    const sample={revision:2,flightId:10,expiresAtMs:105000,state:'noSampledObstruction',
+        pilot:{latitude:47,longitude:8,height:1100},rays:[{state:'noSampledObstruction',latitude:47,longitude:8.01,height:1200}],
+        assessment:{visibility:'clear',source:'sampledTerrain',confidence:'approximate',controlLink:'unknown',videoLink:'unknown'}};
+    p.api.set(sample);
+    const details=p.nodes.get('flight-radio-status').textContent;
+    assert.match(details,/SIM Video: .* dB reserve; free-space .* km/);
+    assert.match(details,/RC: .* dB reserve; free-space .* km/);
+    p.api.set({...sample,revision:3,state:'unknown',rays:[],assessment:{visibility:'unknown',source:'unavailable',confidence:'unavailable',controlLink:'unknown',videoLink:'unknown'}});
+    assert.doesNotMatch(p.nodes.get('flight-radio-status').textContent,/free-space/);
     p.api.dispose();
 });

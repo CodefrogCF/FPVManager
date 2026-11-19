@@ -7,20 +7,24 @@ import '../../core/models/flight_route.dart';
 import '../../core/models/signal_settings.dart';
 import '../routes/analysis/route_analysis.dart';
 import 'live_link_assessment.dart';
+import 'rf_profile_settings.dart';
+import 'live_sampling_policy.dart';
 import 'radio_analysis.dart';
 
 class LiveRadioSettings {
   const LiveRadioSettings({
-    this.enabled = false,
+    this.enabled = true,
     this.useSpawn = true,
     this.showGroundStationMarker = true,
     this.showSignalPath = true,
+    this.rfProfiles = const RfProfileSettings(),
     this.signal = const SignalSettings(
       pilot: Wgs84Coordinate(latitude: 46.8, longitude: 8.3),
     ),
   });
   final bool enabled, useSpawn, showGroundStationMarker, showSignalPath;
   final SignalSettings signal;
+  final RfProfileSettings rfProfiles;
 }
 
 class LiveRadioController extends ChangeNotifier {
@@ -50,6 +54,7 @@ class LiveRadioController extends ChangeNotifier {
       _active = false,
       _paused = false;
   int _revision = 0, _flightId = -1;
+  double _speedMetersPerSecond = 0;
   bool _monitorEnabled = false;
   ({Wgs84Coordinate position, Wgs84Coordinate home, double height})? _pose;
   DateTime? _lastAttempt;
@@ -62,12 +67,14 @@ class LiveRadioController extends ChangeNotifier {
 
   Future<void> configure(LiveRadioSettings value) async {
     value.signal.validate();
+    value.rfProfiles.validate();
     settings = LiveRadioSettings(
       enabled: value.enabled,
       useSpawn: value.useSpawn,
       showGroundStationMarker: value.showGroundStationMarker,
       showSignalPath: value.showSignalPath,
       signal: SignalSettings.fromJson(value.signal.toJson()),
+      rfProfiles: value.rfProfiles,
     );
     _pose = null;
     _active = false;
@@ -170,6 +177,7 @@ class LiveRadioController extends ChangeNotifier {
       'useSpawn': settings.useSpawn,
       'showGroundStationMarker': settings.showGroundStationMarker,
       'showSignalPath': settings.showSignalPath,
+      'rfProfiles': settings.rfProfiles.toJson(),
     });
     _monitorEnabled = enabled;
   }
@@ -223,6 +231,11 @@ class LiveRadioController extends ChangeNotifier {
         _notify();
         return;
       }
+      final speed = data['speed'];
+      _speedMetersPerSecond =
+          speed is num && speed.isFinite && speed >= 0 && speed <= 200
+          ? speed.toDouble()
+          : 0;
       _pose = (
         position: Wgs84Coordinate(
           latitude: read('latitude', -89.9, 89.9),
@@ -241,8 +254,9 @@ class LiveRadioController extends ChangeNotifier {
       }
       if (current &&
           result != null &&
-          (routeDistance(_pose!.position, result!.target) > 100 ||
-              (_pose!.height - result!.altitude!).abs() > 30)) {
+          (routeDistance(_pose!.position, result!.target) >
+                  LiveSamplingPolicy.maximumStaleness(_speedMetersPerSecond) ||
+              (_pose!.height - result!.altitude!).abs() > 12)) {
         status = 'Drone moved beyond the last profile';
         _invalidate();
         _notify();
@@ -266,7 +280,8 @@ class LiveRadioController extends ChangeNotifier {
       return;
     }
     if (_lastAttempt != null &&
-        now().difference(_lastAttempt!) < const Duration(seconds: 2)) {
+        now().difference(_lastAttempt!) <
+            LiveSamplingPolicy.interval(_speedMetersPerSecond)) {
       return;
     }
     _lastAttempt = now();
@@ -301,7 +316,7 @@ class LiveRadioController extends ChangeNotifier {
       final plan = RouteSamplingPlan.create([
         RouteWaypointInput(position: pilot),
         RouteWaypointInput(position: pose.position),
-      ], spacing: 25);
+      ], spacing: LiveSamplingPolicy.spacing(distance));
       final positions = plan.samples
           .map((p) => p.position)
           .toList(growable: false);
@@ -325,8 +340,9 @@ class LiveRadioController extends ChangeNotifier {
       );
       if (!valid()) return;
       if (_pose == null ||
-          routeDistance(_pose!.position, pose.position) > 100 ||
-          (_pose!.height - pose.height).abs() > 30) {
+          routeDistance(_pose!.position, pose.position) >
+              LiveSamplingPolicy.maximumStaleness(_speedMetersPerSecond) ||
+          (_pose!.height - pose.height).abs() > 12) {
         status = 'Unknown: profile overtaken by flight';
         current = false;
         assessment = const LiveLinkAssessment();

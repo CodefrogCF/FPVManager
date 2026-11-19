@@ -302,17 +302,32 @@ void main() {
       () async {
         final frame = {'forward': 1.0};
         await globe.sendNavigationInput(frame);
-        expect(peer.commands, isEmpty);
+        expect(
+          peer.commands.where(
+            (command) => command['type'] == 'navigation-input',
+          ),
+          isEmpty,
+        );
         peer.emit({
           'type': 'simulation-state',
           'active': true,
           'pending': false,
         });
         await globe.sendNavigationInput(frame);
-        expect(peer.commands, isEmpty);
+        expect(
+          peer.commands.where(
+            (command) => command['type'] == 'navigation-input',
+          ),
+          isEmpty,
+        );
         peer.emit({'type': 'navigation-focus', 'focused': true});
         await globe.sendNavigationInput(frame);
-        expect(peer.commands.single['type'], 'navigation-input');
+        expect(
+          peer.commands.where(
+            (command) => command['type'] == 'navigation-input',
+          ),
+          hasLength(1),
+        );
         peer.emit({'type': 'navigation-focus', 'focused': 'invalid'});
         expect(globe.navigationFocused, isTrue);
         peer.emit({
@@ -336,7 +351,10 @@ void main() {
       });
       peer.emit({'type': 'navigation-focus', 'focused': true});
       await globe.sendNavigationInput({'right': .5});
-      expect(peer.commands.single['type'], 'navigation-input');
+      expect(
+        peer.commands.where((command) => command['type'] == 'navigation-input'),
+        hasLength(1),
+      );
       expect(globe.simulationActive, isFalse);
     });
     testWidgets(

@@ -2376,6 +2376,7 @@ class GlobeController extends ChangeNotifier {
                     showGroundStationMarker: s.showGroundStationMarker,
                     showSignalPath: s.showSignalPath,
                     signal: s.signal,
+                    rfProfiles: s.rfProfiles,
                   ),
                 )
                 .catchError((Object _) {}),

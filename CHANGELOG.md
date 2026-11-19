@@ -2,6 +2,21 @@
 
 ### [Unreleased] - 2026-11-19
 
+- Extend simulated DJI O4 Pro and Crossfire RF estimation with derived free-space
+  maximum ranges, receive power, path loss and remaining link margins for each
+  band, retaining conservative terrain uncertainty and custom parameters.
+  Expose estimates in radio details/HUD tooltips, not as measured reception.
+- Stabilize Flutter tests affected by additional renderer radio setup commands:
+  verify feature-specific commands rather than absolute command-list positions,
+  and compare preference resets against the current HUD defaults.
+- Add default, explicitly approximate DJI O4 Air Unit Pro video and TBS Crossfire
+  RC link-budget profiles with optional custom radio parameters. Expose independent
+  video/RC signal estimates when fresh terrain profiles exist, retain unknown
+  reception on unavailable data, and feed the existing optional failsafe.
+- Improve adaptive live sightline sampling at higher flight speeds, keep rays
+  strictly visualization-only and non-collidable, increase optional analog
+  video interference at poor simulated reception and speed up GPS Rescue
+  target-speed tracking with bounded acceleration and braking.
 - Add an opt-in, deterministic simulated RC failsafe with hold, descend and
   illustrative GPS Rescue to the takeoff point. Sustain loss and recovery
   thresholds with hysteresis, handle unknown/insufficient navigation and battery

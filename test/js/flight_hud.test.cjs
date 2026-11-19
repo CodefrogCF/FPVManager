@@ -5,7 +5,7 @@ const state={mode:'acro',hudStyle:'goggles',horizontalSpeed:10,verticalSpeed:-3.
     agl:17.5,heightAboveHome:25,distance:111,position:{latitude:0,longitude:0},home:{latitude:0,longitude:1}};
 
 test('coordinate readout is opt-in, updates in both layouts and clears invalid or missing positions',()=>{
-    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
+    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},dataset:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
     const hud=create(doc),readout=()=>nodes.get('hud-coordinates');
     hud.update(state,0);assert.equal(readout().hidden,true);
     for(const hudStyle of ['goggles','betaflight']){
@@ -22,7 +22,7 @@ test('coordinate readout is opt-in, updates in both layouts and clears invalid o
 });
 
 test('wind HUD distinguishes model wind, unavailable forcing and disabled wind',()=>{
-    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
+    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},dataset:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
     const hud=create(doc);hud.update({...state,wind:{enabled:true,available:true,speedMs:8}},0);
     assert.equal(nodes.get('hud-wind').textContent,'8.0 m/s');assert.equal(nodes.get('hud-wind-readout').hidden,false);
     hud.update({...state,wind:{enabled:true,available:false,reason:'expired'}},0);assert.equal(nodes.get('hud-wind').textContent,'—');assert.equal(nodes.get('hud-wind-readout').hidden,false);
@@ -60,7 +60,7 @@ test('HUD distinguishes AGL and launch-ground height; missing heights stay unkno
 
 test('both HUD styles retain telemetry, home arrow and warnings with plain-text source values',()=>{
     const elements=new Map();
-    const doc={getElementById(id){if(!elements.has(id))elements.set(id,{textContent:'',hidden:false,style:{},
+    const doc={getElementById(id){if(!elements.has(id))elements.set(id,{textContent:'',hidden:false,style:{},dataset:{},
         setAttribute(key,value){this[key]=value;}});return elements.get(id);}};
     const hud=create(doc),get=id=>elements.get(id);
     hud.update(state,0);

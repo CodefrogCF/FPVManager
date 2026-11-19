@@ -11,6 +11,7 @@ import '../globe/globe_controller.dart';
 import '../routes/route_start_sheet.dart';
 import '../spots/data/spot_repository.dart';
 import 'live_radio_controller.dart';
+import 'rf_profile_settings.dart';
 import 'surface_csv.dart';
 
 class LiveRadioLauncher extends StatelessWidget {
@@ -55,7 +56,8 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
       _spawn = c.settings.useSpawn,
       _marker = c.settings.showGroundStationMarker,
       _path = c.settings.showSignalPath,
-      _surfacesEnabled = c.settings.signal.useSurfaces;
+      _surfacesEnabled = c.settings.signal.useSurfaces,
+      _rfEnabled = c.settings.rfProfiles.enabled;
   late List<SurfaceObservation> _surfaces = c.settings.signal.surfaces;
   late final _fields = <String, TextEditingController>{
     'latitude': TextEditingController(
@@ -73,6 +75,17 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
     'fraction': TextEditingController(
       text: '${c.settings.signal.clearanceFraction * 100}',
     ),
+    for (final field in [
+      ('videoFrequency', c.settings.rfProfiles.video.frequencyMhz),
+      ('videoPower', c.settings.rfProfiles.video.eirpDbm),
+      ('videoThreshold', c.settings.rfProfiles.video.receiverThresholdDbm),
+      ('videoFade', c.settings.rfProfiles.video.fadeMarginDb),
+      ('rcFrequency', c.settings.rfProfiles.control.frequencyMhz),
+      ('rcPower', c.settings.rfProfiles.control.eirpDbm),
+      ('rcThreshold', c.settings.rfProfiles.control.receiverThresholdDbm),
+      ('rcFade', c.settings.rfProfiles.control.fadeMarginDb),
+    ])
+      field.$1: TextEditingController(text: '${field.$2}'),
   };
   bool _working = false;
   String? _error;
@@ -86,6 +99,23 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
 
   double _value(String key) =>
       double.parse(_fields[key]!.text.trim().replaceAll(',', '.'));
+
+  double? _theoreticalRangeKm(String prefix) {
+    try {
+      final profile = RfBandProfile(
+        frequencyMhz: _value('${prefix}Frequency'),
+        eirpDbm: _value('${prefix}Power'),
+        receiverThresholdDbm: _value('${prefix}Threshold'),
+        fadeMarginDb: _value('${prefix}Fade'),
+      );
+      return profile.theoreticalFreeSpaceRangeMeters / 1000.0;
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
+  }
+
   void _position(Wgs84Coordinate p) => setState(() {
     _fields['latitude']!.text = '${p.latitude}';
     _fields['longitude']!.text = '${p.longitude}';
@@ -138,6 +168,22 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
         surfaces: _surfaces,
       );
       settings.validate();
+      final rf = RfProfileSettings(
+        enabled: _rfEnabled,
+        video: RfBandProfile(
+          frequencyMhz: _value('videoFrequency'),
+          eirpDbm: _value('videoPower'),
+          receiverThresholdDbm: _value('videoThreshold'),
+          fadeMarginDb: _value('videoFade'),
+        ),
+        control: RfBandProfile(
+          frequencyMhz: _value('rcFrequency'),
+          eirpDbm: _value('rcPower'),
+          receiverThresholdDbm: _value('rcThreshold'),
+          fadeMarginDb: _value('rcFade'),
+        ),
+      );
+      rf.validate();
       setState(() {
         _working = true;
         _error = null;
@@ -149,6 +195,7 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
           showGroundStationMarker: _marker,
           showSignalPath: _path,
           signal: settings,
+          rfProfiles: rf,
         ),
       );
       if (mounted) Navigator.pop(context);
@@ -167,6 +214,8 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.globe.selectedPoint;
+    final videoRangeKm = _theoreticalRangeKm('video');
+    final rcRangeKm = _theoreticalRangeKm('rc');
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: FractionallySizedBox(
@@ -366,6 +415,68 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                         "Transmitter height is above sampled terrain. The receiving endpoint is the drone’s simulated WGS84 ellipsoidal height.",
                         (l10n) => l10n.signalTransmitterHeightIsAboveb50b536b,
                       ),
+                    ),
+                    ExpansionTile(
+                      title: const Text(
+                        'SIM RF profiles · DJI O4 Pro / TBS Crossfire',
+                      ),
+                      subtitle: const Text(
+                        'Illustrative link budget, not measured signal quality',
+                      ),
+                      children: [
+                        SwitchListTile(
+                          title: const Text(
+                            'Automatic simulated RF estimation',
+                          ),
+                          value: _rfEnabled,
+                          onChanged: _working
+                              ? null
+                              : (value) => setState(() => _rfEnabled = value),
+                        ),
+                        for (final field in [
+                          ('videoFrequency', 'O4 Pro · MHz'),
+                          ('videoPower', 'O4 Pro · EIRP dBm'),
+                          (
+                            'videoThreshold',
+                            'O4 Pro · assumed receiver threshold dBm',
+                          ),
+                          ('videoFade', 'O4 Pro · fade margin dB'),
+                          ('rcFrequency', 'Crossfire · MHz'),
+                          ('rcPower', 'Crossfire · EIRP dBm'),
+                          (
+                            'rcThreshold',
+                            'Crossfire · assumed receiver threshold dBm',
+                          ),
+                          ('rcFade', 'Crossfire · fade margin dB'),
+                        ])
+                          TextField(
+                            controller: _fields[field.$1],
+                            enabled: !_working,
+                            onChanged: (_) => setState(() {}),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                              signed: true,
+                            ),
+                            decoration: InputDecoration(labelText: field.$2),
+                          ),
+                        if (_rfEnabled &&
+                            videoRangeKm != null &&
+                            rcRangeKm != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'SIM · FSPL (0 dB): Video ≈${videoRangeKm.toStringAsFixed(1)} km · '
+                              'RC ≈${rcRangeKm.toStringAsFixed(1)} km',
+                            ),
+                          ),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Ideal free-space calculation only. Assumed receiver thresholds, '
+                            'no terrain/radio horizon; not a usable or guaranteed flight range.',
+                          ),
+                        ),
+                      ],
                     ),
                     ExpansionTile(
                       title: Text(

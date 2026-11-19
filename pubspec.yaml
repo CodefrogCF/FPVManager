@@ -116,6 +116,8 @@ flutter:
     - web/free_flight.js
     - web/flight_recording.js
     - web/signal_hud.js
+    - web/rf_estimation.js
+    - web/rescue_velocity.js
     - web/flight_hud.js
     - web/flight_hud.css
     - web/flight_rendering.js

@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
     const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
-    const defaults=Object.freeze({djiWarning:false,betaflightBars:false,analogNoise:false,
+    const defaults=Object.freeze({djiWarning:true,betaflightBars:true,analogNoise:false,
         terrainIllustration:false,weakThreshold:.55,criticalThreshold:.25,lostThreshold:.08,analogIntensity:.65});
     function settings(value={}){
         if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid signal HUD settings');
@@ -53,7 +53,7 @@
             rcBars:link.rc?clamp(Math.ceil(link.rc.quality*5),0,5):null,
             warning:['weak','critical','lost'].includes(videoLevel)?videoLevel:null,
             noise:link.video&&opts.analogNoise
-                ?clamp((.035+.965*Math.pow(1-link.video.quality,1.45))*opts.analogIntensity):0};
+                ?clamp((.06+.94*Math.pow(1-link.video.quality,.8))*opts.analogIntensity):0};
     }
     function create(doc,{translate=source=>source,now=()=>typeof performance!=='undefined'?performance.now():Date.now()}={}){
         const edge=doc.getElementById('hud-signal-edge'),bars=doc.getElementById('hud-signal-bars'),
@@ -95,9 +95,13 @@
                 videoLabel.textContent=translate(label);
                 video.setAttribute('aria-label',`${label}: ${effective.videoLevel}`);
                 rc.setAttribute('aria-label',`SIM RC: ${output.rc?'estimated '+level(output.rc.quality,cfg):'unknown'}`);
+                const simulatedMetrics=(link)=>link&&Number.isFinite(link.linkMarginDb)&&Number.isFinite(link.estimatedMaxRangeM)
+                    ? `SIM estimated reserve ${link.linkMarginDb.toFixed(1)} dB; theoretical free-space range ${(link.estimatedMaxRangeM/1000).toFixed(1)} km (assumptions, not measured)`
+                    : 'Simulated quality only; no calibrated range available';
+                rc.title=simulatedMetrics(assessment?.controlLink);
                 video.title=target.video?.source==='terrainIllustration'
                     ?'Terrain-risk illustration only: not an RF signal prediction'
-                    :'Simulated video link quality, not real telemetry';
+                    :simulatedMetrics(assessment?.videoLink);
             }
             noise.hidden=!(style==='betaflight'&&cfg.analogNoise&&target.video);
             if(!noise.hidden){
@@ -106,14 +110,15 @@
                 noise.dataset.level=effective.videoLevel;
                 // Short, deterministic frame dropouts illustrate severe analog
                 // video loss without pausing or altering the flight simulator.
-                const dropout=effective.videoLevel==='lost'&&cfg.analogIntensity>.3&&frame%9<2;
+                const dropout=(effective.videoLevel==='lost'&&cfg.analogIntensity>.3&&frame%7<3)||
+                    (effective.videoLevel==='critical'&&effective.noise>.58&&frame%25===0);
                 noise.dataset.dropout=String(dropout);
                 noise.style.opacity=String(dropout ? .96 : effective.noise);
                 noise.style.backgroundPosition=`${(frame*29)%113}px ${(frame*41)%107}px`;
                 // Simulated horizontal tape-head tear without filtering Cesium's
                 // full-resolution canvas or allocating extra textures.
                 noise.style.setProperty?.('--tear-position',`${(frame*23)%89+5}%`);
-                noise.style.setProperty?.('--tear-strength',String(clamp(effective.noise*1.5)));
+                noise.style.setProperty?.('--tear-strength',String(clamp(effective.noise*2)));
                 frame++;
             }else noise.style.opacity='0';
             return effective;

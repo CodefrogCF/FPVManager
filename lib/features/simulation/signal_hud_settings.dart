@@ -2,8 +2,8 @@
 /// Never used to determine aircraft behavior or failsafe transitions.
 class SignalHudSettings {
   const SignalHudSettings({
-    this.djiWarning = false,
-    this.betaflightBars = false,
+    this.djiWarning = true,
+    this.betaflightBars = true,
     this.analogNoise = false,
     this.terrainIllustration = false,
     this.weakThreshold = 0.55,

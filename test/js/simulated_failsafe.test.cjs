@@ -67,7 +67,7 @@ test('GPS rescue returns smoothly using normal terrain probes, recovers and rese
     const startPos=m.status().position;
     m.stick(-1,0);run(m,1);
     assert.equal(m.status().failsafe.phase,'return');
-    assert.ok(m.status().distance<away+12,'bounded inertial response while rescuing');
+    assert.ok(m.status().distance<away+20,'bounded acceleration and braking while rescuing');
     assert.ok(distance(startPos,m.status().position)<12,'no teleport');
     m.linkAssessment(rc(.9));run(m,.6);assert.equal(m.status().failsafe.phase,'normal');
     m.linkAssessment(rc(0));run(m,.5);assert.ok(m.status().failsafe.active);
@@ -97,4 +97,29 @@ test('route playback explicitly resets and bypasses failsafe',async()=>{
     assert.equal(m.status().playback,true);
     run(m,3);assert.equal(m.status().failsafe.phase,'normal');
     m.playbackEnd();assert.equal(m.status().failsafe.phase,'normal');
+});
+
+test('default RF estimates can drive optional RC failsafe but a video-only model cannot',()=>{
+    const rf=require('../../web/rf_estimation.js');
+    const ground={latitude:47,longitude:8},far={latitude:47,longitude:8.05};
+    const terrain={visibility:'obstructed',source:'sampledTerrain',confidence:'approximate',
+        minimumClearanceMeters:-100,minimumFresnelMarginMeters:-100};
+    const modeled=rf.assess(terrain,ground,far);
+    assert.equal(modeled.controlLink.source,'rfModel');
+    const machine=F.create({enabled:true,mode:'hold',activationDelaySeconds:.2});
+    for(let i=0;i<5;i++)machine.step(.1,modeled,context);
+    assert.equal(machine.status().phase,'hold');
+    const videoOnly=F.create({enabled:true,mode:'hold',activationDelaySeconds:.2});
+    for(let i=0;i<5;i++)videoOnly.step(.1,{controlLink:'unknown',videoLink:modeled.videoLink},context);
+    assert.equal(videoOnly.status().phase,'normal');
+});
+
+test('GPS rescue approaches commanded speed while far from home, then brakes continuously',async()=>{
+    const {model:m}=flight();await start(m,{maxSpeed:22,acceleration:9,deceleration:6,
+        failsafe:{enabled:true,mode:'gpsRescue',activationDelaySeconds:.1,returnSpeedMetersPerSecond:14,rescueAltitudeMeters:50}});
+    m.stick(1,0);run(m,26);assert.ok(m.status().distance>200);
+    m.linkAssessment(rc(0));run(m,.25);assert.equal(m.status().failsafe.phase,'return');
+    run(m,7);assert.ok(m.status().horizontalSpeed>12.5,'feasible 14 m/s target after bounded reversal');
+    const before=m.status().distance;assert.ok(before>100,'speed test is still far from home');
+    run(m,18);assert.ok(m.status().distance<before-100,'return closes the distance without teleporting');
 });

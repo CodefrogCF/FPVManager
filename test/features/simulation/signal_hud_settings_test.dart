@@ -3,21 +3,18 @@ import 'package:fpvmanager/features/simulation/signal_hud_settings.dart';
 import 'package:fpvmanager/features/simulation/simulation_settings.dart';
 
 void main() {
-  test(
-    'Signal HUD defaults are opt-in and serialized to the flight renderer',
-    () {
-      const defaults = SignalHudSettings();
-      expect(defaults.djiWarning, isFalse);
-      expect(defaults.betaflightBars, isFalse);
-      expect(defaults.analogNoise, isFalse);
-      expect(defaults.terrainIllustration, isFalse);
-      expect(defaults.toJson()['weakThreshold'], .55);
-      expect(
-        const SimulationSettings().toCommand()['signalHud'],
-        defaults.toJson(),
-      );
-    },
-  );
+  test('Signal warnings default on, analog effects remain opt-in and serialize correctly', () {
+    const defaults = SignalHudSettings();
+    expect(defaults.djiWarning, isTrue);
+    expect(defaults.betaflightBars, isTrue);
+    expect(defaults.analogNoise, isFalse);
+    expect(defaults.terrainIllustration, isFalse);
+    expect(defaults.toJson()['weakThreshold'], .55);
+    expect(
+      const SimulationSettings().toCommand()['signalHud'],
+      defaults.toJson(),
+    );
+  });
 
   test('Settings survive JSON round-trip and simulation copies', () {
     const settings = SignalHudSettings(

@@ -110,3 +110,12 @@ test('flight HUD resets smoothing when the flight id changes',()=>{
     hud.update({...state,hudStyle:'betaflight',flightId:2},0,geometry('obstructed'));
     assert.equal(n.get('hud-signal-bars').hidden,false);
 });
+
+test('critical video quality produces stronger analog interference without changing RC state',()=>{
+    const cfg={...defaultState.signalHud,analogNoise:true,analogIntensity:1};
+    const quality=(v)=>signal.evaluate(explicit(v),cfg);
+    assert.ok(quality(.98).noise<quality(.45).noise);
+    assert.ok(quality(.45).noise<quality(.12).noise);
+    assert.ok(quality(.12).noise<quality(.01).noise);
+    assert.equal(quality(.01).rc.quality,.9);
+});

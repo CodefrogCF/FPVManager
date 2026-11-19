@@ -1,10 +1,10 @@
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVLiveRadio=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./rf_estimation.js'):root.FPVRfEstimation);if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVLiveRadio=api;})(typeof globalThis!=='undefined'?globalThis:this,function(rfEstimation){
     function create({C,viewer,terrain,ready,emit,layer,doc,language,onAssessmentChange=()=>{},clock=()=>performance.now(),wallClock=()=>Date.now()}){
         const cache=new Map();let epoch=0,busy=null,enabled=false,showPath=true,showMarker=true,useSpawn=true,last=-Infinity,lastMode=null,flightId=-1,active=false,paused=false,revision=0,disposed=false,expiry=null,resultAt=-Infinity;
         const badge=doc.getElementById('hud-live-radio'),toggle=doc.getElementById('flight-radio-enabled'),details=doc.getElementById('flight-radio-status');
         const names={unknown:'LOS: ?',obstructed:'LOS: obstruction',fresnelIntrusion:'LOS: Fresnel',noSampledObstruction:'LOS: sampled'};
         const translate=source=>language?.translate(source)??source;
-        let detailMessage='Aus';
+        let detailMessage='Aus',rfSettings=rfEstimation.configuration();
         let stationKey='';
         function drawStation(position){
             const key=position?`${position.latitude},${position.longitude}`:'';
@@ -40,6 +40,7 @@
                 c.showGroundStationMarker!==undefined&&typeof c.showGroundStationMarker!=='boolean'||
                 c.useSpawn!==undefined&&typeof c.useSpawn!=='boolean')throw Error('Invalid live radio visibility settings');
             enabled=c.enabled;showPath=c.showSignalPath!==false;showMarker=c.showGroundStationMarker!==false;useSpawn=c.useSpawn!==false;
+            if(c.rfProfiles!==undefined)rfSettings=rfEstimation.configuration(c.rfProfiles);
             revision=c.revision;last=-Infinity;lastMode=null;toggle.checked=enabled;badge.hidden=!enabled;
             unknown();drawStation(null);return {};
         }
@@ -47,11 +48,13 @@
             if(!enabled||disposed)return;
             if(enabled&&clock()-resultAt>=5000&&resultAt!==-Infinity)unknown();
             const mode=`${!!s.active}/${!!s.paused}/${s.flightId}`;
-            if(mode===lastMode&&clock()-last<1000)return;
+            const speed=Number.isFinite(s.speed)?Math.max(0,s.speed):0;
+            const interval=speed>=30?200:speed>=12?400:750;
+            if(mode===lastMode&&clock()-last<interval)return;
             if(lastMode!==null&&mode!==lastMode){unknown();if(useSpawn&&s.flightId!==flightId)drawStation(null);}
             last=clock();lastMode=mode;flightId=s.flightId;active=!!s.active;paused=!!s.paused;
             emit('flight-radio-position',{active:!!s.active,paused:!!s.paused,flightId:s.flightId,
-                latitude:s.position?.latitude,longitude:s.position?.longitude,height:s.height,homeLatitude:s.home?.latitude,homeLongitude:s.home?.longitude});
+                latitude:s.position?.latitude,longitude:s.position?.longitude,height:s.height,speed,homeLatitude:s.home?.latitude,homeLongitude:s.home?.longitude});
         }
         async function sample(c,signal){
             if(disposed||!Array.isArray(c.positions)||!c.positions.length||c.positions.length>256||!ready())throw Error('Live terrain unavailable');
@@ -94,15 +97,30 @@
                     controlLink:a.controlLink==='unknown'?'unknown':Object.freeze({...a.controlLink}),
                     videoLink:a.videoLink==='unknown'?'unknown':Object.freeze({...a.videoLink})});
             }else currentAssessment=unknownAssessment;
+            // The radio approximation is explicitly separate from geometric LOS.
+            // Preserve explicit link readings, including externally supplied profiles.
+            const estimated=rfEstimation.assess(currentAssessment,c.pilot,c.rays?.[0],rfSettings);
+            if(estimated.controlLink!=='unknown'||estimated.videoLink!=='unknown'){
+                currentAssessment=Object.freeze({...currentAssessment,
+                    controlLink:currentAssessment.controlLink==='unknown'?estimated.controlLink:currentAssessment.controlLink,
+                    videoLink:currentAssessment.videoLink==='unknown'?estimated.videoLink:currentAssessment.videoLink});
+            }
             // A successful, flight-matched profile can restore the station even
             // if its earlier standalone marker command arrived out of order.
             if(c.pilot&&Number.isFinite(c.pilot.latitude)&&Number.isFinite(c.pilot.longitude))
                 drawStation(showMarker?{latitude:c.pilot.latitude,longitude:c.pilot.longitude}:null);
-            if(showPath)layer.set({...c,showPilot:false});else layer.clear();
+            if(showPath)layer.set({...c,showPilot:false,showTargetMarkers:false});else layer.clear();
             revision=c.revision;badge.dataset.state=c.state;
             clearTimeout(expiry);resultAt=c.state==='unknown'?-Infinity:clock();
             if(c.state!=='unknown'){const token=revision;expiry=setTimeout(()=>{if(!disposed&&revision===token)unknown();},Math.min(5000,c.expiresAtMs-wallClock()));}
-            detailMessage=String(c.message??'Unknown').slice(0,160);updateLabels();onAssessmentChange();return {};
+            detailMessage=String(c.message??'Unknown').slice(0,160);
+            if(currentAssessment.videoLink!=='unknown'||currentAssessment.controlLink!=='unknown'){
+                const brief=(name,link)=>!link||link==='unknown'||!Number.isFinite(link.linkMarginDb)||!Number.isFinite(link.estimatedMaxRangeM)
+                    ?'':`${name}: ${link.linkMarginDb.toFixed(1)} dB reserve; free-space ≈${(link.estimatedMaxRangeM/1000).toFixed(1)} km`;
+                const parts=[brief('Video',currentAssessment.videoLink),brief('RC',currentAssessment.controlLink)].filter(Boolean);
+                if(parts.length)detailMessage+=` · SIM ${parts.join(' | ')}`;
+            }
+            updateLabels();onAssessmentChange();return {};
         }
         function station(c){
             if(disposed||!enabled||!Number.isInteger(c.revision)||c.revision<revision)return {};

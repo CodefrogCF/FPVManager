@@ -41,7 +41,10 @@ void main() {
         chosen.toJson(),
       );
       await repository.resetPreferences();
-      expect((await repository.getPreferences()).signalHud.djiWarning, isFalse);
+      expect(
+        (await repository.getPreferences()).signalHud.toJson(),
+        const SignalHudSettings().toJson(),
+      );
     },
   );
 }

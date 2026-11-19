@@ -35,6 +35,8 @@ test('radio overlay rejects invalid positions, unknown statuses, nonfinite value
 test('bounded 3D envelope, replacement, unknown heights and cleanup',()=>{
     const {layer,sources}=setup(); layer.set(state);
     assert.equal(sources.length,1);
+    assert.equal(sources[0].fpvVisualOnly,true);
+    assert.ok(sources[0].entities.values.filter(e=>e.id.startsWith('signal-ray')||e.id.startsWith('signal-envelope')||e.id.startsWith('signal-ring')).every(e=>e.properties.fpvNonCollidable));
     assert.equal(sources[0].entities.values.filter(e=>e.id.startsWith('signal-envelope')).length,4);
     assert.equal(sources[0].entities.values.find(e=>e.id==='signal-envelope-0').polyline.positions.length,65);
     assert.throws(()=>layer.set({...state,fraction:2})); assert.equal(sources.length,1);
@@ -58,5 +60,13 @@ test('ground station marker survives expired/cleared rays and can be hidden inde
     layer.setStation(null);
     assert.equal(sources.length,0);
     assert.throws(()=>layer.setStation({latitude:95,longitude:8}));
+    layer.dispose();
+});
+
+test('live signal display omits the marker directly on the aircraft and remains visual-only',()=>{
+    const {layer,sources}=setup();layer.set({...state,showPilot:false,showTargetMarkers:false});
+    assert.ok(sources[0].entities.values.every(e=>!e.id.startsWith('signal-target')));
+    assert.ok(sources[0].entities.values.some(e=>e.id==='signal-ray-0'));
+    assert.equal(sources[0].fpvVisualOnly,true);
     layer.dispose();
 });

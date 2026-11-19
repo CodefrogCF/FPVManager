@@ -42,9 +42,7 @@ void main() {
         SwitchListTile,
         'Enable live radio preview',
       );
-      expect(tester.widget<SwitchListTile>(enabled).value, false);
-      await tester.tap(enabled);
-      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(enabled).value, true);
       final origin = find.byType(DropdownButtonFormField<bool>);
       await tester.ensureVisible(origin);
       await tester.tap(origin);
@@ -83,7 +81,7 @@ void main() {
       await tester.ensureVisible(apply);
       await tester.tap(apply);
       await tester.pumpAndSettle();
-      expect(globe.liveRadio.settings.enabled, false);
+      expect(globe.liveRadio.settings.enabled, true);
       await tester.ensureVisible(frequency);
       await tester.enterText(frequency, '868');
       final antenna = find.widgetWithText(
@@ -104,7 +102,7 @@ void main() {
     },
   );
 
-  testWidgets('closing draft settings does not change the disabled preview', (
+  testWidgets('closing draft settings does not change the enabled preview', (
     tester,
   ) async {
     final globe = GlobeController();
@@ -128,7 +126,7 @@ void main() {
     );
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
-    expect(globe.liveRadio.settings.enabled, false);
+    expect(globe.liveRadio.settings.enabled, true);
     await tester.pumpWidget(const SizedBox.shrink());
   });
   testWidgets(

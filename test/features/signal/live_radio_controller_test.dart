@@ -67,49 +67,53 @@ void main() {
     expect(globe.liveRadio.current, false);
     expect(globe.terrainAvailable, true);
   });
-  test('preview is opt-in, bounded to 25m / 6km profiles and respects the update interval', () async {
-    var time = DateTime.utc(2026), calls = 0, maxPoints = 0;
-    final messages = <Map<String, dynamic>>[];
-    final c = LiveRadioController(
-      now: () => time,
-      send: (m) async {
-        messages.add(m);
-      },
-      sample: (points) async {
-        calls++;
-        maxPoints = points.length;
-        return List.filled(points.length, 500);
-      },
-    );
-    addTearDown(c.dispose);
-    c.renderer(true);
-    c.telemetry(pose());
-    expect(calls, 0);
-    await c.configure(const LiveRadioSettings(enabled: true));
-    c.telemetry(pose());
-    await c.settled;
-    expect(c.current, true);
-    expect(c.result!.state, RadioPathState.noSampledObstruction);
-    expect(maxPoints, lessThanOrEqualTo(256));
-    c.telemetry(pose());
-    await c.settled;
-    expect(calls, 1);
-    time = time.add(const Duration(seconds: 2));
-    c.telemetry(pose(lon: 8.006));
-    await c.settled;
-    expect(calls, 2);
-    time = time.add(const Duration(seconds: 2));
-    c.telemetry(pose(lon: 8.2));
-    await c.settled;
-    expect(calls, 2);
-    expect(c.current, false);
-    expect(c.status, contains('6 km'));
-    expect(messages.last['rays'], isEmpty);
-    c.telemetry(pose(id: 2, lon: 8.0));
-    await c.settled;
-    expect(c.status, contains('vertical'));
-    expect(c.current, false);
-  });
+  test(
+    'preview can be disabled and remains bounded to 256 samples / 6km',
+    () async {
+      var time = DateTime.utc(2026), calls = 0, maxPoints = 0;
+      final messages = <Map<String, dynamic>>[];
+      final c = LiveRadioController(
+        now: () => time,
+        send: (m) async {
+          messages.add(m);
+        },
+        sample: (points) async {
+          calls++;
+          maxPoints = points.length;
+          return List.filled(points.length, 500);
+        },
+      );
+      addTearDown(c.dispose);
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings(enabled: false));
+      c.telemetry(pose());
+      expect(calls, 0);
+      await c.configure(const LiveRadioSettings(enabled: true));
+      c.telemetry(pose());
+      await c.settled;
+      expect(c.current, true);
+      expect(c.result!.state, RadioPathState.noSampledObstruction);
+      expect(maxPoints, lessThanOrEqualTo(256));
+      c.telemetry(pose());
+      await c.settled;
+      expect(calls, 1);
+      time = time.add(const Duration(seconds: 2));
+      c.telemetry(pose(lon: 8.006));
+      await c.settled;
+      expect(calls, 2);
+      time = time.add(const Duration(seconds: 2));
+      c.telemetry(pose(lon: 8.2));
+      await c.settled;
+      expect(calls, 2);
+      expect(c.current, false);
+      expect(c.status, contains('6 km'));
+      expect(messages.last['rays'], isEmpty);
+      c.telemetry(pose(id: 2, lon: 8.0));
+      await c.settled;
+      expect(c.status, contains('vertical'));
+      expect(c.current, false);
+    },
+  );
 
   test('ridge and Fresnel intrusion remain distinct and a fixed transmitter uses its own terrain reference', () async {
     var ridge = true;
@@ -173,7 +177,7 @@ void main() {
       final settled = c.settled;
       switch (interrupt) {
         case 'disabled':
-          await c.configure(const LiveRadioSettings());
+          await c.configure(const LiveRadioSettings(enabled: false));
         case 'pause':
           c.telemetry(pose(paused: true));
         case 'respawn':

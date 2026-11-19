@@ -203,8 +203,8 @@
                 <label>HUD <select id="flight-hud-style" aria-label="Flight HUD style"><option value="goggles">Goggles</option><option value="betaflight">Betaflight OSD</option></select></label>
                 <label><input id="flight-show-coordinates" type="checkbox">Koordinaten</label>
                 <fieldset id="flight-signal-hud-settings"><legend>Simuliertes Funksignal · HUD</legend>
-                    <label><input id="flight-signal-dji" type="checkbox">DJI: Signalwarnung am unteren Bildrand</label>
-                    <label><input id="flight-signal-bars" type="checkbox">Betaflight: Signalbalken (Video / RC getrennt)</label>
+                    <label><input id="flight-signal-dji" type="checkbox" checked>DJI: Signalwarnung am unteren Bildrand</label>
+                    <label><input id="flight-signal-bars" type="checkbox" checked>Betaflight: Signalbalken (Video / RC getrennt)</label>
                     <label><input id="flight-signal-analog" type="checkbox">Betaflight: analoges Bildrauschen</label>
                     <label><input id="flight-signal-terrain" type="checkbox">Geländerisiko als Videovorschau darstellen (nur Illustration)</label>
                     <label>Störintensität <input id="flight-signal-intensity" type="range" min="0" max="100" step="5" value="65"></label>
@@ -297,6 +297,8 @@
     <script src="ground_navigation.js"></script>
     <script src="battery_simulation.js"></script>
     <script src="signal_hud.js"></script>
+    <script src="rf_estimation.js"></script>
+    <script src="rescue_velocity.js"></script>
     <script src="simulated_failsafe.js"></script>
     <script src="free_flight.js"></script>
     <script src="flight_recording.js"></script>

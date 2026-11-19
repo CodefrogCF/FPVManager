@@ -69,7 +69,12 @@ void main() {
       controller.queryTerrainElevation(latitude: 46.7, longitude: 8.4),
       throwsStateError,
     );
-    expect(renderer.commands, isEmpty);
+    expect(
+      renderer.commands.where(
+        (command) => command['type'] == 'query-terrain-elevation',
+      ),
+      isEmpty,
+    );
   });
 
   test('fallback map picks have an unverified height reference', () {
@@ -133,11 +138,20 @@ void main() {
       final first = controller.retryTerrain();
       await controller.retryTerrain();
       await Future<void>.delayed(Duration.zero);
-      expect(renderer.commands.single['type'], 'retry-terrain');
+      expect(
+        renderer.commands.where(
+          (command) => command['type'] == 'retry-terrain',
+        ),
+        hasLength(1),
+      );
       expect(controller.terrainRetrying, isTrue);
       status('loading');
       status('ready');
-      renderer.acknowledge(renderer.commands.single);
+      renderer.acknowledge(
+        renderer.commands.singleWhere(
+          (command) => command['type'] == 'retry-terrain',
+        ),
+      );
       await first;
       expect(controller.terrainRetrying, isFalse);
       expect(controller.terrainAvailable, isTrue);
@@ -179,6 +193,9 @@ void main() {
     status('offline', 'diagnosticOffline');
     expect(controller.canRetryTerrain, isFalse);
     await controller.retryTerrain();
-    expect(renderer.commands, isEmpty);
+    expect(
+      renderer.commands.where((command) => command['type'] == 'retry-terrain'),
+      isEmpty,
+    );
   });
 }
