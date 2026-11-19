@@ -112,6 +112,8 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Prepare verified SQLite Android libraries
         run: python3 tool/prepare_sqlite_android.py
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
       - name: Build Android
         run: flutter build apk --debug --no-pub
       - name: Verify Android package assets
