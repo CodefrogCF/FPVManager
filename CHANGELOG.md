@@ -1,7 +1,19 @@
 # Change summary
 
-### [Unreleased] - 2026-11-19
+### [Unreleased] - 2026-11-20
 
+- Correct live battery consumption during zero-throttle free fall: Acro/Angle
+  power estimates now account for simulated motor thrust rather than treating
+  vertical falling airspeed as powered forward flight. Remove the arbitrary 10%
+  live power uplift and preserve separate GPS/replay speed-based estimates.
+- Treat a battery internal-resistance override of `0 mΩ` as unspecified,
+  selecting the chemistry-based approximation rather than a physically ideal
+  zero-resistance pack. Preserve positive manufacturer-specific values.
+- Explicitly exclude visual-only radio LoS/Fresnel and ground-station Cesium
+  entities from model-collision height sampling. They remain visible but cannot
+  be interpreted as 3D model surfaces.
+- Make the Chrome simulation/dropdown iframe-input regression independent of
+  responsive close-button visibility and translated option labels.
 - Keep a confirmed simulated RC reconnection available for deliberate GPS
   Rescue pilot takeover throughout the return flight, including short terrain
   sampling gaps and link values within the RF hysteresis band. Revoke takeover

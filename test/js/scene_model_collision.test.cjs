@@ -84,3 +84,39 @@ test('minimal scenes also defer depth queries instead of falling back to synchro
     f.probe.collision(f.a,f.b);assert.equal(f.attempts(),0);assert.equal(f.timers.size,1);
     f.flush();assert.equal(f.attempts(),1);assert.equal(f.probe.collision(f.a,f.b),'model');f.probe.dispose();
 });
+
+
+test('line-of-sight and Fresnel entities are excluded from model collision height probes',()=>{
+    const f=fixture({top:145});
+    const line={id:'signal-ray-0'},fresnel={id:'signal-envelope-0'},station={id:'live-radio-ground-station'};
+    const physical={id:'real-model'};
+    const dataSources=[
+        {fpvVisualOnly:true,entities:{values:[line,fresnel]}},
+        {fpvVisualOnly:true,entities:{values:[station]}},
+        {fpvVisualOnly:false,entities:{values:[physical]}}
+    ];
+    // Cesium's DataSourceCollection API has length/get(index), no .values.
+    f.viewer.dataSources={length:dataSources.length,get:index=>dataSources[index]};
+    let sampled=false;
+    f.viewer.scene.sampleHeight=(_point,excluded,width)=>{
+        sampled=true;
+        assert.equal(width,.5);
+        assert.deepEqual(excluded,[line,fresnel,station]);
+        assert.ok(!excluded.includes(physical));
+        // Without exclusion the visual-only 145 m beam would look collidable.
+        return excluded.includes(line) ? 100 : 145;
+    };
+    f.probe.setEnabled(true);
+    const path={...f.a,height:145};
+    f.probe.collision(path,path);f.flush();
+    assert.equal(sampled,true);
+    assert.equal(f.probe.collision(path,path),false,'radio line must not brake the drone');
+    // 100 km/h is about 0.46 m per 60-Hz physics step. The radio beam
+    // must not turn any of these otherwise clear sweeps into a hard stop.
+    for(let i=0;i<60;i++){
+        const a={...path,longitude:path.longitude+i*.46/75000};
+        const b={...a,longitude:a.longitude+.46/75000};
+        assert.equal(f.probe.collision(a,b),false);
+    }
+    f.probe.dispose();
+});

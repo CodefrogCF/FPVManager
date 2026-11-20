@@ -40,6 +40,7 @@
             stationSource = null;
             if (position) {
                 stationSource = new Cesium.CustomDataSource('Simulated ground station');
+                stationSource.fpvVisualOnly = true;
                 stationSource.entities.add({id:'live-radio-ground-station', name:'Ground station (simulated)',
                     position:Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude),
                     point:{pixelSize:12, color:Cesium.Color.YELLOW,

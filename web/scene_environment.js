@@ -4525,6 +4525,22 @@
                 (!C.SceneMode||scene.mode===C.SceneMode.SCENE3D)&&scene.sampleHeightSupported&&
                 typeof scene.sampleHeight==='function'&&typeof scene.globe?.getHeight==='function';
         }
+        function visualOnlyExclusions(){
+            // Cesium sampleHeight also intersects arbitrary rendered polylines.
+            // Exclude analytical line-of-sight/Fresnel entities rather than
+            // treating their apparent height as a physical model surface.
+            // DataSourceCollection exposes get(index)/length, not .values;
+            // EntityCollection exposes .values.
+            const results=[],collection=viewer.dataSources;
+            if(!collection)return results;
+            const count=Number.isInteger(collection.length)?collection.length:0;
+            for(let i=0;i<count;i++){
+                const source=collection.get(i);
+                if(source?.fpvVisualOnly!==true)continue;
+                for(const entity of source.entities?.values??[])results.push(entity);
+            }
+            return results;
+        }
         function sample(){
             timer=null;
             const target=requested;requested=null;
@@ -4532,7 +4548,8 @@
             const time=now();nextSampleAt=time+MIN_INTERVAL_MS;
             try{
                 const point=C.Cartographic.fromDegrees(target.longitude,target.latitude);
-                const top=scene.sampleHeight(point,undefined,.5),ground=scene.globe.getHeight(point);
+                const top=scene.sampleHeight(point,visualOnlyExclusions(),.5),
+                    ground=scene.globe.getHeight(point);
                 const sampled=now();lastSampleMs=Math.max(0,sampled-time);samples++;
                 nextSampleAt=sampled+Math.min(MAX_INTERVAL_MS,
                     Math.max(MIN_INTERVAL_MS,lastSampleMs*12));

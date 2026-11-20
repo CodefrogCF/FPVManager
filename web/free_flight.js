@@ -390,8 +390,18 @@
                 next=p;nextHeight=z;nextGround=h;
             }
             if(next){position=next;height=nextHeight;ground=nextGround;}
-            if(battery){const airspeed=Math.hypot(velocity.north-wind.north,velocity.east-wind.east,velocity.up-wind.up);
-                battery.tick(dt,airspeed,velocity.up);}
+            if(battery){
+                // Use horizontal air-relative speed for the speed/load proxy.
+                // A zero-throttle dive must not drain the pack as if its falling
+                // velocity were high powered forward flight. GPS Rescue uses
+                // its own assisted controller and keeps the level-flight model.
+                const horizontalAirSpeed=Math.hypot(velocity.north-wind.north,velocity.east-wind.east);
+                const thrustG=controlled||config.flightMode==='gps'?null:
+                    config.flightMode==='acro'?Math.max(0,motorThrust/g):
+                    Math.max(0,1+throttle*(throttle>=0?config.acceleration/g:1));
+                battery.tick(dt,horizontalAirSpeed,velocity.up,
+                    thrustG===null?null:{thrustToWeight:thrustG});
+            }
             if(contact){brake();reason=waitingForTunnel ?
                 'Tunnel continuation loading: movement paused':
                 'Terrain contact: movement stopped';}else reason=null;

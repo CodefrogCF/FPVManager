@@ -99,7 +99,15 @@ void main() {
         find.byType(DropdownButtonFormField<SimulationFlightMode>),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Acro · freie Drehraten').last);
+      await tester.tap(
+        find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is DropdownMenuItem<SimulationFlightMode> &&
+                  widget.value == SimulationFlightMode.acro,
+            )
+            .last,
+      );
       await tester.pumpAndSettle();
       expect(frame.style.pointerEvents, 'none');
       await tester.enterText(
@@ -113,7 +121,10 @@ void main() {
             .text,
         '45',
       );
-      await tester.tap(find.byTooltip('Flugeinstellungen schließen'));
+      // The sheet title/close control is responsive and can disappear when
+      // a browser text input brings up the soft keyboard. Pop the modal route
+      // as a user would with browser/system Back, independent of its layout.
+      expect(await tester.binding.handlePopRoute(), isTrue);
       await tester.pumpAndSettle();
       expect(frame.style.pointerEvents, 'auto');
       expect(frame.tabIndex, 0);

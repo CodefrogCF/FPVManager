@@ -52,6 +52,7 @@ test('ground station marker survives expired/cleared rays and can be hidden inde
     layer.setStation(point);
     assert.equal(sources.length,1);
     assert.equal(sources[0].entities.values[0].id,'live-radio-ground-station');
+    assert.equal(sources[0].fpvVisualOnly,true);
     layer.set({...state,showPilot:false});
     assert.equal(sources.length,2);
     assert.equal(sources[1].entities.values.some(e=>e.id==='signal-pilot'),false);

@@ -29,12 +29,12 @@
         const maxPower=maxSpeed!==null&&number(p.maxPowerWatts,p.cruisePowerWatts,100000)
             ?p.maxPowerWatts:null;
         const dischargeC=number(p.continuousDischargeC,.01,1000)?p.continuousDischargeC:cell.referenceContinuousC;
-        const resistance=number(p.resistanceOhmsPerCell,0,.5)?p.resistanceOhmsPerCell:
+        const resistance=number(p.resistanceOhmsPerCell,.000001,.5)?p.resistanceOhmsPerCell:
             cell.resistanceOhmsAt1Ah/Math.max(.001,p.capacityMah/1000);
         const burstC=number(p.burstDischargeC,.01,1000)?p.burstDischargeC:null;
         const burstSeconds=number(p.burstDurationSeconds,.01,3600)?p.burstDurationSeconds:null;
         const validBurst=burstC!==null&&burstSeconds!==null&&burstC>=dischargeC;
-        const specificResistance=number(p.resistanceOhmsPerCell,0,.5);
+        const specificResistance=number(p.resistanceOhmsPerCell,.000001,.5);
         const driveCount=Number.isInteger(p.motorCount)&&p.motorCount>=1&&p.motorCount<=32?p.motorCount:null;
         const escLimit=number(p.escContinuousCurrentAmpsPerChannel,.001,1000)?p.escContinuousCurrentAmpsPerChannel:null;
         const motorLimit=number(p.motorContinuousCurrentAmpsPerMotor,.001,1000)?p.motorContinuousCurrentAmpsPerMotor:null;
@@ -60,6 +60,25 @@
         }
         if(v<=c)return {watts:p.hoverPowerWatts+(p.cruisePowerWatts-p.hoverPowerWatts)*v/c,extrapolated:false};
         return {watts:p.cruisePowerWatts*(1+.5*clamp((v-c)/c,0,4)),extrapolated:true};
+    }
+    // A live Acro/Angle flight has a motor-thrust estimate. Horizontal motion
+    // alone cannot consume propulsive power: a drone in a zero-throttle dive
+    // can retain substantial airspeed while its propellers are nearly idle.
+    // Level-power interpolation remains the proxy for GPS flight and replay,
+    // where actual motor thrust is not reconstructed from recorded positions.
+    function poweredFlightPower(p,horizontalAirSpeed,thrustToWeight){
+        const level=levelPower(p,horizontalAirSpeed);
+        if(!Number.isFinite(thrustToWeight)||thrustToWeight<0||thrustToWeight>12)
+            return {watts:level.watts,extrapolated:level.extrapolated};
+        const idleWatts=clamp(p.hoverPowerWatts*.08,10,25);
+        // Hover calibration: exactly hoverPowerWatts at one g and zero speed.
+        // Forward flight adds a bounded share of the configured speed load;
+        // actual thrust, not falling airspeed, gates propulsive consumption.
+        const forwardCost=Math.max(0,level.watts-p.hoverPowerWatts)*.65;
+        const propulsiveWatts=(p.hoverPowerWatts+forwardCost-idleWatts)*
+            Math.pow(thrustToWeight,1.5);
+        return {watts:clamp(idleWatts+propulsiveWatts,idleWatts,
+            p.maxPower??100000),extrapolated:level.extrapolated};
     }
     function estimateLoad(p,soc,power,resistance,secondsAboveContinuous=0){
         const openCell=openCircuitCellVoltage(soc,p.cell);
@@ -119,12 +138,17 @@
                 level:cellVoltage<=critical?'critical':cellVoltage<=low?'low':'normal',
                 source:'estimated',sagApplied:resistance>0};
         }
-        function tick(dt,airSpeed,verticalSpeed){
+        function tick(dt,horizontalAirSpeed,verticalSpeed,flightLoad=null){
             if(!number(dt,0,.5)||dt===0)return snapshot();
-            const base=levelPower(p,airSpeed);
+            const thrustG=flightLoad&&Number.isFinite(flightLoad.thrustToWeight)
+                ?flightLoad.thrustToWeight:null;
+            const base=poweredFlightPower(p,horizontalAirSpeed,thrustG);
             extrapolated=extrapolated||base.extrapolated;
-            const climb=p.massKg===null?0:p.massKg*9.80665*Math.max(0,Number.isFinite(verticalSpeed)?verticalSpeed:0)/.65;
-            estimatedPowerWatts=clamp(base.watts*1.1+climb,0,100000);
+            // Thrust already includes the cost of climbing in manual flight.
+            // GPS/replay do not expose thrust; use a separate climb-work proxy.
+            const climb=thrustG===null&&p.massKg!==null
+                ?p.massKg*9.80665*Math.max(0,Number.isFinite(verticalSpeed)?verticalSpeed:0)/.65:0;
+            estimatedPowerWatts=clamp(base.watts+climb,0,100000);
             const load=estimateLoad(p,currentSoc(),estimatedPowerWatts,resistance,secondsAboveContinuous);
             // Conservative continuous accumulation: once the burst allowance is exhausted,
             // it is not automatically reset by a short idle interval.
@@ -139,5 +163,5 @@
         }
         return {tick,snapshot,get consumedWh(){return consumedWh;}};
     }
-    return {create,normalize,chemistry,levelPower,openCircuitCellVoltage,estimateLoad};
+    return {create,normalize,chemistry,levelPower,poweredFlightPower,openCircuitCellVoltage,estimateLoad};
 });

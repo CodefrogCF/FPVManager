@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {create,normalize,levelPower}=require('../../web/battery_simulation.js');
+const {create,normalize,levelPower,poweredFlightPower}=require('../../web/battery_simulation.js');
 const {createSimulator,parameters}=require('../../web/free_flight.js');
 const {create:makeHud}=require('../../web/flight_hud.js');
 const profile={batteryId:1,chemistry:'LiPo',cellCount:6,capacityMah:4500,
@@ -128,4 +128,48 @@ test('battery HUD labels the independent ESC and motor proxy warnings as estimat
             escPossiblyOverloaded:true,motorPossiblyOverloaded:false}},0);
     assert.ok(nodes.get('hud-battery-status').textContent.includes('ESC?'));
     assert.ok(!nodes.get('hud-battery-status').textContent.includes('MOTOR?'));
+});
+
+
+test('7-inch 6S 4500 mAh Acro battery draw is motor-load based, not free-fall speed based', async()=>{
+    const battery={...profile,chemistry:'LiPo',capacityMah:4500,continuousDischargeC:120,
+        resistanceOhmsPerCell:0,takeoffWeightGrams:1320};
+    const p=normalize(battery);
+    assert.equal(p.capacityWh,99.9);
+    assert.ok(p.resistance>0,'an entered 0 mΩ is not a measured zero-resistance pack');
+    assert.equal(poweredFlightPower(p,0,1).watts,p.hoverPowerWatts);
+    assert.equal(poweredFlightPower(p,30,0).watts,p.hoverPowerWatts*.08,
+        'zero motor thrust must use avionics/idle power, not 30 m/s windspeed');
+    assert.ok(poweredFlightPower(p,17,1).watts < p.cruisePowerWatts,
+        'initial calibration should not add arbitrary 10% to configured cruise watts');
+    const falling=simulator(),powered=simulator();
+    for(const f of [falling,powered])
+        await start(f.sim,{flightMode:'acro',agl:850,batteryProfile:battery});
+    powered.sim.flightInput({throttle:.5,yaw:0,pitch:0,roll:0});
+    // Zero motor input: gravity accelerates the drone to high falling speed.
+    advance(falling.sim,8);
+    const free=falling.sim.status();
+    assert.ok(free.verticalSpeed < -10,'the aircraft should actually free-fall');
+    assert.ok(free.airspeedMetersPerSecond>10);
+    assert.ok(free.battery.estimatedPowerWatts<=20,'unpowered flight should draw electronics-level power');
+    assert.ok(free.battery.consumedWh<.05,'eight seconds of idle cannot use hover-flight energy');
+    advance(powered.sim,8);
+    assert.ok(powered.sim.status().battery.consumedWh>free.battery.consumedWh*10,
+        'the same duration of powered hover must draw considerably more energy');
+    falling.sim.stop();powered.sim.stop();
+});
+
+test('powered motor demand, not descent rate, controls consumption in Acro',()=>{
+    const pack=normalize(profile);
+    const idle=poweredFlightPower(pack,35,0).watts;
+    const hover=poweredFlightPower(pack,0,1).watts;
+    const ascent=poweredFlightPower(pack,0,2).watts;
+    assert.ok(idle<hover && hover<ascent);
+    const dive=create(profile),normal=create(profile);
+    for(let i=0;i<600;i++){
+        dive.tick(.05,35,-20,{thrustToWeight:0});
+        normal.tick(.05,0,0,{thrustToWeight:1});
+    }
+    assert.ok(dive.consumedWh<normal.consumedWh*.1);
+    assert.ok(dive.snapshot().remainingPercent>normal.snapshot().remainingPercent);
 });
