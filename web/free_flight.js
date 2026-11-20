@@ -78,6 +78,9 @@
         let lastFrameSeconds=1/60;
         let wind={north:0,east:0,up:0},windInfo=null;
         let battery=null,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
+        // A Cesium globe tile can be absent even when the terrain provider is ready.
+        // Unknown heights must not be converted to a contact or a fabricated floor.
+        let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
         const failsafe=failsafeModule.create();
         const keys=new Set();
         // Self-centring sticks: Acro uses only the upper half for motor command.
@@ -98,6 +101,7 @@
             controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
+            terrainVerification:{...terrainVerification},
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
             // Simulator-modelled 3D air-relative speed. Never a measured sensor
             // reading; wind is the current simulated wind vector, not a forecast.
@@ -110,6 +114,7 @@
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;lastFrameSeconds=1/60;active=pending=paused=playback=false;reason=message;
             windInfo=null;wind={north:0,east:0,up:0};battery=null;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
+            terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
         }
@@ -371,14 +376,22 @@
             }
             const steps=Math.max(1,Math.ceil(horizontal/.5));
             let next=null,nextHeight=height,nextGround=null,contact=false,waitingForTunnel=false;
+            let missingSamples=Number(!Number.isFinite(floor)),unverifiedMeters=0;
             for(let i=1;i<=steps;i++){
                 const fraction=i/steps,p=i===steps?endpoint:move(position,travel.north*fraction,travel.east*fraction);
                 if(!valid(p)){brake();reason='Supported latitude limit reached';pose();return;}
-                // Vertical-only movement reuses the floor sampled above. The
-                // ray sweep and every <=0.5 m horizontal probe stay in place.
+                // A missing rendered tile is UNKNOWN, not a solid obstacle or
+                // evidence of clear terrain. Keep the regular mesh/model ray
+                // collisions, check every available terrain sample and expose
+                // unverified travel to the pilot. No height is extrapolated.
                 const z=height+travel.up*fraction;
                 const h=p===position?floor:renderedHeight({...p,height:z});
-                if(!Number.isFinite(h)){brake();ground=null;reason='Movement paused: terrain tiles not loaded';pose();return;}
+                if(!Number.isFinite(h)){
+                    missingSamples++;
+                    unverifiedMeters+=horizontal/steps;
+                    next=p;nextHeight=z;nextGround=null;
+                    continue;
+                }
                 if(z<h+.5){
                     if(onSurfaceDiscontinuity({position:{...p},height:z,
                         previousGround:nextGround??floor,nextGround:h})){
@@ -390,6 +403,9 @@
                 next=p;nextHeight=z;nextGround=h;
             }
             if(next){position=next;height=nextHeight;ground=nextGround;}
+            terrainVerification={state:missingSamples===0?'complete':missingSamples===steps+1?'unavailable':'partial',
+                samples:steps+1,missingSamples,
+                unverifiedDistanceMeters:terrainVerification.unverifiedDistanceMeters+unverifiedMeters};
             if(battery){
                 // Use horizontal air-relative speed for the speed/load proxy.
                 // A zero-throttle dive must not drain the pack as if its falling
@@ -404,7 +420,8 @@
             }
             if(contact){brake();reason=waitingForTunnel ?
                 'Tunnel continuation loading: movement paused':
-                'Terrain contact: movement stopped';}else reason=null;
+                'Terrain contact: movement stopped';}
+            else reason=missingSamples?'Terrain collision unverified: tiles still loading':null;
             pose();
         }
         async function reset(signal){

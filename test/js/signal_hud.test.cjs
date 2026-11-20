@@ -91,14 +91,37 @@ test('Betaflight bars and analog interference are independently optional',()=>{
     assert.equal(n.get('hud-signal-bars').hidden,true);
 });
 
-test('unknown/expired data never produces a spurious warning or interference',()=>{
-    const n=nodes(),view=signal.create(n.doc,{now:()=>1000});
-    view.update({...defaultState,hudStyle:'betaflight'},geometry('obstructed'));
-    view.update({...defaultState,hudStyle:'betaflight'},geometry('unknown'));
-    assert.equal(n.get('hud-analog-noise').hidden,true);
-    assert.equal(n.get('hud-signal-video').dataset.known,'false');
+test('analog noise bridges subsecond RF gaps but RF indicators remain unknown',()=>{
+    let stamp=1000;
+    const n=nodes(),view=signal.create(n.doc,{now:()=>stamp}),state={...defaultState,hudStyle:'betaflight'};
+    view.update(state,geometry('obstructed'));
+    stamp+=100;view.update(state,geometry('obstructed')); // First frame may intentionally simulate a dropout.
+    const initial=Number(n.get('hud-analog-noise').style.opacity);
+    stamp+=500;view.update(state,geometry('unknown'));
+    assert.equal(n.get('hud-analog-noise').hidden,false);
+    assert.equal(n.get('hud-analog-noise').dataset.holdover,'true');
+    assert.ok(Number(n.get('hud-analog-noise').style.opacity)>=initial);
+    assert.equal(n.get('hud-signal-video').dataset.known,'false','visual holdover is NOT an RF estimate');
+    assert.equal(n.get('hud-signal-rc').dataset.known,'false');
+    stamp+=350;view.update(state,geometry('unknown'));
+    assert.equal(n.get('hud-analog-noise').hidden,false);
+    stamp+=100;view.update(state,geometry('obstructed'));
+    assert.equal(n.get('hud-analog-noise').hidden,false,'returning telemetry is continuous');
+    assert.equal(n.get('hud-analog-noise').dataset.holdover,'false');
+    stamp+=1300;view.update(state,geometry('unknown'));
+    assert.equal(n.get('hud-analog-noise').hidden,true,'no indefinitely stale interference');
     view.update(defaultState,geometry('unknown'));
-    assert.equal(n.get('hud-signal-edge').hidden,true);
+    assert.equal(n.get('hud-signal-edge').hidden,true,'unknown is not a video warning');
+});
+
+test('analog holdover resets between flights and never starts without an RF estimate',()=>{
+    let stamp=0;const n=nodes(),view=signal.create(n.doc,{now:()=>stamp});
+    const state={...defaultState,hudStyle:'betaflight'};
+    view.update(state,geometry('unknown'));assert.equal(n.get('hud-analog-noise').hidden,true);
+    view.update(state,geometry('fresnelIntrusion'));
+    stamp+=300;view.update(state,geometry('unknown'));assert.equal(n.get('hud-analog-noise').hidden,false);
+    view.reset();view.update(state,geometry('unknown'));
+    assert.equal(n.get('hud-analog-noise').hidden,true);
 });
 
 test('flight HUD resets smoothing when the flight id changes',()=>{

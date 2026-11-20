@@ -73,6 +73,7 @@
         '{0} · {1} samples · temporary': '{0} · {1} Messpunkte · temporär',
         'Terrain contact: movement stopped': 'Geländekontakt: Bewegung gestoppt',
         'Movement paused: terrain tiles not loaded': 'Bewegung pausiert: Geländekacheln fehlen',
+        'Terrain collision unverified: tiles still loading': 'Geländekollision ungeprüft: Kacheln werden geladen',
         'Terrain unavailable; returned to globe view': 'Gelände nicht verfügbar. Zurück zur Karte.',
         'Tunnel continuation loading: movement paused': 'Tunnel wird nachgeladen. Bewegung pausiert.',
         'Simulated bridge or support surface contact: movement stopped': 'Kontakt mit Brücke oder Pfeiler: Bewegung gestoppt',

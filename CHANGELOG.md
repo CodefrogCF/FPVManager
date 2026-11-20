@@ -2,6 +2,15 @@
 
 ### [Unreleased] - 2026-11-20
 
+- Allow simulated long-range flight to continue when individual rendered
+  Cesium terrain heights are unavailable, without inventing ground clearance;
+  keep loaded terrain/model collisions and expose unverified-distance diagnostics.
+- Maintain visual-only analog video interference across brief (<1.1 s) missing
+  video RF updates, with occasional extra flicker; keep RC/video signal state
+  unknown and never reuse these visuals for failsafe decisions.
+- Add a deterministic CPU-only 49.9 km long-range terrain-gap benchmark and
+  regression tests; document that device/GPU and real terrain performance
+  still require measurement.
 - Correct live battery consumption during zero-throttle free fall: Acro/Angle
   power estimates now account for simulated motor thrust rather than treating
   vertical falling airspeed as powered forward flight. Remove the arbitrary 10%

@@ -428,17 +428,51 @@ test('keyboard uses gas E/Q, yaw A/D, pitch W/S and roll arrows',async()=>{
     p.model.key('w',true);p.model.key('ArrowRight',true);advance(p.model);
     assert.ok(p.model.status().roll>0&&p.model.status().pitch<0);
 });
-test('terrain sweeps stop at raised terrain and missing tiles do not allow blind movement',async()=>{
+test('terrain sweeps stop at raised terrain while missing tiles expose unverified movement',async()=>{
     const p=setup({renderedHeight:position=>position.latitude>spawn.latitude+1/111320?1100:1000});
     await start(p,{maxSpeed:100,acceleration:50});input(p.model,{pitch:1,throttle:1});advance(p.model,2);
     assert.ok(distance(spawn,p.model.status().position)<1.5);assert.equal(p.model.status().speed,0);
     assert.match(p.model.status().reason,/Terrain contact/);
     const unknown=setup();await start(unknown);input(unknown.model,{pitch:1});unknown.ground(undefined);advance(unknown.model);
-    assert.deepEqual(unknown.model.status().position,spawn);assert.equal(unknown.model.status().agl,null);
-    unknown.ground(1000);advance(unknown.model);assert.ok(unknown.model.status().position.latitude>spawn.latitude);
+    assert.ok(unknown.model.status().position.latitude>spawn.latitude,'missing rendered tiles do not freeze long-range flight');
+    assert.equal(unknown.model.status().agl,null,'unknown ground must not invent clearance');
+    assert.equal(unknown.model.status().terrainVerification.state,'unavailable');
+    assert.ok(unknown.model.status().terrainVerification.unverifiedDistanceMeters>0);
+    assert.match(unknown.model.status().reason,/unverified/);
+    unknown.ground(1000);advance(unknown.model);
+    assert.ok(unknown.model.status().position.latitude>spawn.latitude);
+    assert.equal(unknown.model.status().terrainVerification.state,'complete');
+    assert.equal(unknown.model.status().reason,null);
     const ray=setup({terrainCollision:()=>true});await start(ray);input(ray.model,{pitch:1});advance(ray.model);
     assert.deepEqual(ray.model.status().position,spawn);assert.match(ray.model.status().reason,/Terrain contact/);
 });
+test('missing far-distance terrain cannot halt a 15 km flight or synthesize a collision',async()=>{
+    const far=setup({renderedHeight:p=>distance(spawn,p)>8200?undefined:1000});
+    await start(far,{flightMode:'gps',agl:500,maxSpeed:100,acceleration:50});
+    far.model.stick(1,0);
+    advance(far.model,185,30);
+    const result=far.model.status();
+    assert.ok(result.distance>14500,`simulated distance ${result.distance.toFixed(0)} m`);
+    assert.equal(result.terrainVerification.state,'unavailable');
+    assert.ok(result.terrainVerification.missingSamples>0);
+    assert.ok(result.terrainVerification.unverifiedDistanceMeters>5000);
+    assert.equal(result.agl,null);
+    assert.ok(result.speed>50,'temporary tile unavailability must not zero the speed');
+    assert.match(result.reason,/unverified/);
+});
+
+test('known terrain contacts remain active across an intervening missing tile',async()=>{
+    const p=setup({renderedHeight:point=>{
+        const d=distance(spawn,point);
+        return d<.7?1000:d<1.4?undefined:1100;
+    }});
+    await start(p,{flightMode:'gps',agl:20,maxSpeed:100,acceleration:50});p.model.stick(1,0);
+    advance(p.model,2);
+    assert.ok(distance(spawn,p.model.status().position)<1.5);
+    assert.equal(p.model.status().speed,0);
+    assert.match(p.model.status().reason,/Terrain contact/);
+});
+
 test('descent and refined terrain never put any mode below the surface, including while paused',async()=>{
     for(const mode of ['gps','angle','acro']){
         const p=setup();await start(p,{agl:1,flightMode:mode});p.model.vertical(-1);advance(p.model,10);

@@ -61,7 +61,10 @@
             videoLabel=doc.getElementById('hud-signal-video-label'),
             noise=doc.getElementById('hud-analog-noise');
         let previous='unknown',smoothed=null,lastAt=null,frame=0;
+        let lastVideoAt=null,lastAnalogNoise=0;
+        const transientVideoGapMs=1100; // aesthetic hold, never RC or measured RF state
         function reset(){previous='unknown';smoothed=null;lastAt=null;frame=0;
+            lastVideoAt=null;lastAnalogNoise=0;
             edge.hidden=bars.hidden=noise.hidden=true;
             noise.style.opacity='0';}
         function update(state,assessment){
@@ -73,7 +76,10 @@
                 // Time-based first-order smoothing, with immediate first sample.
                 const alpha=1-Math.exp(-elapsed/0.55);
                 smoothed=smoothed===null?target.video.quality:smoothed+(target.video.quality-smoothed)*alpha;
-            }else smoothed=null;
+                lastVideoAt=stamp;
+            }else if(lastVideoAt===null||stamp-lastVideoAt>transientVideoGapMs){
+                smoothed=null;
+            }
             lastAt=stamp;
             const output=evaluate({...assessment,videoLink:target.video},cfg,previous);
             // Preserve the smoothed value, including for terrain illustration.
@@ -103,22 +109,30 @@
                     ?'Terrain-risk illustration only: not an RF signal prediction'
                     :simulatedMetrics(assessment?.videoLink);
             }
-            noise.hidden=!(style==='betaflight'&&cfg.analogNoise&&target.video);
+            // Short missing RF/terrain updates must not switch the *visual*
+            // analog interference off and on. Only the effect remembers the
+            // previous estimate: RC/video bars remain unknown, and no failsafe
+            // decisions use the holdover. After 1.1 s, release it entirely.
+            if(target.video)lastAnalogNoise=effective.noise;
+            const transientGap=!target.video&&lastVideoAt!==null&&
+                stamp-lastVideoAt>=0&&stamp-lastVideoAt<=transientVideoGapMs;
+            const visualNoise=target.video?effective.noise:transientGap?lastAnalogNoise:0;
+            noise.hidden=!(style==='betaflight'&&cfg.analogNoise&&(target.video||transientGap));
             if(!noise.hidden){
-                // No canvas readback or texture allocation; the effect runs only
-                // at the already bounded HUD update cadence (~10 Hz).
-                noise.dataset.level=effective.videoLevel;
-                // Short, deterministic frame dropouts illustrate severe analog
-                // video loss without pausing or altering the flight simulator.
-                const dropout=(effective.videoLevel==='lost'&&cfg.analogIntensity>.3&&frame%7<3)||
-                    (effective.videoLevel==='critical'&&effective.noise>.58&&frame%25===0);
-                noise.dataset.dropout=String(dropout);
-                noise.style.opacity=String(dropout ? .96 : effective.noise);
+                // No canvas readback or texture allocation; effect runs only
+                // at the bounded HUD update cadence (~10 Hz).
+                noise.dataset.level=target.video?effective.videoLevel:'unknown';
+                noise.dataset.holdover=String(transientGap);
+                // Brief extra flicker during uncertainty, then resume the
+                // ordinary smooth noise without a flash to zero.
+                const dropout=target.video&&((effective.videoLevel==='lost'&&cfg.analogIntensity>.3&&frame%7<3)||
+                    (effective.videoLevel==='critical'&&effective.noise>.58&&frame%25===0));
+                const flutter=transientGap&&frame%9===0;
+                noise.dataset.dropout=String(!!dropout);
+                noise.style.opacity=String(dropout ? .96 : flutter?clamp(visualNoise*1.18,0,.96):visualNoise);
                 noise.style.backgroundPosition=`${(frame*29)%113}px ${(frame*41)%107}px`;
-                // Simulated horizontal tape-head tear without filtering Cesium's
-                // full-resolution canvas or allocating extra textures.
                 noise.style.setProperty?.('--tear-position',`${(frame*23)%89+5}%`);
-                noise.style.setProperty?.('--tear-strength',String(clamp(effective.noise*2)));
+                noise.style.setProperty?.('--tear-strength',String(clamp(visualNoise*2)));
                 frame++;
             }else noise.style.opacity='0';
             return effective;
