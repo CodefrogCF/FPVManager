@@ -88,3 +88,11 @@ reuses the existing flight force approximations; it does not yet model actual
 motor/propeller torque or validated battery-dependent thrust. See the
 [physics architecture and timing reference](flight_physics_architecture.md)
 for units, module boundaries, accumulator limits, diagnostics and tests.
+
+## Advanced contact response
+
+Advanced Physics optionally resolves confirmed contact with a terrain normal, bounded surface
+friction and restitution; severe impacts and unsupported model normals still hard-stop.
+All existing swept collision sources, visual-only exclusions and unknown-terrain warnings
+are preserved. See [advanced collision response](../advanced-collision-response.md) for limitations,
+configuration, tests and benchmarks.

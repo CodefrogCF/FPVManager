@@ -11,10 +11,11 @@
         isNode?require('./body_axis_aerodynamics.js'):root.FPVBodyAxisAerodynamics,
         isNode?require('./rotational_dynamics.js'):root.FPVRotationalDynamics,
         isNode?require('./autonomous_flight_control.js'):root.FPVAutonomousFlightControl,
-        isNode?require('./descent_aerodynamics.js'):root.FPVDescentAerodynamics);
+        isNode?require('./descent_aerodynamics.js'):root.FPVDescentAerodynamics,
+        isNode?require('./collision_response.js'):root.FPVCollisionResponse);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics,autonomousControl,descentAerodynamics){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics,autonomousControl,descentAerodynamics,collisionResponse){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -46,6 +47,7 @@
             aerodynamics:bodyAxisAerodynamics.configuration(c.aerodynamics??{},c.acroTerminalVelocity??22.5),
             rotation:rotationalDynamics.configuration(c.rotation??{}),
             descentAerodynamics:descentAerodynamics.configuration(c.descentAerodynamics??{}),
+            collisionResponse:collisionResponse.configuration(c.collisionResponse??{}),
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
             acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0,controller:controller.configuration(c.controller)};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
@@ -90,7 +92,7 @@
         let wind={north:0,east:0,up:0},windInfo=null,flightElapsedSeconds=0;
         let battery=null,propulsion=null,propulsionState=null,propulsionElectrical=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         let flightControl=null; // Latest advanced autonomous guidance/actuator targets.
-        let aeroFloor=null,descentEffects=null;
+        let aeroFloor=null,descentEffects=null,lastCollision=null;
         // A Cesium globe tile can be absent even when the terrain provider is ready.
         // Unknown heights must not be converted to a contact or a fabricated floor.
         let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
@@ -106,7 +108,8 @@
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
         function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,rotation:config.rotation,
-            descentAerodynamics:config.descentAerodynamics,descentEffects,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
+            descentAerodynamics:config.descentAerodynamics,descentEffects,
+            collisionResponse:config.collisionResponse,lastCollision,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
             failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
@@ -145,7 +148,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;aeroFloor=null;descentEffects=null;
+            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;aeroFloor=null;descentEffects=null;lastCollision=null;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -180,7 +183,7 @@
                 propulsionState=propulsion?.reset(initialCommand)??null;
                 propulsionElectrical=null;
                 motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
-                    acroThrust(motorCommand());flightControl=null;descentEffects=null;aeroFloor=null;
+                    acroThrust(motorCommand());flightControl=null;descentEffects=null;aeroFloor=null;lastCollision=null;
                 if(prepareGraphics){
                     pose();await prepareGraphics(request.signal);
                     signal.throwIfAborted();request.signal.throwIfAborted();
@@ -576,6 +579,151 @@
             q=euler(heading,0,0);reason='SIMULATION ONLY – tunnel dimensions are not surveyed';
             pose();publish();
         }
+        // Advanced-only swept contact resolution. Keep model/terrain sweeps as
+        // the authority for known geometry; rendered height samples supply a
+        // normal only when all surrounding terrain data exists. Unknown geometry
+        // is NEVER assigned a fabricated plane or granted a clear path.
+        function advancedCollisionTravel(travel,dt,floor){
+            const origin={...position,height},horizontal=Math.hypot(travel.north,travel.east);
+            const target=horizontal===0?position:move(position,travel.north,travel.east);
+            const destination={...target,height:height+travel.up};
+            let samples=1,missingSamples=Number(!Number.isFinite(floor)),unverifiedMeters=0;
+            const hitModel=modeledCollision(origin,destination);
+            const hitTerrain=terrainCollision?.(origin,destination);
+            const at=t=>({...horizontal===0?position:move(position,travel.north*t,travel.east*t),height:height+travel.up*t});
+            function result(contact,message){
+                terrainVerification={state:missingSamples===0?'complete':missingSamples===samples?'unavailable':'partial',
+                    samples,missingSamples,unverifiedDistanceMeters:terrainVerification.unverifiedDistanceMeters+unverifiedMeters};
+                return {contact,message};
+            }
+            function stopAt(message){brake();lastCollision={mode:'hard-stop',reason:message};return result(true,message);}
+            function applyImpact(normal,kind,fraction,contactHeight){
+                const resolved=collisionResponse.resolve(velocity,normal,config.collisionResponse);
+                let safe=clamp(fraction,0,1);
+                // Never advance beyond an intersecting sweep. Distances are
+                // backed off by 1 cm so float error cannot embed a rotor.
+                const length=Math.hypot(travel.north,travel.east,travel.up);
+                safe=Math.max(0,safe-.01/Math.max(length,.01));
+                const candidate=at(safe);
+                if(!valid(candidate))return stopAt('Supported latitude limit reached');
+                const checkedHeight=renderedHeight(candidate);
+                if(Number.isFinite(checkedHeight)&&candidate.height<checkedHeight+.5){
+                    return stopAt('Contact position unverified: movement stopped');
+                }
+                position={latitude:candidate.latitude,longitude:candidate.longitude};height=candidate.height;
+                ground=Number.isFinite(checkedHeight)?checkedHeight:null;
+                lastCollision={type:kind,mode:resolved.mode,normal:resolved.normal,
+                    normalSpeedMs:resolved.normalSpeedMs??null,uncertain:!resolved.normal};
+                if(resolved.mode==='hard-stop')brake();
+                else velocity=resolved.velocity;
+                // Allow bounded residual tangential motion in this substep.
+                // Terrain-following uses confirmed, finite heights along the
+                // candidate straight segment, then rechecks original sweeps.
+                // Only two extra swept queries are needed per gentle impact.
+                if(resolved.normal&&resolved.mode!=='hard-stop'&&safe<1){
+                    const remaining=dt*(1-safe),dn=velocity.north*remaining,
+                        de=velocity.east*remaining,du=velocity.up*remaining;
+                    if(Math.hypot(dn,de,du)>1e-8){
+                        const to=move(position,dn,de);
+                        if(valid(to)){
+                            const wanted=height+du;
+                            const terrainEnd=renderedHeight({...to,height:wanted});
+                            let nextHeight=wanted,verified=Number.isFinite(terrainEnd);
+                            if(kind==='terrain'&&verified){
+                                nextHeight=Math.max(nextHeight,terrainEnd+.501);
+                                if(nextHeight-wanted>.25)verified=false;
+                            }
+                            if(verified){
+                                const segments=Math.max(1,Math.min(24,Math.ceil(Math.hypot(dn,de)/.5)));
+                                for(let i=1;i<=segments;i++){
+                                    const t=i/segments,intermediate=move(position,dn*t,de*t),
+                                        z=height+(nextHeight-height)*t;
+                                    const h=renderedHeight({...intermediate,height:z});
+                                    samples++;
+                                    if(!Number.isFinite(h)){
+                                        missingSamples++;unverifiedMeters+=Math.hypot(dn,de)/segments;
+                                        verified=false;break;
+                                    }
+                                    if(z<h+.5001){verified=false;break;}
+                                }
+                            }
+                            const end={...to,height:nextHeight};
+                            if(verified&&!modeledCollision({...position,height},end)&&
+                                !terrainCollision?.({...position,height},end)){
+                                position=to;height=nextHeight;ground=terrainEnd;
+                            }
+                        }
+                    }
+                }
+                return result(true,kind==='terrain'?'Terrain contact: '+resolved.mode:
+                    `Simulated ${kind} surface contact: ${resolved.mode}`);
+            }
+            // Existing model collision interfaces primarily return a boolean
+            // or string. Treat these as hard stops: no guessed normal for an
+            // approximate 3D envelope, tunnel mesh or bridge support.
+            if(hitModel){
+                const kind=typeof hitModel==='string'?hitModel:hitModel?.kind??'model';
+                const knownNormal=collisionResponse.unitNormal(hitModel?.normal);
+                if(!knownNormal||config.collisionResponse.mode==='hard-stop')
+                    return stopAt(kind==='model'?'Approximate rendered 3D surface contact: movement stopped (not surveyed)':
+                        `Simulated ${kind} surface contact: movement stopped`);
+                // Optional future geometric contact provider can supply a
+                // trustworthy first-hit fraction. Otherwise conservatively
+                // bisect existing swept collision to a safe pre-contact pose.
+                let fraction=Number.isFinite(hitModel.fraction)?clamp(hitModel.fraction,0,1):1;
+                // A supplied first-hit fraction is only an estimate until the
+                // source sweep verifies a backed-off pose is clear.
+                const length=Math.hypot(travel.north,travel.east,travel.up);
+                const check=Math.max(0,fraction-.02/Math.max(length,.02));
+                if(!Number.isFinite(hitModel.fraction)||modeledCollision(origin,at(check))){
+                    let lo=0,hi=fraction;
+                    for(let i=0;i<10;i++){
+                        const middle=(lo+hi)/2;
+                        if(modeledCollision(origin,at(middle)))hi=middle;else lo=middle;
+                    }
+                    fraction=lo;
+                }
+                return applyImpact(knownNormal,kind,fraction,null);
+            }
+            // Preserve the legacy <=0.5 m horizontal sampling resolution.
+            // Unlike a vertical-only endpoint test, altitude is also divided
+            // into bounded increments for steep high-speed descent.
+            const steps=Math.max(1,Math.ceil(horizontal/.5),Math.ceil(Math.abs(travel.up)/2));
+            let lastSafe=0,previousTerrain=Number.isFinite(floor)?floor:null;
+            for(let i=1;i<=steps;i++){
+                const t=i/steps,point=at(t);
+                if(!valid(point))return stopAt('Supported latitude limit reached');
+                const h=renderedHeight(point);
+                samples++;
+                if(!Number.isFinite(h)){
+                    missingSamples++;unverifiedMeters+=horizontal/steps;continue;
+                }
+                if(point.height<h+.5){
+                    if(onSurfaceDiscontinuity({position:{latitude:point.latitude,longitude:point.longitude},
+                        height:point.height,previousGround:previousTerrain,nextGround:h}))
+                        return stopAt('Tunnel continuation loading: movement paused');
+                    let safe=lastSafe,low=lastSafe,high=t;
+                    // Refine only inside an interval whose starting height is
+                    // verified. Missing samples cannot be treated as clear.
+                    if(lastSafe>0||Number.isFinite(floor)){
+                        for(let j=0;j<8;j++){
+                            const mid=(low+high)/2,sample=at(mid);
+                            const terrain=renderedHeight(sample);
+                            if(!Number.isFinite(terrain))break;
+                            if(sample.height>=terrain+.5+.001)low=mid;else high=mid;
+                        }
+                        safe=low;
+                    }
+                    const normal=collisionResponse.terrainNormal(point,renderedHeight,move,config.collisionResponse.terrainProbeMeters);
+                    return applyImpact(normal,'terrain',safe,h);
+                }
+                previousTerrain=h;lastSafe=t;
+            }
+            if(hitTerrain)return stopAt('Terrain contact: movement stopped (normal unavailable)');
+            position={latitude:target.latitude,longitude:target.longitude};height=destination.height;
+            ground=previousTerrain;lastCollision=null;
+            return result(false,missingSamples?'Terrain collision unverified: tiles still loading':null);
+        }
         function stepCore(seconds){
             if(!active||playback)return;
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
@@ -627,6 +775,10 @@
                 controlled?legacyAutomatedStep(dt,fs):config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
             if(config.physicsModel==='legacy'||!controlled&&config.flightMode!=='gps')flightControl=null;
             // Consume simulated energy only after collision/terrain checks below.
+            if(config.physicsModel==='advanced'){
+                const outcome=advancedCollisionTravel(travel,dt,floor);
+                reason=outcome.message;
+            }else{
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
             const modeledContact=modeledCollision({...position,height},{...endpoint,height:height+travel.up});
@@ -670,6 +822,11 @@
             terrainVerification={state:missingSamples===0?'complete':missingSamples===steps+1?'unavailable':'partial',
                 samples:steps+1,missingSamples,
                 unverifiedDistanceMeters:terrainVerification.unverifiedDistanceMeters+unverifiedMeters};
+            if(contact){brake();reason=waitingForTunnel ?
+                'Tunnel continuation loading: movement paused':
+                'Terrain contact: movement stopped';}
+            else reason=missingSamples?'Terrain collision unverified: tiles still loading':null;
+            }
             if(battery){
                 // Use horizontal air-relative speed for the speed/load proxy.
                 // A zero-throttle dive must not drain the pack as if its falling
@@ -686,10 +843,6 @@
                         ...(Number.isFinite(modeledPower)?{propulsionPowerWatts:modeledPower,
                             ...(propulsionElectrical?{electricalResult:propulsionElectrical}:{})}:{})});
             }
-            if(contact){brake();reason=waitingForTunnel ?
-                'Tunnel continuation loading: movement paused':
-                'Terrain contact: movement stopped';}
-            else reason=missingSamples?'Terrain collision unverified: tiles still loading':null;
             pose();
         }
         function tick(seconds){

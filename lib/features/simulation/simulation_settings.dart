@@ -9,6 +9,7 @@ import 'simulation_propulsion_profile.dart';
 import 'simulation_aerodynamics_settings.dart';
 import 'simulation_rotation_settings.dart';
 import 'simulation_descent_aerodynamics_settings.dart';
+import 'simulation_collision_settings.dart';
 import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
@@ -54,6 +55,7 @@ class SimulationSettings {
     this.aerodynamics = const SimulationAerodynamicsSettings(),
     this.rotation = const SimulationRotationSettings(),
     this.descentAerodynamics = const SimulationDescentAerodynamicsSettings(),
+    this.collisionResponse = const SimulationCollisionSettings(),
     this.acroRollRate = 180,
     this.acroPitchRate = 180,
     this.acroYawRate = 180,
@@ -86,6 +88,7 @@ class SimulationSettings {
   final SimulationAerodynamicsSettings aerodynamics;
   final SimulationRotationSettings rotation;
   final SimulationDescentAerodynamicsSettings descentAerodynamics;
+  final SimulationCollisionSettings collisionResponse;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
@@ -108,6 +111,7 @@ class SimulationSettings {
     SimulationAerodynamicsSettings? aerodynamics,
     SimulationRotationSettings? rotation,
     SimulationDescentAerodynamicsSettings? descentAerodynamics,
+    SimulationCollisionSettings? collisionResponse,
   }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
@@ -142,6 +146,7 @@ class SimulationSettings {
     aerodynamics: aerodynamics ?? this.aerodynamics,
     rotation: rotation ?? this.rotation,
     descentAerodynamics: descentAerodynamics ?? this.descentAerodynamics,
+    collisionResponse: collisionResponse ?? this.collisionResponse,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -186,6 +191,7 @@ class SimulationSettings {
     aerodynamics.validate();
     rotation.validate();
     descentAerodynamics.validate();
+    collisionResponse.validate();
     sceneTime.validate();
     batteryProfile?.validate();
     signalHud.validate();
@@ -260,6 +266,7 @@ class SimulationSettings {
       'aerodynamics': aerodynamics.toJson(),
       'rotation': rotation.toJson(),
       'descentAerodynamics': descentAerodynamics.toJson(),
+      'collisionResponse': collisionResponse.toJson(),
       'acroRollRate': acroRollRate,
       'acroPitchRate': acroPitchRate,
       'acroYawRate': acroYawRate,

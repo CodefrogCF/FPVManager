@@ -10,6 +10,7 @@ import 'simulation_propulsion_profile.dart';
 import 'simulation_aerodynamics_settings.dart';
 import 'simulation_rotation_settings.dart';
 import 'simulation_descent_aerodynamics_settings.dart';
+import 'simulation_collision_settings.dart';
 import 'simulation_settings.dart';
 import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
@@ -132,6 +133,21 @@ class _SettingsState extends State<_Settings> {
     'rotorDiameter': TextEditingController(
       text: '${widget.initial.descentAerodynamics.rotorDiameterMeters}',
     ),
+    'collisionRestitution': TextEditingController(
+      text: '${widget.initial.collisionResponse.restitution}',
+    ),
+    'collisionFriction': TextEditingController(
+      text: '${widget.initial.collisionResponse.friction}',
+    ),
+    'collisionHardStop': TextEditingController(
+      text: '${widget.initial.collisionResponse.hardStopNormalSpeedMs}',
+    ),
+    'collisionMinimumBounce': TextEditingController(
+      text: '${widget.initial.collisionResponse.minimumReboundSpeedMs}',
+    ),
+    'collisionTerrainProbe': TextEditingController(
+      text: '${widget.initial.collisionResponse.terrainProbeMeters}',
+    ),
     'rotationSuperRate': TextEditingController(
       text: '${widget.initial.rotation.superRate}',
     ),
@@ -208,6 +224,8 @@ class _SettingsState extends State<_Settings> {
       widget.initial.aerodynamics.preset;
   late SimulationRateProfile _rotationRateProfile =
       widget.initial.rotation.rateProfile;
+  late SimulationCollisionMode _collisionMode =
+      widget.initial.collisionResponse.mode;
   late bool _groundEnabled =
       widget.initial.descentAerodynamics.groundEffectEnabled;
   late bool _propwashEnabled =
@@ -309,6 +327,16 @@ class _SettingsState extends State<_Settings> {
         propwashIntensity: parameter('propwashIntensity', 0, 2, 1),
         vortexRingIntensity: parameter('vortexIntensity', 0, 2, 1),
         rotorDiameterMeters: parameter('rotorDiameter', .0254, .762, .1778),
+      );
+
+  SimulationCollisionSettings get _collisionSettings =>
+      SimulationCollisionSettings(
+        mode: _collisionMode,
+        restitution: parameter('collisionRestitution', 0, .75, .12),
+        friction: parameter('collisionFriction', 0, 1, .28),
+        hardStopNormalSpeedMs: parameter('collisionHardStop', 1, 150, 22),
+        minimumReboundSpeedMs: parameter('collisionMinimumBounce', 0, 10, 1),
+        terrainProbeMeters: parameter('collisionTerrainProbe', .2, 3, .6),
       );
 
   SimulationRotationSettings get _rotationSettings =>
@@ -536,6 +564,7 @@ class _SettingsState extends State<_Settings> {
           aerodynamics: _aeroSettings,
           rotation: _rotationSettings,
           descentAerodynamics: _descentSettings,
+          collisionResponse: _collisionSettings,
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
@@ -1038,6 +1067,116 @@ class _SettingsState extends State<_Settings> {
                                   'A valid hardware profile overrides the assumed rotor diameter.',
                                 ),
                               ),
+                          ],
+                        ),
+                      if (_physicsModel == SimulationPhysicsModel.advanced)
+                        _group(
+                          'simulation-collision-response',
+                          _aeroLabel(
+                            'Aufprall & Oberflächenkontakt',
+                            'Impact & surface contact',
+                          ),
+                          Icons.swipe,
+                          [
+                            Text(
+                              _aeroLabel(
+                                'Nur Simulation. Gleit-/Rückprallreaktionen setzen eine verlässliche Oberflächennormale voraus; '
+                                    'ohne Normale und bei schweren Aufprallen gilt weiterhin Hard Stop. Fehlende Gelände-Tiles sind unbestätigt.',
+                                'Simulation only. Sliding/rebound require a reliable contact normal; '
+                                    'unknown normals and severe impacts retain hard stop. Missing terrain tiles remain unverified.',
+                              ),
+                            ),
+                            DropdownButtonFormField<SimulationCollisionMode>(
+                              key: const ValueKey('simulation-collision-mode'),
+                              initialValue: _collisionMode,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                labelText: _aeroLabel(
+                                  'Kollisionsverhalten',
+                                  'Collision response',
+                                ),
+                              ),
+                              items: [
+                                DropdownMenuItem(
+                                  value: SimulationCollisionMode.slide,
+                                  child: Text(
+                                    _aeroLabel(
+                                      'Gleiten (Standard)',
+                                      'Slide (default)',
+                                    ),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: SimulationCollisionMode.rebound,
+                                  child: Text(
+                                    _aeroLabel(
+                                      'Begrenzter Rückprall',
+                                      'Limited rebound',
+                                    ),
+                                  ),
+                                ),
+                                const DropdownMenuItem(
+                                  value: SimulationCollisionMode.hardStop,
+                                  child: Text('Hard Stop'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _collisionMode = value);
+                                }
+                              },
+                            ),
+                            if (_collisionMode !=
+                                SimulationCollisionMode.hardStop) ...[
+                              number(
+                                'collisionFriction',
+                                _aeroLabel(
+                                  'Oberflächenreibung (0–1)',
+                                  'Surface friction (0–1)',
+                                ),
+                                0,
+                                1,
+                              ),
+                              if (_collisionMode ==
+                                  SimulationCollisionMode.rebound) ...[
+                                number(
+                                  'collisionRestitution',
+                                  _aeroLabel(
+                                    'Rückprallfaktor (0–0,75)',
+                                    'Restitution (0–0.75)',
+                                  ),
+                                  0,
+                                  .75,
+                                ),
+                                number(
+                                  'collisionMinimumBounce',
+                                  _aeroLabel(
+                                    'Minimale Aufprallgeschwindigkeit für Rückprall (m/s)',
+                                    'Minimum rebound impact speed (m/s)',
+                                  ),
+                                  0,
+                                  10,
+                                ),
+                              ],
+                              number(
+                                'collisionHardStop',
+                                _aeroLabel(
+                                  'Hard Stop ab normaler Aufprallgeschwindigkeit (m/s)',
+                                  'Hard stop above normal impact speed (m/s)',
+                                ),
+                                1,
+                                150,
+                              ),
+                              number(
+                                'collisionTerrainProbe',
+                                _aeroLabel(
+                                  'Gelände-Normalenprobe (m)',
+                                  'Terrain normal sample spacing (m)',
+                                ),
+                                .2,
+                                3,
+                              ),
+                            ],
                           ],
                         ),
                       const SizedBox(height: 12),

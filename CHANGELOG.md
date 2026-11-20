@@ -1,42 +1,116 @@
 ## [Unreleased] - v0.19.0
 
-- Couple the Advanced Acro/Angle motor/propeller model to the chemistry-aware
-  battery within each fixed physics step: loaded pack voltage, DC
-  current, available motor RPM/thrust and electrical consumption now feed each
-  other through a bounded iterative approximation.
-- Reserve auxiliary electronics/video load once, constrain simulated motor
-  DC input by continuous/burst pack ratings and independently configured ESC,
-  motor and power limits, and expose separately labelled estimated limit flags.
-- Preserve low-load zero-throttle free fall, manufacturer-specific resistance,
-  battery charge/energy accounting, optional motor-only fallback, and untouched
-  Legacy/GPS/Rescue behavior; no database or backup migration is required.
-- Add full/low-charge, discharge/ESC/motor limit, burst, free-fall and
-  frame-rate-determinism regression tests plus a CPU-only benchmark. Real
-  propulsion performance still requires measured curves and device validation.
-- Add an optional hardware-aware motor/propeller model for Advanced manual
-  Acro and Angle flight, using selected drone KV, motor count, propeller geometry,
-  takeoff mass and nominal pack voltage without requiring a selected battery.
-- Estimate static thrust, RPM, electrical load and bounded acceleration with
-  explicit generic coefficients or optional supplied manufacturer curves;
-  model motor spin-up/down and honor specified power/current caps.
-- Pass estimated motor input watts to the existing chemistry-aware battery
-  simulator without duplicating the prior speed-based propulsion estimate.
-  Preserve Legacy/GPS/Rescue behavior and fall back to prior approximate
-  thrust when core hardware specifications are unavailable.
-- Add regression tests and developer documentation for model assumptions,
-  source confidence, hardware independence and voltage/power limiting.
+### Advanced Flight Physics & Hardware-Aware Simulation
 
-# Change summary
+Introduce an optional, physically consistent and hardware-aware flight simulation model for realistic FPV flight behavior, including freestyle, long-range flights, mountain surfing, high-speed dives and autonomous recovery.
 
-- Introduce selectable Legacy (unchanged default) and Advanced flight physics
-  modes , reusing existing aircraft/battery profiles and controller, collision
-  and RF data while establishing a shared typed physics-state adapter.
-- Add an optional 60/120/240-Hz fixed physics accumulator for Advanced mode,
-  with bounded catch-up, explicit queued/dropped-time diagnostics,
-  single-frame interpolated camera pose and separate battery-time integration.
-  Add CPU-only repeatability benchmarks and regression tests for 30/60/120 FPS,
-  resets, stalls, battery accounting and Legacy compatibility. Android/Windows
-  device performance still requires measurement.
+The existing Legacy physics model remains available and unchanged.
+
+### Flight Physics Architecture
+
+- Introduce selectable Legacy (default) and Advanced flight physics modes, reusing existing aircraft configurations, battery profiles, collision detection and RF simulation.
+- Establish a unified physics-state architecture shared across manual and autonomous flight modes.
+- Decouple simulation physics from Cesium rendering using a configurable 60/120/240 Hz fixed timestep.
+- Add bounded catch-up, queued/dropped-time diagnostics and interpolated camera rendering.
+- Preserve deterministic simulation behavior across different rendering frame rates.
+- Maintain independent battery-time integration and backward compatibility with existing profiles.
+
+### Hardware-Aware Propulsion and Battery Simulation
+
+- Introduce a motor and propeller model using configured motor KV, motor count, propeller geometry, aircraft mass and battery characteristics.
+- Estimate motor RPM, available thrust, electrical demand and physically bounded acceleration.
+- Support generic propulsion coefficients and optional manufacturer-provided performance curves.
+- Model motor spin-up and spin-down dynamics.
+- Couple battery terminal voltage, current demand, available motor RPM and thrust through a bounded iterative electrical model.
+- Respect battery internal resistance, chemistry, charge state, continuous/burst discharge ratings and independent ESC, motor and power limits.
+- Include estimated auxiliary electronics and video-system power consumption without double-counting electrical loads.
+- Distinguish battery DC current from estimated motor and ESC electrical quantities.
+- Preserve zero-throttle free fall without artificial motor thrust.
+- Provide conservative fallback behavior when detailed hardware specifications are unavailable.
+
+### Directional Aerodynamics and Rotational Dynamics
+
+- Replace uniform Advanced-mode drag with orientation-dependent aerodynamic forces calculated in aircraft body coordinates.
+- Introduce independently configurable forward, backward, lateral and vertical drag characteristics.
+- Account for aircraft orientation, air-relative velocity and optional low-throttle propeller drag.
+- Improve momentum preservation and aerodynamic behavior during high-speed dives, sideways drift and vertical descents.
+- Introduce configurable roll, pitch and yaw moments of inertia.
+- Implement a simplified rate controller translating stick inputs into angular acceleration through bounded control torque.
+- Add configurable torque limits, angular acceleration limits and motor-response dynamics.
+- Support Betaflight-inspired, Classic Expo and Linear rate profiles.
+- Prevent unrealistic instantaneous rotational reversals while preserving independent axis control.
+- Improve quaternion orientation integration for numerically stable flips, rolls and yaw rotations.
+
+### Unified GPS Flight and GPS Rescue
+
+- Integrate GPS-assisted flight and GPS Rescue with the same Advanced physical aircraft model used for manual flight.
+- Replace direct velocity manipulation with physically constrained attitude, thrust and rotational commands.
+- Translate target horizontal velocity, altitude and heading into achievable acceleration and aircraft orientation.
+- Respect available motor thrust, battery performance, maximum tilt and rotational limits.
+- Introduce braking-distance-aware deceleration when approaching the home position.
+- Support wind compensation within available propulsion limits.
+- Preserve GPS Rescue Hold, Climb, Turn, Return and Landing phases.
+- Preserve manual takeover following stable RC reconnection and deliberate pilot input.
+- Maintain existing terrain, 3D-model collision and RF-link behavior.
+- Preserve existing GPS Rescue settings and Legacy-mode functionality.
+
+### Regional Wind and Terrain-Dependent Environmental Effects
+
+- Introduce a unified environmental wind provider supporting local weather fields and regional fallback conditions.
+- Extend wind simulation beyond local Open-Meteo sampling boundaries without abrupt transitions to calm air.
+- Apply smooth interpolation across horizontal positions, altitude and regional wind boundaries.
+- Model approximate altitude-dependent wind speed, wind direction and wind shear.
+- Add configurable, deterministic gust and turbulence intensity.
+- Introduce optional terrain-dependent ridge lift, lee-side downdrafts and turbulence approximations.
+- Add bounded terrain sampling and caching to control computational overhead.
+- Handle missing or outdated weather and terrain information through explicitly defined fallback assumptions.
+- Maintain air-relative aerodynamic calculations across long-distance flights.
+
+### Ground Effect and Descent Aerodynamics
+
+- Introduce optional ground-effect modeling based on rotor diameter, aircraft clearance, orientation and available propulsion.
+- Apply ground effect only when reliable terrain elevation information is available.
+- Model simplified propwash disturbances during powered descent.
+- Introduce an optional vortex-ring-like thrust-loss approximation for relevant descent conditions.
+- Preserve physically distinct low-throttle and zero-throttle ballistic flight behavior.
+- Limit aerodynamic corrections to prevent excessive thrust amplification or unstable acceleration.
+- Add independently configurable effect switches and intensity settings.
+- Preserve existing simulation behavior by keeping the new descent effects disabled by default.
+
+### Collision Response and Surface Interaction
+
+- Introduce momentum-aware collision resolution for the Advanced physics model.
+- Reuse existing swept collision detection for terrain and 3D geometry.
+- Separate impact velocity into normal and tangential components.
+- Preserve tangential movement during suitable glancing collisions.
+- Add configurable Hard Stop, Sliding and Rebound collision modes.
+- Support adjustable surface friction, restitution and severe-impact thresholds.
+- Approximate terrain contact normals using reliable neighboring elevation samples.
+- Prevent continued penetration through additional collision checks and bounded contact resolution.
+- Preserve hard-stop fallback behavior when reliable surface normals are unavailable.
+- Exclude visual-only radio, Fresnel and marker entities from physical collision responses.
+- Maintain explicit uncertainty when terrain tiles or collision geometry are missing.
+
+### Testing, Performance and Compatibility
+
+- Extend deterministic regression coverage for propulsion, battery discharge, aerodynamic forces, rotational dynamics and autonomous flight.
+- Add tests for flips, rolls, yaw spins, rapid stick reversals, free fall, high-speed dives and controlled landings.
+- Validate GPS Rescue recovery phases, RC reconnection, low-power behavior and automatic landing.
+- Cover regional wind transitions, missing environmental data, ground effect, propwash and repeated collision contacts.
+- Verify deterministic physics behavior at 30, 60 and 120 FPS rendering rates.
+- Introduce CPU-only benchmarks for propulsion, environmental wind sampling, descent aerodynamics and collision processing.
+- Preserve existing aircraft and battery profiles, simulation settings, Legacy physics and route-planning functionality.
+- Maintain compatibility without requiring database or backup migrations.
+- Document model assumptions, approximations, configurable parameters and calibration limitations.
+
+### Known Limitations
+
+- Motor thrust, propulsion efficiency, aerodynamic coefficients and moments of inertia remain approximate unless calibrated with manufacturer data or real flight telemetry.
+- Regional wind extrapolation and terrain-dependent airflow effects are simplified approximations, not computational fluid dynamics or verified local weather predictions.
+- Ground effect, propwash and vortex-ring-like behavior do not reproduce detailed rotor aerodynamics.
+- Sliding and rebound require reliable collision normals; unsupported geometry retains conservative hard-stop behavior.
+- GPS Rescue cannot guarantee recovery when available propulsion, battery energy or environmental conditions are insufficient.
+- Android and Windows device-level performance validation and comparison against representative real-world FPV flight data remain outstanding.
 
 ### [0.18.0] - 2026-11-20
 
