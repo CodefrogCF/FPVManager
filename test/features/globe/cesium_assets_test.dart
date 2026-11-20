@@ -64,6 +64,7 @@ void main() {
         'simulated_failsafe.js',
         'body_axis_aerodynamics.js',
         'rotational_dynamics.js',
+        'autonomous_flight_control.js',
         'free_flight.js',
         'flight_hud.js',
         'signal_hud.js',

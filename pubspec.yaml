@@ -119,6 +119,7 @@ flutter:
     - web/electrical_propulsion.js
     - web/body_axis_aerodynamics.js
     - web/rotational_dynamics.js
+    - web/autonomous_flight_control.js
     - web/free_flight.js
     - web/flight_recording.js
     - web/signal_hud.js

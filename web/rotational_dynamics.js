@@ -45,6 +45,13 @@
     }
     const initialState=()=>({x:0,y:0,z:0});
     function step(rates,torques,sticks,maxRatesDegreesPerSecond,expo,authority,seconds,config){
+        const targets={};
+        for(const axis of axes)targets[axis]=targetRate(sticks[axis],maxRatesDegreesPerSecond[axis],expo,config);
+        return stepTargetRates(rates,torques,targets,authority,seconds,config);
+    }
+    // Shared actuator/torque path: both stick-derived Acro rates and GPS
+    // attitude-controller target rates obey the same motor/inertia constraints.
+    function stepTargetRates(rates,torques,targetRates,authority,seconds,config){
         if(!Number.isFinite(seconds)||seconds<=0||seconds>.05||!Number.isFinite(authority)||authority<0||authority>1)
             throw Error('Invalid rotational integration step');
         const inertia=[config.rollInertiaKgM2,config.pitchInertiaKgM2,config.yawInertiaKgM2];
@@ -54,7 +61,8 @@
         for(let i=0;i<3;i++){
             const axis=axes[i],previous=rates[axis],oldTorque=torques[axis];
             if(!Number.isFinite(previous)||!Number.isFinite(oldTorque))throw Error('Invalid rotational state');
-            const target=targetRate(sticks[axis],maxRatesDegreesPerSecond[axis],expo,config);
+            const target=targetRates[axis];
+            if(!Number.isFinite(target)||Math.abs(target)>100)throw Error('Invalid commanded angular rate');
             const maximum=limits[i]*authority;
             const requested=clamp(inertia[i]*(target-previous)*config.controllerGainPerSecond,-maximum,maximum);
             const tau=config.motorResponseTimeConstantSeconds;
@@ -73,5 +81,5 @@
         }
         return result;
     }
-    return {configuration,initialState,targetRate,step};
+    return {configuration,initialState,targetRate,step,stepTargetRates};
 });

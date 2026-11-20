@@ -3,9 +3,10 @@
 ## Scope
 
 Only **Advanced** physics uses the new directional quadratic drag. Advanced
-Acro and Angle share the same implementation (`web/body_axis_aerodynamics.js`).
-Legacy flight dynamics, GPS-assisted velocity control, replay and GPS rescue
-retain their existing algorithms.
+Acro, Angle and GPS-assisted/Rescue flight share the same implementation
+(`web/body_axis_aerodynamics.js`). Legacy flight dynamics, including GPS and
+GPS Rescue, and replay retain their existing algorithms. Fixed physics
+substeps and hardware/battery coupling are unchanged.
 
 ## Coordinates, assumptions and units
 

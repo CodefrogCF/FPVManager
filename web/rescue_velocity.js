@@ -1,5 +1,5 @@
-// Issue #130 – bounded velocity tracking for automated rescue, independent of
-// manual-stick scaling. The resulting segment still goes through collision checks.
+// Legacy GPS Rescue velocity tracking and shared safe-approach speed guidance.
+// Advanced Rescue uses approachSpeed only: actual motion is force-driven.
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVRescueVelocity=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));

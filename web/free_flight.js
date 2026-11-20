@@ -9,10 +9,11 @@
         isNode?require('./motor_propeller.js'):root.FPVMotorPropeller,
         isNode?require('./electrical_propulsion.js'):root.FPVElectricalPropulsion,
         isNode?require('./body_axis_aerodynamics.js'):root.FPVBodyAxisAerodynamics,
-        isNode?require('./rotational_dynamics.js'):root.FPVRotationalDynamics);
+        isNode?require('./rotational_dynamics.js'):root.FPVRotationalDynamics,
+        isNode?require('./autonomous_flight_control.js'):root.FPVAutonomousFlightControl);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics,autonomousControl){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -80,12 +81,13 @@
         onSurfaceDiscontinuity=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,prepareGraphics,
         isTerrainReady,onState,sampleWind=()=>null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
-        let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
+        let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0),gpsHeadingTarget=0;
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},rotationTorque=rotationalDynamics.initialState(),input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let deferPose=false;
         let wind={north:0,east:0,up:0},windInfo=null;
         let battery=null,propulsion=null,propulsionState=null,propulsionElectrical=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
+        let flightControl=null; // Latest advanced autonomous guidance/actuator targets.
         // A Cesium globe tile can be absent even when the terrain provider is ready.
         // Unknown heights must not be converted to a contact or a fabricated floor.
         let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
@@ -107,7 +109,7 @@
             batteryUseChemistryThresholds:config.batteryUseChemistryThresholds,
             battery:config.showBatteryVoltage?(battery?.snapshot(config.batteryUseChemistryThresholds?{}:{lowVoltagePerCell:config.lowBatteryCellVoltage,criticalVoltagePerCell:config.criticalBatteryCellVoltage})??{available:false,estimated:true}):null,
             propulsion:propulsionState&&{...propulsionState},
-            controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
+            controller:config.controller,flightControl:flightControl&&{...flightControl},position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},angularVelocity:{...rates},controlTorque:config.physicsModel==='advanced'?{...rotationTorque}:null,agl:Number.isFinite(ground)?height-ground:null,
             terrainVerification:{...terrainVerification},
@@ -118,7 +120,7 @@
             home:spawn&&{...spawn},heightAboveHome:Number.isFinite(homeHeight)?height-homeHeight:null,
             distance:spawn&&position?distance(spawn,position):0,reason};}
         function publish(){onState(status());}
-        function pose(){if(!deferPose)applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
+        function pose(){if(!deferPose)applyPose({...position,...status(),...(config.flightMode==='gps'&&config.physicsModel==='legacy'?{}:orientation())});}
         function physicsSnapshot(){return {position:position&&{...position},height,heading,pitch,roll,
             attitude:{...q},velocity:{...velocity},angularVelocity:{...rates},
             propulsionAcceleration:motorThrust,
@@ -131,7 +133,7 @@
             if(!previous||!current||!previous.position||!current.position){pose();return;}
             const interpolated=flightPhysics.interpolateState(previous,current,alpha);
             const output={...status(),...interpolated};
-            applyPose({...interpolated.position,...output,...(config.flightMode==='gps'?{}:orientation(interpolated.attitude))});
+            applyPose({...interpolated.position,...output,...(config.flightMode==='gps'&&config.physicsModel==='legacy'?{}:orientation(interpolated.attitude))});
         }
         let runtime=null;
         function buildRuntime(){return flightPhysics.createRuntime({mode:config.physicsModel,hz:config.physicsStepHz,
@@ -139,7 +141,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
+            windInfo=null;wind={north:0,east:0,up:0};battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -158,7 +160,7 @@
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
                 config=next;runtime=buildRuntime();failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
                     {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
-                position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
+                position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;gpsHeadingTarget=heading;pitch=roll=0;q=euler(heading,0,0);
                 // Hardware is optional and independent of battery-HUD enablement.
                 // A battery profile can supply the voltage if the drone has none.
                 const p=config.propulsionProfile;
@@ -167,14 +169,14 @@
                 const referenceVoltage=pack?.nominalVoltageVolts??
                     (Number.isFinite(pack?.cellCount)&&cell?pack.cellCount*cell.nominalVolts:null)??
                     p?.referenceVoltageVolts;
-                propulsion=config.physicsModel==='advanced'&&config.flightMode!=='gps'&&p?
+                propulsion=config.physicsModel==='advanced'&&p?
                     motorPropeller.create({...p,referenceVoltageVolts:referenceVoltage}):null;
                 propulsionHoverCommand=propulsion?.hoverCommand()??0;
-                const initialCommand=config.flightMode==='angle'&&propulsion?propulsionHoverCommand:motorCommand();
+                const initialCommand=config.flightMode!=='acro'&&propulsion?propulsionHoverCommand:motorCommand();
                 propulsionState=propulsion?.reset(initialCommand)??null;
                 propulsionElectrical=null;
                 motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
-                    acroThrust(motorCommand());
+                    acroThrust(motorCommand());flightControl=null;
                 if(prepareGraphics){
                     pose();await prepareGraphics(request.signal);
                     signal.throwIfAborted();request.signal.throwIfAborted();
@@ -202,9 +204,9 @@
             const z=response(velocity.up,up*config.climbSpeed);
             velocity={north:n.v,east:e.v,up:z.v};return {north:n.d,east:e.d,up:z.d};
         }
-        // Approximate GPS-assisted autonomous velocity control. It passes through
-        // the SAME segment collision and terrain sweep as manual flight.
-        function automatedStep(seconds,state){
+        // LEGACY GPS Rescue controller only. Advanced guidance uses physical
+        // attitude, thrust and aerodynamics instead of assigning velocity.
+        function legacyAutomatedStep(seconds,state){
             const fs=config.failsafe;
             let targetNorth=0,targetEast=0,targetUp=0;
             if(['rescueHold','climb','turn','return','landing','landed'].includes(state.phase)&&position&&spawn&&Number.isFinite(homeHeight)){
@@ -245,6 +247,112 @@
             velocity.up=nextUp;
             pitch+=(0-pitch)*Math.min(1,seconds*4);roll+=(0-roll)*Math.min(1,seconds*4);
             q=euler(heading,pitch,roll);
+            return travel;
+        }
+        // Advanced manual GPS and automatic failsafe share a flight-command
+        // contract (target ground velocity, climb rate, desired heading). The
+        // output goes through the SAME actuator, propulsion, aerodynamics and
+        // collision sweep as advanced manual flight. Never assign velocity.
+        function advancedFlightTarget(state){
+            if(!state){
+                const f=forward+Number(keys.has('ArrowUp')||keys.has('w'))-Number(keys.has('ArrowDown')||keys.has('s'));
+                const r=right+Number(keys.has('ArrowRight')||keys.has('d'))-Number(keys.has('ArrowLeft')||keys.has('a'));
+                const up=vertical+Number(keys.has('e'))-Number(keys.has('q'));
+                return autonomousControl.manualTargets(f,r,up,gpsHeadingTarget,config);
+            }
+            const meters=spawn&&position?distance(position,spawn):0;
+            const direction=meters>.01?bearing(position,spawn):heading;
+            return autonomousControl.rescueTargets(state.phase,position,spawn,meters,direction,height,
+                state.targetAltitudeMeters??height,heading,config,rescueVelocity.approachSpeed);
+        }
+        function availableThrust(){
+            if(!propulsion)return {maximum:g*config.acroThrustToWeight,voltage:null,powerLimit:null};
+            let voltage=propulsionElectrical?.packVoltageVolts??propulsion.configuration.referenceVoltageVolts;
+            let powerLimit=null;
+            if(config.batteryProfile&&battery&&typeof battery.electricalState==='function'){
+                const pack=battery.electricalState();
+                if(!pack.available)return {maximum:0,voltage,powerLimit:0};
+                voltage=clamp(voltage,pack.minimumCellVoltageVolts*pack.cellCount,pack.openCircuitPackVoltageVolts);
+                powerLimit=Math.max(0,pack.dischargeCurrentLimitAmps*voltage-pack.auxiliaryPowerWatts);
+            }
+            const available=motorPropeller.output(propulsion.configuration,1,voltage,powerLimit);
+            return {maximum:available.totalThrustNewtons/propulsion.configuration.massKg,voltage,powerLimit};
+        }
+        function commandForThrust(acceleration,cap){
+            if(cap.maximum<=0)return 0;
+            if(!propulsion){
+                // Invert the configured Acro thrust curve without assuming a
+                // fixed hover throttle or violating the selected TWR envelope.
+                const fraction=clamp(acceleration/(g*config.acroThrustToWeight),0,1);
+                const curve=config.acroThrustCurve;
+                return curve===0?fraction:
+                    clamp((-(1-curve)+Math.sqrt((1-curve)**2+4*curve*fraction))/(2*curve),0,1);
+            }
+            let low=0,high=1;
+            for(let i=0;i<15;i++){
+                const mid=(low+high)/2;
+                const thrust=motorPropeller.output(propulsion.configuration,mid,cap.voltage,cap.powerLimit).totalThrustNewtons/
+                    propulsion.configuration.massKg;
+                if(thrust<acceleration)low=mid;else high=mid;
+            }
+            return (low+high)/2;
+        }
+        // The identical rate/inertia torque state as advanced Acro is used for
+        // autonomous attitude requests; no direct Euler/heading assignment.
+        function integrateBodyRates(commandedRates,dt,authority){
+            const result=rotationalDynamics.stepTargetRates(rates,rotationTorque,commandedRates,
+                authority,dt,config.rotation);
+            rates=result.rates;rotationTorque=result.torques;
+            const angular=result.averageRates;
+            const speed=Math.hypot(angular.x,angular.y,angular.z),angle=speed*dt;
+            const scale=speed>1e-12?Math.sin(angle/2)/speed:0;
+            q=normalized(multiply(q,{w:Math.cos(angle/2),x:angular.x*scale,
+                y:angular.y*scale,z:angular.z*scale}));
+            const f=rotate(q,{x:1,y:0,z:0}),r=rotate(q,{x:0,y:1,z:0});
+            heading=wrap(Math.atan2(f.y,f.x));pitch=Math.asin(clamp(-f.z,-1,1));
+            roll=Math.atan2(r.z,1-2*(q.x*q.x+q.y*q.y));
+        }
+        function advancedAssistedStep(seconds,state){
+            const steps=Math.max(1,Math.ceil(seconds*240-1e-8)),dt=seconds/steps;
+            let travel={north:0,east:0,up:0};
+            for(let i=0;i<steps;i++){
+                const target=advancedFlightTarget(state);
+                const cap=availableThrust();
+                const requested=autonomousControl.command(velocity,target,q,wind,config,config.aerodynamics,
+                    bodyAxisAerodynamics,cap.maximum,motorCommand());
+                const motorTarget=commandForThrust(requested.thrustAcceleration,cap);
+                const authority=cap.maximum>0?Math.sqrt(clamp(motorThrust/cap.maximum,0,1)):0;
+                integrateBodyRates(requested.rates,dt,authority);
+                // Same motor delay and battery/ESC/motor-limited thrust path as
+                // Advanced Acro and Angle (including power-starved aircraft).
+                if(propulsion){
+                    if(battery&&typeof battery.electricalState==='function'){
+                        const coupled=electricalPropulsion.step(propulsion,battery,motorTarget,dt);
+                        propulsionState=coupled.propulsion;propulsionElectrical=coupled.electrical;
+                    }else{
+                        propulsionState=propulsion.tick(motorTarget,dt);
+                        propulsionElectrical=null;
+                    }
+                    motorThrust=propulsionState.totalThrustNewtons/propulsion.configuration.massKg;
+                }else{
+                    const targetThrust=acroThrust(motorTarget),tau=config.acroMotorTimeConstant;
+                    motorThrust=targetThrust+(motorThrust-targetThrust)*(tau>0?Math.exp(-dt/tau):0);
+                    propulsionElectrical=null;
+                }
+                throttle=config.flightMode==='acro'?motorTarget:2*motorTarget-1;
+                const thrustDirection=rotate(q,{x:0,y:0,z:-1});
+                const acceleration={north:thrustDirection.x*motorThrust,east:thrustDirection.y*motorThrust,
+                    up:-thrustDirection.z*motorThrust-g};
+                const physical=bodyAxisAerodynamics.integrate(velocity,wind,q,acceleration,dt,
+                    motorTarget,config.aerodynamics);
+                velocity=physical.velocity;
+                travel.north+=physical.travel.north;travel.east+=physical.travel.east;travel.up+=physical.travel.up;
+                flightControl={source:state?'failsafe':'manual-gps',phase:state?.phase??null,
+                    targetVelocity:requested.targetVelocity,targetTiltRadians:requested.targetTiltRadians,
+                    targetRates:requested.rates,requestedThrustAcceleration:requested.thrustAcceleration,
+                    deliveredThrustAcceleration:motorThrust,motorCommand:motorTarget,
+                    maximumThrustAcceleration:cap.maximum};
+            }
             return travel;
         }
         function insufficientRescueBattery(){
@@ -445,10 +553,26 @@
             const fs=failsafe.step(dt,linkAssessment,{playback,position,home:spawn,height,homeHeight,
                 headingErrorRadians:desiredHeading===null?null:Math.atan2(Math.sin(desiredHeading-heading),Math.cos(desiredHeading-heading)),
                 distanceToHome:spawn&&position?distance(spawn,position):null,batteryInsufficient:insufficientRescueBattery()});
-            if(fs.phase==='landed'){brake();reason='GPS Rescue: simulated landing complete';pose();return;}
+            if(fs.phase==='landed'){
+                brake();
+                if(config.physicsModel==='advanced'){
+                    // Terminal simulated touchdown disarms the advanced
+                    // propulsion state; do not leave a fictional hover motor.
+                    motorThrust=0;propulsionState=propulsion?.reset(0)??null;
+                    propulsionElectrical=null;throttle=config.flightMode==='acro'?0:-1;
+                    if(flightControl)flightControl={...flightControl,phase:'landed',
+                        motorCommand:0,deliveredThrustAcceleration:0};
+                }
+                reason='GPS Rescue: simulated landing complete';pose();return;
+            }
             const controlled=fs.active;
-            if(controlled&&!wasFailsafeControlled)clearKeys();wasFailsafeControlled=controlled;
-            const travel=controlled?automatedStep(dt,fs):config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
+            if(controlled&&!wasFailsafeControlled)clearKeys();
+            if(!controlled&&wasFailsafeControlled)gpsHeadingTarget=heading;
+            wasFailsafeControlled=controlled;
+            const travel=config.physicsModel==='advanced'&&(controlled||config.flightMode==='gps')?
+                advancedAssistedStep(dt,controlled?fs:null):
+                controlled?legacyAutomatedStep(dt,fs):config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
+            if(config.physicsModel==='legacy'||!controlled&&config.flightMode!=='gps')flightControl=null;
             // Consume simulated energy only after collision/terrain checks below.
             const horizontal=Math.hypot(travel.north,travel.east);
             const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
@@ -496,14 +620,14 @@
             if(battery){
                 // Use horizontal air-relative speed for the speed/load proxy.
                 // A zero-throttle dive must not drain the pack as if its falling
-                // velocity were high powered forward flight. GPS Rescue uses
-                // its own assisted controller and keeps the level-flight model.
+                // velocity were powered flight. Advanced GPS/Rescue supplies
+                // actual motor electrical output; Legacy keeps its proxy.
                 const horizontalAirSpeed=Math.hypot(velocity.north-wind.north,velocity.east-wind.east);
-                const thrustG=controlled||config.flightMode==='gps'?null:
+                const physicalPowered=config.physicsModel==='advanced'&&(controlled||config.flightMode==='gps');
+                const thrustG=physicalPowered?Math.max(0,motorThrust/g):controlled||config.flightMode==='gps'?null:
                     config.flightMode==='acro'?Math.max(0,motorThrust/g):
                     Math.max(0,1+throttle*(throttle>=0?config.acceleration/g:1));
-                const modeledPower=propulsion&&!(controlled||config.flightMode==='gps')?
-                    propulsionState?.propulsionPowerWatts:null;
+                const modeledPower=propulsion?propulsionState?.propulsionPowerWatts:null;
                 battery.tick(dt,horizontalAirSpeed,velocity.up,
                     thrustG===null?null:{thrustToWeight:thrustG,
                         ...(Number.isFinite(modeledPower)?{propulsionPowerWatts:modeledPower,
@@ -543,7 +667,7 @@
                 failsafe.setConfiguration(config.failsafe);clearKeys();if(active){pose();publish();}
             },
             linkAssessment(value){linkAssessment=value??null;},
-            resumeAfterFailsafe(){if(failsafe.recover()){clearKeys();if(active){pose();publish();}return true;}return false;},
+            resumeAfterFailsafe(){if(failsafe.recover()){clearKeys();gpsHeadingTarget=heading;if(active){pose();publish();}return true;}return false;},
             signalHudSettings(value){
                 config={...config,signalHud:signalHud.settings(value)};if(active){pose();publish();}
             },
@@ -573,13 +697,14 @@
             },
             reconfigure(command,signal){if(!active||!spawn)throw new Error('No active simulation');return start({...command,...spawn},signal);},
             look(dx,dy){if(active&&!playback&&!failsafe.status().active&&config.flightMode==='gps'&&Number.isFinite(dx)&&Number.isFinite(dy)){
-                heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}},
+                if(config.physicsModel==='advanced')gpsHeadingTarget=wrap(gpsHeadingTarget+dx*.004);
+                else {heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}}},
             key(key,down){if(playback)return;
                 if(failsafe.status().active){if(down&&['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','i','j','k','l','e','q'].includes(key)&&failsafe.recover()){
-                    clearKeys();keys.add(key);pose();publish();}return;}
+                    clearKeys();gpsHeadingTarget=heading;keys.add(key);pose();publish();}return;}
                 if(down&&active)keys.add(key);else keys.delete(key);},
             stick(f,r){if(playback||!Number.isFinite(f)||!Number.isFinite(r))return;
-                if(failsafe.status().active){if(Math.max(Math.abs(f),Math.abs(r))<.3||!failsafe.recover())return;clearKeys();}
+                if(failsafe.status().active){if(Math.max(Math.abs(f),Math.abs(r))<.3||!failsafe.recover())return;clearKeys();gpsHeadingTarget=heading;}
                 forward=clamp(f,-1,1);right=clamp(r,-1,1);},
             flightInput(frame){if(!active||playback||!frame||
                 ![frame.throttle,frame.yaw,frame.pitch,frame.roll].every(Number.isFinite))return;
@@ -588,12 +713,12 @@
                     // deliberate yaw/pitch/roll movement, not an idle throttle.
                     if(Math.max(Math.abs(frame.yaw),Math.abs(frame.pitch),Math.abs(frame.roll))<.3||
                         !failsafe.recover())return;
-                    clearKeys();
+                    clearKeys();gpsHeadingTarget=heading;
                 }
                 input.throttle=clamp(frame.throttle,-1,1);input.yaw=clamp(frame.yaw,-1,1);
                 input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);},
             vertical(v){if(playback||!Number.isFinite(v))return;
-                if(failsafe.status().active){if(Math.abs(v)<.3||!failsafe.recover())return;clearKeys();}
+                if(failsafe.status().active){if(Math.abs(v)<.3||!failsafe.recover())return;clearKeys();gpsHeadingTarget=heading;}
                 vertical=clamp(v,-1,1);},
             pause(value){if(!playback&&paused!==value&&active){runtime?.discardBacklog();paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};

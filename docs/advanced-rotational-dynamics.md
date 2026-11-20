@@ -1,6 +1,6 @@
 # Advanced Acro rotational dynamics
 
-This is an **optional, estimated** flight model enabled only when simulation `physicsModel` is `advanced` and `flightMode` is `acro`. Existing legacy Acro behaviour, legacy stick values and the assisted GPS/Angle flight modes are retained. These are *not* measured inertia/torque curves or an implementation of the Betaflight PID loop.
+This is an **optional, estimated** flight model enabled when simulation `physicsModel` is `advanced`. Advanced Acro uses it for stick-to-rate control; Advanced GPS-assisted flight and GPS Rescue now reuse the same torque/inertia actuator limits for attitude targets. Existing legacy Acro/GPS behaviour and legacy stick values remain unchanged; manual Angle mode retains its assisted attitude response. These are *not* measured inertia/torque curves or an implementation of the Betaflight PID loop.
 
 ## Coordinate frames and state
 
