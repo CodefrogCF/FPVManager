@@ -7,10 +7,11 @@
         isNode?require('./rescue_velocity.js'):root.FPVRescueVelocity,
         isNode?require('./flight_physics.js'):root.FPVFlightPhysics,
         isNode?require('./motor_propeller.js'):root.FPVMotorPropeller,
-        isNode?require('./electrical_propulsion.js'):root.FPVElectricalPropulsion);
+        isNode?require('./electrical_propulsion.js'):root.FPVElectricalPropulsion,
+        isNode?require('./body_axis_aerodynamics.js'):root.FPVBodyAxisAerodynamics);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -39,6 +40,7 @@
             batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,propulsionProfile:c.propulsionProfile??null,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
+            aerodynamics:bodyAxisAerodynamics.configuration(c.aerodynamics??{},c.acroTerminalVelocity??22.5),
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
             acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0,controller:controller.configuration(c.controller)};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
@@ -96,7 +98,7 @@
             const f=rotate(attitude,{x:c,y:0,z:-s}),u=rotate(attitude,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
             failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
@@ -266,6 +268,14 @@
             const thrust=advancedOutput?advancedOutput.totalThrustNewtons/propulsion.configuration.massKg:
                 tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
             const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
+            // The advanced model resolves drag in body coordinates; the legacy
+            // isotropic free-fall approximation is kept bit-for-bit unchanged.
+            if(config.physicsModel==='advanced'){
+                const result=bodyAxisAerodynamics.integrate(velocity,wind,q,acceleration,
+                    dt,motorCommand(),config.aerodynamics);
+                velocity=result.velocity;
+                return result.travel;
+            }
             // Kick / exact quadratic-drag drift / kick (Strang splitting).
             // Drag opposes air-relative velocity; attitude does not rotate
             // momentum. No GPS-style speed clamp or altitude/braking controller.
@@ -323,6 +333,17 @@
                     const travel=acroTranslation(u,dt,propulsionState&&propulsion?propulsionState:null);north+=travel.north;east+=travel.east;up+=travel.up;continue;
                 }
                 const thrust=propulsion?motorThrust:g+throttle*(throttle>=0?config.acceleration:g);
+                if(config.physicsModel==='advanced'){
+                    // Angle limits attitude, not the aerodynamic velocity. Its
+                    // translation uses the same body-axis forces as Acro;
+                    // the existing assisted speed clamps remain legacy-only.
+                    const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
+                    const result=bodyAxisAerodynamics.integrate(velocity,wind,q,acceleration,
+                        dt,(throttle+1)/2,config.aerodynamics);
+                    velocity=result.velocity;
+                    north+=result.travel.north;east+=result.travel.east;up+=result.travel.up;
+                    continue;
+                }
                 const drag=config.deceleration/config.maxSpeed,decay=Math.exp(-drag*dt),old={...velocity};
                 velocity.north=wind.north+(old.north-wind.north)*decay+u.x*thrust*(1-decay)/drag;
                 velocity.east=wind.east+(old.east-wind.east)*decay+u.y*thrust*(1-decay)/drag;

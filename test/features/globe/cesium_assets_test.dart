@@ -62,6 +62,7 @@ void main() {
         'battery_chemistries.generated.js',
         'battery_simulation.js',
         'simulated_failsafe.js',
+        'body_axis_aerodynamics.js',
         'free_flight.js',
         'flight_hud.js',
         'signal_hud.js',

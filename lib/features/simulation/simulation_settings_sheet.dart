@@ -7,6 +7,7 @@ import '../../core/database/repositories/drone_repository.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import 'simulation_battery_profile.dart';
 import 'simulation_propulsion_profile.dart';
+import 'simulation_aerodynamics_settings.dart';
 import 'simulation_settings.dart';
 import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
@@ -102,6 +103,21 @@ class _SettingsState extends State<_Settings> {
     'acroTerminalVelocity': TextEditingController(
       text: '${widget.initial.acroTerminalVelocity}',
     ),
+    'aeroForward': TextEditingController(
+      text: '${widget.initial.aerodynamics.forward}',
+    ),
+    'aeroBackward': TextEditingController(
+      text: '${widget.initial.aerodynamics.backward}',
+    ),
+    'aeroLateral': TextEditingController(
+      text: '${widget.initial.aerodynamics.lateral}',
+    ),
+    'aeroVertical': TextEditingController(
+      text: '${widget.initial.aerodynamics.vertical}',
+    ),
+    'aeroPropeller': TextEditingController(
+      text: '${widget.initial.aerodynamics.propeller}',
+    ),
     'acroRollRate': TextEditingController(
       text: '${widget.initial.acroRollRate}',
     ),
@@ -134,6 +150,10 @@ class _SettingsState extends State<_Settings> {
   late SimulationFlightMode _mode = widget.initial.flightMode;
   late SimulationPhysicsModel _physicsModel = widget.initial.physicsModel;
   late int _physicsStepHz = widget.initial.physicsStepHz;
+  late SimulationAerodynamicsPreset _aeroPreset =
+      widget.initial.aerodynamics.preset;
+  late bool _propellerDragEnabled =
+      widget.initial.aerodynamics.propellerDragEnabled;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
   late SimulationHudStyle _hud = widget.initial.hudStyle;
   late bool _showCoordinates = widget.initial.showCoordinates;
@@ -206,6 +226,20 @@ class _SettingsState extends State<_Settings> {
         : fallback;
   }
 
+  SimulationAerodynamicsSettings get _aeroSettings =>
+      SimulationAerodynamicsSettings(
+        preset: _aeroPreset,
+        forward: parameter('aeroForward', 0, 5, .35),
+        backward: parameter('aeroBackward', 0, 5, .55),
+        lateral: parameter('aeroLateral', 0, 5, .7),
+        vertical: parameter('aeroVertical', .1, 5, 1),
+        propeller: parameter('aeroPropeller', 0, 5, .12),
+        propellerDragEnabled: _propellerDragEnabled,
+      );
+
+  String _aeroLabel(String de, String en) =>
+      Localizations.localeOf(context).languageCode == 'de' ? de : en;
+
   String get _controlHelp => context.translate(
     _mode == SimulationFlightMode.gps
         ? 'Links: Bewegung · Rechts: Blick · E/Q: Höhe'
@@ -254,6 +288,8 @@ class _SettingsState extends State<_Settings> {
     final speed = SimulationSettings(
       acroThrustToWeight: thrust,
       acroTerminalVelocity: terminal,
+      physicsModel: _physicsModel,
+      aerodynamics: _aeroSettings,
     ).acroEstimatedLevelSpeedKmh;
     return context.localizedWithArgs(
       'Geschätztes Horizontaltempo bei Vollgas: {0} km/h. Höherer Luftwiderstand senkt diesen Wert; Sturzflug kann ihn überschreiten.',
@@ -274,7 +310,7 @@ class _SettingsState extends State<_Settings> {
       key: ValueKey('simulation-$key'),
       controller: _fields[key],
       onChanged: (_) {
-        if (key.startsWith('acro')) setState(() {});
+        if (key.startsWith('acro') || key.startsWith('aero')) setState(() {});
       },
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(labelText: context.translate(label)),
@@ -367,6 +403,7 @@ class _SettingsState extends State<_Settings> {
           flightMode: _mode,
           physicsModel: _physicsModel,
           physicsStepHz: _physicsStepHz,
+          aerodynamics: _aeroSettings,
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
@@ -632,6 +669,139 @@ class _SettingsState extends State<_Settings> {
                               setState(() => _physicsStepHz = value);
                             }
                           },
+                        ),
+                      if (_physicsModel == SimulationPhysicsModel.advanced)
+                        _group(
+                          'simulation-aerodynamics',
+                          _aeroLabel(
+                            'Richtungsabhängige Aerodynamik',
+                            'Directional aerodynamics',
+                          ),
+                          Icons.air,
+                          [
+                            Text(
+                              _aeroLabel(
+                                'Geschätzte Widerstandsverhältnisse in Körperachsen. '
+                                    'Die Werte sind nicht anhand von Flugdaten kalibriert.',
+                                'Estimated body-axis drag ratios. These values '
+                                    'are not calibrated against flight data.',
+                              ),
+                            ),
+                            DropdownButtonFormField<
+                              SimulationAerodynamicsPreset
+                            >(
+                              key: const ValueKey(
+                                'simulation-aerodynamics-preset',
+                              ),
+                              initialValue: _aeroPreset,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                labelText: _aeroLabel(
+                                  'Widerstandsprofil',
+                                  'Drag preset',
+                                ),
+                              ),
+                              items: [
+                                DropdownMenuItem(
+                                  value:
+                                      SimulationAerodynamicsPreset.conservative,
+                                  child: Text(
+                                    _aeroLabel(
+                                      'Konservativ (Standard)',
+                                      'Conservative (default)',
+                                    ),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value:
+                                      SimulationAerodynamicsPreset.streamlined,
+                                  child: Text(
+                                    _aeroLabel(
+                                      'Stromlinienförmig',
+                                      'Streamlined',
+                                    ),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: SimulationAerodynamicsPreset.highDrag,
+                                  child: Text(
+                                    _aeroLabel('Hoher Widerstand', 'High drag'),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: SimulationAerodynamicsPreset.custom,
+                                  child: Text(
+                                    _aeroLabel('Benutzerdefiniert', 'Custom'),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _aeroPreset = value);
+                                }
+                              },
+                            ),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                _aeroLabel(
+                                  'Zusätzlicher Propellerwiderstand bei geringem Gas',
+                                  'Additional low-throttle propeller drag',
+                                ),
+                              ),
+                              value: _propellerDragEnabled,
+                              onChanged: (value) =>
+                                  setState(() => _propellerDragEnabled = value),
+                            ),
+                            if (_aeroPreset ==
+                                SimulationAerodynamicsPreset.custom) ...[
+                              number(
+                                'aeroForward',
+                                _aeroLabel(
+                                  'Vorwärtswiderstand (Verhältnis)',
+                                  'Forward drag (ratio)',
+                                ),
+                                0,
+                                5,
+                              ),
+                              number(
+                                'aeroBackward',
+                                _aeroLabel(
+                                  'Rückwärtswiderstand (Verhältnis)',
+                                  'Reverse drag (ratio)',
+                                ),
+                                0,
+                                5,
+                              ),
+                              number(
+                                'aeroLateral',
+                                _aeroLabel(
+                                  'Seitenwiderstand (Verhältnis)',
+                                  'Lateral drag (ratio)',
+                                ),
+                                0,
+                                5,
+                              ),
+                              number(
+                                'aeroVertical',
+                                _aeroLabel(
+                                  'Vertikalwiderstand (Verhältnis)',
+                                  'Vertical drag (ratio)',
+                                ),
+                                .1,
+                                5,
+                              ),
+                              number(
+                                'aeroPropeller',
+                                _aeroLabel(
+                                  'Zusätzlicher Propellerwiderstand (Verhältnis)',
+                                  'Propeller drag (ratio)',
+                                ),
+                                0,
+                                5,
+                              ),
+                            ],
+                          ],
                         ),
                       const SizedBox(height: 12),
                       if (_loading) const LinearProgressIndicator(),

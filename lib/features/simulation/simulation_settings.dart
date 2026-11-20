@@ -6,6 +6,7 @@ import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
 import 'simulation_battery_profile.dart';
 import 'simulation_propulsion_profile.dart';
+import 'simulation_aerodynamics_settings.dart';
 import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
@@ -48,6 +49,7 @@ class SimulationSettings {
     this.acroThrustCurve = 1,
     this.acroMotorTimeConstant = .04,
     this.acroTerminalVelocity = 22.5,
+    this.aerodynamics = const SimulationAerodynamicsSettings(),
     this.acroRollRate = 180,
     this.acroPitchRate = 180,
     this.acroYawRate = 180,
@@ -77,6 +79,7 @@ class SimulationSettings {
   final SimulationBatteryProfile? batteryProfile;
   final SimulationPropulsionProfile? propulsionProfile;
   final ControllerSettings controller;
+  final SimulationAerodynamicsSettings aerodynamics;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
@@ -96,6 +99,7 @@ class SimulationSettings {
     SimulationPhysicsModel? physicsModel,
     int? physicsStepHz,
     SceneTime? sceneTime,
+    SimulationAerodynamicsSettings? aerodynamics,
   }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
@@ -127,6 +131,7 @@ class SimulationSettings {
     propulsionProfile: propulsionProfile,
     controller: controller ?? this.controller,
     sceneTime: sceneTime ?? this.sceneTime,
+    aerodynamics: aerodynamics ?? this.aerodynamics,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -142,11 +147,17 @@ class SimulationSettings {
       acroTerminalVelocity;
   final double acroRollRate, acroPitchRate, acroYawRate, acroRateExpo;
 
-  /// Full-throttle steady level flight in the current isotropic drag model.
-  /// Vertical thrust balances gravity; remaining thrust balances horizontal drag.
+  /// Simplified full-throttle steady level speed, without manufacturer thrust
+  /// curves, motor electrical limits, air density changes or propeller inflow.
+  /// Legacy uses isotropic drag; advanced uses the forward projected ratio.
   double get acroEstimatedLevelSpeedKmh =>
       acroTerminalVelocity *
-      math.pow(acroThrustToWeight * acroThrustToWeight - 1, .25) *
+      math.pow(acroThrustToWeight * acroThrustToWeight - 1, .25) /
+      math.sqrt(
+        physicsModel == SimulationPhysicsModel.advanced
+            ? math.max(1e-9, aerodynamics.effectiveForwardDragRatio)
+            : 1,
+      ) *
       3.6;
   double get acroHoverThrottle {
     final linear = 1 - acroThrustCurve;
@@ -162,6 +173,7 @@ class SimulationSettings {
       throw ArgumentError('Unsupported simulation physics rate');
     }
     controller.validate();
+    aerodynamics.validate();
     sceneTime.validate();
     batteryProfile?.validate();
     signalHud.validate();
@@ -233,6 +245,7 @@ class SimulationSettings {
       'acroThrustCurve': acroThrustCurve,
       'acroMotorTimeConstant': acroMotorTimeConstant,
       'acroTerminalVelocity': acroTerminalVelocity,
+      'aerodynamics': aerodynamics.toJson(),
       'acroRollRate': acroRollRate,
       'acroPitchRate': acroPitchRate,
       'acroYawRate': acroYawRate,
