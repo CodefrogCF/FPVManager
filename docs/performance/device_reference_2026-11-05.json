@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "source": "docs/performance.md",
+  "source": "docs/developer/performance.md",
   "measuredDateUtc": "2026-11-05",
   "status": "historical real-device single runs, not CI pass/fail thresholds",
   "sourceDataset": "BAZL official GeoJSON EPSG:4326 (dataset revision as measured 2026-11-05)",

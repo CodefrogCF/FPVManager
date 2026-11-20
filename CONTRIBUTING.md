@@ -62,13 +62,11 @@ configuration. On Windows, archive the whole runner Release directory, including
 fresh `build/web/` output. The source `web/` directory contains Flutter build
 inputs. Check each finished artifact and publish its SHA-256 with the release.
 
-If applying this update as a ZIP over a checkout that still tracks the
-old generated Web bundle, remove its tracked files once from the repository
-root. The list contains the former build output directories and files.
-
-```sh
-git rm -r --ignore-unmatch --pathspec-from-file=docs/obsolete_web_build_paths.txt
-```
+For documentation updates delivered as a changed-files ZIP, consult the
+[documentation index](docs/README.md#applying-a-documentation-update-zip):
+old notes are listed in a checksum-protected cleanup manifest so locally
+edited files are not deleted automatically. Do not confuse historical
+implementation notes with maintained feature documentation.
 
 ```sh
 python tool/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-release.apk
@@ -90,7 +88,7 @@ resolved package's expected hashes, reuses verified cache entries and retries
 failed downloads up to three times. Use `--refresh` to request fresh downloads;
 never override a failed hash check.
 
-For map changes, run the [browser harnesses](docs/cesium_assets.md) and the native
+For map changes, run the [browser harnesses](docs/developer/cesium_assets.md) and the native
 renderer test:
 
 ```sh
@@ -109,7 +107,7 @@ Check navigation, selection, layers, visible credits, terrain failure/retry and
 affected controls on Web and Android. Builds and synthetic fixtures do not verify
 device gestures, permission dialogs or real network recovery. When upgrading
 Flutter, update README and the CI pin together and repeat both builds.
-Use [the performance guide](docs/performance.md) for local diagnostics and
+Use [the performance guide](docs/developer/performance.md) for local diagnostics and
 reproducible device measurements. Never present synthetic timings as device FPS.
 
 ## Database changes

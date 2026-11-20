@@ -52,7 +52,7 @@ battery packs/types and assignments, radio equipment/drone assignments, flight
 plans/waypoints, separate ground routes, preflight checklists/templates, raw telemetry and settings.
 Foreign keys are enabled. Historical schemas are
 in `drift_schemas/`; migration fixtures are in `test/generated_migrations/`.
-See [Contributing](../CONTRIBUTING.md) for generation and migration requirements.
+See [Contributing](../../CONTRIBUTING.md) for generation and migration requirements.
 
 Repository interfaces accept an injected database. `SpotRepository` is under
 `lib/features/spots/data/`; equipment, route and preference repositories are under
@@ -262,6 +262,6 @@ exaggeration invalidate it. The final flight owner restores Cesium's original
 picker and releases the additional cache. Guarded fallbacks retain public
 Cesium picking when runtime details or scene modes are unsupported.
 
-See [coordinates and heights](coordinates_and_heights.md) for calculation
-contracts, [privacy](privacy_and_permissions.md) for requests and permissions,
-and [map sources](map_sources_and_attribution.md) for attribution.
+See [coordinates and heights](../user/coordinates_and_heights.md) for calculation
+contracts, [privacy](../user/privacy_and_permissions.md) for requests and permissions,
+and [map sources](../user/map_sources_and_attribution.md) for attribution.

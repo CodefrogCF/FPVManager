@@ -1,5 +1,8 @@
 # Adaptive live radio line-of-sight (1 m to 50 km)
 
+> **Historical implementation note (November 2026).** This document records an earlier development stage. Some limits, defaults or statements have since changed. For current behavior use the [user guide](../../user_guide.md), [flight simulation guide](../../user/flight_simulation.md), [radio model reference](../../developer/radio_and_rescue.md) and [battery reference](../../developer/battery_model.md).
+
+
 ## Data path and scope
 
 `LiveRadioController` uses `LiveTerrainSampler` and the existing `RouteSamplingPlan` (WGS84 great-circle positions) and `calculateRadioLink()` geometry/Fresnel kernel. No second LOS engine is introduced. Both route and live analyses continue to use WGS84 ellipsoidal heights. The shared kernel now locates each sample along the radio path by its *geodesic fraction*, not by its index, because refinement generates unevenly spaced heights.

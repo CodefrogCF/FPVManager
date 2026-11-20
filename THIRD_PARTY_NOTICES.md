@@ -30,10 +30,10 @@ for the full notices in the resolved packages or native build artifacts.
 |---|---|
 | Bundled Swiss tunnel centreline index | [OpenStreetMap/Geofabrik ODbL notice](web/data/tunnels/ODBL_NOTICE.txt). This is a separately licensed derived database. |
 | CHGeo2004 height-conversion grid | [CC0 notice and provenance](assets/geo/chgeo2004_ln02.NOTICE.txt). |
-| Bundled forest composition overview | BAFU / WSL · Waldmischungsgrad LFI 2023. [Metadata and Opendata BY terms](docs/map_sources_and_attribution.md). The bundled raster is a derived 320 m overview. |
+| Bundled forest composition overview | BAFU / WSL · Waldmischungsgrad LFI 2023. [Metadata and Opendata BY terms](docs/user/map_sources_and_attribution.md). The bundled raster is a derived 320 m overview. |
 | Native Ganter bridge regression subset | [swisstopo source, modifications and retrieval date](test/fixtures/bridges/README.md). The source geometry is not Apache-licensed by FPVManager. |
-| Imagery, terrain, 3D models and aviation layers | [Map sources and attribution](docs/map_sources_and_attribution.md). |
-| Weather, observations, mobility and other online data | [Weather](docs/weather.md), [mobility and OSINT](docs/mobility_osint.md) and the displayed source information. |
+| Imagery, terrain, 3D models and aviation layers | [Map sources and attribution](docs/user/map_sources_and_attribution.md). |
+| Weather, observations, mobility and other online data | [Weather](docs/user/weather.md), [mobility and OSINT](docs/user/mobility_osint.md) and the displayed source information. |
 
 Apache-2.0 grants permissions for the project's original material. It does not
 grant access to third-party services, waive attribution or download limits, or

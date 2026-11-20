@@ -29,7 +29,7 @@ clearance. Retrieval time, source validity and data completeness remain separate
 
 ## Download
 
-[Releases](https://github.com/CodefrogCF/FPVManager/releases/tag/v0.17.0)
+[Releases](https://github.com/CodefrogCF/FPVManager/releases/latest)
 
 ## Run from source
 
@@ -49,23 +49,24 @@ validation. Build, test and contribution instructions are in [CONTRIBUTING](CONT
 
 ## Documentation
 
+FPVManager documentation is organized by audience:
+
+- **App users:** [User handbook](docs/user_guide.md) (English),
+  [Schnellstart](docs/user/schnellstart.de.md) (Deutsch),
+  [flight simulation and GPS Rescue](docs/user/flight_simulation.md),
+  and [battery/equipment profiles](docs/user/battery_and_power.md).
+- **Developers:** [Developer guide](docs/developer_guide.md),
+  [Contributing](CONTRIBUTING.md),
+  [architecture](docs/developer/architecture.md),
+  and [performance validation](docs/developer/performance.md).
+
+The [documentation index](docs/README.md) has all maintained guides, privacy,
+map data references and instructions for cleaning up retired docs after ZIP
+updates. Historical implementation notes are kept in an
+[archive](docs/archive/README.md) so superseded limits are not mistaken for
+current behavior. The app also bundles **Settings → Help** for offline reading.
+
 [Privacy policy · Datenschutzerklärung](PRIVACY.md)
-
-The [documentation overview](docs/README.md) links the current guides and explains
-how to clean up retired documents after applying a changes ZIP.
-
-| Task | Guide |
-|---|---|
-| Use menus, maps, records, simulation and offline tools | [User guide](docs/user_guide.md) |
-| Understand coordinates, AGL and Swiss height references | [Coordinates and heights](docs/coordinates_and_heights.md) |
-| Understand local storage, permissions and external requests | [Privacy and permissions](docs/privacy_and_permissions.md) |
-| Check map-data terms and attribution | [Sources and attribution](docs/map_sources_and_attribution.md) |
-| Use forecasts, radar, wind and measured observations | [Weather](docs/weather.md) |
-| Use checklists, radio-path checks and telemetry | [Preflight and signal analysis](docs/preflight.md) |
-| Use routing, navigation and supplementary information layers | [Navigation and OSINT](docs/mobility_osint.md) |
-| Build, test or extend the app | [Contributing](CONTRIBUTING.md), [architecture](docs/architecture.md) and [performance checks](docs/performance.md) |
-
-The app also bundles **Settings → Help** for offline reading.
 
 ## License
 

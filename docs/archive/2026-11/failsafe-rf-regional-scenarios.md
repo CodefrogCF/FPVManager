@@ -1,5 +1,8 @@
 # Simulation RF scenarios and GPS Rescue refinements
 
+> **Historical implementation note (November 2026).** This document records an earlier development stage. Some limits, defaults or statements have since changed. For current behavior use the [user guide](../../user_guide.md), [flight simulation guide](../../user/flight_simulation.md), [radio model reference](../../developer/radio_and_rescue.md) and [battery reference](../../developer/battery_model.md).
+
+
 This implementation is a **simulation-only educational approximation**. It is not a
 measured radio propagation model, a real Betaflight flight-controller clone, a
 validated return-to-home controller, or evidence that a frequency or power is

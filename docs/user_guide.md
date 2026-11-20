@@ -4,6 +4,12 @@ Under **Einstellungen → Sprache** (**Settings → Language**), choose
 **Deutsch** or **English**. FPVManager saves your choice and applies it to the
 app and the map and flight controls. This guide uses the German menu labels.
 
+For a shorter German introduction use the
+[Deutsch: Schnellstart](user/schnellstart.de.md). For newer simulator and
+battery features, consult [flight simulation, radio and GPS Rescue](user/flight_simulation.md)
+and [battery/ESC/motor profiles](user/battery_and_power.md). These are the
+maintained guides; older implementation notes have been archived.
+
 ## Find the right control
 
 | Where | What it contains |
@@ -50,7 +56,7 @@ leaving the activity restores the map's lighting choice. Navigation has separate
 **Einstellungen → Navigation**.
 
 Select a raw map point for coordinates and terrain height. WGS84 ellipsoid,
-Swiss LN02 and AGL are different references; see [coordinates and heights](coordinates_and_heights.md).
+Swiss LN02 and AGL are different references; see [coordinates and heights](user/coordinates_and_heights.md).
 Missing terrain pauses ground-dependent actions. A labelled flat fallback is
 not measured ground. Retry terrain, then select a fresh point after recovery.
 
@@ -114,9 +120,16 @@ Optional bundled obstacle models draw supported masts, poles, cranes and similar
 objects using available published heights. Shapes/headings remain illustrative;
 unsupported objects retain symbols. Cable sag is not reconstructed. **Highlight
 hazard areas** draws calculated advisory buffers, not mandatory legal separation.
-The detailed height rules are in [coordinates and heights](coordinates_and_heights.md).
+The detailed height rules are in [coordinates and heights](user/coordinates_and_heights.md).
 
 ## Ground inspection and flight simulation
+
+For the current long-range LoS (up to 50 km), simulation-only EU/FCC radio
+profiles, GPS Rescue takeover, analog signal effects and unverified terrain
+collision states, see the [simulation and radio guide](user/flight_simulation.md).
+For chemistry-aware consumption, pack ratings and separate ESC/motor warnings,
+see [battery and equipment profiles](user/battery_and_power.md).
+
 
 The walking icon starts a ground camera about two metres above a selected point
 or place. WASD/arrows or the left stick move; dragging or the right stick looks.
@@ -173,7 +186,7 @@ on reset/exit and are temporary until saved. The capture limit is 30 minutes or
 4,096 samples. **Flugaufzeichnung** reopens retained unsaved samples.
 
 Optional wind and live radio-path previews are described in
-[weather](weather.md) and [preflight/signal analysis](preflight.md).
+[weather](user/weather.md) and [preflight/signal analysis](user/preflight.md).
 
 ## Offline maps and personal backups
 
@@ -202,12 +215,16 @@ backup before restoring another one; no automatic account sync is provided.
 
 ## Specialist tools and data handling
 
-- [Weather](weather.md): forecasts, observed radar, 3D wind and measured stations.
-- [Navigation and OSINT](mobility_osint.md): driving, walking/cycling, traffic,
+- [Flight simulation and radio](user/flight_simulation.md): LoS, video/RC estimates,
+  GPS Rescue, analog HUD and terrain loading limitations.
+- [Battery and power](user/battery_and_power.md): battery chemistry, C-ratings,
+  ESC/motor limits and estimated energy use.
+- [Weather](user/weather.md): forecasts, observed radar, 3D wind and measured stations.
+- [Navigation and OSINT](user/mobility_osint.md): driving, walking/cycling, traffic,
   aircraft, outdoor restrictions, wildfire, avalanche and dated imagery.
-- [Preflight and signal analysis](preflight.md): checklists, LOS/Fresnel and telemetry.
-- [Privacy](privacy_and_permissions.md): local storage, permissions and requests.
-- [Sources and attribution](map_sources_and_attribution.md): data rights and credits.
+- [Preflight and signal analysis](user/preflight.md): checklists, LOS/Fresnel and telemetry.
+- [Privacy](user/privacy_and_permissions.md): local storage, permissions and requests.
+- [Sources and attribution](user/map_sources_and_attribution.md): data rights and credits.
 
 **Einstellungen → Hilfe** provides bundled explanations offline. Source details
 and current errors remain in their original tools. The app does not establish

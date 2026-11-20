@@ -1,5 +1,8 @@
 # Simulated RC failsafe and GPS Rescue
 
+> **Historical implementation note (November 2026).** This document records an earlier development stage. Some limits, defaults or statements have since changed. For current behavior use the [user guide](../../user_guide.md), [flight simulation guide](../../user/flight_simulation.md), [radio model reference](../../developer/radio_and_rescue.md) and [battery reference](../../developer/battery_model.md).
+
+
 ## Purpose and boundaries
 
 - Training/visualization only, **not** Betaflight or DJI firmware emulation, RF prediction, or a guarantee of a safe return.

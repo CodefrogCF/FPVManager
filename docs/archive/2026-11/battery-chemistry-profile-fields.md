@@ -1,5 +1,8 @@
 # Battery chemistry profile fields (phase 2)
 
+> **Historical implementation note (November 2026).** This document records an earlier development stage. Some limits, defaults or statements have since changed. For current behavior use the [user guide](../../user_guide.md), [flight simulation guide](../../user/flight_simulation.md), [radio model reference](../../developer/radio_and_rescue.md) and [battery reference](../../developer/battery_model.md).
+
+
 The battery profile stores optional pack-specific continuous C-rating, burst C-rating, burst duration in seconds and cell-equivalent internal resistance in milli-ohms. None is required. Missing values retain the conservative chemistry model (not a manufacturer claim).
 
 The battery editor uses six stable chemistry IDs from `assets/battery/chemistries.json`. Recognized legacy aliases are normalized on save. Unknown historical values remain as a selectable `Unsupported (preserved)` entry until deliberately changed, without data loss.

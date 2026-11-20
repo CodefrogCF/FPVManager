@@ -95,6 +95,6 @@ other routes are not automatically changed. Keep an original curve if needed;
 the raw telemetry remains available for re-evaluation.
 
 For the flight HUD's temporary recording-to-route workflow, use the
-[user guide](user_guide.md#ground-inspection-and-flight-simulation). It is separate
+[user guide](../user_guide.md#ground-inspection-and-flight-simulation). It is separate
 from importing measurements for energy calibration. Network requests and local
 storage are summarized in [privacy](privacy_and_permissions.md).

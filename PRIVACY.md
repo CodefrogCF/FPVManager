@@ -39,7 +39,7 @@ Neuberechnung während der Navigation kann der aktuelle Standort als
 neuer Start übermittelt werden. Open-Meteo erklärt, dass seine
 Serverprotokolle Koordinaten enthalten können und nach 90 Tagen
 gelöscht werden. Andere Anbieter verarbeiten Anfragen nach ihren
-eigenen Bedingungen. Die [technische Übersicht](docs/privacy_and_permissions.md#network-requests)
+eigenen Bedingungen. Die [technische Übersicht](docs/user/privacy_and_permissions.md#network-requests)
 nennt die wichtigsten Empfänger, Anfragearten und Auslöser.
 [FOSSGIS](https://routing.openstreetmap.de/about.html) ·
 [Open-Meteo](https://open-meteo.com/en/terms#privacy)
@@ -90,7 +90,7 @@ FOSSGIS logs route requests with their start and destination.
 Rerouting can use your current location as the new start. Open-Meteo
 says its server logs may contain coordinates and are deleted after
 90 days. Other providers handle requests under their own terms.
-The [technical guide](docs/privacy_and_permissions.md#network-requests)
+The [technical guide](docs/user/privacy_and_permissions.md#network-requests)
 lists the major destinations, request data and triggers.
 [FOSSGIS](https://routing.openstreetmap.de/about.html) ·
 [Open-Meteo](https://open-meteo.com/en/terms#privacy)

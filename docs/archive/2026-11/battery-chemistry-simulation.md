@@ -1,5 +1,8 @@
 # Battery chemistry simulation – shared model
 
+> **Historical implementation note (November 2026).** This document records an earlier development stage. Some limits, defaults or statements have since changed. For current behavior use the [user guide](../../user_guide.md), [flight simulation guide](../../user/flight_simulation.md), [radio model reference](../../developer/radio_and_rescue.md) and [battery reference](../../developer/battery_model.md).
+
+
 The simulation and route energy planner use the same battery chemistry **reference catalog** at `assets/battery/chemistries.json`.
 
 This is a deterministic educational model, **not** a validated performance or electrical safety prediction. The values are generic illustrative assumptions at approximately room temperature; real packs differ by cell model, number of parallel cells, condition, temperature, age, state of charge, and BMS limitations. The reference `C` values must **never** be treated as verified manufacturer ratings.
@@ -22,7 +25,7 @@ The catalog provides nominal cell voltage, warning and critical cell-voltage sug
 - `web/battery_simulation.js` uses the same generated curve/resistance/current parameters. It maintains **coulomb-counted charge (Ah)** and **energy expenditure (Wh)** separately; estimated voltage is derived from remaining charge and power load. Neither amount is regenerated when the load falls.
 - `BatteryRouteAssessment` preserves explicitly recorded battery Wh and charge/reserve assumptions. It separately flags segments whose required estimated current exceeds the chemistry's generic reference C limit; no motor power or route energy data is replaced. For incomplete battery energy/charge information, the route budget remains unavailable rather than turning chemistry assumptions into affirmative flight guarantees.
 - Simulation HUD voltages/warnings use the selected chemistry by default. Uncheck the chemistry warning option to manually override thresholds (manual values now support low-voltage nickel cells as well as lithium cells).
-- An explicit positive battery resistance override replaces the chemistry estimate; the existing UI value `0` selects **automatic chemistry-based resistance** rather than disabling sag. Battery profiles now store optional battery-specific C-ratings, burst durations, and internal resistance as documented in `docs/battery-chemistry-profile-fields.md`. Independent ESC/motor current diagnostics and charge references are covered in `docs/battery-chemistry-current-limits.md`.
+- An explicit positive battery resistance override replaces the chemistry estimate; the existing UI value `0` selects **automatic chemistry-based resistance** rather than disabling sag. Battery profiles now store optional battery-specific C-ratings, burst durations, and internal resistance as documented in `docs/archive/2026-11/battery-chemistry-profile-fields.md`. Independent ESC/motor current diagnostics and charge references are covered in `docs/archive/2026-11/battery-chemistry-current-limits.md`.
 - GPS Rescue's estimated energy shortfall calculation consumes the new battery model's **remaining energy estimate** instead of assuming the battery record contains a nominal voltage.
 
 ## Simplified calculations

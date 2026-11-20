@@ -138,7 +138,7 @@ SLF polygons/multipolygons with holes, level 0 (unknown/old) or 1–5, opacity,
 publication and validity. It hides future/expired areas and preserves up to 16,000
 plain-text characters per selected warning. `situational-status` reports imagery
 loading or failure; `situational-selected` carries bounded plain-text details. See
-[Mobility & OSINT](mobility_osint.md) for sources and limits.
+[Mobility & OSINT](../user/mobility_osint.md) for sources and limits.
 
 `set-road-navigation` carries `active`, `follow`, `cameraDistanceMeters`
 (60–1,800 m, default 550 m) and an optional WGS84
@@ -172,5 +172,5 @@ drone position or camera target. `wind-layer-status`, `wind-flags-changed` and
 after reload without a download; animation uses elapsed time, expiry wall time.
 
 See [architecture](architecture.md) for provider/terrain recovery,
-[Contributing](../CONTRIBUTING.md) for tests, and the [user guide](user_guide.md)
+[Contributing](../../CONTRIBUTING.md) for tests, and the [user guide](../user_guide.md)
 for controls and display limitations.

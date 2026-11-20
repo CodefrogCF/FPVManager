@@ -1,6 +1,6 @@
 # Change summary
 
-### [Unreleased] - 2026-11-20
+### [0.18.0] - 2026-11-20
 
 - Allow simulated long-range flight to continue when individual rendered
   Cesium terrain heights are unavailable, without inventing ground clearance;

@@ -1,5 +1,8 @@
 # Live RF approximation, line-of-sight and rescue improvements
 
+> **Historical implementation note (November 2026).** This document records an earlier development stage. Some limits, defaults or statements have since changed. For current behavior use the [user guide](../../user_guide.md), [flight simulation guide](../../user/flight_simulation.md), [radio model reference](../../developer/radio_and_rescue.md) and [battery reference](../../developer/battery_model.md).
+
+
 This update enhances four **simulation-only** subsystems, without adding live telemetry or a measured RF receiver.
 
 ## 1. Approximate default video/RC link model
