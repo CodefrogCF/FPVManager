@@ -7,6 +7,7 @@ import 'failsafe_settings.dart';
 import 'simulation_battery_profile.dart';
 import 'simulation_propulsion_profile.dart';
 import 'simulation_aerodynamics_settings.dart';
+import 'simulation_rotation_settings.dart';
 import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
@@ -50,6 +51,7 @@ class SimulationSettings {
     this.acroMotorTimeConstant = .04,
     this.acroTerminalVelocity = 22.5,
     this.aerodynamics = const SimulationAerodynamicsSettings(),
+    this.rotation = const SimulationRotationSettings(),
     this.acroRollRate = 180,
     this.acroPitchRate = 180,
     this.acroYawRate = 180,
@@ -80,6 +82,7 @@ class SimulationSettings {
   final SimulationPropulsionProfile? propulsionProfile;
   final ControllerSettings controller;
   final SimulationAerodynamicsSettings aerodynamics;
+  final SimulationRotationSettings rotation;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
@@ -100,6 +103,7 @@ class SimulationSettings {
     int? physicsStepHz,
     SceneTime? sceneTime,
     SimulationAerodynamicsSettings? aerodynamics,
+    SimulationRotationSettings? rotation,
   }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
@@ -132,6 +136,7 @@ class SimulationSettings {
     controller: controller ?? this.controller,
     sceneTime: sceneTime ?? this.sceneTime,
     aerodynamics: aerodynamics ?? this.aerodynamics,
+    rotation: rotation ?? this.rotation,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -174,6 +179,7 @@ class SimulationSettings {
     }
     controller.validate();
     aerodynamics.validate();
+    rotation.validate();
     sceneTime.validate();
     batteryProfile?.validate();
     signalHud.validate();
@@ -246,6 +252,7 @@ class SimulationSettings {
       'acroMotorTimeConstant': acroMotorTimeConstant,
       'acroTerminalVelocity': acroTerminalVelocity,
       'aerodynamics': aerodynamics.toJson(),
+      'rotation': rotation.toJson(),
       'acroRollRate': acroRollRate,
       'acroPitchRate': acroPitchRate,
       'acroYawRate': acroYawRate,

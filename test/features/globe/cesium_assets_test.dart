@@ -63,6 +63,7 @@ void main() {
         'battery_simulation.js',
         'simulated_failsafe.js',
         'body_axis_aerodynamics.js',
+        'rotational_dynamics.js',
         'free_flight.js',
         'flight_hud.js',
         'signal_hud.js',

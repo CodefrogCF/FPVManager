@@ -8,10 +8,11 @@
         isNode?require('./flight_physics.js'):root.FPVFlightPhysics,
         isNode?require('./motor_propeller.js'):root.FPVMotorPropeller,
         isNode?require('./electrical_propulsion.js'):root.FPVElectricalPropulsion,
-        isNode?require('./body_axis_aerodynamics.js'):root.FPVBodyAxisAerodynamics);
+        isNode?require('./body_axis_aerodynamics.js'):root.FPVBodyAxisAerodynamics,
+        isNode?require('./rotational_dynamics.js'):root.FPVRotationalDynamics);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -41,6 +42,7 @@
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
             aerodynamics:bodyAxisAerodynamics.configuration(c.aerodynamics??{},c.acroTerminalVelocity??22.5),
+            rotation:rotationalDynamics.configuration(c.rotation??{}),
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
             acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0,controller:controller.configuration(c.controller)};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
@@ -79,7 +81,7 @@
         isTerrainReady,onState,sampleWind=()=>null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
-        let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
+        let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},rotationTorque=rotationalDynamics.initialState(),input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let deferPose=false;
         let wind={north:0,east:0,up:0},windInfo=null;
@@ -92,13 +94,13 @@
         // Self-centring sticks: Acro uses only the upper half for motor command.
         function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
         function clearKeys(){keys.clear();input.throttle=input.yaw=input.pitch=input.roll=0;forward=right=vertical=throttle=0;}
-        function brake(){velocity={north:0,east:0,up:0};rates={x:0,y:0,z:0};}
+        function brake(){velocity={north:0,east:0,up:0};rates={x:0,y:0,z:0};rotationTorque=rotationalDynamics.initialState();}
         function orientation(attitude=q){
             const tilt=config.cameraTiltDegrees*rad,c=Math.cos(tilt),s=Math.sin(tilt);
             const f=rotate(attitude,{x:c,y:0,z:-s}),u=rotate(attitude,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,rotation:config.rotation,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
             failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
@@ -107,7 +109,7 @@
             propulsion:propulsionState&&{...propulsionState},
             controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
-            attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
+            attitude:{...q},angularVelocity:{...rates},controlTorque:config.physicsModel==='advanced'?{...rotationTorque}:null,agl:Number.isFinite(ground)?height-ground:null,
             terrainVerification:{...terrainVerification},
             speed:Math.hypot(velocity.north,velocity.east,velocity.up),horizontalSpeed:Math.hypot(velocity.north,velocity.east),
             // Simulator-modelled 3D air-relative speed. Never a measured sensor
@@ -304,13 +306,28 @@
                     pitch+=(-nose*50*rad-pitch)*response;roll+=(bank*50*rad-roll)*response;
                     heading=wrap(heading+yaw*1.8*dt);q=euler(heading,pitch,roll);
                 }else{
-                    // Cubic expo softens the centre, preserving both the sign
-                    // and full-stick rate. The existing rate response stays intact.
-                    rates.x+=(rateCommand(bank,config.acroRollRate,config.acroRateExpo)*rad-rates.x)*response;
-                    rates.y+=(-rateCommand(nose,config.acroPitchRate,config.acroRateExpo)*rad-rates.y)*response;
-                    rates.z+=(rateCommand(yaw,config.acroYawRate,config.acroRateExpo)*rad-rates.z)*response;
-                    const speed=Math.hypot(rates.x,rates.y,rates.z),angle=speed*dt,scale=speed>1e-12?Math.sin(angle/2)/speed:0;
-                    q=normalized(multiply(q,{w:Math.cos(angle/2),x:rates.x*scale,y:rates.y*scale,z:rates.z*scale}));
+                    let rotationRates=rates;
+                    if(config.physicsModel==='advanced'){
+                        // Control authority comes from delivered motor thrust,
+                        // including voltage/ESC/motor limits of the coupled model.
+                        // Without powered motors, only passive angular damping acts.
+                        const available=Math.max(0,motorThrust)/(g*config.acroThrustToWeight);
+                        const authority=Math.sqrt(clamp(available,0,1));
+                        const updated=rotationalDynamics.step(rates,rotationTorque,
+                            {x:bank,y:-nose,z:yaw},
+                            {x:config.acroRollRate,y:config.acroPitchRate,z:config.acroYawRate},
+                            config.acroRateExpo,authority,dt,config.rotation);
+                        rates=updated.rates;
+                        rotationTorque=updated.torques;
+                        rotationRates=updated.averageRates;
+                    }else{
+                        // Preserve legacy stick smoothing and full-stick rates.
+                        rates.x+=(rateCommand(bank,config.acroRollRate,config.acroRateExpo)*rad-rates.x)*response;
+                        rates.y+=(-rateCommand(nose,config.acroPitchRate,config.acroRateExpo)*rad-rates.y)*response;
+                        rates.z+=(rateCommand(yaw,config.acroYawRate,config.acroRateExpo)*rad-rates.z)*response;
+                    }
+                    const speed=Math.hypot(rotationRates.x,rotationRates.y,rotationRates.z),angle=speed*dt,scale=speed>1e-12?Math.sin(angle/2)/speed:0;
+                    q=normalized(multiply(q,{w:Math.cos(angle/2),x:rotationRates.x*scale,y:rotationRates.y*scale,z:rotationRates.z*scale}));
                     const f=rotate(q,{x:1,y:0,z:0}),r=rotate(q,{x:0,y:1,z:0});
                     heading=wrap(Math.atan2(f.y,f.x));pitch=Math.asin(clamp(-f.z,-1,1));roll=Math.atan2(r.z,1-2*(q.x*q.x+q.y*q.y));
                 }

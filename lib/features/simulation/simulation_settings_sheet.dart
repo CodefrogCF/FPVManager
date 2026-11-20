@@ -8,6 +8,7 @@ import '../../core/database/repositories/battery_repository.dart';
 import 'simulation_battery_profile.dart';
 import 'simulation_propulsion_profile.dart';
 import 'simulation_aerodynamics_settings.dart';
+import 'simulation_rotation_settings.dart';
 import 'simulation_settings.dart';
 import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
@@ -118,6 +119,45 @@ class _SettingsState extends State<_Settings> {
     'aeroPropeller': TextEditingController(
       text: '${widget.initial.aerodynamics.propeller}',
     ),
+    'rotationSuperRate': TextEditingController(
+      text: '${widget.initial.rotation.superRate}',
+    ),
+    'rotationRollInertia': TextEditingController(
+      text: '${widget.initial.rotation.rollInertiaKgM2}',
+    ),
+    'rotationPitchInertia': TextEditingController(
+      text: '${widget.initial.rotation.pitchInertiaKgM2}',
+    ),
+    'rotationYawInertia': TextEditingController(
+      text: '${widget.initial.rotation.yawInertiaKgM2}',
+    ),
+    'rotationRollTorque': TextEditingController(
+      text: '${widget.initial.rotation.rollTorqueNm}',
+    ),
+    'rotationPitchTorque': TextEditingController(
+      text: '${widget.initial.rotation.pitchTorqueNm}',
+    ),
+    'rotationYawTorque': TextEditingController(
+      text: '${widget.initial.rotation.yawTorqueNm}',
+    ),
+    'rotationRollAccel': TextEditingController(
+      text: '${widget.initial.rotation.rollAccelerationLimitDegs2}',
+    ),
+    'rotationPitchAccel': TextEditingController(
+      text: '${widget.initial.rotation.pitchAccelerationLimitDegs2}',
+    ),
+    'rotationYawAccel': TextEditingController(
+      text: '${widget.initial.rotation.yawAccelerationLimitDegs2}',
+    ),
+    'rotationGain': TextEditingController(
+      text: '${widget.initial.rotation.controllerGainPerSecond}',
+    ),
+    'rotationMotorResponse': TextEditingController(
+      text: '${widget.initial.rotation.motorResponseTimeConstantSeconds}',
+    ),
+    'rotationDamping': TextEditingController(
+      text: '${widget.initial.rotation.passiveDampingPerSecond}',
+    ),
     'acroRollRate': TextEditingController(
       text: '${widget.initial.acroRollRate}',
     ),
@@ -131,6 +171,7 @@ class _SettingsState extends State<_Settings> {
   };
   final _acroOptions = ExpansibleController();
   final _ratesOptions = ExpansibleController();
+  final _rotationOptions = ExpansibleController();
   final _cameraOptions = ExpansibleController();
   final _batteryOptions = ExpansibleController();
   final _signalOptions = ExpansibleController();
@@ -152,6 +193,8 @@ class _SettingsState extends State<_Settings> {
   late int _physicsStepHz = widget.initial.physicsStepHz;
   late SimulationAerodynamicsPreset _aeroPreset =
       widget.initial.aerodynamics.preset;
+  late SimulationRateProfile _rotationRateProfile =
+      widget.initial.rotation.rateProfile;
   late bool _propellerDragEnabled =
       widget.initial.aerodynamics.propellerDragEnabled;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
@@ -210,6 +253,7 @@ class _SettingsState extends State<_Settings> {
     }
     _acroOptions.dispose();
     _ratesOptions.dispose();
+    _rotationOptions.dispose();
     _cameraOptions.dispose();
     _batteryOptions.dispose();
     _signalOptions.dispose();
@@ -235,6 +279,44 @@ class _SettingsState extends State<_Settings> {
         vertical: parameter('aeroVertical', .1, 5, 1),
         propeller: parameter('aeroPropeller', 0, 5, .12),
         propellerDragEnabled: _propellerDragEnabled,
+      );
+
+  SimulationRotationSettings get _rotationSettings =>
+      SimulationRotationSettings(
+        rateProfile: _rotationRateProfile,
+        superRate: parameter('rotationSuperRate', 0, .95, .55),
+        rollInertiaKgM2: parameter('rotationRollInertia', .0001, 5, .018),
+        pitchInertiaKgM2: parameter('rotationPitchInertia', .0001, 5, .021),
+        yawInertiaKgM2: parameter('rotationYawInertia', .0001, 5, .03),
+        rollTorqueNm: parameter('rotationRollTorque', .0001, 20, 1),
+        pitchTorqueNm: parameter('rotationPitchTorque', .0001, 20, 1),
+        yawTorqueNm: parameter('rotationYawTorque', .0001, 20, .45),
+        rollAccelerationLimitDegs2: parameter(
+          'rotationRollAccel',
+          10,
+          20000,
+          4000,
+        ),
+        pitchAccelerationLimitDegs2: parameter(
+          'rotationPitchAccel',
+          10,
+          20000,
+          4000,
+        ),
+        yawAccelerationLimitDegs2: parameter(
+          'rotationYawAccel',
+          10,
+          20000,
+          2200,
+        ),
+        controllerGainPerSecond: parameter('rotationGain', .1, 100, 16),
+        motorResponseTimeConstantSeconds: parameter(
+          'rotationMotorResponse',
+          0,
+          .5,
+          .035,
+        ),
+        passiveDampingPerSecond: parameter('rotationDamping', 0, 5, .15),
       );
 
   String _aeroLabel(String de, String en) =>
@@ -376,6 +458,24 @@ class _SettingsState extends State<_Settings> {
               _invalid('acroTerminalVelocity', 5, 120)) {
             _acroOptions.expand();
           }
+          if (_physicsModel == SimulationPhysicsModel.advanced &&
+              [
+                ('rotationSuperRate', 0.0, .95),
+                ('rotationRollInertia', .0001, 5.0),
+                ('rotationPitchInertia', .0001, 5.0),
+                ('rotationYawInertia', .0001, 5.0),
+                ('rotationRollTorque', .0001, 20.0),
+                ('rotationPitchTorque', .0001, 20.0),
+                ('rotationYawTorque', .0001, 20.0),
+                ('rotationRollAccel', 10.0, 20000.0),
+                ('rotationPitchAccel', 10.0, 20000.0),
+                ('rotationYawAccel', 10.0, 20000.0),
+                ('rotationGain', .1, 100.0),
+                ('rotationMotorResponse', 0.0, .5),
+                ('rotationDamping', 0.0, 5.0),
+              ].any((field) => _invalid(field.$1, field.$2, field.$3))) {
+            _rotationOptions.expand();
+          }
           if (_invalid('acroRollRate', 10, 1500) ||
               _invalid('acroPitchRate', 10, 1500) ||
               _invalid('acroYawRate', 10, 1500) ||
@@ -404,6 +504,7 @@ class _SettingsState extends State<_Settings> {
           physicsModel: _physicsModel,
           physicsStepHz: _physicsStepHz,
           aerodynamics: _aeroSettings,
+          rotation: _rotationSettings,
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
@@ -1346,6 +1447,190 @@ class _SettingsState extends State<_Settings> {
                             ),
                           ],
                         ),
+                        if (_physicsModel == SimulationPhysicsModel.advanced)
+                          ExpansionTile(
+                            key: const ValueKey('simulation-rotation-dynamics'),
+                            controller: _rotationOptions,
+                            maintainState: true,
+                            tilePadding: EdgeInsets.zero,
+                            childrenPadding: const EdgeInsets.only(top: 8),
+                            leading: const Icon(Icons.sync),
+                            title: Text(
+                              _aeroLabel(
+                                'Trägheit und Rate-Regelung',
+                                'Rotational inertia and rate control',
+                              ),
+                            ),
+                            subtitle: Text(
+                              _aeroLabel(
+                                'Vereinfachtes physikalisches Modell (Schätzwerte)',
+                                'Simplified physical model (estimated values)',
+                              ),
+                            ),
+                            children: [
+                              DropdownButtonFormField<SimulationRateProfile>(
+                                key: const ValueKey('simulation-rate-profile'),
+                                initialValue: _rotationRateProfile,
+                                isExpanded: true,
+                                decoration: InputDecoration(
+                                  labelText: _aeroLabel(
+                                    'Rate-Profil',
+                                    'Rate profile',
+                                  ),
+                                ),
+                                items: [
+                                  DropdownMenuItem(
+                                    value: SimulationRateProfile.betaflight,
+                                    child: Text(
+                                      _aeroLabel(
+                                        'Betaflight-inspiriert',
+                                        'Betaflight-inspired',
+                                      ),
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: SimulationRateProfile.legacyExpo,
+                                    child: Text(
+                                      _aeroLabel(
+                                        'Klassische Expo-Kurve',
+                                        'Classic expo curve',
+                                      ),
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: SimulationRateProfile.linear,
+                                    child: Text(_aeroLabel('Linear', 'Linear')),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(
+                                      () => _rotationRateProfile = value,
+                                    );
+                                  }
+                                },
+                              ),
+                              if (_rotationRateProfile ==
+                                  SimulationRateProfile.betaflight)
+                                number(
+                                  'rotationSuperRate',
+                                  _aeroLabel(
+                                    'Super Rate (0–0,95)',
+                                    'Super Rate (0–0.95)',
+                                  ),
+                                  0,
+                                  .95,
+                                ),
+                              number(
+                                'rotationRollInertia',
+                                _aeroLabel(
+                                  'Roll-Trägheitsmoment (kg m²)',
+                                  'Roll inertia (kg m²)',
+                                ),
+                                .0001,
+                                5,
+                              ),
+                              number(
+                                'rotationPitchInertia',
+                                _aeroLabel(
+                                  'Pitch-Trägheitsmoment (kg m²)',
+                                  'Pitch inertia (kg m²)',
+                                ),
+                                .0001,
+                                5,
+                              ),
+                              number(
+                                'rotationYawInertia',
+                                _aeroLabel(
+                                  'Yaw-Trägheitsmoment (kg m²)',
+                                  'Yaw inertia (kg m²)',
+                                ),
+                                .0001,
+                                5,
+                              ),
+                              number(
+                                'rotationRollTorque',
+                                _aeroLabel(
+                                  'Max. Roll-Drehmoment (N m)',
+                                  'Max roll torque (N m)',
+                                ),
+                                .0001,
+                                20,
+                              ),
+                              number(
+                                'rotationPitchTorque',
+                                _aeroLabel(
+                                  'Max. Pitch-Drehmoment (N m)',
+                                  'Max pitch torque (N m)',
+                                ),
+                                .0001,
+                                20,
+                              ),
+                              number(
+                                'rotationYawTorque',
+                                _aeroLabel(
+                                  'Max. Yaw-Drehmoment (N m)',
+                                  'Max yaw torque (N m)',
+                                ),
+                                .0001,
+                                20,
+                              ),
+                              number(
+                                'rotationRollAccel',
+                                _aeroLabel(
+                                  'Max. Roll-Winkelbeschleunigung (°/s²)',
+                                  'Max roll acceleration (°/s²)',
+                                ),
+                                10,
+                                20000,
+                              ),
+                              number(
+                                'rotationPitchAccel',
+                                _aeroLabel(
+                                  'Max. Pitch-Winkelbeschleunigung (°/s²)',
+                                  'Max pitch acceleration (°/s²)',
+                                ),
+                                10,
+                                20000,
+                              ),
+                              number(
+                                'rotationYawAccel',
+                                _aeroLabel(
+                                  'Max. Yaw-Winkelbeschleunigung (°/s²)',
+                                  'Max yaw acceleration (°/s²)',
+                                ),
+                                10,
+                                20000,
+                              ),
+                              number(
+                                'rotationGain',
+                                _aeroLabel(
+                                  'Rate-Regler-Verstärkung (1/s)',
+                                  'Rate controller gain (1/s)',
+                                ),
+                                .1,
+                                100,
+                              ),
+                              number(
+                                'rotationMotorResponse',
+                                _aeroLabel(
+                                  'Drehmoment-Ansprechzeit (s)',
+                                  'Torque response time (s)',
+                                ),
+                                0,
+                                .5,
+                              ),
+                              number(
+                                'rotationDamping',
+                                _aeroLabel(
+                                  'Passive Drehdämpfung (1/s)',
+                                  'Passive angular damping (1/s)',
+                                ),
+                                0,
+                                5,
+                              ),
+                            ],
+                          ),
                         ExpansionTile(
                           key: const ValueKey('simulation-acro-physics'),
                           controller: _acroOptions,
