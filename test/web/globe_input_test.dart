@@ -4,6 +4,7 @@ library;
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
+import 'package:fpvmanager/core/localization/generated/fpv_strings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 import 'package:fpvmanager/core/database/fpv_database.dart' show Drone;
@@ -63,6 +64,9 @@ void main() {
       addTearDown(globe.dispose);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('de'),
+          supportedLocales: FpvStrings.supportedLocales,
+          localizationsDelegates: FpvStrings.localizationsDelegates,
           home: Builder(
             builder: (context) => Scaffold(
               appBar: AppBar(

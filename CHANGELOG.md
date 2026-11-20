@@ -2,6 +2,22 @@
 
 ### [Unreleased] - 2026-11-19
 
+- Keep a confirmed simulated RC reconnection available for deliberate GPS
+  Rescue pilot takeover throughout the return flight, including short terrain
+  sampling gaps and link values within the RF hysteresis band. Revoke takeover
+  after sustained renewed RC loss or five seconds without modeled RC data;
+  require a fresh stable reconnection before re-enabling takeover. Add rescue
+  regression tests for mid-return control, lost-link requalification, and
+  throttle-only inputs. No change to real RC equipment or radio legality.
+- Extend terrain-based live radio LoS from 6 km up to
+  50 km using bounded coarse-to-fine sampling and targeted ridge/Fresnel
+  refinement. Keep shared route radio geometry, adaptive speed/distance update
+  intervals and terrain height caching.
+- Identify under-resolved long-range profiles as limited-confidence, never
+  inferred clear visibility or confirmed RC loss. Display terrain query/sample
+  counts and a clearly labelled free-space-only RF preview when LOS is unknown.
+- Correct the browser iframe simulation dialog test host to register the
+  generated German localization delegate (Chrome web regression).
 - Refine simulation-only GPS Rescue to hold, climb approximately 100 m above
   current loss altitude, turn toward home, return at controlled cruise altitude
   and speed, then land automatically near the home-point ground surface.
@@ -25,57 +41,48 @@
   labeled equal-share DC current proxy; motor phase currents are not measured.
 - Retain existing battery, drone, and backup records across the nullable schema
   migration. Unknown electrical limits remain unknown, not assumed adequate.
-- Replace free-text battery chemistry with localized LiPo, LiHV, Li-ion,
-  LiFePO₄, NiMH, and NiCd selections; preserve unsupported legacy chemistry
-  strings.
+- Replace free-text battery chemistry with localized LiPo, LiHV, Li-ion, LiFePO₄,
+  NiMH, and NiCd selections; preserve unsupported legacy chemistry strings.
 - Persist individual continuous/burst C-ratings, burst duration, and per-cell
-  internal resistance (mΩ) in database schema v11; copy values from type
-  templates.
-- Pass specifications into the existing chemistry-aware live-voltage
-  simulation and route energy/load analysis. Chemistry defaults remain
-  explicitly approximate.
+  internal resistance (mΩ) in database schema v11; copy values from type templates.
+- Pass specifications into the existing chemistry-aware live-voltage simulation and
+  route energy/load analysis. Chemistry defaults remain explicitly approximate.
 - Correct known German localization defects including Betaflight branding and
   simulator spawn labels.
-- Centralize estimated RC battery chemistry behavior with generated, shared
-  Dart/JavaScript reference presets (LiPo, LiHV, Li-ion, LiFePO4, NiMH and
-  NiCd). The flight HUD now uses chemistry-specific discharge voltage and
-  load sag, charge/energy accounting and automatic low-voltage warnings;
-  route energy assessments flag estimated current requirements above generic
-  chemistry reference limits without overwriting recorded Wh. Custom warning
-  thresholds remain available, and existing battery records/backups are
-  unchanged.
-- Extend simulated DJI O4 Pro and Crossfire RF estimation with derived
-  free-space maximum ranges, receive power, path loss and remaining link
-  margins for each band, retaining conservative terrain uncertainty and
-  custom parameters. Expose estimates in radio details/HUD tooltips, not as
-  measured reception.
-- Stabilize Flutter tests affected by additional renderer radio setup
-  commands: verify feature-specific commands rather than absolute
-  command-list positions, and compare preference resets against the current
-  HUD defaults.
-- Add default, explicitly approximate DJI O4 Air Unit Pro video and TBS
-  Crossfire RC link-budget profiles with optional custom radio parameters.
-  Expose independent video/RC signal estimates when fresh terrain profiles
-  exist, retain unknown reception on unavailable data, and feed the existing
-  optional failsafe.
+- Centralize estimated RC battery chemistry behavior with generated, shared Dart/JavaScript
+  reference presets (LiPo, LiHV, Li-ion, LiFePO4, NiMH and NiCd). The flight HUD now uses
+  chemistry-specific discharge voltage and load sag, charge/energy accounting and automatic
+  low-voltage warnings; route energy assessments flag estimated current requirements above
+  generic chemistry reference limits without overwriting recorded Wh. Custom warning
+  thresholds remain available, and existing battery records/backups are unchanged.
+- Extend simulated DJI O4 Pro and Crossfire RF estimation with derived free-space
+  maximum ranges, receive power, path loss and remaining link margins for each
+  band, retaining conservative terrain uncertainty and custom parameters.
+  Expose estimates in radio details/HUD tooltips, not as measured reception.
+- Stabilize Flutter tests affected by additional renderer radio setup commands:
+  verify feature-specific commands rather than absolute command-list positions,
+  and compare preference resets against the current HUD defaults.
+- Add default, explicitly approximate DJI O4 Air Unit Pro video and TBS Crossfire
+  RC link-budget profiles with optional custom radio parameters. Expose independent
+  video/RC signal estimates when fresh terrain profiles exist, retain unknown
+  reception on unavailable data, and feed the existing optional failsafe.
 - Improve adaptive live sightline sampling at higher flight speeds, keep rays
   strictly visualization-only and non-collidable, increase optional analog
   video interference at poor simulated reception and speed up GPS Rescue
   target-speed tracking with bounded acceleration and braking.
 - Add an opt-in, deterministic simulated RC failsafe with hold, descend and
   illustrative GPS Rescue to the takeoff point. Sustain loss and recovery
-  thresholds with hysteresis, handle unknown/insufficient navigation and
-  battery information, keep manual/video/RC channels separate, and reuse
-  existing flight collision sweeps. Provide simulation-only HUD status,
-  persisted settings and a session-only manual RC test source; no terrain-only
-  RF-loss assertions.
+  thresholds with hysteresis, handle unknown/insufficient navigation and battery
+  information, keep manual/video/RC channels separate, and reuse existing
+  flight collision sweeps. Provide simulation-only HUD status, persisted settings
+  and a session-only manual RC test source; no terrain-only RF-loss assertions.
 - Add opt-in simulated video-link warnings to the goggles HUD and separate
-  video/RC strength bars in the Betaflight OSD, with optional analog
-  interference. Smooth the visuals and persist thresholds/intensity locally.
-  An explicit terrain-only demonstration can illustrate possible video
-  degradation without asserting measured RF quality or RC failure; unknown
-  conditions show no invented reception. All effects are presentation-only and
-  cannot trigger failsafe.
+  video/RC strength bars in the Betaflight OSD, with optional analog interference.
+  Smooth the visuals and persist thresholds/intensity locally. An explicit
+  terrain-only demonstration can illustrate possible video degradation without
+  asserting measured RF quality or RC failure; unknown conditions show no
+  invented reception. All effects are presentation-only and cannot trigger
+  failsafe.
 - Extend the existing live geometric radio preview with a separately visible
   ground station marker, independently controlled sightline, and an explicit
   takeoff reset/map-selection workflow. Share an immutable assessment model

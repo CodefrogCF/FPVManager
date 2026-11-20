@@ -178,3 +178,64 @@ test('controller can reclaim only after stable RF recovery and deliberate non-th
     m.flightInput({throttle:-1,yaw:0,pitch:.7,roll:0});
     assert.equal(m.status().failsafe.phase,'normal');
 });
+
+test('confirmed RC recovery remains available during a long GPS return despite marginal and short unknown profiles',async()=>{
+    const {model:m}=flight();
+    await start(m,{maxSpeed:20,acceleration:9,deceleration:6,
+        failsafe:{enabled:true,mode:'gpsRescue',activationDelaySeconds:.3,recoveryDelaySeconds:.6,
+            rescueAltitudeMeters:5,returnSpeedMetersPerSecond:8,climbSpeedMetersPerSecond:5}});
+    m.stick(1,0);run(m,22);
+    assert.ok(m.status().distance>100,'drone must be far enough away to test mid-return takeover');
+    m.linkAssessment(rc(0));run(m,.4);run(m,7);
+    assert.equal(m.status().failsafe.phase,'return');
+    const away=m.status().distance;
+    m.linkAssessment(rc(.85));run(m,.7);
+    assert.equal(m.status().failsafe.recoveryReady,true);
+    // The previous implementation revoked takeover every time a terrain
+    // profile returned a value below the recovery threshold (but above loss).
+    m.linkAssessment(rc(.30));run(m,6);
+    assert.equal(m.status().failsafe.phase,'return');
+    assert.ok(m.status().distance<away-10,'the aircraft is still returning');
+    assert.equal(m.status().failsafe.recoveryReady,true,'hysteresis retains a confirmed RC link');
+    // A short gap while the next terrain profile is loading is NOT a new loss.
+    m.linkAssessment(rc(null));run(m,1.5);
+    assert.equal(m.status().failsafe.recoveryReady,true);
+    assert.ok(m.status().distance>15,'control must be reclaimable well before arriving home');
+    m.stick(.9,0);
+    assert.equal(m.status().failsafe.phase,'normal','pilot touch stick takes over mid-return');
+    assert.equal(m.status().failsafe.active,false);
+    m.stop();
+});
+
+test('a sustained second RC loss or prolonged unknown profile revokes GPS takeover until another stable reconnection',()=>{
+    const machine=F.create({enabled:true,mode:'gpsRescue',activationDelaySeconds:.3,recoveryDelaySeconds:.6});
+    assert.equal(steps(machine,0,.4).phase,'rescueHold');
+    steps(machine,.8,.7);assert.equal(machine.status().recoveryReady,true);
+    steps(machine,0,.2);assert.equal(machine.status().recoveryReady,true,'brief RC dip is filtered');
+    steps(machine,0,.2);assert.equal(machine.status().recoveryReady,false,'confirmed second loss revokes takeover');
+    assert.equal(machine.recover(),false);
+    steps(machine,.8,.3);assert.equal(machine.status().recoveryReady,false,'must requalify after a second loss');
+    steps(machine,.8,.4);assert.equal(machine.status().recoveryReady,true);
+    steps(machine,null,2);assert.equal(machine.status().recoveryReady,true);
+    steps(machine,null,3.1);assert.equal(machine.status().recoveryReady,false,'indefinitely missing RF does not imply a usable RC link');
+    assert.equal(machine.recover(),false);
+    steps(machine,.8,.7);assert.equal(machine.status().recoveryReady,true);
+    assert.equal(machine.recover(),true);
+});
+
+test('RC takeover accepts deliberate FPV controller input while returning and rejects throttle-only input',async()=>{
+    const {model:m}=flight();
+    await start(m,{flightMode:'angle',maxSpeed:20,acceleration:8,deceleration:5,
+        failsafe:{enabled:true,mode:'gpsRescue',activationDelaySeconds:.1,recoveryDelaySeconds:.3,
+            rescueAltitudeMeters:5,returnSpeedMetersPerSecond:8}});
+    m.linkAssessment(rc(0));run(m,.2);run(m,6);
+    // Autonomous rescue must continue while video or throttle input changes.
+    assert.ok(m.status().failsafe.active);
+    m.linkAssessment(rc(.9));run(m,.4);
+    m.linkAssessment(rc(.33));run(m,2);
+    assert.ok(m.status().failsafe.recoveryReady);
+    m.flightInput({throttle:1,yaw:0,pitch:0,roll:0});
+    assert.ok(m.status().failsafe.active,'throttle alone is not deliberate takeover');
+    m.flightInput({throttle:0,yaw:.8,pitch:0,roll:0});
+    assert.equal(m.status().failsafe.phase,'normal');
+});

@@ -168,7 +168,12 @@ void main() {
     final check = expectLater(retry, throwsStateError);
     await Future<void>.delayed(Duration.zero);
     status('loading');
-    renderer.acknowledge(renderer.commands.last, error: 'Transport failed');
+    renderer.acknowledge(
+      renderer.commands.singleWhere(
+        (command) => command['type'] == 'retry-terrain',
+      ),
+      error: 'Transport failed',
+    );
     await check;
     expect(controller.canRetryTerrain, isTrue);
     final old = renderer.sessionId;

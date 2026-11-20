@@ -188,6 +188,9 @@ RadioPathResult calculateRadioLink({
       state: RadioPathState.unknown,
     );
   }
+  // Live profiles may be refined non-uniformly; using the sample index as
+  // line fraction would misplace the Fresnel zone and the clearance plane.
+  final pathDistance = routeDistance(settings.pilot, target);
   final a = _ecef(settings.pilot, pilotHeight),
       b = _ecef(target, altitude),
       delta = b - a,
@@ -196,7 +199,10 @@ RadioPathResult calculateRadioLink({
   final samples = <RadioPathSample>[];
   var minimum = double.infinity, fresnelMinimum = double.infinity;
   for (var i = 0; i < positions.length; i++) {
-    final t = i / (positions.length - 1), p = positions[i], ground = heights[i];
+    final p = positions[i], ground = heights[i];
+    final t = (routeDistance(settings.pilot, p) / pathDistance)
+        .clamp(0.0, 1.0)
+        .toDouble();
     var surface = ground;
     if (settings.useSurfaces) {
       for (final s in settings.surfaces) {

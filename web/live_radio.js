@@ -89,8 +89,9 @@
                 const a=c.assessment;
                 if(!a||!['unknown','clear','fresnelIntrusion','obstructed'].includes(a.visibility)||
                     !['unavailable','sampledTerrain'].includes(a.source)||
-                    !['unavailable','approximate'].includes(a.confidence)||
+                    !['unavailable','limited','approximate'].includes(a.confidence)||
                     !validModeledLink(a.controlLink)||!validModeledLink(a.videoLink)||
+                    (a.confidence==='limited'&&(a.controlLink!=='unknown'||a.videoLink!=='unknown'))||
                     (a.visibility!=='unknown'&&a.visibility!==({noSampledObstruction:'clear'}[c.state]??c.state)))
                     throw Error('Inconsistent live link assessment');
                 currentAssessment=Object.freeze({...a,
@@ -109,11 +110,27 @@
             // if its earlier standalone marker command arrived out of order.
             if(c.pilot&&Number.isFinite(c.pilot.latitude)&&Number.isFinite(c.pilot.longitude))
                 drawStation(showMarker?{latitude:c.pilot.latitude,longitude:c.pilot.longitude}:null);
-            if(showPath)layer.set({...c,showPilot:false,showTargetMarkers:false});else layer.clear();
-            revision=c.revision;badge.dataset.state=c.state;
+            if(showPath&&!(currentAssessment.confidence==='limited'&&
+                c.state==='noSampledObstruction'))layer.set({...c,showPilot:false,showTargetMarkers:false});
+            else layer.clear();
+            revision=c.revision;
+            badge.dataset.state=(currentAssessment.confidence==='limited'&&
+                c.state==='noSampledObstruction')?'unknown':c.state;
             clearTimeout(expiry);resultAt=c.state==='unknown'?-Infinity:clock();
             if(c.state!=='unknown'){const token=revision;expiry=setTimeout(()=>{if(!disposed&&revision===token)unknown();},Math.min(5000,c.expiresAtMs-wallClock()));}
             detailMessage=String(c.message??'Unknown').slice(0,160);
+            if(c.sampling&&typeof c.sampling==='object'&&Number.isFinite(c.sampling.maximumGapMeters)){
+                const diag=c.sampling;
+                detailMessage+=` · ${String(diag.tier??'adaptive').slice(0,30)} (${Number(diag.samples)||0} pts, max gap ${diag.maximumGapMeters.toFixed(0)} m${diag.limited?', LIMITED':''})`;
+            }
+            // Display only the mathematical free-space prediction when terrain
+            // is missing or under-resolved. Never promote it to controlLink or
+            // videoLink, which would incorrectly allow a simulated failsafe.
+            if((c.state==='unknown'||currentAssessment.confidence==='limited')&&Number.isFinite(c.distanceMeters)){
+                const preview=rfEstimation.freeSpacePreview(c.distanceMeters,rfSettings);
+                if(preview)detailMessage+=` · SIM free-space ONLY Video ${preview.video.estimatedMarginDb.toFixed(1)} dB / RC ${preview.control.estimatedMarginDb.toFixed(1)} dB (terrain unknown)`;
+            }
+
             if(currentAssessment.videoLink!=='unknown'||currentAssessment.controlLink!=='unknown'){
                 const brief=(name,link)=>!link||link==='unknown'||!Number.isFinite(link.linkMarginDb)||!Number.isFinite(link.estimatedMaxRangeM)
                     ?'':`${name}: ${link.linkMarginDb.toFixed(1)} dB reserve; free-space ≈${(link.estimatedMaxRangeM/1000).toFixed(1)} km`;

@@ -5693,7 +5693,7 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String get signalSwisstopoTerrainViaCesium5961555e =>
-      'swisstopo Terrain über Cesium · feste Geländeebene 12 · Profilpunkte höchstens 25 m voneinander entfernt · Reichweite 1 m–6 km. Ein neues Profil wird maximal alle 2 Sekunden versucht. Probenhöhen können bis zu 30 Sekunden wiederverwendet werden. Enge oder feinere Geländeeigenschaften können verpasst werden.';
+      'swisstopo-Gelände über Cesium · Gelände-Level 12 · Live-LoS von 1 m bis 50 km mit adaptiver, zweistufiger Abtastung. Bis 6 km hohe Auflösung, danach priorisierte Verfeinerung. Große Stichprobenlücken werden als unsicher angezeigt. Höhenwerte können bis zu 30 Sekunden zwischengespeichert werden; schmale Hindernisse können unentdeckt bleiben.';
 
   @override
   String get signalTransmitterHeightIsAboveb50b536b =>

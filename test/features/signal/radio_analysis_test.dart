@@ -223,4 +223,42 @@ void main() {
       );
     },
   );
+  test(
+    'non-uniform live sampling preserves Fresnel geometry at shared points',
+    () {
+      const settings = SignalSettings(pilot: pilot, antennaHeight: 2);
+      const target = Wgs84Coordinate(latitude: 47, longitude: 8.05);
+      final full = RouteSamplingPlan.create([
+        const RouteWaypointInput(position: pilot),
+        const RouteWaypointInput(position: target),
+      ], spacing: 25);
+      final selected = [0, 3, 4, 8, 14, full.samples.length - 1];
+      final normal = calculateRadioLink(
+        settings: settings,
+        target: target,
+        altitude: 1000,
+        pilotHeight: 502,
+        positions: [for (final p in full.samples) p.position],
+        heights: List.filled(full.samples.length, 500),
+      );
+      final sparse = calculateRadioLink(
+        settings: settings,
+        target: target,
+        altitude: 1000,
+        pilotHeight: 502,
+        positions: [for (final i in selected) full.samples[i].position],
+        heights: List.filled(selected.length, 500),
+      );
+      for (var i = 0; i < selected.length; ++i) {
+        expect(
+          sparse.profile[i].clearance,
+          closeTo(normal.profile[selected[i]].clearance, 0.05),
+        );
+        expect(
+          sparse.profile[i].radius,
+          closeTo(normal.profile[selected[i]].radius, 0.01),
+        );
+      }
+    },
+  );
 }

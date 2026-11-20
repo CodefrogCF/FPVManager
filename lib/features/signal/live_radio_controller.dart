@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/geo/geo_coordinate_service.dart';
-import '../../core/models/flight_route.dart';
 import '../../core/models/signal_settings.dart';
 import '../routes/analysis/route_analysis.dart';
 import 'live_link_assessment.dart';
 import 'rf_profile_settings.dart';
 import 'live_sampling_policy.dart';
+import 'live_terrain_sampler.dart';
 import 'radio_analysis.dart';
 
 class LiveRadioSettings {
@@ -32,14 +32,18 @@ class LiveRadioController extends ChangeNotifier {
     required this.send,
     required this.sample,
     DateTime Function()? now,
-  }) : now = now ?? DateTime.now;
+    LiveSamplingTier Function(double)? chooseTier,
+  }) : now = now ?? DateTime.now,
+       chooseTier = chooseTier ?? LiveSamplingPolicy.forDistance;
   final Future<void> Function(Map<String, dynamic>) send;
   final Future<List<double>> Function(List<Wgs84Coordinate>) sample;
   final DateTime Function() now;
+  final LiveSamplingTier Function(double) chooseTier;
   LiveRadioSettings settings = const LiveRadioSettings();
   String status = 'Disabled';
   RadioPathResult? result;
   LiveLinkAssessment assessment = const LiveLinkAssessment();
+  LiveTerrainSampleResult? samplingDiagnostics;
 
   /// Last known ground station, independent of the aircraft's moving position.
   Wgs84Coordinate? groundStation;
@@ -57,7 +61,7 @@ class LiveRadioController extends ChangeNotifier {
   double _speedMetersPerSecond = 0;
   bool _monitorEnabled = false;
   ({Wgs84Coordinate position, Wgs84Coordinate home, double height})? _pose;
-  DateTime? _lastAttempt;
+  DateTime? _lastAttempt, _lastFreeSpacePreview;
   Timer? _expiry;
   Future<void>? _pending;
   Future<void> get settled => _pending ?? Future.value();
@@ -79,6 +83,7 @@ class LiveRadioController extends ChangeNotifier {
     _pose = null;
     _active = false;
     _lastAttempt = null;
+    _lastFreeSpacePreview = null;
     _invalidate(clear: true);
     status = value.enabled ? 'Waiting for an active flight' : 'Disabled';
     _notify();
@@ -96,6 +101,7 @@ class LiveRadioController extends ChangeNotifier {
     _pose = null;
     _flightId = -1;
     _lastAttempt = null;
+    _lastFreeSpacePreview = null;
     _invalidate(clear: true);
     status = settings.enabled ? 'Terrain / renderer unavailable' : 'Disabled';
     _notify();
@@ -117,6 +123,7 @@ class LiveRadioController extends ChangeNotifier {
     current = false;
     loading = false;
     assessment = const LiveLinkAssessment();
+    samplingDiagnostics = null;
     _expiry?.cancel();
     if (clear) {
       result = null;
@@ -130,9 +137,18 @@ class LiveRadioController extends ChangeNotifier {
   }
 
   Future<void> _mapUnknown() async {
-    if (!_available || _disposed || !settings.enabled) return;
+    if (_disposed || !settings.enabled) return;
+    final pose = _pose;
+    final pilot = pose == null
+        ? null
+        : (settings.useSpawn ? pose.home : settings.signal.pilot);
+    final distance = pose == null || pilot == null
+        ? null
+        : routeDistance(pilot, pose.position);
     try {
       await send({
+        if (distance != null && distance.isFinite && distance >= 1)
+          'distanceMeters': distance,
         'type': 'set-live-radio-result',
         'revision': _revision,
         'state': 'unknown',
@@ -147,6 +163,7 @@ class LiveRadioController extends ChangeNotifier {
   void terrainChanged(bool available) {
     _available = available;
     _lastAttempt = null;
+    _lastFreeSpacePreview = null;
     _invalidate(clear: true);
     status = available
         ? 'Terrain changed; awaiting a new profile'
@@ -252,14 +269,40 @@ class LiveRadioController extends ChangeNotifier {
           groundStation?.longitude != station.longitude) {
         _publishStation(station);
       }
+      // A missing terrain provider must not prevent free-space-only RF
+      // diagnostics. These are never converted into control/video quality.
+      if (!_available) {
+        status = 'Unknown: terrain unavailable (free-space estimate only)';
+        if (_lastAttempt == null ||
+            now().difference(_lastAttempt!) >=
+                LiveSamplingPolicy.interval(_speedMetersPerSecond)) {
+          _lastAttempt = now();
+          unawaited(_mapUnknown());
+        }
+        _notify();
+        return;
+      }
       if (current &&
           result != null &&
           (routeDistance(_pose!.position, result!.target) >
-                  LiveSamplingPolicy.maximumStaleness(_speedMetersPerSecond) ||
+                  LiveSamplingPolicy.maximumStaleness(
+                    _speedMetersPerSecond,
+                    routeDistance(station, _pose!.position),
+                  ) ||
               (_pose!.height - result!.altitude!).abs() > 12)) {
         status = 'Drone moved beyond the last profile';
         _invalidate();
         _notify();
+      }
+      // Free-space diagnostics can be displayed immediately, even while the
+      // first terrain request is still pending. Keep it separate from RF LQ.
+      if (!current &&
+          !loading &&
+          (_lastFreeSpacePreview == null ||
+              now().difference(_lastFreeSpacePreview!) >
+                  const Duration(seconds: 1))) {
+        _lastFreeSpacePreview = now();
+        unawaited(_mapUnknown());
       }
       _schedule();
     } on FormatException {
@@ -279,9 +322,12 @@ class LiveRadioController extends ChangeNotifier {
         _pending != null) {
       return;
     }
+    final pose = _pose!;
+    final station = settings.useSpawn ? pose.home : settings.signal.pilot;
+    final distance = routeDistance(station, pose.position);
     if (_lastAttempt != null &&
         now().difference(_lastAttempt!) <
-            LiveSamplingPolicy.interval(_speedMetersPerSecond)) {
+            LiveSamplingPolicy.interval(_speedMetersPerSecond, distance)) {
       return;
     }
     _lastAttempt = now();
@@ -291,6 +337,7 @@ class LiveRadioController extends ChangeNotifier {
   }
 
   Future<void> _calculate() async {
+    final startedAt = now();
     final token = ++_revision, pose = _pose!, config = settings;
     bool valid() =>
         !_disposed &&
@@ -301,27 +348,20 @@ class LiveRadioController extends ChangeNotifier {
         _available;
     final pilot = config.useSpawn ? pose.home : config.signal.pilot;
     final distance = routeDistance(pilot, pose.position);
-    if (distance < 1 || distance > 6000) {
+    if (!distance.isFinite ||
+        distance < 1 ||
+        distance > radioMaximumPathMeters) {
       status = distance < 1
           ? 'Unknown: vertical path / less than 1 m'
-          : 'Unknown: beyond the 6 km live profile limit';
+          : 'Unknown: beyond the 50 km terrain analysis limit';
       _invalidate();
       _notify();
       return;
     }
     loading = true;
-    status = 'Updating terrain profile';
+    status = 'Updating ${chooseTier(distance).name} terrain profile';
     _notify();
     try {
-      final plan = RouteSamplingPlan.create([
-        RouteWaypointInput(position: pilot),
-        RouteWaypointInput(position: pose.position),
-      ], spacing: LiveSamplingPolicy.spacing(distance));
-      final positions = plan.samples
-          .map((p) => p.position)
-          .toList(growable: false);
-      final heights = await sample(positions);
-      if (!valid()) return;
       final signal = SignalSettings(
         pilot: pilot,
         antennaHeight: config.signal.antennaHeight,
@@ -330,18 +370,25 @@ class LiveRadioController extends ChangeNotifier {
         useSurfaces: config.signal.useSurfaces,
         surfaces: config.signal.surfaces,
       );
-      final calculated = calculateRadioLink(
-        settings: signal,
+      final sampled = await LiveTerrainSampler.calculate(
+        signal: signal,
         target: pose.position,
-        altitude: pose.height,
-        pilotHeight: heights.first + signal.antennaHeight,
-        positions: positions,
-        heights: heights,
+        targetHeight: pose.height,
+        distanceMeters: distance,
+        tier: chooseTier(distance),
+        sample: sample,
+        valid: valid,
       );
+      if (!valid()) return;
+      final calculated = sampled.path;
+      samplingDiagnostics = sampled;
       if (!valid()) return;
       if (_pose == null ||
           routeDistance(_pose!.position, pose.position) >
-              LiveSamplingPolicy.maximumStaleness(_speedMetersPerSecond) ||
+              LiveSamplingPolicy.maximumStaleness(
+                _speedMetersPerSecond,
+                distance,
+              ) ||
           (_pose!.height - pose.height).abs() > 12) {
         status = 'Unknown: profile overtaken by flight';
         current = false;
@@ -353,9 +400,13 @@ class LiveRadioController extends ChangeNotifier {
       assessment = LiveLinkAssessment.fromTerrainProfile(
         calculated,
         sampledAt: now(),
+        coverageLimited: sampled.coverageLimited,
+        maximumSampleGapMeters: sampled.maximumGapMeters,
+        samplingTier: sampled.tier.name,
       );
       transmitter = pilot;
-      transmitterHeight = heights.first + signal.antennaHeight;
+      transmitterHeight =
+          calculated.profile.first.ground + signal.antennaHeight;
       calculatedAt = now();
       current = true;
       _armExpiry();
@@ -363,7 +414,10 @@ class LiveRadioController extends ChangeNotifier {
         RadioPathState.unknown => 'Unknown',
         RadioPathState.obstructed => 'Potential obstruction',
         RadioPathState.fresnelIntrusion => 'Fresnel intrusion',
-        RadioPathState.noSampledObstruction => 'No sampled obstruction',
+        RadioPathState.noSampledObstruction =>
+          sampled.coverageLimited
+              ? 'Unknown: coarse terrain coverage (no sampled obstruction)'
+              : 'No sampled obstruction',
       };
       double margin(RadioPathSample p) =>
           calculated.state == RadioPathState.obstructed
@@ -385,6 +439,17 @@ class LiveRadioController extends ChangeNotifier {
             .add(const Duration(seconds: 5))
             .millisecondsSinceEpoch,
         'state': calculated.state.name,
+        'distanceMeters': distance,
+        'sampling': {
+          'tier': sampled.tier.name,
+          'samples': sampled.sampleCount,
+          'coarseSamples': sampled.coarseCount,
+          'refinedSamples': sampled.refinedCount,
+          'queries': sampled.queryCount,
+          'elapsedMs': now().difference(startedAt).inMilliseconds,
+          'maximumGapMeters': sampled.maximumGapMeters,
+          'limited': sampled.coverageLimited,
+        },
         'showPilot': false,
         'assessment': assessment.toJson(),
         'message': status,
@@ -401,7 +466,7 @@ class LiveRadioController extends ChangeNotifier {
             'latitude': pose.position.latitude,
             'longitude': pose.position.longitude,
             'height': pose.height,
-            'ground': heights.last,
+            'ground': calculated.profile.last.ground,
             'state': calculated.state.name,
           },
         ],

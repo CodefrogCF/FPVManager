@@ -159,3 +159,28 @@ test('live radio details show model-derived range separately from geometry, neve
     assert.doesNotMatch(p.nodes.get('flight-radio-status').textContent,/free-space/);
     p.api.dispose();
 });
+
+test('limited extended-range terrain keeps both links unknown while displaying free-space diagnostics',()=>{
+    const p=setup();p.api.monitor({enabled:true,revision:1});
+    p.api.observe({active:true,paused:false,flightId:1});
+    const limited={visibility:'clear',source:'sampledTerrain',confidence:'limited',controlLink:'unknown',videoLink:'unknown',
+        sampleCount:160,maximumSampleGapMeters:520,samplingTier:'extendedRange'};
+    p.api.set({revision:2,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',
+        distanceMeters:48000,
+        sampling:{tier:'extendedRange',samples:160,coarseSamples:96,refinedSamples:64,queries:2,maximumGapMeters:520,limited:true},
+        pilot:{latitude:47,longitude:8,height:950},
+        rays:[{latitude:47.4,longitude:8,height:1200,ground:500,state:'noSampledObstruction'}],
+        assessment:limited});
+    assert.equal(p.api.assessment().controlLink,'unknown');
+    assert.equal(p.api.assessment().videoLink,'unknown');
+    assert.throws(()=>p.api.set({revision:3,flightId:1,expiresAtMs:105000,
+        state:'noSampledObstruction',rays:[{state:'noSampledObstruction'}],
+        assessment:{...limited,controlLink:{quality:1,source:'rfModel'}}}),/Inconsistent/);
+    assert.equal(p.nodes.get('hud-live-radio').dataset.state,'unknown');
+    assert.match(p.nodes.get('flight-radio-status').textContent,/LIMITED/);
+    assert.match(p.nodes.get('flight-radio-status').textContent,/SIM free-space ONLY/);
+    p.api.set({revision:3,state:'unknown',distanceMeters:60000,rays:[]});
+    assert.equal(p.api.assessment().controlLink,'unknown');
+    assert.match(p.nodes.get('flight-radio-status').textContent,/free-space ONLY/);
+    p.api.dispose();
+});

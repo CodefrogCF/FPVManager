@@ -6,7 +6,7 @@ enum LivePathVisibility { unknown, clear, fresnelIntrusion, obstructed }
 
 enum LiveAssessmentSource { unavailable, sampledTerrain }
 
-enum LiveAssessmentConfidence { unavailable, approximate }
+enum LiveAssessmentConfidence { unavailable, limited, approximate }
 
 enum LiveRadioQuality { unknown }
 
@@ -24,6 +24,8 @@ class LiveLinkAssessment {
     this.videoQuality = LiveRadioQuality.unknown,
     this.sampledAt,
     this.sampleCount = 0,
+    this.samplingTier,
+    this.maximumSampleGapMeters,
     this.minimumClearanceMeters,
     this.minimumFresnelMarginMeters,
   });
@@ -35,6 +37,8 @@ class LiveLinkAssessment {
   final LiveRadioQuality videoQuality;
   final DateTime? sampledAt;
   final int sampleCount;
+  final String? samplingTier;
+  final double? maximumSampleGapMeters;
   final double? minimumClearanceMeters;
   final double? minimumFresnelMarginMeters;
 
@@ -52,6 +56,8 @@ class LiveLinkAssessment {
     'videoLink': videoQuality.name,
     'sampledAtMs': sampledAt?.millisecondsSinceEpoch,
     'sampleCount': sampleCount,
+    'samplingTier': samplingTier,
+    'maximumSampleGapMeters': maximumSampleGapMeters,
     'minimumClearanceMeters': minimumClearanceMeters,
     'minimumFresnelMarginMeters': minimumFresnelMarginMeters,
   };
@@ -59,6 +65,9 @@ class LiveLinkAssessment {
   factory LiveLinkAssessment.fromTerrainProfile(
     RadioPathResult result, {
     required DateTime sampledAt,
+    bool coverageLimited = false,
+    double? maximumSampleGapMeters,
+    String? samplingTier,
   }) => LiveLinkAssessment(
     visibility: switch (result.state) {
       RadioPathState.unknown => LivePathVisibility.unknown,
@@ -71,9 +80,13 @@ class LiveLinkAssessment {
         : LiveAssessmentSource.sampledTerrain,
     confidence: result.state == RadioPathState.unknown
         ? LiveAssessmentConfidence.unavailable
+        : coverageLimited
+        ? LiveAssessmentConfidence.limited
         : LiveAssessmentConfidence.approximate,
     sampledAt: sampledAt,
     sampleCount: result.profile.length,
+    samplingTier: samplingTier,
+    maximumSampleGapMeters: maximumSampleGapMeters,
     minimumClearanceMeters: result.minimumClearance,
     minimumFresnelMarginMeters: result.minimumFresnelClearance,
   );

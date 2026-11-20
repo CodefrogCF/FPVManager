@@ -5643,7 +5643,7 @@ class FpvStringsEn extends FpvStrings {
 
   @override
   String get signalSwisstopoTerrainViaCesium5961555e =>
-      'swisstopo terrain via Cesium · fixed terrain level 12 · profile points at most 25 m apart · live range 1 m–6 km. A new profile is attempted at most every 2 seconds. Sample heights may be reused for up to 30 seconds. Narrow or finer terrain features may be missed.';
+      'swisstopo terrain via Cesium · terrain level 12 · live LoS from 1 m to 50 km with adaptive two-stage sampling. Up to 6 km uses high resolution; longer links receive targeted refinement. Large sampling gaps are marked uncertain. Heights can be cached for up to 30 seconds; narrow obstacles may be missed.';
 
   @override
   String get signalTransmitterHeightIsAboveb50b536b =>

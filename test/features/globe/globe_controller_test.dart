@@ -96,7 +96,10 @@ void main() {
 
       await controller.resetCamera();
 
-      expect(commands.single['type'], 'reset-camera');
+      expect(
+        commands.where((command) => command['type'] == 'reset-camera'),
+        hasLength(1),
+      );
     });
 
     test('sends coordinate navigation command', () async {
@@ -106,9 +109,11 @@ void main() {
 
       await controller.flyTo(latitude: 46.7, longitude: 8.4, altitude: 12000);
 
-      expect(commands.single['type'], 'fly-to');
-      expect(commands.single['latitude'], 46.7);
-      expect(commands.single['longitude'], 8.4);
+      final flyTo = commands.singleWhere(
+        (command) => command['type'] == 'fly-to',
+      );
+      expect(flyTo['latitude'], 46.7);
+      expect(flyTo['longitude'], 8.4);
     });
 
     test('rejects invalid coordinates', () {

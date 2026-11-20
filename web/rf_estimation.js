@@ -89,6 +89,21 @@
             estimatedTerrainScenarioRangeM:round(terrainScenarioRangeM),
             rangeFraction:round(distance/theoreticalMaxRangeM,3)});
     }
+    // Pure free-space diagnostics: intentionally has NO quality field. A
+    // predicted budget without sampled terrain must never drive RC failsafe.
+    function freeSpacePreview(distance,settings=defaults){
+        if(!Number.isFinite(distance)||distance<1||distance>250000)return null;
+        const cfg=configuration(settings);
+        if(!cfg.enabled)return null;
+        const make=profile=>{
+            const loss=freeSpaceLossDb(distance,profile.frequencyMhz);
+            return Object.freeze({distanceMeters:round(distance),freeSpaceLossDb:round(loss),
+                estimatedMarginDb:round(profile.eirpDbm-loss-profile.receiverThresholdDbm-profile.fadeMarginDb),
+                estimatedMaxRangeM:round(theoreticalRangeMeters(profile)),
+                confidence:'freeSpaceOnly'});
+        };
+        return Object.freeze({video:make(cfg.video),control:make(cfg.control)});
+    }
     function assess(geometry,from,to,settings=defaults){
         const cfg=configuration(settings),dist=distanceMeters(from,to);
         // Unavailable geometry is NOT assumed clear. The separately exposed
@@ -99,5 +114,5 @@
         return {controlLink:one(cfg.control,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters),
             videoLink:one(cfg.video,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters)};
     }
-    return {defaults,presets,configuration,distanceMeters,freeSpaceLossDb,theoreticalRangeMeters,excessTerrainLossDb,assess};
+    return {defaults,presets,configuration,distanceMeters,freeSpaceLossDb,theoreticalRangeMeters,excessTerrainLossDb,freeSpacePreview,assess};
 });

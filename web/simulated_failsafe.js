@@ -28,13 +28,19 @@
     function create(settings=defaults){
         let cfg=configuration(settings),phase='normal',lossTime=0,recoveryTime=0,phaseTime=0;
         let reason=null,quality=null,targetAltitude=null;
-        function reset(){phase='normal';lossTime=0;recoveryTime=0;phaseTime=0;reason=null;quality=null;targetAltitude=null;}
+        // A confirmed RC restoration stays usable through marginal link quality
+        // and short missing terrain results. Do not require the pilot to catch
+        // a single frame immediately after the reconnection timer completes.
+        // A sustained new loss or stale/unknown RC evidence revokes takeover.
+        let recoveryArmed=false,reLossTime=0,unknownRecoveryTime=0;
+        const maximumUnknownRecoverySeconds=5;
+        function reset(){phase='normal';lossTime=0;recoveryTime=0;phaseTime=0;reason=null;quality=null;targetAltitude=null;
+            recoveryArmed=false;reLossTime=0;unknownRecoveryTime=0;}
         function setConfiguration(value){cfg=configuration(value);reset();}
         function setPhase(next){if(next!==phase){phase=next;phaseTime=0;}}
         function status(){return {enabled:cfg.enabled,mode:cfg.mode,phase,reason,rcQuality:quality,
-            active:!['normal','pending'].includes(phase),recoveryReady:recoveryTime>=cfg.recoveryDelaySeconds&&
-                !['normal','pending','landed'].includes(phase),
-            recovering:recoveryTime>0&&!['normal','pending','landed'].includes(phase),
+            active:!['normal','pending'].includes(phase),recoveryReady:recoveryArmed&&!['normal','pending','landed'].includes(phase),
+            recovering:recoveryTime>0&&!recoveryArmed&&!['normal','pending','landed'].includes(phase),
             targetAltitudeMeters:targetAltitude};}
         function takeControl(context){
             if(cfg.mode!=='gpsRescue'){setPhase(cfg.mode);return;}
@@ -58,15 +64,40 @@
                 return status();
             }
             phaseTime+=seconds;
-            // Unknown RF data is neither a loss nor a restored RC connection.
+            // RF profiles are refreshed asynchronously. Short samples between
+            // the two hysteresis thresholds, or a briefly unavailable terrain
+            // profile, must not erase a *confirmed* RC reconnection. Conversely,
+            // unknown RF is never evidence of a new reconnection and cannot
+            // authorize takeover indefinitely.
             if(quality!==null&&quality>=cfg.recoveryThreshold){
-                recoveryTime=Math.min(cfg.recoveryDelaySeconds,recoveryTime+seconds);
-                // GPS Rescue is never cancelled just because RF returns: a
-                // deliberate post-recovery stick command is required.
-                if(cfg.mode!=='gpsRescue'&&cfg.autoRecover&&recoveryTime>=cfg.recoveryDelaySeconds){
+                reLossTime=0;unknownRecoveryTime=0;
+                if(!recoveryArmed){
+                    recoveryTime=Math.min(cfg.recoveryDelaySeconds,recoveryTime+seconds);
+                    if(recoveryTime>=cfg.recoveryDelaySeconds)recoveryArmed=true;
+                }
+                // GPS Rescue requires a deliberate pilot command even once
+                // the model reports a stable RC connection.
+                if(cfg.mode!=='gpsRescue'&&cfg.autoRecover&&recoveryArmed){
                     reset();return status();
                 }
-            }else recoveryTime=0;
+            }else if(quality!==null&&quality<=cfg.lossThreshold){
+                unknownRecoveryTime=0;
+                reLossTime+=seconds;
+                if(!recoveryArmed)recoveryTime=0;
+                if(reLossTime>=cfg.activationDelaySeconds){
+                    recoveryArmed=false;recoveryTime=0;
+                }
+            }else if(quality===null){
+                reLossTime=0;
+                if(!recoveryArmed)recoveryTime=0;
+                else if((unknownRecoveryTime+=seconds)>=maximumUnknownRecoverySeconds){
+                    recoveryArmed=false;recoveryTime=0;
+                }
+            }else{
+                // Between loss/recovery thresholds: connected-state hysteresis.
+                reLossTime=0;unknownRecoveryTime=0;
+                if(!recoveryArmed)recoveryTime=0;
+            }
             if(phase==='landed')return status();
             if(['rescueHold','climb','turn','return','landing'].includes(phase)){
                 if(!context.position||!context.home||![context.height,context.homeHeight].every(Number.isFinite)){

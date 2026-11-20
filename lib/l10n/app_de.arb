@@ -1462,7 +1462,7 @@
   "signalRouteTargetsTerraind0166c82": "{arg0} Routenziele · Gelände: {arg1}",
   "signalSamplingAndLimits81b895c4": "Probenahme und Grenzwerte",
   "signalSelectedMapPoint1717e7f7": "Ausgewählter Kartenpunkt",
-  "signalSwisstopoTerrainViaCesium5961555e": "swisstopo Terrain über Cesium · feste Geländeebene 12 · Profilpunkte höchstens 25 m voneinander entfernt · Reichweite 1 m–6 km. Ein neues Profil wird maximal alle 2 Sekunden versucht. Probenhöhen können bis zu 30 Sekunden wiederverwendet werden. Enge oder feinere Geländeeigenschaften können verpasst werden.",
+  "signalSwisstopoTerrainViaCesium5961555e": "swisstopo-Gelände über Cesium · Gelände-Level 12 · Live-LoS von 1 m bis 50 km mit adaptiver, zweistufiger Abtastung. Bis 6 km hohe Auflösung, danach priorisierte Verfeinerung. Große Stichprobenlücken werden als unsicher angezeigt. Höhenwerte können bis zu 30 Sekunden zwischengespeichert werden; schmale Hindernisse können unentdeckt bleiben.",
   "signalTransmitterHeightIsAboveb50b536b": "Transmitterhöhe liegt oberhalb des gemusterten Geländes. Der empfangende Endpunkt ist die simulierte WGS84-Ellipsoidhöhe der Drohne.",
   "signalTransmitterPositiond87196e3": "Position des Senders",
   "simulationAcroDrehratenf7001f19": "Acro-Drehraten",

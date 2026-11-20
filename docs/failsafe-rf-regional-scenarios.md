@@ -34,9 +34,9 @@ modes differ by regional firmware, output-power options and LBT behavior;
 Bandwidth (such as 40 MHz) does not directly add radiated power. The current
 model does not incorporate bitrate adaptation, diversity, temperature,
 antenna pointing, body shielding or actual RF measurements. Free-space range
-also excludes radio horizon and terrain; the existing **live** terrain profile
-still has a separate 6-km analysis cutoff pending the long-range sampling
-follow-up issue. Missing terrain produces unknown reception, not a fabricated
+also excludes radio horizon and terrain. The live terrain sampler supports
+paths up to 50 km using adaptive sampling but may flag insufficient coverage
+as unknown. Missing terrain produces unknown reception, not a fabricated
 clear link or automatically confirmed RC loss.
 
 Sources:
@@ -69,6 +69,15 @@ When modeled RC quality has recovered beyond the configured threshold long
 enough, a deliberate yaw/pitch/roll stick movement of at least 30%, keyboard
 flight command or manual resume control may cancel rescue. An idle throttle
 signal alone never cancels it. Recovery does not automatically cancel GPS Rescue.
+A stable simulated RC reconnection now stays eligible for pilot takeover
+throughout **hold, climb, turn, return and landing**, even when later profiles
+are briefly unknown or fall into the intermediate link-quality hysteresis band
+(between the configured loss and recovery thresholds). Takeover eligibility
+is revoked on a renewed modeled RC loss lasting the configured activation delay,
+or after **five seconds of unknown RC estimates**. A new stable RC reading is
+required before taking over again. These are simulation-only timeouts, not
+physical radio link measurements. The video link alone never authorizes takeover.
+
 No obstacle avoidance, guaranteed safe ascent or accurate GPS accuracy is
 claimed. The simulation may stop on terrain/model contacts.
 
