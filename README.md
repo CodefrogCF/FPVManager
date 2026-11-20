@@ -60,9 +60,8 @@ FPVManager documentation is organized by audience:
   [architecture](docs/developer/architecture.md),
   and [performance validation](docs/developer/performance.md).
 
-The [documentation index](docs/README.md) has all maintained guides, privacy,
-map data references and instructions for cleaning up retired docs after ZIP
-updates. Historical implementation notes are kept in an
+The [documentation index](docs/README.md) has all maintained guides, privacy and
+map data references. Historical implementation notes are kept in an
 [archive](docs/archive/README.md) so superseded limits are not mistaken for
 current behavior. The app also bundles **Settings → Help** for offline reading.
 
