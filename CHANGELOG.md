@@ -25,7 +25,7 @@ The existing Legacy physics model remains available and unchanged.
 - Respect battery internal resistance, chemistry, charge state, continuous/burst discharge ratings and independent ESC, motor and power limits.
 - Include estimated auxiliary electronics and video-system power consumption without double-counting electrical loads.
 - Distinguish battery DC current from estimated motor and ESC electrical quantities.
-- Preserve zero-throttle free fall without artificial motor thrust.
+- Preserve zero-throttle ballistic free fall without artificial motor thrust when no active rotational correction is required.
 - Provide conservative fallback behavior when detailed hardware specifications are unavailable.
 
 ### Directional Aerodynamics and Rotational Dynamics
@@ -40,6 +40,12 @@ The existing Legacy physics model remains available and unchanged.
 - Support Betaflight-inspired, Classic Expo and Linear rate profiles.
 - Prevent unrealistic instantaneous rotational reversals while preserving independent axis control.
 - Improve quaternion orientation integration for numerically stable flips, rolls and yaw rotations.
+- Introduce an optional Air Mode for Advanced Acro flight, maintaining limited rotational control authority at low or zero throttle.
+- Prevent uncontrolled continuous rotation after stick release by allowing the rate controller to actively brake angular motion without requiring additional pilot throttle input.
+- Maintain responsive roll, pitch and yaw control during low-throttle maneuvers, including rapid stick reversals and corrective inputs.
+- Integrate Air Mode torque authority with existing motor, ESC and battery limitations, avoiding artificial control torque when propulsion power is unavailable.
+- Preserve zero-throttle ballistic free fall when no active rotational correction is required.
+- Keep Air Mode independently configurable without changing Legacy Acro behavior.
 
 ### Unified GPS Flight and GPS Rescue
 
@@ -90,6 +96,11 @@ The existing Legacy physics model remains available and unchanged.
 - Preserve hard-stop fallback behavior when reliable surface normals are unavailable.
 - Exclude visual-only radio, Fresnel and marker entities from physical collision responses.
 - Maintain explicit uncertainty when terrain tiles or collision geometry are missing.
+- Improve Advanced collision response with stable ground contact handling for controlled landings, preventing unrealistic sliding on terrain.
+- Introduce low-speed landing detection with contact thresholds of 2.5 m/s vertical and 1.5 m/s tangential velocity.
+- Maintain stationary ground contact on verified terrain until sufficient motor thrust is available for takeoff.
+- Apply sustained ground-contact friction instead of relying exclusively on the initial collision impulse.
+- Preserve sliding behavior during high-speed glancing impacts while keeping severe-impact handling and Legacy collision behavior unchanged.
 
 ### Testing, Performance and Compatibility
 
@@ -97,6 +108,9 @@ The existing Legacy physics model remains available and unchanged.
 - Add tests for flips, rolls, yaw spins, rapid stick reversals, free fall, high-speed dives and controlled landings.
 - Validate GPS Rescue recovery phases, RC reconnection, low-power behavior and automatic landing.
 - Cover regional wind transitions, missing environmental data, ground effect, propwash and repeated collision contacts.
+- Add regression tests for stable ground contact, controlled landing thresholds, stationary behavior and transitions from landing to takeoff.
+- Validate low-throttle rotational braking, stick release, corrective stick inputs and Air Mode behavior with hardware-aware propulsion limits.
+- Verify that depleted batteries cannot provide artificial rotational control torque.
 - Verify deterministic physics behavior at 30, 60 and 120 FPS rendering rates.
 - Introduce CPU-only benchmarks for propulsion, environmental wind sampling, descent aerodynamics and collision processing.
 - Preserve existing aircraft and battery profiles, simulation settings, Legacy physics and route-planning functionality.
@@ -109,8 +123,9 @@ The existing Legacy physics model remains available and unchanged.
 - Regional wind extrapolation and terrain-dependent airflow effects are simplified approximations, not computational fluid dynamics or verified local weather predictions.
 - Ground effect, propwash and vortex-ring-like behavior do not reproduce detailed rotor aerodynamics.
 - Sliding and rebound require reliable collision normals; unsupported geometry retains conservative hard-stop behavior.
+- Ground contact stabilization uses simplified landing thresholds and friction assumptions rather than a detailed landing gear or structural deformation model.
+- Air Mode provides simplified low-throttle rotational control and does not emulate the complete Betaflight motor mixing and PID control system.
 - GPS Rescue cannot guarantee recovery when available propulsion, battery energy or environmental conditions are insufficient.
-- Android and Windows device-level performance validation and comparison against representative real-world FPV flight data remain outstanding.
 
 ### [0.18.0] - 2026-11-20
 

@@ -26,7 +26,7 @@
         if(length<1e-8)return null;
         return {north:value.north/length,east:value.east/length,up:value.up/length};
     }
-    function resolve(incoming,contactNormal,config){
+    function resolve(incoming,contactNormal,config,{allowRest=false}={}){
         const cfg=configuration(config),normal=unitNormal(contactNormal);
         if(!incoming||!axes.every(k=>Number.isFinite(incoming[k])))
             return {velocity:{north:0,east:0,up:0},mode:'hard-stop',reason:'invalid velocity',normal:null};
@@ -41,6 +41,13 @@
             return {velocity:zero,mode:'hard-stop',reason:'severe normal impact',normal,normalSpeedMs:impact};
         const tangent={};for(const k of axes)tangent[k]=incoming[k]-vn*normal[k];
         const tangentialSpeed=Math.hypot(tangent.north,tangent.east,tangent.up);
+        // A verified, gently approached supporting surface is a resting
+        // contact, not an endlessly repeated tiny Coulomb impact. Do not
+        // turn grazing/high-speed contacts or vertical walls into landings.
+        if(allowRest&&cfg.mode==='slide'&&cfg.friction>=.15&&normal.up>=.7&&
+            impact<=2.5&&tangentialSpeed<=1.5)
+            return {velocity:zero,mode:'rest',normal,normalSpeedMs:impact,
+                tangentialSpeedMs:tangentialSpeed};
         const restitution=cfg.mode==='rebound'&&impact>=cfg.minimumReboundSpeedMs?cfg.restitution:0;
         // Coulomb-inspired impulse: friction consumes kinetic energy; it must
         // not produce transverse acceleration or grow the impact speed.

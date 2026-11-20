@@ -92,7 +92,7 @@
         let wind={north:0,east:0,up:0},windInfo=null,flightElapsedSeconds=0;
         let battery=null,propulsion=null,propulsionState=null,propulsionElectrical=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         let flightControl=null; // Latest advanced autonomous guidance/actuator targets.
-        let aeroFloor=null,descentEffects=null,lastCollision=null;
+        let aeroFloor=null,descentEffects=null,lastCollision=null,groundContact=false;
         // A Cesium globe tile can be absent even when the terrain provider is ready.
         // Unknown heights must not be converted to a contact or a fabricated floor.
         let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
@@ -148,7 +148,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;aeroFloor=null;descentEffects=null;lastCollision=null;
+            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;aeroFloor=null;descentEffects=null;lastCollision=null;groundContact=false;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -183,7 +183,7 @@
                 propulsionState=propulsion?.reset(initialCommand)??null;
                 propulsionElectrical=null;
                 motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
-                    acroThrust(motorCommand());flightControl=null;descentEffects=null;aeroFloor=null;lastCollision=null;
+                    acroThrust(motorCommand());flightControl=null;descentEffects=null;aeroFloor=null;lastCollision=null;groundContact=false;
                 if(prepareGraphics){
                     pose();await prepareGraphics(request.signal);
                     signal.throwIfAborted();request.signal.throwIfAborted();
@@ -408,14 +408,14 @@
             const curve=config.acroThrustCurve;
             return g*config.acroThrustToWeight*((1-curve)*command+curve*command*command);
         }
-        function acroTranslation(u,dt,advancedOutput=null,previousTravel=null,elapsed=0){
-            const target=acroThrust(motorCommand()),tau=config.acroMotorTimeConstant;
+        function acroTranslation(u,dt,advancedOutput=null,previousTravel=null,elapsed=0,command=motorCommand()){
+            const target=acroThrust(command),tau=config.acroMotorTimeConstant;
             const decay=tau>0?Math.exp(-dt/tau):0,previous=motorThrust;
             if(!advancedOutput)motorThrust=target+(previous-target)*decay;
             const thrust=advancedOutput?advancedOutput.totalThrustNewtons/propulsion.configuration.massKg:
                 tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
             const airflow=config.physicsModel==='advanced'?
-                descentForces(thrust,motorCommand(),previousTravel??{north:0,east:0,up:0},elapsed):null;
+                descentForces(thrust,command,previousTravel??{north:0,east:0,up:0},elapsed):null;
             const acceleration=airflow?
                 {north:u.x*airflow.thrust+airflow.disturbance.north,
                     east:u.y*airflow.thrust+airflow.disturbance.east,
@@ -425,7 +425,7 @@
             // isotropic free-fall approximation is kept bit-for-bit unchanged.
             if(config.physicsModel==='advanced'){
                 const result=bodyAxisAerodynamics.integrate(velocity,wind,q,acceleration,
-                    dt,motorCommand(),config.aerodynamics);
+                    dt,command,config.aerodynamics);
                 velocity=result.velocity;
                 return result.travel;
             }
@@ -453,6 +453,15 @@
             let north=0,east=0,up=0;
             for(let i=0;i<steps;i++){
                 const response=1-Math.exp(-8*dt);
+                // Air Mode keeps a small, REAL idle propulsion command during
+                // low-throttle attitude corrections. Its power and thrust go
+                // through the normal motor/battery path. With centred sticks
+                // and settled rates, a zero-throttle drop remains ballistic.
+                const corrective=Math.max(Math.abs(bank),Math.abs(nose),Math.abs(yaw))>.03||
+                    Math.hypot(rates.x,rates.y,rates.z)>.02;
+                const acroMotorCommand=config.physicsModel==='advanced'&&config.flightMode==='acro'&&
+                    config.rotation.airModeEnabled&&corrective?
+                    Math.max(motorCommand(),config.rotation.airModeIdleCommand):motorCommand();
                 if(config.flightMode==='angle'){
                     pitch+=(-nose*50*rad-pitch)*response;roll+=(bank*50*rad-roll)*response;
                     heading=wrap(heading+yaw*1.8*dt);q=euler(heading,pitch,roll);
@@ -485,7 +494,7 @@
                 const u=rotate(q,{x:0,y:0,z:-1});
                 if(propulsion){
                     const hover=propulsionHoverCommand;
-                    const command=config.flightMode==='acro'?motorCommand():
+                    const command=config.flightMode==='acro'?acroMotorCommand:
                         throttle<0?hover*(1+throttle):hover+(1-hover)*throttle;
                     if(battery&&typeof battery.electricalState==='function'){
                         const coupled=electricalPropulsion.step(propulsion,battery,command,dt);
@@ -499,7 +508,7 @@
                 }
                 if(config.flightMode==='acro'){
                     const travel=acroTranslation(u,dt,propulsionState&&propulsion?propulsionState:null,
-                        {north,east,up},flightElapsedSeconds-seconds+(i+.5)*dt);
+                        {north,east,up},flightElapsedSeconds-seconds+(i+.5)*dt,acroMotorCommand);
                     north+=travel.north;east+=travel.east;up+=travel.up;continue;
                 }
                 const thrust=propulsion?motorThrust:g+throttle*(throttle>=0?config.acceleration:g);
@@ -535,7 +544,7 @@
             return {north,east,up};
         }
         function playbackPose(point){
-            runtime?.discardBacklog();
+            groundContact=false;runtime?.discardBacklog();
             if(!active||config.flightMode!=='gps'||!point||
                !valid(point)||!Number.isFinite(point.height)||
                !Number.isFinite(point.heading)||!Number.isFinite(point.pitch)||
@@ -566,11 +575,11 @@
             }
             reason=null;pose();return true;
         }
-        function playbackEnd(){runtime?.discardBacklog();failsafe.reset();wasFailsafeControlled=false;playback=false;clearKeys();brake();reason=null;pose();}
+        function playbackEnd(){groundContact=false;runtime?.discardBacklog();failsafe.reset();wasFailsafeControlled=false;playback=false;clearKeys();brake();reason=null;pose();}
         // An explicit user action enters validated SIMULATION-ONLY cross sections.
         // The caller verifies the generated model and owns terrain clipping.
         function enterTunnel(point){
-            runtime?.discardBacklog();
+            groundContact=false;runtime?.discardBacklog();
             if(!active||pending||playback||!valid(point)||
                 ![point.height,point.heading,point.ground].every(Number.isFinite))
                 throw Error('Cannot enter unsupported simulated tunnel.');
@@ -584,6 +593,27 @@
         // normal only when all surrounding terrain data exists. Unknown geometry
         // is NEVER assigned a fabricated plane or granted a clear path.
         function advancedCollisionTravel(travel,dt,floor){
+            // Resting contact is latched only after a verified gentle terrain
+            // collision. Release for takeoff, strong horizontal thrust, or
+            // uncertain/changed terrain; never latch a missing tile.
+            if(groundContact){
+                const separation=Number.isFinite(floor)?height-floor-.5:Infinity;
+                const thrustAxis=rotate(q,{x:0,y:0,z:-1});
+                const upward=-thrustAxis.z*motorThrust;
+                const sideways=Math.hypot(thrustAxis.x,thrustAxis.y)*motorThrust;
+                const resistance=Math.max(0,g-upward)*config.collisionResponse.friction+.5;
+                if(Number.isFinite(floor)&&Math.abs(separation)<.08&&
+                    upward<=g+.35&&sideways<=resistance){
+                    velocity={north:0,east:0,up:0};
+                    rates={x:0,y:0,z:0};rotationTorque=rotationalDynamics.initialState();
+                    height=floor+.501;ground=floor;
+                    terrainVerification={state:'complete',samples:1,missingSamples:0,
+                        unverifiedDistanceMeters:terrainVerification.unverifiedDistanceMeters};
+                    lastCollision={type:'terrain',mode:'rest',normal:{north:0,east:0,up:1},uncertain:false};
+                    return {contact:true,message:'Terrain contact: rest'};
+                }
+                groundContact=false;
+            }
             const origin={...position,height},horizontal=Math.hypot(travel.north,travel.east);
             const target=horizontal===0?position:move(position,travel.north,travel.east);
             const destination={...target,height:height+travel.up};
@@ -596,9 +626,10 @@
                     samples,missingSamples,unverifiedDistanceMeters:terrainVerification.unverifiedDistanceMeters+unverifiedMeters};
                 return {contact,message};
             }
-            function stopAt(message){brake();lastCollision={mode:'hard-stop',reason:message};return result(true,message);}
+            function stopAt(message){groundContact=false;brake();lastCollision={mode:'hard-stop',reason:message};return result(true,message);}
             function applyImpact(normal,kind,fraction,contactHeight){
-                const resolved=collisionResponse.resolve(velocity,normal,config.collisionResponse);
+                const resolved=collisionResponse.resolve(velocity,normal,config.collisionResponse,
+                    {allowRest:kind==='terrain'});
                 let safe=clamp(fraction,0,1);
                 // Never advance beyond an intersecting sweep. Distances are
                 // backed off by 1 cm so float error cannot embed a rotor.
@@ -615,12 +646,17 @@
                 lastCollision={type:kind,mode:resolved.mode,normal:resolved.normal,
                     normalSpeedMs:resolved.normalSpeedMs??null,uncertain:!resolved.normal};
                 if(resolved.mode==='hard-stop')brake();
-                else velocity=resolved.velocity;
+                else if(resolved.mode==='rest'&&kind==='terrain'){
+                    brake();groundContact=true;
+                    // Keep exactly the known contact clearance, not the small
+                    // sweep backoff gap that would cause repeated micro-impacts.
+                    if(Number.isFinite(ground))height=ground+.501;
+                }else velocity=resolved.velocity;
                 // Allow bounded residual tangential motion in this substep.
                 // Terrain-following uses confirmed, finite heights along the
                 // candidate straight segment, then rechecks original sweeps.
                 // Only two extra swept queries are needed per gentle impact.
-                if(resolved.normal&&resolved.mode!=='hard-stop'&&safe<1){
+                if(resolved.normal&&resolved.mode!=='hard-stop'&&resolved.mode!=='rest'&&safe<1){
                     const remaining=dt*(1-safe),dn=velocity.north*remaining,
                         de=velocity.east*remaining,du=velocity.up*remaining;
                     if(Math.hypot(dn,de,du)>1e-8){
@@ -721,7 +757,7 @@
             }
             if(hitTerrain)return stopAt('Terrain contact: movement stopped (normal unavailable)');
             position={latitude:target.latitude,longitude:target.longitude};height=destination.height;
-            ground=previousTerrain;lastCollision=null;
+            ground=previousTerrain;lastCollision=null;groundContact=false;
             return result(false,missingSamples?'Terrain collision unverified: tiles still loading':null);
         }
         function stepCore(seconds){
@@ -755,7 +791,7 @@
                 headingErrorRadians:desiredHeading===null?null:Math.atan2(Math.sin(desiredHeading-heading),Math.cos(desiredHeading-heading)),
                 distanceToHome:spawn&&position?distance(spawn,position):null,batteryInsufficient:insufficientRescueBattery()});
             if(fs.phase==='landed'){
-                brake();
+                groundContact=false;brake();
                 if(config.physicsModel==='advanced'){
                     // Terminal simulated touchdown disarms the advanced
                     // propulsion state; do not leave a fictional hover motor.

@@ -14,6 +14,8 @@ void main() {
     expect(command['rotation']['rateProfile'], 'betaflight');
     expect(command['rotation']['rollInertiaKgM2'], .018);
     expect(command['rotation']['yawTorqueNm'], .45);
+    expect(command['rotation']['airModeEnabled'], isTrue);
+    expect(command['rotation']['airModeIdleCommand'], .14);
   });
 
   test(
@@ -31,6 +33,8 @@ void main() {
           yawAccelerationLimitDegs2: 1500,
           controllerGainPerSecond: 20,
           motorResponseTimeConstantSeconds: .08,
+          airModeEnabled: false,
+          airModeIdleCommand: .09,
         ),
       );
       final modified = selected.withCameraTilt(30, cameraFovDegrees: 120);
@@ -47,6 +51,8 @@ void main() {
         modified.toCommand()['rotation']['motorResponseTimeConstantSeconds'],
         .08,
       );
+      expect(modified.toCommand()['rotation']['airModeEnabled'], isFalse);
+      expect(modified.toCommand()['rotation']['airModeIdleCommand'], .09);
     },
   );
 
@@ -67,6 +73,8 @@ void main() {
         const SimulationRotationSettings(motorResponseTimeConstantSeconds: .6),
         const SimulationRotationSettings(passiveDampingPerSecond: -1),
         const SimulationRotationSettings(superRate: 1),
+        const SimulationRotationSettings(airModeIdleCommand: .01),
+        const SimulationRotationSettings(airModeIdleCommand: .31),
       ]) {
         expect(
           () => SimulationSettings(rotation: invalid).toCommand(),

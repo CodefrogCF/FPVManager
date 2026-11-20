@@ -64,3 +64,18 @@ sweeps remain in use. The simulator does not extrapolate a surface normal
 through unloaded tiles, nor interpret the absence of a hit as a verified
 clearance result. Collision diagnostics are exposed as `lastCollision` in the
 flight state for inspection; they are not damage estimates.
+
+## Gentle touchdown and resting terrain contact
+
+In the default `slide` mode and with friction >= 0.15, an impact on a verified
+upward-facing supporting terrain surface enters a resting state when normal
+impact speed <= 2.5 m/s and tangential speed <= 1.5 m/s. Horizontal and
+vertical velocities are then settled to zero. A contact latch prevents the
+next physics step from repeatedly converting gravity into a tiny sliding
+impulse. Resting holds only with verified terrain, small clearance variation
+and insufficient thrust to lift off or overcome approximate surface friction.
+It releases for takeoff, pronounced lateral thrust, changed/missing terrain,
+or non-gentle contact. Glancing high-speed impacts still slide; severe hits
+still hard-stop and the explicitly chosen rebound mode remains independent.
+The landing thresholds and force balance are simulation estimates, not tire
+or landing-skid friction data.

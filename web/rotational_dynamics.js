@@ -15,18 +15,20 @@
         rollTorqueNm:1,pitchTorqueNm:1,yawTorqueNm:.45,
         rollAccelerationLimitDegs2:4000,pitchAccelerationLimitDegs2:4000,yawAccelerationLimitDegs2:2200,
         controllerGainPerSecond:16,motorResponseTimeConstantSeconds:.035,
-        passiveDampingPerSecond:.15});
+        passiveDampingPerSecond:.15,airModeEnabled:true,airModeIdleCommand:.14});
     const fields=[
         ['superRate',0,.95],
         ['rollInertiaKgM2',.0001,5],['pitchInertiaKgM2',.0001,5],['yawInertiaKgM2',.0001,5],
         ['rollTorqueNm',.0001,20],['pitchTorqueNm',.0001,20],['yawTorqueNm',.0001,20],
         ['rollAccelerationLimitDegs2',10,20000],['pitchAccelerationLimitDegs2',10,20000],['yawAccelerationLimitDegs2',10,20000],
-        ['controllerGainPerSecond',.1,100],['motorResponseTimeConstantSeconds',0,.5],['passiveDampingPerSecond',0,5]
+        ['controllerGainPerSecond',.1,100],['motorResponseTimeConstantSeconds',0,.5],['passiveDampingPerSecond',0,5],
+        ['airModeIdleCommand',.03,.3]
     ];
     function configuration(value={}){
         if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid rotational dynamics configuration');
         const result={...defaults,...value};
         if(!['betaflight','legacyExpo','linear'].includes(result.rateProfile))throw Error('Unknown Acro rate profile');
+        if(typeof result.airModeEnabled!=='boolean')throw Error('Invalid Acro air mode');
         for(const [name,min,max] of fields){
             const v=result[name];
             if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max)throw Error(`Invalid rotational dynamics ${name}`);

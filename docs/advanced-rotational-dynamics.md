@@ -37,3 +37,19 @@ The existing `acroRollRate`, `acroPitchRate`, and `acroYawRate` parameters remai
 ## Initial reference estimates
 
 The default diagonal moments (.018 / .021 / .030 kg·m²), torque caps (1 / 1 / .45 N·m) and acceleration caps (4000 / 4000 / 2200 °/s²) are **illustrative** for an FPV quad and have **not** been validated on the 1.32 kg reference 7-inch craft. Suitable calibration requires measured step-response/Blackbox rates, ideally with motor/ESC and battery telemetry, plus reliable mass and frame dimensions. Modify the advanced settings to fit the measured aircraft; these defaults must not be used as manufacturer-certified performance values.
+
+## Low-throttle Acro control (Air Mode correction)
+
+Advanced Acro enables `airModeEnabled` by default. The previous implementation
+scaled active control torque directly by net propulsion thrust, so a roll could
+continue for several seconds at zero throttle even when the pilot released or
+reversed the right stick. In Air Mode, an active stick command **or a residual
+angular rate** keeps the motor command at least `airModeIdleCommand` (default
+`0.14`, adjustable `0.03–0.30`). Actual motor spin-up, battery discharge,
+limits, propulsion power and the small resulting lift are accounted for by the
+existing coupled model; this is not free torque. The control authority remains
+limited by delivered thrust and disappears with exhausted battery power. A
+centred-stick, stationary, zero-throttle dive has zero commanded propulsion and
+remains ballistic; correction during a dive involves a small powered component.
+Air Mode can be disabled to reproduce the prior zero-throttle control loss.
+This approximates Betaflight Air Mode; it is not per-motor differential mixing.

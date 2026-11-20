@@ -187,6 +187,9 @@ class _SettingsState extends State<_Settings> {
     'rotationDamping': TextEditingController(
       text: '${widget.initial.rotation.passiveDampingPerSecond}',
     ),
+    'rotationAirModeIdle': TextEditingController(
+      text: '${widget.initial.rotation.airModeIdleCommand}',
+    ),
     'acroRollRate': TextEditingController(
       text: '${widget.initial.acroRollRate}',
     ),
@@ -224,6 +227,7 @@ class _SettingsState extends State<_Settings> {
       widget.initial.aerodynamics.preset;
   late SimulationRateProfile _rotationRateProfile =
       widget.initial.rotation.rateProfile;
+  late bool _rotationAirModeEnabled = widget.initial.rotation.airModeEnabled;
   late SimulationCollisionMode _collisionMode =
       widget.initial.collisionResponse.mode;
   late bool _groundEnabled =
@@ -375,6 +379,8 @@ class _SettingsState extends State<_Settings> {
           .035,
         ),
         passiveDampingPerSecond: parameter('rotationDamping', 0, 5, .15),
+        airModeEnabled: _rotationAirModeEnabled,
+        airModeIdleCommand: parameter('rotationAirModeIdle', .03, .3, .14),
       );
 
   String _aeroLabel(String de, String en) =>
@@ -531,6 +537,7 @@ class _SettingsState extends State<_Settings> {
                 ('rotationGain', .1, 100.0),
                 ('rotationMotorResponse', 0.0, .5),
                 ('rotationDamping', 0.0, 5.0),
+                ('rotationAirModeIdle', .03, .3),
               ].any((field) => _invalid(field.$1, field.$2, field.$3))) {
             _rotationOptions.expand();
           }
@@ -1904,6 +1911,34 @@ class _SettingsState extends State<_Settings> {
                                 0,
                                 5,
                               ),
+                              SwitchListTile(
+                                title: Text(
+                                  _aeroLabel(
+                                    'Air Mode bei Nullgas',
+                                    'Air Mode at zero throttle',
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  _aeroLabel(
+                                    'Kleine reale Motorleistung für Roll-/Pitch-/Yaw-Korrekturen. Freifall ohne Korrektureingabe bleibt erhalten.',
+                                    'Small, battery-accounted motor idle for rate corrections. Free fall without corrections is preserved.',
+                                  ),
+                                ),
+                                value: _rotationAirModeEnabled,
+                                onChanged: (value) => setState(
+                                  () => _rotationAirModeEnabled = value,
+                                ),
+                              ),
+                              if (_rotationAirModeEnabled)
+                                number(
+                                  'rotationAirModeIdle',
+                                  _aeroLabel(
+                                    'Air-Mode-Leerlauf (0,03–0,30)',
+                                    'Air Mode motor idle (0.03–0.30)',
+                                  ),
+                                  .03,
+                                  .3,
+                                ),
                             ],
                           ),
                         ExpansionTile(

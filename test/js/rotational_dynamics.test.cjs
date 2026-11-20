@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const rotation=require('../../web/rotational_dynamics.js');
 const {createSimulator,parameters}=require('../../web/free_flight.js');
-const rad=Math.PI/180;
+const rad=Math.PI/180,gEstimate=9.80665;
 const equal=(a,b,eps=1e-9)=>assert.ok(Math.abs(a-b)<=eps,`${a} != ${b}`);
 const zero=()=>({x:0,y:0,z:0});
 const max={x:720,y:720,z:600};
@@ -141,8 +141,9 @@ test('advanced Acro controls reflect torque and inertia, rather than teleporting
     assert.ok(heavy.status().angularVelocity.x<1000*rad*.5);
     assert.ok(Math.abs(heavy.status().attitude.x)<Math.abs(light.status().attitude.x));
     const zero=await launch();control(zero,{throttle:0,roll:1});advance(zero,.3);
-    equal(zero.status().angularVelocity.x,0);
-    equal(zero.status().controlTorque.x,0);
+    assert.ok(zero.status().angularVelocity.x>0,'Air Mode retains rate authority at zero pilot throttle');
+    assert.ok(zero.status().controlTorque.x>0,'Low-throttle control is not silently disabled');
+    assert.ok(zero.status().thrustAcceleration<gEstimate,'Air Mode must not hover at zero gas');
 });
 test('rotation is frame-rate invariant and quaternions remain normalized under rapid reversals',async()=>{
     const runs=[];

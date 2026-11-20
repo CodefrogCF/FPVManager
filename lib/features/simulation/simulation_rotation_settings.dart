@@ -19,6 +19,8 @@ class SimulationRotationSettings {
     this.controllerGainPerSecond = 16,
     this.motorResponseTimeConstantSeconds = .035,
     this.passiveDampingPerSecond = .15,
+    this.airModeEnabled = true,
+    this.airModeIdleCommand = .14,
   });
 
   final SimulationRateProfile rateProfile;
@@ -30,6 +32,8 @@ class SimulationRotationSettings {
   final double yawAccelerationLimitDegs2;
   final double controllerGainPerSecond, motorResponseTimeConstantSeconds;
   final double passiveDampingPerSecond;
+  final bool airModeEnabled;
+  final double airModeIdleCommand;
 
   void validate() {
     for (final (value, min, max) in [
@@ -46,6 +50,7 @@ class SimulationRotationSettings {
       (controllerGainPerSecond, .1, 100.0),
       (motorResponseTimeConstantSeconds, 0.0, .5),
       (passiveDampingPerSecond, 0.0, 5.0),
+      (airModeIdleCommand, .03, .3),
     ]) {
       if (!value.isFinite || value < min || value > max) {
         throw ArgumentError('Invalid advanced rotational dynamics parameter');
@@ -70,6 +75,8 @@ class SimulationRotationSettings {
       'controllerGainPerSecond': controllerGainPerSecond,
       'motorResponseTimeConstantSeconds': motorResponseTimeConstantSeconds,
       'passiveDampingPerSecond': passiveDampingPerSecond,
+      'airModeEnabled': airModeEnabled,
+      'airModeIdleCommand': airModeIdleCommand,
     };
   }
 }
