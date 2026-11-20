@@ -71,7 +71,7 @@
         return visibility==='obstructed'?(38+Math.min(55,blocking*.9)):
             visibility==='fresnelIntrusion'?(6+Math.min(20,intrusion*.45)):0;
     }
-    function one(profile,distance,visibility,minimumClearance,minimumFresnelMargin){
+    function one(profile,distance,visibility,minimumClearance,minimumFresnelMargin,limitedObstruction=false){
         const freeSpaceDb=freeSpaceLossDb(distance,profile.frequencyMhz);
         const terrainLossDb=excessTerrainLossDb(visibility,minimumClearance,minimumFresnelMargin);
         const estimatedRxPowerDbm=profile.eirpDbm-freeSpaceDb-terrainLossDb;
@@ -80,8 +80,8 @@
         const terrainScenarioRangeM=theoreticalRangeMeters(profile,terrainLossDb);
         // Smooth illustrative score. Not measured RSSI, SNR, LQ or probability.
         const quality=clamp((linkMarginDb+6)/30);
-        return Object.freeze({quality,source:'rfModel',detail:'approximateLinkBudget',estimated:true,
-            confidence:'assumptionBased',distanceMeters:round(distance),
+        return Object.freeze({quality,source:'rfModel',detail:limitedObstruction?'sampledObstructionOnly':'approximateLinkBudget',estimated:true,
+            confidence:limitedObstruction?'limitedTerrainAssumption':'assumptionBased',distanceMeters:round(distance),
             freeSpaceLossDb:round(freeSpaceDb),estimatedTerrainLossDb:round(terrainLossDb),
             estimatedRxPowerDbm:round(estimatedRxPowerDbm),
             linkMarginDb:round(linkMarginDb),marginDb:round(linkMarginDb),
@@ -108,11 +108,22 @@
         const cfg=configuration(settings),dist=distanceMeters(from,to);
         // Unavailable geometry is NOT assumed clear. The separately exposed
         // theoreticalRangeMeters() remains available without a terrain sample.
-        if(!cfg.enabled||geometry?.source!=='sampledTerrain'||geometry?.confidence!=='approximate'||
+        // Sparse long-range sampling cannot establish a CLEAR line of sight.
+        // However, a negative clearance at an actually sampled terrain point
+        // *does* provide evidence of an obstruction. Only that asymmetric case
+        // may feed the simulation-only RF budget and optional RC failsafe.
+        // Missing terrain, Fresnel-only guesses and merely asserted 'blocked'
+        // labels must never be promoted into modeled link quality.
+        const limitedObstruction=geometry?.confidence==='limited'&&
+            geometry.visibility==='obstructed'&&
+            Number.isFinite(geometry.minimumClearanceMeters)&&geometry.minimumClearanceMeters<0&&
+            Number.isInteger(geometry.sampleCount)&&geometry.sampleCount>=3;
+        if(!cfg.enabled||geometry?.source!=='sampledTerrain'||
+            !(geometry.confidence==='approximate'||limitedObstruction)||
             !['clear','fresnelIntrusion','obstructed'].includes(geometry.visibility)||
             !Number.isFinite(dist)||dist<1||dist>250000)return {controlLink:'unknown',videoLink:'unknown'};
-        return {controlLink:one(cfg.control,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters),
-            videoLink:one(cfg.video,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters)};
+        return {controlLink:one(cfg.control,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters,limitedObstruction),
+            videoLink:one(cfg.video,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters,limitedObstruction)};
     }
     return {defaults,presets,configuration,distanceMeters,freeSpaceLossDb,theoreticalRangeMeters,excessTerrainLossDb,freeSpacePreview,assess};
 });

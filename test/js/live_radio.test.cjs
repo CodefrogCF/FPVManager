@@ -184,3 +184,37 @@ test('limited extended-range terrain keeps both links unknown while displaying f
     assert.match(p.nodes.get('flight-radio-status').textContent,/free-space ONLY/);
     p.api.dispose();
 });
+
+
+test('11 km sampled blockage in sparse terrain supplies visibly qualified RF estimates and opt-in RC failsafe',()=>{
+    const failsafe=require('../../web/simulated_failsafe.js');
+    const p=setup();p.api.monitor({enabled:true,revision:1});
+    p.api.observe({active:true,paused:false,flightId:18});
+    p.api.set({revision:2,flightId:18,expiresAtMs:105000,state:'obstructed',
+        distanceMeters:11389,
+        sampling:{tier:'mediumRange',samples:160,coarseSamples:96,refinedSamples:64,
+            queries:2,maximumGapMeters:420,limited:true},
+        pilot:{latitude:47,longitude:8,height:1000},
+        rays:[{latitude:47,longitude:8.15,height:1150,ground:1200,state:'obstructed'}],
+        assessment:{visibility:'obstructed',source:'sampledTerrain',confidence:'limited',
+            sampleCount:160,minimumClearanceMeters:-40,minimumFresnelMarginMeters:-70,
+            controlLink:'unknown',videoLink:'unknown'}});
+    const assessed=p.api.assessment();
+    assert.equal(assessed.confidence,'limited');
+    assert.equal(assessed.controlLink.source,'rfModel');
+    assert.equal(assessed.videoLink.source,'rfModel');
+    assert.equal(assessed.controlLink.detail,'sampledObstructionOnly');
+    assert.match(p.nodes.get('flight-radio-status').textContent,/sampled obstruction/);
+    assert.match(p.nodes.get('flight-radio-status').textContent,/LIMITED/);
+    assert.equal(p.nodes.get('hud-live-radio').dataset.state,'obstructed');
+    // An explicitly enabled model-based RC failsafe, not the geometric label,
+    // may consume the quality estimate after its normal activation delay.
+    const machine=failsafe.create({enabled:true,mode:'hold',activationDelaySeconds:.6});
+    for(let i=0;i<9;i++)machine.step(.1,assessed);
+    assert.equal(machine.status().phase,'hold');
+    const off=failsafe.create({enabled:false});
+    for(let i=0;i<9;i++)off.step(.1,assessed);
+    assert.equal(off.status().phase,'normal');
+    p.clock(6000);p.api.observe({active:true,paused:false,flightId:18});
+    assert.equal(p.api.assessment().controlLink,'unknown');
+});

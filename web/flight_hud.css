@@ -161,7 +161,7 @@
 #flight-signal-hud-settings input[type="range"] { width:105px;accent-color:#a0d39a; }
 #flight-signal-hud-settings small { display:block;margin-top:8px;line-height:1.4;color:#d5dbd5; }
 #flight-signal-error {display:block;margin-top:4px;color:#ffe1a0;font-size:12px;}
-#hud-signal-edge { position:absolute;left:0;right:0;bottom:0;height:clamp(8px,2.7vh,26px);pointer-events:none;z-index:0;
+#hud-signal-edge { position:absolute;left:0;right:0;bottom:0;height:clamp(8px,2.7vh,26px);pointer-events:none;z-index:2;
     background:linear-gradient(to top,#f68b25d9,#ed973a98 35%,transparent); }
 #hud-signal-edge[data-level="critical"],#hud-signal-edge[data-level="lost"] {
     background:linear-gradient(to top,#e82e39e8,#e43b46a8 40%,transparent); }

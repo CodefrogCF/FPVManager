@@ -142,3 +142,23 @@ test('critical video quality produces stronger analog interference without chang
     assert.ok(quality(.12).noise<quality(.01).noise);
     assert.equal(quality(.01).rc.quality,.9);
 });
+
+
+test('DJI-style lower warning edge is independently available in Betaflight OSD',()=>{
+    const n=nodes(),view=signal.create(n.doc,{now:()=>Date.now()});
+    const osd={...defaultState,hudStyle:'betaflight',signalHud:{...defaultState.signalHud,terrainIllustration:false}};
+    view.update(osd,explicit(.15));
+    assert.equal(n.get('hud-signal-edge').hidden,false,'weak/lost video has a lower edge even in Betaflight');
+    assert.equal(n.get('hud-signal-edge').dataset.level,'critical');
+    assert.equal(n.get('hud-signal-bars').hidden,false,'independent RC/video OSD meters remain available');
+    view.update({...osd,signalHud:{...osd.signalHud,betaflightBars:false}},explicit(.15));
+    assert.equal(n.get('hud-signal-edge').hidden,false,'disabling OSD bars must not disable the lower warning');
+    view.update({...osd,signalHud:{...osd.signalHud,djiWarning:false}},explicit(.15));
+    assert.equal(n.get('hud-signal-edge').hidden,true);
+    view.update(osd,geometry('obstructed'));
+    assert.equal(n.get('hud-signal-edge').hidden,true,
+        'terrain-only obstruction must not fabricate a video-quality warning');
+    const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../../web/flight_hud.css'),'utf8');
+    assert.match(css,/#hud-signal-edge\s*\{[^}]*z-index:2/,
+        'bottom warning must render above analog interference overlay');
+});

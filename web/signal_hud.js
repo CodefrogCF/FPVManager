@@ -85,7 +85,9 @@
             // Preserve the smoothed value, including for terrain illustration.
             const effective=target.video?evaluate({videoLink:{...target.video,quality:smoothed}},cfg,previous):output;
             previous=effective.videoLevel;
-            edge.hidden=!(style==='goggles'&&cfg.djiWarning&&effective.warning);
+            // The DJI-inspired lower-edge warning is an independent HUD option,
+            // not exclusive to the goggles layout. Betaflight bars remain separate.
+            edge.hidden=!(cfg.djiWarning&&effective.warning);
             if(!edge.hidden){edge.dataset.level=effective.warning;
                 edge.style.opacity=String(effective.warning==='weak'?clamp((cfg.weakThreshold-smoothed)/Math.max(.01,cfg.weakThreshold-cfg.criticalThreshold)*.65+.25,.25,.88):.85);
                 edge.title='SIM · Estimated video indication; not measured RF signal';}
@@ -104,10 +106,12 @@
                 const simulatedMetrics=(link)=>link&&Number.isFinite(link.linkMarginDb)&&Number.isFinite(link.estimatedMaxRangeM)
                     ? `SIM estimated reserve ${link.linkMarginDb.toFixed(1)} dB; theoretical free-space range ${(link.estimatedMaxRangeM/1000).toFixed(1)} km (assumptions, not measured)`
                     : 'Simulated quality only; no calibrated range available';
-                rc.title=simulatedMetrics(assessment?.controlLink);
+                rc.title=simulatedMetrics(assessment?.controlLink)+
+                    (assessment?.controlLink?.detail==='sampledObstructionOnly'?' · LIMITED terrain coverage; sampled blockage only':'');
                 video.title=target.video?.source==='terrainIllustration'
                     ?'Terrain-risk illustration only: not an RF signal prediction'
-                    :simulatedMetrics(assessment?.videoLink);
+                    :simulatedMetrics(assessment?.videoLink)+
+                        (assessment?.videoLink?.detail==='sampledObstructionOnly'?' · LIMITED terrain coverage; sampled blockage only':'');
             }
             // Short missing RF/terrain updates must not switch the *visual*
             // analog interference off and on. Only the effect remembers the

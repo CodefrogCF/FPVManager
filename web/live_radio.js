@@ -126,9 +126,15 @@
             // Display only the mathematical free-space prediction when terrain
             // is missing or under-resolved. Never promote it to controlLink or
             // videoLink, which would incorrectly allow a simulated failsafe.
+            const sampledBlocked=currentAssessment.confidence==='limited'&&
+                currentAssessment.visibility==='obstructed'&&
+                currentAssessment.controlLink?.detail==='sampledObstructionOnly';
+            if(sampledBlocked){
+                detailMessage+=' · SIM sampled obstruction: RF loss estimated despite LIMITED overall terrain coverage (not measured)';
+            }
             if((c.state==='unknown'||currentAssessment.confidence==='limited')&&Number.isFinite(c.distanceMeters)){
                 const preview=rfEstimation.freeSpacePreview(c.distanceMeters,rfSettings);
-                if(preview)detailMessage+=` · SIM free-space ONLY Video ${preview.video.estimatedMarginDb.toFixed(1)} dB / RC ${preview.control.estimatedMarginDb.toFixed(1)} dB (terrain unknown)`;
+                if(preview)detailMessage+=` · SIM free-space ONLY Video ${preview.video.estimatedMarginDb.toFixed(1)} dB / RC ${preview.control.estimatedMarginDb.toFixed(1)} dB (no terrain loss included)`;
             }
 
             if(currentAssessment.videoLink!=='unknown'||currentAssessment.controlLink!=='unknown'){

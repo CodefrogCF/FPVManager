@@ -108,3 +108,37 @@ test('EU/CE and FCC reference scenarios change only the selected band and preser
     assert.ok(euRange>6000&&euRange<11000,'EU illustrative open-air calibration');
     assert.ok(fccRange>11000&&fccRange<18000,'FCC illustrative open-air calibration');
 });
+
+
+test('11 km limited terrain: a sampled ridge may drive estimated video/RC loss, but sparse clear paths cannot',()=>{
+    const station={latitude:47,longitude:8,height:1000};
+    const drone={latitude:47,longitude:8.15,height:1150};
+    const ridge={source:'sampledTerrain',confidence:'limited',visibility:'obstructed',
+        sampleCount:160,maximumSampleGapMeters:420,
+        minimumClearanceMeters:-40,minimumFresnelMarginMeters:-70};
+    const estimate=rf.assess(ridge,station,drone);
+    assert.equal(estimate.videoLink.source,'rfModel');
+    assert.equal(estimate.controlLink.source,'rfModel');
+    assert.equal(estimate.controlLink.detail,'sampledObstructionOnly');
+    assert.equal(estimate.controlLink.confidence,'limitedTerrainAssumption');
+    assert.ok(estimate.controlLink.quality<=.2);
+    assert.ok(estimate.videoLink.quality<=.2);
+    // Sampled obstruction is evidence, but incomplete samples do NOT prove a clear path.
+    for(const incomplete of [
+        {...ridge,visibility:'clear'},
+        {...ridge,visibility:'fresnelIntrusion'},
+        {...ridge,minimumClearanceMeters:0},
+        {...ridge,minimumClearanceMeters:null},
+        {...ridge,sampleCount:2},
+        {...ridge,source:'unavailable'},
+        {...ridge,confidence:'unavailable'}
+    ]){
+        const unknown=rf.assess(incomplete,station,drone);
+        assert.equal(unknown.controlLink,'unknown');
+        assert.equal(unknown.videoLink,'unknown');
+    }
+    assert.equal(rf.assess(ridge,station,drone,{enabled:false}).controlLink,'unknown');
+    const preview=rf.freeSpacePreview(rf.distanceMeters(station,drone));
+    assert.equal(preview.control.estimatedTerrainLossDb,undefined,
+        'free-space preview never incorporates inferred terrain or drives failsafe');
+});
