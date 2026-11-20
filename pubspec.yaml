@@ -140,6 +140,7 @@ flutter:
     - web/data/tunnels/ch_tunnels_v1.json
     - web/data/tunnels/ODBL_NOTICE.txt
     - web/scene_performance.js
+    - web/environmental_wind.js
     - web/wind_field.js
     - web/route_editor.js
     - web/signal_analysis.js

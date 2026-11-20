@@ -34,6 +34,22 @@ class WindMapController extends ChangeNotifier {
   }
 
   WindTimeMode mode = WindTimeMode.current;
+  // Optional simulator assumptions. Weather data is not extrapolated as a
+  // verified forecast beyond its local 3 x 3 footprint.
+  Map<String, dynamic> environment = {
+    'regionalTransitionMeters': 3000.0,
+    'regionalVariation': 0.12,
+    'altitudeShearExponent': 0.12,
+    'veerDegreesPerKm': 2.0,
+    'gustSpeedMs': 0.0,
+    'turbulenceIntensity': 0.0,
+    'ridgeLift': false,
+    'leeTurbulence': false,
+    'fallbackSpeedMs': 0.0,
+    'fallbackFromDegrees': 270.0,
+    'terrainProbeMeters': 140.0,
+    'seed': 17,
+  };
   DateTime? forecastUtc;
   Timer? _refresh;
   DateTime? _lastAttempt;
@@ -43,6 +59,7 @@ class WindMapController extends ChangeNotifier {
     'visible': visible,
     'affectFlight': affectFlight,
     'field': snapshot?.toJson(),
+    'environment': environment,
   };
   void _changed() {
     if (!_disposed) notifyListeners();
@@ -62,6 +79,18 @@ class WindMapController extends ChangeNotifier {
       await _push();
     } catch (_) {
       error = 'Winddarstellung konnte nicht aktualisiert werden.';
+      _changed();
+    }
+  }
+
+  Future<void> updateEnvironment(Map<String, dynamic> changes) async {
+    if (_disposed) return;
+    environment = {...environment, ...changes};
+    _changed();
+    try {
+      await _push();
+    } catch (_) {
+      error = 'Umgebungswind-Einstellungen konnten nicht aktualisiert werden.';
       _changed();
     }
   }

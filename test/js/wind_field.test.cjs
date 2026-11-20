@@ -47,7 +47,10 @@ test('animated 3D glyphs reuse ground heights, keep bounded densities and are in
 test('expiry, unknown coverage and terrain failure suspend display/forces without a false calm snapshot',()=>{
     const p=renderer();p.layer.set({visible:true,affectFlight:true,field:snapshot()});p.frame();
     p.ready(false);p.frame();assert.equal(p.lines().show,false);assert.equal(p.states.at(-1).state,'terrainPending');
-    assert.equal(p.layer.sample({latitude:48,longitude:8,agl:50}).available,false);
+    const regional=p.layer.sample({latitude:48,longitude:8,agl:50});
+    assert.equal(regional.available,true);
+    assert.equal(regional.source,'regional-estimate');
+    assert.ok(regional.speedMs>0,'Wind persists beyond local field boundaries');
     p.now(Date.parse('2026-10-28T10:31:00Z'));p.frame();assert.equal(p.states.at(-1).state,'expired');assert.equal(p.lines().show,false);
     assert.equal(p.layer.sample({latitude:46.7,longitude:8.4,agl:50}).reason,'expired');
     p.layer.set({visible:false,affectFlight:false,field:null});assert.equal(p.layer.sample({latitude:46.7,longitude:8.4,agl:50}),null);p.layer.dispose();
@@ -101,4 +104,19 @@ test('hidden wind overlay does not continuously write Cesium visibility or alloc
     p.layer.performance('balanced');p.frame(16);
     assert.equal(writes,0);assert.equal(collection.lines.length,0);
     p.layer.dispose();assert.equal(p.update.listeners.size,0);
+});
+
+test('renderer accepts configurable fallback wind after weather expiry without presenting stale weather as forecast',()=>{
+    const p=renderer();p.layer.set({visible:false,affectFlight:true,field:snapshot(),
+        environment:{fallbackSpeedMs:9,fallbackFromDegrees:270,gustSpeedMs:0,regionalVariation:0}});
+    p.now(Date.parse('2026-10-28T11:00:00Z'));
+    const sampled=p.layer.sample({latitude:48,longitude:8.5,agl:100,timeSeconds:0});
+    assert.equal(sampled.available,true);assert.equal(sampled.source,'fallback');
+    p.frame(50);assert.equal(p.states.at(-1).state,'fallback');
+    assert.ok(sampled.east>7);
+    const stats=p.layer.environmentStats();
+    assert.ok(stats.terrainCacheEntries<=128);
+    assert.throws(()=>p.layer.set({visible:true,affectFlight:true,field:snapshot(),
+        environment:{gustSpeedMs:-1}}));
+    p.layer.dispose();
 });

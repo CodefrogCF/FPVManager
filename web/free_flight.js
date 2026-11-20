@@ -85,7 +85,7 @@
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},rotationTorque=rotationalDynamics.initialState(),input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let deferPose=false;
-        let wind={north:0,east:0,up:0},windInfo=null;
+        let wind={north:0,east:0,up:0},windInfo=null,flightElapsedSeconds=0;
         let battery=null,propulsion=null,propulsionState=null,propulsionElectrical=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         let flightControl=null; // Latest advanced autonomous guidance/actuator targets.
         // A Cesium globe tile can be absent even when the terrain provider is ready.
@@ -141,7 +141,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;
+            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -541,7 +541,9 @@
             }
             ground=Number.isFinite(floor)?floor:null;
             if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
-            windInfo=sampleWind({...position,agl:ground==null?NaN:height-ground});
+            // Sample deterministic environmental time, not Cesium render time.
+            windInfo=sampleWind({...position,agl:ground==null?NaN:height-ground,
+                timeSeconds:flightElapsedSeconds});
             const validWind=windInfo?.available&&['north','east','up'].every(k=>Number.isFinite(windInfo[k])&&Math.abs(windInfo[k])<=100);
             wind=validWind?windInfo:{north:0,east:0,up:0};
             if(windInfo?.available&&!validWind)windInfo={enabled:true,available:false,reason:'invalid'};
@@ -549,6 +551,7 @@
             if(!Number.isFinite(seconds)||seconds<=0)return;
             // Integration receives validated elapsed physics time from the selected adapter.
             const dt=seconds;
+            flightElapsedSeconds+=dt;
             const desiredHeading=spawn&&position?bearing(position,spawn):null;
             const fs=failsafe.step(dt,linkAssessment,{playback,position,home:spawn,height,homeHeight,
                 headingErrorRadians:desiredHeading===null?null:Math.atan2(Math.sin(desiredHeading-heading),Math.cos(desiredHeading-heading)),

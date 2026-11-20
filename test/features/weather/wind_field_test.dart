@@ -74,6 +74,32 @@ class ImmediateWindService extends WindFieldService {
 }
 
 void main() {
+  test('regional wind assumptions are transported without reloading weather or changing existing flags', () async {
+    final commands = <Map<String, dynamic>>[];
+    final wind = WindMapController(
+      send: (command) async => commands.add(command),
+      now: () => now,
+    );
+    addTearDown(wind.dispose);
+    expect(wind.command()['environment'], isA<Map<String, dynamic>>());
+    expect(wind.environment['ridgeLift'], false);
+    await wind.flags(physics: true);
+    await wind.updateEnvironment({
+      'gustSpeedMs': 5.0,
+      'turbulenceIntensity': 0.3,
+      'ridgeLift': true,
+      'fallbackSpeedMs': 6.0,
+    });
+    expect(wind.affectFlight, true);
+    expect(wind.snapshot, isNull);
+    expect(commands.last['field'], isNull);
+    final options = commands.last['environment'] as Map<String, dynamic>;
+    expect(options['gustSpeedMs'], 5.0);
+    expect(options['ridgeLift'], true);
+    expect(options['fallbackSpeedMs'], 6.0);
+    expect(wind.environment['regionalTransitionMeters'], 3000.0);
+  });
+
   test('current model uses one bounded nine-point request and retains heights, provenance and timestamps', () async {
     final requests = <http.Request>[];
     final service = WindFieldService(

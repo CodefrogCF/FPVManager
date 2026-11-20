@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/localization/app_localizations.dart';
@@ -83,6 +85,49 @@ class _WindSettingsState extends State<_WindSettings> {
   late double _radius = widget.globe.wind.snapshot?.radiusMeters ?? 1500;
   String? _error;
   bool _locating = false;
+  final Map<String, double> _environmentDraft = {};
+
+  String _windText(String german, String english) =>
+      Localizations.localeOf(context).languageCode == 'de' ? german : english;
+
+  Widget _environmentSlider({
+    required String key,
+    required String titleDe,
+    required String titleEn,
+    required double max,
+    double min = 0,
+    int divisions = 20,
+    int decimals = 1,
+  }) {
+    final wind = widget.globe.wind;
+    final value =
+        _environmentDraft[key] ?? (wind.environment[key] as num).toDouble();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_windText(titleDe, titleEn)}: ${value.toStringAsFixed(decimals)}',
+        ),
+        Slider(
+          value: value.clamp(min, max).toDouble(),
+          min: min,
+          max: max,
+          divisions: divisions,
+          label: value.toStringAsFixed(decimals),
+          onChanged: (v) => setState(() {
+            _environmentDraft[key] = v;
+          }),
+          onChangeEnd: (v) {
+            setState(() {
+              _environmentDraft.remove(key);
+            });
+            unawaited(wind.updateEnvironment({key: v}));
+          },
+        ),
+      ],
+    );
+  }
+
   Future<void> _choose() async {
     final now = DateTime.now(),
         end = DateTime.now().add(const Duration(days: 7));
@@ -293,11 +338,16 @@ class _WindSettingsState extends State<_WindSettings> {
                 ),
                 if (wind.expired)
                   Text(
-                    context.localized(
-                      "Abgelaufen: Pfeile und Windeinfluss sind ausgesetzt.",
-                      (l10n) =>
-                          l10n.weatherAbgelaufenPfeileUndWindeinfluss1572fe42,
-                    ),
+                    (wind.environment['fallbackSpeedMs'] as num) > 0
+                        ? _windText(
+                            'Wetterdaten abgelaufen: Der konfigurierte Ersatzwind bleibt aktiv; Windpfeile sind ausgesetzt.',
+                            'Weather data expired: configured fallback wind remains active; wind arrows are suspended.',
+                          )
+                        : context.localized(
+                            'Abgelaufen: Pfeile und Windeinfluss sind ausgesetzt.',
+                            (l10n) => l10n
+                                .weatherAbgelaufenPfeileUndWindeinfluss1572fe42,
+                          ),
                   ),
                 if (wind.visible && wind.rendererState == 'terrainPending')
                   Text(
@@ -330,6 +380,114 @@ class _WindSettingsState extends State<_WindSettings> {
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
                 title: Text(
+                  _windText(
+                    'Regionale Wind- und Geländeeffekte',
+                    'Regional wind and terrain effects',
+                  ),
+                ),
+                subtitle: Text(
+                  _windText(
+                    'Simulationsannahmen außerhalb lokaler Wetterdaten',
+                    'Simulation assumptions beyond local weather data',
+                  ),
+                ),
+                children: [
+                  Text(
+                    _windText(
+                      'Im geladenen Wetterraster gelten die Windmodelldaten. '
+                          'Außerhalb wird der Randwind über 3 km in einen approximierten '
+                          'regionalen Verlauf überführt. Bei fehlenden oder abgelaufenen '
+                          'Daten gilt der eingestellte Ersatzwind; 0 m/s bedeutet Windstille.',
+                      'Inside the loaded grid, model wind takes precedence. Beyond '
+                          'the grid, the boundary wind blends over 3 km into an '
+                          'estimated regional flow. Missing or expired data uses the '
+                          'configured fallback wind; 0 m/s means calm air.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _environmentSlider(
+                    key: 'regionalVariation',
+                    titleDe: 'Regionale Variation',
+                    titleEn: 'Regional variation',
+                    max: .5,
+                    divisions: 20,
+                    decimals: 2,
+                  ),
+                  _environmentSlider(
+                    key: 'altitudeShearExponent',
+                    titleDe: 'Höhenabhängige Windzunahme',
+                    titleEn: 'Altitude wind shear exponent',
+                    max: .5,
+                    divisions: 20,
+                    decimals: 2,
+                  ),
+                  _environmentSlider(
+                    key: 'gustSpeedMs',
+                    titleDe: 'Böenstärke (m/s)',
+                    titleEn: 'Gust strength (m/s)',
+                    max: 20,
+                  ),
+                  _environmentSlider(
+                    key: 'turbulenceIntensity',
+                    titleDe: 'Turbulenz (0–1)',
+                    titleEn: 'Turbulence (0–1)',
+                    max: 1,
+                    divisions: 20,
+                    decimals: 2,
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _windText(
+                        'Hangaufwind / Ridge Lift',
+                        'Ridge lift (approximation)',
+                      ),
+                    ),
+                    value: wind.environment['ridgeLift'] == true,
+                    onChanged: (v) =>
+                        unawaited(wind.updateEnvironment({'ridgeLift': v})),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _windText(
+                        'Lee-Abwind und -Turbulenz',
+                        'Lee-side sink and turbulence',
+                      ),
+                    ),
+                    value: wind.environment['leeTurbulence'] == true,
+                    onChanged: (v) =>
+                        unawaited(wind.updateEnvironment({'leeTurbulence': v})),
+                  ),
+                  _environmentSlider(
+                    key: 'fallbackSpeedMs',
+                    titleDe: 'Ersatzwind bei Datenlücken (m/s)',
+                    titleEn: 'Fallback wind without data (m/s)',
+                    max: 30,
+                  ),
+                  _environmentSlider(
+                    key: 'fallbackFromDegrees',
+                    titleDe: 'Ersatzwind aus Richtung (Grad)',
+                    titleEn: 'Fallback wind from (degrees)',
+                    max: 360,
+                    divisions: 36,
+                    decimals: 0,
+                  ),
+                  Text(
+                    _windText(
+                      'Geländeeffekte nutzen lokale Terrain-Höhenproben und sind '
+                          'keine Windfeldberechnung. Fehlende Terrainsamples deaktivieren '
+                          'nur den jeweiligen Effekt; die Basisströmung bleibt erhalten.',
+                      'Terrain effects use nearby height samples, not CFD. '
+                          'Missing terrain disables only the corresponding effect, '
+                          'not the base wind.',
+                    ),
+                  ),
+                ],
+              ),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: Text(
                   context.localized(
                     "Daten und Grenzen",
                     (l10n) => l10n.weatherDatenUndGrenzen98079772,
@@ -337,9 +495,18 @@ class _WindSettingsState extends State<_WindSettings> {
                 ),
                 children: [
                   Text(
-                    context.localized(
-                      "Open-Meteo · CC BY 4.0; kostenloser Zugang für nicht kommerzielle Nutzung. Aktueller Modellwind wird bei aktiver Darstellung oder im Flug alle 15 Minuten aktualisiert. Prognosen verwenden den nächsten verfügbaren Stundenwert. Sonnenzeit und Windzeit sind unabhängig. Zwischen Rasterpunkten und Modellhöhen (10, 80, 120, 180 m AGL) werden Windvektoren interpoliert. Außerhalb bekannter Höhen wird die nächste Schicht konstant fortgesetzt. Außerhalb des geladenen Ausschnitts oder bei fehlenden Daten gibt es keinen Windeinfluss. Keine zusätzlichen künstlichen Böen und keine Berechnung von Gebäudeverwirbelungen, Thermik oder kleinräumiger Geländeströmung.",
-                      (l10n) => l10n.commonOpenMeteoCcBy8eb16c41,
+                    _windText(
+                      'Open-Meteo · CC BY 4.0. Die 3×3-Windkarte enthält Modellwerte '
+                          'für 10/80/120/180 m AGL, keine Live-Messungen. '
+                          'Außerhalb des Ausschnitts werden Werte nur approximiert und '
+                          'nicht als Open-Meteo-Prognose ausgegeben. Böen und '
+                          'Geländeeffekte sind optionale deterministische Simulationen. '
+                          'Darstellungspfeile bleiben auf den geladenen Ausschnitt begrenzt.',
+                      'Open-Meteo · CC BY 4.0. The 3×3 grid provides modeled wind '
+                          'at 10/80/120/180 m AGL, not live readings. Outside the '
+                          'grid, values are estimated and must not be treated as an '
+                          'Open-Meteo forecast. Gusts and terrain effects are optional '
+                          'deterministic approximations. Arrows remain inside the loaded grid.',
                     ),
                   ),
                 ],

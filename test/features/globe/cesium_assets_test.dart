@@ -65,6 +65,7 @@ void main() {
         'body_axis_aerodynamics.js',
         'rotational_dynamics.js',
         'autonomous_flight_control.js',
+        'environmental_wind.js',
         'free_flight.js',
         'flight_hud.js',
         'signal_hud.js',

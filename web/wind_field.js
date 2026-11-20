@@ -1,7 +1,9 @@
 (function(root,factory){
-    const api=factory(typeof module==='object'&&module.exports?require('./map_providers.js'):root.FPVMapProviders);
+    const isNode=typeof module==='object'&&module.exports;
+    const api=factory(isNode?require('./map_providers.js'):root.FPVMapProviders,
+        isNode?require('./environmental_wind.js'):root.FPVEnvironmentalWind);
     if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVWindField=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(Credits){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Credits,environmentalWind){
     'use strict';
     const creditApi=Credits??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c),
         weatherCredits:C=>[new C.Credit('<a href="https://open-meteo.com/">Open-Meteo</a> · CC BY 4.0 · interpolated wind',true)]};
@@ -64,7 +66,8 @@
         let uiData,uiVisible,uiForce,uiNav,uiFresh;
         function fresh(){return data&&now()<data.expires;}
         function publish(){
-            const state=!data?'unavailable':!fresh()?'expired':visible&&(!isTerrainReady()||terrainMissing)?'terrainPending':'ready';
+            const state=!fresh()&&affectFlight&&environmentSettings.fallbackSpeedMs>0?'fallback':
+                !data?'unavailable':!fresh()?'expired':visible&&(!isTerrainReady()||terrainMissing)?'terrainPending':'ready';
             if(state===status)return;status=state;send('wind-layer-status',{state});
         }
         function controls(forceUpdate=false){
@@ -77,10 +80,12 @@
             const status=doc?.getElementById('flight-wind-status'),force=doc?.getElementById('flight-wind-force'),arrows=doc?.getElementById('flight-wind-arrows');
             if(force)force.checked=affectFlight;if(arrows)arrows.checked=visible;
             const time=data?new Date(data.validAtUtc).toLocaleString(language?.locale,{dateStyle:'short',timeStyle:'short'}):'';
+            const substitute=affectFlight&&environmentSettings.fallbackSpeedMs>0&&!valid;
             const message=data?`${translate(data.mode==='current'?'Aktueller Modellwind':'Windprognose')} · ${time}${valid?'':` · ${translate('abgelaufen')}`}`:translate('Keine Winddaten geladen');
-            if(status&&status.textContent!==message)status.textContent=message;
+            const displayMessage=message+(substitute?` · ${translate('Ersatzwind (Simulation)')}`:'');
+            if(status&&status.textContent!==displayMessage)status.textContent=displayMessage;
             const legend=doc?.getElementById('wind-legend');
-            if(legend){legend.hidden=!visible||nav;const text=`${message} · ${translate('Pfeile folgen der Strömung. Wind in m/s: grün <3, gelb 3–7, orange 7–12, rot ≥12. Open-Meteo, keine lokale Messung.')}`;
+            if(legend){legend.hidden=!visible||nav;const text=`${displayMessage} · ${translate('Pfeile folgen der Strömung. Wind in m/s: grün <3, gelb 3–7, orange 7–12, rot ≥12. Open-Meteo, keine lokale Messung.')}`;
                 if(legend.textContent!==text)legend.textContent=text;}
         }
         function ground(lat,lon){
@@ -89,6 +94,10 @@
             C.Cartographic.fromDegrees(lon,lat,0,location);const value=viewer.scene.globe.getHeight(location);
             if(Number.isFinite(value)){if(terrain.size>=256)terrain.delete(terrain.keys().next().value);terrain.set(key,value);}return value;
         }
+        const environment=environmentalWind.createProvider({sampleLocal:sample,
+            terrainHeight:(latitude,longitude)=>ground(latitude,longitude)});
+        const fallback=environmentalWind.createProvider({sampleLocal:sample});
+        let environmentSettings=environmentalWind.configuration();
         function inside(p,b){return p.latitude>=b.south&&p.latitude<=b.north&&p.longitude>=b.west&&p.longitude<=b.east;}
         function remove(entry){collection.remove(entry.line);collection.remove(entry.back);}
         function rebuild(){
@@ -194,16 +203,21 @@
                 if(disposed)return {};
                 if(typeof command.visible!=='boolean'||typeof command.affectFlight!=='boolean')throw Error('Invalid wind controls');
                 const next=command.field==null?null:field(command.field);
-                data=next;visible=command.visible;affectFlight=command.affectFlight;dirty=true;controls();viewer.scene.requestRender();return {};
+                const settings=environmentalWind.configuration(command.environment??{});
+                environment.configure(next,settings);fallback.configure(null,settings);environmentSettings=settings;
+                data=next;visible=command.visible;affectFlight=command.affectFlight;dirty=true;controls(true);viewer.scene.requestRender();return {};
             },
             sample(point){
                 if(!affectFlight)return null;
-                const value=fresh()?sample(data,point.latitude,point.longitude,point.agl):null;
-                return value?{...value,enabled:true,available:true}:{...zero,enabled:true,available:false,reason:!data?'unavailable':!fresh()?'expired':'outside'};
+                if(fresh())return environment.sample(point);
+                if(environmentSettings.fallbackSpeedMs>0)return fallback.sample(point);
+                return {...zero,enabled:true,available:false,reason:!data?'unavailable':'expired',
+                    fallbackAssumption:'calm-without-valid-weather'};
             },
             navigation(point){const next=point&&[point.latitude,point.longitude,point.agl].every(Number.isFinite)?point:null;
                 if(!next&&navigation||next&&!navigation)dirty=true;navigation=next;},
-            terrainChanged(){terrain.clear();dirty=true;},
+            terrainChanged(){terrain.clear();environment.configure(data,environmentSettings);dirty=true;},
+            environmentStats(){return environment.stats();},
             performance(value){if(!Object.hasOwn(density,value))throw Error('Invalid wind graphics profile');
                 if(profile!==value){profile=value;dirty=true;}},
             dispose(){if(disposed)return;disposed=true;removeTerrain();removeUpdate();removeLanguage?.();force?.removeEventListener('change',flagsFromUi);arrows?.removeEventListener('change',flagsFromUi);button?.removeEventListener('click',requestSettings);

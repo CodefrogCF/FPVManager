@@ -1,7 +1,7 @@
 ## Unreleased – v0.19.0
 
 - Couple the Advanced Acro/Angle motor/propeller model to the chemistry-aware
-  battery within each fixed physics step (#136): loaded pack voltage, DC
+  battery within each fixed physics step: loaded pack voltage, DC
   current, available motor RPM/thrust and electrical consumption now feed each
   other through a bounded iterative approximation.
 - Reserve auxiliary electronics/video load once, constrain simulated motor

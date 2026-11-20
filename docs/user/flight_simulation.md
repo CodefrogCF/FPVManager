@@ -18,10 +18,27 @@ position/height-control mode. **Advanced physics** uses selected motor/propeller
 parameters for manual Angle and Acro flight when a sufficiently complete drone
 profile is available. These calculations are **generic estimates**, not measured
 flight performance; if the hardware information is incomplete, the simulator
-uses the earlier approximate thrust model. Legacy remains the default, and GPS
-Rescue still uses the existing assisted controller. These are **approximations**, not a Betaflight
+uses the earlier approximate thrust model. Legacy remains the default. In Advanced mode, GPS-assisted flight and GPS
+Rescue use the same motor, battery, tilt and rotational constraints as manual flight. These are **approximations**, not a Betaflight
 flight-controller implementation. The [main user guide](../user_guide.md#ground-inspection-and-flight-simulation)
 explains keyboard, touchscreen and external-controller input.
+
+## Environmental wind in extended flights
+
+The wind sheet can load Open-Meteo model values for a **local** 3×3 grid.
+Inside this grid, the simulated flight uses the model wind unchanged when
+optional effects are off. **Outside**, the simulator blends the boundary wind
+into a synthetic regional continuation rather than suddenly entering calm air.
+The distant estimate is **not a verified weather forecast**. The wind arrows
+still display only the originally loaded local data.
+
+Under **Regional wind and terrain effects**, optionally configure gusts,
+turbulence, altitude wind shear, a missing-weather fallback wind, ridge lift
+and lee-side sink. Ridge/lee effects are approximate and use only nearby
+available terrain heights. Disabling wind influence restores no-wind flight.
+Settings are session-scoped; no weather outside the loaded region is measured.
+For derivation and limits, see
+[advanced environmental wind](../advanced-environmental-wind.md).
 
 ## Live radio line of sight
 
