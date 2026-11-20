@@ -6,10 +6,11 @@
         isNode?require('./simulated_failsafe.js'):root.FPVSimulatedFailsafe,
         isNode?require('./rescue_velocity.js'):root.FPVRescueVelocity,
         isNode?require('./flight_physics.js'):root.FPVFlightPhysics,
-        isNode?require('./motor_propeller.js'):root.FPVMotorPropeller);
+        isNode?require('./motor_propeller.js'):root.FPVMotorPropeller,
+        isNode?require('./electrical_propulsion.js'):root.FPVElectricalPropulsion);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -80,7 +81,7 @@
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let deferPose=false;
         let wind={north:0,east:0,up:0},windInfo=null;
-        let battery=null,propulsion=null,propulsionState=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
+        let battery=null,propulsion=null,propulsionState=null,propulsionElectrical=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         // A Cesium globe tile can be absent even when the terrain provider is ready.
         // Unknown heights must not be converted to a contact or a fabricated floor.
         let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
@@ -134,7 +135,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};battery=null;propulsion=null;propulsionState=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
+            windInfo=null;wind={north:0,east:0,up:0};battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -167,6 +168,7 @@
                 propulsionHoverCommand=propulsion?.hoverCommand()??0;
                 const initialCommand=config.flightMode==='angle'&&propulsion?propulsionHoverCommand:motorCommand();
                 propulsionState=propulsion?.reset(initialCommand)??null;
+                propulsionElectrical=null;
                 motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
                     acroThrust(motorCommand());
                 if(prepareGraphics){
@@ -307,8 +309,14 @@
                     const hover=propulsionHoverCommand;
                     const command=config.flightMode==='acro'?motorCommand():
                         throttle<0?hover*(1+throttle):hover+(1-hover)*throttle;
-                    const voltage=battery?.snapshot()?.packVoltageVolts;
-                    propulsionState=propulsion.tick(command,dt,voltage);
+                    if(battery&&typeof battery.electricalState==='function'){
+                        const coupled=electricalPropulsion.step(propulsion,battery,command,dt);
+                        propulsionState=coupled.propulsion;
+                        propulsionElectrical=coupled.electrical;
+                    }else{
+                        propulsionState=propulsion.tick(command,dt);
+                        propulsionElectrical=null;
+                    }
                     motorThrust=propulsionState.totalThrustNewtons/propulsion.configuration.massKg;
                 }
                 if(config.flightMode==='acro'){
@@ -460,7 +468,8 @@
                     propulsionState?.propulsionPowerWatts:null;
                 battery.tick(dt,horizontalAirSpeed,velocity.up,
                     thrustG===null?null:{thrustToWeight:thrustG,
-                        ...(Number.isFinite(modeledPower)?{propulsionPowerWatts:modeledPower}:{})});
+                        ...(Number.isFinite(modeledPower)?{propulsionPowerWatts:modeledPower,
+                            ...(propulsionElectrical?{electricalResult:propulsionElectrical}:{})}:{})});
             }
             if(contact){brake();reason=waitingForTunnel ?
                 'Tunnel continuation loading: movement paused':

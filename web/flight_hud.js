@@ -71,8 +71,9 @@
                     battery.setAttribute('data-level',available?reading.level:'unavailable');
                     // ESC/motor comparisons are only DC equal-share proxies;
                     // the '?' avoids presenting them as measured phase-current alarms.
-                    const drive=available?(reading.escPossiblyOverloaded===true?' · ESC?':'')+
-                        (reading.motorPossiblyOverloaded===true?' · MOTOR?':''):'';
+                    const drive=available?(reading.batteryCurrentLimited===true?' · BAT DC LIMIT?':'')+
+                        (reading.escCurrentLimited===true?' · ESC DC LIMIT?':reading.escPossiblyOverloaded===true?' · ESC?':'')+
+                        (reading.motorCurrentLimited===true?' · MOTOR DC LIMIT?':reading.motorPossiblyOverloaded===true?' · MOTOR?':''):'';
                     set(batteryStatus,'SIM BAT'+(available&&reading.level==='critical'?' !':available&&reading.level==='low'?' ↓':'')+drive);
                     if(batteryCell)batteryCell.hidden=state.showBatteryCellVoltage!==true;
                     battery.title=translate(available

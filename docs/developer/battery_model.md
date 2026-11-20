@@ -71,8 +71,47 @@ input-equivalent DC current per motor = estimated pack DC current / motor count
 
 This is *not* ESC phase current, PWM waveform reconstruction or actual motor
 winding current. Battery, ESC and motor warnings are separate. Missing limits
-are reported as unknown, not safe. The estimator does not automatically clamp
-requested power to these ratings.
+are reported as unknown, not safe. The route estimator does not automatically clamp requested power to these
+ratings. In **Advanced manual Acro/Angle**, the coupled solver limits its
+simulated DC motor input to configured ratings and estimates the resulting
+thrust; this does not model real ESC phase currents.
+
+
+## Advanced flight: coupled DC battery and propulsion (this implementation)
+
+The Advanced manual Acro/Angle model uses `web/electrical_propulsion.js` to
+solve battery and motor behavior **within the same physics step**:
+
+1. Advance the requested motor command once (`web/motor_propeller.js`).
+2. Read remaining charge, open-circuit voltage, effective series resistance,
+   continuous/burst current budget and critical cell voltage from
+   `web/battery_simulation.js` (one chemistry reference source).
+3. Iteratively evaluate motor RPM/thrust/input watts at the estimated loaded
+   pack voltage. Reserve auxiliary consumption **before** the motor-current
+   allowance; apply battery, ESC, motor and configured power limits separately.
+4. Converge to an approximate `V_terminal = V_open - I_pack × R_pack`, with a
+   fixed iteration ceiling and conservative minimum-voltage/current limits.
+5. Calculate motion from that step's limited motor thrust. Commit estimated
+   battery consumption **once**, using the solver's actual estimated DC current
+   and total delivered watts; do not stack a speed-derived motor demand.
+
+The `electricalCoupling: estimated-battery-motor-dc` status identifies the
+approximation. `batteryCurrentLimited`, `escCurrentLimited` and
+`motorCurrentLimited` report separate simulated limits. Output values are
+never device telemetry; the motor and ESC comparison is an equal-share **DC
+input proxy**, not PWM phase current. If continuous C is missing, the generic
+chemistry reference remains explicitly an *estimate*. The short burst window
+is not replenished by momentary idle. `0 mΩ/cell` selects the chemistry
+reference rather than ideal zero resistance.
+
+The solver is bounded (at most 16 fixed-point iterations per physics
+substep). A non-converged electrical solution is labeled uncertain. For a
+missing/unsupported battery profile, Advanced continues with the motor-only
+reference-voltage approximation instead of inventing battery charge or sag.
+Legacy flight, GPS, GPS Rescue and recorded route replay retain their prior
+models; this milestone does not claim physical calibration of those modes.
+The shared battery and aircraft records, database schema and portable backups
+are unchanged.
 
 ## Storage and compatibility
 

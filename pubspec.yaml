@@ -3,7 +3,7 @@ description: "Open-source FPV flight planning and situational awareness app with
 
 publish_to: 'none'
 
-version: 0.18.1+22
+version: 0.18.3+24
 
 environment:
   sdk: ^3.13.0
@@ -116,6 +116,7 @@ flutter:
     - web/simulated_failsafe.js
     - web/flight_physics.js
     - web/motor_propeller.js
+    - web/electrical_propulsion.js
     - web/free_flight.js
     - web/flight_recording.js
     - web/signal_hud.js

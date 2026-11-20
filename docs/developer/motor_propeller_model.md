@@ -60,12 +60,16 @@ fallback (identified by an absent `propulsion` status) rather than inventing a
 complete motor specification. Real parameters override coefficients only where
 actual data are available.
 
-The existing chemistry-aware battery model now accepts estimated
-`propulsionPowerWatts` plus a small auxiliary-load estimate, without stacking
-its old speed-based power estimate onto the new motor power. The pack-voltage
-feedback is approximate and one-way; a fully coupled voltage/current/thrust
-solver, burst/thermal limits and sustained real hardware calibration belong
-to the upcoming battery/propulsion coupling work. These estimates should not be treated as validated endurance.
+For this implementation, Advanced Acro/Angle with a valid battery now uses
+`web/electrical_propulsion.js` to couple available DC input current, loaded
+pack voltage, RPM, thrust and actual estimated power in each fixed physics
+step. `advanceCommand()` updates motor inertia once, while `evaluate()`
+can test several voltages without advancing simulation time. Battery and
+configured ESC/motor DC input limits are applied independently and indicated
+by approximate warning flags. **No battery profile:** the previous reference-
+voltage motor-only estimate remains available. GPS/Rescue and Legacy retain
+their previous estimators. See [battery model](battery_model.md) for the
+coupling algorithm, limits and caveats.
 
 ## Reference configuration (unverified)
 

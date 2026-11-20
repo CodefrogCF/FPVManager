@@ -64,7 +64,7 @@
         }
         return {...curve.at(-1)};
     }
-    function output(p,command,voltage){
+    function output(p,command,voltage,externalPowerLimit=null){
         const fraction=clamp(command,0,1),v=within(voltage,1,100)?voltage:p.referenceVoltageVolts;
         let rpm,thrust,power;
         if(p.manufacturerCurve){
@@ -90,6 +90,7 @@
             {value:p.maxPowerWatts,source:'drone-max-power'},
             {value:p.escAmps===null?null:p.escAmps*p.motorCount*v,source:'esc-dc-input-proxy'},
             {value:p.motorAmps===null?null:p.motorAmps*p.motorCount*v,source:'motor-dc-input-proxy'},
+            {value:within(externalPowerLimit,0,100000)?externalPowerLimit:null,source:'battery-dc-current-cap'},
             // Generic assumptions must not create unbounded physical forces.
             // Explicit measured curves/power limits are not replaced by made-up
             // manufacturer ratings; this is a numerical envelope only.
@@ -107,11 +108,14 @@
             const r=maxThrust/(thrust*p.motorCount);
             rpm*=Math.sqrt(r);thrust*=r;power*=r**1.5;
         }
+        const activeLimitSources=ratio<1?limits.filter(item=>
+            Math.abs(item.value-limit)<=Math.max(1e-6,limit*1e-8)).map(item=>item.source):[];
         return {rpm,thrustNewtonsPerMotor:thrust,powerWattsPerMotor:power,
             totalThrustNewtons:thrust*p.motorCount,propulsionPowerWatts:power*p.motorCount,
             estimatedCurrentAmps:power*p.motorCount/v,
             limited:ratio<1||thrust*p.motorCount>=maxThrust-1e-7,
             limitSource:ratio<1?activeLimit.source:thrust*p.motorCount>=maxThrust-1e-7?'numerical-thrust-envelope':null,
+            activeLimitSources,
             source:p.source,estimated:true};
     }
     function create(profile){
@@ -119,12 +123,19 @@
         if(!p)return null;
         let command=0,last=output(p,0,p.referenceVoltageVolts);
         function reset(initial=0){command=clamp(initial,0,1);last=output(p,command,p.referenceVoltageVolts);return last;}
-        function tick(target,dt,voltage){
-            if(!within(dt,0,1))throw Error('Invalid propulsion integration step');
+        function advanceCommand(target,dt){
+            if(!within(dt,0,1)||!Number.isFinite(target))throw Error('Invalid propulsion integration step');
             const tau=p.motorTimeConstant;
             command=clamp(target,0,1)+(command-clamp(target,0,1))*(tau>0?Math.exp(-dt/tau):0);
-            last=output(p,command,voltage);
+            return command;
+        }
+        function evaluate(voltage,powerLimit=null){
+            last=output(p,command,voltage,powerLimit);
             return last;
+        }
+        function tick(target,dt,voltage){
+            advanceCommand(target,dt);
+            return evaluate(voltage);
         }
         function hoverCommand(voltage=p.referenceVoltageVolts){
             const required=p.massKg*g;
@@ -136,7 +147,7 @@
             }
             return (lo+hi)/2;
         }
-        return {configuration:p,reset,tick,hoverCommand,
+        return {configuration:p,reset,tick,advanceCommand,evaluate,hoverCommand,
             get state(){return {...last,command,hoverCommand:hoverCommand(),massKg:p.massKg,
                 maximumThrustToWeight:output(p,1,p.referenceVoltageVolts).totalThrustNewtons/(p.massKg*g)};}};
     }

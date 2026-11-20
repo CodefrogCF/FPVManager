@@ -106,23 +106,49 @@
         const resistance=p.specificResistance?p.resistance:
             number(options.resistanceOhmsPerCell,.000001,.1)?options.resistanceOhmsPerCell:p.resistance;
         let consumedWh=0,consumedAh=0,estimatedPowerWatts=0,extrapolated=false;
-        let secondsAboveContinuous=0;
+        let secondsAboveContinuous=0,lastCoupled=null;
         function currentSoc(){return clamp(p.chargePercent/100-consumedAh/(p.capacityMah/1000),0,1);}
+        function electricalState(){
+            const soc=currentSoc();
+            const openCircuitPackVoltageVolts=openCircuitCellVoltage(soc,p.cell)*p.cellCount;
+            const continuousCurrentLimitAmps=p.dischargeC*p.capacityMah/1000;
+            const burstCurrentLimitAmps=p.burstC===null?null:p.burstC*p.capacityMah/1000;
+            const burstAllowed=burstCurrentLimitAmps!==null&&p.burstSeconds!==null&&
+                secondsAboveContinuous<p.burstSeconds;
+            return {soc,openCircuitPackVoltageVolts,resistanceOhms:resistance*p.cellCount,
+                continuousCurrentLimitAmps,burstCurrentLimitAmps,burstAllowed,
+                dischargeCurrentLimitAmps:burstAllowed?burstCurrentLimitAmps:continuousCurrentLimitAmps,
+                burstRemainingSeconds:p.burstSeconds===null?null:Math.max(0,p.burstSeconds-secondsAboveContinuous),
+                minimumCellVoltageVolts:p.cell.criticalVolts,
+                cellCount:p.cellCount,capacityAh:p.capacityMah/1000,
+                dischargeRatingSource:number(p.continuousDischargeC,.01,1000)?'configured':'chemistry-estimate',
+                auxiliaryPowerWatts:clamp(p.hoverPowerWatts*.08,10,25),
+                available:soc>0};
+        }
         function snapshot(thresholds={}){
             const soc=currentSoc();
-            const load=estimateLoad(p,soc,estimatedPowerWatts,resistance,secondsAboveContinuous);
+            const load=lastCoupled??estimateLoad(p,soc,estimatedPowerWatts,resistance,secondsAboveContinuous);
             const low=number(thresholds.lowVoltagePerCell,.5,4.5)?thresholds.lowVoltagePerCell:p.cell.lowVolts;
             const critical=number(thresholds.criticalVoltagePerCell,.5,4.5)?thresholds.criticalVoltagePerCell:p.cell.criticalVolts;
             const cellVoltage=load.packVoltageVolts/p.cellCount;
             // Independent, per-channel/per-motor limits. This is only a
             // DC equal-share proxy: PWM motor phase current is not modeled.
-            const perUnit=p.driveCount===null?null:load.currentAmps/p.driveCount;
+            const motorDcCurrent=lastCoupled?.estimatedMotorDcInputCurrentAmps??load.currentAmps;
+            const perUnit=p.driveCount===null?null:motorDcCurrent/p.driveCount;
             return {estimated:true,available:true,packVoltageVolts:load.packVoltageVolts,
                 cellVoltageVolts:cellVoltage,cellCount:p.cellCount,remainingPercent:soc*100,
                 remainingEnergyWh:Math.max(0,Math.min(p.capacityWh*soc,
                     p.capacityWh*p.chargePercent/100-consumedWh)),
                 consumedAh,consumedWh,estimatedPowerWatts,extrapolated,
                 currentAmps:load.currentAmps,currentLimitAmps:load.currentLimitAmps,
+                batteryCurrentLimited:lastCoupled?.batteryCurrentLimited??false,
+                batteryLimitSource:lastCoupled?.batteryLimitSource??null,
+                escCurrentLimited:lastCoupled?.escCurrentLimited??false,
+                motorCurrentLimited:lastCoupled?.motorCurrentLimited??false,
+                propulsionLimitSource:lastCoupled?.propulsionLimitSource??null,
+                electricalCoupling:lastCoupled?.electricalCoupling??null,
+                estimatedMotorDcInputCurrentAmps: motorDcCurrent,
+                estimatedAuxiliaryCurrentAmps:lastCoupled?.auxiliaryCurrentAmps??null,
                 estimatedInputCurrentPerMotorAmps:perUnit,
                 escContinuousCurrentAmpsPerChannel:p.escLimit,
                 motorContinuousCurrentAmpsPerMotor:p.motorLimit,
@@ -154,7 +180,18 @@
             const auxiliary=clamp(p.hoverPowerWatts*.08,10,25);
             estimatedPowerWatts=clamp(Number.isFinite(motorWatts)&&motorWatts>=0?
                 motorWatts+auxiliary:base.watts+climb,0,100000);
-            const load=estimateLoad(p,currentSoc(),estimatedPowerWatts,resistance,secondsAboveContinuous);
+            const coupled=flightLoad?.electricalResult;
+            const validCoupling=coupled&&number(coupled.currentAmps,0,100000)&&
+                number(coupled.packVoltageVolts,0,1000)&&number(coupled.totalPowerWatts,0,100000)&&
+                Number.isFinite(motorWatts)&&motorWatts>=0;
+            // Avoid recomputing a different voltage/current from a solved motor
+            // load. The solver already accounted for avionics exactly once.
+            if(validCoupling){
+                estimatedPowerWatts=coupled.totalPowerWatts;
+                lastCoupled={...coupled,exceedsReferenceCurrent:coupled.exceedsReferenceCurrent,
+                    powerDeliveryUncertain:coupled.powerDeliveryUncertain};
+            }else lastCoupled=null;
+            const load=lastCoupled??estimateLoad(p,currentSoc(),estimatedPowerWatts,resistance,secondsAboveContinuous);
             // Conservative continuous accumulation: once the burst allowance is exhausted,
             // it is not automatically reset by a short idle interval.
             if(load.currentAmps>load.currentLimitAmps)secondsAboveContinuous+=dt;
@@ -166,7 +203,7 @@
                 consumedAh+load.currentAmps*dt/3600);
             return snapshot();
         }
-        return {tick,snapshot,get consumedWh(){return consumedWh;}};
+        return {tick,snapshot,electricalState,get consumedWh(){return consumedWh;}};
     }
     return {create,normalize,chemistry,levelPower,poweredFlightPower,openCircuitCellVoltage,estimateLoad};
 });

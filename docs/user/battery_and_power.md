@@ -51,8 +51,10 @@ stays **unknown**; it is not treated as adequate.
 The current simulator compares an **equal-share approximation of battery DC
 input current** against these values. It cannot derive real ESC phase current
 or motor winding current, so an indicated overload is a **potential** problem
-rather than a verified device-level current measurement. Estimated electrical
-power is not automatically clipped to those limits.
+rather than a verified device-level current measurement. In Advanced manual Acro/Angle flight, known limits can restrict simulated
+available propulsion power. Route planning and other flight modes continue to
+report potential overload without enforcing an electrical cutoff. These
+checks are approximations, not real motor or ESC protection.
 
 ## What the flight model does
 
@@ -93,3 +95,18 @@ can change performance substantially.
 See the [flight simulation guide](flight_simulation.md) for the HUD and
 [developer battery reference](../developer/battery_model.md) for model data,
 formulas and schema compatibility.
+
+## Advanced simulation and loaded battery voltage
+
+When **Advanced** physics is selected with a compatible battery and propulsion
+profile, motor speed, thrust and battery discharge influence each other.
+A heavily loaded or nearly discharged pack may provide less thrust at the same
+throttle input. The simulator uses your configured internal resistance,
+continuous/burst C-ratings, ESC limits and motor limits where known. Missing
+ratings use explicitly estimated chemistry defaults or stay unknown.
+
+A voltage warning is a **simulation result, not actual telemetry**. If the
+battery profile is missing, the simulator keeps a motor-only approximation;
+it cannot calculate genuine remaining battery capacity. The Legacy and
+GPS/Rescue simulations continue to use their earlier simplified energy
+models. Actual flight time and performance must be checked against real logs.

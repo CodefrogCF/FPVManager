@@ -1,5 +1,18 @@
-## Unreleased – v0.19.0 (hardware propulsion)
+## Unreleased – v0.19.0
 
+- Couple the Advanced Acro/Angle motor/propeller model to the chemistry-aware
+  battery within each fixed physics step (#136): loaded pack voltage, DC
+  current, available motor RPM/thrust and electrical consumption now feed each
+  other through a bounded iterative approximation.
+- Reserve auxiliary electronics/video load once, constrain simulated motor
+  DC input by continuous/burst pack ratings and independently configured ESC,
+  motor and power limits, and expose separately labelled estimated limit flags.
+- Preserve low-load zero-throttle free fall, manufacturer-specific resistance,
+  battery charge/energy accounting, optional motor-only fallback, and untouched
+  Legacy/GPS/Rescue behavior; no database or backup migration is required.
+- Add full/low-charge, discharge/ESC/motor limit, burst, free-fall and
+  frame-rate-determinism regression tests plus a CPU-only benchmark. Real
+  propulsion performance still requires measured curves and device validation.
 - Add an optional hardware-aware motor/propeller model for Advanced manual
   Acro and Angle flight, using selected drone KV, motor count, propeller geometry,
   takeoff mass and nominal pack voltage without requiring a selected battery.
@@ -16,10 +29,10 @@
 # Change summary
 
 - Introduce selectable Legacy (unchanged default) and Advanced flight physics
-  modes (#133), reusing existing aircraft/battery profiles and controller,
-  collision and RF data while establishing a shared typed physics-state adapter.
-- Add an optional 60/120/240-Hz fixed physics accumulator for Advanced mode
-  (#134), with bounded catch-up, explicit queued/dropped-time diagnostics,
+  modes , reusing existing aircraft/battery profiles and controller, collision
+  and RF data while establishing a shared typed physics-state adapter.
+- Add an optional 60/120/240-Hz fixed physics accumulator for Advanced mode,
+  with bounded catch-up, explicit queued/dropped-time diagnostics,
   single-frame interpolated camera pose and separate battery-time integration.
   Add CPU-only repeatability benchmarks and regression tests for 30/60/120 FPS,
   resets, stalls, battery accounting and Legacy compatibility. Android/Windows
