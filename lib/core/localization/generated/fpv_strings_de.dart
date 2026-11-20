@@ -6870,4 +6870,14 @@ class FpvStringsDe extends FpvStrings {
   @override
   String get droneCurrentLimitsHint =>
       'Optionale ESC- und Motor-Dauerstromgrenzen gelten je ESC-Kanal bzw. Motor. Der Akkustrom geteilt durch die Motoranzahl ist nur ein grober Näherungswert und kein gemessener Phasenstrom.';
+
+  @override
+  String get simulationPhysicsModelTitle => 'Physikmodell';
+
+  @override
+  String get simulationPhysicsModelHint =>
+      'Erweitert verwendet einen festen Physiktakt; ein hardwareabhängiges Antriebsmodell folgt später.';
+
+  @override
+  String get simulationPhysicsStepRate => 'Physiktakt';
 }

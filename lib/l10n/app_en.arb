@@ -9053,5 +9053,11 @@
   "droneCurrentLimitsHint": "Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.",
   "@droneCurrentLimitsHint": {
     "description": "Clarify comparison of ESC/motor current with pack input current"
-  }
+  },
+  "simulationPhysicsModelTitle": "Physics model",
+  "@simulationPhysicsModelTitle": {"description": "Flight simulator model selector."},
+  "simulationPhysicsModelHint": "Advanced uses a fixed physics timestep; hardware-aware propulsion comes later.",
+  "@simulationPhysicsModelHint": {"description": "Clarify advanced mode scope."},
+  "simulationPhysicsStepRate": "Physics frequency",
+  "@simulationPhysicsStepRate": {"description": "Fixed physics update frequency."}
 }

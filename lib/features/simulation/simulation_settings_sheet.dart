@@ -131,6 +131,8 @@ class _SettingsState extends State<_Settings> {
   int? _drone;
   bool _loading = true;
   late SimulationFlightMode _mode = widget.initial.flightMode;
+  late SimulationPhysicsModel _physicsModel = widget.initial.physicsModel;
+  late int _physicsStepHz = widget.initial.physicsStepHz;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
   late SimulationHudStyle _hud = widget.initial.hudStyle;
   late bool _showCoordinates = widget.initial.showCoordinates;
@@ -362,6 +364,8 @@ class _SettingsState extends State<_Settings> {
           deceleration: parameter('deceleration', .2, 50, 4),
           droneId: _drone,
           flightMode: _mode,
+          physicsModel: _physicsModel,
+          physicsStepHz: _physicsStepHz,
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
@@ -578,6 +582,52 @@ class _SettingsState extends State<_Settings> {
                           if (value != null) setState(() => _mode = value);
                         },
                       ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<SimulationPhysicsModel>(
+                        key: const ValueKey('simulation-physics-model'),
+                        initialValue: _physicsModel,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText:
+                              context.fpvStrings.simulationPhysicsModelTitle,
+                          helperText:
+                              context.fpvStrings.simulationPhysicsModelHint,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: SimulationPhysicsModel.legacy,
+                            child: Text('Legacy'),
+                          ),
+                          DropdownMenuItem(
+                            value: SimulationPhysicsModel.advanced,
+                            child: Text('Advanced'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _physicsModel = value);
+                          }
+                        },
+                      ),
+                      if (_physicsModel == SimulationPhysicsModel.advanced)
+                        DropdownButtonFormField<int>(
+                          key: const ValueKey('simulation-physics-step-hz'),
+                          initialValue: _physicsStepHz,
+                          decoration: InputDecoration(
+                            labelText:
+                                context.fpvStrings.simulationPhysicsStepRate,
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 60, child: Text('60 Hz')),
+                            DropdownMenuItem(value: 120, child: Text('120 Hz')),
+                            DropdownMenuItem(value: 240, child: Text('240 Hz')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _physicsStepHz = value);
+                            }
+                          },
+                        ),
                       const SizedBox(height: 12),
                       if (_loading) const LinearProgressIndicator(),
                       if (_error != null) Text(context.translate(_error!)),

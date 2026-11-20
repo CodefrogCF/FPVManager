@@ -116,6 +116,15 @@ void main() {
       expect(flyTo['longitude'], 8.4);
     });
 
+    test('requests physics timing diagnostics only on demand', () async {
+      renderer.ready();
+      await controller.flightPhysicsDiagnostics();
+      final sent = commands.where(
+        (command) => command['type'] == 'flight-physics-diagnostics',
+      );
+      expect(sent, hasLength(1));
+    });
+
     test('rejects invalid coordinates', () {
       controller.handleEvent(
         renderer.encode({'source': 'fpvmanager-globe', 'type': 'globe-ready'}),

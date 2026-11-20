@@ -2010,6 +2010,11 @@ class GlobeController extends ChangeNotifier {
     return _request({'type': 'scene-performance', 'action': action});
   }
 
+  /// On-demand, local-only simulator timing metrics; never broadcast every
+  /// physics tick over the Flutter bridge. Values are modeled, not telemetry.
+  Future<Map<String, dynamic>> flightPhysicsDiagnostics() =>
+      _request({'type': 'flight-physics-diagnostics'});
+
   /// Local, on-demand tunnel diagnostics. Contains public OSM way IDs and
   /// bounded schematic section endpoints; no automatic upload or tracking.
   Future<Map<String, dynamic>> tunnelDiagnostics() =>

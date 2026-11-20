@@ -10871,6 +10871,24 @@ abstract class FpvStrings {
   /// In en, this message translates to:
   /// **'Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.'**
   String get droneCurrentLimitsHint;
+
+  /// Flight simulator model selector.
+  ///
+  /// In en, this message translates to:
+  /// **'Physics model'**
+  String get simulationPhysicsModelTitle;
+
+  /// Clarify advanced mode scope.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced uses a fixed physics timestep; hardware-aware propulsion comes later.'**
+  String get simulationPhysicsModelHint;
+
+  /// Fixed physics update frequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Physics frequency'**
+  String get simulationPhysicsStepRate;
 }
 
 class _FpvStringsDelegate extends LocalizationsDelegate<FpvStrings> {

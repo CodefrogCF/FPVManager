@@ -6806,4 +6806,14 @@ class FpvStringsEn extends FpvStrings {
   @override
   String get droneCurrentLimitsHint =>
       'Optional ESC and motor continuous current ratings are per channel/per motor. Pack DC current divided by motor count is only a rough input-equivalent comparison, not phase current.';
+
+  @override
+  String get simulationPhysicsModelTitle => 'Physics model';
+
+  @override
+  String get simulationPhysicsModelHint =>
+      'Advanced uses a fixed physics timestep; hardware-aware propulsion comes later.';
+
+  @override
+  String get simulationPhysicsStepRate => 'Physics frequency';
 }

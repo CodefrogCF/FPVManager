@@ -9,6 +9,9 @@ import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
 
+/// Legacy preserves v0.18 behaviour; advanced uses fixed physics substeps.
+enum SimulationPhysicsModel { legacy, advanced }
+
 enum SimulationGraphicsProfile { quality, balanced, performance, compatibility }
 
 enum SimulationHudStyle { goggles, betaflight }
@@ -22,6 +25,8 @@ class SimulationSettings {
     this.deceleration = 4,
     this.droneId,
     this.flightMode = SimulationFlightMode.angle,
+    this.physicsModel = SimulationPhysicsModel.legacy,
+    this.physicsStepHz = 120,
     this.cameraTiltDegrees = 0,
     this.cameraFovDegrees = 90,
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
@@ -50,6 +55,8 @@ class SimulationSettings {
   final double agl, maxSpeed, climbSpeed, acceleration, deceleration;
   final int? droneId;
   final SimulationFlightMode flightMode;
+  final SimulationPhysicsModel physicsModel;
+  final int physicsStepHz;
   final double cameraTiltDegrees;
 
   /// Horizontal FPV camera field of view in degrees (not a focal length).
@@ -83,6 +90,8 @@ class SimulationSettings {
     double? batterySagResistanceOhmsPerCell,
     bool? batteryUseChemistryThresholds,
     ControllerSettings? controller,
+    SimulationPhysicsModel? physicsModel,
+    int? physicsStepHz,
     SceneTime? sceneTime,
   }) => SimulationSettings(
     agl: agl,
@@ -92,6 +101,8 @@ class SimulationSettings {
     deceleration: deceleration,
     droneId: droneId,
     flightMode: flightMode,
+    physicsModel: physicsModel ?? this.physicsModel,
+    physicsStepHz: physicsStepHz ?? this.physicsStepHz,
     cameraTiltDegrees: degrees,
     cameraFovDegrees: cameraFovDegrees ?? this.cameraFovDegrees,
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
@@ -143,6 +154,9 @@ class SimulationSettings {
   }
 
   void validate() {
+    if (![60, 120, 240].contains(physicsStepHz)) {
+      throw ArgumentError('Unsupported simulation physics rate');
+    }
     controller.validate();
     sceneTime.validate();
     batteryProfile?.validate();
@@ -193,6 +207,8 @@ class SimulationSettings {
       'acceleration': acceleration,
       'deceleration': deceleration,
       'flightMode': flightMode.name,
+      'physicsModel': physicsModel.name,
+      'physicsStepHz': physicsStepHz,
       'cameraTiltDegrees': cameraTiltDegrees,
       'cameraFovDegrees': cameraFovDegrees,
       'graphicsProfile': graphicsProfile.name,

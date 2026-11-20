@@ -79,3 +79,12 @@ available.
 The synthetic ~49.9-km benchmark measures **CPU simulation ticks only**; it
 is not a Cesium GPU/device/network benchmark. See [performance](performance.md)
 for Android/Windows measurement procedures.
+
+## Selectable physics scheduler (v0.19 development)
+
+The physics refactor introduces Legacy and Advanced flight physics adapters and an
+optional fixed-timestep integrator. The initial Advanced adapter intentionally
+reuses the existing flight force approximations; it does not yet model actual
+motor/propeller torque or validated battery-dependent thrust. See the
+[physics architecture and timing reference](flight_physics_architecture.md)
+for units, module boundaries, accumulator limits, diagnostics and tests.

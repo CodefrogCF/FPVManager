@@ -1831,5 +1831,8 @@
   "droneCurrentLimitsHint": "Optionale ESC- und Motor-Dauerstromgrenzen gelten je ESC-Kanal bzw. Motor. Der Akkustrom geteilt durch die Motoranzahl ist nur ein grober Näherungswert und kein gemessener Phasenstrom.",
   "@droneCurrentLimitsHint": {
     "description": "Clarify comparison of ESC/motor current with pack input current"
-  }
+  },
+  "simulationPhysicsModelTitle": "Physikmodell",
+  "simulationPhysicsModelHint": "Erweitert verwendet einen festen Physiktakt; ein hardwareabhängiges Antriebsmodell folgt später.",
+  "simulationPhysicsStepRate": "Physiktakt"
 }

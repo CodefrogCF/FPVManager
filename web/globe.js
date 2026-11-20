@@ -620,6 +620,14 @@ function postToFlutter(message) {
                 // flight positions, or rejection reasons as automatic telemetry.
                 return tunnelVolumes?.diagnostics()??{active:false,count:0};
             }
+            case 'flight-physics-diagnostics': {
+                // On-demand only; do not stream per-frame state over the bridge.
+                const state=flyer?.status();
+                return {active:state?.active??false,
+                    ...(state?.physicsDiagnostics??{model:'legacy',stepHz:null,
+                        simulatedSeconds:0,queuedSeconds:0,droppedSeconds:0,
+                        lastSubsteps:0,interpolationAlpha:1})};
+            }
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
@@ -779,6 +787,7 @@ function postToFlutter(message) {
                         cameraFovDegrees:flightPreferences.cameraFovDegrees,
                         cameraTiltDegrees:flightPreferences.cameraTiltDegrees,
                         hudStyle:flightPreferences.hudStyle,graphicsProfile:flightPreferences.graphicsProfile,
+                        physicsModel:flightPreferences.physicsModel,physicsStepHz:flightPreferences.physicsStepHz,
                         showCoordinates:flightPreferences.showCoordinates},signal);
                     signal.throwIfAborted();
                     tunnelVolumes.activate();
@@ -1233,6 +1242,7 @@ function postToFlutter(message) {
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
                 ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,cameraFovDegrees:state.cameraFovDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,
                 showBatteryVoltage:state.showBatteryVoltage,showBatteryCellVoltage:state.showBatteryCellVoltage,
+                physicsModel:state.physicsModel,physicsStepHz:state.physicsStepHz,physicsDiagnostics:state.physicsDiagnostics,
                 lowBatteryCellVoltage:state.lowBatteryCellVoltage,criticalBatteryCellVoltage:state.criticalBatteryCellVoltage,
                 signalHud:state.signalHud,failsafe:state.failsafeSettings,
                 controller:state.controller}:{})});

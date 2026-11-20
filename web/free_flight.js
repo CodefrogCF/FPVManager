@@ -4,10 +4,11 @@
         isNode?require('./battery_simulation.js'):root.FPVBatterySimulation,
         isNode?require('./signal_hud.js'):root.FPVSignalHud,
         isNode?require('./simulated_failsafe.js'):root.FPVSimulatedFailsafe,
-        isNode?require('./rescue_velocity.js'):root.FPVRescueVelocity);
+        isNode?require('./rescue_velocity.js'):root.FPVRescueVelocity,
+        isNode?require('./flight_physics.js'):root.FPVFlightPhysics);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -28,7 +29,7 @@
     }
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
-            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',showCoordinates:c.showCoordinates??false,
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',physicsModel:c.physicsModel??'legacy',physicsStepHz:c.physicsStepHz??120,showCoordinates:c.showCoordinates??false,
             showBatteryVoltage:c.showBatteryVoltage??false,showBatteryCellVoltage:c.showBatteryCellVoltage??false,
             signalHud:signalHud.settings(c.signalHud??{}),failsafe:failsafeModule.configuration(c.failsafe??{}),
             lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
@@ -45,6 +46,7 @@
             if(!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`Invalid flight ${key}`);
         }
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
+        flightPhysics.configuration({mode:p.physicsModel,hz:p.physicsStepHz});
         if(!['quality','balanced','performance','compatibility'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
         if(!['goggles','betaflight'].includes(p.hudStyle))throw new Error('Unknown flight HUD style');
         if(typeof p.showCoordinates!=='boolean')throw new Error('Invalid HUD coordinate visibility');
@@ -75,7 +77,7 @@
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0);
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},input={throttle:0,yaw:0,pitch:0,roll:0};
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
-        let lastFrameSeconds=1/60;
+        let deferPose=false;
         let wind={north:0,east:0,up:0},windInfo=null;
         let battery=null,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         // A Cesium globe tile can be absent even when the terrain provider is ready.
@@ -87,12 +89,12 @@
         function motorCommand(){return config.flightMode==='acro'?Math.max(0,throttle):(throttle+1)/2;}
         function clearKeys(){keys.clear();input.throttle=input.yaw=input.pitch=input.roll=0;forward=right=vertical=throttle=0;}
         function brake(){velocity={north:0,east:0,up:0};rates={x:0,y:0,z:0};}
-        function orientation(){
+        function orientation(attitude=q){
             const tilt=config.cameraTiltDegrees*rad,c=Math.cos(tilt),s=Math.sin(tilt);
-            const f=rotate(q,{x:c,y:0,z:-s}),u=rotate(q,{x:-s,y:0,z:-c});
+            const f=rotate(attitude,{x:c,y:0,z:-s}),u=rotate(attitude,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
             failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
@@ -109,10 +111,27 @@
             home:spawn&&{...spawn},heightAboveHome:Number.isFinite(homeHeight)?height-homeHeight:null,
             distance:spawn&&position?distance(spawn,position):0,reason};}
         function publish(){onState(status());}
-        function pose(){applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
+        function pose(){if(!deferPose)applyPose({...position,...status(),...(config.flightMode==='gps'?{}:orientation())});}
+        function physicsSnapshot(){return {position:position&&{...position},height,heading,pitch,roll,
+            attitude:{...q},velocity:{...velocity},angularVelocity:{...rates},
+            propulsionAcceleration:motorThrust,
+            environment:{gravityAcceleration:{north:0,east:0,up:-g},
+                windVelocity:{north:wind.north,east:wind.east,up:wind.up},
+                // Collision queries are resolved by the shared swept-path layer.
+                collisionSource:'terrain-and-supported-models'}};}
+        function renderPhysics(previous,current,alpha){
+            if(!active)return;
+            if(!previous||!current||!previous.position||!current.position){pose();return;}
+            const interpolated=flightPhysics.interpolateState(previous,current,alpha);
+            const output={...status(),...interpolated};
+            applyPose({...interpolated.position,...output,...(config.flightMode==='gps'?{}:orientation(interpolated.attitude))});
+        }
+        let runtime=null;
+        function buildRuntime(){return flightPhysics.createRuntime({mode:config.physicsModel,hz:config.physicsStepHz,
+            integrate:stepCore,snapshot:physicsSnapshot,present:renderPhysics,isActive:()=>active});}
         function stop(message=null){
             const running=active||pending;
-            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;lastFrameSeconds=1/60;active=pending=paused=playback=false;reason=message;
+            ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
             windInfo=null;wind={north:0,east:0,up:0};battery=null;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
@@ -130,7 +149,7 @@
                 signal.throwIfAborted();request.signal.throwIfAborted();
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
-                config=next;failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
+                config=next;runtime=buildRuntime();failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
                     {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
                 motorThrust=acroThrust(motorCommand());
@@ -285,6 +304,7 @@
             return {north,east,up};
         }
         function playbackPose(point){
+            runtime?.discardBacklog();
             if(!active||config.flightMode!=='gps'||!point||
                !valid(point)||!Number.isFinite(point.height)||
                !Number.isFinite(point.heading)||!Number.isFinite(point.pitch)||
@@ -315,10 +335,11 @@
             }
             reason=null;pose();return true;
         }
-        function playbackEnd(){failsafe.reset();wasFailsafeControlled=false;playback=false;clearKeys();brake();reason=null;pose();}
+        function playbackEnd(){runtime?.discardBacklog();failsafe.reset();wasFailsafeControlled=false;playback=false;clearKeys();brake();reason=null;pose();}
         // An explicit user action enters validated SIMULATION-ONLY cross sections.
         // The caller verifies the generated model and owns terrain clipping.
         function enterTunnel(point){
+            runtime?.discardBacklog();
             if(!active||pending||playback||!valid(point)||
                 ![point.height,point.heading,point.ground].every(Number.isFinite))
                 throw Error('Cannot enter unsupported simulated tunnel.');
@@ -327,7 +348,7 @@
             q=euler(heading,0,0);reason='SIMULATION ONLY – tunnel dimensions are not surveyed';
             pose();publish();
         }
-        function tick(seconds){
+        function stepCore(seconds){
             if(!active||playback)return;
             if(!isTerrainReady()){stop('Terrain unavailable; returned to globe view');return;}
             const previousGround=ground;
@@ -347,13 +368,8 @@
             if(windInfo?.available&&!validWind)windInfo={enabled:true,available:false,reason:'invalid'};
             if(paused){pose();return;}
             if(!Number.isFinite(seconds)||seconds<=0)return;
-            // A delayed rendered image must not replay a long interval of an
-            // unseen stick command in one jump. Keep ordinary rendered steps
-            // through 75 ms, including timing jitter near 20 Hz,
-            // but discard a stalled frame's excess time without a catch-up
-            // backlog. The resumed step remains no larger than a 30 Hz frame.
-            const dt=seconds>.075 ? Math.min(lastFrameSeconds,1/30) : seconds;
-            if(seconds<=.075)lastFrameSeconds=seconds;
+            // Integration receives validated elapsed physics time from the selected adapter.
+            const dt=seconds;
             const desiredHeading=spawn&&position?bearing(position,spawn):null;
             const fs=failsafe.step(dt,linkAssessment,{playback,position,home:spawn,height,homeHeight,
                 headingErrorRadians:desiredHeading===null?null:Math.atan2(Math.sin(desiredHeading-heading),Math.cos(desiredHeading-heading)),
@@ -423,6 +439,15 @@
                 'Terrain contact: movement stopped';}
             else reason=missingSamples?'Terrain collision unverified: tiles still loading':null;
             pose();
+        }
+        function tick(seconds){
+            if(!active||playback)return;
+            if(paused){runtime?.discardBacklog();stepCore(seconds);return;}
+            if(!runtime){stepCore(seconds);return;}
+            // Fixed substeps can update physics and collision multiple times,
+            // but present only one interpolated camera pose per rendered frame.
+            deferPose=config.physicsModel==='advanced';
+            try{runtime.advance(seconds);}finally{deferPose=false;}
         }
         async function reset(signal){
             if(!active||!spawn)return {};
@@ -495,7 +520,7 @@
             vertical(v){if(playback||!Number.isFinite(v))return;
                 if(failsafe.status().active){if(Math.abs(v)<.3||!failsafe.recover())return;clearKeys();}
                 vertical=clamp(v,-1,1);},
-            pause(value){if(!playback&&paused!==value&&active){paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
+            pause(value){if(!playback&&paused!==value&&active){runtime?.discardBacklog();paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};
     }
     return {createSimulator,parameters,distance,bearing,rateCommand};

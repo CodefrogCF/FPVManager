@@ -124,3 +124,21 @@ height; full provider loss is handled separately.
 
 For preflight and legal/data considerations, read [preflight and analysis](preflight.md),
 [coordinate heights](coordinates_and_heights.md) and [map data sources](map_sources_and_attribution.md).
+
+## Flight physics mode (v0.19 development)
+
+The flight settings now include **Physics model**:
+
+- **Legacy (default)** keeps the familiar v0.18 flight behaviour.
+- **Advanced** enables fixed-timestep physics with an optional 60/120/240 Hz
+  update frequency (120 Hz initially recommended). Camera rendering is
+  interpolated independently of physics updates.
+
+The Advanced mode presently uses the same approximate thrust and aerodynamic
+model as Legacy. Hardware-specific thrust curves, inertia and advanced drag
+belong to subsequent development issues; switching modes alone does not
+reproduce a real aircraft's flight performance.
+
+Long rendering stalls may still cause explicitly recorded lost simulation
+seconds when the catch-up budget is exhausted. The 240-Hz setting should be
+used only after measuring CPU/rendering performance on the target device.

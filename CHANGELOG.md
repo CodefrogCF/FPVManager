@@ -1,5 +1,15 @@
 # Change summary
 
+- Introduce selectable Legacy (unchanged default) and Advanced flight physics
+  modes, reusing existing aircraft/battery profiles and controller,
+  collision and RF data while establishing a shared typed physics-state adapter.
+- Add an optional 60/120/240-Hz fixed physics accumulator for Advanced mode,
+  with bounded catch-up, explicit queued/dropped-time diagnostics,
+  single-frame interpolated camera pose and separate battery-time integration.
+  Add CPU-only repeatability benchmarks and regression tests for 30/60/120 FPS,
+  resets, stalls, battery accounting and Legacy compatibility. Android/Windows
+  device performance still requires measurement.
+
 ### [0.18.0] - 2026-11-20
 
 - Allow simulated long-range flight to continue when individual rendered
