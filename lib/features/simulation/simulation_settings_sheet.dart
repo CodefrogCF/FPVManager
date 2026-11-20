@@ -9,6 +9,7 @@ import 'simulation_battery_profile.dart';
 import 'simulation_propulsion_profile.dart';
 import 'simulation_aerodynamics_settings.dart';
 import 'simulation_rotation_settings.dart';
+import 'simulation_descent_aerodynamics_settings.dart';
 import 'simulation_settings.dart';
 import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
@@ -119,6 +120,18 @@ class _SettingsState extends State<_Settings> {
     'aeroPropeller': TextEditingController(
       text: '${widget.initial.aerodynamics.propeller}',
     ),
+    'groundIntensity': TextEditingController(
+      text: '${widget.initial.descentAerodynamics.groundEffectIntensity}',
+    ),
+    'propwashIntensity': TextEditingController(
+      text: '${widget.initial.descentAerodynamics.propwashIntensity}',
+    ),
+    'vortexIntensity': TextEditingController(
+      text: '${widget.initial.descentAerodynamics.vortexRingIntensity}',
+    ),
+    'rotorDiameter': TextEditingController(
+      text: '${widget.initial.descentAerodynamics.rotorDiameterMeters}',
+    ),
     'rotationSuperRate': TextEditingController(
       text: '${widget.initial.rotation.superRate}',
     ),
@@ -195,6 +208,12 @@ class _SettingsState extends State<_Settings> {
       widget.initial.aerodynamics.preset;
   late SimulationRateProfile _rotationRateProfile =
       widget.initial.rotation.rateProfile;
+  late bool _groundEnabled =
+      widget.initial.descentAerodynamics.groundEffectEnabled;
+  late bool _propwashEnabled =
+      widget.initial.descentAerodynamics.propwashEnabled;
+  late bool _vortexEnabled =
+      widget.initial.descentAerodynamics.vortexRingEnabled;
   late bool _propellerDragEnabled =
       widget.initial.aerodynamics.propellerDragEnabled;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
@@ -279,6 +298,17 @@ class _SettingsState extends State<_Settings> {
         vertical: parameter('aeroVertical', .1, 5, 1),
         propeller: parameter('aeroPropeller', 0, 5, .12),
         propellerDragEnabled: _propellerDragEnabled,
+      );
+
+  SimulationDescentAerodynamicsSettings get _descentSettings =>
+      SimulationDescentAerodynamicsSettings(
+        groundEffectEnabled: _groundEnabled,
+        propwashEnabled: _propwashEnabled,
+        vortexRingEnabled: _vortexEnabled,
+        groundEffectIntensity: parameter('groundIntensity', 0, 2, 1),
+        propwashIntensity: parameter('propwashIntensity', 0, 2, 1),
+        vortexRingIntensity: parameter('vortexIntensity', 0, 2, 1),
+        rotorDiameterMeters: parameter('rotorDiameter', .0254, .762, .1778),
       );
 
   SimulationRotationSettings get _rotationSettings =>
@@ -505,6 +535,7 @@ class _SettingsState extends State<_Settings> {
           physicsStepHz: _physicsStepHz,
           aerodynamics: _aeroSettings,
           rotation: _rotationSettings,
+          descentAerodynamics: _descentSettings,
           graphicsProfile: _graphics,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
@@ -902,6 +933,111 @@ class _SettingsState extends State<_Settings> {
                                 5,
                               ),
                             ],
+                          ],
+                        ),
+                      if (_physicsModel == SimulationPhysicsModel.advanced)
+                        _group(
+                          'simulation-descent-effects',
+                          _aeroLabel(
+                            'Bodeneffekt & Propwash',
+                            'Ground effect & propwash',
+                          ),
+                          Icons.air,
+                          [
+                            Text(
+                              _aeroLabel(
+                                'Vereinfachte, begrenzte Strömungsmodelle. '
+                                    'Bodeneffekt nur bei bestätigter Geländeoberfläche. '
+                                    'Keine CFD- oder Vortex-Ring-Vorhersage.',
+                                'Bounded airflow approximations. Ground effect '
+                                    'only with verified terrain height. Not CFD '
+                                    'or a vortex-ring prediction.',
+                              ),
+                            ),
+                            SwitchListTile(
+                              key: const ValueKey('simulation-ground-effect'),
+                              title: Text(
+                                _aeroLabel('Bodeneffekt', 'Ground effect'),
+                              ),
+                              value: _groundEnabled,
+                              onChanged: (value) =>
+                                  setState(() => _groundEnabled = value),
+                            ),
+                            if (_groundEnabled)
+                              number(
+                                'groundIntensity',
+                                _aeroLabel(
+                                  'Bodeneffekt-Intensität',
+                                  'Ground effect intensity',
+                                ),
+                                0,
+                                2,
+                              ),
+                            SwitchListTile(
+                              key: const ValueKey('simulation-propwash'),
+                              title: Text(
+                                _aeroLabel(
+                                  'Propwash bei motorisiertem Sinkflug',
+                                  'Propwash in powered descent',
+                                ),
+                              ),
+                              value: _propwashEnabled,
+                              onChanged: (value) =>
+                                  setState(() => _propwashEnabled = value),
+                            ),
+                            if (_propwashEnabled)
+                              number(
+                                'propwashIntensity',
+                                _aeroLabel(
+                                  'Propwash-Intensität',
+                                  'Propwash intensity',
+                                ),
+                                0,
+                                2,
+                              ),
+                            SwitchListTile(
+                              key: const ValueKey('simulation-vortex-ring'),
+                              title: Text(
+                                _aeroLabel(
+                                  'Vortex-Ring-ähnliche Schubreduktion',
+                                  'Vortex-ring-like thrust loss',
+                                ),
+                              ),
+                              value: _vortexEnabled,
+                              onChanged: (value) =>
+                                  setState(() => _vortexEnabled = value),
+                            ),
+                            if (_vortexEnabled)
+                              number(
+                                'vortexIntensity',
+                                _aeroLabel(
+                                  'Schubreduktions-Intensität',
+                                  'Thrust-loss intensity',
+                                ),
+                                0,
+                                2,
+                              ),
+                            if (_groundEnabled ||
+                                _propwashEnabled ||
+                                _vortexEnabled)
+                              number(
+                                'rotorDiameter',
+                                _aeroLabel(
+                                  'Rotor-Durchmesser ohne Hardwareprofil (m)',
+                                  'Rotor diameter without hardware profile (m)',
+                                ),
+                                .0254,
+                                .762,
+                              ),
+                            if (_groundEnabled ||
+                                _propwashEnabled ||
+                                _vortexEnabled)
+                              Text(
+                                _aeroLabel(
+                                  'Mit gültigem Hardwareprofil wird dessen Propellerdurchmesser verwendet.',
+                                  'A valid hardware profile overrides the assumed rotor diameter.',
+                                ),
+                              ),
                           ],
                         ),
                       const SizedBox(height: 12),

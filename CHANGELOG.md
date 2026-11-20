@@ -1,4 +1,4 @@
-## Unreleased – v0.19.0
+## [Unreleased] - v0.19.0
 
 - Couple the Advanced Acro/Angle motor/propeller model to the chemistry-aware
   battery within each fixed physics step: loaded pack voltage, DC

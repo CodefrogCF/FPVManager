@@ -8,6 +8,7 @@ import 'simulation_battery_profile.dart';
 import 'simulation_propulsion_profile.dart';
 import 'simulation_aerodynamics_settings.dart';
 import 'simulation_rotation_settings.dart';
+import 'simulation_descent_aerodynamics_settings.dart';
 import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
@@ -52,6 +53,7 @@ class SimulationSettings {
     this.acroTerminalVelocity = 22.5,
     this.aerodynamics = const SimulationAerodynamicsSettings(),
     this.rotation = const SimulationRotationSettings(),
+    this.descentAerodynamics = const SimulationDescentAerodynamicsSettings(),
     this.acroRollRate = 180,
     this.acroPitchRate = 180,
     this.acroYawRate = 180,
@@ -83,6 +85,7 @@ class SimulationSettings {
   final ControllerSettings controller;
   final SimulationAerodynamicsSettings aerodynamics;
   final SimulationRotationSettings rotation;
+  final SimulationDescentAerodynamicsSettings descentAerodynamics;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
     double degrees, {
@@ -104,6 +107,7 @@ class SimulationSettings {
     SceneTime? sceneTime,
     SimulationAerodynamicsSettings? aerodynamics,
     SimulationRotationSettings? rotation,
+    SimulationDescentAerodynamicsSettings? descentAerodynamics,
   }) => SimulationSettings(
     agl: agl,
     maxSpeed: maxSpeed,
@@ -137,6 +141,7 @@ class SimulationSettings {
     sceneTime: sceneTime ?? this.sceneTime,
     aerodynamics: aerodynamics ?? this.aerodynamics,
     rotation: rotation ?? this.rotation,
+    descentAerodynamics: descentAerodynamics ?? this.descentAerodynamics,
     acroThrustToWeight: acroThrustToWeight,
     acroThrustCurve: acroThrustCurve,
     acroMotorTimeConstant: acroMotorTimeConstant,
@@ -180,6 +185,7 @@ class SimulationSettings {
     controller.validate();
     aerodynamics.validate();
     rotation.validate();
+    descentAerodynamics.validate();
     sceneTime.validate();
     batteryProfile?.validate();
     signalHud.validate();
@@ -253,6 +259,7 @@ class SimulationSettings {
       'acroTerminalVelocity': acroTerminalVelocity,
       'aerodynamics': aerodynamics.toJson(),
       'rotation': rotation.toJson(),
+      'descentAerodynamics': descentAerodynamics.toJson(),
       'acroRollRate': acroRollRate,
       'acroPitchRate': acroPitchRate,
       'acroYawRate': acroYawRate,

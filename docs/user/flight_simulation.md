@@ -40,6 +40,23 @@ Settings are session-scoped; no weather outside the loaded region is measured.
 For derivation and limits, see
 [advanced environmental wind](../advanced-environmental-wind.md).
 
+## Optional ground effect and powered-descent airflow
+
+Under **Ground effect & propwash / Bodeneffekt & Propwash** in Advanced
+physics, three independent options approximate near-ground thrust improvement,
+powered-descent buffeting and vortex-ring-like thrust loss. All three are
+disabled by default. The model uses the configured rotor diameter, or the
+actual propeller diameter from a valid drone hardware profile. You can adjust
+each effect's intensity for calibration.
+
+Ground effect is only estimated when a terrain height sample is available
+at the drone's current location; missing tiles **do not** generate a fictional
+surface. Powered descent can lose some effective thrust, whereas zero-throttle
+free fall retains its passive drag and no motor-induced propwash. These
+simplified approximations are **not** an aerodynamic prediction or a safety
+assurance. See [advanced ground effect and propwash](../advanced-ground-effect-propwash.md)
+for assumptions, limitations and tests.
+
 ## Live radio line of sight
 
 Open the **Radio line of sight / Funkvorschau** section during a flight. The

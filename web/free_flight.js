@@ -10,10 +10,11 @@
         isNode?require('./electrical_propulsion.js'):root.FPVElectricalPropulsion,
         isNode?require('./body_axis_aerodynamics.js'):root.FPVBodyAxisAerodynamics,
         isNode?require('./rotational_dynamics.js'):root.FPVRotationalDynamics,
-        isNode?require('./autonomous_flight_control.js'):root.FPVAutonomousFlightControl);
+        isNode?require('./autonomous_flight_control.js'):root.FPVAutonomousFlightControl,
+        isNode?require('./descent_aerodynamics.js'):root.FPVDescentAerodynamics);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics,autonomousControl){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller,electricalPropulsion,bodyAxisAerodynamics,rotationalDynamics,autonomousControl,descentAerodynamics){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -44,6 +45,7 @@
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
             aerodynamics:bodyAxisAerodynamics.configuration(c.aerodynamics??{},c.acroTerminalVelocity??22.5),
             rotation:rotationalDynamics.configuration(c.rotation??{}),
+            descentAerodynamics:descentAerodynamics.configuration(c.descentAerodynamics??{}),
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
             acroYawRate:c.acroYawRate??180,acroRateExpo:c.acroRateExpo??0,controller:controller.configuration(c.controller)};
         for(const [key,min,max] of [['agl',1,1000],['maxSpeed',.5,100],['climbSpeed',.2,30],
@@ -88,6 +90,7 @@
         let wind={north:0,east:0,up:0},windInfo=null,flightElapsedSeconds=0;
         let battery=null,propulsion=null,propulsionState=null,propulsionElectrical=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         let flightControl=null; // Latest advanced autonomous guidance/actuator targets.
+        let aeroFloor=null,descentEffects=null;
         // A Cesium globe tile can be absent even when the terrain provider is ready.
         // Unknown heights must not be converted to a contact or a fabricated floor.
         let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
@@ -102,7 +105,8 @@
             const f=rotate(attitude,{x:c,y:0,z:-s}),u=rotate(attitude,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,rotation:config.rotation,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,rotation:config.rotation,
+            descentAerodynamics:config.descentAerodynamics,descentEffects,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
             failsafeSettings:{...config.failsafe},failsafe:failsafe.status(),lowBatteryCellVoltage:config.lowBatteryCellVoltage,
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
@@ -141,7 +145,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;
+            windInfo=null;wind={north:0,east:0,up:0};flightElapsedSeconds=0;battery=null;propulsion=null;propulsionState=null;propulsionElectrical=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;flightControl=null;aeroFloor=null;descentEffects=null;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -176,7 +180,7 @@
                 propulsionState=propulsion?.reset(initialCommand)??null;
                 propulsionElectrical=null;
                 motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
-                    acroThrust(motorCommand());flightControl=null;
+                    acroThrust(motorCommand());flightControl=null;descentEffects=null;aeroFloor=null;
                 if(prepareGraphics){
                     pose();await prepareGraphics(request.signal);
                     signal.throwIfAborted();request.signal.throwIfAborted();
@@ -312,6 +316,33 @@
             heading=wrap(Math.atan2(f.y,f.x));pitch=Math.asin(clamp(-f.z,-1,1));
             roll=Math.atan2(r.z,1-2*(q.x*q.x+q.y*q.y));
         }
+        // Airflow modifiers are advanced-only. A ground height is trustworthy
+        // at the sampled centre; beyond 0.5 m horizontally it is deliberately
+        // not extrapolated to an unsampled slope or a new rendered tile.
+        function descentForces(thrust,command,travel,elapsed){
+            if(config.physicsModel!=='advanced'||!(config.descentAerodynamics.groundEffectEnabled||
+                config.descentAerodynamics.propwashEnabled||config.descentAerodynamics.vortexRingEnabled)){
+                descentEffects=null;
+                return {thrust,disturbance:{north:0,east:0,up:0}};
+            }
+            const clearance=Number.isFinite(aeroFloor)&&
+                Math.hypot(travel.north,travel.east)<=.5 ?
+                (height+travel.up-aeroFloor):null;
+            const result=descentAerodynamics.evaluate({
+                thrustAcceleration:Math.max(0,thrust),motorCommand:clamp(command,0,1),
+                orientation:q,airVelocity:{north:velocity.north-wind.north,
+                    east:velocity.east-wind.east,up:velocity.up-wind.up},
+                clearanceMeters:clearance,
+                rotorDiameterMeters:propulsion?.configuration.diameterMeters??null,
+                motorCount:propulsion?.configuration.motorCount??4,
+                aircraftMassKg:propulsion?.configuration.massKg??1.3,
+                timeSeconds:elapsed},config.descentAerodynamics);
+            descentEffects={groundBoost:result.groundBoost,propwashLoss:result.propwashLoss,
+                vortexLoss:result.vortexLoss,clearanceKnown:result.clearanceKnown,
+                estimated:true};
+            return {thrust:result.effectiveThrustAcceleration,
+                disturbance:result.disturbance};
+        }
         function advancedAssistedStep(seconds,state){
             const steps=Math.max(1,Math.ceil(seconds*240-1e-8)),dt=seconds/steps;
             let travel={north:0,east:0,up:0};
@@ -341,8 +372,11 @@
                 }
                 throttle=config.flightMode==='acro'?motorTarget:2*motorTarget-1;
                 const thrustDirection=rotate(q,{x:0,y:0,z:-1});
-                const acceleration={north:thrustDirection.x*motorThrust,east:thrustDirection.y*motorThrust,
-                    up:-thrustDirection.z*motorThrust-g};
+                const airflow=descentForces(motorThrust,motorTarget,travel,
+                    flightElapsedSeconds-seconds+(i+.5)*dt);
+                const acceleration={north:thrustDirection.x*airflow.thrust+airflow.disturbance.north,
+                    east:thrustDirection.y*airflow.thrust+airflow.disturbance.east,
+                    up:-thrustDirection.z*airflow.thrust-g+airflow.disturbance.up};
                 const physical=bodyAxisAerodynamics.integrate(velocity,wind,q,acceleration,dt,
                     motorTarget,config.aerodynamics);
                 velocity=physical.velocity;
@@ -371,13 +405,19 @@
             const curve=config.acroThrustCurve;
             return g*config.acroThrustToWeight*((1-curve)*command+curve*command*command);
         }
-        function acroTranslation(u,dt,advancedOutput=null){
+        function acroTranslation(u,dt,advancedOutput=null,previousTravel=null,elapsed=0){
             const target=acroThrust(motorCommand()),tau=config.acroMotorTimeConstant;
             const decay=tau>0?Math.exp(-dt/tau):0,previous=motorThrust;
             if(!advancedOutput)motorThrust=target+(previous-target)*decay;
             const thrust=advancedOutput?advancedOutput.totalThrustNewtons/propulsion.configuration.massKg:
                 tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
-            const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
+            const airflow=config.physicsModel==='advanced'?
+                descentForces(thrust,motorCommand(),previousTravel??{north:0,east:0,up:0},elapsed):null;
+            const acceleration=airflow?
+                {north:u.x*airflow.thrust+airflow.disturbance.north,
+                    east:u.y*airflow.thrust+airflow.disturbance.east,
+                    up:-u.z*airflow.thrust-g+airflow.disturbance.up}:
+                {north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
             // The advanced model resolves drag in body coordinates; the legacy
             // isotropic free-fall approximation is kept bit-for-bit unchanged.
             if(config.physicsModel==='advanced'){
@@ -455,14 +495,23 @@
                     motorThrust=propulsionState.totalThrustNewtons/propulsion.configuration.massKg;
                 }
                 if(config.flightMode==='acro'){
-                    const travel=acroTranslation(u,dt,propulsionState&&propulsion?propulsionState:null);north+=travel.north;east+=travel.east;up+=travel.up;continue;
+                    const travel=acroTranslation(u,dt,propulsionState&&propulsion?propulsionState:null,
+                        {north,east,up},flightElapsedSeconds-seconds+(i+.5)*dt);
+                    north+=travel.north;east+=travel.east;up+=travel.up;continue;
                 }
                 const thrust=propulsion?motorThrust:g+throttle*(throttle>=0?config.acceleration:g);
                 if(config.physicsModel==='advanced'){
                     // Angle limits attitude, not the aerodynamic velocity. Its
                     // translation uses the same body-axis forces as Acro;
                     // the existing assisted speed clamps remain legacy-only.
-                    const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
+                    const motorTarget=propulsion?(
+                        throttle<0?propulsionHoverCommand*(1+throttle):
+                        propulsionHoverCommand+(1-propulsionHoverCommand)*throttle):(throttle+1)/2;
+                    const airflow=descentForces(thrust,motorTarget,{north,east,up},
+                        flightElapsedSeconds-seconds+(i+.5)*dt);
+                    const acceleration={north:u.x*airflow.thrust+airflow.disturbance.north,
+                        east:u.y*airflow.thrust+airflow.disturbance.east,
+                        up:-u.z*airflow.thrust-g+airflow.disturbance.up};
                     const result=bodyAxisAerodynamics.integrate(velocity,wind,q,acceleration,
                         dt,(throttle+1)/2,config.aerodynamics);
                     velocity=result.velocity;
@@ -540,6 +589,7 @@
                 brake();reason='Tunnel continuation loading: movement paused';pose();return;
             }
             ground=Number.isFinite(floor)?floor:null;
+            aeroFloor=ground;
             if(ground!=null&&height<ground+.5){height=ground+.5;brake();}
             // Sample deterministic environmental time, not Cesium render time.
             windInfo=sampleWind({...position,agl:ground==null?NaN:height-ground,
@@ -561,7 +611,7 @@
                 if(config.physicsModel==='advanced'){
                     // Terminal simulated touchdown disarms the advanced
                     // propulsion state; do not leave a fictional hover motor.
-                    motorThrust=0;propulsionState=propulsion?.reset(0)??null;
+                    motorThrust=0;descentEffects=null;propulsionState=propulsion?.reset(0)??null;
                     propulsionElectrical=null;throttle=config.flightMode==='acro'?0:-1;
                     if(flightControl)flightControl={...flightControl,phase:'landed',
                         motorCommand:0,deliveredThrustAcceleration:0};
