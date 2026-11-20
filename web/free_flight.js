@@ -5,10 +5,11 @@
         isNode?require('./signal_hud.js'):root.FPVSignalHud,
         isNode?require('./simulated_failsafe.js'):root.FPVSimulatedFailsafe,
         isNode?require('./rescue_velocity.js'):root.FPVRescueVelocity,
-        isNode?require('./flight_physics.js'):root.FPVFlightPhysics);
+        isNode?require('./flight_physics.js'):root.FPVFlightPhysics,
+        isNode?require('./motor_propeller.js'):root.FPVMotorPropeller);
     if(typeof module==='object'&&module.exports)module.exports=api;
     else root.FPVFreeFlight=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics){
+})(typeof globalThis!=='undefined'?globalThis:this,function(controller,batterySimulation,signalHud,failsafeModule,rescueVelocity,flightPhysics,motorPropeller){
     'use strict';
     const R=6378137,rad=Math.PI/180,g=9.80665;
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -34,7 +35,7 @@
             signalHud:signalHud.settings(c.signalHud??{}),failsafe:failsafeModule.configuration(c.failsafe??{}),
             lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
             batteryUseChemistryThresholds:c.batteryUseChemistryThresholds??true,
-            batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,
+            batterySagResistanceOhmsPerCell:c.batterySagResistanceOhmsPerCell??0,batteryProfile:c.batteryProfile??null,propulsionProfile:c.propulsionProfile??null,
             acroThrustToWeight:c.acroThrustToWeight??4,acroThrustCurve:c.acroThrustCurve??1,
             acroMotorTimeConstant:c.acroMotorTimeConstant??.04,acroTerminalVelocity:c.acroTerminalVelocity??22.5,
             acroRollRate:c.acroRollRate??180,acroPitchRate:c.acroPitchRate??180,
@@ -79,7 +80,7 @@
         let forward=0,right=0,vertical=0,throttle=0,motorThrust=0;
         let deferPose=false;
         let wind={north:0,east:0,up:0},windInfo=null;
-        let battery=null,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
+        let battery=null,propulsion=null,propulsionState=null,propulsionHoverCommand=0,lastReplaySeconds=null,linkAssessment=null,wasFailsafeControlled=false;
         // A Cesium globe tile can be absent even when the terrain provider is ready.
         // Unknown heights must not be converted to a contact or a fabricated floor.
         let terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
@@ -100,6 +101,7 @@
             criticalBatteryCellVoltage:config.criticalBatteryCellVoltage,
             batteryUseChemistryThresholds:config.batteryUseChemistryThresholds,
             battery:config.showBatteryVoltage?(battery?.snapshot(config.batteryUseChemistryThresholds?{}:{lowVoltagePerCell:config.lowBatteryCellVoltage,criticalVoltagePerCell:config.criticalBatteryCellVoltage})??{available:false,estimated:true}):null,
+            propulsion:propulsionState&&{...propulsionState},
             controller:config.controller,position:position&&{...position},height,heading,pitch,roll,
             throttle:motorCommand(),thrustAcceleration:motorThrust,verticalSpeed:velocity.up,wind:windInfo,
             attitude:{...q},agl:Number.isFinite(ground)?height-ground:null,
@@ -132,7 +134,7 @@
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;
-            windInfo=null;wind={north:0,east:0,up:0};battery=null;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
+            windInfo=null;wind={north:0,east:0,up:0};battery=null;propulsion=null;propulsionState=null;propulsionHoverCommand=0;lastReplaySeconds=null;failsafe.reset();linkAssessment=null;wasFailsafeControlled=false;
             terrainVerification={state:'complete',samples:0,missingSamples:0,unverifiedDistanceMeters:0};
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
@@ -152,7 +154,21 @@
                 config=next;runtime=buildRuntime();failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
                     {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;pitch=roll=0;q=euler(heading,0,0);
-                motorThrust=acroThrust(motorCommand());
+                // Hardware is optional and independent of battery-HUD enablement.
+                // A battery profile can supply the voltage if the drone has none.
+                const p=config.propulsionProfile;
+                const pack=config.batteryProfile;
+                const cell=pack?batterySimulation.chemistry(pack.chemistry):null;
+                const referenceVoltage=pack?.nominalVoltageVolts??
+                    (Number.isFinite(pack?.cellCount)&&cell?pack.cellCount*cell.nominalVolts:null)??
+                    p?.referenceVoltageVolts;
+                propulsion=config.physicsModel==='advanced'&&config.flightMode!=='gps'&&p?
+                    motorPropeller.create({...p,referenceVoltageVolts:referenceVoltage}):null;
+                propulsionHoverCommand=propulsion?.hoverCommand()??0;
+                const initialCommand=config.flightMode==='angle'&&propulsion?propulsionHoverCommand:motorCommand();
+                propulsionState=propulsion?.reset(initialCommand)??null;
+                motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
+                    acroThrust(motorCommand());
                 if(prepareGraphics){
                     pose();await prepareGraphics(request.signal);
                     signal.throwIfAborted();request.signal.throwIfAborted();
@@ -241,11 +257,12 @@
             const curve=config.acroThrustCurve;
             return g*config.acroThrustToWeight*((1-curve)*command+curve*command*command);
         }
-        function acroTranslation(u,dt){
+        function acroTranslation(u,dt,advancedOutput=null){
             const target=acroThrust(motorCommand()),tau=config.acroMotorTimeConstant;
             const decay=tau>0?Math.exp(-dt/tau):0,previous=motorThrust;
-            motorThrust=target+(previous-target)*decay;
-            const thrust=tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
+            if(!advancedOutput)motorThrust=target+(previous-target)*decay;
+            const thrust=advancedOutput?advancedOutput.totalThrustNewtons/propulsion.configuration.massKg:
+                tau>0?target+(previous-target)*tau*(-Math.expm1(-dt/tau))/dt:target;
             const acceleration={north:u.x*thrust,east:u.y*thrust,up:-u.z*thrust-g};
             // Kick / exact quadratic-drag drift / kick (Strang splitting).
             // Drag opposes air-relative velocity; attitude does not rotate
@@ -286,10 +303,18 @@
                     heading=wrap(Math.atan2(f.y,f.x));pitch=Math.asin(clamp(-f.z,-1,1));roll=Math.atan2(r.z,1-2*(q.x*q.x+q.y*q.y));
                 }
                 const u=rotate(q,{x:0,y:0,z:-1});
-                if(config.flightMode==='acro'){
-                    const travel=acroTranslation(u,dt);north+=travel.north;east+=travel.east;up+=travel.up;continue;
+                if(propulsion){
+                    const hover=propulsionHoverCommand;
+                    const command=config.flightMode==='acro'?motorCommand():
+                        throttle<0?hover*(1+throttle):hover+(1-hover)*throttle;
+                    const voltage=battery?.snapshot()?.packVoltageVolts;
+                    propulsionState=propulsion.tick(command,dt,voltage);
+                    motorThrust=propulsionState.totalThrustNewtons/propulsion.configuration.massKg;
                 }
-                const thrust=g+throttle*(throttle>=0?config.acceleration:g);
+                if(config.flightMode==='acro'){
+                    const travel=acroTranslation(u,dt,propulsionState&&propulsion?propulsionState:null);north+=travel.north;east+=travel.east;up+=travel.up;continue;
+                }
+                const thrust=propulsion?motorThrust:g+throttle*(throttle>=0?config.acceleration:g);
                 const drag=config.deceleration/config.maxSpeed,decay=Math.exp(-drag*dt),old={...velocity};
                 velocity.north=wind.north+(old.north-wind.north)*decay+u.x*thrust*(1-decay)/drag;
                 velocity.east=wind.east+(old.east-wind.east)*decay+u.y*thrust*(1-decay)/drag;
@@ -431,8 +456,11 @@
                 const thrustG=controlled||config.flightMode==='gps'?null:
                     config.flightMode==='acro'?Math.max(0,motorThrust/g):
                     Math.max(0,1+throttle*(throttle>=0?config.acceleration/g:1));
+                const modeledPower=propulsion&&!(controlled||config.flightMode==='gps')?
+                    propulsionState?.propulsionPowerWatts:null;
                 battery.tick(dt,horizontalAirSpeed,velocity.up,
-                    thrustG===null?null:{thrustToWeight:thrustG});
+                    thrustG===null?null:{thrustToWeight:thrustG,
+                        ...(Number.isFinite(modeledPower)?{propulsionPowerWatts:modeledPower}:{})});
             }
             if(contact){brake();reason=waitingForTunnel ?
                 'Tunnel continuation loading: movement paused':

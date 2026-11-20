@@ -1,10 +1,11 @@
 # Flight physics architecture and frame-independent timing
 
-**Simulation only.** The selectable Advanced model does not yet emulate real
-motors, propellers, Betaflight firmware or experimentally measured dynamics.
-It deliberately starts with the existing flight forces and controllers; later
-issues can replace the Advanced dynamics without changing the Flutter profile
-format, radio bridge, HUD or Cesium camera interface.
+**Simulation only.** Advanced manual Acro/Angle flight can now use the
+[hardware-aware motor/propeller estimates](motor_propeller_model.md) when the
+selected drone profile provides sufficient parameters. Generic coefficients
+are NOT calibrated hardware measurements. Legacy, GPS and Rescue continue
+their former dynamics. This modular addition preserves the radio bridge, HUD,
+Cesium camera and battery-profile data formats.
 
 ## User-visible selection
 
@@ -12,7 +13,7 @@ In **Simulation settings → Physics model**, select:
 
 - **Legacy (default):** v0.18-era time integration, preserving current flight
   feel, controller behaviour, GPU-dependent motion timing and stall protection.
-- **Advanced:** the same current aerodynamic/thrust approximations, integrated
+- **Advanced:** a selectable hardware-aware motor approximation in manual Acro/Angle when configured (otherwise the previous generic approximation), integrated
   at an independent, fixed simulation frequency (60, 120 or 240 Hz). The
   default is **120 Hz**. Rendering interpolates between physics snapshots.
 
@@ -28,6 +29,7 @@ existing profiles retain their meaning.
 | `lib/features/simulation/simulation_settings.dart` | Selectable mode, frequency, validation and bridge payload |
 | `lib/features/simulation/simulation_settings_sheet.dart` | Bilingual model and frequency controls |
 | `web/flight_physics.js` | Shared runtime contract, scheduling, fixed-substep budget and diagnostics |
+| `web/motor_propeller.js` | Optional advanced motor RPM, propeller thrust and electrical-load estimate |
 | `web/free_flight.js` | Existing pilot/controller logic, forces, motion integration, collision sweeps and battery updates |
 | `web/flight_rendering.js` | Cesium camera/terrain rendering and collision providers |
 | `web/globe.js` | Flutter↔Cesium command and state adapter, frame clock |
@@ -83,10 +85,10 @@ The Legacy adapter retains its original long-frame cap for compatibility.
 
 ## Limits and follow-up work
 
-- The Advanced adapter initially shares the existing GPS/Angle/Acro forces,
-  motor-thrust approximation and GPS Rescue kinematics. It is **not** a
-  hardware-calibrated flight physics model yet. Do not equate mode selection
-  with validated performance.
+- Advanced manual Acro/Angle uses motor/propeller hardware estimates where
+  sufficient aircraft parameters exist. The fallback, Legacy, GPS and GPS
+  Rescue use previous force/kinematic assumptions. **No path is calibrated
+  automatically against real hardware.**
 - Existing collision sweeps still use terrain and supported modeled geometry;
   absent terrain tiles remain explicitly unverified.
 - The fixed-step scheduler is invoked from the existing Cesium `preUpdate`

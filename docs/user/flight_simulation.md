@@ -14,7 +14,12 @@ and [simulation/collision reference](../developer/simulation_and_collision.md).
 5. Use **Flug zurücksetzen** to return to the spawn state, or exit to the globe.
 
 Angle self-levels; Acro retains rotational momentum; GPS is an assisted
-position/height-control mode. These are **approximations**, not a Betaflight
+position/height-control mode. **Advanced physics** uses selected motor/propeller
+parameters for manual Angle and Acro flight when a sufficiently complete drone
+profile is available. These calculations are **generic estimates**, not measured
+flight performance; if the hardware information is incomplete, the simulator
+uses the earlier approximate thrust model. Legacy remains the default, and GPS
+Rescue still uses the existing assisted controller. These are **approximations**, not a Betaflight
 flight-controller implementation. The [main user guide](../user_guide.md#ground-inspection-and-flight-simulation)
 explains keyboard, touchscreen and external-controller input.
 

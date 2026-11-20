@@ -6,6 +6,7 @@ import '../../core/database/fpv_database.dart';
 import '../../core/database/repositories/drone_repository.dart';
 import '../../core/database/repositories/battery_repository.dart';
 import 'simulation_battery_profile.dart';
+import 'simulation_propulsion_profile.dart';
 import 'simulation_settings.dart';
 import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
@@ -392,6 +393,10 @@ class _SettingsState extends State<_Settings> {
                       .firstOrNull,
                   chargePercent: read('batteryCharge')!,
                 ),
+          propulsionProfile: _drones
+              .where((drone) => drone.id == _drone)
+              .map(SimulationPropulsionProfile.fromDrone)
+              .firstOrNull,
           controller: _controller,
           cameraTiltDegrees: parameter('cameraTilt', 0, 80, 0),
           cameraFovDegrees: parameter('cameraFov', 50, 140, 90),

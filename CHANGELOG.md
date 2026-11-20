@@ -1,10 +1,25 @@
+## Unreleased – v0.19.0 (hardware propulsion)
+
+- Add an optional hardware-aware motor/propeller model for Advanced manual
+  Acro and Angle flight, using selected drone KV, motor count, propeller geometry,
+  takeoff mass and nominal pack voltage without requiring a selected battery.
+- Estimate static thrust, RPM, electrical load and bounded acceleration with
+  explicit generic coefficients or optional supplied manufacturer curves;
+  model motor spin-up/down and honor specified power/current caps.
+- Pass estimated motor input watts to the existing chemistry-aware battery
+  simulator without duplicating the prior speed-based propulsion estimate.
+  Preserve Legacy/GPS/Rescue behavior and fall back to prior approximate
+  thrust when core hardware specifications are unavailable.
+- Add regression tests and developer documentation for model assumptions,
+  source confidence, hardware independence and voltage/power limiting.
+
 # Change summary
 
 - Introduce selectable Legacy (unchanged default) and Advanced flight physics
-  modes, reusing existing aircraft/battery profiles and controller,
+  modes (#133), reusing existing aircraft/battery profiles and controller,
   collision and RF data while establishing a shared typed physics-state adapter.
-- Add an optional 60/120/240-Hz fixed physics accumulator for Advanced mode,
-  with bounded catch-up, explicit queued/dropped-time diagnostics,
+- Add an optional 60/120/240-Hz fixed physics accumulator for Advanced mode
+  (#134), with bounded catch-up, explicit queued/dropped-time diagnostics,
   single-frame interpolated camera pose and separate battery-time integration.
   Add CPU-only repeatability benchmarks and regression tests for 30/60/120 FPS,
   resets, stalls, battery accounting and Legacy compatibility. Android/Windows

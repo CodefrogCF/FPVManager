@@ -148,7 +148,12 @@
             // GPS/replay do not expose thrust; use a separate climb-work proxy.
             const climb=thrustG===null&&p.massKg!==null
                 ?p.massKg*9.80665*Math.max(0,Number.isFinite(verticalSpeed)?verticalSpeed:0)/.65:0;
-            estimatedPowerWatts=clamp(base.watts+climb,0,100000);
+            // Advanced motor model supplies propulsion watts; no speed-based
+            // second propulsion estimate. Auxiliary loads remain approximate.
+            const motorWatts=flightLoad?.propulsionPowerWatts;
+            const auxiliary=clamp(p.hoverPowerWatts*.08,10,25);
+            estimatedPowerWatts=clamp(Number.isFinite(motorWatts)&&motorWatts>=0?
+                motorWatts+auxiliary:base.watts+climb,0,100000);
             const load=estimateLoad(p,currentSoc(),estimatedPowerWatts,resistance,secondsAboveContinuous);
             // Conservative continuous accumulation: once the burst allowance is exhausted,
             // it is not automatically reset by a short idle interval.

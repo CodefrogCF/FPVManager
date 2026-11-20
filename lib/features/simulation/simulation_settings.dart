@@ -5,6 +5,7 @@ import 'controller_settings.dart';
 import 'signal_hud_settings.dart';
 import 'failsafe_settings.dart';
 import 'simulation_battery_profile.dart';
+import 'simulation_propulsion_profile.dart';
 import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
@@ -41,6 +42,7 @@ class SimulationSettings {
     this.batterySagResistanceOhmsPerCell = 0,
     this.batteryUseChemistryThresholds = true,
     this.batteryProfile,
+    this.propulsionProfile,
     this.controller = const ControllerSettings(),
     this.acroThrustToWeight = 4,
     this.acroThrustCurve = 1,
@@ -73,6 +75,7 @@ class SimulationSettings {
   final bool batteryUseChemistryThresholds;
   final double batterySagResistanceOhmsPerCell;
   final SimulationBatteryProfile? batteryProfile;
+  final SimulationPropulsionProfile? propulsionProfile;
   final ControllerSettings controller;
   final SceneTime sceneTime;
   SimulationSettings withCameraTilt(
@@ -121,6 +124,7 @@ class SimulationSettings {
     batteryUseChemistryThresholds:
         batteryUseChemistryThresholds ?? this.batteryUseChemistryThresholds,
     batteryProfile: batteryProfile,
+    propulsionProfile: propulsionProfile,
     controller: controller ?? this.controller,
     sceneTime: sceneTime ?? this.sceneTime,
     acroThrustToWeight: acroThrustToWeight,
@@ -223,6 +227,7 @@ class SimulationSettings {
       'batterySagResistanceOhmsPerCell': batterySagResistanceOhmsPerCell,
       'batteryUseChemistryThresholds': batteryUseChemistryThresholds,
       'batteryProfile': batteryProfile?.toJson(),
+      'propulsionProfile': propulsionProfile?.toJson(),
       'controller': controller.toJson(),
       'acroThrustToWeight': acroThrustToWeight,
       'acroThrustCurve': acroThrustCurve,
@@ -237,6 +242,7 @@ class SimulationSettings {
 
   factory SimulationSettings.fromDrone(Drone drone) => SimulationSettings(
     droneId: drone.id,
+    propulsionProfile: SimulationPropulsionProfile.fromDrone(drone),
     maxSpeed: (drone.maxSpeedMetersPerSecond ?? 15).clamp(.5, 100).toDouble(),
     climbSpeed: (drone.maxClimbRateMetersPerSecond ?? 5)
         .clamp(.2, 30)

@@ -115,6 +115,7 @@ flutter:
     - web/battery_simulation.js
     - web/simulated_failsafe.js
     - web/flight_physics.js
+    - web/motor_propeller.js
     - web/free_flight.js
     - web/flight_recording.js
     - web/signal_hud.js
