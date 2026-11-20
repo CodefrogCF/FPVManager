@@ -11,6 +11,23 @@ TICKET = re.compile(r'github\.com/[^\s/)]+/[^\s/)]+/issues(?:\b|/)|'
 LINK = re.compile(r'!?\[[^\]]*\]\(([^)]+)\)')
 
 
+def is_relocated_legacy_doc(root, relative):
+    """Identify root-level duplicates when a maintained audience guide exists.
+
+    ZIP updates cannot delete existing files, and the relocation manifest may
+    not yet be committed in a checkout. Only root-level docs with an actual
+    audience-specific replacement are treated as legacy; broken links in the
+    canonical documents must still fail CI.
+    """
+    parts = Path(relative).parts
+    if len(parts) != 2 or parts[0] != 'docs':
+        return False
+    if parts[1] in {'README.md', 'user_guide.md', 'developer_guide.md'}:
+        return False
+    return any((root / 'docs' / area / parts[1]).is_file() for area in
+               ('user', 'developer', 'archive/2026-11'))
+
+
 def check(root=ROOT):
     root = Path(root).resolve()
     manifest = root / 'docs/obsolete_files.json'
@@ -24,8 +41,8 @@ def check(root=ROOT):
     count = 0
     for file in files:
         relative = file.relative_to(root).as_posix()
-        if relative in retired:
-            continue  # A ZIP update may have preserved locally edited old notes.
+        if relative in retired or is_relocated_legacy_doc(root, relative):
+            continue  # ZIP overlays can retain moved root-level documentation.
         if not file.is_file():
             errors.append(f'Missing guide: {relative}')
             continue
@@ -42,8 +59,11 @@ def check(root=ROOT):
             target = (file.parent / unquote(url.path)).resolve()
             if not target.is_relative_to(root):
                 errors.append(f'{relative}: link leaves project: {href}')
-            elif not target.exists() or target.relative_to(root).as_posix() in retired:
-                errors.append(f'{relative}: missing or retired link: {href}')
+            else:
+                target_rel = target.relative_to(root).as_posix()
+                if (not target.exists() or target_rel in retired
+                        or is_relocated_legacy_doc(root, target_rel)):
+                    errors.append(f'{relative}: missing or retired link: {href}')
     return count, errors
 
 
