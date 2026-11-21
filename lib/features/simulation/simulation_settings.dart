@@ -14,7 +14,7 @@ import '../../core/models/scene_time.dart';
 
 enum SimulationFlightMode { gps, angle, acro }
 
-/// Legacy preserves v0.18 behaviour; advanced uses fixed physics substeps.
+/// Advanced is the default; Legacy remains an explicit compatibility fallback.
 enum SimulationPhysicsModel { legacy, advanced }
 
 enum SimulationGraphicsProfile { quality, balanced, performance, compatibility }
@@ -30,7 +30,7 @@ class SimulationSettings {
     this.deceleration = 4,
     this.droneId,
     this.flightMode = SimulationFlightMode.angle,
-    this.physicsModel = SimulationPhysicsModel.legacy,
+    this.physicsModel = SimulationPhysicsModel.advanced,
     this.physicsStepHz = 120,
     this.cameraTiltDegrees = 0,
     this.cameraFovDegrees = 90,

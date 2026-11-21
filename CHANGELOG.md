@@ -1,14 +1,14 @@
-## [Unreleased] - v0.19.0
+## [v0.19.0] - 2026-11-21
 
 ### Advanced Flight Physics & Hardware-Aware Simulation
 
-Introduce an optional, physically consistent and hardware-aware flight simulation model for realistic FPV flight behavior, including freestyle, long-range flights, mountain surfing, high-speed dives and autonomous recovery.
+Introduce a selectable, physically consistent and hardware-aware flight simulation model for realistic FPV flight behavior, including freestyle, long-range flights, mountain surfing, high-speed dives and autonomous recovery.
 
 The existing Legacy physics model remains available and unchanged.
 
 ### Flight Physics Architecture
 
-- Introduce selectable Legacy (default) and Advanced flight physics modes, reusing existing aircraft configurations, battery profiles, collision detection and RF simulation.
+- Introduce selectable Advanced (default) and Legacy (fallback) flight physics modes, reusing existing aircraft configurations, battery profiles, collision detection and RF simulation.
 - Establish a unified physics-state architecture shared across manual and autonomous flight modes.
 - Decouple simulation physics from Cesium rendering using a configurable 60/120/240 Hz fixed timestep.
 - Add bounded catch-up, queued/dropped-time diagnostics and interpolated camera rendering.
@@ -124,7 +124,7 @@ The existing Legacy physics model remains available and unchanged.
 - Support optional local, normalized telemetry CSV comparison with explicit units, time alignment, missing-channel handling, bias/MAE/RMSE and quaternion orientation error; no binary Blackbox decoder or automatic calibration.
 - Record synthetic CPU time, integration-step latency, frame timing, sampled heap/RSS, electrical consistency and steady-load endurance estimates, with representative reproducible results.
 - Add opt-in local Android/Windows profile-build diagnostics and a device measurement template for repeatable Cesium and physics performance comparisons.
-- Update user and developer documentation for physics modes, assumptions, benchmark procedures and release-readiness gates; retain Legacy as the default until real flight and target-device validation is complete.
+- Consolidate user and developer guidance for physics modes, benchmark procedures, provenance and remaining calibration limitations; select Advanced as the new default while preserving Legacy as an explicit fallback.
 
 ### Known Limitations
 

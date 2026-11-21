@@ -15,7 +15,8 @@ supply maps, forecasts and other public information.
 - Official UAS zones and published aviation obstacles, plus independent outdoor,
   traffic, aircraft, weather, radar and observation layers.
 - Ground inspection and GPS, Angle and Acro flight simulation with touch,
-  keyboard or external controllers, flight recording and optional wind.
+  keyboard or external controllers, flight recording, optional wind and
+  Advanced physics (default; Legacy fallback) with clean HUD-free capture.
 - Android road navigation, offline-region preparation, and activity profiles
   that keep frequently used tools together.
 

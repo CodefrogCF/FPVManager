@@ -128,6 +128,7 @@ flutter:
     - web/rf_estimation.js
     - web/rescue_velocity.js
     - web/flight_hud.js
+    - web/capture_mode.js
     - web/flight_hud.css
     - web/flight_rendering.js
     - web/scene_environment.js

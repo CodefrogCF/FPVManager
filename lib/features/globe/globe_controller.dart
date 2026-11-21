@@ -1177,6 +1177,16 @@ class GlobeController extends ChangeNotifier {
     }, timeout: _bridge.options.terrainTimeout);
   }
 
+  /// Clean recording view: hides only the simulation UI (not required map credits).
+  /// The controller still receives input and telemetry while capture is enabled.
+  Future<void> setCaptureMode(bool enabled) async {
+    if (enabled && (!_ready || !_simulationActive)) {
+      throw StateError('An active simulation is required for capture mode');
+    }
+    if (!_ready) return;
+    await _bridge.send({'type': 'set-capture-mode', 'enabled': enabled});
+  }
+
   /// Runs a saved route only inside Cesium's virtual simulator. No commands
   /// are ever forwarded to a physical aircraft or controller.
   Future<void> startRoutePlayback(

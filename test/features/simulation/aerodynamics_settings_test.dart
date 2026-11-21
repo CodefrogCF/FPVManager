@@ -8,7 +8,7 @@ void main() {
   test('existing flight profiles receive conservative defaults', () {
     const settings = SimulationSettings();
     final payload = settings.toCommand();
-    expect(settings.physicsModel, SimulationPhysicsModel.legacy);
+    expect(settings.physicsModel, SimulationPhysicsModel.advanced);
     final drag = payload['aerodynamics'] as Map<String, dynamic>;
     expect(drag['preset'], 'conservative');
     expect(drag['forward'], .35);
@@ -45,10 +45,12 @@ void main() {
   test(
     'legacy speed estimate is unchanged; advanced uses forward resistance',
     () {
-      const legacy = SimulationSettings();
-      const advanced = SimulationSettings(
-        physicsModel: SimulationPhysicsModel.advanced,
+      const legacy = SimulationSettings(
+        physicsModel: SimulationPhysicsModel.legacy,
       );
+      const advanced = SimulationSettings();
+      expect(legacy.toCommand()['physicsModel'], 'legacy');
+      expect(advanced.toCommand()['physicsModel'], 'advanced');
       expect(legacy.acroEstimatedLevelSpeedKmh, greaterThan(0));
       expect(
         advanced.acroEstimatedLevelSpeedKmh,

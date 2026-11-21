@@ -142,6 +142,20 @@
     body .cesium-credit-lightbox li { margin: 8px 0; }
     .cesium-credit-expand-link:focus-visible,.cesium-credit-lightbox a:focus-visible {
         outline: 2px solid var(--map-accent); outline-offset: 2px; }
+    /* Clean capture only removes UI. Keep Cesium credits/attribution visible. */
+    body.capture-mode #navigation-hud,
+    body.capture-mode #flight-actions,
+    body.capture-mode #flight-options,
+    body.capture-mode #ground-controls,
+    body.capture-mode #look-region,
+    body.capture-mode #map-compass,
+    body.capture-mode #weather-legend,
+    body.capture-mode #radar-legend,
+    body.capture-mode #wind-legend,
+    body.capture-mode #info,
+    body.capture-mode .cesium-viewer-toolbar,
+    body.capture-mode .cesium-viewer-animationContainer,
+    body.capture-mode .cesium-viewer-timelineContainer { display:none !important; }
     </style>
     <link rel="stylesheet" href="flight_hud.css">
 </head>
@@ -314,6 +328,7 @@
     <script src="free_flight.js"></script>
     <script src="flight_recording.js"></script>
     <script src="flight_hud.js"></script>
+    <script src="capture_mode.js"></script>
     <script src="flight_rendering.js"></script>
     <script src="tunnel_offline_index.js"></script>
     <script src="bridge_source.js"></script>

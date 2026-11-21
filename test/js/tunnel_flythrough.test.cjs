@@ -163,7 +163,7 @@ test('simulated tunnel impact uses its own contact reason, not a terrain measure
         terrainCollision:()=>false,modeledCollision:()=>true,
         captureCamera:()=>({heading:0}),restoreCamera:()=>{},applyPose:()=>{},
         isTerrainReady:()=>true,onState:()=>{}});
-    await sim.start({latitude:46.8,longitude:8.2,flightMode:'gps'},new AbortController().signal);
+    await sim.start({latitude:46.8,longitude:8.2,flightMode:'gps',physicsModel:'legacy'},new AbortController().signal);
     sim.key('w',true);sim.tick(.1);
     assert.match(sim.status().reason,/Simulated tunnel surface contact/);
     assert.equal(sim.status().active,true);
@@ -436,7 +436,7 @@ test('FPV flight receives altitude-aware tunnel floor probes and does not collid
         terrainCollision:(a,b)=>!(svc.floorAt(a)!=null||svc.floorAt(b)!=null),
         captureCamera:()=>({heading:Math.PI/2}),restoreCamera:()=>{},applyPose:()=>{},
         isTerrainReady:()=>true,onState:()=>{}});
-    await sim.start({latitude:r.coordinates[0][1],longitude:r.coordinates[0][0],agl:2,flightMode:'gps'},
+    await sim.start({latitude:r.coordinates[0][1],longitude:r.coordinates[0][0],agl:2,flightMode:'gps',physicsModel:'legacy'},
         new AbortController().signal);
     sim.key('w',true);
     for(let i=0;i<15;i++)sim.tick(.1);
@@ -879,7 +879,7 @@ test('simulator stops below ground at artificial tunnel end instead of teleporti
         modeledCollision:()=>false,terrainCollision:()=>false,
         captureCamera:()=>({heading:Math.PI/2}),restoreCamera:()=>{},applyPose:()=>{},
         isTerrainReady:()=>true,onState:()=>{}});
-    await sim.start({longitude:8.2,latitude:46.8,agl:2,flightMode:'gps'},new AbortController().signal);
+    await sim.start({longitude:8.2,latitude:46.8,agl:2,flightMode:'gps',physicsModel:'legacy'},new AbortController().signal);
     sim.key('w',true);
     for(let i=0;i<130;i++)sim.tick(.1);
     assert.ok(sim.status().height<510,'flight altitude was never raised to mountain terrain');

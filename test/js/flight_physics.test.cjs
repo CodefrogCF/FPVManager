@@ -14,8 +14,9 @@ function fly(sim,fps,duration){for(let i=0;i<fps*duration;i++)sim.tick(1/fps);re
 
 test('physics architecture has explicit selectable model and deterministic frequency validation',()=>{
     assert.deepEqual(models,['legacy','advanced']);assert.deepEqual(hzOptions,[60,120,240]);
-    assert.deepEqual(configuration({}),{mode:'legacy',hz:120});
-    assert.equal(parameters({}).physicsModel,'legacy');
+    assert.deepEqual(configuration({}),{mode:'advanced',hz:120});
+    assert.equal(parameters({}).physicsModel,'advanced');
+    assert.equal(parameters({physicsModel:'legacy'}).physicsModel,'legacy');
     assert.equal(parameters({physicsModel:'advanced',physicsStepHz:240}).physicsStepHz,240);
     for(const invalid of ['invalid','advanced '])assert.throws(()=>parameters({physicsModel:invalid}));
     for(const invalid of [0,75,Infinity,'120'])assert.throws(()=>parameters({physicsStepHz:invalid}));

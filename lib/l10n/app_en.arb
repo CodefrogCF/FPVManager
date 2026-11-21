@@ -9056,7 +9056,7 @@
   },
   "simulationPhysicsModelTitle": "Physics model",
   "@simulationPhysicsModelTitle": {"description": "Flight simulator model selector."},
-  "simulationPhysicsModelHint": "Advanced uses a fixed physics timestep; hardware-aware propulsion comes later.",
+  "simulationPhysicsModelHint": "Advanced (default) uses hardware-aware physics with a fixed timestep. Legacy remains available as a fallback.",
   "@simulationPhysicsModelHint": {"description": "Clarify advanced mode scope."},
   "simulationPhysicsStepRate": "Physics frequency",
   "@simulationPhysicsStepRate": {"description": "Fixed physics update frequency."}

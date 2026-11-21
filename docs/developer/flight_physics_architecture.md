@@ -4,20 +4,21 @@
 flight / GPS Rescue to shared propulsion, battery, directional drag, rotation,
 environmental and collision constraints. Generic coefficients are not calibrated
 hardware measurements. Legacy preserves the original behavior. The radio bridge,
-HUD, Cesium camera and battery-profile formats remain compatible. See the
-[validation and release gate](advanced_physics_validation.md).
+HUD, Cesium camera and battery-profile formats remain compatible.
 
 ## User-visible selection
 
 In **Simulation settings → Physics model**, select:
 
-- **Legacy (default):** v0.18-era time integration, preserving current flight
-  feel, controller behaviour, GPU-dependent motion timing and stall protection.
-- **Advanced:** a selectable hardware-aware motor approximation in manual and autonomous flight when configured (otherwise the previous generic approximation), integrated
-  at an independent, fixed simulation frequency (60, 120 or 240 Hz). The
-  default is **120 Hz**. Rendering interpolates between physics snapshots.
+- **Advanced (default):** bounded, hardware-aware manual and autonomous flight
+  at a fixed 60/120/240 Hz simulation frequency (120 Hz default). An incomplete
+  profile uses explicit approximate propulsion fallback. Camera rendering
+  interpolates physics snapshots.
+- **Legacy (explicit fallback):** preserves the original v0.18-era integration,
+  timing and controller behavior, unchanged by the new default.
 
-The selection and physics frequency travel through the existing
+The default is selected for **new sessions**; an explicitly supplied Legacy
+value remains valid and is not rewritten. The selection and physics frequency travel through the existing
 `SimulationSettings.toCommand()` payload, including the normal new-flight and
 settings workflows. No new drone or battery database columns are introduced;
 existing profiles retain their meaning.
@@ -38,7 +39,9 @@ existing profiles retain their meaning.
 | `web/collision_response.js` | Bounded contact impulse, sliding/rebound and ground-contact resolution |
 | `web/free_flight.js` | Existing pilot/controller logic, forces, motion integration, collision sweeps and battery updates |
 | `web/flight_rendering.js` | Cesium camera/terrain rendering and collision providers |
-| `web/globe.js` | Flutter↔Cesium command and state adapter, frame clock |
+| `web/globe.js` | Flutter↔Cesium command and state adapter, frame clock, `set-capture-mode` |
+| `web/capture_mode.js` | DOM-only clean capture class toggle; no effect on physics |
+| `lib/features/home/home_map_workspace.dart` | Hides Flutter overlays during capture; invisible restore hotspot |
 
 The runtime receives three host adapters: `integrate(seconds)`, `snapshot()`,
 `present(previous, current, alpha)`; plus an optional `isActive()` guard.
@@ -72,6 +75,12 @@ in `physicsDiagnostics.droppedSeconds`. A growing queue appears in
 `physicsDiagnostics.queuedSeconds`. These are deliberate overload policies,
 not silent loss of simulated time.
 
+The clean recording view is a transient UI state, not a physics setting. Flutter
+calls `GlobeController.setCaptureMode(bool)`; Cesium accepts `set-capture-mode`
+only while flight is active when enabling. The CSS class hides HUD/controls
+but **never** Cesium credits. The top-left hotspot or Android Back restores
+Flutter UI; `stopNavigation()` clears Cesium capture state on flight exit.
+
 The runtime reports in `status().physicsDiagnostics`; Flutter can request the
 current values using `GlobeController.flightPhysicsDiagnostics()` without
 subscribing to per-frame data:
@@ -98,7 +107,8 @@ The Legacy adapter retains its original long-frame cap for compatibility.
   there is no autonomous physics worker; the next frame processes bounded
   catch-up time. CPU/GPU contention must be measured on actual devices.
 - At 240 Hz, terrain/collision and wind queries may become expensive.
-  Profile first on the S25 Ultra and Windows; revert to Legacy if necessary.
+  Profile on both S25 Ultra and Windows; keep Legacy available for fallback.
 - The Node validation runner uses the real simulator and a synthetic terrain adapter.
-  Actual Blackbox/flight-data comparison and Android/Windows performance evidence
-  remain separate release gates. See [validation](advanced_physics_validation.md).
+  Actual Blackbox/flight-data comparisons and quantitative Windows CPU/memory
+  measurements remain pending. Android has initial v0.19 field evidence; these
+  limitations do not prevent selection of Advanced as the project default.

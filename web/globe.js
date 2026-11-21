@@ -189,6 +189,7 @@ function postToFlutter(message) {
     }
 
     function stopNavigation(reason = null, {preserveTunnel = false} = {}) {
+        if(typeof FPVCaptureMode!=='undefined')FPVCaptureMode.set(document,false);
         tunnels?.stop();routePlayback?.interrupt(reason);walker?.stop(reason);flyer?.stop(reason);
         if(!preserveTunnel)tunnelVolumes?.stop();
     }
@@ -624,7 +625,7 @@ function postToFlutter(message) {
                 // On-demand only; do not stream per-frame state over the bridge.
                 const state=flyer?.status();
                 return {active:state?.active??false,
-                    ...(state?.physicsDiagnostics??{model:'legacy',stepHz:null,
+                    ...(state?.physicsDiagnostics??{model:'advanced',stepHz:null,
                         simulatedSeconds:0,queuedSeconds:0,droppedSeconds:0,
                         lastSubsteps:0,interpolationAlpha:1})};
             }
@@ -635,6 +636,11 @@ function postToFlutter(message) {
                 else if(command.action==='stop')scenePerformance.stop();
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
+            }
+            case 'set-capture-mode': {
+                if(typeof command.enabled!=='boolean')throw Error('Invalid capture mode');
+                if(command.enabled && !flyer?.active)throw Error('Capture mode requires active simulation');
+                return FPVCaptureMode.set(document,command.enabled);
             }
             case "set-language": rendererLanguage.setLanguage(command.language); return {};
             case "set-road-navigation": return roadNavigation.set(command);

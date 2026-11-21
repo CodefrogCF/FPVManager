@@ -1833,6 +1833,6 @@
     "description": "Clarify comparison of ESC/motor current with pack input current"
   },
   "simulationPhysicsModelTitle": "Physikmodell",
-  "simulationPhysicsModelHint": "Erweitert verwendet einen festen Physiktakt; ein hardwareabhängiges Antriebsmodell folgt später.",
+  "simulationPhysicsModelHint": "Advanced (Standard) verwendet hardwareabhängige Flugphysik mit festem Physiktakt. Legacy bleibt als Fallback verfügbar.",
   "simulationPhysicsStepRate": "Physiktakt"
 }

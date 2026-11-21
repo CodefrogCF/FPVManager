@@ -6,7 +6,7 @@ void main() {
   test('legacy and advanced settings use compatible conservative defaults', () {
     const settings = SimulationSettings();
     final payload = settings.toCommand();
-    expect(payload['physicsModel'], 'legacy');
+    expect(payload['physicsModel'], 'advanced');
     final collision = payload['collisionResponse'] as Map;
     expect(collision['mode'], 'slide');
     expect(collision['friction'], .28);

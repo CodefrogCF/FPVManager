@@ -10,7 +10,7 @@ function setup(options={}){
         applyPose:p=>poses.push(p),isTerrainReady:()=>ready,onState:s=>states.push(s),...options});
     return {model,poses,restored,states,ready:v=>ready=v,ground:v=>ground=v};
 }
-async function start(page,config={}){await page.model.start({...spawn,...config},new AbortController().signal);}
+async function start(page,config={}){await page.model.start({...spawn,physicsModel:'legacy',...config},new AbortController().signal);}
 function advance(model,seconds=1,fps=60){for(let i=0;i<seconds*fps;i++)model.tick(1/fps);}
 function input(model,frame={}){model.flightInput({throttle:0,yaw:0,pitch:0,roll:0,...frame});}
 const dot=(a,b)=>a.north*b.north+a.east*b.east+a.up*b.up;

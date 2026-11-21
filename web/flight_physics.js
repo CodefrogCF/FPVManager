@@ -10,7 +10,7 @@
     const models=Object.freeze(['legacy','advanced']);
     const hzOptions=Object.freeze([60,120,240]);
     function configuration(value={}){
-        const mode=value.mode??'legacy',hz=value.hz??120;
+        const mode=value.mode??'advanced',hz=value.hz??120;
         if(!models.includes(mode))throw Error('Unknown flight physics model');
         if(!hzOptions.includes(hz))throw Error('Unsupported physics step frequency');
         return {mode,hz};

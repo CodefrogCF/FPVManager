@@ -6876,7 +6876,7 @@ class FpvStringsDe extends FpvStrings {
 
   @override
   String get simulationPhysicsModelHint =>
-      'Erweitert verwendet einen festen Physiktakt; ein hardwareabhängiges Antriebsmodell folgt später.';
+      'Advanced (Standard) verwendet hardwareabhängige Flugphysik mit festem Physiktakt. Legacy bleibt als Fallback verfügbar.';
 
   @override
   String get simulationPhysicsStepRate => 'Physiktakt';

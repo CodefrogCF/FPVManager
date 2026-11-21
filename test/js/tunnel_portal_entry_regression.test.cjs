@@ -104,7 +104,7 @@ test('the simulator advances every half-metre height probe from a raised cliff a
         terrainCollision:()=>false,captureCamera:()=>({heading:0}),restoreCamera(){},applyPose(){},
         applyGraphics(){},isTerrainReady:()=>true,onState(){}});
     try{
-        await sim.start({...point(-7),flightMode:'gps',agl:2,maxSpeed:6},new AbortController().signal);
+        await sim.start({...point(-7),flightMode:'gps',physicsModel:'legacy',agl:2,maxSpeed:6},new AbortController().signal);
         sim.stick(1,0);
         for(let i=0;i<240;i++)sim.tick(1/60);
         const state=sim.status(),along=(state.position.latitude-latitude)*scale;
@@ -156,7 +156,7 @@ test('a pilot at bridge plus 0.5 m enters a falling bore without a false raised 
         applyGraphics(){},isTerrainReady:()=>true,onState(){}});
     try{
         assert.ok(Math.abs(f.service.floorAt(point(-20,0,500.5))-499.9)<1e-8);
-        await sim.start({...point(-7),flightMode:'gps',agl:1,maxSpeed:6},new AbortController().signal);
+        await sim.start({...point(-7),flightMode:'gps',physicsModel:'legacy',agl:1,maxSpeed:6},new AbortController().signal);
         sim.enterTunnel({...point(-7,0,500.5),heading:0,ground:500});
         sim.stick(1,0);
         for(let i=0;i<240;i++)sim.tick(1/60);

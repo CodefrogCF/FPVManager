@@ -811,12 +811,12 @@ class _SettingsState extends State<_Settings> {
                         ),
                         items: const [
                           DropdownMenuItem(
-                            value: SimulationPhysicsModel.legacy,
-                            child: Text('Legacy'),
-                          ),
-                          DropdownMenuItem(
                             value: SimulationPhysicsModel.advanced,
                             child: Text('Advanced'),
+                          ),
+                          DropdownMenuItem(
+                            value: SimulationPhysicsModel.legacy,
+                            child: Text('Legacy'),
                           ),
                         ],
                         onChanged: (value) {
@@ -1218,7 +1218,11 @@ class _SettingsState extends State<_Settings> {
                       if (_loading) const LinearProgressIndicator(),
                       if (_error != null) Text(context.translate(_error!)),
                       DropdownButtonFormField<int>(
-                        key: ValueKey(_drone),
+                        // Preserve the selected-profile remount behavior while
+                        // distinguishing this field from physics frequency.
+                        key: ValueKey(
+                          'simulation-drone-profile-${_drone ?? 'manual'}',
+                        ),
                         initialValue: _drone,
                         isExpanded: true,
                         decoration: InputDecoration(

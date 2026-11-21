@@ -2,13 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/features/simulation/simulation_settings.dart';
 
 void main() {
-  test('legacy is the default for existing simulation settings', () {
+  test('advanced is the new default with explicit legacy fallback', () {
     const original = SimulationSettings();
     final payload = original.toCommand();
-    expect(original.physicsModel, SimulationPhysicsModel.legacy);
+    expect(original.physicsModel, SimulationPhysicsModel.advanced);
     expect(original.physicsStepHz, 120);
-    expect(payload['physicsModel'], 'legacy');
+    expect(payload['physicsModel'], 'advanced');
     expect(payload['physicsStepHz'], 120);
+    const legacy = SimulationSettings(
+      physicsModel: SimulationPhysicsModel.legacy,
+    );
+    expect(legacy.toCommand()['physicsModel'], 'legacy');
+    expect(
+      legacy.withCameraTilt(15).physicsModel,
+      SimulationPhysicsModel.legacy,
+    );
   });
 
   test('advanced selection and physics frequency survive settings changes', () {

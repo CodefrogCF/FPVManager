@@ -3,10 +3,10 @@ import 'package:fpvmanager/features/simulation/simulation_rotation_settings.dart
 import 'package:fpvmanager/features/simulation/simulation_settings.dart';
 
 void main() {
-  test('legacy model and existing Acro rates stay unchanged by default', () {
+  test('default advanced settings preserve existing Acro rates', () {
     const settings = SimulationSettings();
     final command = settings.toCommand();
-    expect(command['physicsModel'], 'legacy');
+    expect(command['physicsModel'], 'advanced');
     expect(command['acroRollRate'], 180);
     expect(command['acroPitchRate'], 180);
     expect(command['acroYawRate'], 180);

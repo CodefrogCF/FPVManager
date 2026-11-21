@@ -10881,7 +10881,7 @@ abstract class FpvStrings {
   /// Clarify advanced mode scope.
   ///
   /// In en, this message translates to:
-  /// **'Advanced uses a fixed physics timestep; hardware-aware propulsion comes later.'**
+  /// **'Advanced (default) uses hardware-aware physics with a fixed timestep. Legacy remains available as a fallback.'**
   String get simulationPhysicsModelHint;
 
   /// Fixed physics update frequency.

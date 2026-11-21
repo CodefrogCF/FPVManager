@@ -20,7 +20,7 @@ function advance(model,t=1,fps=60){for(let i=0;i<Math.round(t*fps);i++)model.tic
 
 test('collision presets validate and retain legacy settings compatibility',()=>{
     const cfg=collision.configuration();
-    assert.equal(cfg.mode,'slide');assert.equal(parameters({}).physicsModel,'legacy');
+    assert.equal(cfg.mode,'slide');assert.equal(parameters({}).physicsModel,'advanced');
     assert.deepEqual(parameters({}).collisionResponse,cfg);
     for(const options of [{mode:'unknown'},{restitution:-1},{friction:3},
         {hardStopNormalSpeedMs:0},{minimumReboundSpeedMs:Infinity},

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import 'dart:math' as math;
 
@@ -13,9 +14,13 @@ class HomeMapWorkspace extends StatelessWidget {
     required this.actions,
     required this.selection,
     this.sidePanel,
+    this.captureMode = false,
+    this.onExitCapture,
   });
   final Widget globe, navigation, actions, selection;
   final Widget? sidePanel;
+  final bool captureMode;
+  final VoidCallback? onExitCapture;
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -25,53 +30,76 @@ class HomeMapWorkspace extends StatelessWidget {
       return Stack(
         children: [
           Positioned.fill(child: globe),
-          Positioned(
-            top: 8,
-            left: 8,
-            child: MapFloatingSurface(intercept: true, child: navigation),
-          ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: MapFloatingSurface(intercept: true, child: actions),
-          ),
-          Positioned(
-            left: wide ? null : 8,
-            right: 8,
-            bottom: 52,
-            width: wide ? 360 : null,
-            child: ConstrainedBox(
-              key: const ValueKey('map-selection-overlay'),
-              constraints: BoxConstraints(
-                maxHeight: wide
-                    ? math.max(
-                        0,
-                        math.min(
-                          constraints.maxHeight * .66,
-                          constraints.maxHeight - 180,
-                        ),
-                      )
-                    : constraints.maxHeight * .46,
-              ),
-              child: MediaQuery.removePadding(
-                context: context,
-                removeTop: true,
-                removeBottom: true,
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    cardTheme: const CardThemeData(
-                      color: Colors.transparent,
-                      surfaceTintColor: Colors.transparent,
-                      elevation: 0,
-                      margin: EdgeInsets.zero,
+          if (!captureMode)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: MapFloatingSurface(intercept: true, child: navigation),
+            ),
+          if (!captureMode)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: MapFloatingSurface(intercept: true, child: actions),
+            ),
+          if (!captureMode)
+            Positioned(
+              left: wide ? null : 8,
+              right: 8,
+              bottom: 52,
+              width: wide ? 360 : null,
+              child: ConstrainedBox(
+                key: const ValueKey('map-selection-overlay'),
+                constraints: BoxConstraints(
+                  maxHeight: wide
+                      ? math.max(
+                          0,
+                          math.min(
+                            constraints.maxHeight * .66,
+                            constraints.maxHeight - 180,
+                          ),
+                        )
+                      : constraints.maxHeight * .46,
+                ),
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  removeBottom: true,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      cardTheme: const CardThemeData(
+                        color: Colors.transparent,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 0,
+                        margin: EdgeInsets.zero,
+                      ),
                     ),
+                    child: selection,
                   ),
-                  child: selection,
                 ),
               ),
             ),
-          ),
-          if (sidePanel != null)
+          // An invisible 64px top-left hotspot keeps the view truly clean.
+          // Keyboard/controller input remains with Cesium; tap restores UI.
+          if (captureMode && onExitCapture != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: PointerInterceptor(
+                intercepting: true,
+                child: Semantics(
+                  label: 'Restore simulation controls',
+                  button: true,
+                  child: GestureDetector(
+                    key: const ValueKey('capture-mode-restore-hotspot'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onExitCapture,
+                    child: const SizedBox(width: 64, height: 64),
+                  ),
+                ),
+              ),
+            ),
+          if (!captureMode && sidePanel != null)
             Positioned(
               top: 8,
               bottom: 8,

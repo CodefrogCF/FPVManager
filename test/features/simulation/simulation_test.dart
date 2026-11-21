@@ -65,61 +65,72 @@ void main() {
     },
   );
 
-  test(
-    'profile selection uses recorded limits, defaults and supported bounds',
-    () {
-      final settings = SimulationSettings.fromDrone(_drone);
-      expect(settings.maxSpeed, 24);
-      expect(settings.climbSpeed, 8);
-      expect(settings.acceleration, 6);
-      expect(settings.toCommand().containsKey('droneId'), isFalse);
-      for (final mode in SimulationFlightMode.values) {
-        expect(
-          SimulationSettings(flightMode: mode).toCommand()['flightMode'],
-          mode.name,
-        );
-      }
-      final missing = SimulationSettings.fromDrone(
-        _drone.copyWith(
-          maxSpeedMetersPerSecond: const Value(null),
-          maxClimbRateMetersPerSecond: const Value(null),
-        ),
-      );
-      expect(missing.maxSpeed, 15);
-      expect(missing.climbSpeed, 5);
+  test('profile selection uses recorded limits, defaults and supported bounds', () {
+    // New simulations use Advanced; the explicit Legacy fallback is preserved.
+    expect(
+      const SimulationSettings().physicsModel,
+      SimulationPhysicsModel.advanced,
+    );
+    expect(
+      SimulationSettings.fromDrone(_drone).physicsModel,
+      SimulationPhysicsModel.advanced,
+    );
+    expect(
+      const SimulationSettings(physicsModel: SimulationPhysicsModel.legacy)
+          .toCommand()['physicsModel'],
+      'legacy',
+    );
+    final settings = SimulationSettings.fromDrone(_drone);
+    expect(settings.maxSpeed, 24);
+    expect(settings.climbSpeed, 8);
+    expect(settings.acceleration, 6);
+    expect(settings.toCommand().containsKey('droneId'), isFalse);
+    for (final mode in SimulationFlightMode.values) {
       expect(
-        SimulationSettings.fromDrone(
-          _drone.copyWith(
-            maxSpeedMetersPerSecond: const Value(200),
-            maxClimbRateMetersPerSecond: const Value(40),
-          ),
-        ).maxSpeed,
-        100,
+        SimulationSettings(flightMode: mode).toCommand()['flightMode'],
+        mode.name,
       );
-      for (final invalid in [
-        const SimulationSettings(cameraTiltDegrees: -1),
-        const SimulationSettings(cameraTiltDegrees: 81),
-        const SimulationSettings(cameraFovDegrees: 49),
-        const SimulationSettings(cameraFovDegrees: 141),
-        const SimulationSettings(agl: 0),
-        const SimulationSettings(maxSpeed: double.nan),
-        const SimulationSettings(climbSpeed: 31),
-        const SimulationSettings(acceleration: 0),
-        const SimulationSettings(deceleration: double.infinity),
-        const SimulationSettings(acroThrustToWeight: 1),
-        const SimulationSettings(acroThrustCurve: -.1),
-        const SimulationSettings(acroMotorTimeConstant: double.nan),
-        const SimulationSettings(acroTerminalVelocity: 121),
-        const SimulationSettings(acroRollRate: 9),
-        const SimulationSettings(acroPitchRate: 1501),
-        const SimulationSettings(acroYawRate: double.nan),
-        const SimulationSettings(acroRateExpo: -0.1),
-        const SimulationSettings(acroRateExpo: 1.1),
-      ]) {
-        expect(invalid.validate, throwsArgumentError);
-      }
-    },
-  );
+    }
+    final missing = SimulationSettings.fromDrone(
+      _drone.copyWith(
+        maxSpeedMetersPerSecond: const Value(null),
+        maxClimbRateMetersPerSecond: const Value(null),
+      ),
+    );
+    expect(missing.maxSpeed, 15);
+    expect(missing.climbSpeed, 5);
+    expect(
+      SimulationSettings.fromDrone(
+        _drone.copyWith(
+          maxSpeedMetersPerSecond: const Value(200),
+          maxClimbRateMetersPerSecond: const Value(40),
+        ),
+      ).maxSpeed,
+      100,
+    );
+    for (final invalid in [
+      const SimulationSettings(cameraTiltDegrees: -1),
+      const SimulationSettings(cameraTiltDegrees: 81),
+      const SimulationSettings(cameraFovDegrees: 49),
+      const SimulationSettings(cameraFovDegrees: 141),
+      const SimulationSettings(agl: 0),
+      const SimulationSettings(maxSpeed: double.nan),
+      const SimulationSettings(climbSpeed: 31),
+      const SimulationSettings(acceleration: 0),
+      const SimulationSettings(deceleration: double.infinity),
+      const SimulationSettings(acroThrustToWeight: 1),
+      const SimulationSettings(acroThrustCurve: -.1),
+      const SimulationSettings(acroMotorTimeConstant: double.nan),
+      const SimulationSettings(acroTerminalVelocity: 121),
+      const SimulationSettings(acroRollRate: 9),
+      const SimulationSettings(acroPitchRate: 1501),
+      const SimulationSettings(acroYawRate: double.nan),
+      const SimulationSettings(acroRateExpo: -0.1),
+      const SimulationSettings(acroRateExpo: 1.1),
+    ]) {
+      expect(invalid.validate, throwsArgumentError);
+    }
+  });
 
   test('camera tilt serialization preserves flight parameters', () {
     const original = SimulationSettings(
@@ -171,9 +182,14 @@ void main() {
     }
   });
 
-  test('default Acro speed estimate agrees with the level-flight renderer scenario', () {
+  test('default Advanced Acro speed estimate uses forward drag; explicit Legacy retains the baseline', () {
     const settings = SimulationSettings();
-    expect(settings.acroEstimatedLevelSpeedKmh, closeTo(159.407, .001));
+    const legacy = SimulationSettings(
+      physicsModel: SimulationPhysicsModel.legacy,
+    );
+    expect(settings.toCommand()['physicsModel'], 'advanced');
+    expect(settings.acroEstimatedLevelSpeedKmh, closeTo(269.447, .001));
+    expect(legacy.acroEstimatedLevelSpeedKmh, closeTo(159.407, .001));
     expect(settings.toCommand()['acroTerminalVelocity'], 22.5);
     expect(settings.toCommand()['acroRollRate'], 180);
     expect(settings.toCommand()['acroPitchRate'], 180);
@@ -459,8 +475,12 @@ void main() {
         find.text(l10n.simulationAcroFreieDrehratena37d7b4c).last,
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(DropdownButtonFormField<int>));
-      await tester.tap(find.byType(DropdownButtonFormField<int>));
+      final droneProfile = find.byKey(
+        const ValueKey('simulation-drone-profile-manual'),
+      );
+      expect(droneProfile, findsOneWidget);
+      await tester.ensureVisible(droneProfile);
+      await tester.tap(droneProfile);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Test quad').last);
       await tester.pumpAndSettle();

@@ -488,6 +488,37 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   String? _lastSimulationReason;
   String? _lastRecordingMessage;
   SimulationSettings _simulationSettings = const SimulationSettings();
+  bool _captureMode = false;
+  bool _captureModeBusy = false;
+
+  Future<void> _setCaptureMode(bool enabled) async {
+    if (_captureModeBusy || !mounted || _captureMode == enabled) return;
+    if (enabled && !_globeController.simulationActive) return;
+    _captureModeBusy = true;
+    try {
+      await _globeController.setCaptureMode(enabled);
+      if (mounted) {
+        setState(() {
+          _captureMode = enabled && _globeController.simulationActive;
+          if (_captureMode) {
+            _drawerOpen = false;
+            _allToolsExpanded = false;
+          }
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        // Always let users recover Flutter controls if the bridge is lost.
+        if (!enabled) setState(() => _captureMode = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to change capture mode: $error')),
+        );
+      }
+    } finally {
+      _captureModeBusy = false;
+    }
+  }
+
   bool _recordingReviewOpen = false;
   static const _physicsValidationEnabled = bool.fromEnvironment(
     'FPV_PHYSICS_VALIDATION',
@@ -1180,6 +1211,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    if (_captureMode && !_globeController.simulationActive) {
+      // The flight ended (or Cesium reloaded): restore Flutter controls.
+      setState(() => _captureMode = false);
+      unawaited(
+        _globeController.setCaptureMode(false).catchError((Object _) {}),
+      );
+    }
     if (_globeController.isReady && _profiles == null) {
       unawaited(_ensureProfiles());
     }
@@ -1311,124 +1349,145 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               onRadio: _openRadioEquipment,
               onData: _openData,
             ),
-      body: SafeArea(
-        child: GlobeInputScope(
-          enabled: !_drawerOpen || _useDesktopWindowsPanels,
-          child: HomeMapWorkspace(
-            sidePanel: _useDesktopWindowsPanels && _drawerOpen
-                ? HomeNavigationDrawer(
-                    onClose: _closeDesktopMenu,
-                    onGroundRoutes: _openGroundRoutes,
-                    onObservations: _openObservations,
-                    profile: _profiles?.selected,
-                    onProfiles: _openProfiles,
-                    onAction: _profileAction,
-                    onLayer: _profileLayer,
-                    allToolsExpanded: _allToolsExpanded,
-                    onSettings: _openSettings,
-                    onSpots: _openSpots,
-                    onRoutes: _openRoutes,
-                    onMobility: _openMobility,
-                    onPreflight: _openPreflight,
-                    onWeather: _openWeather,
-                    onDrones: _openDrones,
-                    onBatteries: _openBatteries,
-                    onRadio: _openRadioEquipment,
-                    onData: _openData,
-                  )
-                : null,
-            globe: _cachedMapsReady
-                ? GlobeView(
-                    menuOpen: _useDesktopWindowsPanels && _drawerOpen,
-                    floatingControls: true,
-                    cacheRevision: _mapCacheRevision,
-                    controller: _globeController,
-                    cachedMaps: _cachedMaps,
-                  )
-                : const ColoredBox(color: Colors.black),
-            navigation: ListenableBuilder(
-              listenable: _globeController,
-              builder: (context, _) => Builder(
-                builder: (context) => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: context.localized(
-                        "Open navigation menu",
-                        (l10n) => l10n.homeOpenNavigationMenu5f83b0b6,
-                      ),
-                      onPressed: () => _toggleNavigationMenu(context),
-                      icon: const Icon(Icons.menu),
-                    ),
-                    if (!_globeController.navigationActive &&
-                        MediaQuery.sizeOf(context).width >= 360)
-                      IconButton(
-                        tooltip: _profiles?.selected == null
-                            ? context.localized(
-                                "Profil wählen",
-                                (l10n) => l10n.homeProfilWaehlencae393b1,
-                              )
-                            : context.localizedWithArgs(
-                                "Aktivitätsprofil: {0}",
-                                [_profiles!.selected!.name],
-                                (l10n, value) => l10n
-                                    .homeAktivitaetsprofilfef983f3(value(0)),
-                              ),
-                        onPressed: _openProfiles,
-                        icon: const Icon(Icons.person_outline),
-                      ),
-                    if (MediaQuery.sizeOf(context).width >= 900 &&
-                        !_globeController.simulationActive)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 180),
-                          child: Text(
-                            _profiles?.selected?.name ??
-                                ((_profiles?.catalog?.firstUseDone ?? false)
-                                    ? 'FPVManager'
-                                    : 'Profil wählen'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    HomeMapStatusButton(
+      body: PopScope(
+        canPop: !_captureMode,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && _captureMode) unawaited(_setCaptureMode(false));
+        },
+        child: SafeArea(
+          child: GlobeInputScope(
+            enabled: !_drawerOpen || _useDesktopWindowsPanels,
+            child: HomeMapWorkspace(
+              captureMode: _captureMode && _globeController.simulationActive,
+              onExitCapture: () => unawaited(_setCaptureMode(false)),
+              sidePanel: _useDesktopWindowsPanels && _drawerOpen
+                  ? HomeNavigationDrawer(
+                      onClose: _closeDesktopMenu,
+                      onGroundRoutes: _openGroundRoutes,
+                      onObservations: _openObservations,
+                      profile: _profiles?.selected,
+                      onProfiles: _openProfiles,
+                      onAction: _profileAction,
+                      onLayer: _profileLayer,
+                      allToolsExpanded: _allToolsExpanded,
+                      onSettings: _openSettings,
+                      onSpots: _openSpots,
+                      onRoutes: _openRoutes,
+                      onMobility: _openMobility,
+                      onPreflight: _openPreflight,
+                      onWeather: _openWeather,
+                      onDrones: _openDrones,
+                      onBatteries: _openBatteries,
+                      onRadio: _openRadioEquipment,
+                      onData: _openData,
+                    )
+                  : null,
+              globe: _cachedMapsReady
+                  ? GlobeView(
+                      menuOpen: _useDesktopWindowsPanels && _drawerOpen,
+                      floatingControls: true,
+                      cacheRevision: _mapCacheRevision,
                       controller: _globeController,
                       cachedMaps: _cachedMaps,
-                      onPressed: _openMapStatus,
-                    ),
-                    if (_globeController.playbackPhase == 'loading')
+                    )
+                  : const ColoredBox(color: Colors.black),
+              navigation: ListenableBuilder(
+                listenable: _globeController,
+                builder: (context, _) => Builder(
+                  builder: (context) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       IconButton(
                         tooltip: context.localized(
-                          "Cancel route replay preparation",
-                          (l10n) =>
-                              l10n.homeCancelRouteReplayPreparationb6a2fd00,
+                          "Open navigation menu",
+                          (l10n) => l10n.homeOpenNavigationMenu5f83b0b6,
                         ),
-                        onPressed: () => _runCommand(
-                          () => _globeController.controlRoutePlayback('stop'),
-                        ),
-                        icon: const Icon(Icons.cancel_outlined),
+                        onPressed: () => _toggleNavigationMenu(context),
+                        icon: const Icon(Icons.menu),
                       ),
-                    if (_globeController.simulationActive)
-                      _mapActions(compact: true),
-                  ],
+                      if (!_globeController.navigationActive &&
+                          MediaQuery.sizeOf(context).width >= 360)
+                        IconButton(
+                          tooltip: _profiles?.selected == null
+                              ? context.localized(
+                                  "Profil wählen",
+                                  (l10n) => l10n.homeProfilWaehlencae393b1,
+                                )
+                              : context.localizedWithArgs(
+                                  "Aktivitätsprofil: {0}",
+                                  [_profiles!.selected!.name],
+                                  (l10n, value) => l10n
+                                      .homeAktivitaetsprofilfef983f3(value(0)),
+                                ),
+                          onPressed: _openProfiles,
+                          icon: const Icon(Icons.person_outline),
+                        ),
+                      if (MediaQuery.sizeOf(context).width >= 900 &&
+                          !_globeController.simulationActive)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              _profiles?.selected?.name ??
+                                  ((_profiles?.catalog?.firstUseDone ?? false)
+                                      ? 'FPVManager'
+                                      : 'Profil wählen'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      HomeMapStatusButton(
+                        controller: _globeController,
+                        cachedMaps: _cachedMaps,
+                        onPressed: _openMapStatus,
+                      ),
+                      if (_globeController.playbackPhase == 'loading')
+                        IconButton(
+                          tooltip: context.localized(
+                            "Cancel route replay preparation",
+                            (l10n) =>
+                                l10n.homeCancelRouteReplayPreparationb6a2fd00,
+                          ),
+                          onPressed: () => _runCommand(
+                            () => _globeController.controlRoutePlayback('stop'),
+                          ),
+                          icon: const Icon(Icons.cancel_outlined),
+                        ),
+                      if (_globeController.simulationActive) ...[
+                        IconButton(
+                          key: const ValueKey('simulation-capture-mode-toggle'),
+                          tooltip:
+                              Localizations.localeOf(context).languageCode ==
+                                  'de'
+                              ? 'Aufnahmemodus: HUD und Menüs ausblenden'
+                              : 'Clean capture: hide HUD and menus',
+                          onPressed: _captureModeBusy
+                              ? null
+                              : () => unawaited(_setCaptureMode(true)),
+                          icon: const Icon(Icons.videocam_off_outlined),
+                        ),
+                        _mapActions(compact: true),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: ListenableBuilder(
-              listenable: _globeController,
-              builder: (context, _) => _globeController.simulationActive
-                  ? const SizedBox.shrink()
-                  : _mapActions(),
-            ),
-            selection: MapSelectionPanel(
-              floating: true,
-              controller: _globeController,
-              spotsById: _spotsById,
-              spotRepository: _spotRepository,
-              onSpotDetails: _openSpotDetails,
-              onCommand: _runCommand,
+              actions: ListenableBuilder(
+                listenable: _globeController,
+                builder: (context, _) => _globeController.simulationActive
+                    ? const SizedBox.shrink()
+                    : _mapActions(),
+              ),
+              selection: MapSelectionPanel(
+                floating: true,
+                controller: _globeController,
+                spotsById: _spotsById,
+                spotRepository: _spotRepository,
+                onSpotDetails: _openSpotDetails,
+                onCommand: _runCommand,
+              ),
             ),
           ),
         ),

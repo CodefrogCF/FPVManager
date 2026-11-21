@@ -13,33 +13,45 @@ and [simulation/collision reference](../developer/simulation_and_collision.md).
    wind and radio settings without recreating the flight.
 5. Use **Flug zurücksetzen** to return to the spawn state, or exit to the globe.
 
-Angle self-levels; Acro retains rotational momentum; GPS is an assisted
-position/height-control mode. **Advanced physics** uses selected motor/propeller
-parameters for manual Angle and Acro flight when a sufficiently complete drone
-profile is available. These calculations are **generic estimates**, not measured
-flight performance; if the hardware information is incomplete, the simulator
-uses the earlier approximate thrust model. Legacy remains the default. In Advanced mode, GPS-assisted flight and GPS
-Rescue use the same motor, battery, tilt and rotational constraints as manual flight. These are **approximations**, not a Betaflight
-flight-controller implementation. The [main user guide](../user_guide.md#ground-inspection-and-flight-simulation)
-explains keyboard, touchscreen and external-controller input.
+Angle self-levels; Acro responds to angular-rate inputs; GPS is an assisted
+position/altitude-control mode. The **Advanced** physics model is the default
+for new flights in v0.19.0. It couples motor/propeller estimates, battery load,
+directional drag, inertia, wind, ground contact and GPS Rescue using a fixed
+physics timestep. These are conservative simulation approximations, not a
+measured aircraft certification or a Betaflight implementation. Missing motor
+specifications use the existing approximate propulsion fallback. See the
+[main user guide](../user_guide.md#ground-inspection-and-flight-simulation)
+for controller bindings and supported platforms.
 
-## Choose the physics model
+## Physics selection and recording view
 
-Open the simulator's **Physics model** setting and select **Legacy** or
-**Advanced**. Legacy is the default and retains the previous flight feel.
-Advanced includes hardware-aware propulsion, battery sag, directional drag,
-rotational inertia, shared GPS guidance and contact behavior. Use a complete
-drone and battery profile where possible. The default Advanced physics rate is
-120 Hz; 60 Hz may be useful on slower devices and 240 Hz increases the number of
-physics steps. This is separate from rendered FPS.
+- **Advanced (default)** – hardware-aware manual flight, shared GPS/Rescue
+  dynamics, and fixed 60/120/240 Hz physics (120 Hz initially recommended).
+  Camera FPS is independent of physics frequency.
+- **Legacy (fallback)** – explicitly selectable previous flight model. Existing
+  drone/battery profiles and their stored values remain compatible.
+- **Clean capture** – during an active simulation tap the crossed-out camera
+  icon in the upper Flutter toolbar. This hides the Flutter menus, HUD, touch
+  sticks, simulator flight panel, compass and optional legends for screen
+  recording. **Tap the invisible 64×64 px top-left corner to restore the
+  controls**, or press Android Back. External controllers/keyboard remain active;
+  touchscreen flight sticks are deliberately hidden until restored. Cesium map
+  attribution is not removed. The mode is transient, not a saved preference.
 
-The simplified Acro Air Mode retains bounded rotational braking at low throttle;
-it is not the full Betaflight mixer. Low-speed contact with verified flat terrain
-can settle the aircraft for landing; supported glancing contacts can still slide.
-Ground effect, propwash and additional terrain wind effects are optional.
-Advanced is not yet calibrated against representative real-world telemetry or
-validated on all target devices; revert to Legacy if controller response or
-performance is unsuitable. See the [validation status](../developer/advanced_physics_validation.md).
+Advanced Acro Air Mode can apply bounded rotational corrections at low throttle.
+Optional Ground Effect, Propwash, vortex-ring approximation and Assisted
+Landing (on supported steep surfaces) are selectable independently. Assisted
+Landing is a **convenience option**, not physically realistic rock-face
+friction. For high-speed impacts and uncertain terrain, collision/clearance
+limitations continue to apply.
+
+Physics is deterministic at comparable simulation clock input; long frame
+stalls can still drop explicitly reported catch-up time. The new model is the
+preferred default following functional Android/Windows trials, but **real
+Blackbox calibration and detailed Windows CPU/memory benchmarks remain open**.
+Switch to Legacy if a particular device or configuration behaves poorly.
+The [technical validation report](../developer/advanced_physics_validation.md)
+separates measured, synthetic and pending evidence.
 
 ## Environmental wind in extended flights
 
@@ -182,20 +194,3 @@ height; full provider loss is handled separately.
 For preflight and legal/data considerations, read [preflight and analysis](preflight.md),
 [coordinate heights](coordinates_and_heights.md) and [map data sources](map_sources_and_attribution.md).
 
-## Flight physics mode (v0.19 development)
-
-The flight settings now include **Physics model**:
-
-- **Legacy (default)** keeps the familiar v0.18 flight behaviour.
-- **Advanced** enables fixed-timestep physics with an optional 60/120/240 Hz
-  update frequency (120 Hz initially recommended). Camera rendering is
-  interpolated independently of physics updates.
-
-The Advanced mode presently uses the same approximate thrust and aerodynamic
-model as Legacy. Hardware-specific thrust curves, inertia and advanced drag
-belong to subsequent development issues; switching modes alone does not
-reproduce a real aircraft's flight performance.
-
-Long rendering stalls may still cause explicitly recorded lost simulation
-seconds when the catch-up budget is exhausted. The 240-Hz setting should be
-used only after measuring CPU/rendering performance on the target device.

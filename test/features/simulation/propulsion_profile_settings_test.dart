@@ -24,7 +24,7 @@ void main() {
         escContinuousCurrentAmpsPerChannel: 60,
       );
       final settings = SimulationSettings.fromDrone(drone);
-      expect(settings.physicsModel, SimulationPhysicsModel.legacy);
+      expect(settings.physicsModel, SimulationPhysicsModel.advanced);
       final profile = settings.toCommand()['propulsionProfile'] as Map;
       expect(profile['motorKv'], 1750);
       expect(profile['motorCount'], 4);

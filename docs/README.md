@@ -35,6 +35,8 @@ references:
 | 50-km adaptive terrain LoS, RF profiles, simulated RC failsafe, GPS Rescue | [Radio and Rescue model](developer/radio_and_rescue.md) |
 | Chemistry source of truth, power equations, current warnings and migrations | [Battery/energy model](developer/battery_model.md) |
 | Flight physics, collision exclusions, missing tiles and analog HUD | [Simulation and collision model](developer/simulation_and_collision.md) |
+| Advanced v0.19 model boundaries, fixed-step architecture, capture command | [Flight physics architecture](developer/flight_physics_architecture.md) |
+| Synthetic tests, S25 Ultra observations, Windows follow-up and Blackbox comparison | [Advanced physics validation and provisional close-out](developer/advanced_physics_validation.md) |
 | Local Cesium assets and browser test harnesses | [Cesium assets](developer/cesium_assets.md) |
 | CPU benchmarks, device comparisons and diagnostics | [Performance](developer/performance.md) |
 | Preparation and interpretation of the offline Swiss tunnel catalogue | [Tunnel index](developer/offline_swiss_tunnel_index.md) |

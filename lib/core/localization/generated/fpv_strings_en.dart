@@ -6812,7 +6812,7 @@ class FpvStringsEn extends FpvStrings {
 
   @override
   String get simulationPhysicsModelHint =>
-      'Advanced uses a fixed physics timestep; hardware-aware propulsion comes later.';
+      'Advanced (default) uses hardware-aware physics with a fixed timestep. Legacy remains available as a fallback.';
 
   @override
   String get simulationPhysicsStepRate => 'Physics frequency';

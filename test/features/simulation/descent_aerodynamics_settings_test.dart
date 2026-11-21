@@ -6,7 +6,7 @@ void main() {
   test('all new effects default off and legacy settings stay compatible', () {
     const settings = SimulationSettings();
     final command = settings.toCommand();
-    expect(command['physicsModel'], 'legacy');
+    expect(command['physicsModel'], 'advanced');
     final effects = command['descentAerodynamics'] as Map<String, dynamic>;
     expect(effects['groundEffectEnabled'], isFalse);
     expect(effects['propwashEnabled'], isFalse);
