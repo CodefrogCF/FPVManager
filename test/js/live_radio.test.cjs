@@ -1,14 +1,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {create}=require('../../web/live_radio.js');
 function setup(){
-    let now=0,calls=0,levels=[],resolve=null,fail=false,defer=false;const events=[],layers=[],stations=[],nodes=new Map();
+    let now=0,calls=0,levels=[],resolve=null,fail=false,defer=false,availability=true;const events=[],layers=[],stations=[],nodes=new Map();
     const doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},listeners:{},addEventListener(k,v){this.listeners[k]=v;}});return nodes.get(id);}};
-    const C={Cartographic:{fromDegrees:(longitude,latitude)=>({latitude,longitude})},sampleTerrain:async(provider,level,positions)=>{
-        calls++;levels.push(level);if(defer)await new Promise(r=>resolve=r);return positions.map(p=>({...p,height:fail?NaN:1000}));
+    const C={Cartographic:{fromDegrees:(longitude,latitude)=>({latitude,longitude})},sampleTerrainMostDetailed:async(provider,positions)=>{
+        calls++;levels.push('most-detailed');if(defer)await new Promise(r=>resolve=r);return positions.map(p=>({...p,height:fail?NaN:1000}));
     }};
     const layer={set:c=>layers.push(c),clear:()=>layers.push(null),setStation:c=>stations.push(c),dispose:()=>layers.push('disposed')};
-    const api=create({C,viewer:{},terrain:{sample:(fn)=>fn({})},ready:()=>true,emit:(type,p)=>events.push({type,...p}),doc,layer,clock:()=>now,wallClock:()=>100000+now});
-    return {api,events,layers,stations,nodes,clock:n=>now=n,get calls(){return calls;},levels,get resolve(){return resolve;},set defer(v){defer=v;},set fail(v){fail=v;}};
+    const api=create({C,viewer:{},terrain:{sample:(fn)=>fn(availability?{availability:{}}:{})},ready:()=>true,emit:(type,p)=>events.push({type,...p}),doc,layer,clock:()=>now,wallClock:()=>100000+now});
+    return {api,events,layers,stations,nodes,clock:n=>now=n,get calls(){return calls;},levels,get resolve(){return resolve;},set defer(v){defer=v;},set fail(v){fail=v;},set availability(v){availability=v;}};
 }
 const command={positions:[{latitude:46.7,longitude:8.4},{latitude:46.701,longitude:8.4}]};
 test('live pose bridge is opt-in and bounded; controls expose settings without sharing per-frame telemetry',()=>{
@@ -21,9 +21,9 @@ test('live pose bridge is opt-in and bounded; controls expose settings without s
     p.api.monitor({enabled:false,revision:3});assert.equal(p.nodes.get('hud-live-radio').hidden,true);
     assert.throws(()=>p.api.monitor({enabled:'yes',revision:3}));
 });
-test('fixed-level terrain samples are cached exactly, expire and are invalidated with terrain',async()=>{
+test('highest-available terrain samples are cached exactly, expire and are invalidated with terrain',async()=>{
     const p=setup(),signal=new AbortController().signal;
-    assert.deepEqual((await p.api.sample(command,signal)).heights,[1000,1000]);assert.deepEqual(p.levels,[12]);
+    assert.deepEqual((await p.api.sample(command,signal)).heights,[1000,1000]);assert.deepEqual(p.levels,['most-detailed']);
     await p.api.sample(command,signal);assert.equal(p.calls,1);
     p.clock(30000);await p.api.sample(command,signal);assert.equal(p.calls,2);
     p.api.terrainChanged();await p.api.sample(command,signal);assert.equal(p.calls,3);
@@ -31,6 +31,16 @@ test('fixed-level terrain samples are cached exactly, expire and are invalidated
     p.fail=false;await p.api.sample(command,signal);assert.equal(p.calls,5);
     await assert.rejects(p.api.sample({positions:Array(257).fill(command.positions[0])},signal));
     await assert.rejects(p.api.sample({positions:[{latitude:91,longitude:0}]},signal));
+});
+test('missing detailed-terrain availability cannot be presented as clear terrain',async()=>{
+    const p=setup(),signal=new AbortController().signal;
+    p.availability=false;
+    await assert.rejects(p.api.sample(command,signal),/Detailed live terrain unavailable/);
+    assert.equal(p.calls,0,'no fixed-level fallback that could miss a ridge');
+    p.availability=true;
+    const result=await p.api.sample(command,signal);
+    assert.deepEqual(result.heights,[1000,1000]);
+    assert.equal(result.samplingMethod,'most-detailed-available');
 });
 test('overlapping queries are bounded, late terrain and cancelled responses never populate the cache',async()=>{
     const p=setup();p.defer=true;const abort=new AbortController(),pending=p.api.sample(command,abort.signal);

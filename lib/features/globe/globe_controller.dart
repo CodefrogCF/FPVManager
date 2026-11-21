@@ -239,7 +239,7 @@ class GlobeController extends ChangeNotifier {
     if (!_terrainAvailable ||
         terrainRevision != epoch ||
         data['heightReference'] != 'wgs84Ellipsoid' ||
-        data['samplingMethod'] != 'level-12' ||
+        data['samplingMethod'] != 'most-detailed-available' ||
         heights is! List ||
         heights.length != positions.length ||
         heights.any((h) => h is! num || !h.isFinite || h.abs() > 100000)) {

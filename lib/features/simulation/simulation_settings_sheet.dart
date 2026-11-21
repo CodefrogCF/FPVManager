@@ -230,6 +230,7 @@ class _SettingsState extends State<_Settings> {
   late bool _rotationAirModeEnabled = widget.initial.rotation.airModeEnabled;
   late SimulationCollisionMode _collisionMode =
       widget.initial.collisionResponse.mode;
+  late bool _assistedLanding = widget.initial.collisionResponse.assistedLanding;
   late bool _groundEnabled =
       widget.initial.descentAerodynamics.groundEffectEnabled;
   late bool _propwashEnabled =
@@ -336,6 +337,7 @@ class _SettingsState extends State<_Settings> {
   SimulationCollisionSettings get _collisionSettings =>
       SimulationCollisionSettings(
         mode: _collisionMode,
+        assistedLanding: _assistedLanding,
         restitution: parameter('collisionRestitution', 0, .75, .12),
         friction: parameter('collisionFriction', 0, 1, .28),
         hardStopNormalSpeedMs: parameter('collisionHardStop', 1, 150, 22),
@@ -482,7 +484,11 @@ class _SettingsState extends State<_Settings> {
     ExpansibleController? controller,
     Widget? subtitle,
   }) => ExpansionTile(
-    key: PageStorageKey(id),
+    // Use an identity key, not a PageStorageKey. ExpansionTile writes a bool
+    // to PageStorage, while the Scrollable inside a dynamically revealed
+    // TextFormField tries to restore a double at the same inherited key path.
+    // On Android/profile builds that collision produces a grey ErrorWidget.
+    key: ValueKey(id),
     controller: controller,
     maintainState: true,
     tilePadding: EdgeInsets.zero,
@@ -1133,6 +1139,28 @@ class _SettingsState extends State<_Settings> {
                                 }
                               },
                             ),
+                            if (_collisionMode == SimulationCollisionMode.slide)
+                              SwitchListTile.adaptive(
+                                key: const ValueKey(
+                                  'simulation-assisted-landing',
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  _aeroLabel(
+                                    'Landehilfe an steilen Hängen',
+                                    'Assisted landing on steep slopes',
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  _aeroLabel(
+                                    'Simulation: langsame Landungen bis 5 m/s vertikal werden auf verifiziertem Gelände bis 75° stabilisiert. Keine reale Haftreibung.',
+                                    'Simulation aid: gentle touchdowns up to 5 m/s vertical speed can settle on verified terrain up to 75°. Not physical static friction.',
+                                  ),
+                                ),
+                                value: _assistedLanding,
+                                onChanged: (v) =>
+                                    setState(() => _assistedLanding = v),
+                              ),
                             if (_collisionMode !=
                                 SimulationCollisionMode.hardStop) ...[
                               number(

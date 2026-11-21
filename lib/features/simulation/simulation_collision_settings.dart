@@ -10,9 +10,11 @@ class SimulationCollisionSettings {
     this.hardStopNormalSpeedMs = 22,
     this.minimumReboundSpeedMs = 1,
     this.terrainProbeMeters = .6,
+    this.assistedLanding = true,
   });
 
   final SimulationCollisionMode mode;
+  final bool assistedLanding;
   final double restitution, friction, hardStopNormalSpeedMs;
   final double minimumReboundSpeedMs, terrainProbeMeters;
 
@@ -41,6 +43,7 @@ class SimulationCollisionSettings {
       'hardStopNormalSpeedMs': hardStopNormalSpeedMs,
       'minimumReboundSpeedMs': minimumReboundSpeedMs,
       'terrainProbeMeters': terrainProbeMeters,
+      'assistedLanding': assistedLanding,
     };
   }
 }

@@ -803,6 +803,85 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets(
+    'descent effect toggles reveal numeric fields without PageStorage scroll type errors',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SimulationSettings? chosen;
+      await tester.pumpWidget(
+        _localizedTestApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  chosen = await showSimulationSettings(
+                    context,
+                    repository: _Drones(),
+                    hasSelection: true,
+                    initial: const SimulationSettings(
+                      physicsModel: SimulationPhysicsModel.advanced,
+                      flightMode: SimulationFlightMode.acro,
+                    ),
+                  );
+                },
+                child: const Text('Open effects'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open effects'));
+      await tester.pumpAndSettle();
+      final group = find.text('Bodeneffekt & Propwash');
+      await tester.ensureVisible(group);
+      await tester.tap(group);
+      await tester.pumpAndSettle();
+      for (final (toggleKey, fieldKey) in [
+        ('simulation-ground-effect', 'simulation-groundIntensity'),
+        ('simulation-propwash', 'simulation-propwashIntensity'),
+        ('simulation-vortex-ring', 'simulation-vortexIntensity'),
+      ]) {
+        final toggle = find.byKey(ValueKey(toggleKey));
+        await tester.ensureVisible(toggle);
+        await tester.tap(toggle);
+        await tester.pumpAndSettle();
+        expect(find.byKey(ValueKey(fieldKey)), findsOneWidget);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason:
+              'turning on $toggleKey must not restore a bool as a scroll offset',
+        );
+      }
+      expect(
+        find.byKey(const ValueKey('simulation-rotorDiameter')),
+        findsOneWidget,
+      );
+      for (final toggleKey in [
+        'simulation-ground-effect',
+        'simulation-propwash',
+        'simulation-vortex-ring',
+      ]) {
+        final toggle = find.byKey(ValueKey(toggleKey));
+        await tester.ensureVisible(toggle);
+        await tester.tap(toggle);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+      await tester.ensureVisible(find.text('Flug starten'));
+      await tester.tap(find.text('Flug starten'));
+      await tester.pumpAndSettle();
+      expect(chosen, isNotNull);
+      expect(chosen!.descentAerodynamics.groundEffectEnabled, isFalse);
+      expect(chosen!.descentAerodynamics.propwashEnabled, isFalse);
+      expect(chosen!.descentAerodynamics.vortexRingEnabled, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'compact flight settings keep the action reachable and details opt-in on mobile',
     (tester) async {
       tester.view.devicePixelRatio = 1;

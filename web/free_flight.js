@@ -602,14 +602,19 @@
                 const upward=-thrustAxis.z*motorThrust;
                 const sideways=Math.hypot(thrustAxis.x,thrustAxis.y)*motorThrust;
                 const resistance=Math.max(0,g-upward)*config.collisionResponse.friction+.5;
-                if(Number.isFinite(floor)&&Math.abs(separation)<.08&&
+                const contactNormal=Number.isFinite(floor)?
+                    collisionResponse.terrainNormal({...position,height},renderedHeight,move,
+                        config.collisionResponse.terrainProbeMeters):null;
+                const supported=contactNormal&&contactNormal.up>=
+                    (config.collisionResponse.assistedLanding?Math.cos(75*rad):.7);
+                if(supported&&Math.abs(separation)<.08&&
                     upward<=g+.35&&sideways<=resistance){
                     velocity={north:0,east:0,up:0};
                     rates={x:0,y:0,z:0};rotationTorque=rotationalDynamics.initialState();
                     height=floor+.501;ground=floor;
                     terrainVerification={state:'complete',samples:1,missingSamples:0,
                         unverifiedDistanceMeters:terrainVerification.unverifiedDistanceMeters};
-                    lastCollision={type:'terrain',mode:'rest',normal:{north:0,east:0,up:1},uncertain:false};
+                    lastCollision={type:'terrain',mode:'rest',normal:contactNormal,uncertain:false};
                     return {contact:true,message:'Terrain contact: rest'};
                 }
                 groundContact=false;

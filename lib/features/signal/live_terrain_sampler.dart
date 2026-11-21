@@ -44,7 +44,7 @@ class LiveTerrainSampler {
     if (tier.coarsePoints < 2 ||
         tier.coarsePoints > 256 ||
         tier.refinementPoints < 0 ||
-        tier.refinementPoints > 256 ||
+        tier.refinementPoints > 768 ||
         !tier.coverageGapMeters.isFinite ||
         tier.coverageGapMeters <= 0) {
       throw ArgumentError('Invalid live sampling budget');
@@ -102,26 +102,23 @@ class LiveTerrainSampler {
     if (!valid()) {
       throw const FormatException('Stale live terrain request');
     }
-    final first = evaluate();
+    // Adaptive midpoint refinement in bounded rounds. Re-rank after each
+    // sampled batch: a newly discovered narrow ridge must influence the next
+    // selection. Each gap contributes at most one midpoint per round so a
+    // single rugged region cannot starve coverage everywhere else.
     var refined = 0;
-    if (tier.refinementPoints > 0 && indices.length < count) {
-      final sorted = indices.toList()..sort();
-      // Rank gaps by terrain roughness, possible Fresnel intrusion and actual
-      // physical gap. Prioritise both suspected ridges and under-resolved areas.
+    while (refined < tier.refinementPoints &&
+        indices.length + refined < count) {
+      final sorted = data.keys.toList()..sort();
+      final profile = evaluate().profile;
       final candidates = <(int, double)>[];
       for (var i = 1; i < sorted.length; ++i) {
         final left = sorted[i - 1], right = sorted[i];
-        if (right - left <= 1) {
-          continue;
-        }
-        final leftSample = first.profile[i - 1];
-        final rightSample = first.profile[i];
-        final leftMargin =
-            leftSample.clearance - signal.clearanceFraction * leftSample.radius;
-        final rightMargin =
-            rightSample.clearance -
-            signal.clearanceFraction * rightSample.radius;
-        final terrainRise = (leftSample.surface - rightSample.surface).abs();
+        if (right - left <= 1) continue;
+        final a = profile[i - 1], b = profile[i];
+        final leftMargin = a.clearance - signal.clearanceFraction * a.radius;
+        final rightMargin = b.clearance - signal.clearanceFraction * b.radius;
+        final rise = (a.surface - b.surface).abs();
         final gap = distanceMeters * (all[right].fraction - all[left].fraction);
         final nearRay = math.max(
           0,
@@ -130,27 +127,31 @@ class LiveTerrainSampler {
         final crossing = (leftMargin <= 0) != (rightMargin <= 0);
         final priority =
             gap / tier.coverageGapMeters +
-            math.min(terrainRise, 500) / 8 +
+            math.min(rise, 500) / 8 +
             nearRay / 7 +
             (crossing ? 30 : 0);
         candidates.add(((left + right) ~/ 2, priority));
       }
-      candidates.sort((a, b) => b.$2.compareTo(a.$2));
+      if (candidates.isEmpty) break;
+      candidates.sort((a, b) {
+        final score = b.$2.compareTo(a.$2);
+        return score != 0 ? score : a.$1.compareTo(b.$1);
+      });
+      final remaining = tier.refinementPoints - refined;
+      // Stop at a batch boundary, then use the new elevation information to
+      // reprioritize further splits. Hard cap: 256 samples per bridge query.
       final selected = <int>[];
-      for (final candidate in candidates) {
-        if (selected.length >= tier.refinementPoints) {
-          break;
-        }
-        if (!data.containsKey(candidate.$1)) {
-          selected.add(candidate.$1);
-        }
+      for (final c in candidates) {
+        if (selected.length >= math.min(remaining, 256)) break;
+        if (!data.containsKey(c.$1)) selected.add(c.$1);
       }
+      if (selected.isEmpty) break;
       selected.sort();
       await fetch(selected);
       if (!valid()) {
         throw const FormatException('Stale live terrain request');
       }
-      refined = selected.length;
+      refined += selected.length;
     }
     final ordered = data.keys.toList()..sort();
     var maxGap = 0.0;

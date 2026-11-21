@@ -96,8 +96,21 @@ void main() {
     expect(LiveSamplingPolicy.interval(0).inMilliseconds, 800);
     expect(LiveSamplingPolicy.interval(15).inMilliseconds, 450);
     expect(LiveSamplingPolicy.interval(65).inMilliseconds, 250);
-    expect(LiveSamplingPolicy.spacing(100), 8);
-    expect(LiveSamplingPolicy.spacing(6000), 24);
+    expect(LiveSamplingPolicy.spacing(100), 5);
+    expect(LiveSamplingPolicy.spacing(6000), 6);
+    // All live tiers must satisfy the shared RouteSamplingPlan constraints.
+    for (final distance in [
+      1.0,
+      100.0,
+      1000.0,
+      5999.0,
+      6000.0,
+      6001.0,
+      20000.0,
+      50000.0,
+    ]) {
+      expect(LiveSamplingPolicy.spacing(distance), inInclusiveRange(5, 100));
+    }
     expect(LiveSamplingPolicy.maximumStaleness(70), 42);
   });
 }

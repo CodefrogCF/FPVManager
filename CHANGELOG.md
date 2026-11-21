@@ -82,6 +82,7 @@ The existing Legacy physics model remains available and unchanged.
 - Limit aerodynamic corrections to prevent excessive thrust amplification or unstable acceleration.
 - Add independently configurable effect switches and intensity settings.
 - Preserve existing simulation behavior by keeping the new descent effects disabled by default.
+- Fix a Flutter PageStorage key collision that could render a grey error panel when enabling Ground Effect, Propwash, or Vortex-Ring options in Advanced settings.
 
 ### Collision Response and Surface Interaction
 
@@ -101,6 +102,7 @@ The existing Legacy physics model remains available and unchanged.
 - Maintain stationary ground contact on verified terrain until sufficient motor thrust is available for takeoff.
 - Apply sustained ground-contact friction instead of relying exclusively on the initial collision impulse.
 - Preserve sliding behavior during high-speed glancing impacts while keeping severe-impact handling and Legacy collision behavior unchanged.
+- Add optional Assisted Landing on verified steep terrain (up to 75°) for slow, nearly vertical touchdowns; this is explicitly a simulation aid, not realistic rock-face friction.
 
 ### Testing, Performance and Compatibility
 
@@ -108,6 +110,8 @@ The existing Legacy physics model remains available and unchanged.
 - Add tests for flips, rolls, yaw spins, rapid stick reversals, free fall, high-speed dives and controlled landings.
 - Validate GPS Rescue recovery phases, RC reconnection, low-power behavior and automatic landing.
 - Cover regional wind transitions, missing environmental data, ground effect, propwash and repeated collision contacts.
+- Improve live radio terrain verification with bounded adaptive midpoint refinement and the most detailed available terrain data rather than fixed Cesium level 12; keep under-resolved or missing terrain explicitly unknown.
+- Add widget regression coverage for toggling all three Advanced descent effects without invalid PageStorage scroll-offset restoration.
 - Add regression tests for stable ground contact, controlled landing thresholds, stationary behavior and transitions from landing to takeoff.
 - Validate low-throttle rotational braking, stick release, corrective stick inputs and Air Mode behavior with hardware-aware propulsion limits.
 - Verify that depleted batteries cannot provide artificial rotational control torque.
@@ -128,7 +132,7 @@ The existing Legacy physics model remains available and unchanged.
 - Regional wind extrapolation and terrain-dependent airflow effects are simplified approximations, not computational fluid dynamics or verified local weather predictions.
 - Ground effect, propwash and vortex-ring-like behavior do not reproduce detailed rotor aerodynamics.
 - Sliding and rebound require reliable collision normals; unsupported geometry retains conservative hard-stop behavior.
-- Ground contact stabilization uses simplified landing thresholds and friction assumptions rather than a detailed landing gear or structural deformation model.
+- Ground contact stabilization uses simplified landing thresholds and friction assumptions rather than a detailed landing gear or structural deformation model. Assisted steep-slope landing deliberately exceeds realistic static friction and must not be treated as a real-world landing prediction.
 - Air Mode provides simplified low-throttle rotational control and does not emulate the complete Betaflight motor mixing and PID control system.
 - GPS Rescue cannot guarantee recovery when available propulsion, battery energy or environmental conditions are insufficient.
 

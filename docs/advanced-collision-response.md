@@ -79,3 +79,19 @@ or non-gentle contact. Glancing high-speed impacts still slide; severe hits
 still hard-stop and the explicitly chosen rebound mode remains independent.
 The landing thresholds and force balance are simulation estimates, not tire
 or landing-skid friction data.
+
+## Optional steep-slope landing assistance
+
+When `Assisted landing on steep slopes` is enabled in Advanced / Slide, a
+verified terrain contact can settle after a nearly vertical touchdown with
+vertical speed between -5 and -0.05 m/s and horizontal speed at most 1.5 m/s.
+The surface must have a finite terrain-derived normal with `normal.up >= cos(75°)`,
+normal impact at most 5 m/s and friction at least 0.15. This extends the
+ordinary 2.5 m/s / 1.5 m/s passive-rest contact behavior; it does not affect
+fast lateral glancing collisions, missing terrain, model-only contacts, rebound
+or hard-stop mode. Contact remains latched only while terrain is still verified
+and motor thrust cannot lift or push the aircraft away.
+
+This is an **explicit simulator landing aid**, not a physical claim that a
+quadcopter can remain parked on a 75° rock face. Turn it off to retain the
+friction-based response on steep slopes.

@@ -66,7 +66,14 @@
             if(missing.length){
                 if(busy)throw Error('Live terrain query already running');
                 const positions=missing.map(i=>C.Cartographic.fromDegrees(c.positions[i].longitude,c.positions[i].latitude));
-                const work=terrain.sample(provider=>C.sampleTerrain(provider,12,positions,true),signal);busy=work;
+                // Never certify a clear mountain link from a fixed low LOD.
+                // When the provider cannot supply its best available terrain,
+                // surface coverage is unknown rather than assumed clear.
+                const work=terrain.sample(provider=>{
+                    if(typeof C.sampleTerrainMostDetailed!=='function'||!provider?.availability)
+                        throw Error('Detailed live terrain unavailable');
+                    return C.sampleTerrainMostDetailed(provider,positions,true);
+                },signal);busy=work;
                 let result;
                 try{result=await work;}finally{if(busy===work)busy=null;}
                 signal.throwIfAborted();if(epoch!==token||!ready())throw Error('Live terrain changed');
@@ -77,7 +84,7 @@
                 }
             }
             signal.throwIfAborted();if(epoch!==token||!ready())throw Error('Live terrain changed');
-            return {heights:keys.map(k=>cache.get(k).height),samplingMethod:'level-12',heightReference:'wgs84Ellipsoid'};
+            return {heights:keys.map(k=>cache.get(k).height),samplingMethod:'most-detailed-available',heightReference:'wgs84Ellipsoid'};
         }
         function set(c){
             if(disposed||!Number.isInteger(c.revision)||c.revision<revision||!enabled)return {};

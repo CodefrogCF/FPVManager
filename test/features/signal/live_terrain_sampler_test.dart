@@ -111,7 +111,10 @@ void main() {
           ];
         },
       );
-      expect(calls, 2);
+      // Refinement is adaptive: a third bounded pass can follow the ridge
+      // discovered in the second pass, rather than stopping after two calls.
+      expect(calls, greaterThanOrEqualTo(2));
+      expect(calls, result.queryCount);
       expect(result.refinedCount, greaterThan(0));
       expect(result.path.state, RadioPathState.obstructed);
     },

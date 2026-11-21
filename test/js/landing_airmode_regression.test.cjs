@@ -151,3 +151,38 @@ test('Legacy mode does not enable Air Mode or new terrain rest latch',async()=>{
     assert.equal(model.status().controlTorque,null);
     assert.notEqual(model.status().lastCollision?.mode,'rest');
 });
+
+test('assisted steep-slope touchdown settles a short vertical drop but not fast grazing motion',()=>{
+    const angle=65*Math.PI/180;
+    const slopeNormal={north:-Math.sin(angle),east:0,up:Math.cos(angle)};
+    const impact={north:0,east:0,up:-Math.sqrt(2*9.80665*.8)};
+    const aided=collision.resolve(impact,slopeNormal,{mode:'slide',friction:.28,assistedLanding:true},{allowRest:true});
+    assert.equal(aided.mode,'rest');
+    assert.equal(aided.assisted,true);
+    assert.deepEqual(aided.velocity,{north:0,east:0,up:0});
+    assert.equal(collision.resolve(impact,slopeNormal,{mode:'slide',friction:.28,assistedLanding:false},{allowRest:true}).mode,'slide');
+    assert.equal(collision.resolve({...impact,north:8},slopeNormal,{mode:'slide',friction:.28},{allowRest:true}).mode,'slide');
+    const verySteep={north:-Math.sin(82*Math.PI/180),east:0,up:Math.cos(82*Math.PI/180)};
+    assert.equal(collision.resolve(impact,verySteep,{mode:'slide',friction:.28},{allowRest:true}).mode,'slide');
+    assert.equal(collision.resolve(impact,null,{mode:'slide',friction:.28},{allowRest:true}).mode,'hard-stop');
+});
+
+test('assisted landing holds a real 65-degree terrain profile instead of sliding downhill',async()=>{
+    const rad=Math.PI/180,radius=6378137;
+    const slopeHeight=p=>1000+Math.tan(65*rad)*(p.latitude-origin.latitude)*rad*radius;
+    const trajectories=[];
+    for(const assistedLanding of [true,false]){
+        const model=await start({agl:1,collisionResponse:{mode:'slide',assistedLanding}},
+            {renderedHeight:slopeHeight});
+        input(model);tick(model,2);
+        trajectories.push(model.status());
+    }
+    const [assisted,physical]=trajectories;
+    assert.equal(assisted.lastCollision?.mode,'rest');
+    assert.equal(assisted.speed,0);
+    assert.equal(assisted.position.latitude,origin.latitude);
+    assert.ok(Math.abs(assisted.height-1000.501)<.01);
+    assert.equal(physical.lastCollision?.mode,'slide');
+    assert.ok(physical.speed>5,'without explicit landing assistance, the rock slope remains slippery');
+    assert.ok(physical.position.latitude<origin.latitude,'downslope travel stays possible when assistance is off');
+});

@@ -29,20 +29,21 @@ Map<String, dynamic> pose({
 };
 
 void main() {
-  test('live terrain bridge requires explicit WGS84 level-12 heights and keeps failures separate from terrain availability', () async {
+  test('live terrain bridge requires WGS84 most-detailed heights and rejects stale or low-LOD data', () async {
     final globe = GlobeController();
     addTearDown(globe.dispose);
     final peer = FakeGlobeRenderer(globe)
       ..attach()
       ..ready();
     var datum = 'wgs84Ellipsoid';
+    var method = 'most-detailed-available';
     peer.onCommand = (command) {
       if (command['type'] == 'query-live-radio-terrain') {
         peer.acknowledge(
           command,
           result: {
             'heightReference': datum,
-            'samplingMethod': 'level-12',
+            'samplingMethod': method,
             'heights': List.filled((command['positions'] as List).length, 500),
           },
         );
@@ -60,6 +61,15 @@ void main() {
       )['expiresAtMs'],
       isA<int>(),
     );
+    // The old level-12 results are not enough to certify a mountain link.
+    method = 'level-12';
+    await globe.liveRadio.configure(globe.liveRadio.settings);
+    peer.emit({'type': 'flight-radio-position', ...pose()});
+    await globe.liveRadio.settled;
+    expect(globe.liveRadio.current, false);
+    expect(globe.terrainAvailable, true);
+
+    method = 'most-detailed-available';
     datum = 'ln02';
     await globe.liveRadio.configure(globe.liveRadio.settings);
     peer.emit({'type': 'flight-radio-position', ...pose()});

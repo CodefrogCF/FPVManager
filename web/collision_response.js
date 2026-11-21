@@ -13,8 +13,12 @@
         const cfg={mode:value.mode??'slide',restitution:value.restitution??.12,
             friction:value.friction??.28,hardStopNormalSpeedMs:value.hardStopNormalSpeedMs??22,
             minimumReboundSpeedMs:value.minimumReboundSpeedMs??1,
-            terrainProbeMeters:value.terrainProbeMeters??.6};
+            terrainProbeMeters:value.terrainProbeMeters??.6,
+            // An explicit simulation aid: verified steep terrain can hold a
+            // gentle touchdown even where physical static friction would fail.
+            assistedLanding:value.assistedLanding??true};
         if(!['slide','rebound','hard-stop'].includes(cfg.mode))throw Error('Invalid collision response mode');
+        if(typeof cfg.assistedLanding!=='boolean')throw Error('Invalid assisted landing option');
         for(const [key,min,max] of [['restitution',0,.75],['friction',0,1],
             ['hardStopNormalSpeedMs',1,150],['minimumReboundSpeedMs',0,10],['terrainProbeMeters',.2,3]])
             if(!Number.isFinite(cfg[key])||cfg[key]<min||cfg[key]>max)throw Error(`Invalid collision ${key}`);
@@ -44,10 +48,18 @@
         // A verified, gently approached supporting surface is a resting
         // contact, not an endlessly repeated tiny Coulomb impact. Do not
         // turn grazing/high-speed contacts or vertical walls into landings.
-        if(allowRest&&cfg.mode==='slide'&&cfg.friction>=.15&&normal.up>=.7&&
-            impact<=2.5&&tangentialSpeed<=1.5)
+        const horizontalSpeed=Math.hypot(incoming.north,incoming.east);
+        const naturallyResting=normal.up>=.7&&impact<=2.5&&tangentialSpeed<=1.5;
+        // A near-vertical low-altitude drop can have a large *tangential*
+        // component on a steep slope even when the pilot has no horizontal
+        // motion. Only this slow, downward and almost stationary approach can
+        // use assisted contact; high-speed grazing hits still use impulses.
+        const assistedRest=cfg.assistedLanding&&normal.up>=Math.cos(75*Math.PI/180)&&
+            incoming.up<-.05&&incoming.up>=-5&&horizontalSpeed<=1.5&&impact<=5;
+        if(allowRest&&cfg.mode==='slide'&&cfg.friction>=.15&&
+            (naturallyResting||assistedRest))
             return {velocity:zero,mode:'rest',normal,normalSpeedMs:impact,
-                tangentialSpeedMs:tangentialSpeed};
+                tangentialSpeedMs:tangentialSpeed,assisted:!naturallyResting};
         const restitution=cfg.mode==='rebound'&&impact>=cfg.minimumReboundSpeedMs?cfg.restitution:0;
         // Coulomb-inspired impulse: friction consumes kinetic energy; it must
         // not produce transverse acceleration or grow the impact speed.

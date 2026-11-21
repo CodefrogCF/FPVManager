@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'radio_analysis.dart';
 
 /// A bounded policy for live terrain profiling. The tiers are performance
-/// budgets, not claims about the resolution of Cesium level-12 elevation data.
+/// budgets, not guarantees about the resolution of available Cesium terrain.
 class LiveSamplingTier {
   const LiveSamplingTier({
     required this.name,
@@ -31,9 +31,9 @@ class LiveSamplingPolicy {
     if (distanceMeters <= 6000) {
       return const LiveSamplingTier(
         name: 'highResolution',
-        coarsePoints: 251,
-        refinementPoints: 0,
-        coverageGapMeters: 40,
+        coarsePoints: 129,
+        refinementPoints: 384,
+        coverageGapMeters: 16,
         minimumInterval: Duration(milliseconds: 250),
       );
     }
@@ -91,8 +91,11 @@ class LiveSamplingPolicy {
 
   /// Only the regular route planner creates candidate positions. Their actual
   /// terrain heights can be sampled much more sparsely, within a fixed budget.
-  static double spacing(double distanceMeters) =>
-      math.min(100.0, math.max(8.0, distanceMeters / 250));
+  static double spacing(double distanceMeters) => distanceMeters <= 6000
+      // RouteSamplingPlan requires spacing >= 5 m. A finer value would
+      // invalidate the entire live profile, leaving even nearby links unknown.
+      ? math.max(5.0, math.min(6.0, distanceMeters / 1000))
+      : math.min(100.0, math.max(8.0, distanceMeters / 750));
 
   static double maximumStaleness(
     double speedMetersPerSecond, [
