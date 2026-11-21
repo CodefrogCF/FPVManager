@@ -116,6 +116,11 @@ The existing Legacy physics model remains available and unchanged.
 - Preserve existing aircraft and battery profiles, simulation settings, Legacy physics and route-planning functionality.
 - Maintain compatibility without requiring database or backup migrations.
 - Document model assumptions, approximations, configurable parameters and calibration limitations.
+- Add a combined Advanced physics validation runner with two documented benchmark aircraft profiles, 13 controlled scenarios per profile, 30/60/120 FPS comparisons, Legacy reference runs and injected-stall diagnostics.
+- Support optional local, normalized telemetry CSV comparison with explicit units, time alignment, missing-channel handling, bias/MAE/RMSE and quaternion orientation error; no binary Blackbox decoder or automatic calibration.
+- Record synthetic CPU time, integration-step latency, frame timing, sampled heap/RSS, electrical consistency and steady-load endurance estimates, with representative reproducible results.
+- Add opt-in local Android/Windows profile-build diagnostics and a device measurement template for repeatable Cesium and physics performance comparisons.
+- Update user and developer documentation for physics modes, assumptions, benchmark procedures and release-readiness gates; retain Legacy as the default until real flight and target-device validation is complete.
 
 ### Known Limitations
 

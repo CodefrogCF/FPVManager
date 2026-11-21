@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "source": "physical-device-measurement-template-not-yet-measured",
+  "date": null,
+  "appVersionAndCommit": null,
+  "device": {"platform": null, "model": null, "osVersion": null, "webViewVersion": null, "cpu": null, "gpu": null, "ramBytes": null, "powerMode": null, "displayRefreshHz": null},
+  "conditions": {"scenario": null, "aircraftProfile": null, "physicsModel": null, "physicsHz": null, "graphicsProfile": null, "renderResolution": null, "terrainAndModels": null, "overlays": null, "cacheState": null, "network": null, "thermalConditions": null, "inputScriptOrRoute": null, "durationSeconds": null, "repeatNumber": null},
+  "metrics": {"sceneFrames": null, "frameIntervalP50Ms": null, "frameIntervalP95Ms": null, "frameIntervalMaxMs": null, "physicsStepCount": null, "physicsStepP95Ms": null, "physicsStepMaxMs": null, "physicsStepTotalMs": null, "simulatedSeconds": null, "sampledMaxQueuedSeconds": null, "droppedSeconds": null, "processCpuSeconds": null, "memoryBeforeBytes": null, "memorySampledPeakBytes": null, "memoryAfterExitBytes": null, "allocationAndGcObservations": null},
+  "checks": {"stableFlight": null, "manualControl": null, "collisionSafety": null, "gpsRescue": null, "manualTakeover": null, "landing": null, "memoryStability": null},
+  "profilerAndLogSource": null,
+  "limitationsAndObservations": null,
+  "decision": "pending"
+}

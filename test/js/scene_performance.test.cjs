@@ -81,3 +81,13 @@ test('continuous flight reports long stutters while background time is excluded'
     assert.equal(profiler.snapshot().over100Ms,1,'idle map time is still excluded');
     profiler.dispose();
 });
+
+test('opt-in integration timing is bounded, stops recording, and resets across sessions',()=>{
+    const f=fixture();let calls=0;const integrate=dt=>{assert.equal(dt,1/120);calls++;f.setTime(calls*2);return 42;};
+    assert.equal(f.profiler.measurePhysicsStep(integrate,1/120),42);
+    assert.equal(f.profiler.snapshot().physicsStep.count,0);
+    f.profiler.start();for(let i=0;i<40;i++)f.profiler.measurePhysicsStep(integrate,1/120);
+    let s=f.profiler.snapshot().physicsStep;assert.equal(s.count,40);assert.equal(s.samples,16);assert.equal(s.totalMs,80);assert.equal(s.p95Ms,2);
+    f.profiler.stop();f.profiler.measurePhysicsStep(integrate,1/120);assert.equal(f.profiler.snapshot().physicsStep.count,40);
+    f.profiler.start();assert.equal(f.profiler.snapshot().physicsStep.count,0);f.profiler.dispose();
+});

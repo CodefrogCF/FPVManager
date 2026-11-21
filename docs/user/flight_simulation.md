@@ -23,6 +23,24 @@ Rescue use the same motor, battery, tilt and rotational constraints as manual fl
 flight-controller implementation. The [main user guide](../user_guide.md#ground-inspection-and-flight-simulation)
 explains keyboard, touchscreen and external-controller input.
 
+## Choose the physics model
+
+Open the simulator's **Physics model** setting and select **Legacy** or
+**Advanced**. Legacy is the default and retains the previous flight feel.
+Advanced includes hardware-aware propulsion, battery sag, directional drag,
+rotational inertia, shared GPS guidance and contact behavior. Use a complete
+drone and battery profile where possible. The default Advanced physics rate is
+120 Hz; 60 Hz may be useful on slower devices and 240 Hz increases the number of
+physics steps. This is separate from rendered FPS.
+
+The simplified Acro Air Mode retains bounded rotational braking at low throttle;
+it is not the full Betaflight mixer. Low-speed contact with verified flat terrain
+can settle the aircraft for landing; supported glancing contacts can still slide.
+Ground effect, propwash and additional terrain wind effects are optional.
+Advanced is not yet calibrated against representative real-world telemetry or
+validated on all target devices; revert to Legacy if controller response or
+performance is unsuitable. See the [validation status](../developer/advanced_physics_validation.md).
+
 ## Environmental wind in extended flights
 
 The wind sheet can load Open-Meteo model values for a **local** 3×3 grid.

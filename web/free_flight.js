@@ -83,7 +83,7 @@
     }
     function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,
         onSurfaceDiscontinuity=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,prepareGraphics,
-        isTerrainReady,onState,sampleWind=()=>null}){
+        isTerrainReady,onState,sampleWind=()=>null,measurePhysicsStep=null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
         let height=0,heading=0,pitch=0,roll=0,ground=null,homeHeight=null,reason=null,config=parameters({}),q=euler(0,0,0),gpsHeadingTarget=0;
         let velocity={north:0,east:0,up:0},rates={x:0,y:0,z:0},rotationTorque=rotationalDynamics.initialState(),input={throttle:0,yaw:0,pitch:0,roll:0};
@@ -144,7 +144,7 @@
         }
         let runtime=null;
         function buildRuntime(){return flightPhysics.createRuntime({mode:config.physicsModel,hz:config.physicsStepHz,
-            integrate:stepCore,snapshot:physicsSnapshot,present:renderPhysics,isActive:()=>active});}
+            integrate:measurePhysicsStep?dt=>measurePhysicsStep(stepCore,dt):stepCore,snapshot:physicsSnapshot,present:renderPhysics,isActive:()=>active});}
         function stop(message=null){
             const running=active||pending;
             ++operation;abort?.abort();abort=null;clearKeys();brake();motorThrust=0;runtime?.reset();active=pending=paused=playback=false;reason=message;

@@ -1258,6 +1258,7 @@ function postToFlutter(message) {
                     (deviceMessage?` | ${translate(deviceMessage)}`:'');
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
+            measurePhysicsStep:(integrate,dt)=>scenePerformance.measurePhysicsStep(integrate,dt),
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
                 // A surface-height approximation must not fill the interior of
                 // an explicitly modeled synthetic tube. Its geometric walls,

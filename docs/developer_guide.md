@@ -53,6 +53,9 @@ RF estimates and unsupported terrain coverage.
 - [Simulation, collisions and terrain](developer/simulation_and_collision.md):
   thrust-based manual flight, missing rendered tiles, visual-only LoS geometry
   and analog overlay behavior.
+- [Flight physics architecture](developer/flight_physics_architecture.md) and
+  [Advanced physics validation](developer/advanced_physics_validation.md): reproducible
+  reference scenarios, local telemetry comparison and target-device release gate.
 - [Performance measurement](developer/performance.md): repeatable scenarios,
   instrumentation, benchmarks, measurement interpretation and limitations.
 

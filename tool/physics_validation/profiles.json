@@ -1,0 +1,14 @@
+{
+  "reference-7-inch": {
+    "description": "User-supplied RangeX epic v2 reference, Axisflying 287 1750 KV, HQProp 7x3.5x3V1S, MEPSKING 60 A, Bonka U2 6S 4500 mAh",
+    "provenance": {"massKvPropellerCellCountCapacityNominalVoltage": "user-supplied specifications; not independently measured", "escRatingAndPackC": "user-supplied manufacturer ratings; not validated", "powerCapsResistanceHoverCruise": "estimated benchmark assumptions", "motorCurvesInertiaDrag": "generic model defaults; not calibrated"},
+    "propulsionProfile": {"motorKv":1750,"motorCount":4,"propellerDiameterInches":7,"propellerPitchInches":3.5,"propellerDescription":"HQProp 7x3.5x3V1S","takeoffWeightGrams":1320,"referenceVoltageVolts":22.2,"maxPowerWatts":2200,"escContinuousCurrentAmpsPerChannel":60},
+    "batteryProfile": {"chemistry":"LiPo","cellCount":6,"capacityMah":4500,"nominalVoltageVolts":22.2,"chargePercent":100,"hoverPowerWatts":180,"cruisePowerWatts":250,"cruiseSpeedMetersPerSecond":15,"maxPowerWatts":2200,"maxSpeedMetersPerSecond":45,"takeoffWeightGrams":1320,"motorCount":4,"continuousDischargeC":120,"resistanceOhmsPerCell":0.008,"escContinuousCurrentAmpsPerChannel":60}
+  },
+  "synthetic-5-inch": {
+    "description": "Hypothetical 5-inch freestyle quad; all values illustrative, not a measured aircraft",
+    "provenance": {"allParameters": "synthetic estimate; generic defaults; not calibrated"},
+    "propulsionProfile": {"motorKv":1900,"motorCount":4,"propellerDiameterInches":5,"propellerPitchInches":4.3,"propellerDescription":"5x4.3x3","takeoffWeightGrams":650,"referenceVoltageVolts":22.2,"maxPowerWatts":1800,"escContinuousCurrentAmpsPerChannel":45},
+    "batteryProfile": {"chemistry":"LiPo","cellCount":6,"capacityMah":1300,"nominalVoltageVolts":22.2,"chargePercent":100,"hoverPowerWatts":135,"cruisePowerWatts":220,"cruiseSpeedMetersPerSecond":14,"maxPowerWatts":1800,"maxSpeedMetersPerSecond":50,"takeoffWeightGrams":650,"motorCount":4,"continuousDischargeC":70,"resistanceOhmsPerCell":0.012,"escContinuousCurrentAmpsPerChannel":45}
+  }
+}

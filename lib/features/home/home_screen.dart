@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 
 import 'dart:async';
+import 'dart:convert';
 
 import '../data_management/data_management_screen.dart';
 import '../offline/base_map_cache_preference.dart';
@@ -488,6 +489,44 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   String? _lastRecordingMessage;
   SimulationSettings _simulationSettings = const SimulationSettings();
   bool _recordingReviewOpen = false;
+  static const _physicsValidationEnabled = bool.fromEnvironment(
+    'FPV_PHYSICS_VALIDATION',
+  );
+  Timer? _physicsValidationTimer;
+  bool _physicsValidationBusy = false;
+  bool _physicsValidationRunning = false;
+
+  Future<void> _samplePhysicsValidation() async {
+    if (!mounted || _physicsValidationBusy || !_globeController.isReady) {
+      return;
+    }
+    _physicsValidationBusy = true;
+    try {
+      if (!_globeController.simulationActive) {
+        if (_physicsValidationRunning) {
+          await _globeController.scenePerformance(action: 'stop');
+          _physicsValidationRunning = false;
+        }
+        return;
+      }
+      final scene = await _globeController.scenePerformance(
+        action: _physicsValidationRunning ? 'snapshot' : 'start',
+      );
+      _physicsValidationRunning = true;
+      final physics = await _globeController.flightPhysicsDiagnostics();
+      if (!mounted) return;
+      // The bridge endpoints return only aggregate diagnostics, no location.
+      debugPrint(
+        '[FPV physics validation] ${jsonEncode({'physics': physics, 'scene': scene})}',
+      );
+    } catch (_) {
+      // Renderer reloads can interrupt a sample. Never interrupt a flight.
+      _physicsValidationRunning = false;
+    } finally {
+      _physicsValidationBusy = false;
+    }
+  }
+
   void _recordingReviewHandler() => unawaited(_openRecordingReview());
   Future<void> _openRecordingReview() async {
     if (_recordingReviewOpen ||
@@ -962,6 +1001,14 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   @override
   void dispose() {
+    _physicsValidationTimer?.cancel();
+    if (_physicsValidationRunning && _globeController.isReady) {
+      unawaited(
+        _globeController
+            .scenePerformance(action: 'stop')
+            .then<void>((_) {}, onError: (Object _) {}),
+      );
+    }
     _profiles?.removeListener(_onProfilesChanged);
     _profiles?.dispose();
     if (_globeController.onLiveRadioSettingsRequested == _radioRequestHandler) {
@@ -1077,6 +1124,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   void initState() {
     super.initState();
+    if (_physicsValidationEnabled) {
+      _physicsValidationTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => unawaited(_samplePhysicsValidation()),
+      );
+    }
     _cachedMapsLoad = _loadCachedMaps();
     if (widget.onLanguageChanged != null) {
       _languageOperation = _loadLanguage();
