@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FPVManager GLB CesiumJS Smoke Test</title>
+<script>window.CESIUM_BASE_URL='../../web/cesium/';</script>
+<script src="../../web/cesium/Cesium.js"></script>
+<link rel="stylesheet" href="../../web/cesium/Widgets/widgets.css">
+<style>html,body,#scene{margin:0;width:100%;height:100%;background:#17202b;overflow:hidden}#status{position:absolute;top:10px;left:10px;z-index:10;background:#0d1721d9;color:#fff;font:14px Arial;padding:12px;border-radius:5px;max-width:85%}</style>
+</head>
+<body><div id="scene"></div><div id="status" role="status">Starting Cesium...</div>
+<script>
+(async()=>{
+ const status=document.getElementById('status');
+ function setStatus(text, code){status.textContent=text;status.dataset.code=code||'loading';console.log('[smoke]',text);}
+ try {
+  if(!window.Cesium) throw Error('Cesium runtime not loaded');
+  const canvas=document.createElement('canvas');const gl=canvas.getContext('webgl2')||canvas.getContext('webgl');
+  if(!gl) throw Error('WebGL context unavailable');
+  const params=new URLSearchParams(location.search);
+  const lon=Number(params.get('lon')||'13.789789');const lat=Number(params.get('lat')||'52.484197');const height=Number(params.get('height')||'80');const scale=Number(params.get('scale')||'1');
+  if(![lon,lat,height,scale].every(Number.isFinite)||lat < -90 || lat > 90 ||scale<=0) throw Error('Invalid geographic probe parameters');
+  const viewer=new Cesium.Viewer('scene', {animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,infoBox:false,selectionIndicator:false,baseLayer:false,terrainProvider:new Cesium.EllipsoidTerrainProvider(),requestRenderMode:false});
+  viewer.scene.globe.show=false;viewer.scene.skyBox.show=false;viewer.scene.sun.show=false;viewer.scene.moon.show=false;viewer.scene.skyAtmosphere.show=false;viewer.scene.backgroundColor=Cesium.Color.fromCssColorString('#17202b');
+  setStatus('Cesium '+Cesium.VERSION+' ready; loading local GLB...', 'loading');
+  // Local reference asset only; no third-party GLB is bundled or fetched remotely.
+  const model=await Cesium.Model.fromGltfAsync({url:'./local_reference.glb', modelMatrix:Cesium.Transforms.eastNorthUpToFixedFrame(Cesium.Cartesian3.fromDegrees(lon,lat,height)),scale:scale,allowPicking:false});
+  viewer.scene.primitives.add(model);
+  // fromGltfAsync resolves before the first Cesium render/update has necessarily
+  // initialized the internal scene graph and bounding sphere.
+  const readyStarted=performance.now();
+  const readyTimeoutMs=45000;
+  let lastProgressUpdate=readyStarted;
+  while(!model.ready){
+   if(performance.now()-readyStarted>readyTimeoutMs){
+    throw Error('Model was not ready after 45 seconds. Inspect DevTools for rendering/asset errors.');
+   }
+   if(performance.now()-lastProgressUpdate>2000){
+    setStatus('GLB downloaded; waiting for Cesium scene initialization...', 'loading');
+    lastProgressUpdate=performance.now();
+   }
+   // Cesium initializes loaded models as part of its rendering update loop.
+   await new Promise(resolve=>requestAnimationFrame(resolve));
+  }
+  const bs=model.boundingSphere;
+  viewer.camera.viewBoundingSphere(bs, new Cesium.HeadingPitchRange(Cesium.Math.toRadians(35),Cesium.Math.toRadians(-35),Math.max(30,bs.radius*3.4)));
+  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  await new Promise(resolve=>setTimeout(resolve,800));
+  setStatus(`SUCCESS · Cesium ${Cesium.VERSION} · GLB loaded and added · radius ${bs.radius.toFixed(2)} local units · WebGL ${gl.getParameter(gl.VERSION)}`,'success');
+ } catch(e){setStatus('FAILED: '+String(e&&e.stack||e),'error');console.error(e)}
+})();
+</script>
+</body>
+</html>

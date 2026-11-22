@@ -826,6 +826,7 @@
             if(modeledContact){
                 brake();reason=modeledContact==='bridge' ? 'Simulated bridge or support surface contact: movement stopped' :
                     modeledContact==='model' ? 'Approximate rendered 3D surface contact: movement stopped (not surveyed)' :
+                    modeledContact?.kind==='scenery' ? 'Simulated scenery surface contact: movement stopped' :
                     'Simulated tunnel surface contact: movement stopped';pose();return;
             }
             if(terrainCollision?.({...position,height},{...endpoint,height:height+travel.up})){

@@ -15,7 +15,7 @@ const FPVWeatherOverlay = globalThis.FPVWeatherOverlay;
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
 async function renderer({ offline = false, terrainFails = false, configuration, groundView = false, floating = false } = {}) {
-    const imagery = [], terrain = [], events = [], sources = [];
+    const imagery = [], regional = [], terrain = [], events = [], sources = [];
     let geojsonLoads = 0;
     const colors = value => ({ value, withAlpha: a => ({value, alpha:a}) });
     const info = {addEventListener() {}};
@@ -74,6 +74,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
             Credit: class { constructor(html, showOnScreen) { Object.assign(this, { html, showOnScreen }); } },
             GridImageryProvider: class {},
             UrlTemplateImageryProvider: class { constructor(options) { Object.assign(this, options); imagery.push(this); } },
+            WebMapServiceImageryProvider: class { constructor(options) { Object.assign(this, options); regional.push(this); } },
             WebMercatorTilingScheme: class {},
             Ellipsoid: { WGS84: {} },
             EllipsoidTerrainProvider: class {},
@@ -88,8 +89,11 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
             } },
             ImageryLayer: class { constructor(provider) { this.imageryProvider = provider; } },
             Viewer: class { constructor(_id, options) {
-                let current = options.baseLayer;
-                this.imageryLayers = { get: () => current, add: layer => { current = layer; }, remove() {} };
+                const layers = [options.baseLayer];
+                this.imageryLayers = { get: index => layers[index],
+                    add(layer, index) { layers.splice(index == null ? layers.length : index,0,layer); return layer; },
+                    remove(layer) { const index=layers.indexOf(layer); if(index>=0)layers.splice(index,1); },
+                    get length() { return layers.length; } };
                 const listeners = new Set();
                 this.scene = { globe: {}, renderError: { addEventListener() {} },
                     preUpdate: { addEventListener() {} },preRender: { addEventListener() {} },
@@ -107,7 +111,8 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
                 this.screenSpaceEventHandler = { setInputAction() {} };
             } },
             Cartesian3: { fromDegrees() {} }, Math: { toRadians() {}, toDegrees:r => r*180/Math.PI },
-            Rectangle:class { constructor(west,south,east,north) {Object.assign(this,{west,south,east,north});} },
+            Rectangle:class { constructor(west,south,east,north) {Object.assign(this,{west,south,east,north});}
+                static fromDegrees(west,south,east,north){return {west,south,east,north};} },
             ScreenSpaceEventType: { LEFT_CLICK: 1 }
         }
     });
@@ -115,7 +120,8 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(events.some(e => e.type === 'globe-error'), false, info.textContent);
     assert.equal(events.some(e => e.type === 'globe-ready'), true);
-    return { imagery, terrain, context, events, sources, info, get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
+    context.evalGlobe=vm.runInContext('activeViewer',context);
+    return { imagery, regional, terrain, context, events, sources, info, get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
 }
 
 test('floating map chrome hides redundant ready text but retains terrain outage information', async () => {
@@ -267,3 +273,29 @@ test('renderer applies source classification, preserves overlaps, and measures r
     flight.globe.maximumScreenSpaceError=3;
     flight.context.setMapStyle('topographic');assert.equal(flight.globe.maximumScreenSpaceError,3);
  });
+
+test('Berlin and Brandenburg official WMS layers follow map style without changing Swiss providers',async()=>{
+    const page=await renderer();
+    assert.equal(page.regional.length,1);
+    assert.equal(page.regional[0].layers,'bebb_dop20c');
+    assert.match(page.regional[0].credit.html,/GeoBasis-DE\/LGB/);
+    assert.equal(page.regional[0].rectangle.west,11.1528);
+    assert.equal(page.context.evalGlobe?.imageryLayers.length,2);
+    page.context.setMapStyle('topographic');
+    assert.equal(page.regional.at(-1).layers,'basemapde_farbe_2025');
+    assert.equal(page.context.evalGlobe?.imageryLayers.length,2);
+    page.context.setMapStyle('relief');
+    assert.equal(page.regional.at(-1).layers,'dgmshade');
+    assert.equal(page.context.evalGlobe?.imageryLayers.length,2);
+    assert.equal(page.context.evalGlobe?.imageryLayers.get(0).imageryProvider,
+        page.imagery.at(-1),'the official Swiss layer remains the base');
+    assert.equal(page.context.evalGlobe?.imageryLayers.get(1).imageryProvider,
+        page.regional.at(-1),'the official LGB layer remains above the base');
+});
+
+test('regional services do not run during offline diagnostics or custom provider overrides',async()=>{
+    const offline=await renderer({offline:true});
+    assert.equal(offline.regional.length,0);
+    const custom=await renderer({configuration:{regionalImagery:false}});
+    assert.equal(custom.regional.length,0);
+});

@@ -22,6 +22,27 @@ https://wmts.geo.admin.ch/1.0.0/{layer}/default/current/3857/{z}/{x}/{y}.{extens
 | Selectable aviation obstacles | [Official STAC collection](https://data.geo.admin.ch/api/stac/v1/collections/ch.bazl.luftfahrthindernis) | BAZL / FOCA · Skyguide; full WGS84 KMZ; published coverage only |
 | Optional height conversion | `geodesy.geo.admin.ch` REFRAME | [Service documentation](https://www.swisstopo.admin.ch/en/rest-api-geoservices-reframe-web) |
 
+### Online Berlin/Brandenburg map expansion (v0.20.0 preparation)
+
+The official LGB/Geoportal Berlin regional WMS services are layered over the
+existing Swiss imagery **only** in their documented Berlin/Brandenburg rectangle,
+with matching map styles:
+
+| Style | Regional WMS layer | Service |
+|---|---|---|
+| Satellite | `bebb_dop20c` | `https://isk.geobasis-bb.de/mapproxy/dop20c/service/wms?` |
+| Topographic | `basemapde_farbe_2025` | `https://isk.geobasis-bb.de/mapproxy/basemapde-bebb_2025/service/wms?` |
+| Relief | `dgmshade` (2D hillshade) | `https://isk.geobasis-bb.de/mapproxy/dgm/service/wms?` |
+
+Credits for all three: `© GeoBasis-DE/LGB, dl-de/by-2-0; © Geoportal Berlin, dl-de/zero-2-0`.
+Official catalog descriptions: [DOP20c](https://geobroker.geobasis-bb.de/gbss.php?MODE=GetProductPreview&PRODUCTID=7a503f0f-db46-4772-80e3-b27733fd7acd),
+[basemap.de 2025](https://geobroker.geobasis-bb.de/gbss.php?MODE=GetProductPreview&PRODUCTID=e4989df9-4ad1-4e06-b023-63af4727c2bc),
+[DGM shade](https://geoportal.brandenburg.de/detailansichtdienst/render?url=https%3A%2F%2Fgeoportal.brandenburg.de%2Fgs-json%2Fxml%3Ffileid%3D414f568f-639b-4b5a-ba92-57fdac396799).
+The regional imagery is **online-only**; the existing swisstopo offline cache is not
+used for German tiles. This expansion does not supply Berlin/Brandenburg **3D
+terrain elevations**, generic 3D building meshes or verified physical collision.
+The DGM WMS hillshade is **not a Cesium terrain height provider**.
+
 Satellite is the SWISSIMAGE Background composite, including aerial imagery and
 SPOT imagery in neighbouring countries. Its product documentation also requires:
 

@@ -2006,6 +2006,61 @@ class GlobeController extends ChangeNotifier {
     await _request(command);
   }
 
+  Future<Map<String, dynamic>> sceneryStatus() =>
+      _request({'type': 'scenery-status'});
+
+  Future<Map<String, dynamic>> setSceneryEnabled(
+    String id,
+    bool enabled,
+  ) async {
+    final result = await _request({
+      'type': 'set-scenery-enabled',
+      'id': id,
+      'enabled': enabled,
+    });
+    final repository = _preferencesRepository;
+    if (repository is DriftUserPreferencesRepository) {
+      await repository.saveSceneryPreference(id, enabled);
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>> setSceneryEdit(
+    String id,
+    Map<String, dynamic>? edit,
+  ) async {
+    final result = await _request({
+      'type': 'set-scenery-edit',
+      'id': id,
+      'edit': edit,
+    });
+    final repository = _preferencesRepository;
+    if (repository is DriftUserPreferencesRepository) {
+      Map<String, dynamic>? canonical;
+      if (edit != null) {
+        final items = (result['sceneries'] as List<dynamic>)
+            .whereType<Map<String, dynamic>>();
+        final item = items.firstWhere((value) => value['id'] == id);
+        canonical = {
+          for (final key in [
+            'alignment',
+            'heightOffsetM',
+            'buildingRegions',
+            'terrainRegions',
+            'replaceBuildings',
+            'clipTerrain',
+          ])
+            key: item[key],
+        };
+      }
+      await repository.saveSceneryEdit(id, canonical);
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>> retryScenery(String id) =>
+      _request({'type': 'retry-scenery', 'id': id});
+
   Future<void> resetCamera() {
     return _send({'type': 'reset-camera'});
   }
@@ -3108,6 +3163,25 @@ class GlobeController extends ChangeNotifier {
     unawaited(wind.rendererReady());
     if (location.enabled) unawaited(location.rendererReady());
     try {
+      final repository = _preferencesRepository;
+      if (repository is DriftUserPreferencesRepository) {
+        try {
+          final values = await repository.getSceneryPreferences();
+          if (current() && values.isNotEmpty) {
+            await _send({
+              'type': 'restore-scenery-preferences',
+              'preferences': values,
+            });
+          }
+          final edits = await repository.getSceneryEdits();
+          if (current() && edits.isNotEmpty) {
+            await _send({'type': 'restore-scenery-edits', 'edits': edits});
+          }
+        } catch (_) {
+          // Optional scenery must not interrupt restoring the map.
+        }
+      }
+      if (!current()) return;
       if (forceSettings || !touchControlsVisible) {
         await _send({
           'type': 'set-touch-controls',

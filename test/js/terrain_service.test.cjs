@@ -324,3 +324,9 @@ test('cancelled retry and disposal reject late provider changes and detach liste
     assert.equal(statuses.length, count);
     await assert.rejects(manager.retry(), /disposed/);
 });
+
+test('provider switch cancels old in-flight initialization and probes the replacement',async()=>{
+ const old=deferred(),replacement=provider();let calls=0;
+ const {manager,applied}=peer({createProvider:()=>++calls===1?old.promise:Promise.resolve(replacement)});
+ try{const first=manager.initialize();await tick();await manager.switchProvider();assert.equal(manager.provider,replacement);old.resolve(provider());await first;await tick();assert.equal(applied.at(-1),replacement);assert.equal(manager.status().state,'ready');}finally{manager.dispose();}
+});

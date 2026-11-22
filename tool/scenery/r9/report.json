@@ -1,0 +1,221 @@
+{
+  "source_sha256": "0943dd669563090bc3e643e9c3d82fd4d06a29aebf348da03f278bc3b1926511",
+  "source_crs": "COMPD_CS[\"ETRS89 / UTM zone 33N + DHHN2016 height\",PROJCS[\"ETRS89 / UTM zone 33N\",GEOGCS[\"ETRS89\",DATUM[\"European_Terrestrial_Reference_System_1989\",SPHEROID[\"GRS 1980\",6378137,298.257222101,AUTHORITY[\"EPSG\",\"7019\"]],AUTHORITY[\"EPSG\",\"6258\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4258\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",15],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH],AUTHORITY[\"EPSG\",\"25833\"]],VERT_CS[\"DHHN2016 height\",VERT_DATUM[\"Deutsches Haupthoehennetz 2016\",2005,AUTHORITY[\"EPSG\",\"1170\"]],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Gravity-related height\",UP],AUTHORITY[\"EPSG\",\"7837\"]]]",
+  "source_bounds": [
+    417000.0,
+    5815000.0,
+    418000.0,
+    5816000.0
+  ],
+  "anchor_nhn_m": 40.94948958899,
+  "alignment": {
+    "schemaVersion": 1,
+    "longitude": 13.789853720999993,
+    "latitude": 52.48411904363446,
+    "ellipsoidHeightM": 32.25,
+    "scale": 16.023268178233355,
+    "rotationDeg": 99.7993823133657,
+    "opacity": 1
+  },
+  "ground_reference_local_up": -2.02575,
+  "mesh_utm_bounds": [
+    417668.78565873415,
+    5815414.655782272,
+    417977.8184289322,
+    5815730.900757151
+  ],
+  "reference_extent_local": [
+    -8.914009094238281,
+    -8.518733978271484,
+    8.914009094238281,
+    8.518733978271484
+  ],
+  "reference_grid": [
+    287,
+    274
+  ],
+  "reference_ground_range_nhn": [
+    34.45999908447265,
+    45.21039425182541
+  ],
+  "geometry": {
+    "vertices": 78638,
+    "triangles": 156156,
+    "nodes": 32767,
+    "bounds": [
+      -8.914009094238281,
+      -8.518733978271484,
+      -2.4307541847229004,
+      8.914009094238281,
+      8.518733978271484,
+      -1.759830117225647
+    ],
+    "bytes": 3866088
+  },
+  "reference_glb_sha256": "5b4dd4e6177fa2038b65b50515ed99f6936bd14743314adaee5b8dbb3fbe53c2",
+  "reference_fpc_sha256": "d8f7ce1ff415b404562da392b4460f56d0a26cc22ad4378e8c86fd6d60681ce5",
+  "source_r8_collision_sha256": "00112925a6a4677d60526e88ab00fbff9d029bd6a8545a3f5b79a8f1f97958d9",
+  "seams": [
+    {
+      "region": 1,
+      "samples": 18,
+      "min_m": -0.17259950844862004,
+      "max_m": 0.4836983581086258,
+      "median_m": -0.12702460986673003,
+      "rms_m": 0.19532901861907973,
+      "max_abs_m": 0.4836983581086258,
+      "within_0_5m": true
+    },
+    {
+      "region": 2,
+      "samples": 102,
+      "min_m": 0.9908295611586766,
+      "max_m": 3.9366477495094614,
+      "median_m": 1.650203551149339,
+      "rms_m": 1.8974990834314747,
+      "max_abs_m": 3.9366477495094614,
+      "within_0_5m": false
+    },
+    {
+      "region": 3,
+      "samples": 64,
+      "min_m": 1.1189172276506127,
+      "max_m": 2.4875172563434305,
+      "median_m": 2.1346379844941303,
+      "rms_m": 2.104365832392624,
+      "max_abs_m": 2.4875172563434305,
+      "within_0_5m": false
+    },
+    {
+      "region": 4,
+      "samples": 32,
+      "min_m": 0.25061100328565544,
+      "max_m": 0.5945062347319023,
+      "median_m": 0.49867393210576694,
+      "rms_m": 0.49001436263928405,
+      "max_abs_m": 0.5945062347319023,
+      "within_0_5m": false
+    },
+    {
+      "region": 5,
+      "samples": 72,
+      "min_m": -0.1752461373762273,
+      "max_m": 4.14531242725301,
+      "median_m": 0.0003512305724804321,
+      "rms_m": 0.9174359009972329,
+      "max_abs_m": 4.14531242725301,
+      "within_0_5m": false
+    },
+    {
+      "region": 6,
+      "samples": 26,
+      "min_m": -0.25482423988314196,
+      "max_m": 2.130691946404575,
+      "median_m": 0.07829484207528736,
+      "rms_m": 0.6290679145066623,
+      "max_abs_m": 2.130691946404575,
+      "within_0_5m": false
+    },
+    {
+      "region": 7,
+      "samples": 26,
+      "min_m": 1.1259364111688583,
+      "max_m": 1.622652603697766,
+      "median_m": 1.3151759689599132,
+      "rms_m": 1.3359580744579596,
+      "max_abs_m": 1.622652603697766,
+      "within_0_5m": false
+    },
+    {
+      "region": 8,
+      "samples": 24,
+      "min_m": -0.27482289744064303,
+      "max_m": 3.699937188513964,
+      "median_m": -0.062282983155487415,
+      "rms_m": 2.040294746478687,
+      "max_abs_m": 3.699937188513964,
+      "within_0_5m": false
+    },
+    {
+      "region": 9,
+      "samples": 24,
+      "min_m": -0.1823124129956426,
+      "max_m": -0.07010035067976617,
+      "median_m": -0.11697186040403551,
+      "rms_m": 0.11971563940408476,
+      "max_abs_m": 0.1823124129956426,
+      "within_0_5m": true
+    },
+    {
+      "region": 10,
+      "samples": 22,
+      "min_m": -0.13964128046673352,
+      "max_m": 1.056907543254141,
+      "median_m": 0.4334229999755408,
+      "rms_m": 0.5602775451858137,
+      "max_abs_m": 1.056907543254141,
+      "within_0_5m": false
+    },
+    {
+      "region": 11,
+      "samples": 22,
+      "min_m": -0.20230632364429368,
+      "max_m": -0.10945895766874969,
+      "median_m": -0.15844405246869186,
+      "rms_m": 0.1616499893976378,
+      "max_abs_m": 0.20230632364429368,
+      "within_0_5m": true
+    },
+    {
+      "region": 12,
+      "samples": 18,
+      "min_m": -0.1769042974315269,
+      "max_m": 0.24280925753208749,
+      "median_m": -0.07218481744961736,
+      "rms_m": 0.11146644032615524,
+      "max_abs_m": 0.24280925753208749,
+      "within_0_5m": true
+    },
+    {
+      "region": 13,
+      "samples": 18,
+      "min_m": -0.14721073668343365,
+      "max_m": -0.0384207725775596,
+      "median_m": -0.07877507908432335,
+      "rms_m": 0.08530588932026427,
+      "max_abs_m": 0.14721073668343365,
+      "within_0_5m": true
+    },
+    {
+      "region": 14,
+      "samples": 32,
+      "min_m": -0.29802292183163104,
+      "max_m": 0.15538912464666055,
+      "median_m": -0.1737994939011429,
+      "rms_m": 0.18214866087614537,
+      "max_abs_m": 0.29802292183163104,
+      "within_0_5m": true
+    },
+    {
+      "region": 15,
+      "samples": 18,
+      "min_m": -0.49362490518500124,
+      "max_m": 0.5616751184553479,
+      "median_m": 0.12612665121725186,
+      "rms_m": 0.33365007664338364,
+      "max_abs_m": 0.5616751184553479,
+      "within_0_5m": false
+    },
+    {
+      "region": 16,
+      "samples": 18,
+      "min_m": -0.16379207952179797,
+      "max_m": 0.4364367879927329,
+      "median_m": 0.0470987623075203,
+      "rms_m": 0.17566427154259182,
+      "max_abs_m": 0.4364367879927329,
+      "within_0_5m": true
+    }
+  ],
+  "limits": "Relative DHHN2016 heights; no GCG2016 conversion, not an absolute/validated seam or active collider."
+}

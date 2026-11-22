@@ -266,4 +266,28 @@ void main() {
       GlobeOverlay.uasZones,
     ]);
   });
+  test('scenery edits persist independently, reset one edit and retain other settings', () async {
+    final concrete = DriftUserPreferencesRepository(database);
+    final edit = <String, dynamic>{
+      'alignment': {'latitude': 52.484, 'longitude': 13.79, 'scale': 16.01},
+      'heightOffsetM': 0.25,
+      'replaceBuildings': true,
+      'buildingRegions': <dynamic>[],
+      'clipTerrain': false,
+      'terrainRegions': <dynamic>[],
+    };
+    expect(await concrete.getSceneryEdits(), isEmpty);
+    await concrete.saveSceneryEdit('test-one', edit);
+    await concrete.saveSceneryEdit('test-two', edit);
+    await concrete.saveSceneryPreference('test-one', false);
+    final reopened = DriftUserPreferencesRepository(database);
+    expect((await reopened.getSceneryEdits())['test-one'], edit);
+    await reopened.saveSceneryEdit('test-one', null);
+    expect((await reopened.getSceneryEdits()).keys, ['test-two']);
+    expect((await reopened.getSceneryPreferences())['test-one'], false);
+    await expectLater(
+      reopened.saveSceneryEdit('../bad', edit),
+      throwsArgumentError,
+    );
+  });
 }

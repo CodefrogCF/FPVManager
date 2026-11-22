@@ -71,6 +71,7 @@ function postToFlutter(message) {
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) spotGrounding?.dispose();
         if (!event.persisted) mapLabels?.dispose();
+        if (!event.persisted) { localSceneryPreview?.dispose(); sceneryManager?.dispose(); regional3D?.dispose(); }
         if (!event.persisted) mapCredits?.dispose();
     });
     let rendererReady = false;
@@ -79,7 +80,9 @@ function postToFlutter(message) {
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
-    let mapLabels = null, mapCredits = null;
+    let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryManager = null, regional3D = null;
+    let regionalTerrain = false, regionalTerrainChanging = false, regionalBuildingsRequested = false, regionalTerrainRevision = 0;
+    let sceneryCatalogReady = Promise.resolve();
     let touchControlsVisible=true;
     function setTouchControls(visible){
         if(typeof visible!=='boolean')throw Error('Invalid touch visibility');
@@ -90,6 +93,7 @@ function postToFlutter(message) {
     let walker = null, routeEditor = null, routeOverlays = null, signalAnalysis = null, disposeGroundControls = null;
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
+    const regional3DTest = new URLSearchParams(window.location.search).get("regional3DTest") === "1";
     const floatingChrome = new URLSearchParams(window.location.search).get('chrome') === 'floating';
     if (floatingChrome) document.documentElement.classList.add('floating-map-chrome');
     let currentMapStyle = "satellite";
@@ -97,11 +101,18 @@ function postToFlutter(message) {
     const terrainAvailable = () => terrainManager?.status().state === "ready";
     const offlineReason = () => offline ? "diagnosticOffline" :
         navigator.onLine === false && !window.FPVMapProviderConfig?.cacheRoot ? "networkOffline" : null;
-    window.addEventListener("offline", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();sceneEnvironment?.networkChanged();});
-    window.addEventListener("online", () => {terrainManager?.networkChanged();mapLabels?.networkChanged();sceneEnvironment?.networkChanged();});
+    window.addEventListener("offline", () => {
+        terrainManager?.networkChanged();mapLabels?.networkChanged();sceneEnvironment?.networkChanged();regional3D?.tick(true);
+        if (activeViewer) refreshRegionalImagery(currentMapStyle);
+    });
+    window.addEventListener("online", () => {
+        terrainManager?.networkChanged();mapLabels?.networkChanged();sceneEnvironment?.networkChanged();regional3D?.tick(true);
+        if (activeViewer) refreshRegionalImagery(currentMapStyle);
+    });
 
     let activeViewer = null;
     let activeBaseLayer = null;
+    let activeRegionalLayers = [];
     let spotsRequestedVisible = true;
     let overlayOrder = ["uasZones", "savedSpots"];
 
@@ -253,11 +264,35 @@ function postToFlutter(message) {
         });
     }
 
+    function refreshRegionalImagery(style) {
+        // WMS imagery only. No fake elevation/terrain availability is asserted.
+        // Place directly above the base imagery, below user-selected overlays.
+        const regional = mapProviders.regionalImagery?.(style, Boolean(offlineReason())) ?? [];
+        const added=[];
+        try {
+            for (const provider of regional) {
+                const layer=new Cesium.ImageryLayer(provider);
+                activeViewer.imageryLayers.add(layer,1+added.length);
+                added.push(layer);
+            }
+        } catch(error) {
+            for (const layer of added) activeViewer.imageryLayers.remove(layer,true);
+            throw error;
+        }
+        for (const layer of activeRegionalLayers) activeViewer.imageryLayers.remove(layer,true);
+        activeRegionalLayers=added;
+    }
+
     function setMapStyle(style) {
         const provider = createMapProvider(style);
         const newLayer = new Cesium.ImageryLayer(provider);
 
         activeViewer.imageryLayers.add(newLayer, 0);
+        try { refreshRegionalImagery(style); }
+        catch (error) {
+            activeViewer.imageryLayers.remove(newLayer,true);
+            throw error;
+        }
 
         if (activeBaseLayer) {
             activeViewer.imageryLayers.remove(
@@ -461,8 +496,9 @@ function postToFlutter(message) {
         }
     }
 
-    async function queryTerrainElevation(command, signal) {
+    async function queryTerrainElevation(command, signal, allowUnverified = false) {
         const { latitude, longitude } = command;
+        if(regionalTerrain&&!allowUnverified)throw Error("BKG beta terrain vertical datum has not been verified for geographic elevation queries");
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
             latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
             throw new Error("Invalid terrain coordinates");
@@ -480,7 +516,7 @@ function postToFlutter(message) {
         const height = sampled[0]?.height;
         if (!Number.isFinite(height)) throw new Error("No terrain elevation available at these coordinates");
         return { latitude, longitude, heightMeters: height,
-            heightReference: "wgs84Ellipsoid",
+            heightReference: regionalTerrain ? "unverified" : "wgs84Ellipsoid",
             samplingMethod: detailed ? "most-detailed" : "level-12" };
     }
 
@@ -616,6 +652,14 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,replacement:regional3D?.replacementStatus()??null};
+            case 'restore-scenery-preferences': await sceneryCatalogReady; sceneryManager?.restorePreferences(command.preferences); return {};
+            case 'set-scenery-enabled': if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before changing scenery'); await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {sceneries:sceneryManager.setEnabled(command.id,command.enabled)};
+            case 'set-scenery-edit': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');
+                if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before editing scenery');
+                {const sceneries=sceneryManager.setEdit(command.id,command.edit);regional3D?.tick(true);return {sceneries,replacement:regional3D?.replacementStatus()??null};}
+            case 'restore-scenery-edits': await sceneryCatalogReady; sceneryManager?.restoreEdits(command.edits);regional3D?.tick(true);return {};
+            case 'retry-scenery': if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before reloading scenery'); await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {sceneries:sceneryManager.retry(command.id)};
             case 'tunnel-runtime-diagnostics': {
                 // Explicit local snapshot: never broadcast tunnel identities,
                 // flight positions, or rejection reasons as automatic telemetry.
@@ -675,8 +719,9 @@ function postToFlutter(message) {
             case "set-obstacle-wms": obstacleWms.set(command); return {};
             case "set-obstacle-vectors": await obstacleVectors.replace(command,signal); return {};
             case "set-hazard-areas": await hazardAreas.replace(command,signal); return {};
-            case "enter-ground-view": flyer?.stop(); return walker.start(command, signal);
+            case "enter-ground-view": if(regionalTerrainChanging)throw Error("Regional terrain is changing; retry after loading"); flyer?.stop(); return walker.start(command, signal);
             case "enter-simulation": {
+                if(regionalTerrainChanging)throw Error("Regional terrain is changing; retry after loading");
                 if(routePlayback?.loaded)routePlayback.interrupt();
                 if(flyer.active)return flyer.reconfigure(command,signal);
                 const point = simulationSpawn(command);
@@ -696,6 +741,7 @@ function postToFlutter(message) {
             case "reset-simulation": return routePlayback?.loaded
                 ? routePlayback.control({action:'restart'}) : flyer.reset(signal);
             case 'start-route-playback': {
+                if(regionalTerrainChanging)throw Error('Regional terrain is changing; retry after loading');
                 if(infrastructureClearance?.hasUnverifiedTunnel() || (tunnelVolumes?.model && tunnelVolumes.model.clearanceVerified!==true))
                     throw Error('Remove the unverified simulation tunnel before route playback; no safe tunnel clearance is established.');
                 stopNavigation();
@@ -709,12 +755,13 @@ function postToFlutter(message) {
             case 'route-playback-control': return routePlayback.control(command);
             case 'flight-recording-control': return flightRecording.control(command);
             case 'set-flight-radio-monitor': return liveRadio.monitor(command);
-            case 'query-live-radio-terrain': return liveRadio.sample(command,signal);
+            case 'query-live-radio-terrain': if(regionalTerrain)throw Error('BKG beta terrain is not validated for RF planning');return liveRadio.sample(command,signal);
             case 'set-live-radio-result': return liveRadio.set(command);
             case 'set-live-radio-ground-station': return liveRadio.station(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-scene-environment': {
                 const result=sceneEnvironment.set(command);
+                regionalBuildingsRequested=command.buildings;regional3D?.tick(true);
                 // The fully enabled 3D infrastructure layer also discovers
                 // schematic tunnel centerlines near the viewed terrain.
                 structuresForTunnelScan = command.structures===true;
@@ -831,6 +878,7 @@ function postToFlutter(message) {
                 signal.throwIfAborted();
                 // Refresh failed imagery requests too, preserving the selected style.
                 if (terrainAvailable()) setMapStyle(currentMapStyle);
+                regional3D?.retry();
                 return terrainManager.status();
             }
             case "fly-to": flyToCoordinates(command); return {};
@@ -847,6 +895,7 @@ function postToFlutter(message) {
                 sendUasStatus({ visible: uasDataSource?.show === true });
                 return {};
             case "query-route-terrain": return FPVRouteEditor.sampleProfile(command, async points => {
+                if(regionalTerrain)throw Error("BKG beta terrain is not validated for route elevation profiles");
                 let detailed;
                 const positions = points.map(p => Cesium.Cartographic.fromDegrees(p.longitude, p.latitude));
                 const sampled = await terrainManager.sample(provider => {
@@ -939,7 +988,7 @@ function postToFlutter(message) {
         mapProviders=FPVMapProviders.createAdapters(Cesium,window.FPVMapProviderConfig);
         const info = document.getElementById("info");
         let selectedPointInfo = null;
-        const pointLabel = () => selectedPointInfo[2] === undefined
+        const pointLabel = () => regionalTerrain ? "BKG 3D-Beta · experimental terrain; vertical datum not verified" : selectedPointInfo[2] === undefined
             ? translate('Lat: {0} | Lon: {1} | Flat map — terrain height unavailable', ...selectedPointInfo)
             : translate('Lat: {0} | Lon: {1} | Height: {2} m (WGS84 ellipsoid, rendered terrain)', ...selectedPointInfo);
 
@@ -948,13 +997,13 @@ function postToFlutter(message) {
         function terrainInfo(status) {
             info.hidden = !!flyer?.active || (floatingChrome && status.state === 'ready' && !selectedPointInfo && !walker?.active);
             info.textContent = status.state === "ready"
-                ? selectedPointInfo ? pointLabel() : translate("FPVManager | 3D terrain loaded")
+                ? regionalTerrain ? "BKG 3D-Beta · test only; vertical datum not verified" : selectedPointInfo ? pointLabel() : translate("FPVManager | 3D terrain loaded")
                 : status.state === "loading"
                     ? translate("Connecting to 3D terrain | Flat map shown")
                     : translate("3D terrain unavailable | Flat map shown — terrain heights disabled");
         }
         terrainManager = FPVTerrain.createTerrainManager({
-            createProvider: () => mapProviders.terrain(),
+            createProvider: () => regionalTerrain ? FPVRegional3D.terrain(Cesium) : mapProviders.terrain(),
             createFallback: () => new Cesium.EllipsoidTerrainProvider(),
             applyProvider: provider => {
                 if (activeViewer) activeViewer.terrainProvider = provider;
@@ -965,8 +1014,10 @@ function postToFlutter(message) {
             },
             // Validate every global root, including the eastern root covering
             // Switzerland. Prepared regional packages use their packaged root.
-            probe: (provider, signal) => FPVTerrain.probeRootTiles(provider, signal,
-                window.FPVMapProviderConfig?.prepared ? [mapProviders.terrainProbe] : undefined),
+            probe: (provider, signal) => {
+                const root=regionalTerrain?provider.tilingScheme.positionToTileXY(Cesium.Cartographic.fromDegrees(13.79,52.48),0):null;
+                return FPVTerrain.probeRootTiles(provider,signal,root?[[root.x,root.y,0]]:window.FPVMapProviderConfig?.prepared?[mapProviders.terrainProbe]:undefined);
+            },
             onStatus: status => {
                 if (status.state !== "ready") selectedPointInfo = null;
                 if (status.state !== "ready") stopNavigation("Terrain unavailable; returned to globe view");
@@ -1010,7 +1061,8 @@ function postToFlutter(message) {
             tunnelVolumes?.setPerformanceProfile?.(value);},
             terrainPassage:(from,to)=>tunnelVolumes?.segmentInside(from,to)===true||
                 tunnelVolumes?.artificialBoundaryNear(from)===true||
-                tunnelVolumes?.artificialBoundaryNear(to)===true});
+                tunnelVolumes?.artificialBoundaryNear(to)===true||
+                sceneryManager?.replacementPassage(from,to,poly=>regional3D?.terrainMaskActive(poly)===true)===true});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}),
             {isTerrainReady:terrainAvailable,onActive:active=>{sceneEnvironment?.navigationActive(active);mapLabels?.navigation(active);}});
@@ -1073,7 +1125,8 @@ function postToFlutter(message) {
             ? FPVSceneModelCollision.create(Cesium,viewer,
                 {hasVisibleModels:()=>flyer?.active===true&&(
                     sceneEnvironment?.hasVisibleModels?.()===true ||
-                    obstacleVectors?.hasVisibleModels?.()===true)}) : null;
+                    obstacleVectors?.hasVisibleModels?.()===true),
+                    extraVisualOnly:()=>[...(sceneryManager?.visualOnlyModels()??[]),...(regional3D?.visualOnlyModels()??[])]}) : null;
         infrastructureClearance = typeof FPVInfrastructureClearance !== 'undefined'
             ? FPVInfrastructureClearance.create(Cesium, viewer, () => tunnelVolumes?.model ?? null)
             : null;
@@ -1154,7 +1207,7 @@ function postToFlutter(message) {
         const lastModes={ground:false,flight:false};
         const cameraAdapter={
             isTerrainReady: terrainAvailable,
-            sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal)).heightMeters,
+            sampleHeight: async (point, signal) => (await queryTerrainElevation(point, signal, true)).heightMeters,
             renderedHeight: point=>tunnelVolumes?.floorAt(point)??flightRenderer.renderedHeight(point),
             onSurfaceDiscontinuity: ({position,previousGround,nextGround,height})=>
                 // At artificial segment limits the terrain probe can jump to
@@ -1264,6 +1317,7 @@ function postToFlutter(message) {
                     (deviceMessage?` | ${translate(deviceMessage)}`:'');
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
+            renderedHeight:point=>tunnelVolumes?.floorAt(point)??sceneryManager?.replacementHeight(point,poly=>regional3D?.terrainMaskActive(poly)===true)??flightRenderer.renderedHeight(point),
             measurePhysicsStep:(integrate,dt)=>scenePerformance.measurePhysicsStep(integrate,dt),
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
                 // A surface-height approximation must not fill the interior of
@@ -1271,7 +1325,7 @@ function postToFlutter(message) {
                 // floor and ceiling are still tested by intersects() above.
                 tunnelVolumes?.segmentInside(from,to)===true ? false :
                 infrastructureClearance?.collision(from,to)===true ? 'bridge' :
-                (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || false,
+                (!tunnelVolumes?.flight && modelCollisions?.collision(from,to)) || sceneryManager?.collision(from,to) || false,
             terrainCollision:flightRenderer.terrainCollision,
             applyPose:point=>{
                 applyCamera(point);
@@ -1397,6 +1451,44 @@ function postToFlutter(message) {
             sendToFlutter("globe-error", { message: String(error.message || error) });
         });
         activeBaseLayer = viewer.imageryLayers.get(0);
+        refreshRegionalImagery(currentMapStyle);
+
+        // Local catalog integrates with the normal globe; never moves the camera.
+        if(typeof FPVSceneryManager!=='undefined') sceneryManager = FPVSceneryManager.create(Cesium,viewer,{
+            debugWireframe:new URLSearchParams(window.location.search).get('sceneryCollisionDebug')==='1',
+            sampleSeamGround:sampleSceneTerrain,
+            terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,
+            terrainStable:()=>!regionalTerrainChanging,
+            terrainKey:()=>regionalTerrain&&!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
+            sampleGround:async alignment=>{
+                const positions=[Cesium.Cartographic.fromDegrees(alignment.longitude,alignment.latitude)];
+                const heights=await terrainManager.sample(provider=>provider.availability
+                    ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
+                    :Cesium.sampleTerrain(provider,12,positions,true));
+                return heights[0]?.height;
+            },onStatus:value=>{
+            console.info('[scenery]',value.id,value.state,value.message??'');
+            sendToFlutter('scenery-preview-status',value);
+        }});
+        if(sceneryManager) sceneryCatalogReady=sceneryManager.initialize().catch(error=>console.warn('[scenery-catalog]',error));
+        const preparedMaps=window.FPVMapProviderConfig?.prepared||window.FPVMapProviderConfig?.preparedUnavailable;
+        if(typeof FPVRegional3D!=='undefined'&&regional3DTest) regional3D=FPVRegional3D.create(Cesium,viewer,{
+            enabled:regional3DTest&&!offline&&!preparedMaps&&!window.FPVMapProviderConfig?.terrain&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
+            online:()=>navigator.onLine!==false,
+            navigationBusy:()=>Boolean(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded),
+            buildingsRequested:()=>regionalBuildingsRequested,
+            buildingRegions:()=>sceneryManager?.activeRegions('buildings')??[],
+            flightBuildingRegions:()=>sceneryManager?.activeRegions('buildings',true)??[],
+            terrainRegions:()=>sceneryManager?.activeRegions('terrain')??[],
+            flightTerrainRegions:()=>flyer&&(flyer.status().active||flyer.status().pending)?sceneryManager?.activeRegions('terrain',true)??[]:[],
+            terrainReady:()=>regionalTerrain&&!regionalTerrainChanging&&terrainManager.status().state==='ready',
+            onStatus:value=>console.info('[BKG LoD2 beta]',value),
+            onRegionChange:active=>{
+                regionalTerrain=active;regionalTerrainChanging=true;
+                const revision=++regionalTerrainRevision;
+                void terrainManager.switchProvider().finally(()=>{if(regionalTerrainRevision===revision)regionalTerrainChanging=false;});
+            }
+        });
 
         // Initial camera position: Swiss Alps
         viewer.camera.setView({
@@ -1527,7 +1619,7 @@ function postToFlutter(message) {
                     latitude: latitude,
                     longitude: longitude,
                     altitude: altitude,
-                    heightReference: terrainAvailable() ? "wgs84Ellipsoid" : "unverified"
+                    heightReference: terrainAvailable() && !regionalTerrain ? "wgs84Ellipsoid" : "unverified"
                 });
             },
             Cesium.ScreenSpaceEventType.LEFT_CLICK

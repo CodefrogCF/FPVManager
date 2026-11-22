@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FPVManager · Rüdersdorf Georeferencing Workbench</title>
+<script>window.CESIUM_BASE_URL='../../web/cesium/';</script>
+<script src="../../web/cesium/Cesium.js"></script>
+<script src="../../web/map_providers.js"></script>
+<script src="../../web/scenery_alignment.js"></script>
+<script src="../../web/regional_3d.js"></script>
+<link rel="stylesheet" href="../../web/cesium/Widgets/widgets.css">
+<style>
+:root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#17202b;color:#eef3f6}
+#scene{position:absolute;inset:0 365px 0 0}aside{position:absolute;right:0;top:0;bottom:0;width:365px;background:#131c26;overflow:auto;padding:18px;box-shadow:-4px 0 18px #0005;z-index:4}
+h1{font-size:18px;margin:0 0 7px}h2{font-size:14px;margin:18px 0 9px;color:#b1c6d8}
+p,small{font-size:12px;line-height:1.5;color:#bbcad6}a{color:#a8d0ff}
+label{font-size:12px;color:#cbd6e2;display:block;margin-top:9px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+input,button,select{border-radius:5px;border:1px solid #576a7c;background:#243242;color:#eef3f6;padding:8px;font:inherit;font-size:13px;max-width:100%}
+input[type=number]{width:100%}input[type=range]{padding:0;width:100%;accent-color:#8fb9ff}button{cursor:pointer}button:hover{background:#31485f}button.active{border-color:#9bd7ff;background:#365675}
+.buttons{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.buttons button{flex:1 1 auto}
+#status{position:absolute;top:10px;left:10px;max-width:calc(100vw - 405px);background:#0c1828e8;color:white;border-radius:6px;padding:10px 12px;z-index:5;font:12px system-ui;white-space:pre-line}
+#maphint{position:absolute;bottom:12px;left:12px;background:#0c1828dd;color:#eef3f6;border-radius:5px;padding:8px 10px;font-size:12px;max-width:calc(100vw - 405px);z-index:5}
+#measurement{border:1px solid #566778;background:#23313f;padding:10px;border-radius:6px;font-size:12px;margin-top:8px;white-space:pre-line}
+.note{border-left:3px solid #ca9a52;padding-left:9px}hr{border:0;border-top:1px solid #334858;margin:18px 0}
+@media(max-width:780px){#scene{inset:0 0 50% 0}aside{top:50%;left:0;bottom:0;width:100%;box-shadow:0 -4px 18px #0006}#status,#maphint{max-width:calc(100vw - 24px);font-size:11px}}
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<div id="status" role="status">Cesium startet …</div>
+<div id="maphint">Draufsicht: Modell über dem amtlichen 20-cm-Orthofoto ausrichten. Links klicken: zunächst nur Navigation.</div>
+<aside>
+  <h1>Scenery Alignment · Rüdersdorf</h1>
+  <p>Experimentelle Georeferenzierung des lokalen GLB-Scans auf der FPVManager-Kartengrundlage. Nicht vermessen. Keine Kollision oder Geländeersetzung.</p>
+  <div class="buttons"><button id="top">Draufsicht</button><button id="oblique">Schrägansicht</button><button id="modelToggle" aria-pressed="true">Modell ausblenden</button></div>
+  <label for="style">Amtliche Hintergrundkarte</label>
+  <select id="style"><option value="satellite">DOP20c · Satellit 20 cm</option><option value="topographic">Topografisch</option><option value="relief">Relief-Schummerung</option></select>
+  <div class="grid"><label>Längengrad<input id="longitude" type="number" step="0.000001" min="-180" max="180"></label><label>Breitengrad<input id="latitude" type="number" step="0.000001" min="-90" max="90"></label></div>
+  <label>Höhe des Modellursprungs über WGS84-Ellipsoid (m)<input id="ellipsoidHeightM" type="number" step="0.25" min="-10000" max="20000"></label>
+  <label>Maßstab (GLB-Einheit → Meter)<input id="scale" type="number" min="0.01" max="1000" step="0.05"></label>
+  <input id="scaleSlider" aria-label="Maßstab grob" type="range" min="0.5" max="30" step="0.05">
+  <label>Rotation um lokale Hochachse (°; positiv im Uhrzeigersinn)<input id="rotationDeg" type="number" min="-360" max="360" step="0.25"></label>
+  <input id="rotationSlider" aria-label="Rotation grob" type="range" min="-180" max="180" step="0.25">
+  <label>Modell-Deckkraft<input id="opacity" type="range" min="0.02" max="1" step="0.02"></label>
+  <h2>Position feinjustieren</h2>
+  <div class="buttons"><button data-nudge="0,1">↑ Nord 1 m</button><button data-nudge="-1,0">← West 1 m</button><button data-nudge="1,0">Ost 1 m →</button><button data-nudge="0,-1">↓ Süd 1 m</button></div>
+  <p>Auch mit Pfeiltasten verschieben: 1 m, mit Umschalt 0,1 m, mit Strg 5 m. Klick-Modus: zunächst „Anker setzen“ aktivieren und anschließend auf das Luftbild klicken.</p>
+  <div class="buttons"><button id="anchorMode">Anker setzen: Aus</button><button id="rulerMode">Strecke messen: Aus</button></div>
+  <div id="measurement">Noch keine Strecke gemessen.</div>
+  <div class="buttons"><button id="applyRuler" disabled>Maßstab grob aus Strecke</button><button id="clearRuler">Messung löschen</button></div>
+  <small>Der Maßstab aus der Strecke ist nur eine grobe Schätzung: Die beiden Klickpunkte müssen ungefähr dem 16,8 lokalen Einheiten langen Scan entlang seiner Hauptachse entsprechen.</small>
+  <hr>
+  <h2>Kontrollpunkte (mindestens 3)</h2>
+  <p>Abwechselnd denselben eindeutig erkennbaren Punkt auf dem Scan und auf der Karte anklicken. Punkte über die Anlage verteilen (z. B. Silomittelpunkte, Hallenecken). Die Ansicht bleibt bei jedem Paar unverändert.</p>
+  <div class="buttons"><button id="pairStart">Punktpaar hinzufügen</button><button id="pairUndo">Letztes Paar löschen</button><button id="pairClear">Alle löschen</button><button id="pairFit">Ausrichtung berechnen</button></div>
+  <div id="pairStatus" role="status">0 Punktpaare</div>
+  <div class="buttons"><button id="undoFit">Berechnung rückgängig</button><button id="betaBuildings">LoD2 (Beta-Test) einblenden</button></div>
+  <p>LoD2 nur für den Testbetrieb, keine Offline-Speicherung. Der Editor nutzt die Nullhöhen-Variante des Dienstes. Für den Kartenpunkt bleibt das Modell verborgen; mit LoD2 wird das getroffene Gebäude auf den Boden projiziert.</p>
+  <h2>Geometrie ersetzen (experimentell)</h2>
+  <p>Polygone auf dem Orthofoto zeichnen. Nur Gebäude bzw. Boden innerhalb der tatsächlich rekonstruierten Fläche auswählen. Gelände nur dort ausschneiden, wo der Scan die Fläche lückenlos abdeckt.</p>
+  <div class="buttons"><button id="drawBuildings">Gebäude-Polygon</button><button id="drawTerrain">Gelände-Polygon</button><button id="finishRegion">Polygon abschließen</button><button id="clearRegions">Polygone löschen</button><button id="draftBuildings">Scan-Umriss vorschlagen</button></div>
+  <div id="regionStatus" role="status">Keine Ersatzflächen</div>
+  <label><input id="replaceBuildings" type="checkbox"> LoD2 in Gebäude-Polygonen ersetzen</label>
+  <label><input id="clipTerrain" type="checkbox"> Gelände in Gelände-Polygonen ausschneiden (nur Kartenansicht)</label>
+  <label>Zusätzlicher Höhenversatz im Hauptglobus (m)<input id="heightOffsetM" type="number" min="-20" max="20" step="0.1" value="0"></label>
+  <div class="buttons"><button id="copyEdit">Scenery-Konfiguration kopieren</button><button id="downloadEdit">Scenery-Konfiguration herunterladen</button></div>
+  <small>Diese Konfiguration in FPVManager unter „Reale 3D-Umgebungen → Ausrichtung &amp; Ersatzflächen“ einfügen. Die gespeicherte Ellipsoid-Höhe wird dort weiterhin automatisch an das Regionalgelände angepasst.</small>
+  <hr>
+  <h2>Transformation speichern</h2>
+  <div class="buttons"><button id="copyJson">JSON kopieren</button><button id="downloadJson">JSON herunterladen</button><button id="loadJson">JSON importieren</button><button id="reset">Zurücksetzen</button></div>
+  <input type="file" id="jsonFile" accept="application/json,.json" hidden>
+  <p class="note">Die Ausrichtung wird lokal im Browser zwischengespeichert. Für den Hauptglobus die Scenery-Konfiguration exportieren und im Ausrichtungsdialog importieren. Der Standard ist im Scenery-Katalog hinterlegt; gespeicherte individuelle Einstellungen haben Vorrang. Original-GLB dort ebenfalls lokal ablegen. Lizenz CC BY-NC beachten.</p>
+  <p>Orthofotos: © GeoBasis-DE/LGB / Geoportal Berlin. Modell: Andrea Spognetta (spogna), CC BY-NC. <a href="https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64" target="_blank" rel="noopener">Originalquelle</a>.</p>
+</aside>
+<script src="cesium_georeference_workbench.js"></script>
+</body>
+</html>

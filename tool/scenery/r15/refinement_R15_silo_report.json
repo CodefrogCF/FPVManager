@@ -1,0 +1,44 @@
+{
+  "vertices": 475344,
+  "triangles": 940208,
+  "nodes": 131071,
+  "bounds": [
+    -8.60196304321289,
+    -8.206687927246094,
+    -2.7489359378814697,
+    8.60196304321289,
+    8.206687927246094,
+    2.7489359378814697
+  ],
+  "bytes": 21180912,
+  "removed_triangles": {
+    "mesh15_prim8_R12 r6_floor": 280,
+    "mesh15_prim9_R12 r6_concrete": 1776,
+    "mesh15_prim10_R12 r6_brick": 12,
+    "mesh15_prim11_R12 r6_metal": 480,
+    "mesh15_prim12_R12 r6_roof": 28,
+    "mesh17_prim0_R15 safety steel": 336
+  },
+  "added_triangles": {
+    "concrete": 1656,
+    "floor": 240,
+    "metal": 600,
+    "roof": 48
+  },
+  "visual_triangles": 940210,
+  "sha256_glb": "0cae1ed0405ac32482b582498d03f954cd82d42f20042b276f700ef0734872c3",
+  "sha256_fpc": "d8243472750dba9e382faa5b40a578eb6e6ce811e3ca3e9b8fe7ab666a4261d0",
+  "roof_hole_local": [
+    4.43,
+    4.94,
+    -2.262,
+    -2.142
+  ],
+  "dive_center_local": [
+    4.79,
+    -2.202
+  ],
+  "surveyed": false,
+  "owner_video_frame_year": 2023,
+  "exterior_platform_untouched": true
+}

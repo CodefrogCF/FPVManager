@@ -25,6 +25,7 @@ def prepare(root):
         # Native-only duplicate assets and development/debug artifacts are not
         # requested by the Web app. Keep runtime data and bundled licences.
         if (path=='offline_asset_manifest.json' or path.startswith('assets/web/') or
+                (path.startswith('assets/scenery/') and file.suffix.lower() in {'.glb', '.fpc'}) or
                 file.suffix in {'.map','.cjs','.md'} or file.name.startswith('.')):
             continue
         size=file.stat().st_size

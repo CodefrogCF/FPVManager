@@ -32,6 +32,8 @@ for the full notices in the resolved packages or native build artifacts.
 | CHGeo2004 height-conversion grid | [CC0 notice and provenance](assets/geo/chgeo2004_ln02.NOTICE.txt). |
 | Bundled forest composition overview | BAFU / WSL · Waldmischungsgrad LFI 2023. [Metadata and Opendata BY terms](docs/user/map_sources_and_attribution.md). The bundled raster is a derived 320 m overview. |
 | Native Ganter bridge regression subset | [swisstopo source, modifications and retrieval date](test/fixtures/bridges/README.md). The source geometry is not Apache-licensed by FPVManager. |
+| Optional Rüdersdorf reference scenery | Andrea Spognetta (Spogna), *Abandoned Chemical plant Rüdersdorf – RAWscan*, CC BY-NC; [separate attribution and restrictions](web/assets/scenery/ATTRIBUTION.md). Not Apache-2.0. |
+| Experimental basemap.de 3D | © GeoBasis-DE/BKG 2026; [3D-Beta terms](https://basemap.de/data/produkte/3d/lizenzen/lizenz_basemapde_3D-Beta.pdf). Test-only, runtime streaming, no project offline cache or extracted geometry. |
 | Imagery, terrain, 3D models and aviation layers | [Map sources and attribution](docs/user/map_sources_and_attribution.md). |
 | Weather, observations, mobility and other online data | [Weather](docs/user/weather.md), [mobility and OSINT](docs/user/mobility_osint.md) and the displayed source information. |
 

@@ -190,6 +190,12 @@
             stopStartupRecovery();
             return connect(commandSignal);
         }
+        function switchProvider() {
+            if(disposed)return Promise.resolve(status());
+            stopStartupRecovery();
+            invalidate();
+            return connect();
+        }
         function initialize() {
             stopStartupRecovery();
             const epoch = startupEpoch;
@@ -234,7 +240,7 @@
             stopStartupRecovery();
             invalidate();
         }
-        return { initialize, retry, networkChanged, sample, dispose, status,
+        return { initialize, retry, switchProvider, networkChanged, sample, dispose, status,
             get hasWarning() { return warning; },
             get provider() { return provider; } };
     }

@@ -4,6 +4,7 @@ import '../../core/localization/app_localizations.dart';
 
 import 'globe_controller.dart';
 import 'scene_layers_section.dart';
+import 'scenery_layers_section.dart';
 import '../weather/wind_settings_sheet.dart';
 import '../help/guides_screen.dart';
 
@@ -212,6 +213,7 @@ class MapDisplaySection extends StatelessWidget {
         const SizedBox(height: 16),
 
         SceneLayersSection(controller: controller),
+        SceneryLayersSection(controller: controller),
         WindControlsLauncher(globe: controller),
         ExpansionTile(
           key: const PageStorageKey('map-overlay-order'),

@@ -1,0 +1,8 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto');
+const C=require('../../../web/scenery_collision.js');const report=require('./report.json');
+const raw=fs.readFileSync(__dirname+'/dgm_reference.fpc');const mesh=C.parse(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
+test('DGM1 reference FPC exact hash and expected topology',()=>{assert.equal(crypto.createHash('sha256').update(raw).digest('hex'),report.reference_fpc_sha256);const [nx,ny]=report.reference_grid;assert.equal(mesh.triangleCount,2*(nx-1)*(ny-1));assert.equal(mesh.vertices.length/3,nx*ny);});
+test('121 vertical swept-sphere contacts across the reference land surface',()=>{const [x0,y0,x1,y1]=report.reference_extent_local;for(let i=0;i<=10;i++)for(let j=0;j<=10;j++){const x=x0+.03+(x1-x0-.06)*i/10,y=y0+.03+(y1-y0-.06)*j/10;const hit=C.sweep(mesh,[x,y,0],[x,y,-4],.25/report.alignment.scale);assert.ok(hit);assert.ok(hit.fraction>.4&&hit.fraction<.7);}});
+test('reference is not installed as active scenery; R8 asset and gate unchanged',()=>{const cat=require('../../../web/assets/scenery/catalog.json').sceneries[0];assert.equal(cat.terrainCertificate.collisionSha256,report.source_r8_collision_sha256);assert.equal(cat.clipTerrain,false);assert.equal(cat.assets.length,1);assert.equal(cat.assets[0].path,'local_reference.glb');});
+test('16 existing masks compared, with real residuals and conservative tolerance',()=>{assert.equal(report.seams.length,16);assert.equal(report.seams.reduce((a,b)=>a+b.samples,0),536);for(const row of report.seams)assert.equal(row.within_0_5m,row.max_abs_m<=.5);assert.equal(report.seams.filter(x=>x.within_0_5m).length,7);});

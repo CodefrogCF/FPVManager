@@ -27,6 +27,23 @@ class OfflineManifestTest(unittest.TestCase):
             (root/'main.dart.js').write_text('new application',encoding='utf-8')
             self.assertNotEqual(MODULE.prepare(root)['version'],first['version'])
 
+    def test_optional_scenery_glb_does_not_block_offline_application_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ['index.html','flutter_bootstrap.js','main.dart.js','offline_service_worker.js','offline_maps.js']:
+                (root/name).write_text('test', encoding='utf-8')
+            scenery = root/'assets/scenery'
+            scenery.mkdir(parents=True)
+            (scenery/'catalog.json').write_text('{}', encoding='utf-8')
+            with (scenery/'local_reference.glb').open('wb') as f:
+                f.truncate(44_199_708)
+            with (scenery/'local_reference.fpc').open('wb') as f:
+                f.truncate(28_921_600)
+            paths = [asset['path'] for asset in MODULE.prepare(root)['assets']]
+            self.assertIn('assets/scenery/catalog.json', paths)
+            self.assertNotIn('assets/scenery/local_reference.glb', paths)
+            self.assertNotIn('assets/scenery/local_reference.fpc', paths)
+
     def test_source_or_incomplete_build_is_rejected(self):
         with tempfile.TemporaryDirectory(prefix='fpv-offline-web-') as directory:
             with self.assertRaises(ValueError):

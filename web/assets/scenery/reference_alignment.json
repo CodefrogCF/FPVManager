@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "longitude": 13.789853720999993,
+  "latitude": 52.48411904363446,
+  "ellipsoidHeightM": 32.25,
+  "scale": 16.023268178233355,
+  "rotationDeg": 99.7993823133657,
+  "opacity": 1,
+  "description": "Experimental visual alignment; not surveyed or terrain calibrated",
+  "asset": "local_reference.glb",
+  "source": "Andrea Spognetta (spogna), Abandoned Chemical plant Ruedersdorf – RAWscan",
+  "originalUrl": "https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64",
+  "license": "CC BY-NC 4.0",
+  "heightDatum": "WGS84 ellipsoid",
+  "surveyVerified": false,
+  "physicalCollisionsEnabled": false
+}

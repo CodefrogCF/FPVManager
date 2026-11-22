@@ -1,3 +1,8 @@
+## Unreleased – v0.20.0 preparation
+
+- Added official Berlin/Brandenburg **online raster imagery** to the globe for satellite (DOP20c), topographic (basemap.de 2025) and relief (DGM hillshade) styles while retaining the existing Swiss providers and offline behavior. Geographic WMS rectangles and source credits limit the regional overlays.
+- Added ruedersdorf source/feasibility research, explicit redistribution and terrain limitations, a metadata-only GLB inspector and regression tests. Real GLB/Blender inspection, live Cesium rendering and German 3D terrain remain open.
+
 ## [v0.19.0] - 2026-11-21
 
 ### Advanced Flight Physics & Hardware-Aware Simulation

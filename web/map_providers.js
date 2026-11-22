@@ -105,6 +105,41 @@
         url: "https://3d.geo.admin.ch/ch.swisstopo.terrain.3d/v1/"
     });
 
+    // Official LGB WMS services cover Berlin AND Brandenburg. Rectangles keep
+    // these regional layers from replacing the existing Swiss providers. WMS
+    // is imagery only: DGM hillshade does NOT supply terrain elevations.
+    const regionalCredit = '© GeoBasis-DE/LGB, dl-de/by-2-0; © Geoportal Berlin, dl-de/zero-2-0';
+    const regionalBounds = Object.freeze([11.1528, 51.2635, 14.8390, 53.6099]);
+    const regionalImagery = Object.freeze({
+        satellite: Object.freeze({
+            url: 'https://isk.geobasis-bb.de/mapproxy/dop20c/service/wms?',
+            layers: 'bebb_dop20c',
+            source: Object.freeze({id:'de.bb.be.dop20c', name:'Berlin/Brandenburg DOP20c (20 cm)',
+                publisher:'GeoBasis-DE/LGB / Geoportal Berlin',attribution:regionalCredit,
+                licenseName:'Datenlizenz Deutschland BY 2.0 / Berlin Zero 2.0',
+                licenseUri:'https://www.govdata.de/dl-de/by-2-0',
+                metadataUri:'https://geoportal.brandenburg.de/detailansichtdienst/render?url=https%3A%2F%2Fgeoportal.brandenburg.de%2Fgs-json%2Fxml%3Ffileid%3D7a503f0f-db46-4772-80e3-b27733fd7acd',validity:null})
+        }),
+        topographic: Object.freeze({
+            url: 'https://isk.geobasis-bb.de/mapproxy/basemapde-bebb_2025/service/wms?',
+            layers: 'basemapde_farbe_2025',
+            source: Object.freeze({id:'de.bb.be.basemapde.2025',name:'Berlin/Brandenburg basemap.de 2025',
+                publisher:'GeoBasis-DE/LGB / Geoportal Berlin',attribution:regionalCredit,
+                licenseName:'Datenlizenz Deutschland BY 2.0 / Berlin Zero 2.0',
+                licenseUri:'https://www.govdata.de/dl-de/by-2-0',
+                metadataUri:'https://geoportal.brandenburg.de/detailansichtdienst/render?url=https%3A%2F%2Fgeoportal.brandenburg.de%2Fgs-json%2Fxml%3Ffileid%3De4989df9-4ad1-4e06-b023-63af4727c2bc',validity:null})
+        }),
+        relief: Object.freeze({
+            url: 'https://isk.geobasis-bb.de/mapproxy/dgm/service/wms?',
+            layers: 'dgmshade',
+            source: Object.freeze({id:'de.bb.be.dgmshade',name:'Berlin/Brandenburg DGM1 hillshade',
+                publisher:'GeoBasis-DE/LGB / Geoportal Berlin',attribution:regionalCredit,
+                licenseName:'Datenlizenz Deutschland BY 2.0 / Berlin Zero 2.0',
+                licenseUri:'https://www.govdata.de/dl-de/by-2-0',
+                metadataUri:'https://geoportal.brandenburg.de/detailansichtdienst/render?url=https%3A%2F%2Fgeoportal.brandenburg.de%2Fgs-json%2Fxml%3Ffileid%3D414f568f-639b-4b5a-ba92-57fdac396799',validity:null})
+        })
+    });
+
     function requireSource(value) {
         if (!value || ["id", "name", "publisher", "attribution", "metadataUri"]
             .some(key => typeof value[key] !== "string" || !value[key].trim())) {
@@ -161,6 +196,26 @@
                     tilingScheme: new Cesium.WebMercatorTilingScheme(),
                     credit: credit(Cesium, config.source, official) });
             },
+            // Region layers are remote-only until a separately licensed
+            // Berlin/Brandenburg offline package format exists. A caller's
+            // custom provider configuration remains authoritative.
+            regionalImagery(style, offline = false) {
+                if (!Object.hasOwn(regionalImagery, style)) throw new Error(`Unknown regional map style: ${style}`);
+                if (offline || cached() || prepared || configuration.preparedUnavailable ||
+                    configuration.regionalImagery === false ||
+                    (configuration.imagery != null && configuration.regionalImagery !== true)) return [];
+                const item = regionalImagery[style];
+                if (typeof Cesium.WebMapServiceImageryProvider !== 'function') return [];
+                const rectangle=Cesium.Rectangle.fromDegrees(...regionalBounds);
+                return [new Cesium.WebMapServiceImageryProvider({
+                    url:item.url, layers:item.layers, rectangle,
+                    tilingScheme:new Cesium.WebMercatorTilingScheme(),
+                    parameters:{format:'image/png',transparent:true,version:'1.3.0'},
+                    maximumLevel:19,
+                    credit:credit(Cesium,item.source,true)
+                })];
+            },
+            describeRegionalImagery(style) { return regionalImagery[style]?.source ?? null; },
             terrain() {
                 if(configuration.preparedUnavailable)throw new Error('Offline package metadata unavailable');
                 if(prepared){
@@ -195,5 +250,6 @@
         };
     }
     return { createAdapters, escapeCredit, defaultImagery: imagery, defaultTerrain: terrain,
+        defaultRegionalImagery:regionalImagery, regionalBounds,
         prepareCredits,configureCredits,retainStaticCredit,releaseStaticCredit,weatherCredits };
 });

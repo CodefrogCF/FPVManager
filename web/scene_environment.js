@@ -4204,7 +4204,7 @@
                 collisionEnabled,autoEnabled,autoCount:autoModels.length,quality:model?.quality??null};}};
     }
     return {procedural,importSections,importGeoreferencedMesh,validateSections,validateTriMesh,
-        closest,inside,portalApproachFloor,collision,collisionMesh,rings,geometry,surfaceGeometries,texturedSurfaceGeometries,
+        closest,inside,portalApproachFloor,collision,collisionMesh,sweptSphereHitsTriangle,rings,geometry,surfaceGeometries,texturedSurfaceGeometries,
         TUNNEL_MATERIAL_SOURCE,
         boundedClipSpec,flightClipSpec,flightClipSpecs,clippingVolume,
         slopeClipMaterial,updateSlopeClipMaterial,updateSlopeClipSpecs,SLOPE_CLIP_MATERIAL_SOURCE,portalClipShaderSource,apertureUniforms,
@@ -4513,7 +4513,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
     const MIN_INTERVAL_MS=350,MAX_INTERVAL_MS=2500,MAX_CACHE_AGE_MS=500;
-    function create(C,viewer,{hasVisibleModels=()=>false,now=()=>performance.now(),
+    function create(C,viewer,{hasVisibleModels=()=>false,extraVisualOnly=()=>[],now=()=>performance.now(),
         setTimer=setTimeout,clearTimer=clearTimeout}={}){
         const scene=viewer.scene;
         let enabled=false,disposed=false,nextSampleAt=-Infinity,lastSampleMs=0,samples=0;
@@ -4531,7 +4531,7 @@
             // treating their apparent height as a physical model surface.
             // DataSourceCollection exposes get(index)/length, not .values;
             // EntityCollection exposes .values.
-            const results=[],collection=viewer.dataSources;
+            const results=[...extraVisualOnly()],collection=viewer.dataSources;
             if(!collection)return results;
             const count=Number.isInteger(collection.length)?collection.length:0;
             for(let i=0;i<count;i++){

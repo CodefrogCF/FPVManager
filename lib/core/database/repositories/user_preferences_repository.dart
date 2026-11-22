@@ -28,6 +28,98 @@ final class DriftUserPreferencesRepository
   const DriftUserPreferencesRepository(this._database);
   final FpvDatabase _database;
   FpvDatabase get database => _database;
+  static const _sceneryKey = 'map.scenery.enabled.v1';
+
+  Future<Map<String, bool>> getSceneryPreferences() async {
+    final row = await (_database.select(
+      _database.appSettings,
+    )..where((table) => table.key.equals(_sceneryKey))).getSingleOrNull();
+    if (row == null) return {};
+    final decoded = jsonDecode(row.value);
+    if (decoded is! Map<String, dynamic> ||
+        decoded.length > 64 ||
+        decoded.entries.any(
+          (entry) =>
+              !RegExp(r'^[a-z0-9_-]{1,80}$').hasMatch(entry.key) ||
+              entry.value is! bool,
+        )) {
+      throw const FormatException('Invalid scenery preferences');
+    }
+    return decoded.map((key, value) => MapEntry(key, value as bool));
+  }
+
+  Future<void> saveSceneryPreference(String id, bool enabled) async {
+    if (!RegExp(r'^[a-z0-9_-]{1,80}$').hasMatch(id)) {
+      throw ArgumentError.value(id, 'id');
+    }
+    await _database.transaction(() async {
+      final values = await getSceneryPreferences();
+      values[id] = enabled;
+      if (values.length > 64) throw StateError('Too many scenery preferences');
+      await _database
+          .into(_database.appSettings)
+          .insertOnConflictUpdate(
+            AppSettingsCompanion.insert(
+              key: _sceneryKey,
+              value: jsonEncode(values),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+    });
+  }
+
+  static const _sceneryEditsKey = 'map.scenery.edits.v1';
+
+  Future<Map<String, dynamic>> getSceneryEdits() async {
+    final row = await (_database.select(
+      _database.appSettings,
+    )..where((table) => table.key.equals(_sceneryEditsKey))).getSingleOrNull();
+    if (row == null) return {};
+    if (row.value.length > 1024 * 1024) {
+      throw const FormatException('Scenery edits too large');
+    }
+    final decoded = jsonDecode(row.value);
+    if (decoded is! Map<String, dynamic> ||
+        decoded.length > 64 ||
+        decoded.entries.any(
+          (entry) =>
+              !RegExp(r'^[a-z0-9_-]{1,80}$').hasMatch(entry.key) ||
+              entry.value is! Map<String, dynamic>,
+        )) {
+      throw const FormatException('Invalid scenery edits');
+    }
+    return decoded;
+  }
+
+  // Only canonical edits accepted by the renderer are stored. Its manifest
+  // validator rechecks all coordinates and regions on restore.
+  Future<void> saveSceneryEdit(String id, Map<String, dynamic>? edit) async {
+    if (!RegExp(r'^[a-z0-9_-]{1,80}$').hasMatch(id)) {
+      throw ArgumentError.value(id, 'id');
+    }
+    await _database.transaction(() async {
+      final values = await getSceneryEdits();
+      if (edit == null) {
+        values.remove(id);
+      } else {
+        values[id] = edit;
+      }
+      final encoded = jsonEncode(values);
+      if (values.length > 64 || encoded.length > 1024 * 1024) {
+        throw StateError('Too many scenery edits');
+      }
+      await _database
+          .into(_database.appSettings)
+          .insertOnConflictUpdate(
+            AppSettingsCompanion.insert(
+              key: _sceneryEditsKey,
+              value: encoded,
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+    });
+  }
+
   static const _style = 'map.style';
   static const _visible = 'map.uas.visible';
   static const _opacity = 'map.uas.fillOpacity';

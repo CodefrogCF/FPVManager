@@ -54,6 +54,7 @@ areas, including private locations. The main request boundaries are:
 
 | Provider / destination | Trigger and transmitted information |
 |---|---|
+| `isk.geobasis-bb.de` | Online satellite, topographic and relief WMS imagery for Berlin/Brandenburg; viewport tile bounds and map style. No automatic offline capture or region-wide download; credits include LGB and Geoportal Berlin. |
 | `wmts.geo.admin.ch`, `wms.geo.admin.ch` | Online imagery/overlay startup, restored enabled layers, map movement or retry; requested layers, tile coordinates or map envelope. |
 | `3d.geo.admin.ch` | Terrain startup/sampling and enabled buildings, vegetation or structures; visible/sampled terrain and model tile identifiers. Lighting time is calculated locally. |
 | `api3.geo.admin.ch` | Submitted place/address searches; enabled place/street labels; bounded bridge/outdoor/BAKOM/EV queries; opened legends. Requests carry the corresponding text or selected area, not personal record bodies. |
