@@ -76,7 +76,7 @@ orientation of each instance come from the source tiles.
 Tree groups use the [BAFU / WSL Waldmischungsgrad LFI 2023](https://www.geocat.ch/geonetwork/srv/api/records/b07a4589-159b-4c3a-b1e7-dbdad11f7e62)
 to bias the model choice toward broadleaf or conifer. The app bundles a derived
 320 m overview of the 10 m probability raster, prepared by
-[`tool/build_forest_composition.py`](../tool/build_forest_composition.py). The
+[`tool/build_forest_composition.py`](../../tool/build_forest_composition.py). The
 overview describes regional composition. Each group shares a model, and areas
 without data use a deterministic visual mix. The [Opendata BY terms](https://opendata.swiss/en/terms-of-use/#terms_by)
 require attribution. The overview is read locally. Source vegetation tiles still
@@ -140,7 +140,7 @@ Cesium's native handling; `usesIon:true` preserves the default logo at startup.
 See [Cesium's usage guide](https://cesium.com/learn/ion/content-usage-and-attribution-guide/)
 and [official clarification for direct provider use](https://community.cesium.com/t/i-am-not-sure-if-i-am-using-cesium-ion/38283).
 Open-source package notices are available from Einstellungen → Datenquellen →
-Open-Source-Lizenzen. See [renderer assets](cesium_assets.md) for bundle updates.
+Open-Source-Lizenzen. See [renderer assets](../developer/cesium_assets.md) for bundle updates.
 
 Source references: [layer configuration](https://api3.geo.admin.ch/rest/services/api/MapServer/layersConfig?lang=en),
 [WMTS capabilities](https://wmts.geo.admin.ch/EPSG/3857/1.0.0/WMTSCapabilities.xml?lang=en),

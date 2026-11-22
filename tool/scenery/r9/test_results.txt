@@ -1,3 +1,0 @@
-node --test tool/scenery/r9/test_reference.cjs tool/scenery/test_ruedersdorf_r8.cjs
-26 tests, 26 pass, 0 fail, 0 skipped.
-Separate Python verification: exact vertex equality and unique triangle parity GLB/FPC.

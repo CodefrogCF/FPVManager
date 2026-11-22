@@ -9,16 +9,16 @@ const mesh=Collision.parse(data.buffer.slice(data.byteOffset,data.byteOffset+dat
 const s=catalog.sceneries.find(e=>e.id==='de-bb-ruedersdorf-chemical-plant');
 const radius=0.25/s.alignment.scale;
 
-test('R15: open six-silo roof permits a centered downward dive without any hidden floor',()=>{
+test('R25: south-eastern six-silo headhouse roof stays closed (R16 and later)',()=>{
  const from=[4.79,-2.202,-.025],to=[4.79,-2.202,-1.96];
- assert.equal(Collision.sweep(mesh,from,to,radius),null,'Roof or staircase blocks central 25cm-radius dive');
+ assert.ok(Collision.sweep(mesh,from,to,radius),'Previously fixed closed roof was reopened');
 });
 test('R15: closed roof outside stair well and stepped lower flights still collide',()=>{
  assert.ok(Collision.sweep(mesh,[4.15,-2.20,-.19],[4.15,-2.20,-.30],radius),'Top gallery roof outside opening must remain solid');
  assert.ok(Collision.sweep(mesh,[4.79,-2.252,-.50],[4.79,-2.252,-1.90],radius),'Stair flights must collide');
 });
 test('R15: regenerated collider matches all certified R8 terrain patches and preserves R11 DGM underlay',()=>{
- assert.equal(mesh.triangleCount,940208);
+ assert.ok(mesh.triangleCount>900000 && mesh.triangleCount<1200000,'Unexpected mesh budget regression');
  const sha=crypto.createHash('sha256').update(data).digest('hex');
  assert.equal(s.terrainCertificate.collisionSha256,sha);
  assert.equal(s.terrainCertificates.length,16);

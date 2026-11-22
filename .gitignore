@@ -68,12 +68,3 @@ app.*.map.json
 
 # Explicitly generated local-only developer performance reports and captured logs.
 /.local-performance/
-
-# Optional locally acquired CC BY-NC reference scenery assets
-/tool/scenery/local_reference.glb
-
-# Optional CC BY-NC GLB; keep out of the Apache-licensed source repository by default.
-/web/assets/scenery/local_reference.glb
-
-# Locally generated CC BY-NC collider
-/web/assets/scenery/*.fpc
