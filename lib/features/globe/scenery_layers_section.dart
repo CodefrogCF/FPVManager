@@ -32,13 +32,14 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
       final items = (response['sceneries'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .toList();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _items = items;
           if (response.containsKey('replacement')) {
             _replacement = response['replacement'] as Map<String, dynamic>?;
           }
         });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -68,8 +69,9 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, update) {
           Map<String, dynamic> parse() {
-            if (text.text.length > 128 * 1024)
+            if (text.text.length > 128 * 1024) {
               throw const FormatException('JSON too large');
+            }
             final decoded = jsonDecode(text.text);
             if (decoded is! Map<String, dynamic> ||
                 decoded['alignment'] is! Map<String, dynamic>) {
@@ -107,8 +109,9 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                 math.pow(w, 3) *
                 math.pi /
                 180;
-            if (eastM.abs() < 100)
+            if (eastM.abs() < 100) {
               throw const FormatException('Too close to pole');
+            }
             alignment['longitude'] =
                 (alignment['longitude'] as num) + east / eastM;
             alignment['latitude'] = latitude + north / northM;
@@ -440,8 +443,9 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                             altitude: 450,
                           );
                         } catch (error) {
-                          if (mounted)
+                          if (mounted) {
                             setState(() => _error = error.toString());
+                          }
                         }
                       }
                     : null,
