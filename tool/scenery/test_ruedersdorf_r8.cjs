@@ -5,6 +5,7 @@ const raw=fs.readFileSync(path.resolve(__dirname,'../../web/assets/scenery/local
 const mesh=C.parse(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
 const catalog=require('../../web/assets/scenery/catalog.json'),item=M.validate(catalog)[0],certs=item.terrainCertificates,radius=.25/item.alignment.scale;
 const wait=()=>new Promise(r=>setTimeout(r,10));
+const autoCatalog=structuredClone(catalog);autoCatalog.sceneries[0].heightAlignmentMode='terrain';delete autoCatalog.sceneries[0].heightCalibration;
 const expectedHeight=60,frame=C.transform(M.terrainAligned(item,expectedHeight));
 function sampleFor(c,p){const l=frame.local({...p,height:expectedHeight});const z=M.groundLocal(mesh,c,l);return Number.isFinite(z)?expectedHeight+(z-l[2])*frame.scale:NaN;}
 function dummy(){
@@ -13,8 +14,8 @@ function dummy(){
  const viewer={scene:{primitives:{add(){},remove(){}},preUpdate:{addEventListener:()=>()=>{}},requestRender(){}}};return {Cesium,viewer};
 }
 async function until(m,predicate){for(let i=0;i<200;i++){m.tick(true);if(predicate(m.snapshot()[0]))return;await wait();}assert.fail('Timed out waiting for scenery state');}
-test('R8 sixteen separate certificates share the exact asset hash, final alignment, opt-in default',async()=>{
- assert.equal(certs.length,16);assert.equal(await M.verifyTerrainAsset(mesh,certs[0]),true);assert.ok(mesh.triangleCount>900000);assert.equal(item.clipTerrain,false);assert.equal(item.alignment.scale,16.023268178233355);assert.equal(item.alignment.rotationDeg,99.7993823133657);assert.deepEqual(item.terrainRegions.slice(0,16),certs.map(c=>c.polygon));assert.deepEqual(item.terrainRegions[16],M.normalizeTerrainCertificate(item.terrainUnderlay.certificate,item.alignment).polygon);
+test('R8 certified terrain regions share the exact asset hash, final alignment, opt-in default',async()=>{
+ assert.equal(certs.length,15);assert.equal(await M.verifyTerrainAsset(mesh,certs[0]),true);assert.ok(mesh.triangleCount>900000);assert.equal(item.clipTerrain,false);assert.equal(item.alignment.scale,16.023268178233355);assert.equal(item.alignment.rotationDeg,99.7993823133657);assert.deepEqual(item.terrainRegions.slice(0,item.terrainCertificates.length),certs.map(c=>c.polygon));assert.deepEqual(item.terrainRegions[item.terrainCertificates.length],M.normalizeTerrainCertificate(item.terrainUnderlay.certificate,item.alignment).polygon);
  const bad=structuredClone(catalog);bad.sceneries[0].terrainCertificates[1].collisionSha256='0'.repeat(64);assert.throws(()=>M.validate(bad));
  const bad2=structuredClone(catalog);bad2.sceneries[0].terrainCertificates[1].seamToleranceM=10;assert.throws(()=>M.validate(bad2));
 });
@@ -34,7 +35,7 @@ test('R8 actual-mesh seam evaluation: matching synthetic samples pass, 1m offset
 });
 test('R8 live seam gate admits compatible patches only, rejects moved alignment, provider change, late response and unload',async()=>{
  const {Cesium,viewer}=dummy();let key={},delta=0,pending=false,resolve=null;const c=certs[0];
- const m=M.create(Cesium,viewer,{fetchCatalog:async()=>catalog,position:()=>({...item.alignment,height:100}),modelFactory:async()=>({ready:true}),collisionFactory:async()=>mesh,terrainKey:()=>key,sampleGround:async()=>expectedHeight,
+ const m=M.create(Cesium,viewer,{fetchCatalog:async()=>autoCatalog,position:()=>({...item.alignment,height:100}),modelFactory:async()=>({ready:true}),collisionFactory:async()=>mesh,terrainKey:()=>key,sampleGround:async()=>expectedHeight,
  sampleSeamGround:points=>{const values=points.map(p=>sampleFor(c,p)+delta);if(!pending)return Promise.resolve(values);return new Promise(r=>{resolve=()=>r(values);});}});
  try{await m.initialize();await until(m,s=>s.collisionReady);const edit={alignment:item.alignment,heightOffsetM:0,terrainRegions:[c.polygon],buildingRegions:item.buildingRegions,clipTerrain:true,replaceBuildings:true};
   m.setEdit(item.id,edit);assert.equal(m.activeRegions('terrain').length,0);await until(m,s=>s.terrainSeamState==='checked');assert.equal(m.snapshot()[0].terrainReplacementApproved,1);assert.deepEqual(m.activeRegions('terrain',true),[c.polygon]);assert.deepEqual(m.activeRegions('terrain'),[c.polygon]);
@@ -44,7 +45,7 @@ test('R8 live seam gate admits compatible patches only, rejects moved alignment,
  }finally{m.dispose();}
 });
 test('R8 seam data unavailable: no terrain mask in map or flight',async()=>{
- const {Cesium,viewer}=dummy();const key={};const m=M.create(Cesium,viewer,{fetchCatalog:async()=>catalog,position:()=>({...item.alignment,height:100}),modelFactory:async()=>({ready:true}),collisionFactory:async()=>mesh,terrainKey:()=>key,sampleGround:async()=>expectedHeight,sampleSeamGround:async()=>{throw Error('network');}});
+ const {Cesium,viewer}=dummy();const key={};const m=M.create(Cesium,viewer,{fetchCatalog:async()=>autoCatalog,position:()=>({...item.alignment,height:100}),modelFactory:async()=>({ready:true}),collisionFactory:async()=>mesh,terrainKey:()=>key,sampleGround:async()=>expectedHeight,sampleSeamGround:async()=>{throw Error('network');}});
  try{await m.initialize();await until(m,s=>s.collisionReady);m.setEdit(item.id,{...item,clipTerrain:true});await until(m,s=>s.terrainSeamState==='unavailable');assert.equal(m.activeRegions('terrain').length,0);assert.equal(m.activeRegions('terrain',true).length,0);}finally{m.dispose();}
 });
 test('R8 failed clipping collection replacement removes the old hole, foreign clipping preserved',()=>{

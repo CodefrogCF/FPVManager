@@ -30,6 +30,18 @@
             });
             const loadRadiusM=item.loadRadiusM??2500,unloadRadiusM=item.unloadRadiusM??4000;
             if(!Number.isFinite(loadRadiusM)||!Number.isFinite(unloadRadiusM)||loadRadiusM<100||unloadRadiusM<=loadRadiusM||unloadRadiusM>30000)throw Error('Invalid scenery activation radii');
+            const heightAlignmentMode=item.heightAlignmentMode??'terrain';
+            if(heightAlignmentMode!=='terrain'&&heightAlignmentMode!=='fixed')
+                throw Error('Unsupported scenery height alignment mode');
+            if(item.heightCalibration!==undefined){
+                const c=item.heightCalibration;
+                if(!c||typeof c!=='object'||Array.isArray(c)||
+                    c.method!=='manual-workbench'||typeof c.reference!=='string'||
+                    c.reference.length>256||c.surveyVerified!==false||
+                    !/^[A-Za-z0-9_-]{1,32}$/.test(c.revision??''))
+                    throw Error('Invalid scenery height calibration metadata');
+                if(heightAlignmentMode!=='fixed')throw Error('Manual calibration requires fixed alignment');
+            }
             const groundReferenceLocalUp=item.groundReferenceLocalUp;
             if(groundReferenceLocalUp!==undefined&&(!Number.isFinite(groundReferenceLocalUp)||Math.abs(groundReferenceLocalUp)>10000))throw Error('Invalid scenery ground reference');
             const buildingRegions=item.buildingRegions??(item.draftBuildingFootprintLocal?[A.projectFootprint(item.draftBuildingFootprintLocal,alignment)]:[]);
@@ -47,7 +59,7 @@
                 throw Error('Mismatched DGM underlay coverage or asset');
             if(terrainCertificates.some(c=>!c||!terrainCertificate||c.collisionSha256!==terrainCertificate.collisionSha256)||
                 (terrainCertificate&&JSON.stringify(terrainCertificates[0])!==JSON.stringify(terrainCertificate))||new Set(terrainCertificates.map(c=>JSON.stringify(c.polygon))).size!==terrainCertificates.length)throw Error('Mismatched terrain certificate list');
-            return {...item,...A.normalizeEdit({...item,alignment,buildingRegions},alignment),terrainCertificate,terrainCertificates,terrainUnderlay,assets,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
+            return {...item,...A.normalizeEdit({...item,alignment,buildingRegions},alignment),heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,assets,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
         });
     }
     // Certified ground patch is an offline geometry coverage proof, not an altitude survey.
@@ -120,6 +132,53 @@
         const h=Math.sin(dlat/2)**2+Math.cos(a.latitude*rad)*Math.cos(b.latitude*rad)*Math.sin(dlon/2)**2;
         return 6371008.8*2*Math.asin(Math.sqrt(Math.min(1,h)));
     }
+    // Use the terrain triangles actually rendered by Cesium for BKG beta
+    // calibration. Cesium sampleTerrain() may report a different level of
+    // detail or an unverified vertical datum; never silently mix the two.
+    // Picking is restricted to the Globe (not the local scenery or LoD2).
+    function pickRenderedGroundHeights(C,viewer,positions){
+        if(!Array.isArray(positions))throw Error('Invalid scenery ground positions');
+        const result=[];
+        const globe=viewer?.scene?.globe;
+        for(const point of positions){
+            let height=NaN;
+            if(globe?.pick&&C?.Cartesian3?.fromRadians&&C?.Cartesian3?.negate&&
+                C?.Ellipsoid?.WGS84?.geodeticSurfaceNormal&&C?.Ray&&C?.Cartographic?.fromCartesian&&
+                Number.isFinite(point?.longitude)&&Number.isFinite(point?.latitude)){
+                try{
+                    const origin=C.Cartesian3.fromRadians(point.longitude,point.latitude,10000,C.Ellipsoid.WGS84);
+                    const normal=C.Ellipsoid.WGS84.geodeticSurfaceNormal(origin,new C.Cartesian3());
+                    const direction=C.Cartesian3.negate(normal,new C.Cartesian3());
+                    const hit=globe.pick(new C.Ray(origin,direction),viewer.scene);
+                    if(hit){
+                        const cart=C.Cartographic.fromCartesian(hit,C.Ellipsoid.WGS84);
+                        if(Number.isFinite(cart?.height))height=cart.height;
+                    }
+                }catch(_){/* Missing resident terrain is not an elevation. */}
+            }
+            result.push(height);
+        }
+        return result;
+    }
+    // Estimate the active-renderer ground height at the catalog reference from
+    // multiple scan-surveyed ground points. Ignore invalid tiles and outliers;
+    // a single anomalous terrain sample must never lift the entire plant.
+    // Input ground controls are local model coordinates (unscaled, Z up).
+    function fitGroundReference(controls,heights,referenceLocalUp,scale){
+        if(!Array.isArray(controls)||!Array.isArray(heights)||controls.length!==heights.length||
+            !Number.isFinite(referenceLocalUp)||!Number.isFinite(scale)||scale<=0)throw Error('Invalid scenery ground controls');
+        const values=[];
+        for(let i=0;i<controls.length;i++){
+            const z=controls[i]?.[2],h=heights[i];
+            if(Number.isFinite(z)&&Number.isFinite(h))values.push(h+(referenceLocalUp-z)*scale);
+        }
+        if(values.length<3)throw Error('Insufficient reliable scenery terrain samples');
+        values.sort((a,b)=>a-b);
+        const median=a=>a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2;
+        const pivot=median(values),inliers=values.filter(v=>Math.abs(v-pivot)<=6);
+        if(inliers.length<3)throw Error('Inconsistent scenery terrain samples');
+        return median(inliers);
+    }
     // A reference point on the model ground near its horizontal anchor, in
     // unscaled local up units, not the lowest vertex or bounding-sphere bottom.
     function terrainAligned(item,height){
@@ -147,6 +206,21 @@
         function remove(e){releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
         function escape(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
         function updateHeight(e){
+            if(e.item.heightAlignmentMode==='fixed'){
+                // Manual workbench alignment is an explicit vertical placement.
+                // Do not silently override it after a provider switch / delayed
+                // sample, and do not apply an unverified BKG geoid subtraction.
+                if(e.heightState!=='fixed'){
+                    e.heightRevision=(e.heightRevision??0)+1;
+                    e.heightState='fixed';e.heightKey=null;
+                    e.heightPending=false;e.heightRetryAt=0;e.groundHeightM=null;
+                    e.effectiveAlignment=original(e);
+                    for(const model of e.models)A.apply(C,model,e.effectiveAlignment);
+                    if(e.groundModel)A.apply(C,e.groundModel,e.effectiveAlignment);
+                    viewer.scene.requestRender?.();
+                }
+                return;
+            }
             if(!Number.isFinite(e.item.groundReferenceLocalUp))return;
             const key=terrainKey()??null;
             if(e.heightKey!==key){
@@ -160,7 +234,7 @@
             const rev=e.revision,hrev=e.heightRevision;
             const current=()=>!disposed&&e.revision===rev&&e.heightRevision===hrev&&terrainKey()===key;
             e.heightPending=true;e.heightState='pending';
-            Promise.resolve().then(()=>sampleGround(e.item.alignment)).then(height=>{
+            Promise.resolve().then(()=>sampleGround(e.item.alignment,e.item)).then(height=>{
                 if(!current())return;
                 const cfg=terrainAligned(e.item,height);
                 for(const model of e.models)A.apply(C,model,cfg);if(e.groundModel)A.apply(C,e.groundModel,cfg);
@@ -169,7 +243,7 @@
             }).catch(()=>{if(current()){e.heightState='unavailable';e.heightRetryAt=now()+10000;}})
               .finally(()=>{if(current())e.heightPending=false;});
         }
-        function heightReady(e){return terrainKey()==null||!Number.isFinite(e.item.groundReferenceLocalUp)||(e.heightState==='adjusted'&&e.heightKey===terrainKey());}
+        function heightReady(e){return e.item.heightAlignmentMode==='fixed'||terrainKey()==null||!Number.isFinite(e.item.groundReferenceLocalUp)||(e.heightState==='adjusted'&&e.heightKey===terrainKey());}
         function collisionReady(e){return !!(e.ready&&e.enabled&&e.collider&&e.item.physicalCollisionsEnabled&&e.item.alignment.opacity>=.99&&terrainStable()&&heightReady(e));}
         function loadCollider(e,rev){
             if(!e.item.physicalCollisionsEnabled)return;
@@ -275,19 +349,32 @@
             const moved=next.alignment.longitude!==e.item.alignment.longitude||next.alignment.latitude!==e.item.alignment.latitude;
             clearSeams(e);e.item={...e.item,...next};
             if(moved){e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState='original';e.heightRetryAt=0;e.groundHeightM=null;}
-            e.effectiveAlignment=e.heightState==='adjusted'&&e.heightKey===terrainKey()&&Number.isFinite(e.groundHeightM)?terrainAligned(e.item,e.groundHeightM):original(e);
+            e.effectiveAlignment=e.item.heightAlignmentMode==='fixed'
+                ?original(e)
+                :e.heightState==='adjusted'&&e.heightKey===terrainKey()&&Number.isFinite(e.groundHeightM)?terrainAligned(e.item,e.groundHeightM):original(e);
             for(const model of e.models)A.apply(C,model,e.effectiveAlignment);if(e.groundModel)A.apply(C,e.groundModel,e.effectiveAlignment);
             tick(true);viewer.scene.requestRender?.();return snapshot();
         }
         function restoreEdits(values){
             if(!values||typeof values!=='object'||Array.isArray(values))throw Error('Invalid scenery edits');
             for(const e of entries.values())if(Object.hasOwn(values,e.item.id)){
-                try{setEdit(e.item.id,values[e.item.id]);}catch(error){console.warn('[scenery edit]',e.item.id,error);}
+                try{
+                    let value=values[e.item.id];
+                    // Upgrade only an unmodified legacy Rüdersdorf base anchor.
+                    // Keep intentionally edited coordinates, scale and offsets.
+                    const a=value?.alignment,b=e.base.alignment;
+                    if(e.base.id==='de-bb-ruedersdorf-chemical-plant'&&
+                        e.base.heightCalibration?.revision==='R31'&&a&&
+                        (a.ellipsoidHeightM===32.25||a.ellipsoidHeightM===33)&&
+                        ['longitude','latitude','scale','rotationDeg'].every(k=>a[k]===b[k]))
+                        value={...value,alignment:{...a,ellipsoidHeightM:b.ellipsoidHeightM}};
+                    setEdit(e.item.id,value);
+                }catch(error){console.warn('[scenery edit]',e.item.id,error);}
             }
         }
         function candidatePatches(e){
             // The certificate belongs to the exact unedited placement and FPC.
-            if(!e.base.terrainCertificate||!e.terrainAssetVerified||!collisionReady(e)||!e.item.clipTerrain||terrainKey()==null||e.heightState!=='adjusted'||
+            if(!e.base.terrainCertificate||!e.terrainAssetVerified||!collisionReady(e)||!e.item.clipTerrain||terrainKey()==null||!['adjusted','fixed'].includes(e.heightState)||
                 e.item.heightOffsetM!==0||JSON.stringify(e.item.alignment)!==JSON.stringify(e.base.alignment))return [];
             const requested=new Set(e.item.terrainRegions.map(p=>JSON.stringify(p)));
             const standard=e.base.terrainCertificates.filter(c=>requested.has(JSON.stringify(c.polygon)));
@@ -370,10 +457,10 @@
             }
             return first;
         }
-        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightOffsetM:e.item.heightOffsetM,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?.triangleCount??null,collisionBytes:e.collider?.byteLength??null,lastHit:e.lastHit??null}));}
+        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?.triangleCount??null,collisionBytes:e.collider?.byteLength??null,lastHit:e.lastHit??null}));}
         const off=viewer.scene.preUpdate.addEventListener(()=>tick());
         function dispose(){if(disposed)return;disposed=true;catalogRevision++;off?.();for(const e of entries.values())remove(e);entries.clear();}
         return {initialize,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.groundModel?.show?[e.groundModel]:[])])};
     }
-    return {validate,distanceM,terrainAligned,create,catalogUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
+    return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,create,catalogUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

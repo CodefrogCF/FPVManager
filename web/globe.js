@@ -1459,17 +1459,51 @@ function postToFlutter(message) {
             sampleSeamGround:sampleSceneTerrain,
             terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,
             terrainStable:()=>!regionalTerrainChanging,
-            // Align local scenery to whichever real terrain provider is active.
-            // Before this, ordinary release builds (without the opt-in BKG beta)
-            // skipped the height adjustment and buried the plant under terrain.
-            // The provider object is the cache key; a change invalidates old samples.
+            // The R31 manually aligned Rüdersdorf scene uses the catalog's fixed
+            // height in both standard Cesium and BKG beta mode. Other scenery may
+            // still opt into the provider-driven ground fitting below. The terrain
+            // provider object invalidates stale samples on provider changes.
             terrainKey:()=>!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
-            sampleGround:async alignment=>{
-                const positions=[Cesium.Cartographic.fromDegrees(alignment.longitude,alignment.latitude)];
-                const heights=await terrainManager.sample(provider=>provider.availability
-                    ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
-                    :Cesium.sampleTerrain(provider,12,positions,true));
-                return heights[0]?.height;
+            sampleGround:async (alignment,item)=>{
+                // Calibration points sampled from the original ground scan,
+                // rather than an arbitrary single courtyard cell (which may
+                // be a roof, steep edge or a missing BKG terrain patch).
+                // XYZ: model-local coordinates, before georeferenced scale.
+                const scanGround=[
+                    [-3.8,0,-2.0069],[-2,0.2,-2.0362],[-4.6,0.5,-1.9719],
+                    [-3,-3.5,-2.0566],[0,-3.5,-2.0853],[1.2,1.1,-2.038],
+                    [2.1,2.1,-2.0392],[-5.4,-3.2,-2.0677]
+                ];
+                const angle=-alignment.rotationDeg*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
+                const positions=scanGround.map(([x,y])=>{
+                    const coord=FPVSceneryAlignment.offset(alignment,
+                        alignment.scale*(cos*x-sin*y),alignment.scale*(sin*x+cos*y));
+                    return Cesium.Cartographic.fromDegrees(coord.longitude,coord.latitude);
+                });
+                // Prefer actual rendered Globe triangles, never BKG's raw
+                // height samples when its vertical datum remains unverified.
+                // A tile not yet resident is NOT evidence of zero elevation.
+                const displayed=FPVSceneryManager.pickRenderedGroundHeights(Cesium,viewer,positions);
+                let heights;
+                if(regionalTerrain){
+                    if(displayed.filter(Number.isFinite).length<5)
+                        throw Error('BKG ground calibration pending: fewer than five rendered terrain intersections');
+                    // No extra geoid / vertical-datum conversion: R30's hardcoded
+                    // -38.87 m displacement was not justified and buried the scan.
+                    // A different scene explicitly opting into auto fitting can
+                    // use these rendered heights without an arbitrary correction.
+                    heights=displayed;
+                }else{
+                    const sampled=await terrainManager.sample(provider=>provider.availability
+                        ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
+                        :Cesium.sampleTerrain(provider,12,positions,true));
+                    // For normal providers, require broad on-screen coverage
+                    // before preferring rendered tiles over detailed samples.
+                    heights=displayed.filter(Number.isFinite).length>=6
+                        ?displayed:sampled.map(p=>p?.height);
+                }
+                return FPVSceneryManager.fitGroundReference(scanGround,heights,
+                    item.groundReferenceLocalUp,alignment.scale);
             },onStatus:value=>{
             console.info('[scenery]',value.id,value.state,value.message??'');
             sendToFlutter('scenery-preview-status',value);

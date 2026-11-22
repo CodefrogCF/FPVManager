@@ -131,8 +131,12 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   children: [
                     Text(
                       german
-                          ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
-                          : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
+                          ? item['heightAlignmentMode'] == 'fixed'
+                              ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
+                              : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
+                          : item['heightAlignmentMode'] == 'fixed'
+                              ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
+                              : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
                     ),
                     Wrap(
                       spacing: 4,
@@ -344,6 +348,13 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
               german
                   ? 'Letzter Kontakt: Dreieck ${(item['lastHit'] as Map)['triangle']}'
                   : 'Last contact: triangle ${(item['lastHit'] as Map)['triangle']}',
+            ),
+          if (item['heightAlignmentMode'] == 'fixed' &&
+              item['effectiveAlignment'] is Map)
+            Text(
+              german
+                  ? 'Höhenbezug: manuell kalibriert (Workbench; nicht vermessen) · Basisanker: ${(item['baseAnchorHeightM'] as num).toStringAsFixed(2)} m · Versatz: ${((item['appliedHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m · wirksamer Anker: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(2)} m'
+                  : 'Height: manual workbench calibration (not surveyed) · Base anchor: ${(item['baseAnchorHeightM'] as num).toStringAsFixed(2)} m · Offset: ${((item['appliedHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m · Effective anchor: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(2)} m',
             ),
           if (item['groundHeightM'] is num && item['effectiveAlignment'] is Map)
             Text(

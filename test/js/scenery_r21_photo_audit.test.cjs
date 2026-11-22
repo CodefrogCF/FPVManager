@@ -21,24 +21,22 @@ test('R21 broken upper floor has real hole, not merely a dark top texture',()=>{
   assert.ok(ray(-4.78,-2.135,-1.12,-1.41),'Intact panel beside hole should collide');
 });
 
-// R25 replaced the old east room hatch/slabs with actual side decks and
-// accessible corridors. The former R21 hatch-perimeter coordinate is obsolete.
-test('R25/R27 east upper room: side galleries retain collision and central shaft remains open',()=>{
+// R30 deliberately retires the synthetic eastern production floors and roof.
+// The R25 shell must not remain as a floating frame over the real scan.
+test('R30 east production block: obsolete upper decks and fictitious roof are absent',()=>{
   for(const y of [1.31,1.67,2.03]){
-    assert.ok(ray(5.16,y,-1.29,-1.43),`Upper east-side deck missing at y=${y}`);
-    assert.equal(ray(4.885,y,-1.29,-1.43),null,`Centre aisle blocked at y=${y}`);
+    assert.equal(ray(5.16,y,-1.29,-1.43),null,
+      `Obsolete east upper deck blocks the restored scan at y=${y}`);
+    assert.equal(ray(4.885,y,-1.29,-1.43),null,
+      `Obsolete east roof passage still contains a full-span floor at y=${y}`);
   }
-  assert.equal(ray(4.93,1.95,-.99,-1.115),null,
-    'Old hidden roof/slab still seals the upper passage');
-});
-
-test('R27 east upper room retains a collidable vaulted roof',()=>{
-  assert.ok(ray(4.93,1.95,-.66,-.95),'Roof must protect formerly open east building from above');
+  assert.equal(ray(4.93,1.95,-.66,-.95),null,
+    'R25 synthetic east-block roof still covers the actual scan');
 });
 
 test('R27 resized east-north platform and central/south-eastern silo distinction preserved',()=>{
-  assert.equal(ray(-4.881,-.72,.12,-.38),null,'Resized east-north platform hole obstructed');
-  assert.ok(ray(-4.945,-.72,.12,-.34),'Resized east-north platform ring disappeared');
+  assert.equal(ray(-4.881,-.79,.12,-.38),null,'Resized east-north platform hole obstructed');
+  assert.ok(ray(-4.945,-.79,.12,-.34),'Resized east-north platform ring disappeared');
   assert.equal(ray(-2.79,-2.43,.12,-.38),null,'Obsolete western landing reappeared');
   assert.equal(ray(1.41,3.87,-.31,-.54),null,'Central four-silo stairwell was capped');
   assert.ok(ray(4.79,-2.202,-.04,-.34),'South-eastern six-silo roof must stay closed');
@@ -47,7 +45,7 @@ test('R27 resized east-north platform and central/south-eastern silo distinction
 test('R21 catalog certificate hashes and geographic rotation remain aligned',()=>{
   const sha=crypto.createHash('sha256').update(raw).digest('hex');
   assert.equal(scene.terrainCertificate.collisionSha256,sha);
-  assert.ok(scene.terrainCertificates.length===16 && scene.terrainCertificates.every(c=>c.collisionSha256===sha));
+  assert.ok(scene.terrainCertificates.length===15 && scene.terrainCertificates.every(c=>c.collisionSha256===sha));
   assert.equal(scene.alignment.rotationDeg,99.7993823133657);
   assert.equal(scene.alignment.scale,16.023268178233355);
   assert.equal(scene.surveyVerified,false);

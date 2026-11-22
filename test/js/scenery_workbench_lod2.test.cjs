@@ -40,9 +40,9 @@ test('reference edit enables only building replacement and prepares a disabled c
     assert.equal(item.buildingRegions[0].length,28);
     const M=require('../../web/scenery_manager.js');
     const validated=M.validate(catalog)[0];
-    assert.deepEqual(item.terrainRegions.slice(0,16),validated.terrainCertificates.map(c=>c.polygon));
+    assert.deepEqual(item.terrainRegions.slice(0,item.terrainCertificates.length),validated.terrainCertificates.map(c=>c.polygon));
     assert.deepEqual(item.terrainRegions.at(-1),validated.terrainUnderlay.certificate.polygon);
-    assert.equal(item.terrainRegions.length,17);
+    assert.equal(item.terrainRegions.length,item.terrainCertificates.length+1);
     assert.match(item.terrainCertificate.collisionSha256,/^[0-9a-f]{64}$/);
     assert.equal(item.heightOffsetM,0);
 });

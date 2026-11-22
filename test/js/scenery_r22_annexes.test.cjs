@@ -22,7 +22,7 @@ test('R22 small service annex has pillars without central bulkhead',()=>{
   assert.equal(ray(2.350,.26,-1.69,-1.90),null,'Unobserved corridor wall was created');
 });
 test('R22 core R20/R21 dive openings and six-silo closed roof are unchanged',()=>{
-  assert.equal(ray(-4.86,-.72,.12,-.38),null,'Hall exterior platform gap blocked');
+  assert.equal(ray(-4.881,-.79,.12,-.38),null,'Hall exterior platform gap blocked');
   assert.equal(ray(1.41,3.87,-.31,-.54),null,'Central four-silo roof dive blocked');
   assert.ok(ray(4.79,-2.202,-.04,-.34),'South-eastern six-silo roof falsely opened');
   assert.equal(ray(4.93,1.95,-.99,-1.115),null,'R21 eastern stair hatch blocked');
@@ -30,7 +30,7 @@ test('R22 core R20/R21 dive openings and six-silo closed roof are unchanged',()=
 test('R22 certificate and geographic alignment are correct',()=>{
   const sha=crypto.createHash('sha256').update(raw).digest('hex');
   assert.equal(scene.terrainCertificate.collisionSha256,sha);
-  assert.equal(scene.terrainCertificates.length,16);
+  assert.equal(scene.terrainCertificates.length,15);
   assert.ok(scene.terrainCertificates.every(c=>c.collisionSha256===sha));
   assert.equal(scene.alignment.rotationDeg,99.7993823133657);
   assert.equal(scene.alignment.scale,16.023268178233355);

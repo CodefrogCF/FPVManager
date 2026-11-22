@@ -4,7 +4,7 @@ const C=require('../../web/scenery_collision.js'),M=require('../../web/scenery_m
 const raw=fs.readFileSync(path.resolve(__dirname,'../../web/assets/scenery/local_reference.fpc'));
 const mesh=C.parse(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
 const item=M.validate(require('../../web/assets/scenery/catalog.json'))[0],cert=item.terrainCertificate,R=.25/item.alignment.scale;
-test('R7 FPC exact hash and catalog configuration',async()=>{assert.equal(await M.verifyTerrainAsset(mesh,cert),true);assert.equal(await M.verifyTerrainAsset(mesh,{...cert,collisionSha256:'0'.repeat(64)}),false);assert.equal(item.clipTerrain,false);assert.deepEqual(item.terrainRegions.slice(0,16),item.terrainCertificates.map(c=>c.polygon));assert.deepEqual(item.terrainRegions[16],M.normalizeTerrainCertificate(item.terrainUnderlay.certificate,item.alignment).polygon);});
+test('R7 FPC exact hash and catalog configuration',async()=>{assert.equal(await M.verifyTerrainAsset(mesh,cert),true);assert.equal(await M.verifyTerrainAsset(mesh,{...cert,collisionSha256:'0'.repeat(64)}),false);assert.equal(item.clipTerrain,false);assert.deepEqual(item.terrainRegions.slice(0,item.terrainCertificates.length),item.terrainCertificates.map(c=>c.polygon));assert.deepEqual(item.terrainRegions[item.terrainCertificates.length],M.normalizeTerrainCertificate(item.terrainUnderlay.certificate,item.alignment).polygon);});
 test('R7 ground coverage sampled on 21x21 grid, each vertical sweep lands on physical surface',()=>{
   const [x0,y0,x1,y1]=cert.localBounds;
   for(let i=0;i<=20;i++)for(let j=0;j<=20;j++){
@@ -18,7 +18,8 @@ test('R7 runtime replacement is opt-in, asset verified, bounded and invalidated 
  class Matrix4{};Matrix4.fromRotationTranslation=x=>x;Matrix4.multiply=(a,b)=>({a,b});
  const Cesium={Cartesian3:{fromDegrees:(...v)=>v},Transforms:{eastNorthUpToFixedFrame:x=>x},Matrix3:{fromRotationZ:x=>x},Matrix4,Math:{toRadians:v=>v*Math.PI/180},Color:class{},Credit:class{}};
  const viewer={scene:{primitives:{add(){},remove(){}},preUpdate:{addEventListener:()=>()=>{}},requestRender(){}}};
- const scene=M.create(Cesium,viewer,{fetchCatalog:async()=>fixture,position:()=>({...item.alignment,height:60}),modelFactory:async()=>({ready:true}),collisionFactory:async()=>mesh,terrainKey:()=>key,sampleGround:async()=>60,sampleSeamGround:async points=>{const frame=C.transform(M.terrainAligned(item,60));return points.map(p=>{const l=frame.local({...p,height:60}),z=M.groundLocal(mesh,cert,l);return 60+(z-l[2])*frame.scale;});}});
+ const autoFixture=structuredClone(fixture);autoFixture.sceneries[0].heightAlignmentMode='terrain';delete autoFixture.sceneries[0].heightCalibration;
+ const scene=M.create(Cesium,viewer,{fetchCatalog:async()=>autoFixture,position:()=>({...item.alignment,height:60}),modelFactory:async()=>({ready:true}),collisionFactory:async()=>mesh,terrainKey:()=>key,sampleGround:async()=>60,sampleSeamGround:async points=>{const frame=C.transform(M.terrainAligned(item,60));return points.map(p=>{const l=frame.local({...p,height:60}),z=M.groundLocal(mesh,cert,l);return 60+(z-l[2])*frame.scale;});}});
  const sleep=()=>new Promise(r=>setTimeout(r,10));
  try{
   await scene.initialize();await sleep();scene.tick(true);await sleep();scene.tick(true);

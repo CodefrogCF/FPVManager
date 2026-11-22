@@ -37,6 +37,16 @@ class NoRedirect(HTTPRedirectHandler):
 
 OPENER = build_opener(NoRedirect())
 
+def relay_request(url, byte_range=None):
+    # Keep the request as close as possible to a direct, working
+    # urllib.request.urlopen() call. BKG's gateway can terminate connections
+    # that carry a nonstandard relay-specific User-Agent. urllib supplies its
+    # normal User-Agent automatically when the header is not overridden.
+    headers = {"Accept-Encoding": "identity"}
+    if byte_range:
+        headers["Range"] = byte_range
+    return Request(url, headers=headers)
+
 class WorkbenchHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -53,11 +63,8 @@ class WorkbenchHandler(SimpleHTTPRequestHandler):
         except ValueError as exc:
             self.send_error(400, str(exc))
             return
-        headers = {"Accept-Encoding": "identity", "User-Agent": "FPVManager-Workbench/0.20 (local beta test)"}
-        if self.headers.get("Range"):
-            headers["Range"] = self.headers["Range"]
         try:
-            response = OPENER.open(Request(url, headers=headers), timeout=45)
+            response = OPENER.open(relay_request(url, self.headers.get("Range")), timeout=45)
         except HTTPError as exc:
             self.log_error("BKG upstream HTTP %s: %s", exc.code, url)
             # Do not follow redirects, bypass denial or retry rate limits.
@@ -65,7 +72,8 @@ class WorkbenchHandler(SimpleHTTPRequestHandler):
             exc.close()
             return
         except (URLError, TimeoutError, OSError) as exc:
-            self.log_error("BKG upstream network error %s: %s", url, exc)
+            self.log_error("BKG upstream network error %s: %s (%r; reason=%r)",
+                           url, type(exc).__name__, exc, getattr(exc, "reason", None))
             self.send_error(502, "BKG upstream network error; see local console")
             return
         with response:

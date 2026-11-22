@@ -16,7 +16,7 @@ test('R13: new FPC and all terrain certificates use identical SHA-256',()=>{
  const hash=crypto.createHash('sha256').update(raw).digest('hex');
  assert.ok(mesh.triangleCount>900000);
  assert.equal(item.terrainCertificate.collisionSha256,hash);
- assert.equal(item.terrainCertificates.length,16);
+ assert.equal(item.terrainCertificates.length,15);
  assert.ok(item.terrainCertificates.every(c=>c.collisionSha256===hash));
  assert.equal(item.terrainUnderlay.certificate.collisionSha256===hash,false);
  assert.equal(item.alignment.scale,16.023268178233355);

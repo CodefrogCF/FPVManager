@@ -2,6 +2,10 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 const M=require('../../web/scenery_manager.js');const R=require('../../web/regional_3d.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
+// Preserve provider-driven fitting regression coverage with a separate opt-in fixture.
+const terrainCatalog=structuredClone(catalog);
+terrainCatalog.sceneries[0].heightAlignmentMode='terrain';
+delete terrainCatalog.sceneries[0].heightCalibration;
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(){const models=[],credits=[],status=[];let p={...catalog.sceneries[0].alignment,height:100},t=0,fn;
  class Matrix4{};Matrix4.fromRotationTranslation=x=>x;Matrix4.multiply=(a,b)=>({a,b});
@@ -10,7 +14,7 @@ function fixture(){const models=[],credits=[],status=[];let p={...catalog.scener
  return {C,viewer,models,credits,status,collisionFactory:async()=>{throw Error('No test collider');},position:()=>p,now:()=>t,advance:(next)=>{p=next;t+=1000;fn?.();},onStatus:x=>status.push(x)};
 }
 test('catalog validates exact aligned model and rejects traversal, invalid transformations and physical collision claims',()=>{
- const [s]=M.validate(catalog);assert.equal(s.alignment.opacity,1);assert.equal(s.alignment.scale,16.023268178233355);assert.equal(s.alignment.rotationDeg,99.7993823133657);assert.equal(s.alignment.ellipsoidHeightM,32.25);
+ const [s]=M.validate(catalog);assert.equal(s.alignment.opacity,1);assert.equal(s.alignment.scale,16.023268178233355);assert.equal(s.alignment.rotationDeg,99.7993823133657);assert.equal(s.alignment.ellipsoidHeightM,34.25);assert.equal(s.heightAlignmentMode,'fixed');
  for(const transform of [x=>x.assets[0].path='../bad.glb',x=>x.assets[0].path='https://example.com/a.glb',x=>delete x.collisionAsset,x=>x.collisionAsset='../bad.fpc',x=>delete x.alignment.scale,x=>x.sourceUrl='javascript:alert(1)']){const copy=structuredClone(catalog);transform(copy.sceneries[0]);assert.throws(()=>M.validate(copy));}
  assert.throws(()=>M.validate({...catalog,sceneries:[s,s]}));
 });
@@ -41,24 +45,24 @@ test('terrain alignment keeps horizontal coordinates and accounts for scaled loc
 });
 test('loaded scenery adjusts to active terrain and restores original height when provider leaves',async()=>{
  const f=fixture();let key=null,calls=0;const model={ready:true,destroy(){}};
- const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:async()=>{calls++;return 55;}});
- try{await m.initialize();await flush();m.tick(true);assert.equal(calls,0);key={};m.tick(true);await flush();const s=m.snapshot()[0];assert.equal(s.heightState,'adjusted');assert.equal(s.groundHeightM,55);assert.equal(s.alignment.ellipsoidHeightM,32.25);assert.equal(model.modelMatrix.a[2],s.effectiveAlignment.ellipsoidHeightM);m.tick(true);assert.equal(calls,1);key=null;m.tick(true);assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,32.25);assert.equal(model.modelMatrix.a[2],32.25);}finally{m.dispose();}
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:async()=>{calls++;return 55;}});
+ try{await m.initialize();await flush();m.tick(true);assert.equal(calls,0);key={};m.tick(true);await flush();const s=m.snapshot()[0];assert.equal(s.heightState,'adjusted');assert.equal(s.groundHeightM,55);assert.equal(s.alignment.ellipsoidHeightM,34.25);assert.equal(s.heightAlignmentMode,'terrain');assert.equal(model.modelMatrix.a[2],s.effectiveAlignment.ellipsoidHeightM);m.tick(true);assert.equal(calls,1);key=null;m.tick(true);assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);assert.equal(model.modelMatrix.a[2],34.25);}finally{m.dispose();}
 });
 test('late terrain sample cannot change a model after provider change or removal',async()=>{
  const f=fixture();let key={},resolve;const late=new Promise(r=>resolve=r);const model={ready:true,destroy(){}};
- const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:()=>late});
- try{await m.initialize();await flush();m.tick(true);key=null;m.tick(true);resolve(80);await flush();assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,32.25);assert.equal(m.snapshot()[0].groundHeightM,null);assert.equal(model.modelMatrix.a[2],32.25);}finally{m.dispose();}
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:()=>late});
+ try{await m.initialize();await flush();m.tick(true);key=null;m.tick(true);resolve(80);await flush();assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);assert.equal(m.snapshot()[0].groundHeightM,null);assert.equal(model.modelMatrix.a[2],34.25);}finally{m.dispose();}
 });
 test('failed height sample retries without corrupting the original placement',async()=>{
  const f=fixture();const key={};let calls=0;const model={ready:true,destroy(){}};
- const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:async()=>{if(++calls===1)throw Error('unavailable');return 61;}});
- try{await m.initialize();await flush();m.tick(true);await flush();assert.equal(m.snapshot()[0].heightState,'unavailable');assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,32.25);for(let i=0;i<10;i++)f.advance(f.position());await flush();assert.equal(calls,2);assert.equal(m.snapshot()[0].heightState,'adjusted');}finally{m.dispose();}
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:async()=>{if(++calls===1)throw Error('unavailable');return 61;}});
+ try{await m.initialize();await flush();m.tick(true);await flush();assert.equal(m.snapshot()[0].heightState,'unavailable');assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);for(let i=0;i<10;i++)f.advance(f.position());await flush();assert.equal(calls,2);assert.equal(m.snapshot()[0].heightState,'adjusted');}finally{m.dispose();}
 });
 
 test('editing ready scenery preserves GLB, resamples height, restores and gates replacement regions',async()=>{
  const f=fixture();const A=require('../../web/scenery_alignment.js');const id=catalog.sceneries[0].id;
  let loads=0,calls=0;const model={ready:true,destroy(){}};const key={};
- const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,modelFactory:async()=>{loads++;return model;},terrainKey:()=>key,sampleGround:async()=>{calls++;return 60;}});
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>{loads++;return model;},terrainKey:()=>key,sampleGround:async()=>{calls++;return 60;}});
  try{await m.initialize();await flush();m.tick(true);await flush();const initial=m.snapshot()[0];
  const alignment=A.nudge(initial.alignment,2,3);
  const polygon=[[0,0],[20,0],[20,20],[0,20]].map(([x,y])=>{const a=A.offset(alignment,x,y);return [a.longitude,a.latitude];});

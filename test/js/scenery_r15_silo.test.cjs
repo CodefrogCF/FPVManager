@@ -21,7 +21,7 @@ test('R15: regenerated collider matches all certified R8 terrain patches and pre
  assert.ok(mesh.triangleCount>900000 && mesh.triangleCount<1200000,'Unexpected mesh budget regression');
  const sha=crypto.createHash('sha256').update(data).digest('hex');
  assert.equal(s.terrainCertificate.collisionSha256,sha);
- assert.equal(s.terrainCertificates.length,16);
+ assert.equal(s.terrainCertificates.length,15);
  assert.ok(s.terrainCertificates.every(c=>c.collisionSha256===sha));
  assert.notEqual(s.terrainUnderlay.certificate.collisionSha256,sha);
 });

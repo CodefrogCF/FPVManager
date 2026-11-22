@@ -27,7 +27,7 @@ test('R11 calibrated underlay is independent of the original R8 collision geomet
  assert.ok(scan.triangleCount>900000);assert.equal(dem.triangleCount,153928);
  assert.notEqual(overlay.collisionSha256,catalog.sceneries[0].terrainCertificate.collisionSha256);
  assert.equal(catalog.sceneries[0].clipTerrain,false,'Experiment remains opt-in');
- assert.equal(catalog.sceneries[0].terrainRegions.length,17);
+ assert.equal(catalog.sceneries[0].terrainRegions.length,catalog.sceneries[0].terrainCertificates.length+1);
  assert.equal(JSON.stringify(catalog.sceneries[0].terrainRegions.at(-1)),overlaypoly);
  assert.equal(M.validate(catalog)[0].terrainUnderlay.certificate.source,'underlay');
  const fail=structuredClone(catalog);fail.sceneries[0].terrainUnderlay.asset='../bad.glb';assert.throws(()=>M.validate(fail));
@@ -52,8 +52,9 @@ test('R11 opt-in underlay stays hidden before clipping; passes matching live ter
   if(!Number.isFinite(z))throw Error('Offline test seam unavailable');
   return seed+(z-p[2])*frame.scale+perturb;
  });
+ const autoCatalog=structuredClone(catalog);autoCatalog.sceneries[0].heightAlignmentMode='terrain';delete autoCatalog.sceneries[0].heightCalibration;
  const mgr=M.create(f.C,f.viewer,{position:f.position,terrainKey:()=>provider,terrainStable:()=>true,
-  fetchCatalog:async()=>catalog,modelFactory:async(url)=>({source:url,show:true,ready:true,destroy(){this.destroyed=true;}}),
+  fetchCatalog:async()=>autoCatalog,modelFactory:async(url)=>({source:url,show:true,ready:true,destroy(){this.destroyed=true;}}),
   collisionFactory:async(url)=>url.endsWith('ruedersdorf_r11_ground.fpc')?dem:scan,
   sampleGround:async()=>79.8206323739,sampleSeamGround,terrainMaskActive:poly=>maskActive&&JSON.stringify(poly)===overlaypoly,
   setTimer:(fn,ms)=>setTimeout(fn,ms),clearTimer:clearTimeout});

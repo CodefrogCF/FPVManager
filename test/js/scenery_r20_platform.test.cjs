@@ -24,10 +24,10 @@ test('R20 georeference: -X points north and +Y points east at site heading',()=>
 // R24 halved the footprint at the *same* correct east/north facade position.
 // Old R20 rim and hole coordinates must not be used after this redesign.
 test('R24/R27 smaller east-north platform: open center, four collidable rim strips, no obsolete west landing',()=>{
- for(const [x,y] of [[-4.881,-.72],[-4.890,-.735],[-4.870,-.71]]){
+ for(const [x,y] of [[-4.881,-.79],[-4.890,-.797],[-4.870,-.772]]){
    assert.equal(sweep(x,y,.18,-.31),null,`Resized platform opening blocked at ${x}/${y}`);
  }
- for(const [x,y] of [[-4.945,-.72],[-4.820,-.72],[-4.881,-.78],[-4.881,-.66]]){
+ for(const [x,y] of [[-4.945,-.79],[-4.820,-.79],[-4.881,-.85],[-4.881,-.716]]){
    assert.ok(sweep(x,y,.18,-.31),`Expected solid perimeter of resized landing at ${x}/${y}`);
  }
  assert.equal(sweep(-2.790,-2.430,.18,-.31),null,'R16 west platform survived');
@@ -41,7 +41,7 @@ test('R20 keep central 4-silo roof open and SE 6-silo headhouse closed',()=>{
 test('R20 catalog certificates refer to the new collider, not R19',()=>{
  const digest=crypto.createHash('sha256').update(b).digest('hex');
  assert.equal(site.terrainCertificate.collisionSha256,digest);
- assert.equal(site.terrainCertificates.length,16);
+ assert.equal(site.terrainCertificates.length,15);
  assert.ok(site.terrainCertificates.every(c=>c.collisionSha256===digest));
  assert.equal(site.alignment.rotationDeg,99.7993823133657);
  // A shrinking mesh is expected as we replace the original photogrammetry.
