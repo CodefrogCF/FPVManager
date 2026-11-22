@@ -2,9 +2,11 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 const M=require('../../web/scenery_manager.js');const R=require('../../web/regional_3d.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
+const ROOT_HEIGHT=catalog.sceneries[0].alignment.ellipsoidHeightM;
 // Preserve provider-driven fitting regression coverage with a separate opt-in fixture.
 const terrainCatalog=structuredClone(catalog);
 terrainCatalog.sceneries[0].heightAlignmentMode='terrain';
+terrainCatalog.sceneries[0].requireGroundCalibration=false;
 delete terrainCatalog.sceneries[0].heightCalibration;
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(){const models=[],credits=[],status=[];let p={...catalog.sceneries[0].alignment,height:100},t=0,fn;
@@ -14,7 +16,7 @@ function fixture(){const models=[],credits=[],status=[];let p={...catalog.scener
  return {C,viewer,models,credits,status,collisionFactory:async()=>{throw Error('No test collider');},position:()=>p,now:()=>t,advance:(next)=>{p=next;t+=1000;fn?.();},onStatus:x=>status.push(x)};
 }
 test('catalog validates exact aligned model and rejects traversal, invalid transformations and physical collision claims',()=>{
- const [s]=M.validate(catalog);assert.equal(s.alignment.opacity,1);assert.equal(s.alignment.scale,16.023268178233355);assert.equal(s.alignment.rotationDeg,99.7993823133657);assert.equal(s.alignment.ellipsoidHeightM,34.25);assert.equal(s.heightAlignmentMode,'fixed');
+ const [s]=M.validate(catalog);assert.equal(s.alignment.opacity,1);assert.equal(s.alignment.scale,16.023268178233355);assert.equal(s.alignment.rotationDeg,99.7993823133657);assert.ok(Math.abs(s.alignment.ellipsoidHeightM-112.279767885956)<1e-8);assert.equal(s.heightAlignmentMode,'terrain');assert.equal(s.requireGroundCalibration,true);
  for(const transform of [x=>x.assets[0].path='../bad.glb',x=>x.assets[0].path='https://example.com/a.glb',x=>delete x.collisionAsset,x=>x.collisionAsset='../bad.fpc',x=>delete x.alignment.scale,x=>x.sourceUrl='javascript:alert(1)']){const copy=structuredClone(catalog);transform(copy.sceneries[0]);assert.throws(()=>M.validate(copy));}
  assert.throws(()=>M.validate({...catalog,sceneries:[s,s]}));
 });
@@ -46,17 +48,17 @@ test('terrain alignment keeps horizontal coordinates and accounts for scaled loc
 test('loaded scenery adjusts to active terrain and restores original height when provider leaves',async()=>{
  const f=fixture();let key=null,calls=0;const model={ready:true,destroy(){}};
  const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:async()=>{calls++;return 55;}});
- try{await m.initialize();await flush();m.tick(true);assert.equal(calls,0);key={};m.tick(true);await flush();const s=m.snapshot()[0];assert.equal(s.heightState,'adjusted');assert.equal(s.groundHeightM,55);assert.equal(s.alignment.ellipsoidHeightM,34.25);assert.equal(s.heightAlignmentMode,'terrain');assert.equal(model.modelMatrix.a[2],s.effectiveAlignment.ellipsoidHeightM);m.tick(true);assert.equal(calls,1);key=null;m.tick(true);assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);assert.equal(model.modelMatrix.a[2],34.25);}finally{m.dispose();}
+ try{await m.initialize();await flush();m.tick(true);assert.equal(calls,0);key={};m.tick(true);await flush();const s=m.snapshot()[0];assert.equal(s.heightState,'adjusted');assert.equal(s.groundHeightM,55);assert.equal(s.alignment.ellipsoidHeightM,ROOT_HEIGHT);assert.equal(s.heightAlignmentMode,'terrain');assert.equal(model.modelMatrix.a[2],s.effectiveAlignment.ellipsoidHeightM);m.tick(true);assert.equal(calls,1);key=null;m.tick(true);assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,ROOT_HEIGHT);assert.equal(model.modelMatrix.a[2],ROOT_HEIGHT);}finally{m.dispose();}
 });
 test('late terrain sample cannot change a model after provider change or removal',async()=>{
  const f=fixture();let key={},resolve;const late=new Promise(r=>resolve=r);const model={ready:true,destroy(){}};
  const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:()=>late});
- try{await m.initialize();await flush();m.tick(true);key=null;m.tick(true);resolve(80);await flush();assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);assert.equal(m.snapshot()[0].groundHeightM,null);assert.equal(model.modelMatrix.a[2],34.25);}finally{m.dispose();}
+ try{await m.initialize();await flush();m.tick(true);key=null;m.tick(true);resolve(80);await flush();assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,ROOT_HEIGHT);assert.equal(m.snapshot()[0].groundHeightM,null);assert.equal(model.modelMatrix.a[2],ROOT_HEIGHT);}finally{m.dispose();}
 });
 test('failed height sample retries without corrupting the original placement',async()=>{
  const f=fixture();const key={};let calls=0;const model={ready:true,destroy(){}};
  const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,terrainKey:()=>key,sampleGround:async()=>{if(++calls===1)throw Error('unavailable');return 61;}});
- try{await m.initialize();await flush();m.tick(true);await flush();assert.equal(m.snapshot()[0].heightState,'unavailable');assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);for(let i=0;i<10;i++)f.advance(f.position());await flush();assert.equal(calls,2);assert.equal(m.snapshot()[0].heightState,'adjusted');}finally{m.dispose();}
+ try{await m.initialize();await flush();m.tick(true);await flush();assert.equal(m.snapshot()[0].heightState,'unavailable');assert.equal(m.snapshot()[0].effectiveAlignment.ellipsoidHeightM,ROOT_HEIGHT);for(let i=0;i<10;i++)f.advance(f.position());await flush();assert.equal(calls,2);assert.equal(m.snapshot()[0].heightState,'adjusted');}finally{m.dispose();}
 });
 
 test('editing ready scenery preserves GLB, resamples height, restores and gates replacement regions',async()=>{
@@ -92,7 +94,7 @@ test('regional cuts target only owned collections, restore on navigation and pre
 
 test('flight masks require ready physical mesh and terrain, stale collider loads cannot reactivate scenery',async()=>{
  const f=fixture();let resolve;const model={ready:true,destroy(){}};const id=catalog.sceneries[0].id;
- const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,modelFactory:async()=>model,collisionFactory:(_url,signal)=>new Promise(r=>{resolve=r;assert.equal(signal.aborted,false);})});
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>model,collisionFactory:(_url,signal)=>new Promise(r=>{resolve=r;assert.equal(signal.aborted,false);})});
  try{await m.initialize();await flush();m.tick(true);assert.equal(m.snapshot()[0].collisionState,'loading');assert.equal(m.activeRegions('buildings').length,1);assert.equal(m.activeRegions('buildings',true).length,0);
  resolve({triangleCount:4,byteLength:100});await flush();assert.equal(m.snapshot()[0].collisionReady,true);assert.equal(m.activeRegions('buildings',true).length,1);assert.equal(m.activeRegions('terrain',true).length,0);
  m.retry(id);await flush();m.tick(true);m.setEnabled(id,false);resolve({triangleCount:4});await flush();assert.equal(m.snapshot()[0].collisionReady,false);assert.equal(m.activeRegions('buildings',true).length,0);
@@ -108,4 +110,28 @@ test('during navigation only collision-backed building masks are applied; terrai
  const tiles={clippingPolygons:undefined,destroy(){}};
  const r=R.create(f.C,f.viewer,{...f,enabled:true,navigationBusy:()=>busy,buildingsRequested:()=>true,terrainReady:()=>true,buildingRegions:()=>regions,flightBuildingRegions:()=>physical?regions:[],terrainRegions:()=>regions,loadTiles:async()=>tiles});
  try{r.tick(true);await flush();busy=true;r.tick(true);assert.equal(tiles.clippingPolygons,undefined);physical=true;r.tick(true);assert.ok(tiles.clippingPolygons);assert.equal(f.viewer.scene.globe.clippingPolygons,undefined);physical=false;r.tick(true);assert.equal(tiles.clippingPolygons,undefined);}finally{r.dispose();}
+});
+
+
+test('R32: missing terrain height keeps even a loaded FPC collider inactive',async()=>{
+ const f=fixture();let provider=null;
+ const model={ready:true,show:true,destroy(){}};
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,
+   modelFactory:async()=>model,
+   collisionFactory:async()=>({triangleCount:10,byteLength:256}),
+   terrainKey:()=>provider,
+   sampleGround:async()=>41});
+ try{
+   await m.initialize();await flush();m.tick(true);await flush();
+   assert.equal(m.snapshot()[0].collisionState,'ready');
+   assert.equal(model.show,false);
+   assert.equal(m.snapshot()[0].collisionReady,false,
+       'A hidden, uncalibrated model must never create physical flight collisions');
+   provider={name:'bkg'};m.tick(true);await flush();
+   assert.equal(model.show,true);
+   assert.equal(m.snapshot()[0].collisionReady,true);
+   provider=null;m.tick(true);await flush();
+   assert.equal(model.show,false);
+   assert.equal(m.snapshot()[0].collisionReady,false);
+ }finally{m.dispose();}
 });

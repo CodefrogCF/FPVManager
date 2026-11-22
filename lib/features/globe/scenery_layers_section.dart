@@ -132,11 +132,11 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     Text(
                       german
                           ? item['heightAlignmentMode'] == 'fixed'
-                              ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
-                              : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
+                                ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
+                                : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
                           : item['heightAlignmentMode'] == 'fixed'
-                              ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
-                              : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
+                          ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
+                          : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
                     ),
                     Wrap(
                       spacing: 4,
@@ -363,11 +363,14 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   : 'Terrain: ${(item['groundHeightM'] as num).toStringAsFixed(1)} m · Model anchor: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(1)} m (experimental)',
             ),
           if (item['heightState'] == 'pending' ||
-              item['heightState'] == 'unavailable')
+              item['heightState'] == 'unavailable' ||
+              (item['heightState'] == 'original' &&
+                  item['heightAlignmentMode'] == 'terrain' &&
+                  item['calibration'] != null))
             Text(
               german
-                  ? 'Geländehöhenabgleich ausstehend.'
-                  : 'Terrain alignment pending.',
+                  ? 'Geländehöhenabgleich ausstehend: Das Scanmodell bleibt bis zur erfolgreichen Kalibrierung ausgeblendet.${item['heightError'] == null ? '' : ' · ${item['heightError']}'}'
+                  : 'Terrain alignment pending: scenery remains hidden until ground calibration succeeds.${item['heightError'] == null ? '' : ' · ${item['heightError']}'}',
             ),
           if ((item['buildingRegions'] as List?)?.isNotEmpty == true)
             SwitchListTile.adaptive(

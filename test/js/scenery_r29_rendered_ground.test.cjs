@@ -35,18 +35,21 @@ test('R29 cannot invent a BKG height from unavailable rendered terrain',()=>{
 test('R29 beta alignment uses five real terrain hits and never mixes raw BKG heights',()=>{
   const source=fs.readFileSync('web/globe.js','utf8');
   assert.match(source,/const displayed=FPVSceneryManager\.pickRenderedGroundHeights\(Cesium,viewer,positions\)/);
-  assert.match(source,/if\(regionalTerrain\)\{\s*if\(displayed\.filter\(Number\.isFinite\)\.length<5\)/);
-  assert.match(source,/heights=displayed;/);
+  assert.match(source,/if\(regionalTerrain\)\{[\s\S]*const valid=displayed\.map/);
+  assert.match(source,/heights=valid;/);
   assert.doesNotMatch(source,/RUEDERSDORF_BKG_VISUAL_OFFSET_M/);
 });
 
 
-test('R31 does not use the historical GCG2016 separation as an extra visual offset',()=>{
+test('R32 uses GCG2016 only for the certified DGM1 model-root reference, not as a second runtime offset',()=>{
   const item=require('../../web/assets/scenery/catalog.json').sceneries[0];
   const offset=38.871142784910;
   const expected=40.949489589+offset;
   assert.ok(Math.abs(expected-79.82063237391)<1e-9);
   assert.equal(item.alignment.longitude,13.789853720999993);
-  assert.equal(item.alignment.ellipsoidHeightM,34.25);
-  assert.equal(item.heightAlignmentMode,'fixed');
+  assert.ok(Math.abs(item.alignment.ellipsoidHeightM-112.279767885956)<1e-8);
+  assert.equal(item.heightAlignmentMode,'terrain');
+  assert.equal(item.requireGroundCalibration,true);
+  const workbench=require('../../web/assets/scenery/reference_alignment.json');
+  assert.equal(workbench.ellipsoidHeightM,34.25);
 });

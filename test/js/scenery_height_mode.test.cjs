@@ -6,15 +6,20 @@ const path=require('node:path');
 const M=require('../../web/scenery_manager.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
 
-// R31 uses the visually confirmed fixed catalog placement for Rüdersdorf.
-// The active provider key remains available to other scenery in auto mode.
-test('Ruedersdorf: manual workbench height is fixed in all terrain providers',()=>{
+// R32 preserves the flat Workbench preview independently from the physical
+// DGM/GCG reference, and aligns Rüdersdorf to the rendered terrain at runtime.
+test('R32: Ruedersdorf requires terrain alignment with official DGM1/GCG2016 root reference',()=>{
     const source=fs.readFileSync(path.join(__dirname,'../../web/globe.js'),'utf8');
     assert.match(source,/terrainKey:\(\)=>!regionalTerrainChanging&&terrainManager\.status\(\)\.state==='ready'\?terrainManager\.provider:null/);
     assert.doesNotMatch(source,/terrainKey:\(\)=>regionalTerrain&&/);
     const item=M.validate(catalog)[0];
-    assert.equal(item.heightAlignmentMode,'fixed');
-    assert.equal(item.alignment.ellipsoidHeightM,34.25);
+    assert.equal(item.heightAlignmentMode,'terrain');
+    assert.equal(item.requireGroundCalibration,true);
+    assert.equal(item.heightCalibration.revision,'R32');
+    assert.ok(Math.abs(item.alignment.ellipsoidHeightM-112.279767885956)<1e-8);
+    assert.ok(Math.abs(item.alignment.ellipsoidHeightM+item.groundReferenceLocalUp*item.alignment.scale-79.8206323739)<1e-8);
+    const flat=require('../../web/assets/scenery/reference_alignment.json');
+    assert.equal(flat.ellipsoidHeightM,34.25);
     const localGround=item.groundReferenceLocalUp;
     assert.equal(typeof localGround,'number');
     const referenceHeight=82;
@@ -71,8 +76,8 @@ test('a changed real terrain provider recalibrates placement without moving the 
     }finally{mgr.dispose();}
 });
 
-test('R31 fixed calibration ignores terrain samples and survives provider changes',async()=>{
-    class Matrix4{}
+test('R32: scenery stays invisible until an active rendered-ground sample is applied, then follows provider',async()=>{
+    class Matrix4{};
     Matrix4.fromRotationTranslation=x=>x;
     Matrix4.multiply=(a,b)=>({a,b});
     const C={Cartesian3:{fromDegrees:(...v)=>v},Transforms:{eastNorthUpToFixedFrame:x=>x},
@@ -81,32 +86,52 @@ test('R31 fixed calibration ignores terrain samples and survives provider change
     const viewer={scene:{primitives:{add(){},remove(){}},
         preUpdate:{addEventListener:()=>()=>{}},requestRender(){}},
         cesiumWidget:{creditDisplay:{addStaticCredit(){},removeStaticCredit(){}}}};
-    let provider={id:'cesium'},calls=0;
-    const model={ready:true,destroy(){}};
+    let provider={id:'dgm5'},sampleCount=0,resume;
+    const model={ready:true,destroy(){},show:true};
     const mgr=M.create(C,viewer,{
         fetchCatalog:async()=>catalog,position:()=>({...catalog.sceneries[0].alignment,height:100}),
         modelFactory:async()=>model,collisionFactory:async()=>{throw Error('Collider not required');},
-        terrainKey:()=>provider,sampleGround:async()=>{calls++;return 200;},
+        terrainKey:()=>provider,
+        sampleGround:()=>{sampleCount++;return new Promise(resolve=>{resume=resolve;});},
     });
     const flush=()=>new Promise(resolve=>setImmediate(resolve));
     try{
-        await mgr.initialize();await flush();mgr.tick(true);
-        let s=mgr.snapshot()[0];
-        assert.equal(s.heightState,'fixed');
-        assert.equal(s.groundHeightM,null);
-        assert.equal(s.effectiveAlignment.ellipsoidHeightM,34.25);
-        assert.equal(s.appliedHeightOffsetM,0);
-        assert.equal(model.modelMatrix.a[2],34.25);
-        provider={id:'bkg'};mgr.tick(true);await flush();
-        s=mgr.snapshot()[0];
-        assert.equal(s.heightState,'fixed');
-        assert.equal(s.effectiveAlignment.ellipsoidHeightM,34.25);
-        assert.equal(model.modelMatrix.a[2],34.25);
-        assert.equal(calls,0,'Provider changes must not resample fixed scenery height');
+        await mgr.initialize();await flush();mgr.tick(true);await flush();
+        assert.equal(model.show,false,'DGM1 root must not be drawn against uncalibrated active BKG terrain');
+        assert.equal(mgr.snapshot()[0].heightState,'pending');
+        resume(41.5);await flush();
+        assert.equal(model.show,true);
+        assert.equal(mgr.snapshot()[0].heightState,'adjusted');
+        assert.ok(Math.abs(mgr.snapshot()[0].effectiveAlignment.ellipsoidHeightM-73.959135512)<1e-7);
+        provider={id:'ellipsoid'};mgr.tick(true);await flush();
+        assert.equal(model.show,false,'Hide during provider switch: never expose stale altitude');
+        resume(0);await flush();
+        assert.equal(model.show,true);
+        assert.ok(Math.abs(mgr.snapshot()[0].effectiveAlignment.ellipsoidHeightM-32.459135512)<1e-7);
+        assert.equal(sampleCount,2);
     }finally{mgr.dispose();}
 });
 
-test('R31 migration upgrades unchanged legacy height without overriding an intentional edit',async()=>{
+test('R32: unavailable provider sample never exposes a falsely-grounded model',async()=>{
+    class Matrix4{};Matrix4.fromRotationTranslation=x=>x;Matrix4.multiply=(a,b)=>({a,b});
+    const C={Cartesian3:{fromDegrees:(...v)=>v},Transforms:{eastNorthUpToFixedFrame:x=>x},
+        Matrix3:{fromRotationZ:x=>x},Matrix4,Math:{toRadians:x=>x*Math.PI/180},Color:class{},Credit:class{}};
+    const viewer={scene:{primitives:{add(){},remove(){}},preUpdate:{addEventListener:()=>()=>{}},requestRender(){}},
+        cesiumWidget:{creditDisplay:{addStaticCredit(){},removeStaticCredit(){}}}};
+    const model={ready:true,show:true,destroy(){}};
+    const provider={id:'bkg'};
+    const mgr=M.create(C,viewer,{fetchCatalog:async()=>catalog,
+        position:()=>({...catalog.sceneries[0].alignment,height:100}),
+        modelFactory:async()=>model,terrainKey:()=>provider,
+        sampleGround:async()=>{throw Error('BKG terrain not resident');}});
+    const flush=()=>new Promise(resolve=>setImmediate(resolve));
+    try{await mgr.initialize();await flush();mgr.tick(true);await flush();
+        assert.equal(model.show,false);assert.equal(mgr.snapshot()[0].heightState,'unavailable');
+        assert.match(mgr.snapshot()[0].heightError,/BKG terrain not resident/);
+    }finally{mgr.dispose();}
+});
+
+test('R32 migration upgrades legacy flat anchors without overriding an intentional edit',async()=>{
     class Matrix4{}
     Matrix4.fromRotationTranslation=x=>x;
     Matrix4.multiply=(a,b)=>({a,b});
@@ -125,9 +150,9 @@ test('R31 migration upgrades unchanged legacy height without overriding an inten
     const flush=()=>new Promise(resolve=>setImmediate(resolve));
     try{
         await mgr.initialize();await flush();mgr.tick(true);
-        for(const oldHeight of [32.25,33]){
+        for(const oldHeight of [32.25,33,34.25]){
             mgr.restoreEdits({[item.id]:{alignment:{...item.alignment,ellipsoidHeightM:oldHeight},heightOffsetM:0}});
-            assert.equal(mgr.snapshot()[0].effectiveAlignment.ellipsoidHeightM,34.25);
+            assert.equal(mgr.snapshot()[0].effectiveAlignment.ellipsoidHeightM,item.alignment.ellipsoidHeightM);
         }
         const intentional={...item.alignment,ellipsoidHeightM:35.5};
         mgr.restoreEdits({[item.id]:{alignment:intentional,heightOffsetM:0}});

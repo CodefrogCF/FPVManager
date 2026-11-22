@@ -15,7 +15,7 @@
         "schemaVersion": 1,
         "longitude": 13.789853720999993,
         "latitude": 52.48411904363446,
-        "ellipsoidHeightM": 34.25,
+        "ellipsoidHeightM": 112.27976788595622,
         "scale": 16.023268178233355,
         "rotationDeg": 99.7993823133657,
         "opacity": 1
@@ -846,13 +846,18 @@
           "seamToleranceM": 0.25
         }
       },
-      "heightAlignmentMode": "fixed",
+      "heightAlignmentMode": "terrain",
       "heightCalibration": {
-        "method": "manual-workbench",
-        "reference": "Cesium terrain roads + BKG LoD2 building overlay",
+        "method": "terrain-provider-rendered-ground",
+        "reference": "Official DGM1 + GCG2016 root reference; dynamically match the active rendered terrain to surveyed scan-ground controls. Workbench height 34.25 m is flat-ellipsoid-only.",
+        "referenceGroundHeightM": 79.8206323739,
+        "groundReferenceLocalUp": -2.02575,
+        "referenceRootHeightM": 112.27976788595622,
+        "flatWorkbenchAnchorHeightM": 34.25,
         "surveyVerified": false,
-        "revision": "R31"
-      }
+        "revision": "R32"
+      },
+      "requireGroundCalibration": true
     }
   ]
 }

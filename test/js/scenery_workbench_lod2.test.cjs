@@ -22,13 +22,18 @@ test('unknown HTTP status is not falsely reported as CORS',()=>{
     assert.match(m,/HTTP-Status unbekannt/);
     assert.match(m,/Netzwerk\/CORS.*prüfen/);
 });
-test('new catalog and reference alignment agree at full opacity',()=>{
+test('R32 catalog uses physical terrain root while Workbench keeps flat ellipsoid preview at 34.25 m',()=>{
     const read=n=>JSON.parse(fs.readFileSync(path.join(root,'web/assets/scenery',n),'utf8'));
     const a=read('catalog.json').sceneries[0].alignment;
     const b=read('reference_alignment.json');
-    for(const key of Object.keys(a))assert.equal(a[key],b[key]);
+    for(const key of Object.keys(a))if(key!=='ellipsoidHeightM')assert.equal(a[key],b[key]);
     assert.equal(a.opacity,1);
     assert.equal(a.scale,16.023268178233355);
+    assert.equal(b.ellipsoidHeightM,34.25);
+    assert.ok(Math.abs(a.ellipsoidHeightM-112.279767885956)<1e-8);
+    const editor=fs.readFileSync(path.join(root,'tool/scenery/cesium_georeference_workbench.js'),'utf8');
+    assert.match(editor,/fetch\('\.\.\/\.\.\/web\/assets\/scenery\/reference_alignment\.json'/);
+    assert.match(editor,/terrainProvider:new C\.EllipsoidTerrainProvider\(\)/);
 });
 
 test('reference edit enables only building replacement and prepares a disabled certified terrain region',()=>{

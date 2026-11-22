@@ -1459,10 +1459,12 @@ function postToFlutter(message) {
             sampleSeamGround:sampleSceneTerrain,
             terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,
             terrainStable:()=>!regionalTerrainChanging,
-            // The R31 manually aligned Rüdersdorf scene uses the catalog's fixed
-            // height in both standard Cesium and BKG beta mode. Other scenery may
-            // still opt into the provider-driven ground fitting below. The terrain
-            // provider object invalidates stale samples on provider changes.
+            // R32: preserve the independent 34.25-m flat-ellipsoid Workbench
+            // preview, but calibrate the actual Rüdersdorf model to the active
+            // rendered terrain. A 34.25-m model ROOT places original ground at
+            // only 1.79 m ellipsoidal height, beneath the actual DGM5 surface.
+            // Provider identity invalidates samples on switch; missing terrain
+            // never gets interpreted as sea level in BKG mode.
             terrainKey:()=>!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
             sampleGround:async (alignment,item)=>{
                 // Calibration points sampled from the original ground scan,
@@ -1486,13 +1488,16 @@ function postToFlutter(message) {
                 const displayed=FPVSceneryManager.pickRenderedGroundHeights(Cesium,viewer,positions);
                 let heights;
                 if(regionalTerrain){
-                    if(displayed.filter(Number.isFinite).length<5)
-                        throw Error('BKG ground calibration pending: fewer than five rendered terrain intersections');
-                    // No extra geoid / vertical-datum conversion: R30's hardcoded
-                    // -38.87 m displacement was not justified and buried the scan.
-                    // A different scene explicitly opting into auto fitting can
-                    // use these rendered heights without an arbitrary correction.
-                    heights=displayed;
+                    // A not-yet-loaded globe tile can return the ellipsoid
+                    // surface (~0 m) instead of the DGM5 ground (~41 m normal
+                    // height, or ~80 m ellipsoidal at this site). Do not use
+                    // such fallback hits to sink the complete factory below
+                    // the map. The range is deliberately broad and applies
+                    // only to this bounded Rüdersdorf calibration.
+                    const valid=displayed.map(h=>Number.isFinite(h)&&h>=20&&h<=150?h:NaN);
+                    if(valid.filter(Number.isFinite).length<5)
+                        throw Error('BKG ground calibration pending: fewer than five plausible rendered DGM5 intersections');
+                    heights=valid;
                 }else{
                     const sampled=await terrainManager.sample(provider=>provider.availability
                         ?Cesium.sampleTerrainMostDetailed(provider,positions,true)

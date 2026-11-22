@@ -193,6 +193,17 @@
                 }
             }
         }catch(e){console.warn('Reference alignment unavailable; using fallback',e);}
+        // The Workbench intentionally uses a flat ellipsoid and the LoD2
+        // _null buildings; its 34.25-m visual anchor is NOT the ellipsoid
+        // height of the production scene on BKG DGM5 terrain. Keep the two
+        // reference frames separate rather than silently copying either one.
+        try {
+            const response=await fetch('../../web/assets/scenery/reference_alignment.json',{cache:'no-store'});
+            if(response.ok){
+                const preview=await response.json();
+                config=A.normalize({...preview,opacity:0.62});
+            }
+        }catch(e){console.warn('Flat-ellipsoid preview alignment unavailable',e);}
         referenceDefault = config;
         try { const saved = localStorage.getItem(A.STORAGE_KEY); if (saved) config = A.normalize(JSON.parse(saved)); }
         catch (e) { console.warn('Local alignment could not be restored',e); }
