@@ -213,6 +213,45 @@ def build_forebuilding(m):
         'photo_to_mesh_registration':'not surveyed, R6 footprint used as approximate locator'}
 
 
+def prune_empty_meshes(doc):
+    """Drop emptied procedural meshes and orphan scene nodes after scan cuts.
+
+    glTF 2.0 requires meshes[*].primitives to contain at least one primitive.
+    Leaving an empty mesh can prevent Cesium from completing model readiness.
+    Model index remapping is necessary because later nodes refer to meshes by
+    index; all original scan meshes (0..14) remain at their original indices.
+    """
+    old_meshes=doc['meshes']
+    indices={i:len([m for m in old_meshes[:i] if m['primitives']])
+             for i,m in enumerate(old_meshes) if m['primitives']}
+    removed=[{'index':i,'name':m.get('name')} for i,m in enumerate(old_meshes)
+             if not m['primitives']]
+    if not removed:
+        return []
+    doc['meshes']=[m for m in old_meshes if m['primitives']]
+    retired_nodes=set()
+    for i,node in enumerate(doc.get('nodes',[])):
+        if 'mesh' not in node:continue
+        old=node['mesh']
+        if old in indices:
+            node['mesh']=indices[old]
+        else:
+            node.pop('mesh')
+            if not node.get('children') and not any(
+                key in node for key in ('camera','skin','extensions')
+            ):
+                retired_nodes.add(i)
+    # Removed generated nodes are scene roots, not transformation parents.
+    if retired_nodes:
+        for node in doc['nodes']:
+            if 'children' in node:
+                node['children']=[i for i in node['children'] if i not in retired_nodes]
+        for scene in doc.get('scenes',[]):
+            if 'nodes' in scene:
+                scene['nodes']=[i for i in scene['nodes'] if i not in retired_nodes]
+    return removed
+
+
 def main(src,dst,fpc,report):
     raw=Path(src).read_bytes();sha=hashlib.sha256(raw).hexdigest()
     if sha!=SOURCE_SHA:raise ValueError(f'Expected R26 GLB sha {SOURCE_SHA}; got {sha}')
@@ -229,6 +268,8 @@ def main(src,dst,fpc,report):
     ramp_overlays={str(mi):cut_mesh(doc,buf,mi,RAMP_MASK) for mi in OLD_PROCEDURAL}
     for mesh in doc['meshes']:
         mesh['primitives']=[p for p in mesh['primitives'] if doc['accessors'][p['indices']]['count']>0]
+    pruned_meshes=prune_empty_meshes(doc)
+    assert all(m['primitives'] for m in doc['meshes']), 'glTF mesh with no primitives'
     removed_raw=sum(v['removed_fully'] for v in scan_cuts.values())+sum(v['removed_fully'] for v in ramp_scan.values())
     removed_old=sum(v['removed_fully'] for v in overlays.values())+sum(v['removed_fully'] for v in ramp_overlays.values())
     assert removed_old>2500,('Obsolete production shell not replaced',removed_old)
@@ -267,6 +308,7 @@ def main(src,dst,fpc,report):
         raw_cuts=scan_cuts,old_overlay_cuts=overlays,
         raw_ramp_cuts=ramp_scan,old_ramp_cuts=ramp_overlays,
         original_scan_mesh_groups_retained=15,georeference_unchanged=True,
+        removed_invalid_empty_meshes=pruned_meshes,
         preserved_adjacent_silo_stair_mesh=16,model_details=details,
         materials_embedded=[doc['materials'][i]['name'] for i in material_ids.values()],
         generated_faces_by_material=added,visual_triangles=len(t),unique_collision_triangles=nt,

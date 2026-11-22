@@ -41,11 +41,13 @@ def main(glb,fpc,report):
     assert np.array_equal(np.frombuffer(col,dtype='<f4',count=nv*3,offset=16).reshape(-1,3),v)
     assert np.array_equal(np.unique(np.sort(faces,axis=1),axis=0),np.unique(np.sort(t,axis=1),axis=0))
     n=struct.unpack_from('<I',raw,12)[0];doc=json.loads(raw[20:20+n]);buf=bytearray(raw[28+n:])
-    assert len(doc['meshes'])==31 and doc['meshes'][-1]['name'].startswith('R27')
+    assert len(doc['meshes'])==30 and doc['meshes'][-1]['name'].startswith('R27')
+    assert all(mesh['primitives'] for mesh in doc['meshes']), 'Empty glTF mesh after reconstruction'
+    assert rpt['removed_invalid_empty_meshes']==[{'index':26,'name':'R23 production atrium, north-edge utility and open ruin refinements'}]
     assert all(doc['meshes'][i]['name'].startswith('Object_') for i in range(15))
     for region in (COURTYARD_MASK,RAMP_MASK):
         assert count_residuals(doc,buf,list(range(15)),region)==0,'Original scan remains inside R27 cut'
-        assert count_residuals(doc,buf,OLD_PROCEDURAL,region)==0,'Old production shell remains in R27 cut'
+        assert count_residuals(doc,buf,(15,20,22,23,24,26),region)==0,'Old production shell remains in R27 cut'
     assert rpt['old_procedural_removed_fully']>=3500
     assert rpt['raw_removed_fully']>=100
     # Verify that R27 actually includes its own embedded materials/textures,

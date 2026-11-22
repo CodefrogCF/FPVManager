@@ -1459,7 +1459,11 @@ function postToFlutter(message) {
             sampleSeamGround:sampleSceneTerrain,
             terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,
             terrainStable:()=>!regionalTerrainChanging,
-            terrainKey:()=>regionalTerrain&&!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
+            // Align local scenery to whichever real terrain provider is active.
+            // Before this, ordinary release builds (without the opt-in BKG beta)
+            // skipped the height adjustment and buried the plant under terrain.
+            // The provider object is the cache key; a change invalidates old samples.
+            terrainKey:()=>!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
             sampleGround:async alignment=>{
                 const positions=[Cesium.Cartographic.fromDegrees(alignment.longitude,alignment.latitude)];
                 const heights=await terrainManager.sample(provider=>provider.availability
