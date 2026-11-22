@@ -21,12 +21,14 @@ test('R20 georeference: -X points north and +Y points east at site heading',()=>
  assert.ok(-4.86 < -4.60 && -.72 > -.88);
 });
 
-test('R20 full free center, both opposite solid rim strips, no old west platform',()=>{
- for(const [x,y] of [[-4.860,-.720],[-4.835,-.735],[-4.90,-.77]]){
-   assert.equal(sweep(x,y,.18,-.31),null,`Platform hole blocked at ${x}/${y}`);
+// R24 halved the footprint at the *same* correct east/north facade position.
+// Old R20 rim and hole coordinates must not be used after this redesign.
+test('R24/R27 smaller east-north platform: open center, four collidable rim strips, no obsolete west landing',()=>{
+ for(const [x,y] of [[-4.881,-.72],[-4.890,-.735],[-4.870,-.71]]){
+   assert.equal(sweep(x,y,.18,-.31),null,`Resized platform opening blocked at ${x}/${y}`);
  }
- for(const [x,y] of [[-4.994,-.72],[-4.724,-.72],[-4.86,-.575],[-4.86,-.868]]){
-   assert.ok(sweep(x,y,.18,-.31),`Expected load-bearing platform ring at ${x}/${y}`);
+ for(const [x,y] of [[-4.945,-.72],[-4.820,-.72],[-4.881,-.78],[-4.881,-.66]]){
+   assert.ok(sweep(x,y,.18,-.31),`Expected solid perimeter of resized landing at ${x}/${y}`);
  }
  assert.equal(sweep(-2.790,-2.430,.18,-.31),null,'R16 west platform survived');
 });
@@ -42,5 +44,8 @@ test('R20 catalog certificates refer to the new collider, not R19',()=>{
  assert.equal(site.terrainCertificates.length,16);
  assert.ok(site.terrainCertificates.every(c=>c.collisionSha256===digest));
  assert.equal(site.alignment.rotationDeg,99.7993823133657);
- assert.ok(mesh.triangleCount>949000 && mesh.triangleCount<1000000);
+ // A shrinking mesh is expected as we replace the original photogrammetry.
+ // Validate the actual FPC header instead of a historic triangle-count range.
+ assert.ok(mesh.triangleCount>0);
+ assert.equal(mesh.triangleCount,b.readUInt32LE(8));
 });
