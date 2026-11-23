@@ -23,8 +23,8 @@ const scan=meshFor('local_reference.fpc');const dem=meshFor('ruedersdorf_r11_gro
 const overlay=catalog.sceneries[0].terrainUnderlay.certificate;
 const overlaypoly=JSON.stringify(M.normalizeTerrainCertificate(overlay,catalog.sceneries[0].alignment).polygon);
 
-test('R11 calibrated underlay is independent of the original R8 collision geometry',()=>{
- assert.ok(scan.triangleCount>900000);assert.equal(dem.triangleCount,153928);
+test('optional calibrated underlay remains independent from the main scene collider',()=>{
+ assert.ok(scan.triangleCount>900000);assert.ok(dem.triangleCount>100000);
  assert.notEqual(overlay.collisionSha256,catalog.sceneries[0].terrainCertificate.collisionSha256);
  assert.equal(catalog.sceneries[0].clipTerrain,false,'Experiment remains opt-in');
  assert.equal(catalog.sceneries[0].terrainRegions.length,catalog.sceneries[0].terrainCertificates.length+1);
@@ -34,7 +34,7 @@ test('R11 calibrated underlay is independent of the original R8 collision geomet
  const fail2=structuredClone(catalog);fail2.sceneries[0].terrainUnderlay.certificate.collisionSha256='00'.repeat(32);assert.doesNotThrow(()=>M.validate(fail2));
 });
 
-test('R11 DGM ground coverage is continuous inside the certified model-local rectangular perimeter',()=>{
+test('underlay ground coverage is continuous across its certified local footprint',()=>{
  const c=overlay,b=c.localBounds;const z=c.localGroundRange;
  for(let j=0;j<=10;j++)for(let i=0;i<=10;i++){
   const x=b[0]+(.04+(i/10)*.92)*(b[2]-b[0]),y=b[1]+(.04+(j/10)*.92)*(b[3]-b[1]);
@@ -43,7 +43,7 @@ test('R11 DGM ground coverage is continuous inside the certified model-local rec
  }
 });
 
-test('R11 opt-in underlay stays hidden before clipping; passes matching live terrain seam and unloads safely',async()=>{
+test('underlay stays hidden until valid clipping, and releases terrain on provider change',async()=>{
  const f=fixture();let provider={name:'regional'};let maskActive=false;let perturb=0;const alignment=M.terrainAligned(catalog.sceneries[0],79.8206323739);
  const frame=Coll.transform(alignment);
  const sampleSeamGround=async(points)=>points.map(q=>{

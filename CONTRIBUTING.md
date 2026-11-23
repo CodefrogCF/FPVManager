@@ -63,10 +63,10 @@ fresh `build/web/` output. The source `web/` directory contains Flutter build
 inputs. Check each finished artifact and publish its SHA-256 with the release.
 
 For documentation updates delivered as a changed-files ZIP, consult the
-[documentation index](docs/README.md#applying-a-documentation-update-zip):
-old notes are listed in a checksum-protected cleanup manifest so locally
-edited files are not deleted automatically. Do not confuse historical
-implementation notes with maintained feature documentation.
+[documentation index](docs/README.md#documentation-maintenance-and-zip-installation):
+retired pages are listed in a checksum-protected cleanup manifest so locally
+edited files are never deleted automatically. Keep current behavior only in
+audience-specific guides; use the Changelog for historical changes.
 
 ```sh
 python tool/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-release.apk

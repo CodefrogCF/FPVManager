@@ -11,7 +11,7 @@ class Ray{constructor(origin,direction){this.origin=origin;this.direction=direct
 const C={Cartesian3,Ray,Ellipsoid:{WGS84:{geodeticSurfaceNormal:()=>({x:0,y:0,z:1})}},
   Cartographic:{fromCartesian:hit=>hit}};
 
-test('R29 BKG calibration samples the currently rendered Globe surface, not the model or raw provider',()=>{
+test('BKG calibration samples the currently rendered Globe surface, not the model or raw provider',()=>{
   const observed=[];
   const viewer={scene:{globe:{pick:(ray,scene)=>{
     observed.push(ray.origin.longitude);
@@ -26,13 +26,13 @@ test('R29 BKG calibration samples the currently rendered Globe surface, not the 
   assert.deepEqual(observed,[0,1,2,3,4,5,6,7]);
 });
 
-test('R29 cannot invent a BKG height from unavailable rendered terrain',()=>{
+test('Rendered-terrain calibration cannot invent a BKG height from unavailable rendered terrain',()=>{
   const heights=M.pickRenderedGroundHeights(C,{scene:{globe:{pick:()=>undefined}}},[{longitude:13.8,latitude:52.4}]);
   assert.ok(Number.isNaN(heights[0]));
   assert.throws(()=>M.fitGroundReference([[0,0,-2.02575]],heights,-2.02575,16.023268178),/Insufficient/);
 });
 
-test('R29 beta alignment uses five real terrain hits and never mixes raw BKG heights',()=>{
+test('Beta alignment uses five real terrain hits and never mixes raw BKG heights',()=>{
   const source=fs.readFileSync('web/globe.js','utf8');
   assert.match(source,/const displayed=FPVSceneryManager\.pickRenderedGroundHeights\(Cesium,viewer,positions\)/);
   assert.match(source,/if\(regionalTerrain\)\{[\s\S]*const valid=displayed\.map/);
@@ -41,7 +41,7 @@ test('R29 beta alignment uses five real terrain hits and never mixes raw BKG hei
 });
 
 
-test('R32 uses GCG2016 only for the certified DGM1 model-root reference, not as a second runtime offset',()=>{
+test('GCG2016 is used only for the certified DGM1 model-root reference, not as a second runtime offset',()=>{
   const item=require('../../web/assets/scenery/catalog.json').sceneries[0];
   const offset=38.871142784910;
   const expected=40.949489589+offset;

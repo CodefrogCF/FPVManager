@@ -1,4 +1,8 @@
-"""Preview or remove unchanged retired documents after extracting an update ZIP."""
+"""Preview or remove checksum-matched obsolete documentation after a ZIP update.
+
+Only explicitly allowlisted Markdown and two superseded cleanup helpers are
+eligible. Never delete a file whose content changed locally.
+"""
 import argparse
 import hashlib
 import json
@@ -23,10 +27,17 @@ def cleanup(project_root, apply=False):
         if not isinstance(name, str) or any(c in name for c in ('\\', ':', '\0')):
             raise ValueError('Invalid retired documentation path.')
         path = PurePosixPath(name)
-        allowed_root = name in {'AENDERUNGEN_3D_TUNNEL.md', 'AENDERUNGEN_MENUES.md'}
+        legacy_root = name in {'AENDERUNGEN_3D_TUNNEL.md', 'AENDERUNGEN_MENUES.md'}
+        allowed_helper = name in {'tool/cleanup_legacy_docs.py', 'test/tool/test_cleanup_legacy_docs.py'}
+        # Rüdersdorf incremental READMEs can live under tool/scenery/, never
+        # allow arbitrary deletion of source code or unrelated tool assets.
+        scenery_readme = (len(path.parts) >= 3 and path.parts[0:2] == ('tool', 'scenery')
+            and path.suffix.lower() == '.md' and (
+                path.name.startswith('README_') or path.name == 'README.md'
+                or re.fullmatch(r'R[0-9]+_README\.md', path.name) is not None))
+        allowed = (name.startswith('docs/') and path.suffix == '.md') or legacy_root or scenery_readme or allowed_helper
         if (path.is_absolute() or '..' in path.parts or name != path.as_posix()
-                or path.suffix not in {'.md', '.json'}
-                or not (name.startswith('docs/') or allowed_root) or name in seen):
+                or not allowed or name in seen):
             raise ValueError(f'Unsafe retired documentation path: {name}')
         if not isinstance(hashes, list) or not hashes or not all(
                 isinstance(value, str) and re.fullmatch('[0-9a-f]{64}', value) for value in hashes):

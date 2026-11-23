@@ -1,41 +1,24 @@
 # FPVManager
 
-FPVManager is a local-first Flutter app for Swiss map exploration, FPV planning
-and flight simulation. Personal records stay on the device; online providers
-supply maps, forecasts and other public information.
+**FPVManager** is an open-source, local-first application for FPV flight preparation, Swiss map exploration and flight simulation. It combines a CesiumJS 3D globe with offline personal records, terrain and airspace information, route tools, and configurable simulation physics.
 
-[Showcase Video on Youtube](https://youtu.be/S1XSDf-Mf1A)
+[Project showcase](https://youtu.be/S1XSDf-Mf1A) · [Latest releases](https://github.com/CodefrogCF/FPVManager/releases/latest)
 
-## Main features
+## What you can do
 
-- A CesiumJS globe with Swiss terrain, imagery, 3D buildings, vegetation,
-  schematic tunnels and bridge supports.
-- Local places and photos, flight routes, walking/cycling routes and equipment
-  libraries, with import/export and portable backups.
-- Official UAS zones and published aviation obstacles, plus independent outdoor,
-  traffic, aircraft, weather, radar and observation layers.
-- Ground inspection and GPS, Angle and Acro flight simulation with touch,
-  keyboard or external controllers, flight recording, optional wind and
-  Advanced physics (default; Legacy fallback) with clean HUD-free capture.
-- Android road navigation, offline-region preparation, and activity profiles
-  that keep frequently used tools together.
+- **Explore and plan:** Swiss terrain, imagery, airspace restrictions, published obstacles, saved spots, editable routes, route playback, location and equipment libraries.
+- **Prepare:** terrain-dependent checks, weather/radar, environmental conditions and data-source status, including explicit unknown or incomplete coverage.
+- **Simulate:** GPS, Angle and Acro modes; selectable Advanced/Legacy physics; touch, keyboard and supported external controls; recordings, modelled battery/propulsion behavior, wind, collisions and optional GPS Rescue.
+- **Work offline:** keep personal records locally, export portable backups and prepare selected public map data for offline use.
+- **Use optional information layers:** public transport, road navigation, POIs, EV charging, shared mobility and other observation sources, subject to the availability of each provider.
 
-**Karte & Ansicht** is the shared map-settings hub. Less-used controls and source
-metadata are expandable; active errors and data limitations remain visible.
-The **Quellen** control opens the map's full attribution information.
+The **Rüdersdorf real-world scenery** is an **experimental test scene** based on third-party photogrammetry. Its BKG 3D-Beta terrain/building integration is separately gated; it must not be treated as surveyed clearance or validated radio planning. See [Rüdersdorf for users](docs/user/scenery.md) and [technical reference](docs/developer/scenery.md).
 
-The map and simulator are planning/visualization tools. Approximate terrain,
-model geometry and sampled checks do not establish permission to fly or obstacle
-clearance. Retrieval time, source validity and data completeness remain separate.
+## Get started
 
-## Download
+**Install:** Download an appropriate platform build from [GitHub Releases](https://github.com/CodefrogCF/FPVManager/releases/latest). The exact platforms available depend on the release.
 
-[Releases](https://github.com/CodefrogCF/FPVManager/releases/latest)
-
-## Run from source
-
-Use **Flutter 3.47.0 stable / Dart 3.13.0**, matching the build configuration.
-Web needs WebGL; Android needs the Android SDK and Java 17.
+**From source:** Use the Flutter/Dart version pinned for this repository (Flutter **3.47.0**, Dart **3.13.0**), a working Flutter SDK and the platform tooling. Web requires WebGL; Android requires the Android SDK and Java 17.
 
 ```sh
 flutter doctor -v
@@ -43,35 +26,24 @@ flutter pub get --enforce-lockfile
 flutter run -d chrome
 ```
 
-For Android, accept SDK licences with `flutter doctor --android-licenses`, find
-the device with `flutter devices`, then run `flutter run -d <device-id>`.
-Automated builds cover Android and Web; other platform runners need their own
-validation. Build, test and contribution instructions are in [CONTRIBUTING](CONTRIBUTING.md).
+For Android, run `flutter devices` and `flutter run -d <device-id>`. Platform-specific builds, test commands, required tools and release checks are documented in [Contributing](CONTRIBUTING.md).
 
 ## Documentation
 
-FPVManager documentation is organized by audience:
+| Audience | Start here |
+|---|---|
+| App users | [User handbook](docs/user_guide.md) · [Deutscher Schnellstart](docs/user/schnellstart.de.md) |
+| Developers and contributors | [Developer guide](docs/developer_guide.md) · [Contributing](CONTRIBUTING.md) |
+| All topics and limitations | [Documentation index](docs/README.md) |
 
-- **App users:** [User handbook](docs/user_guide.md) (English),
-  [Schnellstart](docs/user/schnellstart.de.md) (Deutsch),
-  [flight simulation and GPS Rescue](docs/user/flight_simulation.md),
-  and [battery/equipment profiles](docs/user/battery_and_power.md).
-- **Developers:** [Developer guide](docs/developer_guide.md),
-  [Contributing](CONTRIBUTING.md),
-  [architecture](docs/developer/architecture.md),
-  and [performance validation](docs/developer/performance.md).
+The app also includes **Settings → Help / Einstellungen → Hilfe**. Feature details are maintained in the audience-specific guides; historical changes belong in the [Changelog](CHANGELOG.md).
 
-The [documentation index](docs/README.md) has all maintained guides, privacy and
-map data references. Historical implementation notes are kept in an
-[archive](docs/archive/README.md) so superseded limits are not mistaken for
-current behavior. The app also bundles **Settings → Help** for offline reading.
+## Safety and data
 
-[Privacy policy · Datenschutzerklärung](PRIVACY.md)
+FPVManager is a planning and visualization tool, **not** an aviation authorization or a substitute for current official information and real-world obstacle surveys. Simulated RF quality, route estimates and approximate collision meshes are not measured telemetry. Terrain or source gaps remain unknown rather than being treated as safe clearance.
 
-## License
+Personal data are stored locally; optional internet functions contact third-party providers. See [Privacy policy / Datenschutzerklärung](PRIVACY.md).
 
-FPVManager's original code and documentation are licensed under
-[Apache-2.0](LICENSE). See [NOTICE](NOTICE) and
-[third-party notices](THIRD_PARTY_NOTICES.md). Bundled libraries, map/OSM data,
-other provider datasets and imported personal content retain their own rights
-and conditions; the project licence does not replace them.
+## Licenses
+
+Original FPVManager code and documentation are [Apache-2.0](LICENSE). See [NOTICE](NOTICE) and [Third-party notices](THIRD_PARTY_NOTICES.md) for the rights of bundled software, external datasets and imported models. The Rüdersdorf scan has a separate **CC BY-NC 4.0** license: it is **not** covered by Apache-2.0 and may not be used commercially without appropriate permission.

@@ -55,5 +55,6 @@ führen, dass die Drohne weiterfliegt, obwohl die Bodenfreiheit **nicht**
 - [Wetter](weather.md), [Flugvorbereitung](preflight.md),
   [Koordinaten und Höhen](coordinates_and_heights.md)
 - [Datenschutz und Berechtigungen](privacy_and_permissions.md)
+- [Experimentelle 3D-Umgebungen / Rüdersdorf](scenery.md)
 
 Die Anwendung bietet zudem kontextbezogene Hilfe unter **Einstellungen → Hilfe**.

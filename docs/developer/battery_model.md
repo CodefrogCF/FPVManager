@@ -133,5 +133,5 @@ termination and have no generic fixed-voltage cutoff. They are not discharging
 thresholds or automated charger settings.
 
 See [battery profile user guide](../user/battery_and_power.md) for entry
-instructions and [historical notes](../archive/README.md) for implementation
+instructions and [historical notes](../../CHANGELOG.md) for implementation
 stages.

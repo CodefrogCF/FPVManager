@@ -58,6 +58,20 @@ class DocumentationUpdateTest(unittest.TestCase):
                     MODULE.cleanup(self.root, True)
                 self.assertTrue(self.old.exists())
 
+    def test_revision_readmes_can_be_cleaned_but_unrelated_code_is_protected(self):
+        path = self.root / 'tool/scenery/r34_hotfix/README.md'
+        path.parent.mkdir(parents=True)
+        path.write_text('Outdated revision notes')
+        entry = {'path': 'tool/scenery/r34_hotfix/README.md',
+                 'known_sha256': [hashlib.sha256(path.read_bytes()).hexdigest()]}
+        self.manifest([entry])
+        self.assertEqual(MODULE.cleanup(self.root, True),
+                         [('tool/scenery/r34_hotfix/README.md', 'removed')])
+        self.assertFalse(path.exists())
+        self.manifest([{**entry, 'path':'tool/scenery/private.py'}])
+        with self.assertRaises(ValueError):
+            MODULE.cleanup(self.root, True)
+
     def test_unknown_project_and_missing_hashes_are_rejected(self):
         self.manifest([{'path': 'docs/old.md', 'known_sha256': []}])
         with self.assertRaises(ValueError):

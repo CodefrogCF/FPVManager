@@ -22,7 +22,7 @@ https://wmts.geo.admin.ch/1.0.0/{layer}/default/current/3857/{z}/{x}/{y}.{extens
 | Selectable aviation obstacles | [Official STAC collection](https://data.geo.admin.ch/api/stac/v1/collections/ch.bazl.luftfahrthindernis) | BAZL / FOCA · Skyguide; full WGS84 KMZ; published coverage only |
 | Optional height conversion | `geodesy.geo.admin.ch` REFRAME | [Service documentation](https://www.swisstopo.admin.ch/en/rest-api-geoservices-reframe-web) |
 
-### Online Berlin/Brandenburg map expansion (v0.20.0 preparation)
+### Online Berlin/Brandenburg map sources
 
 The official LGB/Geoportal Berlin regional WMS services are layered over the
 existing Swiss imagery **only** in their documented Berlin/Brandenburg rectangle,
@@ -39,9 +39,12 @@ Official catalog descriptions: [DOP20c](https://geobroker.geobasis-bb.de/gbss.ph
 [basemap.de 2025](https://geobroker.geobasis-bb.de/gbss.php?MODE=GetProductPreview&PRODUCTID=e4989df9-4ad1-4e06-b023-63af4727c2bc),
 [DGM shade](https://geoportal.brandenburg.de/detailansichtdienst/render?url=https%3A%2F%2Fgeoportal.brandenburg.de%2Fgs-json%2Fxml%3Ffileid%3D414f568f-639b-4b5a-ba92-57fdac396799).
 The regional imagery is **online-only**; the existing swisstopo offline cache is not
-used for German tiles. This expansion does not supply Berlin/Brandenburg **3D
-terrain elevations**, generic 3D building meshes or verified physical collision.
-The DGM WMS hillshade is **not a Cesium terrain height provider**.
+used for German tiles. These **imagery WMS** sources do not themselves supply measured 3D terrain
+elevations, building meshes or physical collision. The DGM hillshade is **not**
+a Cesium height provider. A **separate experimental BKG 3D-Beta** and the
+photogrammetric Rüdersdorf scene are described in the
+[real-world scenery guide](scenery.md); they are not validated for radio
+planning or real-world flight clearance.
 
 Satellite is the SWISSIMAGE Background composite, including aerial imagery and
 SPOT imagery in neighbouring countries. Its product documentation also requires:

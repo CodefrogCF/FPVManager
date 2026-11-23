@@ -68,7 +68,7 @@ and lee-side sink. Ridge/lee effects are approximate and use only nearby
 available terrain heights. Disabling wind influence restores no-wind flight.
 Settings are session-scoped; no weather outside the loaded region is measured.
 For derivation and limits, see
-[advanced environmental wind](../advanced-environmental-wind.md).
+[advanced environmental wind](../developer/advanced/advanced-environmental-wind.md).
 
 ## Optional ground effect and powered-descent airflow
 
@@ -84,7 +84,7 @@ at the drone's current location; missing tiles **do not** generate a fictional
 surface. Powered descent can lose some effective thrust, whereas zero-throttle
 free fall retains its passive drag and no motor-induced propwash. These
 simplified approximations are **not** an aerodynamic prediction or a safety
-assurance. See [advanced ground effect and propwash](../advanced-ground-effect-propwash.md)
+assurance. See [advanced ground effect and propwash](../developer/advanced/advanced-ground-effect-propwash.md)
 for assumptions, limitations and tests.
 
 ## Live radio line of sight

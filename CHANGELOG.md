@@ -1,7 +1,8 @@
 ## Unreleased – v0.20.0 preparation
 
 - Added official Berlin/Brandenburg **online raster imagery** to the globe for satellite (DOP20c), topographic (basemap.de 2025) and relief (DGM hillshade) styles while retaining the existing Swiss providers and offline behavior. Geographic WMS rectangles and source credits limit the regional overlays.
-- Added ruedersdorf source/feasibility research, explicit redistribution and terrain limitations, a metadata-only GLB inspector and regression tests. Real GLB/Blender inspection, live Cesium rendering and German 3D terrain remain open.
+- Added an experimental Rüdersdorf real-world scenery with source-based photogrammetry, approximate architectural repairs, matching GLB/FPC collisions, local georeferencing and separately gated BKG 3D-Beta terrain/buildings. Its current R35 geometry removes an overlapping northern scaffold while retaining the restored original scan and southern building. The user-confirmed BKG visual ground correction is −16.90 m; vertical source datums, RF planning and real-world clearance remain unverified.
+- Reorganized documentation into maintained user and developer guides. Rüdersdorf calibration, workbench relay, model provenance and collision limitations now have canonical reference pages. Superseded revision READMEs, archived implementation notes and duplicate copies are retired by a checksum-protected cleanup manifest; no runtime or scene geometry was changed by the documentation update.
 
 ## [v0.19.0] - 2026-11-21
 

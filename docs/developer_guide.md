@@ -42,6 +42,7 @@ RF estimates and unsupported terrain coverage.
 
 ## Architecture and implementation references
 
+- [Real-world scenery, georeferencing and collision](developer/scenery.md): Rüdersdorf, BKG test mode, local heights and GLB/FPC constraints.
 - [Architecture and storage](developer/architecture.md): Flutter modules, database,
   provider integrations and offline assets.
 - [App ↔ Cesium bridge](developer/globe_bridge.md): commands, message lifecycle,
@@ -59,9 +60,7 @@ RF estimates and unsupported terrain coverage.
 - [Performance measurement](developer/performance.md): repeatable scenarios,
   instrumentation, benchmarks, measurement interpretation and limitations.
 
-Historical implementation notes from individual increments are retained under
-[archive](archive/README.md), but **must not** be treated as the current API
-contract or current default settings.
+Historical changes belong in the [Changelog](../CHANGELOG.md). Superseded incremental notes do not define current defaults or APIs.
 
 ## Changes and generated sources
 
@@ -132,7 +131,7 @@ for CI builds, release artifacts and platform-specific checks.
 - Put **current internal contracts/model limitations** in `docs/developer/`.
 - Keep the repository overview short: [README](../README.md) → [documentation](README.md)
   → the appropriate audience guide.
-- Keep older historical notes in `docs/archive/`, clearly marked as superseded.
+- Record historical changes in `CHANGELOG.md`; remove superseded standalone notes instead of duplicating current guides.
 - Update both the originating and destination links when moving a page.
 - Run `python tool/check_docs.py`; the [documentation migration instructions](README.md#applying-a-documentation-update-zip)
   explain how to remove retired files safely after a ZIP delivery.

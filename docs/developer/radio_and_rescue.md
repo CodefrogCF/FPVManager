@@ -121,5 +121,5 @@ full measurement procedure see [performance](performance.md). Synthetic Node
 benchmarks are **not** GPU/real-tile evidence.
 
 Read the [user-facing flight guide](../user/flight_simulation.md) and
-[historical implementation notes](../archive/README.md) for context; dated
+[historical implementation notes](../../CHANGELOG.md) for context; dated
 notes may describe superseded defaults such as the old 6-km cap.

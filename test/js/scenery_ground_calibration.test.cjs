@@ -9,22 +9,22 @@ const catalog=require('../../web/assets/scenery/catalog.json');
 
 const point=(height,lon=13.78985,lat=52.48412)=>({height,longitude:lon,latitude:lat});
 
-test('R33.1: matching scan and rendered ground heights produce zero offset',()=>{
+test('matching scan and rendered ground heights produce zero offset',()=>{
   assert.deepEqual(B.compare(point(82),point(82),0),{deltaM:0,proposedOffsetM:0,horizontalM:0,warning:null});
 });
-test('R33.1: ground picks yield a signed additive offset rather than hardcoded geoid',()=>{
+test('ground picks yield a signed additive offset rather than hardcoded geoid',()=>{
   assert.deepEqual(B.compare(point(108.3),point(81.8),-2),{
     deltaM:-26.5,proposedOffsetM:-28.5,horizontalM:0,warning:null});
   assert.equal(B.compare(point(71),point(81.5),5).proposedOffsetM,15.5);
 });
-test('R33: reject invalid depth, inappropriate separation and implausible offsets',()=>{
+test('reject invalid depth, inappropriate separation and implausible offsets',()=>{
   assert.throws(()=>B.compare(point(NaN),point(81)),/valid 3D/);
   assert.throws(()=>B.compare(point(10,0,0),point(10,180,0)),/12 m auseinander/);
   assert.throws(()=>B.compare(point(170),point(81)),/überschreitet/);
   assert.throws(()=>B.compare(point(82),point(82),60.1),/überschreitet/);
   assert.ok(B.compare(point(82),point(82,13.78994)).warning);
 });
-test('R33: BKG-specific edit is validated, persists separately from ordinary offset',()=>{
+test('BKG-specific edit is validated, persists separately from ordinary offset',()=>{
   const item=M.validate(catalog)[0];
   assert.equal(item.bkgHeightOffsetM,-16.90);
   const edit=A.normalizeEdit({...item,bkgHeightOffsetM:-27.5,heightOffsetM:.25},item.alignment);
@@ -34,7 +34,7 @@ test('R33: BKG-specific edit is validated, persists separately from ordinary off
   assert.throws(()=>A.normalizeEdit({...item,bkgHeightOffsetM:'-20'},item.alignment),/BKG/);
 });
 
-test('R33: BKG-only height nudge follows a provider switch, preview hiding is reversible',async()=>{
+test('BKG-only height nudge follows a provider switch, preview hiding is reversible',async()=>{
   class Matrix4{};Matrix4.fromRotationTranslation=x=>x;Matrix4.multiply=(a,b)=>({a,b});
   const C={Cartesian3:{fromDegrees:(...v)=>v},Transforms:{eastNorthUpToFixedFrame:x=>x},
     Matrix3:{fromRotationZ:x=>x},Matrix4,Math:{toRadians:x=>x*Math.PI/180},Color:class{},Credit:class{}};
@@ -69,7 +69,7 @@ test('R33: BKG-only height nudge follows a provider switch, preview hiding is re
   }finally{manager.dispose();}
 });
 
-test('R33.1: tap workflow uses local scanned ground and bare terrain, confirmation is explicit',()=>{
+test('tap workflow uses local scanned ground and bare terrain, confirmation is explicit',()=>{
   const js=fs.readFileSync('web/globe.js','utf8');
   const html=fs.readFileSync('web/globe.html','utf8');
   const manager=fs.readFileSync('web/scenery_manager.js','utf8');
@@ -89,7 +89,7 @@ test('R33.1: tap workflow uses local scanned ground and bare terrain, confirmati
   assert.match(controller,/saveSceneryEdit/);
 });
 
-test('R33.1: calibration module is bundled for Android, not just loaded in HTML',()=>{
+test('calibration module is bundled for Android, not just loaded in HTML',()=>{
   const yaml=fs.readFileSync('pubspec.yaml','utf8');
   const html=fs.readFileSync('web/globe.html','utf8');
   assert.match(yaml,/^\s+- web\/scenery_bridge_calibration\.js\s*$/m);
@@ -99,7 +99,7 @@ test('R33.1: calibration module is bundled for Android, not just loaded in HTML'
   assert.match(js,/globalThis\.FPVSceneryBridgeCalibration\?\.compare/);
 });
 
-test('R33.1: do not compare a scanned floor with distant or elevated LoD2 roofs',()=>{
+test('do not compare a scanned floor with distant or elevated LoD2 roofs',()=>{
   assert.throws(()=>B.compare(point(83),point(84,13.79035)),/12 m auseinander/);
   assert.deepEqual(B.compare(point(92.5),point(84),-1).proposedOffsetM,-9.5);
   const js=fs.readFileSync('web/globe.js','utf8');
@@ -109,7 +109,7 @@ test('R33.1: do not compare a scanned floor with distant or elevated LoD2 roofs'
   assert.match(ui,/Bodenfläche möglichst mittig im Originalscan/);
 });
 
-test('R33.1: calibration helper registers in a plain browser without CommonJS globals',()=>{
+test('calibration helper registers in a plain browser without CommonJS globals',()=>{
   const vm=require('node:vm');
   const context={};
   vm.runInNewContext(fs.readFileSync('web/scenery_bridge_calibration.js','utf8'),context);

@@ -7,8 +7,7 @@ app and the map and flight controls. This guide uses the German menu labels.
 For a shorter German introduction use the
 [Deutsch: Schnellstart](user/schnellstart.de.md). For newer simulator and
 battery features, consult [flight simulation, radio and GPS Rescue](user/flight_simulation.md)
-and [battery/ESC/motor profiles](user/battery_and_power.md). These are the
-maintained guides; older implementation notes have been archived.
+and [battery/ESC/motor profiles](user/battery_and_power.md). These are the maintained, audience-specific guides.
 
 ## Find the right control
 
@@ -54,6 +53,8 @@ Enter device-local time; stored values use UTC. Fixed time remains frozen, and
 leaving the activity restores the map's lighting choice. Navigation has separate
 **Wie Karte / Aus / Ein** overrides for buildings and vegetation under
 **Einstellungen → Navigation**.
+
+The experimental local scene at Rüdersdorf has a separate [real-world scenery guide](user/scenery.md): its BKG 3D-Beta build and height comparison are not validated for real-world clearance or RF planning.
 
 Select a raw map point for coordinates and terrain height. WGS84 ellipsoid,
 Swiss LN02 and AGL are different references; see [coordinates and heights](user/coordinates_and_heights.md).
