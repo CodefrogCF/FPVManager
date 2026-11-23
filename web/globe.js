@@ -83,6 +83,7 @@ function postToFlutter(message) {
     let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryManager = null, regional3D = null;
     let regionalTerrain = false, regionalTerrainChanging = false, regionalBuildingsRequested = false, regionalTerrainRevision = 0;
     let sceneryCatalogReady = Promise.resolve();
+    let bridgeHeightMatch={phase:"idle"};
     let touchControlsVisible=true;
     function setTouchControls(visible){
         if(typeof visible!=='boolean')throw Error('Invalid touch visibility');
@@ -648,16 +649,95 @@ function postToFlutter(message) {
         lastSpotRevision = revision;
     }
 
+    function bridgeMatchStatus(){
+        // Local operator measurements only: no automatic geodetic certification.
+        return {...bridgeHeightMatch};
+    }
+    function resetBridgeHeightMatch(){
+        if(bridgeHeightMatch.id){try{sceneryManager?.setPreviewHidden(bridgeHeightMatch.id,false);}catch(_){}}
+        bridgeHeightMatch={phase:'idle'};
+        activeViewer?.scene?.requestRender?.();
+    }
+    function bridgeMatchPick(pixel){
+        if(!bridgeHeightMatch||!['scan','target'].includes(bridgeHeightMatch.phase))return false;
+        const scene=activeViewer.scene,id=bridgeHeightMatch.id;
+        try{
+            if(!scene.pickPositionSupported)throw Error('Depth picking is not supported on this device');
+            if(!regionalTerrain||regionalTerrainChanging)throw Error('BKG terrain is no longer active');
+            const picked=scene.pick(pixel);
+            if(bridgeHeightMatch.phase==='scan'){
+                if(!sceneryManager?.previewModels(id).includes(picked?.primitive))
+                    throw Error('Bitte einen sichtbaren Bodenbereich des Originalscans antippen (nicht die Karte)');
+                const xyz=scene.pickPosition(pixel);
+                const c=xyz&&Cesium.Cartographic.fromCartesian(xyz);
+                if(!c||!Number.isFinite(c.height))throw Error('Keine gültige Tiefeninformation für den Scan-Boden vorhanden');
+                bridgeHeightMatch={...bridgeHeightMatch,phase:'target',source:{
+                    longitude:Cesium.Math.toDegrees(c.longitude),latitude:Cesium.Math.toDegrees(c.latitude),height:c.height}};
+                sceneryManager.setPreviewHidden(id,true);
+                info.textContent='Bodenabgleich: Jetzt die gleiche Stelle auf dem Kartengelände antippen (Scan ausgeblendet)';info.hidden=false;
+                scene.requestRender?.();
+                return true;
+            }
+            // Only compare a scanned ground point to real Cesium terrain,
+            // not the roof of a BKG LoD2 building (different ground level).
+            const tiles=regional3D?.visualOnlyModels()??[];
+            const lod2=tiles.some(t=>t===picked?.primitive||t===picked?.tileset||t===picked?.content?.tileset||t===picked?.primitive?.tileset);
+            if(lod2||picked&&picked.primitive!==scene.globe)
+                throw Error('Bitte nur die freie Geländeoberfläche wählen, kein LoD2-Gebäude oder anderes Objekt');
+            const ray=activeViewer.camera.getPickRay(pixel);
+            const xyz=ray&&scene.globe.pick(ray,scene);
+            const c=xyz&&Cesium.Cartographic.fromCartesian(xyz);
+            if(!c||!Number.isFinite(c.height))throw Error('Kein Gelände-Höhenschnitt unter dem gewählten Punkt vorhanden');
+            const target={longitude:Cesium.Math.toDegrees(c.longitude),latitude:Cesium.Math.toDegrees(c.latitude),height:c.height};
+            const current=sceneryManager.snapshot().find(x=>x.id===id);
+            if(!current||current.heightState!=='adjusted')throw Error('Scenery terrain calibration is no longer ready');
+            if(typeof globalThis.FPVSceneryBridgeCalibration?.compare!=='function')
+                throw Error('Bodenabgleich-Modul fehlt im Android-Asset-Bundle; App mit aktualisierter pubspec.yaml neu bauen');
+            const result=globalThis.FPVSceneryBridgeCalibration.compare(bridgeHeightMatch.source,target,current.bkgHeightOffsetM??0);
+            bridgeHeightMatch={phase:'proposal',id,source:bridgeHeightMatch.source,target,
+                surface:'terrain',...result};
+            sceneryManager.setPreviewHidden(id,false);
+            info.textContent=`Bodenabgleich: ${result.deltaM>=0?'+':''}${result.deltaM.toFixed(2)} m · BKG-Versatz ${result.proposedOffsetM.toFixed(2)} m · im Menü prüfen/übernehmen`;
+            info.hidden=false;
+            scene.requestRender?.();
+        }catch(error){
+            bridgeHeightMatch={...bridgeHeightMatch,error:String(error?.message??error)};
+            info.textContent=bridgeHeightMatch.error;info.hidden=false;
+            activeViewer.scene.requestRender?.();
+        }
+        return true;
+    }
+
     async function executeCommand(command, signal) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
-            case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,replacement:regional3D?.replacementStatus()??null};
+            case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,bridgeHeightMatch:bridgeMatchStatus(),replacement:regional3D?.replacementStatus()??null};
+            case 'begin-scenery-bridge-height-match': {
+                await sceneryCatalogReady;
+                if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)
+                    throw Error('Stop navigation before ground height matching');
+                if(!regionalTerrain||regionalTerrainChanging)throw Error('Enable BKG 3D Beta terrain first');
+                if(!activeViewer.scene.pickPositionSupported)throw Error('3D depth picking unavailable');
+                if(typeof globalThis.FPVSceneryBridgeCalibration?.compare!=='function')
+                    throw Error('Bodenabgleich-Modul fehlt im App-Bundle; pubspec.yaml prüfen und APK neu erstellen');
+                const item=sceneryManager?.snapshot().find(x=>x.id===command.id);
+                if(!item||item.heightState!=='adjusted'||!item.enabled||!sceneryManager.previewModels(command.id).length)
+                    throw Error('Local scan must be loaded and terrain-calibrated');
+                resetBridgeHeightMatch();
+                bridgeHeightMatch={phase:'scan',id:command.id};
+                info.textContent='Bodenabgleich: Geeignete ebene Bodenfläche möglichst mittig im Originalscan antippen';info.hidden=false;
+                return {sceneries:sceneryManager.snapshot(),bridgeHeightMatch:bridgeMatchStatus()};
+            }
+            case 'cancel-scenery-bridge-height-match': {
+                resetBridgeHeightMatch();
+                return {sceneries:sceneryManager?.snapshot()??[],bridgeHeightMatch:bridgeMatchStatus()};
+            }
             case 'restore-scenery-preferences': await sceneryCatalogReady; sceneryManager?.restorePreferences(command.preferences); return {};
             case 'set-scenery-enabled': if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before changing scenery'); await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {sceneries:sceneryManager.setEnabled(command.id,command.enabled)};
             case 'set-scenery-edit': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');
                 if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before editing scenery');
-                {const sceneries=sceneryManager.setEdit(command.id,command.edit);regional3D?.tick(true);return {sceneries,replacement:regional3D?.replacementStatus()??null};}
+                {resetBridgeHeightMatch();const sceneries=sceneryManager.setEdit(command.id,command.edit);regional3D?.tick(true);return {sceneries,bridgeHeightMatch:bridgeMatchStatus(),replacement:regional3D?.replacementStatus()??null};}
             case 'restore-scenery-edits': await sceneryCatalogReady; sceneryManager?.restoreEdits(command.edits);regional3D?.tick(true);return {};
             case 'retry-scenery': if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before reloading scenery'); await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {sceneries:sceneryManager.retry(command.id)};
             case 'tunnel-runtime-diagnostics': {
@@ -1459,6 +1539,7 @@ function postToFlutter(message) {
             sampleSeamGround:sampleSceneTerrain,
             terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,
             terrainStable:()=>!regionalTerrainChanging,
+            regionalHeightMode:()=>regionalTerrain,
             // R32: preserve the independent 34.25-m flat-ellipsoid Workbench
             // preview, but calibrate the actual Rüdersdorf model to the active
             // rendered terrain. A 34.25-m model ROOT places original ground at
@@ -1527,6 +1608,7 @@ function postToFlutter(message) {
             terrainReady:()=>regionalTerrain&&!regionalTerrainChanging&&terrainManager.status().state==='ready',
             onStatus:value=>console.info('[BKG LoD2 beta]',value),
             onRegionChange:active=>{
+                if(!active&&bridgeHeightMatch.phase!=='idle')resetBridgeHeightMatch();
                 regionalTerrain=active;regionalTerrainChanging=true;
                 const revision=++regionalTerrainRevision;
                 void terrainManager.switchProvider().finally(()=>{if(regionalTerrainRevision===revision)regionalTerrainChanging=false;});
@@ -1556,6 +1638,7 @@ function postToFlutter(message) {
         // Display coordinates and elevation on click.
         viewer.screenSpaceEventHandler.setInputAction(
             function (event) {
+                if(bridgeMatchPick(event.position))return;
                 const picked = viewer.scene.pick(event.position);
 
                 const entity = picked?.id instanceof Cesium.Entity

@@ -166,10 +166,12 @@
         const alignment=normalize({...base,...value.alignment});
         const heightOffsetM=value.heightOffsetM??0;
         if(!Number.isFinite(heightOffsetM)||Math.abs(heightOffsetM)>20)throw Error('Height fine adjustment must be within ±20 m');
+        const bkgHeightOffsetM=value.bkgHeightOffsetM??0;
+        if(!Number.isFinite(bkgHeightOffsetM)||Math.abs(bkgHeightOffsetM)>60)throw Error('BKG height correction must be within ±60 m');
         normalize({...alignment,ellipsoidHeightM:alignment.ellipsoidHeightM+heightOffsetM});
         if(value.replaceBuildings!==undefined&&typeof value.replaceBuildings!=='boolean')throw Error('Invalid building replacement switch');
         if(value.clipTerrain!==undefined&&typeof value.clipTerrain!=='boolean')throw Error('Invalid terrain replacement switch');
-        return {alignment,heightOffsetM,buildingRegions:normalizeRegions(value.buildingRegions,alignment),terrainRegions:normalizeRegions(value.terrainRegions,alignment),replaceBuildings:value.replaceBuildings===true,clipTerrain:value.clipTerrain===true};
+        return {alignment,heightOffsetM,bkgHeightOffsetM,buildingRegions:normalizeRegions(value.buildingRegions,alignment),terrainRegions:normalizeRegions(value.terrainRegions,alignment),replaceBuildings:value.replaceBuildings===true,clipTerrain:value.clipTerrain===true};
     }
     return {DEFAULT, STORAGE_KEY, normalize, modelMatrix, apply, exportDocument, nudge,fitControlPoints,localPoint,offset,normalizeRegions,normalizeEdit,projectFootprint};
 });

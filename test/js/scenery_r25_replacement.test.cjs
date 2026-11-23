@@ -21,10 +21,11 @@ test('R25: northwest roof hatch is open and neighbouring roof blocks dives',()=>
   assert.equal(check([-4.22,5.94,-1.37],[-4.22,5.94,-1.13]),null);
   assert.ok(check([-4.40,5.94,-1.37],[-4.40,5.94,-1.13]));
 });
-test('R30: obsolete R25 east production facade was removed after RAWscan restoration',()=>{
-  assert.equal(check([4.24,1.87,-1.79],[4.46,1.87,-1.79]),null);
-  assert.equal(check([4.24,1.60,-1.79],[4.46,1.60,-1.79]),null,
-    'R25 generated wall still blocks original scan area');
+test('R34: southern courtyard east-production facade restored without sealing its entrance',()=>{
+  assert.equal(check([4.24,1.87,-1.79],[4.46,1.87,-1.79]),null,
+    'Original southern entrance must remain open');
+  assert.ok(check([4.24,1.60,-1.79],[4.46,1.60,-1.79]),
+    'Southern exterior wall disappeared in R30 and must be restored');
 });
 
 test('R25: newly generated collider matches certified scene',()=>{

@@ -567,7 +567,7 @@
         "coverageMarginLocal": 0.025,
         "coverageAreaM2": 154.56056411317456,
         "groundTrianglesConsidered": 2092,
-        "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+        "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
         "seamToleranceM": 0.5
       },
       "terrainCertificates": [
@@ -585,7 +585,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 154.56056411317456,
           "groundTrianglesConsidered": 2092,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -602,7 +602,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 2655.3607612692635,
           "groundTrianglesConsidered": 705,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -619,7 +619,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 1965.2298703453216,
           "groundTrianglesConsidered": 26,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -636,7 +636,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 562.3745176636174,
           "groundTrianglesConsidered": 611,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -653,7 +653,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 451.46062447941256,
           "groundTrianglesConsidered": 3335,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -670,7 +670,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 354.9244581894561,
           "groundTrianglesConsidered": 730,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -687,7 +687,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 258.3882918995001,
           "groundTrianglesConsidered": 2119,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -704,7 +704,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 258.38829189949985,
           "groundTrianglesConsidered": 2143,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -721,7 +721,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 244.01056500525098,
           "groundTrianglesConsidered": 1026,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -738,7 +738,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 182.39173545847044,
           "groundTrianglesConsidered": 1839,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -755,7 +755,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 153.636281669973,
           "groundTrianglesConsidered": 438,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -772,7 +772,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 153.6362816699728,
           "groundTrianglesConsidered": 938,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -789,7 +789,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 178.28381348868513,
           "groundTrianglesConsidered": 1982,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -806,7 +806,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 153.6362816699728,
           "groundTrianglesConsidered": 588,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         },
         {
@@ -823,7 +823,7 @@
           "coverageMarginLocal": 0.025,
           "coverageAreaM2": 133.09667182104613,
           "groundTrianglesConsidered": 281,
-          "collisionSha256": "17ed4068479231ea20d2a58681782252a0f7e35025af2f390a0d3429b2511b03",
+          "collisionSha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
           "seamToleranceM": 0.5
         }
       ],
@@ -857,7 +857,8 @@
         "surveyVerified": false,
         "revision": "R32"
       },
-      "requireGroundCalibration": true
+      "requireGroundCalibration": true,
+      "bkgHeightOffsetM": -16.9
     }
   ]
 }

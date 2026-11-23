@@ -1,7 +1,8 @@
 'use strict';
-// R19 speculative east vessels were superseded by R25 and ultimately R30.
-// R30 removes the obsolete R25 east-block shell and scaffolding while keeping
-// the original scan, other utility buildings, and the long hall intact.
+// R19 speculative east vessels were superseded by the R25 southern production
+// building. R30 accidentally removed that building when repairing a separate
+// original-scan footprint in the north; R34 restores it without recreating the
+// old vessel cylinders or altering the photographed northern original scan.
 const {test}=require('node:test'), assert=require('node:assert/strict');
 const fs=require('node:fs'), path=require('node:path');
 const Collision=require('../../web/scenery_collision.js');
@@ -20,12 +21,12 @@ test('R25/R27: former east vessel bays remain physically open instead of contain
  }
 });
 
-test('R30: discontinued R25 east-block side platforms no longer occupy the original-scan area',()=>{
+test('R34: restored southern production side platforms retain a clear central aisle',()=>{
  for(const y of [1.31,1.67,2.03]){
-  assert.equal(check([5.16,y,-1.51],[5.16,y,-1.76]),null,
-   `Obsolete R25 eastern scaffolding still collides at y=${y}`);
+  assert.ok(check([5.16,y,-1.51],[5.16,y,-1.76]),
+    `Southern building east-side gallery still missing at y=${y}`);
   assert.equal(check([4.885,y,-1.51],[4.885,y,-1.76]),null,
-   `Obsolete R25 central floor remains at y=${y}`);
+    `Restored building must retain a clear center at y=${y}`);
  }
 });
 

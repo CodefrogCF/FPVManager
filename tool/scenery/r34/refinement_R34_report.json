@@ -1,0 +1,38 @@
+{
+  "vertices": 507522,
+  "triangles": 976109,
+  "nodes": 131071,
+  "bounds": [
+    -8.60196304321289,
+    -8.206687927246094,
+    -2.7489359378814697,
+    8.60196304321289,
+    8.206687927246094,
+    2.7489359378814697
+  ],
+  "bytes": 21997860,
+  "revision": "R34",
+  "source_sha256": "0c3d1c5627d525ce1b8daa1117da7e573c8d9d3f97eb72e3bdd49d54072205ef",
+  "glb_sha256": "d6257addb55e9cbc84b213a5b47ea735627bb9b4eb8114bd87869034a98a87db",
+  "fpc_sha256": "c2d2bc56e148997bfa5cf16b063fe6e14de6482d01ec8cf5b9f18a5bd41033d8",
+  "corrected_mesh_id": 27,
+  "restored_south_building_triangles": 2328,
+  "restored_by_material": {
+    "R12 r6_concrete": 636,
+    "R12 r6_brick": 1104,
+    "R12 r6_roof": 276,
+    "R15 safety steel": 312
+  },
+  "southern_bbox_local": [
+    4.29,
+    5.48,
+    0.99,
+    2.76,
+    -2.012,
+    -0.745
+  ],
+  "northern_original_scan_unchanged": true,
+  "bkg_user_height_offset_unchanged": true,
+  "restored_r27_green_roof": false,
+  "collisions": 976109
+}

@@ -2009,6 +2009,12 @@ class GlobeController extends ChangeNotifier {
   Future<Map<String, dynamic>> sceneryStatus() =>
       _request({'type': 'scenery-status'});
 
+  Future<Map<String, dynamic>> beginSceneryBridgeHeightMatch(String id) =>
+      _request({'type': 'begin-scenery-bridge-height-match', 'id': id});
+
+  Future<Map<String, dynamic>> cancelSceneryBridgeHeightMatch() =>
+      _request({'type': 'cancel-scenery-bridge-height-match'});
+
   Future<Map<String, dynamic>> setSceneryEnabled(
     String id,
     bool enabled,
@@ -2045,6 +2051,7 @@ class GlobeController extends ChangeNotifier {
           for (final key in [
             'alignment',
             'heightOffsetM',
+            'bkgHeightOffsetM',
             'buildingRegions',
             'terrainRegions',
             'replaceBuildings',

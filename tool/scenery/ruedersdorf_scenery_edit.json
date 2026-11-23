@@ -127,5 +127,6 @@
   ],
   "terrainRegions": [],
   "replaceBuildings": true,
-  "clipTerrain": false
+  "clipTerrain": false,
+  "bkgHeightOffsetM": 0
 }

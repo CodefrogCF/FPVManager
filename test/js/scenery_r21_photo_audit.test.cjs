@@ -21,17 +21,18 @@ test('R21 broken upper floor has real hole, not merely a dark top texture',()=>{
   assert.ok(ray(-4.78,-2.135,-1.12,-1.41),'Intact panel beside hole should collide');
 });
 
-// R30 deliberately retires the synthetic eastern production floors and roof.
-// The R25 shell must not remain as a floating frame over the real scan.
-test('R30 east production block: obsolete upper decks and fictitious roof are absent',()=>{
+// R34 restores the actual R25 SOUTHERN building after R30's incorrect cut;
+// preserve its roof openings and central fly-through, never the R27 green roof.
+test('R34 southern production: upper side decks and roof retained with real skylight voids',()=>{
   for(const y of [1.31,1.67,2.03]){
-    assert.equal(ray(5.16,y,-1.29,-1.43),null,
-      `Obsolete east upper deck blocks the restored scan at y=${y}`);
+    assert.ok(ray(5.16,y,-1.29,-1.43),
+      `Southern production upper side deck still missing at y=${y}`);
     assert.equal(ray(4.885,y,-1.29,-1.43),null,
-      `Obsolete east roof passage still contains a full-span floor at y=${y}`);
+      `Restored southern building obstructs central aisle at y=${y}`);
   }
-  assert.equal(ray(4.93,1.95,-.66,-.95),null,
-    'R25 synthetic east-block roof still covers the actual scan');
+  assert.ok(ray(4.93,1.95,-.66,-.95),'South building roof missing');
+  assert.equal(ray(4.59,1.66,-.66,-.95),null,'First southern skylight capped');
+  assert.equal(ray(5.17,2.20,-.66,-.95),null,'Second southern skylight capped');
 });
 
 test('R27 resized east-north platform and central/south-eastern silo distinction preserved',()=>{

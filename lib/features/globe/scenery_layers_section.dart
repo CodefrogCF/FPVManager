@@ -20,6 +20,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
   bool _busy = false;
   String? _error;
   Map<String, dynamic>? _replacement;
+  Map<String, dynamic>? _bridgeHeightMatch;
 
   Future<void> _load(Future<Map<String, dynamic>> Function() action) async {
     if (_busy || !mounted) return;
@@ -35,6 +36,9 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
       if (mounted) {
         setState(() {
           _items = items;
+          if (response.containsKey('bridgeHeightMatch')) {
+            _bridgeHeightMatch = response['bridgeHeightMatch'] as Map<String, dynamic>?;
+          }
           if (response.containsKey('replacement')) {
             _replacement = response['replacement'] as Map<String, dynamic>?;
           }
@@ -53,6 +57,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
       for (final key in [
         'alignment',
         'heightOffsetM',
+        'bkgHeightOffsetM',
         'buildingRegions',
         'terrainRegions',
         'replaceBuildings',
@@ -132,11 +137,11 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     Text(
                       german
                           ? item['heightAlignmentMode'] == 'fixed'
-                                ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
-                                : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
+                              ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
+                              : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
                           : item['heightAlignmentMode'] == 'fixed'
-                          ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
-                          : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
+                              ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
+                              : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
                     ),
                     Wrap(
                       spacing: 4,
@@ -184,6 +189,20 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                                 ((e['heightOffsetM'] as num?) ?? 0) + 0.25,
                           ),
                           child: const Text('Z +0.25 m'),
+                        ),
+                        TextButton(
+                          onPressed: () => change(
+                            (e, _) => e['bkgHeightOffsetM'] =
+                                ((e['bkgHeightOffsetM'] as num?) ?? 0) - 5,
+                          ),
+                          child: const Text('BKG Z −5 m'),
+                        ),
+                        TextButton(
+                          onPressed: () => change(
+                            (e, _) => e['bkgHeightOffsetM'] =
+                                ((e['bkgHeightOffsetM'] as num?) ?? 0) + 5,
+                          ),
+                          child: const Text('BKG Z +5 m'),
                         ),
                         TextButton(
                           onPressed: () => change(
@@ -372,6 +391,74 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   ? 'Geländehöhenabgleich ausstehend: Das Scanmodell bleibt bis zur erfolgreichen Kalibrierung ausgeblendet.${item['heightError'] == null ? '' : ' · ${item['heightError']}'}'
                   : 'Terrain alignment pending: scenery remains hidden until ground calibration succeeds.${item['heightError'] == null ? '' : ' · ${item['heightError']}'}',
             ),
+          if (item['id'] == 'de-bb-ruedersdorf-chemical-plant') ...[
+            Text(
+              german
+                  ? 'BKG-Höhenkorrektur: ${((item['bkgHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m (nur BKG-Beta, getrennt von normalem Cesium)'
+                  : 'BKG height adjustment: ${((item['bkgHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m (BKG Beta only)',
+            ),
+            Text(
+              german
+                  ? 'Bodenabgleich: Tippe auf eine ebene Bodenfläche möglichst mittig im Originalscan. Der Scan wird ausgeblendet; tippe dann möglichst auf dieselbe Stelle der Karte (freies Gelände, kein LoD2-Dach). Ergebnis prüfen und erst danach übernehmen.'
+                  : 'Ground height match: tap an even ground area near the scan center. The scan hides temporarily; tap the same map terrain spot (not a LoD2 roof). Review and confirm the offset before applying.',
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: enabled
+                      ? () => _load(() => controller.beginSceneryBridgeHeightMatch(item['id'] as String))
+                      : null,
+                  icon: const Icon(Icons.straighten),
+                  label: Text(german ? 'Bodenhöhe vergleichen' : 'Compare ground heights'),
+                ),
+                if (_bridgeHeightMatch?['phase'] != null &&
+                    _bridgeHeightMatch?['phase'] != 'idle')
+                  TextButton(
+                    onPressed: enabled
+                        ? () => _load(controller.cancelSceneryBridgeHeightMatch)
+                        : null,
+                    child: Text(german ? 'Abgleich abbrechen' : 'Cancel matching'),
+                  ),
+              ],
+            ),
+            if (_bridgeHeightMatch?['phase'] == 'scan')
+              Text(german ? 'Schritt 1/2: Scan-Boden in der Anlagenmitte antippen.' : 'Step 1/2: Tap scanned ground near the site center.'),
+            if (_bridgeHeightMatch?['phase'] == 'target')
+              Text(german ? 'Schritt 2/2: Dieselbe Stelle auf dem Kartengelände antippen.' : 'Step 2/2: Tap the same point on map terrain.'),
+            if (_bridgeHeightMatch?['error'] is String)
+              Text('${_bridgeHeightMatch!['error']}',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            if (_bridgeHeightMatch?['phase'] == 'proposal' &&
+                _bridgeHeightMatch?['proposedOffsetM'] is num) ...[
+              Text(
+                '${german ? 'Höhenabweichung' : 'Height difference'}: ${((_bridgeHeightMatch!['deltaM'] as num?) ?? 0).toStringAsFixed(2)} m · '
+                '${german ? 'BKG-Zielversatz' : 'Proposed BKG offset'}: ${(_bridgeHeightMatch!['proposedOffsetM'] as num).toStringAsFixed(2)} m · '
+                '${_bridgeHeightMatch!['surface']} · '
+                '${german ? 'Punktabstand' : 'Point separation'}: ${((_bridgeHeightMatch!['horizontalM'] as num?) ?? 0).toStringAsFixed(1)} m',
+              ),
+              if (_bridgeHeightMatch!['warning'] is String)
+                Text('${_bridgeHeightMatch!['warning']}'),
+              FilledButton.icon(
+                onPressed: enabled
+                    ? () => _load(() => controller.setSceneryEdit(item['id'] as String, {
+                          for (final key in [
+                            'alignment',
+                            'heightOffsetM',
+                            'buildingRegions',
+                            'terrainRegions',
+                            'replaceBuildings',
+                            'clipTerrain',
+                          ])
+                            key: item[key],
+                          'bkgHeightOffsetM': (_bridgeHeightMatch!['proposedOffsetM'] as num).toDouble(),
+                        }))
+                    : null,
+                icon: const Icon(Icons.check),
+                label: Text(german ? 'Bodenhöhe übernehmen' : 'Apply ground height'),
+              ),
+            ],
+          ],
           if ((item['buildingRegions'] as List?)?.isNotEmpty == true)
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
@@ -392,6 +479,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         for (final key in [
                           'alignment',
                           'heightOffsetM',
+                          'bkgHeightOffsetM',
                           'buildingRegions',
                           'terrainRegions',
                           'clipTerrain',
@@ -429,6 +517,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         for (final key in [
                           'alignment',
                           'heightOffsetM',
+                          'bkgHeightOffsetM',
                           'buildingRegions',
                           'terrainRegions',
                           'replaceBuildings',
