@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create,time}=require('../../web/scene_environment.js');
+const {create,time}=require('../../web/features/scene/scene_environment.js');
 class Event{
     constructor(){this.listeners=new Set();}
     addEventListener(f){this.listeners.add(f);return ()=>this.listeners.delete(f);}

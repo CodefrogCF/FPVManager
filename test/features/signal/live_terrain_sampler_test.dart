@@ -18,6 +18,12 @@ void main() {
     expect(LiveSamplingPolicy.forDistance(49999).name, 'extendedRange');
     expect(() => LiveSamplingPolicy.forDistance(50001), throwsArgumentError);
     expect(LiveSamplingPolicy.interval(60, 49000).inMilliseconds, 1500);
+    expect(
+      LiveSamplingPolicy.maximumStaleness(70, 900),
+      24,
+      reason: 'do not carry a clear near-field ray over 40 m at high speed',
+    );
+    expect(LiveSamplingPolicy.maximumStaleness(70, 49000), greaterThan(24));
   });
 
   for (final distance in [5900, 6100, 10000, 20000, 30000, 49900]) {
@@ -87,36 +93,127 @@ void main() {
   });
 
   test(
-    'a coarse sampled ridge reports obstruction without redundant refinement',
+    'up to 1 km samples the complete 5 m grid at highest terrain detail in one query',
     () async {
-      const distance = 12000.0;
-      final target = Wgs84Coordinate(
-        latitude: 47 + distance / 111195,
-        longitude: 8,
-      );
-      final actual = routeDistance(station, target);
-      final terrain = await LiveTerrainSampler.calculate(
+      final target = const Wgs84Coordinate(latitude: 47.008, longitude: 8);
+      final distance = routeDistance(station, target);
+      var queries = 0;
+      var largestBatch = 0;
+      final result = await LiveTerrainSampler.calculate(
         signal: const SignalSettings(pilot: station, antennaHeight: 2),
         target: target,
-        targetHeight: 800,
-        distanceMeters: actual,
-        tier: LiveSamplingPolicy.forDistance(actual),
+        targetHeight: 1200,
+        distanceMeters: distance,
+        tier: LiveSamplingPolicy.forDistance(distance),
         valid: () => true,
-        sample: (locations) async => [
-          for (final p in locations)
-            (p.latitude > 47.052 && p.latitude < 47.057) ? 1000.0 : 500.0,
-        ],
+        sample: (positions) async {
+          ++queries;
+          largestBatch = positions.length;
+          return List.filled(positions.length, 500.0);
+        },
       );
-      expect(
-        terrain.refinedCount,
-        0,
-        reason: 'A verified obstruction needs no extra terrain round',
-      );
-      expect(terrain.queryCount, 1);
-      expect(terrain.path.state, RadioPathState.obstructed);
-      expect(terrain.path.minimumClearance, lessThan(0));
+      expect(queries, 1);
+      expect(largestBatch, lessThanOrEqualTo(256));
+      expect(result.maximumGapMeters, lessThanOrEqualTo(5.1));
+      expect(result.coverageLimited, false);
+      expect(result.path.state, RadioPathState.noSampledObstruction);
     },
   );
+
+  test(
+    '5 km high-resolution terrain needs no more than two sequential queries on a clear line',
+    () async {
+      final target = const Wgs84Coordinate(latitude: 47.045, longitude: 8);
+      final distance = routeDistance(station, target);
+      var queries = 0;
+      final result = await LiveTerrainSampler.calculate(
+        signal: const SignalSettings(pilot: station, antennaHeight: 2),
+        target: target,
+        targetHeight: 1400,
+        distanceMeters: distance,
+        tier: LiveSamplingPolicy.forDistance(distance),
+        valid: () => true,
+        sample: (positions) async {
+          expect(positions.length, lessThanOrEqualTo(256));
+          ++queries;
+          return List.filled(positions.length, 500.0);
+        },
+      );
+      expect(
+        queries,
+        2,
+        reason: '256 initial exact-height samples plus one bounded fill pass',
+      );
+      expect(result.maximumGapMeters, lessThanOrEqualTo(16));
+      expect(result.coverageLimited, false);
+      expect(result.path.state, RadioPathState.noSampledObstruction);
+    },
+  );
+
+  test(
+    'a sharp 5 km mountain ridge between the first samples is detected on refinement',
+    () async {
+      final target = const Wgs84Coordinate(latitude: 47.045, longitude: 8);
+      final distance = routeDistance(station, target);
+      var queries = 0;
+      double? ridgeLatitude;
+      final result = await LiveTerrainSampler.calculate(
+        signal: const SignalSettings(pilot: station, antennaHeight: 2),
+        target: target,
+        targetHeight: 1100,
+        distanceMeters: distance,
+        tier: LiveSamplingPolicy.forDistance(distance),
+        valid: () => true,
+        sample: (positions) async {
+          ++queries;
+          if (ridgeLatitude == null) {
+            final middle = positions.length ~/ 2;
+            ridgeLatitude = (positions[middle - 1].latitude +
+                    positions[middle].latitude) /
+                2;
+          }
+          return [
+            for (final position in positions)
+              (position.latitude - ridgeLatitude!).abs() < 0.00003
+                  ? 1250.0
+                  : 500.0,
+          ];
+        },
+      );
+      expect(queries, 2);
+      expect(
+        result.path.state,
+        RadioPathState.obstructed,
+        reason: 'no provisional clear state may skip the precision pass',
+      );
+      expect(result.path.minimumClearance, lessThan(0));
+    },
+  );
+
+  test('a coarse sampled ridge reports obstruction without redundant refinement', () async {
+    const distance = 12000.0;
+    final target = Wgs84Coordinate(
+      latitude: 47 + distance / 111195,
+      longitude: 8,
+    );
+    final actual = routeDistance(station, target);
+    final terrain = await LiveTerrainSampler.calculate(
+      signal: const SignalSettings(pilot: station, antennaHeight: 2),
+      target: target,
+      targetHeight: 800,
+      distanceMeters: actual,
+      tier: LiveSamplingPolicy.forDistance(actual),
+      valid: () => true,
+      sample: (locations) async => [
+        for (final p in locations)
+          (p.latitude > 47.052 && p.latitude < 47.057) ? 1000.0 : 500.0,
+      ],
+    );
+    expect(terrain.refinedCount, 0, reason: 'A verified obstruction needs no extra terrain round');
+    expect(terrain.queryCount, 1);
+    expect(terrain.path.state, RadioPathState.obstructed);
+    expect(terrain.path.minimumClearance, lessThan(0));
+  });
 
   test(
     'a narrow ridge missed by the coarse pass is detected on refinement',

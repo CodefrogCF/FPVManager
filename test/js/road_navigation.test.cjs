@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create,validate}=require('../../web/road_navigation.js');
+const {create,validate}=require('../../web/features/navigation/road_navigation.js');
 class Event{
     listeners=new Set();
     addEventListener(f){this.listeners.add(f);return()=>this.listeners.delete(f);}

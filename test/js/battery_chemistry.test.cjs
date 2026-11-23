@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const catalog = require('../../web/battery_chemistries.generated.js');
-const {create, normalize, chemistry, openCircuitCellVoltage, estimateLoad} = require('../../web/battery_simulation.js');
+const catalog = require('../../web/features/flight/physics/battery_chemistries.generated.js');
+const {create, normalize, chemistry, openCircuitCellVoltage, estimateLoad} = require('../../web/features/flight/physics/battery_simulation.js');
 const base = {batteryId: 17, chemistry:'LiPo', cellCount:6, capacityMah:4500,
     nominalVoltageVolts:22.2, chargePercent:100, hoverPowerWatts:150,
     cruisePowerWatts:300, cruiseSpeedMetersPerSecond:18};
@@ -51,7 +51,7 @@ test('reference current capability is flagged and battery overrides take precede
 });
 
 test('chemistry thresholds are automatic unless user explicitly opts out',async()=>{
-    const {createSimulator}=require('../../web/free_flight.js');
+    const {createSimulator}=require('../../web/features/flight/free_flight.js');
     const sim=createSimulator({sampleHeight:async()=>100,renderedHeight:()=>100,captureCamera:()=>({heading:0}),restoreCamera:()=>{},applyPose:()=>{},isTerrainReady:()=>true,onState:()=>{}});
     await sim.start({latitude:46,longitude:8,agl:10,flightMode:'gps',showBatteryVoltage:true,
         batteryProfile:{...base,chemistry:'LiFePO4'},batteryUseChemistryThresholds:true},new AbortController().signal);
@@ -95,7 +95,7 @@ test('burst ratings are time-bounded and do not bypass continuous limits forever
 
 
 test('charging references distinguish lithium CV limits from nickel peak detection',()=>{
-    const chemistries=require('../../web/battery_chemistries.generated.js');
+    const chemistries=require('../../web/features/flight/physics/battery_chemistries.generated.js');
     assert.equal(chemistries.LiPo.maxChargeVoltsPerCell,4.2);
     assert.equal(chemistries.LiHV.maxChargeVoltsPerCell,4.35);
     assert.equal(chemistries.LiFePO4.maxChargeVoltsPerCell,3.65);

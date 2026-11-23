@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const C = require('../../web/scenery_collision.js');
+const C = require('../../web/features/scenery/scenery_collision.js');
 const catalog = require('../../web/assets/scenery/catalog.json');
 const site = catalog.sceneries.find(s => s.id === 'de-bb-ruedersdorf-chemical-plant');
 if (!site) throw Error('Ruedersdorf scene is absent');

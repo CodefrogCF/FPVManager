@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const T = require('../../web/scene_environment.js').FPVTunnelInfrastructure;
+const T = require('../../web/features/scene/scene_environment.js').FPVTunnelInfrastructure;
 const tick = () => new Promise(r => setImmediate(r));
 const road = (n, coords = [[8.3,46.9],[8.3001,46.9001]]) => ({
     type:'Feature',featureId:String(n),geometry:{type:'LineString',coordinates:coords},

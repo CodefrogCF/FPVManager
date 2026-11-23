@@ -1,8 +1,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const signal=require('../../web/signal_hud.js');
-const flight=require('../../web/free_flight.js');
-const {create:makeHud}=require('../../web/flight_hud.js');
+const signal=require('../../web/features/flight/hud/signal_hud.js');
+const flight=require('../../web/features/flight/free_flight.js');
+const {create:makeHud}=require('../../web/features/flight/hud/flight_hud.js');
 const defaultState={hudStyle:'goggles',flightId:1,mode:'angle',position:{latitude:46.8,longitude:8.3},
     signalHud:{djiWarning:true,betaflightBars:true,analogNoise:true,terrainIllustration:true,
         weakThreshold:.55,criticalThreshold:.25,lostThreshold:.08,analogIntensity:.8}};
@@ -158,7 +158,7 @@ test('DJI-style lower warning edge is independently available in Betaflight OSD'
     view.update(osd,geometry('obstructed'));
     assert.equal(n.get('hud-signal-edge').hidden,true,
         'terrain-only obstruction must not fabricate a video-quality warning');
-    const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../../web/flight_hud.css'),'utf8');
+    const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../../web/features/flight/hud/flight_hud.css'),'utf8');
     assert.match(css,/#hud-signal-edge\s*\{[^}]*z-index:2/,
         'bottom warning must render above analog interference overlay');
 });

@@ -3,8 +3,8 @@
 // Synthetic, repeatable long-range environmental sampling benchmark (Node).
 // Device GPU/terrain/WebView performance must also be tested on Android/Windows.
 const {performance}=require('node:perf_hooks');
-const environment=require('../web/environmental_wind.js');
-const {field,sample}=require('../web/wind_field.js');
+const environment=require('../web/features/weather/environmental_wind.js');
+const {field,sample}=require('../web/features/weather/wind_field.js');
 const rad=Math.PI/180,lat=46.7,lon=8.4,radiusMeters=5000;
 const dy=radiusMeters/111320,dx=radiusMeters/(111320*Math.cos(lat*rad));
 const model=field({mode:'current',source:'synthetic benchmark',

@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const M=require('../../web/dated_imagery_overlay.js');
+const M=require('../../web/features/map/dated_imagery_overlay.js');
 const time='2025-05-30T12:30:25.000Z';
 const bounds=[7.35,46.85,7.55,47.05];
 const swiss={type:'set-dated-imagery',visible:true,id:'2025-05-30t123025',

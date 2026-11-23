@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const C=require('../../web/cesium/index.cjs');
-const Models=require('../../web/obstacle_models.js');
+const Models=require('../../web/features/infrastructure/obstacle_models.js');
 
 test('all local models contain actual finite unit-height geometry without external dependencies',()=>{
     const names=['power-pylon','utility-pole','antenna-mast','lattice-tower','communication-tower','communication-lattice','observation-tower','tower-crane','chimney','wind-turbine','cableway-support'];

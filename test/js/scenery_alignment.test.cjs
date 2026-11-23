@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const {test} = require('node:test');
 const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
-const A = require('../../web/scenery_alignment.js');
-const Preview = require('../../web/scenery_reference_preview.js');
+const A = require('../../web/features/scenery/scenery_alignment.js');
+const Preview = require('../../web/features/scenery/scenery_reference_preview.js');
 
 const root = join(__dirname,'../..');
 function fakeCesium() {
@@ -101,8 +101,8 @@ test('HTML workbench uses the real regional map providers and scenery catalog',(
   assert.match(html,/scenery_manager\.js/);
   assert.match(pubspec,/web\/assets\/scenery\//);
   assert.match(html,/scenery_alignment\.js/);
-  assert.match(pubspec,/web\/scenery_alignment\.js/);
-  assert.match(pubspec,/web\/scenery_reference_preview\.js/);
+  assert.match(pubspec,/web\/features\/scenery\/scenery_alignment\.js/);
+  assert.match(pubspec,/web\/features\/scenery\/scenery_reference_preview\.js/);
 });
 
 test('control point fit recovers clockwise rotation, scale and anchor with metre residuals',()=>{

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const at=metres=>[8.2,46.8+metres/111319.49079327358];
 const route=(extra={})=>({id:'portal-road',source:'fixture',sourceId:'road',
     kind:'tunnel',transport:'road',coordinates:[0,20,40,60,80,100].map(at),

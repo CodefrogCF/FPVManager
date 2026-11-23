@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const {partition,create}=require('../../web/scene_tile_loading.js');
+const {partition,create}=require('../../web/features/scene/scene_tile_loading.js');
 const base='https://3d.geo.admin.ch/test/root.json?token=fixture&v=old';
 function tree(depth=4,width=4){
     let index=0;

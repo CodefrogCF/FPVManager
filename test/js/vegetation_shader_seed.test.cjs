@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Cesium = require('../../web/cesium/index.cjs');
-const {create} = require('../../web/vegetation_shader_seed.js');
+const {create} = require('../../web/features/vegetation/vegetation_shader_seed.js');
 
 function fixture() {
     let primitive, contentDestroyed = 0, shaderReleased = 0;

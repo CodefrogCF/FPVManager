@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {create,maxSamples,maxSeconds}=require('../../web/flight_recording.js');
+const {create,maxSamples,maxSeconds}=require('../../web/features/flight/flight_recording.js');
 function setup(){
     let now=0,state={active:true,paused:false,position:{latitude:46.7,longitude:8.4},height:1040,agl:40};const events=[];
     const recorder=create({clock:()=>now,emit:(type,payload)=>events.push({type,...payload}),getState:()=>state});

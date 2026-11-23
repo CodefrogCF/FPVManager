@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { create, validate, definitions, droughtWarning } = require('../../web/situational_layers.js');
+const { create, validate, definitions, droughtWarning } = require('../../web/features/overlays/situational_layers.js');
 
 function fixture() {
   const wms = [], destroyed = [], events = [], imagery = [];
@@ -99,7 +99,7 @@ test('published WMTS warning tile remains independent; retry, errors and disposa
 });
 
 test('actual WMS factory passes official CDI time parameter and zoom cap to Cesium', () => {
-  const {createWms} = require('../../web/obstacle_layers.js');
+  const {createWms} = require('../../web/features/infrastructure/obstacle_layers.js');
   const C = {
     WebMercatorTilingScheme: class {positionToTileXY() {return {x:4,y:5};}},
     WebMapServiceImageryProvider: class {

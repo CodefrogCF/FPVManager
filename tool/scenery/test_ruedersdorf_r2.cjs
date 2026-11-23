@@ -1,7 +1,7 @@
 'use strict';
 // Real asset test. Run after applying R2: node --test tool/scenery/test_ruedersdorf_r2.cjs
 const fs=require('node:fs'),path=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
-const C=require(process.env.FPV_COLLISION_RUNTIME||'../../web/scenery_collision.js');
+const C=require(process.env.FPV_COLLISION_RUNTIME||'../../web/features/scenery/scenery_collision.js');
 const file=process.env.FPV_R2_FPC||path.resolve(__dirname,'../../web/assets/scenery/local_reference.fpc');
 const b=fs.readFileSync(file),m=C.parse(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength));
 const R=.25/16.023268178233355;

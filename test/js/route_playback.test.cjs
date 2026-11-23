@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {prepare, evaluate, create, distance} = require('../../web/flight_recording.js').routePlayback;
-const {createSimulator} = require('../../web/free_flight.js');
+const {prepare, evaluate, create, distance} = require('../../web/features/flight/flight_recording.js').routePlayback;
+const {createSimulator} = require('../../web/features/flight/free_flight.js');
 const signal = () => new AbortController().signal;
 const a = {latitude:46.7, longitude:8.4, heightMode:'agl', heightMeters:30};
 const b = {latitude:46.7002, longitude:8.4002, heightMode:'agl', heightMeters:40};

@@ -162,7 +162,7 @@
         const settings=()=>emit('flight-radio-settings-request');
         badge.addEventListener('click',settings);doc.getElementById('configure-flight-radio').addEventListener('click',settings);
         toggle.addEventListener('change',()=>emit('flight-radio-toggle',{enabled:toggle.checked}));
-        return {monitor,observe,sample,set,station,assessment,setTrainingRc,terrainChanged(){if(disposed)return;++epoch;++revision;cache.clear();unknown();drawStation(null);},dispose(){disposed=true;++epoch;enabled=false;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
+        return {monitor,observe,sample,set,station,assessment,setTrainingRc,terrainChanged(){if(disposed)return;++epoch;++revision;busy=null;cache.clear();unknown();drawStation(null);},dispose(){disposed=true;++epoch;enabled=false;busy=null;clearTimeout(expiry);cache.clear();removeLanguage?.();layer.dispose();}};
     }
     return {create};
 });

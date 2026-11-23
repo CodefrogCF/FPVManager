@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create,north}=require('../../web/map_compass.js');
+const {create,north}=require('../../web/features/map/map_compass.js');
 function fixture(){
     const listeners=new Set(),needle={style:{}},attrs={};let click,look,view,cancels=0,picked={x:0,y:0,z:0};
     const C={Cartesian2:class{constructor(x,y){Object.assign(this,{x,y});}},Cartesian3:{distance:()=>300},

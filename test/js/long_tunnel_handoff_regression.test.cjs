@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const E=require('../../web/scene_environment.js'),T=E.FPVTunnelFlythrough,I=E.FPVTunnelInfrastructure;
-const Local=require('../../web/tunnel_offline_index.js');
+const E=require('../../web/features/scene/scene_environment.js'),T=E.FPVTunnelFlythrough,I=E.FPVTunnelInfrastructure;
+const Local=require('../../web/features/infrastructure/tunnel_offline_index.js');
 const text=fs.readFileSync(require.resolve('../../web/data/tunnels/ch_tunnels_v1.json'),'utf8');
 const catalogue=Local.create({fetcher:async()=>({ok:true,headers:{get:()=>null},text:async()=>text})});
 const northId='osm:4214708:0',mainId='osm:49124512:0',ids=new Set([northId,mainId]);

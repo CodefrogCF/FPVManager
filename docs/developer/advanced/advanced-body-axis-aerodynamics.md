@@ -4,7 +4,7 @@
 
 Only **Advanced** physics uses the new directional quadratic drag. Advanced
 Acro, Angle and GPS-assisted/Rescue flight share the same implementation
-(`web/body_axis_aerodynamics.js`). Legacy flight dynamics, including GPS and
+(`web/features/flight/physics/body_axis_aerodynamics.js`). Legacy flight dynamics, including GPS and
 GPS Rescue, and replay retain their existing algorithms. Fixed physics
 substeps and hardware/battery coupling are unchanged.
 

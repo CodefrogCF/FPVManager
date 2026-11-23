@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {create}=require('../../web/live_radio.js');
+const {create}=require('../../web/features/signal/live_radio.js');
 function setup(){
     let now=0,calls=0,levels=[],resolve=null,fail=false,defer=false,availability=true;const events=[],layers=[],stations=[],nodes=new Map();
     const doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},listeners:{},addEventListener(k,v){this.listeners[k]=v;}});return nodes.get(id);}};
@@ -50,6 +50,22 @@ test('overlapping queries are bounded, late terrain and cancelled responses neve
     p.api.terrainChanged();p.defer=true;const cancelled=p.api.sample(command,abort.signal);abort.abort();p.resolve();await assert.rejects(cancelled);
     p.defer=false;await p.api.sample(command,new AbortController().signal);assert.equal(p.calls,4);
     p.api.dispose();await assert.rejects(p.api.sample(command,new AbortController().signal));
+});
+test('terrain provider change releases obsolete query slot before its promise settles',async()=>{
+    const p=setup(),signal=new AbortController().signal;
+    p.defer=true;
+    const stale=p.api.sample(command,signal);
+    const finishStale=p.resolve;
+    p.api.terrainChanged();
+    p.defer=false;
+    const fresh=await p.api.sample(command,signal);
+    assert.deepEqual(fresh.heights,[1000,1000]);
+    assert.equal(p.calls,2,'do not block the new terrain behind obsolete requests');
+    finishStale();
+    await assert.rejects(stale,/changed/);
+    await p.api.sample(command,signal);
+    assert.equal(p.calls,2,'late old results must not clear the new cache');
+    p.api.dispose();
 });
 test('old results cannot restore a clear status after settings, terrain changes or disabling',()=>{
     const p=setup();p.api.monitor({enabled:true,revision:1});
@@ -197,7 +213,7 @@ test('limited extended-range terrain keeps both links unknown while displaying f
 
 
 test('11 km sampled blockage in sparse terrain supplies visibly qualified RF estimates and opt-in RC failsafe',()=>{
-    const failsafe=require('../../web/simulated_failsafe.js');
+    const failsafe=require('../../web/features/signal/simulated_failsafe.js');
     const p=setup();p.api.monitor({enabled:true,revision:1});
     p.api.observe({active:true,paused:false,flightId:18});
     p.api.set({revision:2,flightId:18,expiresAtMs:105000,state:'obstructed',

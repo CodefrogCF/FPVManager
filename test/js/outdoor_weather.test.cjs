@@ -1,8 +1,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-require('../../web/weather_overlay.js');
+require('../../web/features/weather/weather_overlay.js');
 const weather=globalThis.FPVWeatherOverlay;
-const situational=require('../../web/situational_layers.js');
+const situational=require('../../web/features/overlays/situational_layers.js');
 
 function weatherFixture(){
  const sources=[];let time=Date.parse('2026-10-30T12:00:00Z');const ticks=new Set();

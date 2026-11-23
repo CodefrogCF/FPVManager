@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const Actual=require('../../web/cesium/index.cjs');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])
     globalThis[name]??=class {};
 const origin=[8.4,46.8],metres=111319.49079327358;
@@ -23,7 +23,7 @@ function fixture(options={}){
 }
 
 test('automatic OSM tunnel attribution stays visible and shares ownership with bridge supports',async()=>{
-    const P=require('../../web/map_providers.js'),f=fixture(),display=f.viewer.cesiumWidget.creditDisplay;
+    const P=require('../../web/features/map/map_providers.js'),f=fixture(),display=f.viewer.cesiumWidget.creditDisplay;
     const bridgeCredit=new Actual.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true);
     const osm={...routes[0],source:'OpenStreetMap / Geofabrik'};
     try{

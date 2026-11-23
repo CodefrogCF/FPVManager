@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
-const M=require('../../web/scenery_manager.js'),C=require('../../web/scenery_collision.js'),R=require('../../web/regional_3d.js'),A=require('../../web/scenery_alignment.js');
+const M=require('../../web/features/scenery/scenery_manager.js'),C=require('../../web/features/scenery/scenery_collision.js'),R=require('../../web/features/terrain/regional_3d.js'),A=require('../../web/features/scenery/scenery_alignment.js');
 const raw=fs.readFileSync(path.resolve(__dirname,'../../web/assets/scenery/local_reference.fpc'));
 const mesh=C.parse(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
 const catalog=require('../../web/assets/scenery/catalog.json'),item=M.validate(catalog)[0],certs=item.terrainCertificates,radius=.25/item.alignment.scale;

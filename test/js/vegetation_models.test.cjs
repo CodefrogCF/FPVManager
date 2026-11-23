@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {attach, sourceResource} = require('../../web/vegetation_models.js');
+const {attach, sourceResource} = require('../../web/features/vegetation/vegetation_models.js');
 
 const source = 'https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/20250728/';
 const assetBase = 'http://127.0.0.1:9000/assets/vegetation/';

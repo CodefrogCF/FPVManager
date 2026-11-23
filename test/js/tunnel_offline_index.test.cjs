@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const index=require('../../web/tunnel_offline_index.js');
-const T=require('../../web/scene_environment.js').FPVTunnelInfrastructure;
+const index=require('../../web/features/infrastructure/tunnel_offline_index.js');
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelInfrastructure;
 const generated={schemaVersion:1,generated:true,tileDegrees:.25,
     source:'OpenStreetMap (Geofabrik Switzerland extract)',snapshotDateUtc:'2026-11-06T00:00:00Z',
     routes:[

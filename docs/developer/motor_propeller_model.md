@@ -11,14 +11,14 @@ include motor KV/count, propeller diameter/pitch and description, takeoff mass,
 reference voltage, estimated maximum power, and independent per-channel ESC and
 per-motor current ratings. Existing database records require no migration.
 
-`web/motor_propeller.js` validates the profile and exposes deterministic
+`web/features/flight/physics/motor_propeller.js` validates the profile and exposes deterministic
 `create()`, `tick()`, `reset()`, `hoverCommand()` and `output()` methods. The
 module is loaded in the embedded Cesium WebView, so it runs on Android as well
 as browser and Windows. Only **Advanced manual Acro/Angle flight** currently
 uses it. **Legacy, GPS and GPS Rescue** retain their previous kinematics;
 physics-based automated flight is a later issue.
 
-The current `web/free_flight.js` shares its existing translation, collision,
+The current `web/features/flight/free_flight.js` shares its existing translation, collision,
 controller, battery and camera logic. The advanced manual model replaces the
 generic thrust acceleration with output from the selected motor/propeller
 configuration. Throttle in Acro commands a 0–1 motor fraction; Angle centres
@@ -61,7 +61,7 @@ complete motor specification. Real parameters override coefficients only where
 actual data are available.
 
 For this implementation, Advanced Acro/Angle with a valid battery now uses
-`web/electrical_propulsion.js` to couple available DC input current, loaded
+`web/features/flight/physics/electrical_propulsion.js` to couple available DC input current, loaded
 pack voltage, RPM, thrust and actual estimated power in each fixed physics
 step. `advanceCommand()` updates motor inertia once, while `evaluate()`
 can test several voltages without advancing simulation time. Battery and

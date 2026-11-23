@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const P=require('../../web/map_providers.js');
+const P=require('../../web/features/map/map_providers.js');
 function display(){
     const credits=[],removed=[];
     return {credits,removed,addStaticCredit(c){

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const origin=[8.4,46.8],point=x=>[origin[0]+x/(111319.49*Math.cos(origin[1]*Math.PI/180)),origin[1]];
 const route=(id,from,to,extra={})=>({id,name:'Test tunnel',kind:'tunnel',transport:'road',
     source:'OpenStreetMap',sourceId:`way/${id}`,coordinates:[point(from),point(to)],...extra});

@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const {partition,create,encloseRegion,encloseTileAncestors}=require('../../web/scene_tile_loading.js');
-const {perspectiveFov}=require('../../web/flight_rendering.js');
+const {partition,create,encloseRegion,encloseTileAncestors}=require('../../web/features/scene/scene_tile_loading.js');
+const {perspectiveFov}=require('../../web/features/flight/flight_rendering.js');
 // Published region headers from the official swisstopo hall tile near the
 // reported point. No building geometry or imagery is bundled in this test.
 const cell=[.14376106001478595,.8293753759569198,.14379968900662826,.8293922831941433,345.3171000000002,369.8355999998748];

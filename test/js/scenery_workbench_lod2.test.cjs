@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const R=require('../../web/regional_3d.js');
+const R=require('../../web/features/terrain/regional_3d.js');
 const root=path.join(__dirname,'../..');
 test('editor and terrain globe use distinct official height variants',()=>{
     assert.match(R.buildingsUrl,/lod2_4326_dgm5\.json$/);
@@ -43,7 +43,7 @@ test('reference edit enables only building replacement and prepares a disabled c
     assert.equal(item.clipTerrain,false);
     assert.equal(item.buildingRegions.length,1);
     assert.equal(item.buildingRegions[0].length,28);
-    const M=require('../../web/scenery_manager.js');
+    const M=require('../../web/features/scenery/scenery_manager.js');
     const validated=M.validate(catalog)[0];
     assert.deepEqual(item.terrainRegions.slice(0,item.terrainCertificates.length),validated.terrainCertificates.map(c=>c.polygon));
     assert.deepEqual(item.terrainRegions.at(-1),validated.terrainUnderlay.certificate.polygon);

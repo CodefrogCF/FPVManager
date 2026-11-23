@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const C=require('../../web/controller_input.js');
+const C=require('../../web/features/navigation/controller_input.js');
 test('controller configuration rejects unknown layouts, duplicate/out-of-range channels and invalid reversals',()=>{
     for(const value of [null,[],{layout:'unknown'},{throttleZero:'low'},{rollAxis:16},{pitchAxis:0},{throttleAxis:1.5},{invertYaw:1}])
         assert.throws(()=>C.configuration(value));

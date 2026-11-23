@@ -63,6 +63,9 @@ class LiveRadioController extends ChangeNotifier {
   double _speedMetersPerSecond = 0;
   bool _monitorEnabled = false;
   ({Wgs84Coordinate position, Wgs84Coordinate home, double height})? _pose;
+  // The pose a pending terrain profile is actually sampling. New telemetry
+  // does not cancel that query; it requests a fresh pass as soon as possible.
+  ({Wgs84Coordinate position, double height})? _inFlightPose;
   DateTime? _lastAttempt, _lastFreeSpacePreview;
   Timer? _expiry;
   Future<void>? _pending;
@@ -124,6 +127,7 @@ class LiveRadioController extends ChangeNotifier {
     ++_revision;
     ++_terrainGeneration;
     _retryLatestPose = false;
+    _inFlightPose = null;
     current = false;
     loading = false;
     assessment = const LiveLinkAssessment();
@@ -281,6 +285,17 @@ class LiveRadioController extends ChangeNotifier {
         height: read('height', -100000, 100000),
       );
       final station = settings.useSpawn ? _pose!.home : settings.signal.pilot;
+      // A flying aircraft may move materially during a detailed terrain
+      // request. Do not interrupt the in-flight work or mistake its old ray
+      // for the new one; queue the latest position for immediate follow-up.
+      // This is especially important for mountain flying at high speed.
+      final requested = _inFlightPose;
+      if (_pending != null && requested != null &&
+          (routeDistance(requested.position, _pose!.position) >=
+                  math.max(6, _speedMetersPerSecond * 0.12) ||
+              (requested.height - _pose!.height).abs() >= 6)) {
+        _retryLatestPose = true;
+      }
       if (groundStation?.latitude != station.latitude ||
           groundStation?.longitude != station.longitude) {
         _publishStation(station);
@@ -349,15 +364,14 @@ class LiveRadioController extends ChangeNotifier {
     _lastAttempt = now();
     final operation = _calculate();
     _pending = operation;
-    unawaited(
-      operation.whenComplete(() {
-        _pending = null;
-        if (_retryLatestPose && !_disposed) {
-          _retryLatestPose = false;
-          _schedule();
-        }
-      }),
-    );
+    unawaited(operation.whenComplete(() {
+      _pending = null;
+      _inFlightPose = null;
+      if (_retryLatestPose && !_disposed) {
+        _retryLatestPose = false;
+        _schedule();
+      }
+    }));
   }
 
   // Terrain samples are fixed world positions. When a fast aircraft moves
@@ -381,14 +395,13 @@ class LiveRadioController extends ChangeNotifier {
     for (final sample in original.skip(1)) {
       final fromStation = routeDistance(signal.pilot, sample.position);
       final fromTarget = routeDistance(target, sample.position);
-      final along =
-          (length * length +
-              fromStation * fromStation -
+      final along = (length * length + fromStation * fromStation -
               fromTarget * fromTarget) /
           (2 * length);
-      final lateral = math.sqrt(
-        math.max(0, fromStation * fromStation - along * along),
-      );
+      final lateral = math.sqrt(math.max(
+        0,
+        fromStation * fromStation - along * along,
+      ));
       if (along > 2 && along < length - 2 && lateral <= 2) {
         matched.add(sample);
       }
@@ -413,6 +426,7 @@ class LiveRadioController extends ChangeNotifier {
   Future<void> _calculate() async {
     final startedAt = now();
     final generation = _terrainGeneration, pose = _pose!, config = settings;
+    _inFlightPose = (position: pose.position, height: pose.height);
     bool valid() =>
         !_disposed &&
         generation == _terrainGeneration &&
@@ -505,14 +519,14 @@ class LiveRadioController extends ChangeNotifier {
       status = updatedFromExistingSamples
           ? 'Potential obstruction (rechecked against sampled terrain)'
           : switch (calculated.state) {
-              RadioPathState.unknown => 'Unknown',
-              RadioPathState.obstructed => 'Potential obstruction',
-              RadioPathState.fresnelIntrusion => 'Fresnel intrusion',
-              RadioPathState.noSampledObstruction =>
-                sampled.coverageLimited
-                    ? 'Unknown: coarse terrain coverage (no sampled obstruction)'
-                    : 'No sampled obstruction',
-            };
+        RadioPathState.unknown => 'Unknown',
+        RadioPathState.obstructed => 'Potential obstruction',
+        RadioPathState.fresnelIntrusion => 'Fresnel intrusion',
+        RadioPathState.noSampledObstruction =>
+          sampled.coverageLimited
+              ? 'Unknown: coarse terrain coverage (no sampled obstruction)'
+              : 'No sampled obstruction',
+      };
       double margin(RadioPathSample p) =>
           calculated.state == RadioPathState.obstructed
           ? p.clearance

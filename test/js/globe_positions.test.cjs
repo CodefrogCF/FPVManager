@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create}=require('../../web/globe_positions.js');
+const {create}=require('../../web/core/globe_positions.js');
 function setup(){
     const sources=[],camera=[],events=[],listeners=new Map();let terrain=true,navigating=false;
     class Data{constructor(){this.entities={values:[],removeAll(){this.values=[];},add(value){this.values.push(value);return value;}};}}

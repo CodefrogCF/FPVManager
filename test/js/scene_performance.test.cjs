@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create}=require('../../web/scene_performance.js');
+const {create}=require('../../web/core/scene_performance.js');
 class Event{
     constructor(){this.listeners=new Set();}
     addEventListener(listener){this.listeners.add(listener);return ()=>this.listeners.delete(listener);}

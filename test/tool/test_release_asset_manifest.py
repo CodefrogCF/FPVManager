@@ -24,7 +24,7 @@ class ReleaseAssetTest(unittest.TestCase):
                 self.assertTrue((ROOT / asset).is_file())
                 directory = Path(asset).parent.as_posix() + '/'
                 self.assertTrue(asset in assets or directory in assets, asset)
-        radar = (ROOT / 'web/meteo_radar_overlay.js').read_text(encoding='utf-8')
+        radar = (ROOT / 'web/features/weather/meteo_radar_overlay.js').read_text(encoding='utf-8')
         self.assertIn('./vendor/h5wasm/hdf5_hl.js', radar)
         self.assertNotIn('cdn.jsdelivr.net', radar)
 

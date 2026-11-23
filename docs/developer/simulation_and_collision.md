@@ -5,7 +5,7 @@ real-device telemetry or verified flight physics.
 
 ## Flight modes and energy input
 
-`web/free_flight.js` and related physics modules model manual Angle/Acro and
+`web/features/flight/free_flight.js` and related physics modules model manual Angle/Acro and
 assisted GPS movement. Angle and Acro use thrust-driven battery-power
 approximations; GPS, automated Rescue and replay use their separate
 speed/climb-based power proxy. A freely falling unpowered aircraft may develop
@@ -52,7 +52,7 @@ coverage.
 
 ## Analog visual holdover
 
-`web/signal_hud.js` owns presentation-only analog static and warning effects.
+`web/features/flight/hud/signal_hud.js` owns presentation-only analog static and warning effects.
 Brief missing video RF updates keep the prior visual noise for **up to
 1,100 ms** with an occasional additional flicker. RC and video bars report
 unknown during missing data; the saved visual effect must not be read back as

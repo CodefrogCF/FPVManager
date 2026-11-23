@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {FPVSceneModelCollision}=require('../../web/scene_environment.js');
+const {FPVSceneModelCollision}=require('../../web/features/scene/scene_environment.js');
 function fixture({top=130,ground=100,models=true,supported=true,cost=0,postRender=true}={}){
     let calls=0,time=1000,job=0,lastPoint=null;
     const timers=new Map(),listeners=new Set();

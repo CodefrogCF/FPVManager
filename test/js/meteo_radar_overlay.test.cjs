@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-require('../../web/meteo_radar_overlay.js');
+require('../../web/features/weather/meteo_radar_overlay.js');
 const radar=globalThis.FPVMeteoRadar;
 const command={type:'set-meteoswiss-radar',product:'RZC',units:'mm/h',
   timestampUtc:'2026-11-03T12:30:00Z',source:'Source: MeteoSwiss · STAC FSDI',

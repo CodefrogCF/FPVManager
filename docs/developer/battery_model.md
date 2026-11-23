@@ -20,7 +20,7 @@ python tool/generate_battery_chemistries.py --check
 
 The generator provides
 `lib/core/models/generated/battery_chemistries.g.dart` and
-`web/battery_chemistries.generated.js`. Both consumers must use the same
+`web/features/flight/physics/battery_chemistries.generated.js`. Both consumers must use the same
 catalog; never make a unilateral Dart/JavaScript change to chemistry values.
 
 ## Electrical approximation
@@ -41,7 +41,7 @@ catalog; never make a unilateral Dart/JavaScript change to chemistry values.
   voltage and capacity), not chemistry inference alone; recorded Wh is retained.
 
 `lib/core/models/battery_chemistry.dart` implements Dart-side interpolation
-and equivalence calculations. `web/battery_simulation.js` applies the shared
+and equivalence calculations. `web/features/flight/physics/battery_simulation.js` applies the shared
 parameters to the live flight HUD.
 
 ## Manual flight and power proxies
@@ -79,13 +79,13 @@ thrust; this does not model real ESC phase currents.
 
 ## Advanced flight: coupled DC battery and propulsion (this implementation)
 
-The Advanced manual Acro/Angle model uses `web/electrical_propulsion.js` to
+The Advanced manual Acro/Angle model uses `web/features/flight/physics/electrical_propulsion.js` to
 solve battery and motor behavior **within the same physics step**:
 
-1. Advance the requested motor command once (`web/motor_propeller.js`).
+1. Advance the requested motor command once (`web/features/flight/physics/motor_propeller.js`).
 2. Read remaining charge, open-circuit voltage, effective series resistance,
    continuous/burst current budget and critical cell voltage from
-   `web/battery_simulation.js` (one chemistry reference source).
+   `web/features/flight/physics/battery_simulation.js` (one chemistry reference source).
 3. Iteratively evaluate motor RPM/thrust/input watts at the estimated loaded
    pack voltage. Reserve auxiliary consumption **before** the motor-current
    allowance; apply battery, ESC, motor and configured power limits separately.

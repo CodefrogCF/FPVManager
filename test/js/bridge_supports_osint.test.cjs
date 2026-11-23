@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const B=require('../../web/bridge_supports.js');
+const B=require('../../web/features/infrastructure/bridge_supports.js');
 const center={longitude:8.6,latitude:46.7};
 const at=x=>[center.longitude+x/(111319.49*Math.cos(center.latitude*Math.PI/180)),center.latitude,532.6];
 const profile={id:'bazl-bridge',sourceType:'BRIDGE',parts:[{kind:'LineString',elevated:true,coordinates:[at(-72),at(72)]}]};

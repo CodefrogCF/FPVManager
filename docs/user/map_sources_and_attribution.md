@@ -114,7 +114,7 @@ before distributing data or adding services.
 
 ## Credits and packaged notices
 
-`web/map_providers.js` supplies imagery/terrain credits through Cesium's native
+`web/features/map/map_providers.js` supplies imagery/terrain credits through Cesium's native
 **Quellen** control. The [swisstopo attribution FAQ](https://www.swisstopo.admin.ch/en/faq-free-geodata)
 expressly accepts a linked central sources list in a dynamic map. Complete
 SWISSIMAGE/CNES/Spot/NPOC/Planet wording is retained in that dialog. Cache-help

@@ -2,9 +2,9 @@
 'use strict';
 // Isolated CPU-only electrical/propulsion benchmark; not a device FPS result.
 const {performance}=require('node:perf_hooks');
-const {create:makeBattery}=require('../web/battery_simulation.js');
-const {create:makeMotor}=require('../web/motor_propeller.js');
-const solver=require('../web/electrical_propulsion.js');
+const {create:makeBattery}=require('../web/features/flight/physics/battery_simulation.js');
+const {create:makeMotor}=require('../web/features/flight/physics/motor_propeller.js');
+const solver=require('../web/features/flight/physics/electrical_propulsion.js');
 const drone={motorKv:1750,motorCount:4,propellerDiameterInches:7,propellerPitchInches:3.5,
     propellerDescription:'HQProp 7x3.5x3V1S',takeoffWeightGrams:1320,referenceVoltageVolts:22.2,
     maxPowerWatts:2200,escContinuousCurrentAmpsPerChannel:60};

@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {field,sample,create}=require('../../web/wind_field.js');
+const {field,sample,create}=require('../../web/features/weather/wind_field.js');
 function snapshot({speed=10,from=270}={}){
     const lat=46.7,lon=8.4,radius=1500,dy=radius/111320,dx=radius/(111320*Math.cos(lat*Math.PI/180));
     return {mode:'current',source:'Open-Meteo',validAtUtc:'2026-10-28T10:00:00Z',retrievedUtc:'2026-10-28T10:00:00Z',expiresUtc:'2026-10-28T10:30:00Z',

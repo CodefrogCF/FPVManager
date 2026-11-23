@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTerrainManager, probeRootTiles } = require('../../web/terrain_service.js');
+const { createTerrainManager, probeRootTiles } = require('../../web/features/terrain/terrain_service.js');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 function provider() {

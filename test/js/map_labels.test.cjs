@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create,normalize,url,sources}=require('../../web/map_labels.js');
+const {create,normalize,url,sources}=require('../../web/features/map/map_labels.js');
 const bounds={west:7.9,east:8.1,south:46.9,north:47.1};
 function payload(kind='place'){
  return {results:[{layerBodId:sources[kind],featureId:1,geometry:{type:'Point',coordinates:[8,47]},

@@ -6,12 +6,12 @@
 
 | Aufgabe | Implementierung |
 |---|---|
-| Flutter/Cesium-Kommunikation und Kartenmenü | `lib/features/globe/`, `web/globe.js`, `web/globe_bridge.js` |
-| Szenenkatalog, Aktivierung, Höhenzustand, Kollision und Quellen | `web/scenery_manager.js`, `web/assets/scenery/catalog.json` |
-| Referenz/Transformation | `web/scenery_alignment.js`, `web/assets/scenery/reference_alignment.json` |
+| Flutter/Cesium-Kommunikation und Kartenmenü | `lib/features/globe/`, `web/globe.js`, `web/core/globe_bridge.js` |
+| Szenenkatalog, Aktivierung, Höhenzustand, Kollision und Quellen | `web/features/scenery/scenery_manager.js`, `web/assets/scenery/catalog.json` |
+| Referenz/Transformation | `web/features/scenery/scenery_alignment.js`, `web/assets/scenery/reference_alignment.json` |
 | GLB-Darstellung | `web/assets/scenery/local_reference.glb` |
-| FPC-Kollisionen | `web/assets/scenery/local_reference.fpc`, `web/scenery_collision.js` |
-| Testweise BKG-Gebäude und örtliche 3D-Auswahl | `web/regional_3d.js`, `web/scenery_bridge_calibration.js` |
+| FPC-Kollisionen | `web/assets/scenery/local_reference.fpc`, `web/features/scenery/scenery_collision.js` |
+| Testweise BKG-Gebäude und örtliche 3D-Auswahl | `web/features/terrain/regional_3d.js`, `web/features/scenery/scenery_bridge_calibration.js` |
 | Workbench-Ansicht / lokaler Datenrelay | `tool/scenery/cesium_georeference_workbench.html`, `tool/scenery/serve_workbench.py` |
 | Reproduzierbare Rekonstruktionen, Messberichte und Regressionen | `tool/scenery/`, `test/js/scenery_*.test.cjs`, `tool/scenery/test_ruedersdorf_*.py` |
 
@@ -51,7 +51,7 @@ Der aktuelle Katalog verwendet `heightAlignmentMode: "terrain"`, `requireGroundC
 
 ### Bediengestützter Bodenabgleich
 
-`web/scenery_bridge_calibration.js` verwendet ein Scan-Oberflächen-Pick und nach Ausblenden des Scans einen Pick auf das **gleiche offene Gelände**. Das Programm prüft den horizontalen Abstand und berechnet die signed Höhendifferenz. Das Ergebnis wird erst nach expliziter Bestätigung als **BKG-only** Einstellung gespeichert. Es dürfen keine LoD2-Dächer/Vegetation mit Scan-Bodenpunkten verglichen werden. Der visuell bestätigte Versatz ist nur eine reproduzierbare Betriebseinstellung, keine Vermessung.
+`web/features/scenery/scenery_bridge_calibration.js` verwendet ein Scan-Oberflächen-Pick und nach Ausblenden des Scans einen Pick auf das **gleiche offene Gelände**. Das Programm prüft den horizontalen Abstand und berechnet die signed Höhendifferenz. Das Ergebnis wird erst nach expliziter Bestätigung als **BKG-only** Einstellung gespeichert. Es dürfen keine LoD2-Dächer/Vegetation mit Scan-Bodenpunkten verglichen werden. Der visuell bestätigte Versatz ist nur eine reproduzierbare Betriebseinstellung, keine Vermessung.
 
 ## BKG-LoD2-Workbench
 

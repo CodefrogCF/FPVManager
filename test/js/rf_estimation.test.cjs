@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const rf=require('../../web/rf_estimation.js');
+const rf=require('../../web/features/signal/rf_estimation.js');
 const a={latitude:47,longitude:8},b={latitude:47,longitude:8.005};
 const geometry=visibility=>({source:'sampledTerrain',confidence:'approximate',visibility,
     minimumClearanceMeters:visibility==='obstructed'?-20:10,minimumFresnelMarginMeters:visibility==='fresnelIntrusion'?-4:8});

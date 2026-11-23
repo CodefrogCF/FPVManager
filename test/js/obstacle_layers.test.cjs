@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {WMS,createWms,createVectors,createHazards} = require('../../web/obstacle_layers.js');
+const {WMS,createWms,createVectors,createHazards} = require('../../web/features/infrastructure/obstacle_layers.js');
 const {Request,RequestState,DistanceDisplayCondition,ShadowMode} = require('../../web/cesium/index.cjs');
 
 function setup({image = () => Promise.resolve({}), yieldBatch, onFeatures,

@@ -6,12 +6,12 @@
 
 `lib/features/weather/wind_field_service.dart` still fetches Open-Meteo wind at nine
 points in a 3×3 grid (±1.5 or ±5 km), at nominal 10, 80, 120 and 180 m AGL.
-`web/wind_field.js` retains the existing validated and bilinearly interpolated
+`web/features/weather/wind_field.js` retains the existing validated and bilinearly interpolated
 *local* model field for 3D arrows. It is not modified or rescaled in that
 footprint unless the pilot explicitly enables synthetic gust/turbulence or
 terrain effects.
 
-`web/environmental_wind.js` is the **common environment provider** consumed by
+`web/features/weather/environmental_wind.js` is the **common environment provider** consumed by
 the simulation. Input: `{latitude, longitude, agl, timeSeconds}` (degrees,
 metres above terrain, simulated elapsed seconds). Output: `{north, east, up}`
 (m/s) plus `source`, `available`, `approximate`, `extrapolated`,
@@ -55,9 +55,9 @@ cannot certify safe mountain-surfing trajectories.
 
 ## Integration and resource limits
 
-- `web/globe.js` provides the same wind sampler to `web/free_flight.js` as
+- `web/globe.js` provides the same wind sampler to `web/features/flight/free_flight.js` as
   before; Acro, Angle and GPS/Rescue continue to use air-relative velocity.
-- `web/free_flight.js` now passes **simulated physics time** to the provider;
+- `web/features/flight/free_flight.js` now passes **simulated physics time** to the provider;
   advanced fixed-step integration is independent of Cesium rendering rate.
 - Wind arrows remain local and bounded as before; regional estimates do not
   generate unbounded animated primitives.

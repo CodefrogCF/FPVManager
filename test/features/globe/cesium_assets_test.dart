@@ -49,49 +49,49 @@ void main() {
       expect(html, contains('"./cesium/"'));
       expect(html, isNot(contains('cdn.jsdelivr.net')));
       expect(
-        await rootBundle.loadString('web/globe_bridge.js'),
+        await rootBundle.loadString('web/core/globe_bridge.js'),
         contains('createBridge'),
       );
-      expect(html, contains('src="terrain_service.js"'));
+      expect(html, contains('src="features/terrain/terrain_service.js"'));
       expect(html, contains('id="hud-battery-readout"'));
-      expect(html, contains('src="map_providers.js"'));
+      expect(html, contains('src="features/map/map_providers.js"'));
       for (final module in [
-        'ground_navigation.js',
-        'navigation_controls.js',
-        'controller_input.js',
-        'battery_chemistries.generated.js',
-        'battery_simulation.js',
-        'simulated_failsafe.js',
-        'body_axis_aerodynamics.js',
-        'descent_aerodynamics.js',
-        'collision_response.js',
-        'rotational_dynamics.js',
-        'autonomous_flight_control.js',
-        'environmental_wind.js',
-        'free_flight.js',
-        'flight_hud.js',
-        'signal_hud.js',
-        'rf_estimation.js',
-        'rescue_velocity.js',
-        'flight_rendering.js',
-        'bridge_supports.js',
-        'bridge_source.js',
-        'scene_performance.js',
-        'route_editor.js',
-        'obstacle_layers.js',
-        'obstacle_models.js',
+        'features/navigation/ground_navigation.js',
+        'features/navigation/navigation_controls.js',
+        'features/navigation/controller_input.js',
+        'features/flight/physics/battery_chemistries.generated.js',
+        'features/flight/physics/battery_simulation.js',
+        'features/signal/simulated_failsafe.js',
+        'features/flight/physics/body_axis_aerodynamics.js',
+        'features/flight/physics/descent_aerodynamics.js',
+        'features/flight/physics/collision_response.js',
+        'features/flight/physics/rotational_dynamics.js',
+        'features/flight/autonomous_flight_control.js',
+        'features/weather/environmental_wind.js',
+        'features/flight/free_flight.js',
+        'features/flight/hud/flight_hud.js',
+        'features/flight/hud/signal_hud.js',
+        'features/signal/rf_estimation.js',
+        'features/flight/physics/rescue_velocity.js',
+        'features/flight/flight_rendering.js',
+        'features/infrastructure/bridge_supports.js',
+        'features/infrastructure/bridge_source.js',
+        'core/scene_performance.js',
+        'features/navigation/route_editor.js',
+        'features/infrastructure/obstacle_layers.js',
+        'features/infrastructure/obstacle_models.js',
         'offline_map_client.js',
-        'situational_layers.js',
-        'road_navigation.js',
-        'map_compass.js',
-        'globe_positions.js',
-        'map_labels.js',
+        'features/overlays/situational_layers.js',
+        'features/navigation/road_navigation.js',
+        'features/map/map_compass.js',
+        'core/globe_positions.js',
+        'features/map/map_labels.js',
       ]) {
         expect(html, contains('src="$module"'));
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);
       }
-      expect(html, contains('href="flight_hud.css"'));
-      expect(await rootBundle.loadString('web/flight_hud.css'), isNotEmpty);
+      expect(html, contains('href="features/flight/hud/flight_hud.css"'));
+      expect(await rootBundle.loadString('web/features/flight/hud/flight_hud.css'), isNotEmpty);
       for (final model in [
         'power-pylon',
         'utility-pole',
@@ -107,11 +107,11 @@ void main() {
         expect(bytes.getUint32(8, Endian.little), bytes.lengthInBytes);
       }
       expect(
-        await rootBundle.loadString('web/map_providers.js'),
+        await rootBundle.loadString('web/features/map/map_providers.js'),
         contains('createAdapters'),
       );
       expect(
-        await rootBundle.loadString('web/terrain_service.js'),
+        await rootBundle.loadString('web/features/terrain/terrain_service.js'),
         contains('createTerrainManager'),
       );
     },

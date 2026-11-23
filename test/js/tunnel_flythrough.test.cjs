@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
-const F=require('../../web/free_flight.js');
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
+const F=require('../../web/features/flight/free_flight.js');
 const ActualCesium=require('../../web/cesium/index.cjs');
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])
     globalThis[name]??=class {};
@@ -870,7 +870,7 @@ test('long-tunnel flight asks for a source-aligned forward segment near artifici
 });
 
 test('simulator stops below ground at artificial tunnel end instead of teleporting upward',async()=>{
-    const F=require('../../web/free_flight.js');
+    const F=require('../../web/features/flight/free_flight.js');
     const cutoff=8.200065;
     const sim=F.createSimulator({sampleHeight:async()=>500,
         renderedHeight:p=>p.longitude<=cutoff?500:1300,

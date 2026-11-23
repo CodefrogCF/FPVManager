@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / 'assets/battery/chemistries.json'
 DART = ROOT / 'lib/core/models/generated/battery_chemistries.g.dart'
-JAVASCRIPT = ROOT / 'web/battery_chemistries.generated.js'
+JAVASCRIPT = ROOT / 'web/features/flight/physics/battery_chemistries.generated.js'
 
 
 def generate() -> dict[Path, str]:

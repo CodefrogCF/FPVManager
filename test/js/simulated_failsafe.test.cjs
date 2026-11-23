@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const F=require('../../web/simulated_failsafe.js');
-const {createSimulator,distance}=require('../../web/free_flight.js');
+const F=require('../../web/features/signal/simulated_failsafe.js');
+const {createSimulator,distance}=require('../../web/features/flight/free_flight.js');
 const spawn={latitude:46.70,longitude:8.40};
 const rc=q=>({visibility:'obstructed',source:'sampledTerrain',confidence:'approximate',
     controlLink:q===null?'unknown':{quality:q,source:'estimatedModel',detail:'manualTraining'},
@@ -109,7 +109,7 @@ test('route playback explicitly resets and bypasses failsafe',async()=>{
 });
 
 test('default RF estimates can drive optional RC failsafe but a video-only model cannot',()=>{
-    const rf=require('../../web/rf_estimation.js');
+    const rf=require('../../web/features/signal/rf_estimation.js');
     const ground={latitude:47,longitude:8},far={latitude:47,longitude:8.05};
     const terrain={visibility:'obstructed',source:'sampledTerrain',confidence:'approximate',
         minimumClearanceMeters:-100,minimumFresnelMarginMeters:-100};
@@ -135,7 +135,7 @@ test('GPS rescue approaches commanded speed while far from home, then brakes con
 });
 
 test('simulated shallow obstruction degrades modeled RC without using video quality',()=>{
-    const rf=require('../../web/rf_estimation.js');
+    const rf=require('../../web/features/signal/rf_estimation.js');
     const a={latitude:47,longitude:8},b={latitude:47,longitude:8.02};
     const blocked={source:'sampledTerrain',confidence:'approximate',visibility:'obstructed',
         minimumClearanceMeters:-60,minimumFresnelMarginMeters:-60};

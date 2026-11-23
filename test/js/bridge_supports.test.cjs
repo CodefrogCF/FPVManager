@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const B=require('../../web/bridge_supports.js');
+const B=require('../../web/features/infrastructure/bridge_supports.js');
 const ORIGIN={longitude:8.4,latitude:46.8};
 const point=x=>({lon:ORIGIN.longitude+x/(111319.49*Math.cos(ORIGIN.latitude*Math.PI/180)),lat:ORIGIN.latitude});
 const way=(id=1,tags={bridge:'yes',highway:'primary'})=>({type:'way',id,tags,geometry:[point(-72),point(72)]});

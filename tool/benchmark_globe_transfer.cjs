@@ -3,7 +3,7 @@
 // Reproducible, synthetic protocol benchmark. This is NOT a device benchmark.
 const { performance } = require('node:perf_hooks');
 const { gzipSync } = require('node:zlib');
-const { createBridge } = require('../web/globe_bridge.js');
+const { createBridge } = require('../web/core/globe_bridge.js');
 
 function stamp(task) {
     const started = performance.now();

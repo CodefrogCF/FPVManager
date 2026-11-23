@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const Environment = require('../../web/scene_environment.js');
+const Environment = require('../../web/features/scene/scene_environment.js');
 const I = Environment.FPVInfrastructureClearance;
 const T = Environment.FPVTunnelFlythrough;
 const base = {

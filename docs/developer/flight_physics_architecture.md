@@ -29,18 +29,18 @@ existing profiles retain their meaning.
 | --- | --- |
 | `lib/features/simulation/simulation_settings.dart` | Selectable mode, frequency, validation and bridge payload |
 | `lib/features/simulation/simulation_settings_sheet.dart` | Bilingual model and frequency controls |
-| `web/flight_physics.js` | Shared runtime contract, scheduling, fixed-substep budget and diagnostics |
-| `web/motor_propeller.js` | Optional advanced motor RPM, propeller thrust and electrical-load estimate |
-| `web/body_axis_aerodynamics.js` | Body-axis drag and low-throttle propeller drag |
-| `web/rotational_dynamics.js` | Inertia, bounded control torque, and simplified Air Mode |
-| `web/autonomous_flight_control.js` | GPS and Rescue guidance translated to shared attitude/thrust targets |
-| `web/environmental_wind.js` | Deterministic wind and terrain-dependent approximations |
-| `web/descent_aerodynamics.js` | Optional ground effect and powered descent approximations |
-| `web/collision_response.js` | Bounded contact impulse, sliding/rebound and ground-contact resolution |
-| `web/free_flight.js` | Existing pilot/controller logic, forces, motion integration, collision sweeps and battery updates |
-| `web/flight_rendering.js` | Cesium camera/terrain rendering and collision providers |
+| `web/features/flight/physics/flight_physics.js` | Shared runtime contract, scheduling, fixed-substep budget and diagnostics |
+| `web/features/flight/physics/motor_propeller.js` | Optional advanced motor RPM, propeller thrust and electrical-load estimate |
+| `web/features/flight/physics/body_axis_aerodynamics.js` | Body-axis drag and low-throttle propeller drag |
+| `web/features/flight/physics/rotational_dynamics.js` | Inertia, bounded control torque, and simplified Air Mode |
+| `web/features/flight/autonomous_flight_control.js` | GPS and Rescue guidance translated to shared attitude/thrust targets |
+| `web/features/weather/environmental_wind.js` | Deterministic wind and terrain-dependent approximations |
+| `web/features/flight/physics/descent_aerodynamics.js` | Optional ground effect and powered descent approximations |
+| `web/features/flight/physics/collision_response.js` | Bounded contact impulse, sliding/rebound and ground-contact resolution |
+| `web/features/flight/free_flight.js` | Existing pilot/controller logic, forces, motion integration, collision sweeps and battery updates |
+| `web/features/flight/flight_rendering.js` | Cesium camera/terrain rendering and collision providers |
 | `web/globe.js` | Flutter↔Cesium command and state adapter, frame clock, `set-capture-mode` |
-| `web/capture_mode.js` | DOM-only clean capture class toggle; no effect on physics |
+| `web/core/capture_mode.js` | DOM-only clean capture class toggle; no effect on physics |
 | `lib/features/home/home_map_workspace.dart` | Hides Flutter overlays during capture; invisible restore hotspot |
 
 The runtime receives three host adapters: `integrate(seconds)`, `snapshot()`,

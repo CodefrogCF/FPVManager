@@ -2,8 +2,8 @@
 // Synthetic CPU-only benchmark: does not include Cesium tile GPU picking,
 // streamed model loads, Android WebView or Windows WebView2 costs.
 const {performance}=require('node:perf_hooks');
-const collision=require('../web/collision_response.js');
-const {createSimulator}=require('../web/free_flight.js');
+const collision=require('../web/features/flight/physics/collision_response.js');
+const {createSimulator}=require('../web/features/flight/free_flight.js');
 const loops=100000;
 let checksum=0;
 function timed(label,callback){

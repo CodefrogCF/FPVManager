@@ -14,12 +14,12 @@ telemetry, transmitter configuration or validated flight safety logic.
    long-range refinement produces uneven spacing.
 3. `lib/features/signal/live_link_assessment.dart` provides the immutable
    assessment contract. The renderer receives `set-live-radio-result`.
-4. `web/live_radio.js` and `web/rf_estimation.js` compute separate video/RC
+4. `web/features/signal/live_radio.js` and `web/features/signal/rf_estimation.js` compute separate video/RC
    *assumed* link budgets when reliable terrain is available. The HUD and
    optional failsafe consume separate presentation and RC-quality channels.
-5. `web/simulated_failsafe.js` manages opt-in RC link loss/recovery; flight
-   movement is implemented through `web/free_flight.js` and normal collision
-   checks. `web/rescue_velocity.js` handles bounded return acceleration/braking.
+5. `web/features/signal/simulated_failsafe.js` manages opt-in RC link loss/recovery; flight
+   movement is implemented through `web/features/flight/free_flight.js` and normal collision
+   checks. `web/features/flight/physics/rescue_velocity.js` handles bounded return acceleration/braking.
 
 Keep the operator/antenna position independent of the flight home/takeoff
 point. Repositioning the ground-station marker does not change GPS Rescue home.
@@ -124,7 +124,7 @@ transmitter or licenses its use.
 
 ## RC failsafe and manual takeover
 
-`web/simulated_failsafe.js` owns the state transitions. The optional behavior
+`web/features/signal/simulated_failsafe.js` owns the state transitions. The optional behavior
 is **disabled by default**. Loss/recovery require appropriate modeled RC
 quality, thresholds and duration, with separate hysteresis. Unknown terrain,
 video impairment and the optional terrain-only video demonstration do **not**

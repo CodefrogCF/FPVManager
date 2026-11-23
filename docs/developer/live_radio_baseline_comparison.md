@@ -18,7 +18,7 @@ were selectively restored:
 - `lib/features/signal/live_radio_controller.dart`
 - `lib/features/signal/live_sampling_policy.dart`
 - `lib/features/signal/live_terrain_sampler.dart`
-- `web/live_radio.js`
+- `web/features/signal/live_radio.js`
 - `test/features/signal/live_radio_controller_test.dart`
 - `test/features/signal/live_terrain_sampler_test.dart`
 - `test/js/live_radio.test.cjs`

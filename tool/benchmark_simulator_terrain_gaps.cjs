@@ -2,7 +2,7 @@
 'use strict';
 // CPU-only deterministic workload. Not a Cesium tile download or Android GPU benchmark.
 const {performance}=require('node:perf_hooks');
-const {createSimulator,distance}=require('../web/free_flight.js');
+const {createSimulator,distance}=require('../web/features/flight/free_flight.js');
 const start={latitude:46.7,longitude:8.4};
 const checkpoints=[5900,6100,10000,14400,20000,30000,49900];
 const times=[],results=[];

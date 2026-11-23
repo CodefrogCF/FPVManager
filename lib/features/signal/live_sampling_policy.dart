@@ -31,7 +31,12 @@ class LiveSamplingPolicy {
     if (distanceMeters <= 6000) {
       return const LiveSamplingTier(
         name: 'highResolution',
-        coarsePoints: 129,
+        // A single most-detailed terrain request can contain 256 points.
+        // At ~1 km, the 5 m route grid therefore fits in one pass; at
+        // ~4 km, 256 points already meet the 16 m coverage budget. From
+        // ~4–6 km, one more bounded refinement pass is usually enough.
+        // The previous 129-point first pass could need three round trips.
+        coarsePoints: 256,
         refinementPoints: 384,
         coverageGapMeters: 16,
         minimumInterval: Duration(milliseconds: 250),
@@ -100,9 +105,18 @@ class LiveSamplingPolicy {
   static double maximumStaleness(
     double speedMetersPerSecond, [
     double distanceMeters = 0,
-  ]) => math.max(
-    12,
-    speedMetersPerSecond *
-        math.min(3.5, 0.6 + math.max(0, distanceMeters) / 18000),
-  );
+  ]) {
+    // A 60–70 m/s aircraft can travel tens of metres while terrain is being
+    // sampled. Never treat an old, clear near-field ray as verified across a
+    // 40 m displacement near a cliff or ridge. Recompute instead. Unknown is
+    // preferable to a false clear if the provider cannot keep up.
+    if (distanceMeters >= 1 && distanceMeters <= 6000) {
+      return math.max(12, math.min(24, speedMetersPerSecond * 0.35));
+    }
+    return math.max(
+      12,
+      speedMetersPerSecond *
+          math.min(3.5, 0.6 + math.max(0, distanceMeters) / 18000),
+    );
+  }
 }

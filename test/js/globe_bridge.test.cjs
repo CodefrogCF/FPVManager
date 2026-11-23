@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createBridge } = require('../../web/globe_bridge.js');
+const { createBridge } = require('../../web/core/globe_bridge.js');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const { gzipSync } = require('node:zlib');
 

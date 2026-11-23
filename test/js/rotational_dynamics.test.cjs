@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const rotation=require('../../web/rotational_dynamics.js');
-const {createSimulator,parameters}=require('../../web/free_flight.js');
+const rotation=require('../../web/features/flight/physics/rotational_dynamics.js');
+const {createSimulator,parameters}=require('../../web/features/flight/free_flight.js');
 const rad=Math.PI/180,gEstimate=9.80665;
 const equal=(a,b,eps=1e-9)=>assert.ok(Math.abs(a-b)<=eps,`${a} != ${b}`);
 const zero=()=>({x:0,y:0,z:0});

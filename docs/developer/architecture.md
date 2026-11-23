@@ -26,7 +26,7 @@ WebView2 on Windows. `GlobeController`
 validates events and publishes coherent state; commands require acknowledgement.
 See [bridge protocol](globe_bridge.md) and [renderer assets](cesium_assets.md).
 
-`web/scene_tile_loading.js` wraps only the external header loading of owned
+`web/features/scene/scene_tile_loading.js` wraps only the external header loading of owned
 scene tilesets. Large explicit trees become small local external subtilesets;
 source content URLs, transforms, materials and LOD thresholds stay intact.
 Preparation and construction yield between tasks. Each tileset holds its local
@@ -134,7 +134,7 @@ are distinct. An ordinary cache hit does not clear a failed refresh.
 `GeoJsonOsintProvider` accepts EPSG:4326 FeatureCollections and rejects explicit
 incompatible CRSs. `SwissUasProvider` supplies the source descriptor; compatible
 providers can be injected into `GlobeController`. Other formats need normalizing
-adapters. Imagery/terrain factories are in `web/map_providers.js`; local composition
+adapters. Imagery/terrain factories are in `web/features/map/map_providers.js`; local composition
 can supply `window.FPVMapProviderConfig` before `globe.js`.
 
 The controller tracks the dataset acknowledged by the renderer separately from
@@ -223,7 +223,7 @@ coordinates; antimeridian-crossing geometry must be split. Unsupported geometry
 and source gaps remain explicit. Native checks run in an isolate; Web uses the
 browser thread. Height/time applicability is outside the intersection check.
 
-`web/terrain_service.js` bounds initialization/probe to 8 seconds and tile/sample
+`web/features/terrain/terrain_service.js` bounds initialization/probe to 8 seconds and tile/sample
 requests to 12 seconds. Map downloads use eight active slots and a bounded queue;
 cache hits bypass downloads. Individual tile/sample failures retain loaded terrain
 and report missing information. Startup validates all global root tiles (only the
@@ -248,7 +248,7 @@ and collision sweeps keep their existing settings. Opt-in scene diagnostics coun
 long in-flight stalls separately from idle/background gaps.
 
 Flight camera updates run in Cesium `preUpdate`, before controller updates,
-camera-motion detection and terrain selection. `web/flight_rendering.js` prepares common surface shader
+camera-motion detection and terrain selection. `web/features/flight/flight_rendering.js` prepares common surface shader
 variants while the simulator is pending; cancellation restores the saved camera
 and graphics state. The bounded preparation uses the current surface-shader
 options and Cesium's own program cache. It does not change source shaders or

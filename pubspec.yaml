@@ -3,7 +3,7 @@ description: "Open-source FPV flight planning and situational awareness app with
 
 publish_to: 'none'
 
-version: 0.19.25+52
+version: 0.19.24+51
 
 environment:
   sdk: ^3.13.0
@@ -52,7 +52,7 @@ flutter:
     - assets/licenses/image-LICENSE-other.md
     - assets/licenses/archive-LICENSE-other.md
     - web/globe.html
-    - web/renderer_language.js
+    - web/core/renderer_language.js
     # BEGIN CESIUM ASSETS
     - web/cesium/
     - web/cesium/Assets/
@@ -105,76 +105,76 @@ flutter:
     - web/cesium/Workers/
     # END CESIUM ASSETS
     - web/globe.js
-    - web/globe_bridge.js
-    - web/terrain_service.js
-    - web/map_providers.js
-    - web/scenery_alignment.js
-    - web/scenery_collision.js
-    - web/scenery_manager.js
-    - web/scenery_bridge_calibration.js
-    - web/regional_3d.js
+    - web/core/globe_bridge.js
+    - web/features/terrain/terrain_service.js
+    - web/features/map/map_providers.js
+    - web/features/scenery/scenery_alignment.js
+    - web/features/scenery/scenery_collision.js
+    - web/features/scenery/scenery_manager.js
+    - web/features/scenery/scenery_bridge_calibration.js
+    - web/features/terrain/regional_3d.js
     - web/assets/scenery/
-    - web/scenery_reference_preview.js
-    - web/ground_navigation.js
-    - web/navigation_controls.js
-    - web/controller_input.js
-    - web/battery_chemistries.generated.js
-    - web/battery_simulation.js
-    - web/simulated_failsafe.js
-    - web/flight_physics.js
-    - web/motor_propeller.js
-    - web/electrical_propulsion.js
-    - web/body_axis_aerodynamics.js
-    - web/descent_aerodynamics.js
-    - web/collision_response.js
-    - web/rotational_dynamics.js
-    - web/autonomous_flight_control.js
-    - web/free_flight.js
-    - web/flight_recording.js
-    - web/signal_hud.js
-    - web/rf_estimation.js
-    - web/rescue_velocity.js
-    - web/flight_hud.js
-    - web/capture_mode.js
-    - web/flight_hud.css
-    - web/flight_rendering.js
-    - web/scene_environment.js
-    - web/vegetation_models.js
-    - web/vegetation_shader_seed.js
-    - web/forest_composition.js
+    - web/features/scenery/scenery_reference_preview.js
+    - web/features/navigation/ground_navigation.js
+    - web/features/navigation/navigation_controls.js
+    - web/features/navigation/controller_input.js
+    - web/features/flight/physics/battery_chemistries.generated.js
+    - web/features/flight/physics/battery_simulation.js
+    - web/features/signal/simulated_failsafe.js
+    - web/features/flight/physics/flight_physics.js
+    - web/features/flight/physics/motor_propeller.js
+    - web/features/flight/physics/electrical_propulsion.js
+    - web/features/flight/physics/body_axis_aerodynamics.js
+    - web/features/flight/physics/descent_aerodynamics.js
+    - web/features/flight/physics/collision_response.js
+    - web/features/flight/physics/rotational_dynamics.js
+    - web/features/flight/autonomous_flight_control.js
+    - web/features/flight/free_flight.js
+    - web/features/flight/flight_recording.js
+    - web/features/flight/hud/signal_hud.js
+    - web/features/signal/rf_estimation.js
+    - web/features/flight/physics/rescue_velocity.js
+    - web/features/flight/hud/flight_hud.js
+    - web/core/capture_mode.js
+    - web/features/flight/hud/flight_hud.css
+    - web/features/flight/flight_rendering.js
+    - web/features/scene/scene_environment.js
+    - web/features/vegetation/vegetation_models.js
+    - web/features/vegetation/vegetation_shader_seed.js
+    - web/features/vegetation/forest_composition.js
     - web/assets/vegetation/
-    - web/scene_tile_loading.js
-    - web/bridge_supports.js
-    - web/bridge_source.js
-    - web/tunnel_offline_index.js
+    - web/features/scene/scene_tile_loading.js
+    - web/features/infrastructure/bridge_supports.js
+    - web/features/infrastructure/bridge_source.js
+    - web/features/infrastructure/tunnel_offline_index.js
     - web/data/tunnels/ch_tunnels_v1.json
     - web/data/tunnels/ODBL_NOTICE.txt
-    - web/scene_performance.js
-    - web/environmental_wind.js
-    - web/wind_field.js
-    - web/route_editor.js
-    - web/signal_analysis.js
-    - web/live_radio.js
-    - web/obstacle_layers.js
-    - web/obstacle_models.js
+    - web/core/scene_performance.js
+    - web/features/weather/environmental_wind.js
+    - web/features/weather/wind_field.js
+    - web/features/navigation/route_editor.js
+    - web/features/signal/signal_analysis.js
+    - web/features/signal/live_radio.js
+    - web/features/infrastructure/obstacle_layers.js
+    - web/features/infrastructure/obstacle_models.js
     - web/offline_map_client.js
     - web/offline_preparation.html
-    - web/offline_preparation_page.js
+    - web/features/offline/offline_preparation_page.js
     - web/offline_preparation_worker.js
-    - web/offline_preparation_engine.js
-    - web/offline_preparation_storage.js
+    - web/features/offline/offline_preparation_engine.js
+    - web/features/offline/offline_preparation_storage.js
     - web/vendor/geotiff/
     - web/vendor/h5wasm/
     - web/models/obstacles/
-    - web/situational_layers.js
-    - web/road_navigation.js
-    - web/map_compass.js
-    - web/globe_positions.js
-    - web/map_labels.js
-    - web/uas_zone_styles.js
-    - web/weather_overlay.js
-    - web/meteo_radar_overlay.js
-    - web/dated_imagery_overlay.js
+    - web/features/overlays/situational_layers.js
+    - web/features/navigation/road_navigation.js
+    - web/features/map/map_compass.js
+    - web/core/globe_positions.js
+    - web/features/map/map_labels.js
+    - web/features/map/uas_zone_styles.js
+    - web/features/weather/weather_overlay.js
+    - web/features/weather/meteo_radar_overlay.js
+    - web/features/map/dated_imagery_overlay.js
     - assets/geo/chgeo2004_ln02.bin
     - assets/geo/chgeo2004_ln02.NOTICE.txt
 

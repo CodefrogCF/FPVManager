@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
-const C=require(process.env.FPV_COLLISION_RUNTIME||'../../web/scenery_collision.js');
+const C=require(process.env.FPV_COLLISION_RUNTIME||'../../web/features/scenery/scenery_collision.js');
 const b=fs.readFileSync(process.env.FPV_R6_FPC||path.resolve(__dirname,'../../web/assets/scenery/local_reference.fpc'));
 const m=C.parse(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength)),R=.25/16.023268178233355;
 const cases=[

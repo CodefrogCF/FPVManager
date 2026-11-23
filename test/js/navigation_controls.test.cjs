@@ -1,8 +1,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {bindControls,axis,gamepadFrame}=require('../../web/navigation_controls.js');
-const {createSimulator}=require('../../web/free_flight.js');
-const Controller=require('../../web/controller_input.js');
+const {bindControls,axis,gamepadFrame}=require('../../web/features/navigation/navigation_controls.js');
+const {createSimulator}=require('../../web/features/flight/free_flight.js');
+const Controller=require('../../web/features/navigation/controller_input.js');
 class Target{
     constructor(rect={left:0,top:0,width:400,height:600}){this.listeners=new Map();this.style={};this.rect=rect;this.hidden=true;}
     addEventListener(type,fn){if(!this.listeners.has(type))this.listeners.set(type,new Set());this.listeners.get(type).add(fn);}

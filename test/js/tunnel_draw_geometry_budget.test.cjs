@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const Actual=require('../../web/cesium/index.cjs');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])
     globalThis[name]??=class {};
 const route={id:'geometry-budget',kind:'underpass',transport:'road',source:'CPU fixture',

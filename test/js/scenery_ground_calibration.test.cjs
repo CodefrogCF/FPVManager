@@ -2,9 +2,9 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const B=require('../../web/scenery_bridge_calibration.js');
-const M=require('../../web/scenery_manager.js');
-const A=require('../../web/scenery_alignment.js');
+const B=require('../../web/features/scenery/scenery_bridge_calibration.js');
+const M=require('../../web/features/scenery/scenery_manager.js');
+const A=require('../../web/features/scenery/scenery_alignment.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
 
 const point=(height,lon=13.78985,lat=52.48412)=>({height,longitude:lon,latitude:lat});
@@ -72,7 +72,7 @@ test('BKG-only height nudge follows a provider switch, preview hiding is reversi
 test('tap workflow uses local scanned ground and bare terrain, confirmation is explicit',()=>{
   const js=fs.readFileSync('web/globe.js','utf8');
   const html=fs.readFileSync('web/globe.html','utf8');
-  const manager=fs.readFileSync('web/scenery_manager.js','utf8');
+  const manager=fs.readFileSync('web/features/scenery/scenery_manager.js','utf8');
   const ui=fs.readFileSync('lib/features/globe/scenery_layers_section.dart','utf8');
   const controller=fs.readFileSync('lib/features/globe/globe_controller.dart','utf8');
   assert.match(html,/scenery_bridge_calibration\.js/);
@@ -92,8 +92,8 @@ test('tap workflow uses local scanned ground and bare terrain, confirmation is e
 test('calibration module is bundled for Android, not just loaded in HTML',()=>{
   const yaml=fs.readFileSync('pubspec.yaml','utf8');
   const html=fs.readFileSync('web/globe.html','utf8');
-  assert.match(yaml,/^\s+- web\/scenery_bridge_calibration\.js\s*$/m);
-  assert.match(html,/<script src="scenery_bridge_calibration\.js"><\/script>/);
+  assert.match(yaml,/^\s+- web\/features\/scenery\/scenery_bridge_calibration\.js\s*$/m);
+  assert.match(html,/<script src="features\/scenery\/scenery_bridge_calibration\.js"><\/script>/);
   assert.ok(html.indexOf('scenery_bridge_calibration.js')<html.indexOf('globe.js'));
   const js=fs.readFileSync('web/globe.js','utf8');
   assert.match(js,/globalThis\.FPVSceneryBridgeCalibration\?\.compare/);
@@ -112,7 +112,7 @@ test('do not compare a scanned floor with distant or elevated LoD2 roofs',()=>{
 test('calibration helper registers in a plain browser without CommonJS globals',()=>{
   const vm=require('node:vm');
   const context={};
-  vm.runInNewContext(fs.readFileSync('web/scenery_bridge_calibration.js','utf8'),context);
+  vm.runInNewContext(fs.readFileSync('web/features/scenery/scenery_bridge_calibration.js','utf8'),context);
   assert.equal(typeof context.FPVSceneryBridgeCalibration?.compare,'function');
   assert.equal(context.FPVSceneryBridgeCalibration.MAX_HORIZONTAL_M,12);
 });

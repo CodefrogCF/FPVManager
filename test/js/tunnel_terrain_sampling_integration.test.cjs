@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createTerrainManager}=require('../../web/terrain_service.js');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const {createTerrainManager}=require('../../web/features/terrain/terrain_service.js');
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function deferred(){let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};}
 

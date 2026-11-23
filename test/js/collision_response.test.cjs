@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const collision=require('../../web/collision_response.js');
-const {createSimulator,parameters,distance}=require('../../web/free_flight.js');
+const collision=require('../../web/features/flight/physics/collision_response.js');
+const {createSimulator,parameters,distance}=require('../../web/features/flight/free_flight.js');
 const origin={latitude:46.7,longitude:8.4};
 const vector=(north,east,up)=>({north,east,up});
 const norm=v=>Math.hypot(v.north,v.east,v.up);

@@ -1,7 +1,7 @@
 /* Synthetic scheduling microbenchmark. Does not measure hardware FPS/GPU. */
 'use strict';
 const {performance}=require('node:perf_hooks');
-const {create}=require('../web/scene_environment.js');
+const {create}=require('../web/features/scene/scene_environment.js');
 class Event{
     constructor(){this.listeners=new Set();}
     addEventListener(listener){this.listeners.add(listener);return ()=>this.listeners.delete(listener);}

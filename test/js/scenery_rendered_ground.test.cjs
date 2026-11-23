@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const M=require('../../web/scenery_manager.js');
+const M=require('../../web/features/scenery/scenery_manager.js');
 
 class Cartesian3{}
 Cartesian3.fromRadians=(lon,lat,height)=>({longitude:lon,latitude:lat,height});

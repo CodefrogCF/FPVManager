@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])
     globalThis[name]??=class {};
 

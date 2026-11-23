@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-require('../../web/weather_overlay.js');
+require('../../web/features/weather/weather_overlay.js');
 const weather = globalThis.FPVWeatherOverlay;
 
 test('Weather sample colors are based on displayed source values', () => {

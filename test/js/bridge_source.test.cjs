@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const B=require('../../web/bridge_source.js');
+const B=require('../../web/features/infrastructure/bridge_source.js');
 const fixture=require('../fixtures/bridges/ganter_native_deck.json');
 const center=fixture.center;
 function setup(options={}){

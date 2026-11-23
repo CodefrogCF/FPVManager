@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const M=require('../../web/offline_maps.js'),C=require('../../web/cesium/index.cjs');
-const {createAdapters,defaultImagery}=require('../../web/map_providers.js');
+const {createAdapters,defaultImagery}=require('../../web/features/map/map_providers.js');
 const fs=require('node:fs');
 const region={id:'test',name:'test',west:8.39,south:46.69,east:8.41,north:46.71,style:'topographic',imageryLevel:14,terrainLevel:12};
 

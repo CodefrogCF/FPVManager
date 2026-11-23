@@ -6,7 +6,7 @@ They only run in the advanced physics model; legacy trajectories are unchanged.
 
 ## Input contract and provenance
 
-`web/descent_aerodynamics.js` exports `configuration` and `evaluate`.
+`web/features/flight/physics/descent_aerodynamics.js` exports `configuration` and `evaluate`.
 Input includes delivered **free-air** thrust acceleration (m/s²), commanded
 motor fraction, orientation quaternion, **air-relative** velocity in
 north/east/up (m/s), a terrain clearance if verified (m), propeller diameter

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test');const assert=require('node:assert/strict');
-const M=require('../../web/scenery_manager.js');const R=require('../../web/regional_3d.js');
+const M=require('../../web/features/scenery/scenery_manager.js');const R=require('../../web/features/terrain/regional_3d.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
 const ROOT_HEIGHT=catalog.sceneries[0].alignment.ellipsoidHeightM;
 // Preserve provider-driven fitting regression coverage with a separate opt-in fixture.
@@ -62,7 +62,7 @@ test('failed height sample retries without corrupting the original placement',as
 });
 
 test('editing ready scenery preserves GLB, resamples height, restores and gates replacement regions',async()=>{
- const f=fixture();const A=require('../../web/scenery_alignment.js');const id=catalog.sceneries[0].id;
+ const f=fixture();const A=require('../../web/features/scenery/scenery_alignment.js');const id=catalog.sceneries[0].id;
  let loads=0,calls=0;const model={ready:true,destroy(){}};const key={};
  const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>terrainCatalog,modelFactory:async()=>{loads++;return model;},terrainKey:()=>key,sampleGround:async()=>{calls++;return 60;}});
  try{await m.initialize();await flush();m.tick(true);await flush();const initial=m.snapshot()[0];
@@ -77,7 +77,7 @@ test('editing ready scenery preserves GLB, resamples height, restores and gates 
  }finally{m.dispose();}
 });
 test('regional cuts target only owned collections, restore on navigation and preserve foreign terrain clipping',async()=>{
- const f=fixture();const A=require('../../web/scenery_alignment.js');let busy=false,regions=[];
+ const f=fixture();const A=require('../../web/features/scenery/scenery_alignment.js');let busy=false,regions=[];
  const globe={clippingPolygons:undefined};f.viewer.scene.globe=globe;
  f.C.ClippingPolygonCollection=class{static isSupported(){return true;}constructor({polygons}){this.polygons=polygons;}};
  f.C.ClippingPolygon=class{constructor({positions}){this.positions=positions;}};

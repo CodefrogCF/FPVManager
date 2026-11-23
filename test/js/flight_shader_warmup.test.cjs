@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createTerrainShaderWarmup}=require('../../web/flight_rendering.js');
+const {createTerrainShaderWarmup}=require('../../web/features/flight/flight_rendering.js');
 
 function fixture({parallel=true,failLink=false,timeoutMs=12000,abortAt=Infinity,logDepth=true}={}){
     let time=0,bound={id:'original'},reads=0;

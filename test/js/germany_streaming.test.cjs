@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const R=require('../../web/regional_3d.js');
+const R=require('../../web/features/terrain/regional_3d.js');
 const root=path.join(__dirname,'../..');
 
 const positions={
@@ -48,7 +48,7 @@ test('enabled callback controls requests without creating offline caches',async(
         assert.equal(api.region(),false);assert.equal(removed,1);
         assert.equal(terrainSwitches,2);
     }finally{api.dispose();}
-    for(const filename of ['web/regional_3d.js','web/offline_service_worker.js']){
+    for(const filename of ['web/features/terrain/regional_3d.js','web/offline_service_worker.js']){
         const source=fs.readFileSync(path.join(root,filename),'utf8');
         assert.doesNotMatch(source,/caches\.put\([^)]*gdz_basemapde/);
     }

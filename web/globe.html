@@ -157,7 +157,7 @@
     body.capture-mode .cesium-viewer-animationContainer,
     body.capture-mode .cesium-viewer-timelineContainer { display:none !important; }
     </style>
-    <link rel="stylesheet" href="flight_hud.css">
+    <link rel="stylesheet" href="features/flight/hud/flight_hud.css">
 </head>
 
 <body>
@@ -305,64 +305,64 @@
         </div>
     </div>
 
-    <script src="globe_bridge.js"></script>
-    <script src="terrain_service.js"></script>
-    <script src="map_providers.js"></script>
-    <script src="controller_input.js"></script>
-    <script src="navigation_controls.js"></script>
-    <script src="ground_navigation.js"></script>
-    <script src="battery_chemistries.generated.js"></script>
-    <script src="battery_simulation.js"></script>
-    <script src="signal_hud.js"></script>
-    <script src="rf_estimation.js"></script>
-    <script src="rescue_velocity.js"></script>
-    <script src="simulated_failsafe.js"></script>
-    <script src="flight_physics.js"></script>
-    <script src="motor_propeller.js"></script>
-    <script src="electrical_propulsion.js"></script>
-    <script src="body_axis_aerodynamics.js"></script>
-    <script src="descent_aerodynamics.js"></script>
-    <script src="collision_response.js"></script>
-    <script src="rotational_dynamics.js"></script>
-    <script src="autonomous_flight_control.js"></script>
-    <script src="free_flight.js"></script>
-    <script src="flight_recording.js"></script>
-    <script src="flight_hud.js"></script>
-    <script src="capture_mode.js"></script>
-    <script src="flight_rendering.js"></script>
-    <script src="tunnel_offline_index.js"></script>
-    <script src="bridge_source.js"></script>
-    <script src="bridge_supports.js"></script>
-    <script src="scene_tile_loading.js"></script>
-    <script src="dated_imagery_overlay.js"></script>
-    <script src="forest_composition.js"></script>
-    <script src="vegetation_models.js"></script>
-    <script src="vegetation_shader_seed.js"></script>
-    <script src="scene_environment.js"></script>
-    <script src="scene_performance.js"></script>
-    <script src="environmental_wind.js"></script>
-    <script src="wind_field.js"></script>
-    <script src="globe_positions.js"></script>
-    <script src="map_labels.js"></script>
-    <script src="route_editor.js"></script>
-    <script src="signal_analysis.js"></script>
-    <script src="live_radio.js"></script>
-    <script src="obstacle_models.js"></script>
-    <script src="obstacle_layers.js"></script>
-    <script src="situational_layers.js"></script>
-    <script src="road_navigation.js"></script>
-    <script src="map_compass.js"></script>
-    <script src="uas_zone_styles.js"></script>
-    <script src="weather_overlay.js"></script>
-    <script src="meteo_radar_overlay.js"></script>
+    <script src="core/globe_bridge.js"></script>
+    <script src="features/terrain/terrain_service.js"></script>
+    <script src="features/map/map_providers.js"></script>
+    <script src="features/navigation/controller_input.js"></script>
+    <script src="features/navigation/navigation_controls.js"></script>
+    <script src="features/navigation/ground_navigation.js"></script>
+    <script src="features/flight/physics/battery_chemistries.generated.js"></script>
+    <script src="features/flight/physics/battery_simulation.js"></script>
+    <script src="features/flight/hud/signal_hud.js"></script>
+    <script src="features/signal/rf_estimation.js"></script>
+    <script src="features/flight/physics/rescue_velocity.js"></script>
+    <script src="features/signal/simulated_failsafe.js"></script>
+    <script src="features/flight/physics/flight_physics.js"></script>
+    <script src="features/flight/physics/motor_propeller.js"></script>
+    <script src="features/flight/physics/electrical_propulsion.js"></script>
+    <script src="features/flight/physics/body_axis_aerodynamics.js"></script>
+    <script src="features/flight/physics/descent_aerodynamics.js"></script>
+    <script src="features/flight/physics/collision_response.js"></script>
+    <script src="features/flight/physics/rotational_dynamics.js"></script>
+    <script src="features/flight/autonomous_flight_control.js"></script>
+    <script src="features/flight/free_flight.js"></script>
+    <script src="features/flight/flight_recording.js"></script>
+    <script src="features/flight/hud/flight_hud.js"></script>
+    <script src="core/capture_mode.js"></script>
+    <script src="features/flight/flight_rendering.js"></script>
+    <script src="features/infrastructure/tunnel_offline_index.js"></script>
+    <script src="features/infrastructure/bridge_source.js"></script>
+    <script src="features/infrastructure/bridge_supports.js"></script>
+    <script src="features/scene/scene_tile_loading.js"></script>
+    <script src="features/map/dated_imagery_overlay.js"></script>
+    <script src="features/vegetation/forest_composition.js"></script>
+    <script src="features/vegetation/vegetation_models.js"></script>
+    <script src="features/vegetation/vegetation_shader_seed.js"></script>
+    <script src="features/scene/scene_environment.js"></script>
+    <script src="core/scene_performance.js"></script>
+    <script src="features/weather/environmental_wind.js"></script>
+    <script src="features/weather/wind_field.js"></script>
+    <script src="core/globe_positions.js"></script>
+    <script src="features/map/map_labels.js"></script>
+    <script src="features/navigation/route_editor.js"></script>
+    <script src="features/signal/signal_analysis.js"></script>
+    <script src="features/signal/live_radio.js"></script>
+    <script src="features/infrastructure/obstacle_models.js"></script>
+    <script src="features/infrastructure/obstacle_layers.js"></script>
+    <script src="features/overlays/situational_layers.js"></script>
+    <script src="features/navigation/road_navigation.js"></script>
+    <script src="features/map/map_compass.js"></script>
+    <script src="features/map/uas_zone_styles.js"></script>
+    <script src="features/weather/weather_overlay.js"></script>
+    <script src="features/weather/meteo_radar_overlay.js"></script>
     <script src="offline_map_client.js"></script>
-    <script src="renderer_language.js"></script>
-    <script src="scenery_alignment.js"></script>
-    <script src="scenery_collision.js"></script>
-    <script src="scenery_manager.js"></script>
-    <script src="scenery_bridge_calibration.js"></script>
-    <script src="regional_3d.js"></script>
-    <script src="scenery_reference_preview.js"></script>
+    <script src="core/renderer_language.js"></script>
+    <script src="features/scenery/scenery_alignment.js"></script>
+    <script src="features/scenery/scenery_collision.js"></script>
+    <script src="features/scenery/scenery_manager.js"></script>
+    <script src="features/scenery/scenery_bridge_calibration.js"></script>
+    <script src="features/terrain/regional_3d.js"></script>
+    <script src="features/scenery/scenery_reference_preview.js"></script>
     <script src="globe.js"></script>
 </body>
 </html>

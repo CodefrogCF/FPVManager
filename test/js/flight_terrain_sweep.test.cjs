@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const {create,terrainSegmentIntersects}=require('../../web/flight_rendering.js');
+const {create,terrainSegmentIntersects}=require('../../web/features/flight/flight_rendering.js');
 
 function fixture(tiles=[]){
     const state={picks:0,publicPicks:0};

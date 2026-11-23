@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const Wind=require('../../web/environmental_wind.js');
-const {field,sample}=require('../../web/wind_field.js');
-const {createSimulator,distance}=require('../../web/free_flight.js');
+const Wind=require('../../web/features/weather/environmental_wind.js');
+const {field,sample}=require('../../web/features/weather/wind_field.js');
+const {createSimulator,distance}=require('../../web/features/flight/free_flight.js');
 const rad=Math.PI/180;
 function snapshot(){
     const latitude=46.7,longitude=8.4,radiusMeters=1500;

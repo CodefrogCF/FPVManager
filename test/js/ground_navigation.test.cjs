@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createWalker, createTerrainCache, bindControls } = require('../../web/ground_navigation.js');
+const { createWalker, createTerrainCache, bindControls } = require('../../web/features/navigation/ground_navigation.js');
 
 function setup({ sampleHeight = async () => 1000, terrainCache } = {}) {
     let terrain = true, ground = 1000;

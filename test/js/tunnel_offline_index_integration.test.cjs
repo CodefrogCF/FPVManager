@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const Local = require('../../web/tunnel_offline_index.js');
-const T = require('../../web/scene_environment.js').FPVTunnelInfrastructure;
+const Local = require('../../web/features/infrastructure/tunnel_offline_index.js');
+const T = require('../../web/features/scene/scene_environment.js').FPVTunnelInfrastructure;
 
 function environment({indexDocument,online=false}={}) {
     const sent=[],requests=[],routes=[];

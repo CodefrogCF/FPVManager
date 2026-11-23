@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const C=require('../../web/scenery_collision.js');
+const C=require('../../web/features/scenery/scenery_collision.js');
 // Two disjoint wall panels, with a 2 m opening between them at y=[-1,1].
 function fixture(){
  const v=[0,-4,-3,0,-1,-3,0,-1,3,0,-4,3,0,1,-3,0,4,-3,0,4,3,0,1,3];
@@ -40,7 +40,7 @@ test('contact adapter scales rotor sweep and reports normals to advanced physics
 });
 
 test('both flight physics modes use the scan sweep instead of crossing a thin roof',async()=>{
- const {createSimulator}=require('../../web/free_flight.js');const m=C.parse(fixture());
+ const {createSimulator}=require('../../web/features/flight/free_flight.js');const m=C.parse(fixture());
  // Reorient the synthetic wall to a horizontal roof at 150 m, with spawn above a panel.
  const anchor={latitude:52.484119,longitude:13.789854};
  const frame={scale:1,local:p=>[p.height-150,-2+(p.longitude-anchor.longitude)*68000,1+(p.latitude-anchor.latitude)*111260],normal:n=>n?{up:n[0],east:n[1],north:n[2]}:null};

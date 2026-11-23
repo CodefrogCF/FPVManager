@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const C=require('../../web/cesium/index.cjs'),E=require('../../web/scene_environment.js'),T=E.FPVTunnelFlythrough;
+const C=require('../../web/cesium/index.cjs'),E=require('../../web/features/scene/scene_environment.js'),T=E.FPVTunnelFlythrough;
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])globalThis[name]??=class {};
 function event(){const listeners=new Set();return {addEventListener:f=>{listeners.add(f);return()=>listeners.delete(f);},fire:()=>{for(const f of listeners)f();}};}
 const coordinates=i=>[[8.6+i*.002,46.7],[8.6002+i*.002,46.7]];

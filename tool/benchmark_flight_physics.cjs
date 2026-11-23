@@ -1,7 +1,7 @@
 // CPU-only physics scheduling baseline; not a Cesium, Android or GPU benchmark.
 'use strict';
 const {performance}=require('node:perf_hooks');
-const {createSimulator}=require('../web/free_flight.js');
+const {createSimulator}=require('../web/features/flight/free_flight.js');
 const spawn={latitude:46.7,longitude:8.4};
 const seconds=30;
 async function bench(mode,fps){

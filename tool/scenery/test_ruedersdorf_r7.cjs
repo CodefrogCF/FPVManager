@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
-const C=require('../../web/scenery_collision.js'),M=require('../../web/scenery_manager.js');
+const C=require('../../web/features/scenery/scenery_collision.js'),M=require('../../web/features/scenery/scenery_manager.js');
 const raw=fs.readFileSync(path.resolve(__dirname,'../../web/assets/scenery/local_reference.fpc'));
 const mesh=C.parse(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
 const item=M.validate(require('../../web/assets/scenery/catalog.json'))[0],cert=item.terrainCertificate,R=.25/item.alignment.scale;
@@ -14,7 +14,7 @@ test('R7 ground coverage sampled on 21x21 grid, each vertical sweep lands on phy
 });
 test('R7 margin deliberately excludes edges of certified terrain',()=>{const [x0,y0,x1,y1]=cert.localBounds;const p=[(x0+x1)/2,(y0+y1)/2,-2];assert.ok(M.insideGroundPatch(p,cert,item.alignment.scale));for(const q of [[x0,p[1],p[2]],[x1,p[1],p[2]],[p[0],y0,p[2]],[p[0],y1,p[2]],[x0-.1,p[1],p[2]]])assert.equal(M.insideGroundPatch(q,cert,item.alignment.scale),false);});
 test('R7 runtime replacement is opt-in, asset verified, bounded and invalidated by edit or unload',async()=>{
- const A=require('../../web/scenery_alignment.js'),fixture=require('../../web/assets/scenery/catalog.json'),key={};
+ const A=require('../../web/features/scenery/scenery_alignment.js'),fixture=require('../../web/assets/scenery/catalog.json'),key={};
  class Matrix4{};Matrix4.fromRotationTranslation=x=>x;Matrix4.multiply=(a,b)=>({a,b});
  const Cesium={Cartesian3:{fromDegrees:(...v)=>v},Transforms:{eastNorthUpToFixedFrame:x=>x},Matrix3:{fromRotationZ:x=>x},Matrix4,Math:{toRadians:v=>v*Math.PI/180},Color:class{},Credit:class{}};
  const viewer={scene:{primitives:{add(){},remove(){}},preUpdate:{addEventListener:()=>()=>{}},requestRender(){}}};
@@ -35,7 +35,7 @@ test('R7 runtime replacement is opt-in, asset verified, bounded and invalidated 
  }finally{scene.dispose();}
 });
 test('R7 regional mask queried only when the owned collection is installed, restored on invalidation',async()=>{
- const R=require('../../web/regional_3d.js');let busy=false,verified=false,online=true,ready=true;
+ const R=require('../../web/features/terrain/regional_3d.js');let busy=false,verified=false,online=true,ready=true;
  const globe={clippingPolygons:undefined},viewer={scene:{globe,primitives:{add(){},remove(){}},preUpdate:{addEventListener:()=>()=>{}},requestRender(){}}};
  const Cesium={Cartesian3:{fromDegrees:(...p)=>p},ClippingPolygon:class{constructor(o){Object.assign(this,o);}},ClippingPolygonCollection:class{static isSupported(){return true;}constructor(o){Object.assign(this,o);}}};
  const r=R.create(Cesium,viewer,{enabled:true,online:()=>online,terrainReady:()=>ready,navigationBusy:()=>busy,position:()=>({...item.alignment,height:100}),terrainRegions:()=>[],flightTerrainRegions:()=>verified?[cert.polygon]:[]});

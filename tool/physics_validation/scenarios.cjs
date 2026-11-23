@@ -1,7 +1,7 @@
 'use strict';
-const {createSimulator}=require('../../web/free_flight.js');
+const {createSimulator}=require('../../web/features/flight/free_flight.js');
 const profiles=require('./profiles.json');
-const {createProvider}=require('../../web/environmental_wind.js');
+const {createProvider}=require('../../web/features/weather/environmental_wind.js');
 const {performance}=require('node:perf_hooks');
 const home={latitude:46.7,longitude:8.4};
 const rc=q=>({controlLink:{quality:q,source:'estimatedModel'}});

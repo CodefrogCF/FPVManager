@@ -5,7 +5,7 @@ not infer structural survivability, clearance, or safe FPV flight envelopes.
 
 ## Existing swept detection retained
 
-`web/free_flight.js` continues to query the existing swept terrain ray, the
+`web/features/flight/free_flight.js` continues to query the existing swept terrain ray, the
 supported tunnel/bridge/opt-in model geometry and a rendered-height sweep with
 0.5 m maximum horizontal sampling interval. Existing scene and RF visual-only
 exclusions are unchanged: LoS rays, Fresnel volumes and marker entities do not
@@ -15,7 +15,7 @@ before moving into known geometry.
 
 ## Parameters and collision response
 
-`web/collision_response.js` provides a deterministic bounded response for
+`web/features/flight/physics/collision_response.js` provides a deterministic bounded response for
 world-axis velocity (north/east/up, m/s) and a normalized outward contact
 normal. The reaction projects incoming velocity onto the normal and tangent,
 removes the incoming normal component, reduces tangential speed by a

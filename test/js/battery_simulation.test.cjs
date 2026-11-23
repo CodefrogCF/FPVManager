@@ -1,8 +1,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {create,normalize,levelPower,poweredFlightPower}=require('../../web/battery_simulation.js');
-const {createSimulator,parameters}=require('../../web/free_flight.js');
-const {create:makeHud}=require('../../web/flight_hud.js');
+const {create,normalize,levelPower,poweredFlightPower}=require('../../web/features/flight/physics/battery_simulation.js');
+const {createSimulator,parameters}=require('../../web/features/flight/free_flight.js');
+const {create:makeHud}=require('../../web/features/flight/hud/flight_hud.js');
 const profile={batteryId:1,chemistry:'LiPo',cellCount:6,capacityMah:4500,
     nominalVoltageVolts:22.2,chargePercent:100,hoverPowerWatts:180,
     cruisePowerWatts:290,cruiseSpeedMetersPerSecond:17,

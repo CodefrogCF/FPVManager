@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const zoneStyles = require('../../web/uas_zone_styles.js');
+const zoneStyles = require('../../web/features/map/uas_zone_styles.js');
 
 test('only explicit CodeRestrictionType values receive recognised restriction categories', () => {
   assert.equal(zoneStyles.classify('PROHIBITED'), 'prohibited');

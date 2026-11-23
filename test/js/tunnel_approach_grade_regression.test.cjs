@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])
     globalThis[name]??=class {};
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const scale=111319.49079327358,lon=8.6,lat=46.7;
 const at=metres=>[lon,lat+metres/scale];
 const route={id:'falling-bore',kind:'tunnel',transport:'road',
@@ -45,7 +45,7 @@ test('piecewise grade uses the same bounded mask for Globe and loaded model wall
     const spec={longitude:lon,latitude:lat,floor:500,forward:{east:0,north:1},halfWidth:3,
         before:24,after:26,below:1.1,above:5.75,shape:'vaulted',roofRise:2.25,
         grade:-.1,approachGrade:0};
-    const material=T.slopeClipMaterial(C,spec),modelShader=require('../../web/scene_environment.js')
+    const material=T.slopeClipMaterial(C,spec),modelShader=require('../../web/features/scene/scene_environment.js')
         .modelPortalShaderOptions(C,[spec]);
     assert.equal(material.uniforms.apertureBounds.w,0);
     assert.equal(modelShader.uniforms.fpvApertureBounds.value.w,0);

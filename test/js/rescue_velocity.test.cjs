@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {advance,approachSpeed}=require('../../web/rescue_velocity.js');
+const {advance,approachSpeed}=require('../../web/features/flight/physics/rescue_velocity.js');
 test('rescue reaches attainable target speed under physical acceleration limits',()=>{
     let value={north:0,east:0},distance=0;
     for(let t=0;t<5;t+=.02){const updated=advance(value,{north:14,east:0},.02,7,5,20);

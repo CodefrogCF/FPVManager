@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fixture = require('../../docs/examples/tunnel_georeferenced_trimesh_v2_demo.json');
-const T = require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T = require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const clone = x => JSON.parse(JSON.stringify(x));
 const p = (lon=8.20005, latitude=46.8, height=502.5) => ({longitude:lon,latitude,height});
 function cesiumMock(){

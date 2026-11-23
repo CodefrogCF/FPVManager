@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {create,validate}=require('../../web/situational_layers.js');
+const {create,validate}=require('../../web/features/overlays/situational_layers.js');
 function station(id){return {id,name:'Station <script>demo()</script>',
  detail:'BAKOM / official <script>demo()</script> \n LV95 2600000,1200000',
  geometry:{type:'Point',coordinates:[7.44,46.95]}};}

@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const air=require('../../web/descent_aerodynamics.js');
-const {createSimulator,distance}=require('../../web/free_flight.js');
+const air=require('../../web/features/flight/physics/descent_aerodynamics.js');
+const {createSimulator,distance}=require('../../web/features/flight/free_flight.js');
 const q={w:1,x:0,y:0,z:0},base={north:0,east:0,up:0};
 const near=(a,b,e=1e-8)=>assert.ok(Math.abs(a-b)<e,`${a} != ${b}`);
 function sample({thrustAcceleration=9.80665,motorCommand=.5,orientation=q,

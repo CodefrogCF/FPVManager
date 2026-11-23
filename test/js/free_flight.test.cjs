@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createSimulator,parameters,distance,rateCommand}=require('../../web/free_flight.js');
+const {createSimulator,parameters,distance,rateCommand}=require('../../web/features/flight/free_flight.js');
 const spawn={latitude:46.7,longitude:8.4};
 function setup(options={}){
     let ready=true,ground=1000;

@@ -2,14 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { createBridge } = require('../../web/globe_bridge.js');
-const FPVTerrain = require('../../web/terrain_service.js');
-const FPVMapProviders = require('../../web/map_providers.js');
-const FPVObstacles = require('../../web/obstacle_layers.js');
-const FPVRendererLanguage = require('../../web/renderer_language.js');
+const { createBridge } = require('../../web/core/globe_bridge.js');
+const FPVTerrain = require('../../web/features/terrain/terrain_service.js');
+const FPVMapProviders = require('../../web/features/map/map_providers.js');
+const FPVObstacles = require('../../web/features/infrastructure/obstacle_layers.js');
+const FPVRendererLanguage = require('../../web/core/renderer_language.js');
 const source = fs.readFileSync(require.resolve('../../web/globe.js'), 'utf8');
-const FPVUasZoneStyles = require('../../web/uas_zone_styles.js');
-require('../../web/weather_overlay.js');
+const FPVUasZoneStyles = require('../../web/features/map/uas_zone_styles.js');
+require('../../web/features/weather/weather_overlay.js');
 const FPVWeatherOverlay = globalThis.FPVWeatherOverlay;
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
@@ -51,7 +51,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
         FPVRoadNavigation: {create:()=>({set(){},dispose(){}})},
         FPVMapCompass: {create:()=>({dispose(){}})},
         FPVNavigationControls: {bindControls:()=>Object.assign(()=>{},{tick(){},reset(){},setVisible(){},sync(){}})},
-        FPVSignalAnalysis: require('../../web/signal_analysis.js'),
+        FPVSignalAnalysis: require('../../web/features/signal/signal_analysis.js'),
         FPVSituationalLayers: {create:()=>({set(){},pick(){return null;},dispose(){}})},
         FPVRouteEditor: {
             createEditor: () => ({ click: () => false, terrainChanged() {} }),

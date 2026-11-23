@@ -1,8 +1,8 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
-const M=require('../../web/scenery_manager.js');
-const Coll=require('../../web/scenery_collision.js');
+const M=require('../../web/features/scenery/scenery_manager.js');
+const Coll=require('../../web/features/scenery/scenery_collision.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
 const base=path.resolve(__dirname,'../../web/assets/scenery');
 const meshFor=(file)=>{const b=fs.readFileSync(path.join(base,file));return Coll.parse(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength));};
@@ -76,7 +76,7 @@ test('underlay stays hidden until valid clipping, and releases terrain on provid
   // The outer 1-m DEM collar is outside the original photogrammetric site.
   // Its vertical contact must exist only when the actual owned terrain mask
   // is active, not while the independent DGM is hidden.
-  const A=require('../../web/scenery_alignment.js');const angle=-alignment.rotationDeg*Math.PI/180;
+  const A=require('../../web/features/scenery/scenery_alignment.js');const angle=-alignment.rotationDeg*Math.PI/180;
   const spot=A.offset(alignment,alignment.scale*8.73*Math.cos(angle),alignment.scale*8.73*Math.sin(angle));
   const ground=(await sampleSeamGround([spot]))[0];
   const from={...spot,height:ground+3},to={...spot,height:ground-3};

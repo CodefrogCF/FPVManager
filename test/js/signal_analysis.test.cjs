@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {validate, createLayer} = require('../../web/signal_analysis.js');
+const {validate, createLayer} = require('../../web/features/signal/signal_analysis.js');
 const state = {pilot:{latitude:47,longitude:8,height:502}, frequencyMhz:5800, fraction:.6, selected:0,
     rays:[{latitude:47.001,longitude:8.005,height:550,ground:500,state:'fresnelIntrusion'}]};
 class Vector {

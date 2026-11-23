@@ -2,7 +2,7 @@
 'use strict';
 // Synthetic CPU only. Does not establish Android/WebView2 frame performance.
 const {performance}=require('node:perf_hooks');
-const aerodynamic=require('../web/descent_aerodynamics.js');
+const aerodynamic=require('../web/features/flight/physics/descent_aerodynamics.js');
 const base={thrustAcceleration:9.80665,motorCommand:.55,
     orientation:{w:1,x:0,y:0,z:0},rotorDiameterMeters:.1778,
     motorCount:4,aircraftMassKg:1.32};

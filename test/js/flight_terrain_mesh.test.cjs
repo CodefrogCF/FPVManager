@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const {createTerrainMeshPicker}=require('../../web/flight_rendering.js');
+const {createTerrainMeshPicker}=require('../../web/features/flight/flight_rendering.js');
 const projection=new C.GeographicProjection();
 const originalPick=C.TerrainMesh.prototype.pick;
 const originalSceneMode=C.TerrainMesh.prototype.updateSceneMode;

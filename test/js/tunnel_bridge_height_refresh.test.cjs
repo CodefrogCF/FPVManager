@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const ActualCesium=require('../../web/cesium/index.cjs');
 const at=metres=>[8.2,46.8+metres/111319.49079327358];
 const route=(extra={})=>({id:'bridge-height-refresh',source:'fixture',sourceId:'bridge-road',

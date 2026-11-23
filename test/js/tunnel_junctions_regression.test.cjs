@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 const origin=[8.4,46.8],scale=111319.49079327358;
 const point=(x,y=0,z)=>[origin[0]+x/(scale*Math.cos(origin[1]*Math.PI/180)),origin[1]+y/scale,
     ...(z===undefined?[]:[z])];

@@ -1,10 +1,10 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const guidance=require('../../web/autonomous_flight_control.js');
-const aero=require('../../web/body_axis_aerodynamics.js');
-const {createSimulator,distance,parameters}=require('../../web/free_flight.js');
-const {configuration:rotationConfig,initialState,stepTargetRates}=require('../../web/rotational_dynamics.js');
+const guidance=require('../../web/features/flight/autonomous_flight_control.js');
+const aero=require('../../web/features/flight/physics/body_axis_aerodynamics.js');
+const {createSimulator,distance,parameters}=require('../../web/features/flight/free_flight.js');
+const {configuration:rotationConfig,initialState,stepTargetRates}=require('../../web/features/flight/physics/rotational_dynamics.js');
 const home={latitude:46.7,longitude:8.4};
 const pack={chemistry:'LiPo',cellCount:6,capacityMah:4500,nominalVoltageVolts:22.2,
     chargePercent:100,hoverPowerWatts:180,cruisePowerWatts:250,cruiseSpeedMetersPerSecond:15,

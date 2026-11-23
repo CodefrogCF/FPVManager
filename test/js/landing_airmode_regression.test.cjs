@@ -1,8 +1,8 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createSimulator}=require('../../web/free_flight.js');
-const collision=require('../../web/collision_response.js');
-const rotation=require('../../web/rotational_dynamics.js');
+const {createSimulator}=require('../../web/features/flight/free_flight.js');
+const collision=require('../../web/features/flight/physics/collision_response.js');
+const rotation=require('../../web/features/flight/physics/rotational_dynamics.js');
 const origin={latitude:46.7,longitude:8.4};
 function create(environment={}){
     return createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,

@@ -2,7 +2,7 @@
 'use strict';
 // CPU-only deterministic microbenchmark. NOT a Cesium/Flutter/device FPS result.
 const {performance}=require('node:perf_hooks');
-const {create}=require('../web/motor_propeller.js');
+const {create}=require('../web/features/flight/physics/motor_propeller.js');
 const profile={motorKv:1750,motorCount:4,propellerDiameterInches:7,
     propellerPitchInches:3.5,propellerDescription:'HQProp 7x3.5x3V1S',
     takeoffWeightGrams:1320,referenceVoltageVolts:22.2,maxPowerWatts:2200,

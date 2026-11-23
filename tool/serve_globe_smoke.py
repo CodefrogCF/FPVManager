@@ -161,7 +161,7 @@ class Handler(SimpleHTTPRequestHandler):
                 (b'<script src="/scene-fixture.js"></script>' if live else b'<script src="/terrain-fixture.js"></script>') +
                 b'<script src="/navigation-fixture.js"></script><script src="globe.js"></script>')
             if baseline:
-                body = body.replace(b'src="road_navigation.js"', b'src="/navigation-baseline.js"')
+                body = body.replace(b'src="features/navigation/road_navigation.js"', b'src="/navigation-baseline.js"')
             self.reply(body, 'text/html; charset=utf-8')
         elif path == '/scene-fixture.js':
             self.reply((ROOT / 'test/web/scene_fixture.js').read_bytes(), 'application/javascript')

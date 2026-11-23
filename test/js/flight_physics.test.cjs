@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createRuntime,configuration,models,hzOptions}=require('../../web/flight_physics.js');
-const {createSimulator,parameters,distance}=require('../../web/free_flight.js');
+const {createRuntime,configuration,models,hzOptions}=require('../../web/features/flight/physics/flight_physics.js');
+const {createSimulator,parameters,distance}=require('../../web/features/flight/free_flight.js');
 const spawn={latitude:46.7,longitude:8.4};
 function fixture(config={}){
     const poses=[];
@@ -122,7 +122,7 @@ test('stopping during physics substeps clears clock without presenting an invali
 });
 
 test('render-state interpolation follows shortest rotation and longitude across the date line',()=>{
-    const {interpolateState}=require('../../web/flight_physics.js');
+    const {interpolateState}=require('../../web/features/flight/physics/flight_physics.js');
     const prev={position:{latitude:1,longitude:179.9},height:20,heading:Math.PI*2-.1,
         pitch:0,roll:0,attitude:{w:1,x:0,y:0,z:0}};
     const next={position:{latitude:1,longitude:-179.9},height:30,heading:.1,

@@ -1,9 +1,9 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create:makeMotor}=require('../../web/motor_propeller.js');
-const {create:makeBattery}=require('../../web/battery_simulation.js');
-const solver=require('../../web/electrical_propulsion.js');
-const {createSimulator}=require('../../web/free_flight.js');
+const {create:makeMotor}=require('../../web/features/flight/physics/motor_propeller.js');
+const {create:makeBattery}=require('../../web/features/flight/physics/battery_simulation.js');
+const solver=require('../../web/features/flight/physics/electrical_propulsion.js');
+const {createSimulator}=require('../../web/features/flight/free_flight.js');
 const motorProfile={motorKv:1750,motorCount:4,propellerDiameterInches:7,
     propellerPitchInches:3.5,propellerDescription:'HQProp 7x3.5x3V1S',
     takeoffWeightGrams:1320,referenceVoltageVolts:22.2,maxPowerWatts:2200};

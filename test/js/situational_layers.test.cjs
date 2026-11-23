@@ -1,5 +1,5 @@
 const test=require('node:test');const assert=require('node:assert/strict');
-const {create,validate}=require('../../web/situational_layers.js');
+const {create,validate}=require('../../web/features/overlays/situational_layers.js');
 const time=Date.parse('2026-10-24T12:00:00Z');
 function feature(id='one'){return {id,name:'<img src=x onerror=alert(1)>',detail:'source <script>bad</script>',timestampUtc:'2026-10-24T11:59:59Z',geometry:{type:'Point',coordinates:[8,47]}};}
 function fixture(options={}){

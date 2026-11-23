@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const aero=require('../../web/body_axis_aerodynamics.js');
-const {createSimulator,distance}=require('../../web/free_flight.js');
+const aero=require('../../web/features/flight/physics/body_axis_aerodynamics.js');
+const {createSimulator,distance}=require('../../web/features/flight/free_flight.js');
 const zero={north:0,east:0,up:0},identity={w:1,x:0,y:0,z:0};
 const dt=1/120;
 const speed=v=>Math.hypot(v.north,v.east,v.up);

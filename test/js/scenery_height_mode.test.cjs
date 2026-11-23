@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const M=require('../../web/scenery_manager.js');
+const M=require('../../web/features/scenery/scenery_manager.js');
 const catalog=require('../../web/assets/scenery/catalog.json');
 
 // R32 preserves the flat Workbench preview independently from the physical

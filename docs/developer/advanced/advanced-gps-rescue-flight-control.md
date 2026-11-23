@@ -9,7 +9,7 @@ failsafe-assisted velocity controllers remain unchanged. Existing saved
 `flightMode`, failsafe configuration, RC thresholds and altitude/speed settings
 remain valid without migration.
 
-The failsafe state machine (`web/simulated_failsafe.js`) is unchanged:
+The failsafe state machine (`web/features/signal/simulated_failsafe.js`) is unchanged:
 `rescueHold` → `climb` → `turn` → `return` → `landing` → `landed`, together with
 `hold`, `descend` and `unavailable` modes. The RF model, activation and
 reconnection hysteresis, deliberate stick-input takeover and replay bypass
@@ -21,7 +21,7 @@ forces differs in Advanced mode.
 All terms use SI units and local world **north/east/up** coordinates. Body
 coordinates are **forward/right/down** with unit quaternion attitude.
 
-1. **Guidance** (`web/autonomous_flight_control.js`) creates target ground
+1. **Guidance** (`web/features/flight/autonomous_flight_control.js`) creates target ground
    north/east velocity, upward velocity and heading; it does not modify the
    current position, velocity or orientation. Manual GPS uses normalized stick
    targets. Rescue uses the existing stop-distance-limited `approachSpeed()`

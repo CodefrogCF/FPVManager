@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createEditor, createOverlays } = require('../../web/route_editor.js');
-const { sampleProfile } = require('../../web/route_editor.js');
+const { createEditor, createOverlays } = require('../../web/features/navigation/route_editor.js');
+const { sampleProfile } = require('../../web/features/navigation/route_editor.js');
 
 function setup({sampleHeights} = {}) {
     const actions = {}, emitted = [], sources = [], flights = [];

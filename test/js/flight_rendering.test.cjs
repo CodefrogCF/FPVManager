@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {create,profiles,perspectiveFov,createStreamingBudget}=require('../../web/flight_rendering.js');
-const {createVectors}=require('../../web/obstacle_layers.js');
-const {createSimulator}=require('../../web/free_flight.js');
+const {create,profiles,perspectiveFov,createStreamingBudget}=require('../../web/features/flight/flight_rendering.js');
+const {createVectors}=require('../../web/features/infrastructure/obstacle_layers.js');
+const {createSimulator}=require('../../web/features/flight/free_flight.js');
 // Use the pinned runtime's actual coordinate/matrix math without a DOM/WebGL.
 const scope={console,setTimeout,clearTimeout,URL,TextDecoder,TextEncoder,atob,btoa,
     TransformStream,ReadableStream,WritableStream,AbortController,Blob};scope.global=scope;

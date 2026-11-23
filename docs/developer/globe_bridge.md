@@ -1,6 +1,6 @@
 # Globe bridge protocol v1
 
-`GlobeBridge` and `web/globe_bridge.js` share a JSON transport for the Web iframe
+`GlobeBridge` and `web/core/globe_bridge.js` share a JSON transport for the Web iframe
 and native WebViews, including Windows/WebView2. Only recognized commands in `web/globe.js` execute; messages
 are never evaluated as JavaScript.
 

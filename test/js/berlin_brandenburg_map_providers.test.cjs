@@ -2,7 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const C=require('../../web/cesium/index.cjs');
-const P=require('../../web/map_providers.js');
+const P=require('../../web/features/map/map_providers.js');
 const bounds=P.regionalBounds;
 const candidate={latitude:52.484197,longitude:13.789789};
 

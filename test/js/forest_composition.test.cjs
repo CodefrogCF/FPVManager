@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {create, parse} = require('../../web/forest_composition.js');
+const {create, parse} = require('../../web/features/vegetation/forest_composition.js');
 
 const filename = 'assets/vegetation/forest_composition.bin';
 const asset = fs.readFileSync(path.join(__dirname, '../../web', filename));

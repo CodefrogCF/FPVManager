@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const C=require('../../web/cesium/index.cjs'),T=require('../../web/scene_environment.js').FPVTunnelFlythrough;
+const C=require('../../web/cesium/index.cjs'),T=require('../../web/features/scene/scene_environment.js').FPVTunnelFlythrough;
 for(const name of ['HTMLCanvasElement','HTMLImageElement','ImageBitmap','OffscreenCanvas','HTMLVideoElement'])globalThis[name]??=class {};
 const scale=6378137*Math.PI/180,longitude=8.6,latitude=46.7;
 const point=(east,north,height=502)=>({longitude:longitude+east/(scale*Math.cos(latitude*Math.PI/180)),latitude:latitude+north/scale,height});

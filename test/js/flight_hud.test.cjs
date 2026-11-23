@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {homeDirection,telemetry,create}=require('../../web/flight_hud.js');
+const {homeDirection,telemetry,create}=require('../../web/features/flight/hud/flight_hud.js');
 const rad=Math.PI/180;
 const state={mode:'acro',hudStyle:'goggles',horizontalSpeed:10,verticalSpeed:-3.5,throttle:.62,
     agl:17.5,heightAboveHome:25,distance:111,position:{latitude:0,longitude:0},home:{latitude:0,longitude:1}};
