@@ -1,6 +1,6 @@
 # Cleanup helper for the directory-only web module refactor.
 # Copy the ZIP overlay into the repository first, then run this script.
-# Refuses to discard any locally edited source that differs from the baseline.
+# Refuses to discard locally edited content; tolerates LF/CRLF differences only.
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $items = @(
@@ -66,6 +66,26 @@ $items = @(
     @{ Old = "web/scene_performance.js"; New = "web/core/scene_performance.js"; Sha256 = "e884e63a2f7be1b0a7e39ec35751823ffb600a7f186b9396b25bf45b08a923d1" }
     @{ Old = "web/flight_hud.css"; New = "web/features/flight/hud/flight_hud.css"; Sha256 = "6c3164c8711b9b5dffee10721a452302eafce2af1e9020a2d49c6a26c1439e37" }
 )
+# Hash UTF-8 source after converting Windows CRLF (and legacy CR) to LF.
+# Strict UTF-8 decoding prevents mangled binary/text files from passing.
+function Get-NormalizedTextSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $utf8 = [System.Text.UTF8Encoding]::new($false, $true)
+    try {
+        $source = $utf8.GetString([System.IO.File]::ReadAllBytes($Path))
+    } catch {
+        return ""
+    }
+    $normalized = $source.Replace("`r`n", "`n").Replace("`r", "`n")
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = $utf8.GetBytes($normalized)
+        return [System.BitConverter]::ToString($sha.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+}
+
 foreach ($item in $items) {
     $newPath = Join-Path $repo $item.New
     $oldPath = Join-Path $repo $item.Old
@@ -75,7 +95,14 @@ foreach ($item in $items) {
     if (Test-Path -LiteralPath $oldPath -PathType Leaf) {
         $hash = (Get-FileHash -LiteralPath $oldPath -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($hash -ne $item.Sha256) {
-            throw "Refusing to delete locally modified file: $($item.Old). Review changes and move them manually."
+            # On Windows, generated text files may have CRLF line endings even
+            # when the ZIP's original source used LF. Ignore ONLY line endings;
+            # do not bypass the guard for actual content changes.
+            $normalizedHash = Get-NormalizedTextSha256 -Path $oldPath
+            if ($normalizedHash -ne $item.Sha256) {
+                throw "Refusing to delete locally modified file: $($item.Old). The content differs beyond line endings. Review changes and move them manually."
+            }
+            Write-Output "Line-ending-only difference accepted: $($item.Old)"
         }
     }
 }
