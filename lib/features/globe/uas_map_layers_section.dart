@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 
 import 'package:flutter/material.dart';
@@ -193,11 +194,13 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 ? 'Not loaded'
                 : 'Loaded',
           ),
-          _InfoRow(
+          if (kDeveloperMenusEnabled)
+            _InfoRow(
             label: 'Data status',
             value: controller.uasDisplayedStatus.dataState.label,
           ),
-          _InfoRow(
+          if (kDeveloperMenusEnabled)
+            _InfoRow(
             label: 'Cache status',
             value: switch (controller.uasDataFreshness) {
               OsintFreshness.notLoaded => 'Not loaded',
@@ -262,7 +265,8 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 label: 'Downloaded',
                 value: _formatDownloadTime(controller.uasZonesDownloadedAt),
               ),
-              _InfoRow(
+              if (kDeveloperMenusEnabled)
+                _InfoRow(
                 label: 'Source checked',
                 value: displayed?.lastCheckedAtUtc == null
                     ? 'Not checked by this adapter'
@@ -274,8 +278,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                     ? 'Not supplied by this dataset'
                     : _formatDownloadTime(displayed!.publishedAtUtc),
               ),
-              if (provider.cacheError != null) Text(provider.cacheError!),
-              TextButton.icon(
+              if (kDeveloperMenusEnabled && provider.cacheError != null)
+                Text(provider.cacheError!),
+              if (kDeveloperMenusEnabled)
+                TextButton.icon(
                 onPressed: controller.isReady && controller.canClearUasCache
                     ? () => _execute(controller.clearUasCache)
                     : null,
@@ -288,13 +294,14 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 ),
               ),
 
-              _InfoRow(
+              if (kDeveloperMenusEnabled)
+                _InfoRow(
                 label: 'Loaded features',
                 value: controller.uasZonesFeatureCount?.toString() ?? '—',
               ),
               const SizedBox(height: 8),
 
-              if (assessment != null) ...[
+              if (kDeveloperMenusEnabled && assessment != null) ...[
                 _InfoRow(
                   label: 'Source features',
                   value: assessment.sourceFeatureCount.toString(),
@@ -322,14 +329,16 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                   value: _formatDownloadTime(displayed!.validity!.untilUtc),
                 ),
 
-              _InfoRow(label: 'Source', value: source.dataUri.host),
-              _InfoRow(label: 'Metadata', value: source.metadataUri.toString()),
+              if (kDeveloperMenusEnabled)
+                _InfoRow(label: 'Source', value: source.dataUri.host),
+              if (kDeveloperMenusEnabled)
+                _InfoRow(label: 'Metadata', value: source.metadataUri.toString()),
               if (source.licenseUri != null)
                 _InfoRow(
                   label: 'Licence terms',
                   value: source.licenseUri.toString(),
                 ),
-              if (displayed?.httpLastModified != null)
+              if (kDeveloperMenusEnabled && displayed?.httpLastModified != null)
                 _InfoRow(
                   label: 'HTTP modified',
                   value: displayed!.httpLastModified!,
@@ -340,7 +349,12 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Text(
-                controller.uasZonesError ?? provider.error!.message,
+                kDeveloperMenusEnabled
+                    ? (controller.uasZonesError ?? provider.error!.message)
+                    : (AppLocalizations.maybeOf(context)?.language !=
+                              AppLanguage.english
+                          ? 'Luftraumdaten konnten nicht aktualisiert werden.'
+                          : 'Airspace data could not be refreshed.'),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),

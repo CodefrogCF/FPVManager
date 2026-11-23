@@ -1,6 +1,6 @@
 # Live radio LoS, RF modeling and GPS Rescue
 
-**Status:** current architectural reference for the simulator at v0.18.0.
+**Status:** current simulator architecture and live-RF profile behavior.
 This is a deterministic **illustrative** modeling system, not measured RF
 telemetry, transmitter configuration or validated flight safety logic.
 
@@ -24,34 +24,71 @@ telemetry, transmitter configuration or validated flight safety logic.
 Keep the operator/antenna position independent of the flight home/takeoff
 point. Repositioning the ground-station marker does not change GPS Rescue home.
 
-## 50-km live terrain sampling
+## 50-km live terrain sampling — baseline with R40 reliability fixes
 
-The live sampler works from **1 m to 50 km**. It creates a coarse full-path
-profile then optionally refines gaps near obstacles, Fresnel intrusion and
-large elevation changes. Each bridge request contains at most **256 positions**.
-Requests are sequential, cached height samples are reused and stale/outdated
-flight results are rejected. Final budget/update intervals vary with distance
-and speed; see the current `LiveSamplingTier` implementation for executable
-configuration rather than copying fixed values into new call sites.
+**Baseline:** GitHub commit `d1fca7e` (2026-11-21), immediately before the
+Rüdersdorf integration (`623d6bf`). The 50-km implementation was introduced
+by `3509854` (2026-11-20). The live radio modules are restored from a
+project archive carrying that post-50-km implementation. R36/R37 experiments
+are not active in this build; they remain available in the Git history.
+R40 makes narrowly scoped reliability corrections to the restored R39 baseline.
 
-| Distance | Coarse point budget | Additional refinement budget | Approximate gap limit |
-|---|---:|---:|---:|
-| 1 m–6 km | Up to 251 | 0 | 40 m |
-| >6–15 km | Up to 128 | Up to 128 | 80 m |
-| >15–30 km | Up to 96 | Up to 96 | 165 m |
-| >30–50 km | Up to 96 | About 64–96 | 300 m |
+The live sampler supports **1 m to 50 km**. It obtains an initial full-path
+profile, then samples selected midpoints of gaps, steep relief and potential
+Fresnel conflicts only while they remain necessary. An already sampled
+obstruction can be reported after the first terrain batch. A clear result
+requires the tier-specific gap limit; sparse clear data stay limited. There is no second LoS engine: the route analysis kernel
+is shared, and samples use geodesic fractions. Each terrain bridge request
+contains **at most 256 positions**; sequential batches and a bounded 30-second
+cache avoid unlimited requests. A concurrent browser terrain request is
+rejected rather than queued (historical behavior). A limited coverage result
+never asserts unobstructed RF reception.
 
-These are conservative **budgets**, not source DEM resolution or measured device
-performance. Short critical terrain features may be missed. The renderer's
-terrain-height cache is bounded, and assessments expire when insufficiently
-fresh for the current simulated aircraft position.
+| Distance | First-pass points (max) | Refinement points (max) | Coverage gap limit | Minimum interval |
+|---|---:|---:|---:|---:|
+| 1 m–6 km | 129 | 384 | 16 m | 250 ms |
+| >6–15 km | 128 | 128 | 80 m | 450 ms |
+| >15–30 km | 96 | 96 | 165 m | 850 ms |
+| >30–50 km | 96 | 96 decreasing to 64 | 300 m | 1500 ms |
 
-**Confidence rule:** a coarsely sampled or missing path may be `limited` or
-`unknown`. Do not turn sparse samples into confirmed clear reception; do not
-feed a free-space-only preview, a stale assessment or a terrain-only
-illustration into simulated RC failsafe. The radio details display counts,
-maximum sample gap, elapsed work and confidence. The 50-km limit is a software
-boundary, not a real-world flight distance claim.
+The controller also adapts update intervals and permissible position drift
+to aircraft speed and path distance. **HUD profiles expire after five seconds**
+and may become `unknown` earlier when the aircraft moves too far from the
+sampled endpoint, the terrain changes or a query fails. Unknown means the
+profile is not validated; it is not a measured RC signal loss. The bounded
+simulated link estimate and optional failsafe continue to use independent
+RC/video channels.
+
+This rollback is an **A/B test baseline**, not a claim that historical behavior
+is universally faster or more accurate. In particular, high-speed position
+changes can invalidate pending calculations in this original implementation.
+The Rüdersdorf/BKG beta terrain restriction remains in the modern map layer;
+its unvalidated heights are not used for RF planning.
+
+### R40 live-update and fast-motion rules
+
+A movement-driven invalidation clears an obsolete *displayed* assessment but
+does **not** cancel a newer terrain request. The controller uses distinct
+generation and message revision counters, so older unknown notifications
+cannot overwrite successful newer results. A truly superseded path causes a
+fresh query for the current pose; provider switches, paused flights, respawns
+and disabled monitoring still invalidate in-flight results.
+
+When the aircraft has already moved past a pending profile, sampled terrain
+points may only be reused to confirm a **deep geometric obstruction** on the
+current ray: an interior sample must be within 2 m of the new horizontal ray
+and show at least 8 m negative clearance when recalculated against the current
+3D aircraft position. The resulting assessment is explicitly
+`confidence: limited` and labeled `recheckedMovingPath`; it must never be
+used to infer clear reception. Without this strict evidence the result stays
+unknown and is resampled. Any endpoint ground value in this limited mode is
+from the nearest earlier sample, not a newly sampled aircraft ground height.
+
+The terrain sampler now ends refinement as soon as it has a sampled
+obstruction or sufficiently dense clear coverage. This avoids repeated queries
+on short, already fully sampled paths; missing terrain and sparse clear
+coverage remain unknown. Neither failsafe thresholds nor GPS Rescue behaviour
+are changed.
 
 ## Independent video and control link budgets
 

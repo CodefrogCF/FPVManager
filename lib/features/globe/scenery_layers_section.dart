@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 import 'globe_controller.dart';
 
@@ -37,8 +38,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
         setState(() {
           _items = items;
           if (response.containsKey('bridgeHeightMatch')) {
-            _bridgeHeightMatch =
-                response['bridgeHeightMatch'] as Map<String, dynamic>?;
+            _bridgeHeightMatch = response['bridgeHeightMatch'] as Map<String, dynamic>?;
           }
           if (response.containsKey('replacement')) {
             _replacement = response['replacement'] as Map<String, dynamic>?;
@@ -138,11 +138,11 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     Text(
                       german
                           ? item['heightAlignmentMode'] == 'fixed'
-                                ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
-                                : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
+                              ? 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zum manuell kalibrierten Modellanker; keine automatische Geländehöhenanpassung. Gebäudeersatz im Flug nur bei geladener Kollision, Gelände-Clipping nur für geprüfte Ersatzflächen.'
+                              : 'JSON aus dem Workbench einfügen oder Werte anpassen. Höhenversatz relativ zur automatischen Geländehöhe. Gebäudeersatz im Flug nur bei geladenem Kollisionsmesh. Gelände-Clipping im Flug nur für geprüfte Ersatzflächen mit passendem Kollisionsasset.'
                           : item['heightAlignmentMode'] == 'fixed'
-                          ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
-                          : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
+                              ? 'Paste workbench JSON or adjust values. Height offset is relative to the manually calibrated model anchor; no automatic terrain height adjustment. Flight replacement requires loaded collision geometry and terrain clipping requires verified patches.'
+                              : 'Paste JSON from the workbench or edit values. Height offset is relative to automatic terrain alignment. Building replacement in flight requires a loaded collision mesh. Terrain clipping in flight is limited to verified replacement areas with matching collision assets.',
                     ),
                     Wrap(
                       spacing: 4,
@@ -326,7 +326,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
               ? 'Experimentell: Kollisionsgeometrie aus Scan, nicht vermessen oder validiert.'
               : 'Experimental: scan-derived collision geometry, not surveyed or validated.',
         ),
-        if (_replacement != null)
+        if (kDeveloperMenusEnabled && _replacement != null)
           Text(
             german
                 ? 'Aktive Masken: Gebäude ${_replacement!['buildingActive'] == true ? 'an' : 'aus'} · Gelände ${_replacement!['terrainActive'] == true ? 'an' : 'aus'}'
@@ -334,7 +334,15 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
           ),
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
-          Text(_error!, maxLines: 3, overflow: TextOverflow.ellipsis),
+          Text(
+            kDeveloperMenusEnabled
+                ? _error!
+                : (german
+                      ? 'Szenendaten konnten nicht geladen werden.'
+                      : 'Unable to load scenery data.'),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
         TextButton.icon(
           onPressed: enabled ? () => _load(controller.sceneryStatus) : null,
           icon: const Icon(Icons.refresh),
@@ -345,7 +353,14 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
             contentPadding: EdgeInsets.zero,
             title: Text(item['name'] as String? ?? 'Scenery'),
             subtitle: Text(
-              '${item['state'] ?? 'idle'}${item['message'] == null ? '' : ' · ${item['message']}'}',
+              kDeveloperMenusEnabled
+                  ? '${item['state'] ?? 'idle'}${item['message'] == null ? '' : ' · ${item['message']}'}'
+                  : switch (item['state']) {
+                      'ready' => german ? 'Bereit' : 'Ready',
+                      'loading' => german ? 'Wird geladen' : 'Loading',
+                      'error' => german ? 'Nicht verfügbar' : 'Unavailable',
+                      _ => german ? 'Nicht geladen' : 'Not loaded',
+                    },
             ),
             value: item['enabled'] == true,
             onChanged: enabled
@@ -357,26 +372,26 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   )
                 : null,
           ),
-          if (item['collisionState'] != null)
+          if (kDeveloperMenusEnabled && item['collisionState'] != null)
             Text(
               german
                   ? 'Kollision: ${item['collisionReady'] == true ? 'aktiv' : item['collisionState']} · ${item['collisionTriangles'] ?? 0} Dreiecke${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}'
                   : 'Collision: ${item['collisionReady'] == true ? 'active' : item['collisionState']} · ${item['collisionTriangles'] ?? 0} triangles${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}',
             ),
-          if (item['lastHit'] is Map)
+          if (kDeveloperMenusEnabled && item['lastHit'] is Map)
             Text(
               german
                   ? 'Letzter Kontakt: Dreieck ${(item['lastHit'] as Map)['triangle']}'
                   : 'Last contact: triangle ${(item['lastHit'] as Map)['triangle']}',
             ),
-          if (item['heightAlignmentMode'] == 'fixed' &&
+          if (kDeveloperMenusEnabled && item['heightAlignmentMode'] == 'fixed' &&
               item['effectiveAlignment'] is Map)
             Text(
               german
                   ? 'Höhenbezug: manuell kalibriert (Workbench; nicht vermessen) · Basisanker: ${(item['baseAnchorHeightM'] as num).toStringAsFixed(2)} m · Versatz: ${((item['appliedHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m · wirksamer Anker: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(2)} m'
                   : 'Height: manual workbench calibration (not surveyed) · Base anchor: ${(item['baseAnchorHeightM'] as num).toStringAsFixed(2)} m · Offset: ${((item['appliedHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m · Effective anchor: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(2)} m',
             ),
-          if (item['groundHeightM'] is num && item['effectiveAlignment'] is Map)
+          if (kDeveloperMenusEnabled && item['groundHeightM'] is num && item['effectiveAlignment'] is Map)
             Text(
               german
                   ? 'Gelände: ${(item['groundHeightM'] as num).toStringAsFixed(1)} m · Modellanker: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(1)} m (experimentell)'
@@ -389,10 +404,11 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   item['calibration'] != null))
             Text(
               german
-                  ? 'Geländehöhenabgleich ausstehend: Das Scanmodell bleibt bis zur erfolgreichen Kalibrierung ausgeblendet.${item['heightError'] == null ? '' : ' · ${item['heightError']}'}'
-                  : 'Terrain alignment pending: scenery remains hidden until ground calibration succeeds.${item['heightError'] == null ? '' : ' · ${item['heightError']}'}',
+                  ? 'Geländehöhenabgleich ausstehend: Das Scanmodell bleibt bis zur erfolgreichen Kalibrierung ausgeblendet.${!kDeveloperMenusEnabled || item['heightError'] == null ? '' : ' · ${item['heightError']}'}'
+                  : 'Terrain alignment pending: scenery remains hidden until ground calibration succeeds.${!kDeveloperMenusEnabled || item['heightError'] == null ? '' : ' · ${item['heightError']}'}',
             ),
-          if (item['id'] == 'de-bb-ruedersdorf-chemical-plant') ...[
+          if (kDeveloperMenusEnabled &&
+              item['id'] == 'de-bb-ruedersdorf-chemical-plant') ...[
             Text(
               german
                   ? 'BKG-Höhenkorrektur: ${((item['bkgHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m (nur BKG-Beta, getrennt von normalem Cesium)'
@@ -408,16 +424,10 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
               children: [
                 TextButton.icon(
                   onPressed: enabled
-                      ? () => _load(
-                          () => controller.beginSceneryBridgeHeightMatch(
-                            item['id'] as String,
-                          ),
-                        )
+                      ? () => _load(() => controller.beginSceneryBridgeHeightMatch(item['id'] as String))
                       : null,
                   icon: const Icon(Icons.straighten),
-                  label: Text(
-                    german ? 'Bodenhöhe vergleichen' : 'Compare ground heights',
-                  ),
+                  label: Text(german ? 'Bodenhöhe vergleichen' : 'Compare ground heights'),
                 ),
                 if (_bridgeHeightMatch?['phase'] != null &&
                     _bridgeHeightMatch?['phase'] != 'idle')
@@ -425,29 +435,17 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     onPressed: enabled
                         ? () => _load(controller.cancelSceneryBridgeHeightMatch)
                         : null,
-                    child: Text(
-                      german ? 'Abgleich abbrechen' : 'Cancel matching',
-                    ),
+                    child: Text(german ? 'Abgleich abbrechen' : 'Cancel matching'),
                   ),
               ],
             ),
             if (_bridgeHeightMatch?['phase'] == 'scan')
-              Text(
-                german
-                    ? 'Schritt 1/2: Scan-Boden in der Anlagenmitte antippen.'
-                    : 'Step 1/2: Tap scanned ground near the site center.',
-              ),
+              Text(german ? 'Schritt 1/2: Scan-Boden in der Anlagenmitte antippen.' : 'Step 1/2: Tap scanned ground near the site center.'),
             if (_bridgeHeightMatch?['phase'] == 'target')
-              Text(
-                german
-                    ? 'Schritt 2/2: Dieselbe Stelle auf dem Kartengelände antippen.'
-                    : 'Step 2/2: Tap the same point on map terrain.',
-              ),
+              Text(german ? 'Schritt 2/2: Dieselbe Stelle auf dem Kartengelände antippen.' : 'Step 2/2: Tap the same point on map terrain.'),
             if (_bridgeHeightMatch?['error'] is String)
-              Text(
-                '${_bridgeHeightMatch!['error']}',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              Text('${_bridgeHeightMatch!['error']}',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             if (_bridgeHeightMatch?['phase'] == 'proposal' &&
                 _bridgeHeightMatch?['proposedOffsetM'] is num) ...[
               Text(
@@ -460,8 +458,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                 Text('${_bridgeHeightMatch!['warning']}'),
               FilledButton.icon(
                 onPressed: enabled
-                    ? () => _load(
-                        () => controller.setSceneryEdit(item['id'] as String, {
+                    ? () => _load(() => controller.setSceneryEdit(item['id'] as String, {
                           for (final key in [
                             'alignment',
                             'heightOffsetM',
@@ -471,20 +468,16 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                             'clipTerrain',
                           ])
                             key: item[key],
-                          'bkgHeightOffsetM':
-                              (_bridgeHeightMatch!['proposedOffsetM'] as num)
-                                  .toDouble(),
-                        }),
-                      )
+                          'bkgHeightOffsetM': (_bridgeHeightMatch!['proposedOffsetM'] as num).toDouble(),
+                        }))
                     : null,
                 icon: const Icon(Icons.check),
-                label: Text(
-                  german ? 'Bodenhöhe übernehmen' : 'Apply ground height',
-                ),
+                label: Text(german ? 'Bodenhöhe übernehmen' : 'Apply ground height'),
               ),
             ],
           ],
-          if ((item['buildingRegions'] as List?)?.isNotEmpty == true)
+          if (kDeveloperMenusEnabled &&
+              (item['buildingRegions'] as List?)?.isNotEmpty == true)
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               title: Text(
@@ -515,14 +508,15 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     )
                   : null,
             ),
-          if (item['groundUnderlayState'] != null &&
+          if (kDeveloperMenusEnabled && item['groundUnderlayState'] != null &&
               item['groundUnderlayState'] != 'idle')
             Text(
               german
                   ? 'DGM1-Unterlage: ${item['groundUnderlayState']} · Sichtbar: ${item['groundUnderlayVisible'] == true ? 'ja' : 'nein'}${item['groundUnderlayError'] == null ? '' : ' · ${item['groundUnderlayError']}'}'
                   : 'DGM1 underlay: ${item['groundUnderlayState']} · Visible: ${item['groundUnderlayVisible'] == true ? 'yes' : 'no'}${item['groundUnderlayError'] == null ? '' : ' · ${item['groundUnderlayError']}'}',
             ),
-          if ((item['terrainRegions'] as List?)?.isNotEmpty == true)
+          if (kDeveloperMenusEnabled &&
+              (item['terrainRegions'] as List?)?.isNotEmpty == true)
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               title: Text(
@@ -580,7 +574,8 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                 icon: const Icon(Icons.location_on_outlined),
                 label: Text(german ? 'Auf Karte zeigen' : 'Show on map'),
               ),
-              TextButton.icon(
+              if (kDeveloperMenusEnabled)
+                TextButton.icon(
                 onPressed: enabled ? () => _editScenery(item, german) : null,
                 icon: const Icon(Icons.tune),
                 label: Text(

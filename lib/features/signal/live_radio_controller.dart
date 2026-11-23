@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -57,7 +58,8 @@ class LiveRadioController extends ChangeNotifier {
       _available = false,
       _active = false,
       _paused = false;
-  int _revision = 0, _flightId = -1;
+  int _revision = 0, _flightId = -1, _terrainGeneration = 0;
+  bool _retryLatestPose = false;
   double _speedMetersPerSecond = 0;
   bool _monitorEnabled = false;
   ({Wgs84Coordinate position, Wgs84Coordinate home, double height})? _pose;
@@ -120,6 +122,8 @@ class LiveRadioController extends ChangeNotifier {
 
   void _invalidate({bool clear = false}) {
     ++_revision;
+    ++_terrainGeneration;
+    _retryLatestPose = false;
     current = false;
     loading = false;
     assessment = const LiveLinkAssessment();
@@ -136,8 +140,20 @@ class LiveRadioController extends ChangeNotifier {
     unawaited(_mapUnknown());
   }
 
+  // A profile can become too old for the HUD without invalidating a newer
+  // terrain query already in flight. Only a changed flight, provider or
+  // configuration increments _terrainGeneration.
+  void _expirePosition() {
+    ++_revision;
+    current = false;
+    assessment = const LiveLinkAssessment();
+    _expiry?.cancel();
+    unawaited(_mapUnknown());
+  }
+
   Future<void> _mapUnknown() async {
     if (_disposed || !settings.enabled) return;
+    final messageRevision = _revision;
     final pose = _pose;
     final pilot = pose == null
         ? null
@@ -150,7 +166,7 @@ class LiveRadioController extends ChangeNotifier {
         if (distance != null && distance.isFinite && distance >= 1)
           'distanceMeters': distance,
         'type': 'set-live-radio-result',
-        'revision': _revision,
+        'revision': messageRevision,
         'state': 'unknown',
         'message': settings.enabled
             ? 'Unknown · open radio details'
@@ -291,7 +307,7 @@ class LiveRadioController extends ChangeNotifier {
                   ) ||
               (_pose!.height - result!.altitude!).abs() > 12)) {
         status = 'Drone moved beyond the last profile';
-        _invalidate();
+        _expirePosition();
         _notify();
       }
       // Free-space diagnostics can be displayed immediately, even while the
@@ -333,15 +349,70 @@ class LiveRadioController extends ChangeNotifier {
     _lastAttempt = now();
     final operation = _calculate();
     _pending = operation;
-    unawaited(operation.whenComplete(() => _pending = null));
+    unawaited(operation.whenComplete(() {
+      _pending = null;
+      if (_retryLatestPose && !_disposed) {
+        _retryLatestPose = false;
+        _schedule();
+      }
+    }));
+  }
+
+  // Terrain samples are fixed world positions. When a fast aircraft moves
+  // during a query, a deep obstruction at an already sampled point can still
+  // be verified for the NEW ray. Do not extrapolate clear reception: only a
+  // sampled, interior obstruction at least 8 m below the updated ray may be
+  // used, and the sample must lie within 2 m of that ray horizontally.
+  RadioPathResult? _recheckObservedBlockage(
+    LiveTerrainSampleResult sampled,
+    SignalSettings signal,
+    Wgs84Coordinate target,
+    double targetHeight,
+  ) {
+    final original = sampled.path.profile;
+    if (original.length < 3) return null;
+    final length = routeDistance(signal.pilot, target);
+    if (!length.isFinite || length < 2 || length > radioMaximumPathMeters) {
+      return null;
+    }
+    final matched = <RadioPathSample>[original.first];
+    for (final sample in original.skip(1)) {
+      final fromStation = routeDistance(signal.pilot, sample.position);
+      final fromTarget = routeDistance(target, sample.position);
+      final along = (length * length + fromStation * fromStation -
+              fromTarget * fromTarget) /
+          (2 * length);
+      final lateral = math.sqrt(math.max(
+        0,
+        fromStation * fromStation - along * along,
+      ));
+      if (along > 2 && along < length - 2 && lateral <= 2) {
+        matched.add(sample);
+      }
+    }
+    if (matched.length < 3) return null;
+    final verified = calculateRadioLink(
+      settings: signal,
+      target: target,
+      altitude: targetHeight,
+      pilotHeight: original.first.ground + signal.antennaHeight,
+      positions: [for (final p in matched) p.position],
+      heights: [for (final p in matched) p.ground],
+    );
+    if (verified.state != RadioPathState.obstructed ||
+        (verified.minimumClearance ?? 0) > -8 ||
+        !verified.profile.skip(1).any((p) => p.clearance <= -8)) {
+      return null;
+    }
+    return verified;
   }
 
   Future<void> _calculate() async {
     final startedAt = now();
-    final token = ++_revision, pose = _pose!, config = settings;
+    final generation = _terrainGeneration, pose = _pose!, config = settings;
     bool valid() =>
         !_disposed &&
-        token == _revision &&
+        generation == _terrainGeneration &&
         settings.enabled &&
         _active &&
         !_paused &&
@@ -380,7 +451,9 @@ class LiveRadioController extends ChangeNotifier {
         valid: valid,
       );
       if (!valid()) return;
-      final calculated = sampled.path;
+      var calculated = sampled.path;
+      var publishedPose = pose;
+      var updatedFromExistingSamples = false;
       samplingDiagnostics = sampled;
       if (!valid()) return;
       if (_pose == null ||
@@ -390,17 +463,33 @@ class LiveRadioController extends ChangeNotifier {
                 distance,
               ) ||
           (_pose!.height - pose.height).abs() > 12) {
-        status = 'Unknown: profile overtaken by flight';
-        current = false;
-        assessment = const LiveLinkAssessment();
-        await _mapUnknown();
-        return;
+        final latest = _pose;
+        final rechecked = latest == null
+            ? null
+            : _recheckObservedBlockage(
+                sampled,
+                signal,
+                latest.position,
+                latest.height,
+              );
+        if (rechecked == null) {
+          status = 'Unknown: profile overtaken by flight';
+          _expirePosition();
+          _retryLatestPose = true;
+          _notify();
+          return;
+        }
+        // Physical evidence for obstruction only. Incomplete recent sampling
+        // must never be promoted to a clear RF link.
+        calculated = rechecked;
+        publishedPose = latest!;
+        updatedFromExistingSamples = true;
       }
       result = calculated;
       assessment = LiveLinkAssessment.fromTerrainProfile(
         calculated,
         sampledAt: now(),
-        coverageLimited: sampled.coverageLimited,
+        coverageLimited: sampled.coverageLimited || updatedFromExistingSamples,
         maximumSampleGapMeters: sampled.maximumGapMeters,
         samplingTier: sampled.tier.name,
       );
@@ -410,7 +499,9 @@ class LiveRadioController extends ChangeNotifier {
       calculatedAt = now();
       current = true;
       _armExpiry();
-      status = switch (calculated.state) {
+      status = updatedFromExistingSamples
+          ? 'Potential obstruction (rechecked against sampled terrain)'
+          : switch (calculated.state) {
         RadioPathState.unknown => 'Unknown',
         RadioPathState.obstructed => 'Potential obstruction',
         RadioPathState.fresnelIntrusion => 'Fresnel intrusion',
@@ -433,13 +524,13 @@ class LiveRadioController extends ChangeNotifier {
           : null;
       await send({
         'type': 'set-live-radio-result',
-        'revision': token,
+        'revision': ++_revision,
         'flightId': _flightId,
         'expiresAtMs': calculatedAt!
             .add(const Duration(seconds: 5))
             .millisecondsSinceEpoch,
         'state': calculated.state.name,
-        'distanceMeters': distance,
+        'distanceMeters': routeDistance(pilot, publishedPose.position),
         'sampling': {
           'tier': sampled.tier.name,
           'samples': sampled.sampleCount,
@@ -448,7 +539,8 @@ class LiveRadioController extends ChangeNotifier {
           'queries': sampled.queryCount,
           'elapsedMs': now().difference(startedAt).inMilliseconds,
           'maximumGapMeters': sampled.maximumGapMeters,
-          'limited': sampled.coverageLimited,
+          'limited': sampled.coverageLimited || updatedFromExistingSamples,
+          if (updatedFromExistingSamples) 'recheckedMovingPath': true,
         },
         'showPilot': false,
         'assessment': assessment.toJson(),
@@ -463,10 +555,11 @@ class LiveRadioController extends ChangeNotifier {
         'selected': 0,
         'rays': [
           {
-            'latitude': pose.position.latitude,
-            'longitude': pose.position.longitude,
-            'height': pose.height,
+            'latitude': publishedPose.position.latitude,
+            'longitude': publishedPose.position.longitude,
+            'height': publishedPose.height,
             'ground': calculated.profile.last.ground,
+            if (updatedFromExistingSamples) 'groundFromNearbySample': true,
             'state': calculated.state.name,
           },
         ],
@@ -481,10 +574,9 @@ class LiveRadioController extends ChangeNotifier {
       if (!valid()) return;
     } catch (_) {
       if (valid()) {
-        current = false;
         status = 'Unknown: terrain profile unavailable';
-        assessment = const LiveLinkAssessment();
-        await _mapUnknown();
+        _expirePosition();
+        _notify();
       }
     } finally {
       if (valid()) {

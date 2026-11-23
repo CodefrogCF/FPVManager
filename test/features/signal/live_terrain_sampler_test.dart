@@ -62,7 +62,31 @@ void main() {
     );
   }
 
-  test('a ridge sampled during refinement creates an obstruction', () async {
+  test('dense short clear path finishes in one terrain query instead of exhausting budget', () async {
+    final target = const Wgs84Coordinate(latitude: 47.009, longitude: 8);
+    final distance = routeDistance(station, target);
+    var calls = 0;
+    final terrain = await LiveTerrainSampler.calculate(
+      signal: const SignalSettings(pilot: station),
+      target: target,
+      targetHeight: 1100,
+      distanceMeters: distance,
+      tier: LiveSamplingPolicy.forDistance(distance),
+      valid: () => true,
+      sample: (positions) async {
+        ++calls;
+        return List.filled(positions.length, 500.0);
+      },
+    );
+    expect(terrain.path.state, RadioPathState.noSampledObstruction);
+    expect(terrain.coverageLimited, false);
+    expect(terrain.maximumGapMeters, lessThanOrEqualTo(16));
+    expect(terrain.queryCount, 1);
+    expect(terrain.refinedCount, 0);
+    expect(calls, 1);
+  });
+
+  test('a coarse sampled ridge reports obstruction without redundant refinement', () async {
     const distance = 12000.0;
     final target = Wgs84Coordinate(
       latitude: 47 + distance / 111195,
@@ -81,7 +105,8 @@ void main() {
           (p.latitude > 47.052 && p.latitude < 47.057) ? 1000.0 : 500.0,
       ],
     );
-    expect(terrain.refinedCount, greaterThan(0));
+    expect(terrain.refinedCount, 0, reason: 'A verified obstruction needs no extra terrain round');
+    expect(terrain.queryCount, 1);
     expect(terrain.path.state, RadioPathState.obstructed);
     expect(terrain.path.minimumClearance, lessThan(0));
   });

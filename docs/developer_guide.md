@@ -21,6 +21,25 @@ For a physical Android device, use `flutter devices`, then
 `flutter run -d <device-id>`. For device performance runs use **profile** mode;
 synthetic Node.js timings must not be described as Android/Windows FPS.
 
+## Production menus and internal diagnostics
+
+Ordinary builds show user-facing controls only. Low-level scenery alignment
+JSON, BKG ground-matching tools, collision triangle counts, tunnel JSON import,
+raw tunnel data, UAS adapter/cache internals and terrain sampling methods are
+hidden from public menus. The underlying APIs and test tools remain available.
+
+To enable these controls in a private development build:
+
+```sh
+flutter run --dart-define=FPV_DEVELOPER_MENUS=true
+```
+
+The central compile-time flag lives in
+`lib/core/ui/developer_menu_visibility.dart` and defaults to `false`. It is
+independent of the BKG provider flag `FPV_REGIONAL_3D_TEST`. Do not enable
+internal menus by default in public releases. User-facing error and
+safety messages, source credits and licensing must remain visible.
+
 ## Where the code lives
 
 | Area | Location / contract |

@@ -22,8 +22,8 @@ and [battery/ESC/motor profiles](user/battery_and_power.md). These are the maint
 Activity profiles select shortcuts, not a different application. **Alle Werkzeuge**
 keeps the full toolset reachable. Switching profiles does not erase personal
 records or interrupt an active draft. Settings reuse the same saved values across
-entry points. Long explanations and technical details are expandable; active
-errors, validity and relevant use restrictions remain visible.
+entry points. Internal diagnostics, asset editors and raw provider data do not appear in
+ordinary menus. Active errors, validity and relevant restrictions remain visible.
 
 ## Map, location and 3D
 
@@ -44,9 +44,9 @@ tunnels and sun/moon lighting. Models stream where source data is available;
 they are separate from prepared offline maps. Schematic bridge supports and
 tunnel interiors are approximations, not surveyed construction or clearance.
 Automatic tunnels still load their source axes internally. The former separate
-axis-overlay and surface-exploration switches are no longer offered. Explicit
-catalogue search, model preparation/import and diagnostics remain under the
-collapsed tunnel tools.
+axis-overlay and surface-exploration switches are no longer offered. Tunnel discovery, simulation model preparation and collision controls remain
+available. Internal JSON import and diagnostic counters are hidden in regular
+builds.
 
 Route and flight settings can temporarily use a selected date/time for lighting.
 Enter device-local time; stored values use UTC. Fixed time remains frozen, and

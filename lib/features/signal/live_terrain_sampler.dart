@@ -102,15 +102,53 @@ class LiveTerrainSampler {
     if (!valid()) {
       throw const FormatException('Stale live terrain request');
     }
-    // Adaptive midpoint refinement in bounded rounds. Re-rank after each
-    // sampled batch: a newly discovered narrow ridge must influence the next
-    // selection. Each gap contributes at most one midpoint per round so a
-    // single rugged region cannot starve coverage everywhere else.
+    // Reuse the first usable terrain pass immediately when it already proves a
+    // physical blockage. A sampled obstruction needs only one valid terrain
+    // intersection; proving a clear corridor requires adequate coverage.
+    // Otherwise the old implementation always exhausted every refinement
+    // point, even on a flat 500 m path already sampled every few metres.
     var refined = 0;
-    while (refined < tier.refinementPoints &&
-        indices.length + refined < count) {
+    double maximumGap() {
+      final ordered = data.keys.toList()..sort();
+      var gap = 0.0;
+      for (var i = 1; i < ordered.length; ++i) {
+        gap = math.max(
+          gap,
+          distanceMeters *
+              (all[ordered[i]].fraction - all[ordered[i - 1]].fraction),
+        );
+      }
+      return gap;
+    }
+
+    LiveTerrainSampleResult snapshot(RadioPathResult path) {
+      final gap = maximumGap();
+      return LiveTerrainSampleResult(
+        path: path,
+        coarseCount: indices.length,
+        refinedCount: refined,
+        queryCount: requests,
+        maximumGapMeters: gap,
+        coverageLimited: gap > tier.coverageGapMeters,
+        tier: tier,
+      );
+    }
+
+    // Bounded adaptive refinement. Re-rank after every batch so that an
+    // obstruction found on a later pass can be reported without waiting for
+    // the rest of the theoretical budget.
+    while (true) {
+      if (!valid()) throw const FormatException('Stale live terrain request');
+      final evaluated = evaluate();
+      if (evaluated.state == RadioPathState.obstructed ||
+          (evaluated.state == RadioPathState.noSampledObstruction &&
+              maximumGap() <= tier.coverageGapMeters) ||
+          refined >= tier.refinementPoints ||
+          data.length >= count) {
+        return snapshot(evaluated);
+      }
       final sorted = data.keys.toList()..sort();
-      final profile = evaluate().profile;
+      final profile = evaluated.profile;
       final candidates = <(int, double)>[];
       for (var i = 1; i < sorted.length; ++i) {
         final left = sorted[i - 1], right = sorted[i];
@@ -132,44 +170,23 @@ class LiveTerrainSampler {
             (crossing ? 30 : 0);
         candidates.add(((left + right) ~/ 2, priority));
       }
-      if (candidates.isEmpty) break;
+      if (candidates.isEmpty) return snapshot(evaluated);
       candidates.sort((a, b) {
         final score = b.$2.compareTo(a.$2);
         return score != 0 ? score : a.$1.compareTo(b.$1);
       });
       final remaining = tier.refinementPoints - refined;
-      // Stop at a batch boundary, then use the new elevation information to
-      // reprioritize further splits. Hard cap: 256 samples per bridge query.
       final selected = <int>[];
-      for (final c in candidates) {
+      for (final candidate in candidates) {
         if (selected.length >= math.min(remaining, 256)) break;
-        if (!data.containsKey(c.$1)) selected.add(c.$1);
+        if (!data.containsKey(candidate.$1)) selected.add(candidate.$1);
       }
-      if (selected.isEmpty) break;
+      if (selected.isEmpty) return snapshot(evaluated);
       selected.sort();
       await fetch(selected);
-      if (!valid()) {
-        throw const FormatException('Stale live terrain request');
-      }
+      if (!valid()) throw const FormatException('Stale live terrain request');
       refined += selected.length;
     }
-    final ordered = data.keys.toList()..sort();
-    var maxGap = 0.0;
-    for (var i = 1; i < ordered.length; ++i) {
-      maxGap = math.max(
-        maxGap,
-        distanceMeters *
-            (all[ordered[i]].fraction - all[ordered[i - 1]].fraction),
-      );
-    }
-    return LiveTerrainSampleResult(
-      path: evaluate(),
-      coarseCount: indices.length,
-      refinedCount: refined,
-      queryCount: requests,
-      maximumGapMeters: maxGap,
-      coverageLimited: maxGap > tier.coverageGapMeters,
-      tier: tier,
-    );
+
   }
 }

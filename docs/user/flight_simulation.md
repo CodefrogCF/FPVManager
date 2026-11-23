@@ -113,6 +113,24 @@ The diagnostic view reports the sampling tier, sampled points, terrain queries,
 elapsed sampling time and largest gap. A separately labeled **SIM free-space only**
 calculation may remain available even when terrain visibility is unknown.
 
+For comparison with the historical 50-km implementation, the live terrain
+profiler uses the **November 21, 2026 pre-Rüdersdorf baseline**. Up to 6 km,
+it uses an initial 129-point profile with bounded refinement; longer ranges
+use coarser profiles and targeted additional samples. A successful HUD profile
+normally expires after five seconds, or sooner if the drone moves too far
+from the position that was analysed. `?` means the geometric estimate is
+unavailable or too old; it is **not evidence of a real RC or video outage**.
+
+The R36/R37 experimental optimizations are temporarily not active. The R40
+reliability correction retains the historical 50-km sampling tiers but avoids
+invalidating an already running new terrain query when an older HUD profile
+expires. Confirmed deep terrain obstruction may be checked against the latest
+aircraft position using recent, very closely aligned terrain samples. This
+remains a simulation estimate; it never declares unsampled terrain clear. This
+provides a consistent basis for device-side comparisons at identical route,
+flight speed, antenna settings and terrain provider. BKG beta terrain remains
+unsuitable for radio planning until its height reference is validated.
+
 ## Video and RC profiles
 
 Under **SIM RF profiles**, configure **video** and **RC** independently.

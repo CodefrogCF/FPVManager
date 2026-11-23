@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 
 import 'package:file_selector/file_selector.dart';
@@ -164,7 +165,7 @@ class SceneLayersSection extends StatelessWidget {
                 )
               : null,
         ),
-        if (controller.schematicTunnel3dEnabled)
+        if (kDeveloperMenusEnabled && controller.schematicTunnel3dEnabled)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
@@ -182,7 +183,12 @@ class SceneLayersSection extends StatelessWidget {
           ),
         if (controller.schematicTunnelMeshError != null)
           Text(
-            'Tunnel: ${controller.schematicTunnelMeshError}',
+            kDeveloperMenusEnabled
+                ? 'Tunnel: ${controller.schematicTunnelMeshError}'
+                : context.localized(
+                    '3D-Daten derzeit nicht verfügbar.',
+                    (l10n) => l10n.globeDDatenDerzeitNichtec1d811a,
+                  ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -259,7 +265,7 @@ class SceneLayersSection extends StatelessWidget {
               Text(
                 context.localizedWithArgs(
                   "Abfrage fehlgeschlagen: {0}",
-                  [controller.tunnelScanError],
+                  [kDeveloperMenusEnabled ? controller.tunnelScanError : 'Tunnel'],
                   (l10n, value) =>
                       l10n.globeAbfrageFehlgeschlagene25d055d(value(0)),
                 ),
@@ -450,8 +456,9 @@ class SceneLayersSection extends StatelessWidget {
                         Text(
                           'Name: ${controller.selectedInfrastructure!['name']}',
                         ),
-                      if (controller.selectedInfrastructure!['sourceId'] !=
-                          null)
+                      if (kDeveloperMenusEnabled &&
+                          controller.selectedInfrastructure!['sourceId'] !=
+                              null)
                         Text(
                           context.localizedWithArgs(
                             "Quellkennung: {0}",
@@ -460,8 +467,8 @@ class SceneLayersSection extends StatelessWidget {
                                 l10n.globeQuellkennung050247aa(value(0)),
                           ),
                         ),
-                      if (controller.selectedInfrastructure!['attributes']
-                          is Map)
+                      if (kDeveloperMenusEnabled &&
+                          controller.selectedInfrastructure!['attributes'] is Map)
                         for (final entry
                             in (controller.selectedInfrastructure!['attributes']
                                     as Map)
@@ -499,7 +506,8 @@ class SceneLayersSection extends StatelessWidget {
                   ),
                 ),
               ),
-            TextButton.icon(
+            if (kDeveloperMenusEnabled)
+              TextButton.icon(
               onPressed: enabled && !controller.tunnelModelPending
                   ? () => change(() async {
                       final file = await openFile(
@@ -534,7 +542,8 @@ class SceneLayersSection extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
+            if (kDeveloperMenusEnabled)
+              Text(
               context.localized(
                 "JSON mit EPSG:4979, Quelle und separatem Kollisionsmesh. GLB/IFC werden nicht direkt unterstützt.",
                 (l10n) => l10n.commonJsonMitEpsgQuellef95a2fe5,
@@ -542,7 +551,15 @@ class SceneLayersSection extends StatelessWidget {
             ),
           ],
         ),
-        ExpansionTile(
+        if (!kDeveloperMenusEnabled &&
+            controller.tunnelRoutes.any(
+              (route) => route['source'] == 'OpenStreetMap (Overpass fallback)',
+            ))
+          const Text(
+            '© OpenStreetMap contributors (ODbL) · openstreetmap.org/copyright',
+          ),
+        if (kDeveloperMenusEnabled)
+          ExpansionTile(
           key: const PageStorageKey('map-tunnel-data'),
           tilePadding: EdgeInsets.zero,
           title: Text(

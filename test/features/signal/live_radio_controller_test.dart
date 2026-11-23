@@ -123,6 +123,100 @@ void main() {
     expect(c.current, false);
   });
 
+  test('fast motion expires the old HUD profile but does not cancel a newer in-flight sample', () async {
+    var time = DateTime.utc(2026, 11, 23);
+    Completer<List<double>>? pending;
+    var requestedPoints = 0;
+    final emitted = <Map<String, dynamic>>[];
+    final c = LiveRadioController(
+      now: () => time,
+      send: (message) async {
+        emitted.add(message);
+      },
+      sample: (positions) {
+        requestedPoints = positions.length;
+        return pending?.future ?? Future.value(List.filled(positions.length, 500.0));
+      },
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings(enabled: true));
+    c.telemetry(pose(lon: 8.005));
+    await c.settled;
+    expect(c.current, true);
+
+    time = time.add(const Duration(seconds: 2));
+    pending = Completer<List<double>>();
+    c.telemetry(pose(lon: 8.00510)); // Below the old 12 m limit.
+    expect(c.loading, true);
+    c.telemetry(pose(lon: 8.00522)); // Past old result, still near new query.
+    expect(c.current, false);
+    pending.complete(List.filled(requestedPoints, 500.0));
+    await c.settled;
+    expect(c.current, true, reason: 'The newer in-flight request must survive the old profile expiry');
+    expect(c.result!.state, RadioPathState.noSampledObstruction);
+    final unknown = emitted.lastWhere((m) =>
+        m['type'] == 'set-live-radio-result' && m['state'] == 'unknown');
+    final published = emitted.lastWhere((m) =>
+        m['type'] == 'set-live-radio-result' && m['state'] == 'noSampledObstruction');
+    expect(published['revision'], greaterThan(unknown['revision'] as int));
+  });
+
+  test('delayed but deep sampled ridge is rechecked against a faster aircraft on the same ray', () async {
+    final pending = Completer<List<double>>();
+    var count = 0;
+    final messages = <Map<String, dynamic>>[];
+    final c = LiveRadioController(
+      send: (message) async { messages.add(message); },
+      sample: (points) {
+        count = points.length;
+        return pending.future;
+      },
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings(enabled: true));
+    c.telemetry(pose(lon: 8.004, height: 550));
+    c.telemetry(pose(lon: 8.006, height: 550));
+    final heights = List<double>.filled(count, 500.0);
+    heights[count ~/ 2] = 650;
+    pending.complete(heights);
+    await c.settled;
+    expect(c.current, true);
+    expect(c.result!.target.longitude, closeTo(8.006, 0.000001));
+    expect(c.result!.state, RadioPathState.obstructed);
+    expect(c.assessment.confidence, LiveAssessmentConfidence.limited);
+    final published = messages.lastWhere((message) =>
+        message['state'] == 'obstructed' && message['type'] == 'set-live-radio-result');
+    expect((published['sampling'] as Map)['recheckedMovingPath'], true);
+    expect((published['rays'] as List).single['longitude'], closeTo(8.006, 0.000001));
+  });
+
+  test('a sharp turn cannot reuse blockage sampled on a different ray', () async {
+    final pending = Completer<List<double>>();
+    var count = 0;
+    final c = LiveRadioController(
+      send: (_) async {},
+      sample: (points) {
+        count = points.length;
+        return pending.future;
+      },
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings(enabled: true));
+    c.telemetry(pose(lon: 8.004, height: 550));
+    final turning = pose(lon: 8.006, height: 550);
+    turning['latitude'] = 47.003;
+    c.telemetry(turning);
+    final heights = List<double>.filled(count, 500.0);
+    heights[count ~/ 2] = 650;
+    pending.complete(heights);
+    await c.settled;
+    expect(c.current, false);
+    expect(c.assessment.visibility, LivePathVisibility.unknown);
+  });
+
   test('beyond 50 km remains unknown but provides range for free-space diagnostics', () async {
     final messages = <Map<String, dynamic>>[];
     final c = LiveRadioController(

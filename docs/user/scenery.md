@@ -13,8 +13,8 @@ Dieses Kapitel beschreibt **die derzeitige Rüdersdorf-Testszene**, nicht eine a
 
 1. Öffne die Karte in der Umgebung von Rüdersdorf bei Berlin.
 2. Öffne **Karte & Ansicht → Karte → Reale 3D-Umgebungen**. Aktiviere die lokale Szene, sofern die entsprechenden Assets im Build enthalten sind.
-3. Unter **Status aktualisieren** lassen sich Modell-, Kollisions-, Höhen- und Maskenzustand getrennt prüfen. Bei fehlenden oder noch nicht geladenen Geländekacheln wird die Ausrichtung nicht als bestätigt angezeigt.
-4. Zum Vergleich mit den offiziellen Gebäuden kann **LoD2 im Ersatzbereich ausblenden** verwendet werden. Das betrifft die visualisierten Fremdgebäude, nicht die ursprüngliche Scantextur.
+3. Über **Status aktualisieren** kann die Szene bei Problemen erneut abgefragt werden. Das normale Menü zeigt Ladezustand und nutzerverständliche Fehler, nicht die internen Kollisions-, Höhen- und Maskenwerte.
+4. Die Überlagerung mit BKG-LoD2 wird durch die Szenenkonfiguration gesteuert. Manuelle Masken- und Ausrichtungseditoren sind in regulären Builds ausgeblendet.
 
 ### Höhenreferenz und Bodenabgleich
 
@@ -22,9 +22,13 @@ Die Szenenhöhe im normalen Globe wird nicht unmittelbar aus dem Workbench-Expor
 
 Für die aktuelle Rüdersdorf-Testversion wurde **−16,90 m** als BKG-spezifischer visueller Korrekturwert anhand zweier passender Bodenflächen bestätigt. Er ist **keine amtlich vermessene Höhe**. Andere lokale Einstellungen können Vorrang haben; beim Wechsel zum regulären Cesium-Gelände darf diese Korrektur nicht übertragen werden.
 
+Der folgende Abgleich ist **nur im privaten Entwicklerbuild** mit
+`--dart-define=FPV_DEVELOPER_MENUS=true` verfügbar und gehört nicht zur
+normalen Flugvorbereitung.
+
 Bei einer neuen Kontrolle:
 
-1. Im BKG-Testmodus **Bodenhöhe vergleichen** wählen.
+1. Im Entwicklerbuild im BKG-Testmodus **Bodenhöhe vergleichen** wählen.
 2. Eine erkennbare, möglichst ebene und freie **Bodenfläche** des Scans antippen. Nicht ein Dach, eine Geschossdecke, Brücke oder Vegetation wählen.
 3. Nachdem der Scan ausgeblendet wurde, möglichst dieselbe Stelle auf dem **tatsächlich gerenderten Kartengelände** antippen.
 4. Die vorgeschlagene Differenz, den horizontalen Abstand und die Bilddarstellung prüfen. Erst anschließend **Bodenhöhe übernehmen** wählen.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 
 import '../../core/geo/altitude_service.dart';
@@ -191,7 +192,8 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
               _height(terrain.elevation),
               key: const ValueKey('terrain-ellipsoid-height'),
             ),
-            Text(
+            if (kDeveloperMenusEnabled)
+              Text(
               context.localizedWithArgs("Sampling: {0}", [
                 terrain.samplingMethod,
               ], (l10n, value) => l10n.globeSamplinga7cf9539(value(0))),
