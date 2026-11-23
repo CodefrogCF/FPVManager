@@ -95,6 +95,7 @@ function postToFlutter(message) {
     let uasImportRevision = 0;
     const offline = new URLSearchParams(window.location.search).get("offline") === "1";
     const regional3DTest = new URLSearchParams(window.location.search).get("regional3DTest") === "1";
+    let regional3DEnabled=regional3DTest; // explicit build-time test opt-in only
     const floatingChrome = new URLSearchParams(window.location.search).get('chrome') === 'floating';
     if (floatingChrome) document.documentElement.classList.add('floating-map-chrome');
     let currentMapStyle = "satellite";
@@ -839,6 +840,17 @@ function postToFlutter(message) {
             case 'set-live-radio-result': return liveRadio.set(command);
             case 'set-live-radio-ground-station': return liveRadio.station(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
+            case 'set-bkg-3d-test': {
+                if(typeof command.enabled!=='boolean')throw Error('BKG test toggle must be boolean');
+                if(command.enabled&&(offline||offlineReason()||navigator.onLine===false||
+                    window.FPVMapProviderConfig?.prepared||window.FPVMapProviderConfig?.preparedUnavailable||
+                    window.FPVMapProviderConfig?.terrain||new URLSearchParams(window.location.search).get('cachedMaps')==='1')){
+                    throw Error('BKG 3D test streaming requires the online, non-cached globe');
+                }
+                regional3DEnabled=command.enabled;
+                regional3D?.tick(true);
+                return {enabled:regional3DEnabled,active:regional3D?.region()===true};
+            }
             case 'set-scene-environment': {
                 const result=sceneEnvironment.set(command);
                 regionalBuildingsRequested=command.buildings;regional3D?.tick(true);
@@ -1095,7 +1107,7 @@ function postToFlutter(message) {
             // Validate every global root, including the eastern root covering
             // Switzerland. Prepared regional packages use their packaged root.
             probe: (provider, signal) => {
-                const root=regionalTerrain?provider.tilingScheme.positionToTileXY(Cesium.Cartographic.fromDegrees(13.79,52.48),0):null;
+                const root=regionalTerrain?provider.tilingScheme.positionToTileXY(Cesium.Cartographic.fromDegrees(10.4515,51.1657),0):null;
                 return FPVTerrain.probeRootTiles(provider,signal,root?[[root.x,root.y,0]]:window.FPVMapProviderConfig?.prepared?[mapProviders.terrainProbe]:undefined);
             },
             onStatus: status => {
@@ -1596,8 +1608,8 @@ function postToFlutter(message) {
         }});
         if(sceneryManager) sceneryCatalogReady=sceneryManager.initialize().catch(error=>console.warn('[scenery-catalog]',error));
         const preparedMaps=window.FPVMapProviderConfig?.prepared||window.FPVMapProviderConfig?.preparedUnavailable;
-        if(typeof FPVRegional3D!=='undefined'&&regional3DTest) regional3D=FPVRegional3D.create(Cesium,viewer,{
-            enabled:regional3DTest&&!offline&&!preparedMaps&&!window.FPVMapProviderConfig?.terrain&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
+        if(typeof FPVRegional3D!=='undefined') regional3D=FPVRegional3D.create(Cesium,viewer,{
+            enabled:()=>regional3DEnabled&&!offline&&!preparedMaps&&!window.FPVMapProviderConfig?.terrain&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
             online:()=>navigator.onLine!==false,
             navigationBusy:()=>Boolean(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded),
             buildingsRequested:()=>regionalBuildingsRequested,

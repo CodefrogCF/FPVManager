@@ -403,6 +403,26 @@ class GlobeController extends ChangeNotifier {
     return true;
   }
 
+  // Test-service consent is session-only. Never persist this alongside map
+  // preferences or offline regions. Test-only APK builds may opt in explicitly.
+  bool _bkg3dTestEnabled = const bool.fromEnvironment('FPV_REGIONAL_3D_TEST');
+  bool get bkg3dTestEnabled => _bkg3dTestEnabled;
+
+  Future<void> setBkg3dTestEnabled(bool enabled) async {
+    _checkPreferencesEditable();
+    if (_ready) {
+      final result = await _request({
+        'type': 'set-bkg-3d-test',
+        'enabled': enabled,
+      });
+      if (result['enabled'] != enabled) {
+        throw StateError('BKG 3D test toggle was not acknowledged');
+      }
+    }
+    _bkg3dTestEnabled = enabled;
+    if (!_disposed) notifyListeners();
+  }
+
   final Map<String, String> _sceneLayerStates = {};
   bool get buildings3dVisible => _preferences.buildings3dVisible;
   bool get vegetation3dVisible => _preferences.vegetation3dVisible;
@@ -3207,6 +3227,12 @@ class GlobeController extends ChangeNotifier {
           navigationBuildings != NavigationEnvironmentMode.inherit ||
           navigationVegetation != NavigationEnvironmentMode.inherit) {
         await _send(_navigationSceneCommand);
+      }
+      if (!current()) return;
+      // Recover only the active in-memory choice after a renderer reload.
+      // Ordinary public builds start with this switched off.
+      if (_bkg3dTestEnabled) {
+        await _send({'type': 'set-bkg-3d-test', 'enabled': true});
       }
       if (!current()) return;
       if (forceSettings ||

@@ -32,7 +32,7 @@ test('late model is destroyed after leaving or disabling scenery',async()=>{
  const f=fixture();let resolve;const late=new Promise(r=>resolve=r);const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,modelFactory:()=>late});
  try{await m.initialize();m.setEnabled(catalog.sceneries[0].id,false);const model={destroy(){this.destroyed=true;}};resolve(model);await flush();assert.equal(model.destroyed,true);assert.equal(f.models.length,0);assert.equal(f.credits.length,0);}finally{m.dispose();}
 });
-test('regional selection bounds, altitude and hysteresis',()=>{assert.equal(R.inRegion({longitude:13.79,latitude:52.48,height:500}),true);assert.equal(R.inRegion({longitude:8.4,latitude:46.7,height:500}),false);assert.equal(R.inRegion({longitude:13.79,latitude:52.48,height:120000}),false);assert.equal(R.inRegion({longitude:14.89,latitude:52.48,height:500},true),true);});
+test('regional selection respects Germany outline and altitude hysteresis',()=>{assert.equal(R.inRegion({longitude:13.79,latitude:52.48,height:500}),true);assert.equal(R.inRegion({longitude:8.4,latitude:46.7,height:500}),false);assert.equal(R.inRegion({longitude:13.79,latitude:52.48,height:120000}),false);assert.equal(R.inRegion({longitude:13.79,latitude:52.48,height:90000},true),true);assert.equal(R.inRegion({longitude:14.89,latitude:52.48,height:500},true),false,'the old BB rectangle extended into Poland');});
 test('beta regional tiles are opt-in, unload on leaving, and do not change terrain during navigation',async()=>{
  const f=fixture();let busy=false,online=true,regions=[],loads=0;
  const r=R.create(f.C,f.viewer,{...f,enabled:true,online:()=>online,navigationBusy:()=>busy,buildingsRequested:()=>true,onRegionChange:x=>regions.push(x),loadTiles:async()=>{loads++;return {destroy(){this.destroyed=true;}};}});
@@ -133,5 +133,48 @@ test('R32: missing terrain height keeps even a loaded FPC collider inactive',asy
    provider=null;m.tick(true);await flush();
    assert.equal(model.show,false);
    assert.equal(m.snapshot()[0].collisionReady,false);
+ }finally{m.dispose();}
+});
+
+test('R33: BKG switch automatically restores calibrated Rüdersdorf when local terrain tiles arrive',async()=>{
+ const f=fixture();let key={name:'world'},regional=false,tilesReady=true,tileProgress,loads=0;
+ const model={ready:true,show:true,destroy(){}};
+ f.viewer.scene.globe={tileLoadProgressEvent:{addEventListener:fn=>{tileProgress=fn;return ()=>{tileProgress=null;};}}};
+ const m=M.create(f.C,f.viewer,{...f,fetchCatalog:async()=>catalog,
+   modelFactory:async()=>{loads++;return model;},
+   terrainKey:()=>key,regionalHeightMode:()=>regional,
+   sampleGround:async()=>{if(regional&&!tilesReady)throw Error('DGM5 tiles not yet rendered');return regional?79:46;}});
+ try{
+   await m.initialize();await flush();m.tick(true);await flush();
+   assert.equal(model.show,true);
+   assert.equal(m.snapshot()[0].heightState,'adjusted');
+   regional=true;key={name:'BKG DGM5'};tilesReady=false;m.tick(true);await flush();
+   assert.equal(model.show,false,'missing DGM5 calibration must not show a wrongly placed model');
+   assert.equal(m.snapshot()[0].heightState,'unavailable');
+   tilesReady=true;tileProgress(0);
+   await new Promise(resolve=>setTimeout(resolve,10));await flush();
+   assert.equal(m.snapshot()[0].heightState,'adjusted');
+   assert.equal(model.show,true,'tile arrival must restore scenery without user toggling it');
+   assert.equal(loads,1,'provider switch must not reload the local GLB');
+ }finally{m.dispose();}
+});
+
+test('R33: failed BKG fitting retries on its own even without a tile-ready event',async()=>{
+ const f=fixture();let elapsed=0,available=false,calls=0,sequence=0;
+ const timers=new Map(),setTimer=(fn,delay)=>{const id=++sequence;timers.set(id,{fn,due:elapsed+delay});return id;};
+ const clearTimer=id=>timers.delete(id);
+ const advance=ms=>{elapsed+=ms;for(const [id,t] of [...timers])if(t.due<=elapsed){timers.delete(id);t.fn();}};
+ const model={ready:true,show:true,destroy(){}};
+ const provider={name:'BKG DGM5'};
+ const m=M.create(f.C,f.viewer,{...f,now:()=>elapsed,setTimer,clearTimer,
+   fetchCatalog:async()=>catalog,modelFactory:async()=>model,
+   terrainKey:()=>provider,regionalHeightMode:()=>true,
+   sampleGround:async()=>{calls++;if(!available)throw Error('DGM5 is loading');return 80;}});
+ try{
+   await m.initialize();await flush();m.tick(true);await flush();
+   assert.equal(calls,1);assert.equal(model.show,false);
+   available=true;advance(2500);await flush();
+   assert.equal(calls,2);assert.equal(model.show,true);
+   assert.equal(m.snapshot()[0].heightState,'adjusted');
  }finally{m.dispose();}
 });

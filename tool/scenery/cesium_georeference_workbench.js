@@ -68,6 +68,9 @@
             return;
         }
         const R=window.FPVRegional3D;
+        if(!R.installRuntimeOnlyTransport(C)) {
+            betaWanted=false;status('BKG-Laden abgebrochen: HTTP-No-Store-Schutz nicht verfügbar','error');return;
+        }
         const url=R.buildingsFlatUrl;
         const useRelay=new URLSearchParams(window.location.search).get('lod2')==='relay';
         const requestUrl=useRelay?new URL('/__bkg_lod2__/lod2_4326_null.json',window.location.origin).href:url;

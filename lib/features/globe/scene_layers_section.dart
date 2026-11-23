@@ -39,6 +39,7 @@ class SceneLayersSection extends StatelessWidget {
     }
 
     final enabled = controller.isReady && controller.canEditPreferences;
+    final german = Localizations.localeOf(context).languageCode == 'de';
     Widget layer(
       String key,
       String label,
@@ -98,6 +99,27 @@ class SceneLayersSection extends StatelessWidget {
         context.localized("3D & Licht", (l10n) => l10n.globeDLicht8b58e045),
       ),
       children: [
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            german
+                ? 'Deutschland: BKG DGM5 + LoD2 (3D-Testdienst)'
+                : 'Germany: BKG DGM5 + LoD2 (3D test service)',
+          ),
+          subtitle: Text(
+            german
+                ? 'Nur Online-Testbetrieb. Standardmäßig aus; keine Offline-Kacheln '
+                      'oder dauerhafte Datenspeicherung. © GeoBasis-DE/BKG 2026. '
+                      'Testdaten können für Funkstrecken und Höhenprofile ungeeignet sein.'
+                : 'Online testing only. Off by default; no offline tiles or '
+                      'persistent storage. © GeoBasis-DE/BKG 2026. Data is not '
+                      'verified for radio propagation or elevation profiles.',
+          ),
+          value: controller.bkg3dTestEnabled,
+          onChanged: enabled
+              ? (value) => change(() => controller.setBkg3dTestEnabled(value))
+              : null,
+        ),
         layer(
           'buildings',
           'Gebäude',

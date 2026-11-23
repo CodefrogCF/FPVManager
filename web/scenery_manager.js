@@ -204,7 +204,7 @@
         collisionFactory=(url,signal)=>Collision.load(url,signal),
         position=()=>{const x=viewer.camera.positionCartographic;return {latitude:C.Math.toDegrees(x.latitude),longitude:C.Math.toDegrees(x.longitude),height:x.height};},
         onStatus=()=>{},storage,now=()=>Date.now(),setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=60000,canLoad=()=>true,terrainKey=()=>null,terrainStable=()=>true,sampleGround=async()=>NaN,sampleSeamGround=null,terrainMaskActive=()=>false,regionalHeightMode=()=>false}={}){
-        let disposed=false,entries=new Map(),lastTick=-Infinity,catalogRevision=0;
+        let disposed=false,entries=new Map(),lastTick=-Infinity,catalogRevision=0,tileReadyRetryTimer=null;
         const display=viewer.cesiumWidget?.creditDisplay;
         try{storage??=globalThis.localStorage;}catch(_){}
         let prefs={};try{const parsed=JSON.parse(storage?.getItem(storageKey)||'{}');if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))prefs=parsed;}catch(_){}
@@ -218,7 +218,7 @@
             if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}
             e.groundCollider=null;e.groundVerified=false;e.groundState='idle';e.groundError=null;
         }
-        function remove(e){releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
+        function remove(e){clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
         function escape(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
         // An estimated DGM1 absolute fallback is not visual evidence that the
         // active BKG/other terrain is aligned. Hide scenery until actual
@@ -230,6 +230,18 @@
             for(const model of e.models){
                 if(model.show!==visible){model.show=visible;viewer.scene.requestRender?.();}
             }
+        }
+        // Regional DGM5 can have a ready terrain provider before Cesium has
+        // rendered any tiles at the scenery location. A failed first pick must
+        // recover automatically even when no further camera/scene events occur.
+        function scheduleHeightRetry(e){
+            clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;
+            if(disposed||!e.enabled||!canLoad()||e.state==='idle'||e.heightKey==null)return;
+            const delay=Math.max(0,(e.heightRetryAt??0)-now());
+            e.heightRetryTimer=setTimer(()=>{
+                e.heightRetryTimer=null;
+                if(!disposed&&e.enabled&&e.state!=='idle')tick(true);
+            },delay);
         }
         function updateHeight(e){
             if(e.item.heightAlignmentMode==='fixed'){
@@ -250,7 +262,7 @@
             if(!Number.isFinite(e.item.groundReferenceLocalUp))return;
             const key=terrainKey()??null;
             if(e.heightKey!==key){
-                clearSeams(e);
+                clearSeams(e);clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;
                 e.heightRevision=(e.heightRevision??0)+1;e.heightKey=key;e.heightPending=false;e.heightRetryAt=0;
                 e.heightState=key===null?'original':'pending';e.heightError=null;e.groundHeightM=null;e.effectiveAlignment=original(e);
                 for(const model of e.models)A.apply(C,model,e.effectiveAlignment);if(e.groundModel)A.apply(C,e.groundModel,e.effectiveAlignment);
@@ -266,12 +278,13 @@
                 const cfg=aligned(e,height);
                 for(const model of e.models)A.apply(C,model,cfg);if(e.groundModel)A.apply(C,e.groundModel,cfg);
                 e.effectiveAlignment=cfg;e.groundHeightM=height;e.heightState='adjusted';e.heightError=null;
+                clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;
                 syncCalibrationVisibility(e);
                 viewer.scene.requestRender?.();
             }).catch(error=>{if(current()){
-                e.heightState='unavailable';e.heightRetryAt=now()+10000;
+                e.heightState='unavailable';e.heightRetryAt=now()+(regionalHeightMode()?2500:10000);
                 e.heightError=String(error?.message??error);
-                syncCalibrationVisibility(e);
+                syncCalibrationVisibility(e);scheduleHeightRetry(e);
             }})
               .finally(()=>{if(current())e.heightPending=false;});
         }
@@ -342,8 +355,11 @@
                     try{
                         A.apply(C,model,e.effectiveAlignment??e.item.alignment);
                         model.show=!e.item.requireGroundCalibration;
+                        // Height fitting can finish before the GLB upload.
+                        // Newly attached models must inherit the fitted state.
                         if(debugWireframe)model.debugWireframe=true;
                         viewer.scene.primitives.add(model);e.models.push(model);
+                        syncCalibrationVisibility(e);
                         if(!e.credit){e.credit=credit;display?.addStaticCredit(credit);}
                     }catch(error){disposeModel(model,false);throw error;}
                 }
@@ -496,7 +512,25 @@
         }
         function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?.triangleCount??null,collisionBytes:e.collider?.byteLength??null,lastHit:e.lastHit??null}));}
         const off=viewer.scene.preUpdate.addEventListener(()=>tick());
-        function dispose(){if(disposed)return;disposed=true;catalogRevision++;off?.();for(const e of entries.values())remove(e);entries.clear();}
+        // Terrain tiles may become resident *after* the first height sample has
+        // failed. Retry as soon as Cesium drains its tile queue, without forcing
+        // a GLB reload or requiring the user to toggle the scenery off and on.
+        // A bounded timer above handles cases where no tile-ready event arrives.
+        const offTerrain=viewer.scene.globe?.tileLoadProgressEvent?.addEventListener?.(pending=>{
+            if(disposed||pending!==0||tileReadyRetryTimer!==null)return;
+            const key=terrainKey();
+            if(key==null||!Array.from(entries.values()).some(e=>e.enabled&&e.heightKey===key&&e.heightState==='unavailable'))return;
+            viewer.scene.requestRender?.();
+            tileReadyRetryTimer=setTimer(()=>{
+                tileReadyRetryTimer=null;if(disposed)return;
+                const currentKey=terrainKey();
+                for(const e of entries.values())if(e.enabled&&e.heightKey===currentKey&&e.heightState==='unavailable'){
+                    clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;e.heightRetryAt=0;
+                }
+                tick(true);
+            },0);
+        });
+        function dispose(){if(disposed)return;disposed=true;catalogRevision++;off?.();offTerrain?.();clearTimer(tileReadyRetryTimer);tileReadyRetryTimer=null;for(const e of entries.values())remove(e);entries.clear();}
         function previewModels(id){const e=entries.get(id);return e?.enabled?[...e.models]:[];}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
         return {initialize,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.groundModel?.show?[e.groundModel]:[])])};

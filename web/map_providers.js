@@ -140,6 +140,27 @@
         })
     });
 
+    // Official nationwide basemap.de Web Raster is open CC BY 4.0, unlike
+    // basemap.de 3D test services. These WMS images are never prepared offline
+    // by FPVManager; offline is deliberately handled by the Swiss package path.
+    const germanyBounds = Object.freeze([5.98865,47.30248,15.01700,54.98311]);
+    const germanyLicense = 'https://sgx.geodatenzentrum.de/web_public/gdz/lizenz/deu/nutzungsbedingungen_basemapde.pdf';
+    const germanyCredit = '<a href="https://www.bkg.bund.de" target="_blank" rel="noopener">© GeoBasis-DE / BKG</a> (2026) · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · mit anderen Kartendiensten kombiniert (verändert)';
+    const germanyImagery = Object.freeze({
+        // No nationwide aerial-photo WMS has been licensed/configured. Show the
+        // official topographic map outside the detailed BB ortho-photo region
+        // rather than mislabelling Swiss satellite imagery as German imagery.
+        satellite: Object.freeze({url:'https://sgx.geodatenzentrum.de/wms_basemapde?',layers:'de_basemapde_web_raster_farbe'}),
+        topographic: Object.freeze({url:'https://sgx.geodatenzentrum.de/wms_basemapde?',layers:'de_basemapde_web_raster_farbe'}),
+        relief: Object.freeze({url:'https://sgx.geodatenzentrum.de/wms_basemapde_schummerung?',layers:'de_basemapde_web_raster_combshade'})
+    });
+    const germanImagerySource = Object.freeze({
+        id:'de.basemapde.web.raster',name:'basemap.de Web Raster (Deutschland)',
+        publisher:'GeoBasis-DE / BKG',attribution:'© GeoBasis-DE / BKG (2026), CC BY 4.0; mit anderen Diensten kombiniert (verändert)',
+        licenseName:'CC BY 4.0',licenseUri:'https://creativecommons.org/licenses/by/4.0/',
+        metadataUri:'https://basemap.de/produkte-und-dienste/web-raster/',validity:null
+    });
+
     function requireSource(value) {
         if (!value || ["id", "name", "publisher", "attribution", "metadataUri"]
             .some(key => typeof value[key] !== "string" || !value[key].trim())) {
@@ -196,26 +217,34 @@
                     tilingScheme: new Cesium.WebMercatorTilingScheme(),
                     credit: credit(Cesium, config.source, official) });
             },
-            // Region layers are remote-only until a separately licensed
-            // Berlin/Brandenburg offline package format exists. A caller's
-            // custom provider configuration remains authoritative.
+            // Country-wide base WMS, then higher-detail Berlin/Brandenburg
+            // ortho/relief overlays. All remote-only and unavailable offline.
             regionalImagery(style, offline = false) {
-                if (!Object.hasOwn(regionalImagery, style)) throw new Error(`Unknown regional map style: ${style}`);
+                if (!Object.hasOwn(germanyImagery, style)) throw new Error(`Unknown regional map style: ${style}`);
                 if (offline || cached() || prepared || configuration.preparedUnavailable ||
                     configuration.regionalImagery === false ||
                     (configuration.imagery != null && configuration.regionalImagery !== true)) return [];
-                const item = regionalImagery[style];
                 if (typeof Cesium.WebMapServiceImageryProvider !== 'function') return [];
-                const rectangle=Cesium.Rectangle.fromDegrees(...regionalBounds);
-                return [new Cesium.WebMapServiceImageryProvider({
-                    url:item.url, layers:item.layers, rectangle,
-                    tilingScheme:new Cesium.WebMercatorTilingScheme(),
-                    parameters:{format:'image/png',transparent:true,version:'1.3.0'},
-                    maximumLevel:19,
-                    credit:credit(Cesium,item.source,true)
-                })];
+                const webMercator=new Cesium.WebMercatorTilingScheme();
+                const wms=(item, rectangle, tileCredit)=>new Cesium.WebMapServiceImageryProvider({
+                    url:item.url,layers:item.layers,rectangle,
+                    tilingScheme:webMercator,parameters:{format:'image/png',transparent:true,version:'1.3.0'},
+                    maximumLevel:19,credit:tileCredit
+                });
+                const base=germanyImagery[style];
+                const providers=[wms(base,Cesium.Rectangle.fromDegrees(...germanyBounds),
+                    new Cesium.Credit(germanyCredit,true))];
+                // LGB DOP20c is licensed for Brandenburg/Berlin only, not for
+                // Germany as a whole. Keep it as the actual satellite source.
+                if(style==='satellite'||style==='relief'){
+                    const local=regionalImagery[style];
+                    providers.push(wms(local,Cesium.Rectangle.fromDegrees(...regionalBounds),
+                        credit(Cesium,local.source,true)));
+                }
+                return providers;
             },
-            describeRegionalImagery(style) { return regionalImagery[style]?.source ?? null; },
+            describeRegionalImagery(style) { return germanyImagery[style] ? germanImagerySource : null; },
+            describeLocalRegionalImagery(style) { return regionalImagery[style]?.source ?? null; },
             terrain() {
                 if(configuration.preparedUnavailable)throw new Error('Offline package metadata unavailable');
                 if(prepared){
@@ -250,6 +279,6 @@
         };
     }
     return { createAdapters, escapeCredit, defaultImagery: imagery, defaultTerrain: terrain,
-        defaultRegionalImagery:regionalImagery, regionalBounds,
+        defaultRegionalImagery:regionalImagery, regionalBounds,germanyBounds,germanyImagery,
         prepareCredits,configureCredits,retainStaticCredit,releaseStaticCredit,weatherCredits };
 });

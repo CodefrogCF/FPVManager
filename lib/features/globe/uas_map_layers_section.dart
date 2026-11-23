@@ -199,16 +199,17 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               label: 'Data status',
               value: controller.uasDisplayedStatus.dataState.label,
             ),
-          if (kDeveloperMenusEnabled)
-            _InfoRow(
-              label: 'Cache status',
-              value: switch (controller.uasDataFreshness) {
-                OsintFreshness.notLoaded => 'Not loaded',
-                OsintFreshness.fresh => 'Within local cache lifetime',
-                OsintFreshness.stale => 'Cache expired — refresh recommended',
-                OsintFreshness.clockSkew => 'Device clock precedes download',
-              },
-            ),
+          // Cache freshness is preflight information, not a developer-only
+          // performance diagnostic. Keep it visible in public builds.
+          _InfoRow(
+            label: 'Cache status',
+            value: switch (controller.uasDataFreshness) {
+              OsintFreshness.notLoaded => 'Not loaded',
+              OsintFreshness.fresh => 'Within local cache lifetime',
+              OsintFreshness.stale => 'Cache expired — refresh recommended',
+              OsintFreshness.clockSkew => 'Device clock precedes download',
+            },
+          ),
           _InfoRow(
             label: 'Official validity',
             value: switch (validity) {
@@ -294,11 +295,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                   ),
                 ),
 
-              if (kDeveloperMenusEnabled)
-                _InfoRow(
-                  label: 'Loaded features',
-                  value: controller.uasZonesFeatureCount?.toString() ?? '—',
-                ),
+              _InfoRow(
+                label: 'Loaded features',
+                value: controller.uasZonesFeatureCount?.toString() ?? '—',
+              ),
               const SizedBox(height: 8),
 
               if (kDeveloperMenusEnabled && assessment != null) ...[
@@ -329,13 +329,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                   value: _formatDownloadTime(displayed!.validity!.untilUtc),
                 ),
 
-              if (kDeveloperMenusEnabled)
-                _InfoRow(label: 'Source', value: source.dataUri.host),
-              if (kDeveloperMenusEnabled)
-                _InfoRow(
-                  label: 'Metadata',
-                  value: source.metadataUri.toString(),
-                ),
+              // The dataset endpoint and metadata are part of source
+              // provenance, even when developer menus are disabled.
+              _InfoRow(label: 'Source', value: source.dataUri.host),
+              _InfoRow(label: 'Metadata', value: source.metadataUri.toString()),
               if (source.licenseUri != null)
                 _InfoRow(
                   label: 'Licence terms',
@@ -352,12 +349,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Text(
-                kDeveloperMenusEnabled
-                    ? (controller.uasZonesError ?? provider.error!.message)
-                    : (AppLocalizations.maybeOf(context)?.language !=
-                              AppLanguage.english
-                          ? 'Luftraumdaten konnten nicht aktualisiert werden.'
-                          : 'Airspace data could not be refreshed.'),
+                // A failed renderer import must remain actionable in public
+                // builds. The generic error hid whether an existing dataset
+                // remained usable or which update failed.
+                controller.uasZonesError ?? provider.error!.message,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),

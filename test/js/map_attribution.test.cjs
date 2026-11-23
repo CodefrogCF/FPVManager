@@ -274,23 +274,28 @@ test('renderer applies source classification, preserves overlaps, and measures r
     flight.context.setMapStyle('topographic');assert.equal(flight.globe.maximumScreenSpaceError,3);
  });
 
-test('Berlin and Brandenburg official WMS layers follow map style without changing Swiss providers',async()=>{
+test('Germany-wide WMS and Brandenburg details follow style without changing Swiss providers',async()=>{
     const page=await renderer();
-    assert.equal(page.regional.length,1);
-    assert.equal(page.regional[0].layers,'bebb_dop20c');
-    assert.match(page.regional[0].credit.html,/GeoBasis-DE\/LGB/);
-    assert.equal(page.regional[0].rectangle.west,11.1528);
-    assert.equal(page.context.evalGlobe?.imageryLayers.length,2);
+    assert.equal(page.regional.length,2);
+    assert.equal(page.regional[0].layers,'de_basemapde_web_raster_farbe');
+    assert.match(page.regional[0].credit.html,/CC BY 4\.0/);
+    assert.equal(page.regional[1].layers,'bebb_dop20c');
+    assert.match(page.regional[1].credit.html,/GeoBasis-DE\/LGB/);
+    assert.equal(page.regional[1].rectangle.west,11.1528);
+    assert.equal(page.context.evalGlobe?.imageryLayers.length,3);
     page.context.setMapStyle('topographic');
-    assert.equal(page.regional.at(-1).layers,'basemapde_farbe_2025');
+    assert.equal(page.regional.at(-1).layers,'de_basemapde_web_raster_farbe');
     assert.equal(page.context.evalGlobe?.imageryLayers.length,2);
     page.context.setMapStyle('relief');
+    assert.equal(page.regional.at(-2).layers,'de_basemapde_web_raster_combshade');
     assert.equal(page.regional.at(-1).layers,'dgmshade');
-    assert.equal(page.context.evalGlobe?.imageryLayers.length,2);
+    assert.equal(page.context.evalGlobe?.imageryLayers.length,3);
     assert.equal(page.context.evalGlobe?.imageryLayers.get(0).imageryProvider,
         page.imagery.at(-1),'the official Swiss layer remains the base');
     assert.equal(page.context.evalGlobe?.imageryLayers.get(1).imageryProvider,
-        page.regional.at(-1),'the official LGB layer remains above the base');
+        page.regional.at(-2),'the nationwide BKG raster layer is above the base');
+    assert.equal(page.context.evalGlobe?.imageryLayers.get(2).imageryProvider,
+        page.regional.at(-1),'the detailed LGB layer is above the nationwide map');
 });
 
 test('regional services do not run during offline diagnostics or custom provider overrides',async()=>{
