@@ -265,7 +265,11 @@ class SceneLayersSection extends StatelessWidget {
               Text(
                 context.localizedWithArgs(
                   "Abfrage fehlgeschlagen: {0}",
-                  [kDeveloperMenusEnabled ? controller.tunnelScanError : 'Tunnel'],
+                  [
+                    kDeveloperMenusEnabled
+                        ? controller.tunnelScanError
+                        : 'Tunnel',
+                  ],
                   (l10n, value) =>
                       l10n.globeAbfrageFehlgeschlagene25d055d(value(0)),
                 ),
@@ -468,7 +472,8 @@ class SceneLayersSection extends StatelessWidget {
                           ),
                         ),
                       if (kDeveloperMenusEnabled &&
-                          controller.selectedInfrastructure!['attributes'] is Map)
+                          controller.selectedInfrastructure!['attributes']
+                              is Map)
                         for (final entry
                             in (controller.selectedInfrastructure!['attributes']
                                     as Map)
@@ -508,47 +513,47 @@ class SceneLayersSection extends StatelessWidget {
               ),
             if (kDeveloperMenusEnabled)
               TextButton.icon(
-              onPressed: enabled && !controller.tunnelModelPending
-                  ? () => change(() async {
-                      final file = await openFile(
-                        acceptedTypeGroups: [
-                          const XTypeGroup(
-                            label:
-                                'Georeferenced tunnel mesh or cross sections',
-                            extensions: ['json'],
-                          ),
-                        ],
-                      );
-                      if (file == null) return;
-                      if (await file.length() > 2097152) {
-                        throw const FormatException(
-                          'Tunnel geometry exceeds 2 MiB',
+                onPressed: enabled && !controller.tunnelModelPending
+                    ? () => change(() async {
+                        final file = await openFile(
+                          acceptedTypeGroups: [
+                            const XTypeGroup(
+                              label:
+                                  'Georeferenced tunnel mesh or cross sections',
+                              extensions: ['json'],
+                            ),
+                          ],
                         );
-                      }
-                      final data = jsonDecode(await file.readAsString());
-                      if (data is! Map<String, dynamic>) {
-                        throw const FormatException(
-                          'Expected tunnel geometry object',
-                        );
-                      }
-                      await controller.importTunnelModel(data);
-                    })
-                  : null,
-              icon: const Icon(Icons.upload_file),
-              label: Text(
-                context.localized(
-                  "Tunnelmodell importieren (JSON)",
-                  (l10n) => l10n.globeTunnelmodellImportierenJson8ffcf7c7,
+                        if (file == null) return;
+                        if (await file.length() > 2097152) {
+                          throw const FormatException(
+                            'Tunnel geometry exceeds 2 MiB',
+                          );
+                        }
+                        final data = jsonDecode(await file.readAsString());
+                        if (data is! Map<String, dynamic>) {
+                          throw const FormatException(
+                            'Expected tunnel geometry object',
+                          );
+                        }
+                        await controller.importTunnelModel(data);
+                      })
+                    : null,
+                icon: const Icon(Icons.upload_file),
+                label: Text(
+                  context.localized(
+                    "Tunnelmodell importieren (JSON)",
+                    (l10n) => l10n.globeTunnelmodellImportierenJson8ffcf7c7,
+                  ),
                 ),
               ),
-            ),
             if (kDeveloperMenusEnabled)
               Text(
-              context.localized(
-                "JSON mit EPSG:4979, Quelle und separatem Kollisionsmesh. GLB/IFC werden nicht direkt unterstützt.",
-                (l10n) => l10n.commonJsonMitEpsgQuellef95a2fe5,
+                context.localized(
+                  "JSON mit EPSG:4979, Quelle und separatem Kollisionsmesh. GLB/IFC werden nicht direkt unterstützt.",
+                  (l10n) => l10n.commonJsonMitEpsgQuellef95a2fe5,
+                ),
               ),
-            ),
           ],
         ),
         if (!kDeveloperMenusEnabled &&
@@ -560,132 +565,134 @@ class SceneLayersSection extends StatelessWidget {
           ),
         if (kDeveloperMenusEnabled)
           ExpansionTile(
-          key: const PageStorageKey('map-tunnel-data'),
-          tilePadding: EdgeInsets.zero,
-          title: Text(
-            context.localized(
-              "Tunnelstatus & Daten",
-              (l10n) => l10n.globeTunnelstatusDatend6e42b7d,
-            ),
-          ),
-          children: [
-            if (controller.structures3dVisible) ...[
-              if (controller.tunnelAutoState == 'loading')
-                const LinearProgressIndicator(),
-              Text(switch (controller.tunnelAutoState) {
-                'ready' =>
-                  controller.tunnelAutoCount == 0
-                      ? context.localized(
-                          "Keine im lokalen Index erfassten Tunnel im Kartenausschnitt. Datenabdeckung möglicherweise unvollständig.",
-                          (l10n) => l10n.globeKeineImLokalenIndex7a2d66ae,
-                        )
-                      : context.localizedWithArgs(
-                          "{0} Tunnelachsen im Kartenausschnitt gefunden (schematisch).",
-                          [controller.tunnelAutoCount],
-                          (l10n, value) => l10n
-                              .globeTunnelachsenImKartenausschnittGefundenbbd7f549(
-                                value(0),
-                              ),
-                        ),
-                'partial' => context.localizedWithArgs(
-                  "{0} Tunnelachsen gefunden; Abdeckung unvollständig.",
-                  [controller.tunnelAutoCount],
-                  (l10n, value) => l10n
-                      .globeTunnelachsenGefundenAbdeckungUnvollstaendigdabfec20(
-                        value(0),
-                      ),
-                ),
-                'failed' => context.localized(
-                  "Tunnelindex konnte nicht geladen werden. Quelle und Build-Daten prüfen.",
-                  (l10n) => l10n.globeTunnelindexKonnteNichtGeladen03a91e8e,
-                ),
-                'offline' => context.localized(
-                  "Tunnelachsen derzeit offline nicht verfügbar.",
-                  (l10n) => l10n.globeTunnelachsenDerzeitOfflineNicht2a3ab99c,
-                ),
-                'outside' => context.localized(
-                  "Tunnelachsen nur bei bodennaher Schweizer Kartenansicht automatisch laden.",
-                  (l10n) => l10n.globeTunnelachsenNurBeiBodennaherab983e29,
-                ),
-                _ => context.localized(
-                  "Tunnelachsen werden automatisch für den nahen sichtbaren Kartenausschnitt gesucht.",
-                  (l10n) => l10n.globeTunnelachsenWerdenAutomatischFuer8bbff5f7,
-                ),
-              }),
-              if (controller.tunnelAutoMessage != null)
-                Text(
-                  context.localizedWithArgs(
-                    "Tunnel-Datenquelle: {0}",
-                    [controller.tunnelAutoMessage],
-                    (l10n, value) =>
-                        l10n.globeTunnelDatenquellee8c8f0f5(value(0)),
-                  ),
-                ),
-            ],
-            if (controller.schematicTunnel3dEnabled) ...[
-              Text(
-                context.localizedWithArgs(
-                  "Automatisch dargestellte schematische Tunnel: {0} von maximal {1} (Grafikprofil).",
-                  [
-                    controller.schematicTunnelMeshCount,
-                    controller.schematicTunnelMeshBudget,
-                  ],
-                  (l10n, value) => l10n
-                      .globeAutomatischDargestellteSchematischeTunnel4dea34ff(
-                        value(0),
-                        value(1),
-                      ),
-                ),
+            key: const PageStorageKey('map-tunnel-data'),
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              context.localized(
+                "Tunnelstatus & Daten",
+                (l10n) => l10n.globeTunnelstatusDatend6e42b7d,
               ),
-              if (controller.schematicTunnelSkipped > 0)
+            ),
+            children: [
+              if (controller.structures3dVisible) ...[
+                if (controller.tunnelAutoState == 'loading')
+                  const LinearProgressIndicator(),
+                Text(switch (controller.tunnelAutoState) {
+                  'ready' =>
+                    controller.tunnelAutoCount == 0
+                        ? context.localized(
+                            "Keine im lokalen Index erfassten Tunnel im Kartenausschnitt. Datenabdeckung möglicherweise unvollständig.",
+                            (l10n) => l10n.globeKeineImLokalenIndex7a2d66ae,
+                          )
+                        : context.localizedWithArgs(
+                            "{0} Tunnelachsen im Kartenausschnitt gefunden (schematisch).",
+                            [controller.tunnelAutoCount],
+                            (l10n, value) => l10n
+                                .globeTunnelachsenImKartenausschnittGefundenbbd7f549(
+                                  value(0),
+                                ),
+                          ),
+                  'partial' => context.localizedWithArgs(
+                    "{0} Tunnelachsen gefunden; Abdeckung unvollständig.",
+                    [controller.tunnelAutoCount],
+                    (l10n, value) => l10n
+                        .globeTunnelachsenGefundenAbdeckungUnvollstaendigdabfec20(
+                          value(0),
+                        ),
+                  ),
+                  'failed' => context.localized(
+                    "Tunnelindex konnte nicht geladen werden. Quelle und Build-Daten prüfen.",
+                    (l10n) => l10n.globeTunnelindexKonnteNichtGeladen03a91e8e,
+                  ),
+                  'offline' => context.localized(
+                    "Tunnelachsen derzeit offline nicht verfügbar.",
+                    (l10n) => l10n.globeTunnelachsenDerzeitOfflineNicht2a3ab99c,
+                  ),
+                  'outside' => context.localized(
+                    "Tunnelachsen nur bei bodennaher Schweizer Kartenansicht automatisch laden.",
+                    (l10n) => l10n.globeTunnelachsenNurBeiBodennaherab983e29,
+                  ),
+                  _ => context.localized(
+                    "Tunnelachsen werden automatisch für den nahen sichtbaren Kartenausschnitt gesucht.",
+                    (l10n) =>
+                        l10n.globeTunnelachsenWerdenAutomatischFuer8bbff5f7,
+                  ),
+                }),
+                if (controller.tunnelAutoMessage != null)
+                  Text(
+                    context.localizedWithArgs(
+                      "Tunnel-Datenquelle: {0}",
+                      [controller.tunnelAutoMessage],
+                      (l10n, value) =>
+                          l10n.globeTunnelDatenquellee8c8f0f5(value(0)),
+                    ),
+                  ),
+              ],
+              if (controller.schematicTunnel3dEnabled) ...[
                 Text(
                   context.localizedWithArgs(
-                    "Nicht modellierbare Tunnelabschnitte: {0} von {1} erfassten Achsen.",
+                    "Automatisch dargestellte schematische Tunnel: {0} von maximal {1} (Grafikprofil).",
                     [
-                      controller.schematicTunnelSkipped,
-                      controller.schematicTunnelConsidered,
+                      controller.schematicTunnelMeshCount,
+                      controller.schematicTunnelMeshBudget,
                     ],
-                    (l10n, value) =>
-                        l10n.globeNichtModellierbareTunnelabschnitteVon25d903e4(
+                    (l10n, value) => l10n
+                        .globeAutomatischDargestellteSchematischeTunnel4dea34ff(
                           value(0),
                           value(1),
                         ),
                   ),
                 ),
-              if (controller.schematicTunnelMeshCount > 0)
-                Text(
-                  context.localizedWithArgs(
-                    "Terrain-Aussparungen: {0}. Weitere sichtbare Röhren sind ggf. vom Gelände verdeckt.",
-                    [controller.schematicTunnelClipped],
-                    (l10n, value) =>
-                        l10n.globeTerrainAussparungenWeitereSichtbaree67506d9(
-                          value(0),
-                        ),
+                if (controller.schematicTunnelSkipped > 0)
+                  Text(
+                    context.localizedWithArgs(
+                      "Nicht modellierbare Tunnelabschnitte: {0} von {1} erfassten Achsen.",
+                      [
+                        controller.schematicTunnelSkipped,
+                        controller.schematicTunnelConsidered,
+                      ],
+                      (l10n, value) => l10n
+                          .globeNichtModellierbareTunnelabschnitteVon25d903e4(
+                            value(0),
+                            value(1),
+                          ),
+                    ),
                   ),
+                if (controller.schematicTunnelMeshCount > 0)
+                  Text(
+                    context.localizedWithArgs(
+                      "Terrain-Aussparungen: {0}. Weitere sichtbare Röhren sind ggf. vom Gelände verdeckt.",
+                      [controller.schematicTunnelClipped],
+                      (l10n, value) =>
+                          l10n.globeTerrainAussparungenWeitereSichtbaree67506d9(
+                            value(0),
+                          ),
+                    ),
+                  ),
+                if (controller.schematicTunnelMeshError != null)
+                  Text(
+                    context.localizedWithArgs("3D-Tunnel: {0}", [
+                      controller.schematicTunnelMeshError,
+                    ], (l10n, value) => l10n.globeDTunnele1017c1e(value(0))),
+                  ),
+              ],
+              if (controller.tunnelRoutes.any(
+                (route) =>
+                    route['source'] == 'OpenStreetMap (Overpass fallback)',
+              ))
+                const Text(
+                  '© OpenStreetMap contributors (ODbL) · '
+                  'openstreetmap.org/copyright',
                 ),
-              if (controller.schematicTunnelMeshError != null)
-                Text(
-                  context.localizedWithArgs("3D-Tunnel: {0}", [
-                    controller.schematicTunnelMeshError,
-                  ], (l10n, value) => l10n.globeDTunnele1017c1e(value(0))),
+              Text(
+                context.localized(
+                  "Tunnel stammen aus dem vorbereiteten Schweizer Offlineindex. Fehlt dieser, sendet die Online-Ersatzsuche den Kartenausschnitt an die Datenquelle. Querschnitt, Portale und Höhen sind nicht vermessen. Nur Simulation, keine reale Durchflugfreigabe.",
+                  (l10n) => l10n.commonTunnelStammenAusDema4a6630f,
                 ),
+              ),
+              const SizedBox(height: 8),
             ],
-            if (controller.tunnelRoutes.any(
-              (route) => route['source'] == 'OpenStreetMap (Overpass fallback)',
-            ))
-              const Text(
-                '© OpenStreetMap contributors (ODbL) · '
-                'openstreetmap.org/copyright',
-              ),
-            Text(
-              context.localized(
-                "Tunnel stammen aus dem vorbereiteten Schweizer Offlineindex. Fehlt dieser, sendet die Online-Ersatzsuche den Kartenausschnitt an die Datenquelle. Querschnitt, Portale und Höhen sind nicht vermessen. Nur Simulation, keine reale Durchflugfreigabe.",
-                (l10n) => l10n.commonTunnelStammenAusDema4a6630f,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
       ],
     );
   }

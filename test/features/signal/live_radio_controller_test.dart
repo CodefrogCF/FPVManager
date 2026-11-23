@@ -135,7 +135,8 @@ void main() {
       },
       sample: (positions) {
         requestedPoints = positions.length;
-        return pending?.future ?? Future.value(List.filled(positions.length, 500.0));
+        return pending?.future ??
+            Future.value(List.filled(positions.length, 500.0));
       },
     );
     addTearDown(c.dispose);
@@ -153,12 +154,20 @@ void main() {
     expect(c.current, false);
     pending.complete(List.filled(requestedPoints, 500.0));
     await c.settled;
-    expect(c.current, true, reason: 'The newer in-flight request must survive the old profile expiry');
+    expect(
+      c.current,
+      true,
+      reason: 'The newer in-flight request must survive the old profile expiry',
+    );
     expect(c.result!.state, RadioPathState.noSampledObstruction);
-    final unknown = emitted.lastWhere((m) =>
-        m['type'] == 'set-live-radio-result' && m['state'] == 'unknown');
-    final published = emitted.lastWhere((m) =>
-        m['type'] == 'set-live-radio-result' && m['state'] == 'noSampledObstruction');
+    final unknown = emitted.lastWhere(
+      (m) => m['type'] == 'set-live-radio-result' && m['state'] == 'unknown',
+    );
+    final published = emitted.lastWhere(
+      (m) =>
+          m['type'] == 'set-live-radio-result' &&
+          m['state'] == 'noSampledObstruction',
+    );
     expect(published['revision'], greaterThan(unknown['revision'] as int));
   });
 
@@ -167,7 +176,9 @@ void main() {
     var count = 0;
     final messages = <Map<String, dynamic>>[];
     final c = LiveRadioController(
-      send: (message) async { messages.add(message); },
+      send: (message) async {
+        messages.add(message);
+      },
       sample: (points) {
         count = points.length;
         return pending.future;
@@ -186,36 +197,45 @@ void main() {
     expect(c.result!.target.longitude, closeTo(8.006, 0.000001));
     expect(c.result!.state, RadioPathState.obstructed);
     expect(c.assessment.confidence, LiveAssessmentConfidence.limited);
-    final published = messages.lastWhere((message) =>
-        message['state'] == 'obstructed' && message['type'] == 'set-live-radio-result');
+    final published = messages.lastWhere(
+      (message) =>
+          message['state'] == 'obstructed' &&
+          message['type'] == 'set-live-radio-result',
+    );
     expect((published['sampling'] as Map)['recheckedMovingPath'], true);
-    expect((published['rays'] as List).single['longitude'], closeTo(8.006, 0.000001));
+    expect(
+      (published['rays'] as List).single['longitude'],
+      closeTo(8.006, 0.000001),
+    );
   });
 
-  test('a sharp turn cannot reuse blockage sampled on a different ray', () async {
-    final pending = Completer<List<double>>();
-    var count = 0;
-    final c = LiveRadioController(
-      send: (_) async {},
-      sample: (points) {
-        count = points.length;
-        return pending.future;
-      },
-    );
-    addTearDown(c.dispose);
-    c.renderer(true);
-    await c.configure(const LiveRadioSettings(enabled: true));
-    c.telemetry(pose(lon: 8.004, height: 550));
-    final turning = pose(lon: 8.006, height: 550);
-    turning['latitude'] = 47.003;
-    c.telemetry(turning);
-    final heights = List<double>.filled(count, 500.0);
-    heights[count ~/ 2] = 650;
-    pending.complete(heights);
-    await c.settled;
-    expect(c.current, false);
-    expect(c.assessment.visibility, LivePathVisibility.unknown);
-  });
+  test(
+    'a sharp turn cannot reuse blockage sampled on a different ray',
+    () async {
+      final pending = Completer<List<double>>();
+      var count = 0;
+      final c = LiveRadioController(
+        send: (_) async {},
+        sample: (points) {
+          count = points.length;
+          return pending.future;
+        },
+      );
+      addTearDown(c.dispose);
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings(enabled: true));
+      c.telemetry(pose(lon: 8.004, height: 550));
+      final turning = pose(lon: 8.006, height: 550);
+      turning['latitude'] = 47.003;
+      c.telemetry(turning);
+      final heights = List<double>.filled(count, 500.0);
+      heights[count ~/ 2] = 650;
+      pending.complete(heights);
+      await c.settled;
+      expect(c.current, false);
+      expect(c.assessment.visibility, LivePathVisibility.unknown);
+    },
+  );
 
   test('beyond 50 km remains unknown but provides range for free-space diagnostics', () async {
     final messages = <Map<String, dynamic>>[];

@@ -187,6 +187,5 @@ class LiveTerrainSampler {
       if (!valid()) throw const FormatException('Stale live terrain request');
       refined += selected.length;
     }
-
   }
 }

@@ -86,30 +86,37 @@ void main() {
     expect(calls, 1);
   });
 
-  test('a coarse sampled ridge reports obstruction without redundant refinement', () async {
-    const distance = 12000.0;
-    final target = Wgs84Coordinate(
-      latitude: 47 + distance / 111195,
-      longitude: 8,
-    );
-    final actual = routeDistance(station, target);
-    final terrain = await LiveTerrainSampler.calculate(
-      signal: const SignalSettings(pilot: station, antennaHeight: 2),
-      target: target,
-      targetHeight: 800,
-      distanceMeters: actual,
-      tier: LiveSamplingPolicy.forDistance(actual),
-      valid: () => true,
-      sample: (locations) async => [
-        for (final p in locations)
-          (p.latitude > 47.052 && p.latitude < 47.057) ? 1000.0 : 500.0,
-      ],
-    );
-    expect(terrain.refinedCount, 0, reason: 'A verified obstruction needs no extra terrain round');
-    expect(terrain.queryCount, 1);
-    expect(terrain.path.state, RadioPathState.obstructed);
-    expect(terrain.path.minimumClearance, lessThan(0));
-  });
+  test(
+    'a coarse sampled ridge reports obstruction without redundant refinement',
+    () async {
+      const distance = 12000.0;
+      final target = Wgs84Coordinate(
+        latitude: 47 + distance / 111195,
+        longitude: 8,
+      );
+      final actual = routeDistance(station, target);
+      final terrain = await LiveTerrainSampler.calculate(
+        signal: const SignalSettings(pilot: station, antennaHeight: 2),
+        target: target,
+        targetHeight: 800,
+        distanceMeters: actual,
+        tier: LiveSamplingPolicy.forDistance(actual),
+        valid: () => true,
+        sample: (locations) async => [
+          for (final p in locations)
+            (p.latitude > 47.052 && p.latitude < 47.057) ? 1000.0 : 500.0,
+        ],
+      );
+      expect(
+        terrain.refinedCount,
+        0,
+        reason: 'A verified obstruction needs no extra terrain round',
+      );
+      expect(terrain.queryCount, 1);
+      expect(terrain.path.state, RadioPathState.obstructed);
+      expect(terrain.path.minimumClearance, lessThan(0));
+    },
+  );
 
   test(
     'a narrow ridge missed by the coarse pass is detected on refinement',

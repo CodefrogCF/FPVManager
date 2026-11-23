@@ -196,19 +196,19 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
           ),
           if (kDeveloperMenusEnabled)
             _InfoRow(
-            label: 'Data status',
-            value: controller.uasDisplayedStatus.dataState.label,
-          ),
+              label: 'Data status',
+              value: controller.uasDisplayedStatus.dataState.label,
+            ),
           if (kDeveloperMenusEnabled)
             _InfoRow(
-            label: 'Cache status',
-            value: switch (controller.uasDataFreshness) {
-              OsintFreshness.notLoaded => 'Not loaded',
-              OsintFreshness.fresh => 'Within local cache lifetime',
-              OsintFreshness.stale => 'Cache expired — refresh recommended',
-              OsintFreshness.clockSkew => 'Device clock precedes download',
-            },
-          ),
+              label: 'Cache status',
+              value: switch (controller.uasDataFreshness) {
+                OsintFreshness.notLoaded => 'Not loaded',
+                OsintFreshness.fresh => 'Within local cache lifetime',
+                OsintFreshness.stale => 'Cache expired — refresh recommended',
+                OsintFreshness.clockSkew => 'Device clock precedes download',
+              },
+            ),
           _InfoRow(
             label: 'Official validity',
             value: switch (validity) {
@@ -267,11 +267,11 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               ),
               if (kDeveloperMenusEnabled)
                 _InfoRow(
-                label: 'Source checked',
-                value: displayed?.lastCheckedAtUtc == null
-                    ? 'Not checked by this adapter'
-                    : _formatDownloadTime(displayed!.lastCheckedAtUtc),
-              ),
+                  label: 'Source checked',
+                  value: displayed?.lastCheckedAtUtc == null
+                      ? 'Not checked by this adapter'
+                      : _formatDownloadTime(displayed!.lastCheckedAtUtc),
+                ),
               _InfoRow(
                 label: 'Published',
                 value: displayed?.publishedAtUtc == null
@@ -282,23 +282,23 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 Text(provider.cacheError!),
               if (kDeveloperMenusEnabled)
                 TextButton.icon(
-                onPressed: controller.isReady && controller.canClearUasCache
-                    ? () => _execute(controller.clearUasCache)
-                    : null,
-                icon: const Icon(Icons.delete_outline),
-                label: Text(
-                  context.localized(
-                    "Clear UAS dataset cache",
-                    (l10n) => l10n.globeClearUasDatasetCacheaad7bb57,
+                  onPressed: controller.isReady && controller.canClearUasCache
+                      ? () => _execute(controller.clearUasCache)
+                      : null,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(
+                    context.localized(
+                      "Clear UAS dataset cache",
+                      (l10n) => l10n.globeClearUasDatasetCacheaad7bb57,
+                    ),
                   ),
                 ),
-              ),
 
               if (kDeveloperMenusEnabled)
                 _InfoRow(
-                label: 'Loaded features',
-                value: controller.uasZonesFeatureCount?.toString() ?? '—',
-              ),
+                  label: 'Loaded features',
+                  value: controller.uasZonesFeatureCount?.toString() ?? '—',
+                ),
               const SizedBox(height: 8),
 
               if (kDeveloperMenusEnabled && assessment != null) ...[
@@ -332,7 +332,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               if (kDeveloperMenusEnabled)
                 _InfoRow(label: 'Source', value: source.dataUri.host),
               if (kDeveloperMenusEnabled)
-                _InfoRow(label: 'Metadata', value: source.metadataUri.toString()),
+                _InfoRow(
+                  label: 'Metadata',
+                  value: source.metadataUri.toString(),
+                ),
               if (source.licenseUri != null)
                 _InfoRow(
                   label: 'Licence terms',

@@ -194,11 +194,11 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
             ),
             if (kDeveloperMenusEnabled)
               Text(
-              context.localizedWithArgs("Sampling: {0}", [
-                terrain.samplingMethod,
-              ], (l10n, value) => l10n.globeSamplinga7cf9539(value(0))),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+                context.localizedWithArgs("Sampling: {0}", [
+                  terrain.samplingMethod,
+                ], (l10n, value) => l10n.globeSamplinga7cf9539(value(0))),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             const SizedBox(height: 12),
             if (_swissHeight != null)
               Text(
