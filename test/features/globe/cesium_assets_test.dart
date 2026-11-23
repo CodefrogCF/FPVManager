@@ -91,7 +91,10 @@ void main() {
         expect(await rootBundle.loadString('web/$module'), isNotEmpty);
       }
       expect(html, contains('href="features/flight/hud/flight_hud.css"'));
-      expect(await rootBundle.loadString('web/features/flight/hud/flight_hud.css'), isNotEmpty);
+      expect(
+        await rootBundle.loadString('web/features/flight/hud/flight_hud.css'),
+        isNotEmpty,
+      );
       for (final model in [
         'power-pylon',
         'utility-pole',

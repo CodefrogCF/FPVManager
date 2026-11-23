@@ -290,7 +290,8 @@ class LiveRadioController extends ChangeNotifier {
       // for the new one; queue the latest position for immediate follow-up.
       // This is especially important for mountain flying at high speed.
       final requested = _inFlightPose;
-      if (_pending != null && requested != null &&
+      if (_pending != null &&
+          requested != null &&
           (routeDistance(requested.position, _pose!.position) >=
                   math.max(6, _speedMetersPerSecond * 0.12) ||
               (requested.height - _pose!.height).abs() >= 6)) {
@@ -364,14 +365,16 @@ class LiveRadioController extends ChangeNotifier {
     _lastAttempt = now();
     final operation = _calculate();
     _pending = operation;
-    unawaited(operation.whenComplete(() {
-      _pending = null;
-      _inFlightPose = null;
-      if (_retryLatestPose && !_disposed) {
-        _retryLatestPose = false;
-        _schedule();
-      }
-    }));
+    unawaited(
+      operation.whenComplete(() {
+        _pending = null;
+        _inFlightPose = null;
+        if (_retryLatestPose && !_disposed) {
+          _retryLatestPose = false;
+          _schedule();
+        }
+      }),
+    );
   }
 
   // Terrain samples are fixed world positions. When a fast aircraft moves
@@ -395,13 +398,14 @@ class LiveRadioController extends ChangeNotifier {
     for (final sample in original.skip(1)) {
       final fromStation = routeDistance(signal.pilot, sample.position);
       final fromTarget = routeDistance(target, sample.position);
-      final along = (length * length + fromStation * fromStation -
+      final along =
+          (length * length +
+              fromStation * fromStation -
               fromTarget * fromTarget) /
           (2 * length);
-      final lateral = math.sqrt(math.max(
-        0,
-        fromStation * fromStation - along * along,
-      ));
+      final lateral = math.sqrt(
+        math.max(0, fromStation * fromStation - along * along),
+      );
       if (along > 2 && along < length - 2 && lateral <= 2) {
         matched.add(sample);
       }
@@ -519,14 +523,14 @@ class LiveRadioController extends ChangeNotifier {
       status = updatedFromExistingSamples
           ? 'Potential obstruction (rechecked against sampled terrain)'
           : switch (calculated.state) {
-        RadioPathState.unknown => 'Unknown',
-        RadioPathState.obstructed => 'Potential obstruction',
-        RadioPathState.fresnelIntrusion => 'Fresnel intrusion',
-        RadioPathState.noSampledObstruction =>
-          sampled.coverageLimited
-              ? 'Unknown: coarse terrain coverage (no sampled obstruction)'
-              : 'No sampled obstruction',
-      };
+              RadioPathState.unknown => 'Unknown',
+              RadioPathState.obstructed => 'Potential obstruction',
+              RadioPathState.fresnelIntrusion => 'Fresnel intrusion',
+              RadioPathState.noSampledObstruction =>
+                sampled.coverageLimited
+                    ? 'Unknown: coarse terrain coverage (no sampled obstruction)'
+                    : 'No sampled obstruction',
+            };
       double margin(RadioPathSample p) =>
           calculated.state == RadioPathState.obstructed
           ? p.clearance
