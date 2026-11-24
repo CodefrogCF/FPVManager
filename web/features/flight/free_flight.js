@@ -915,7 +915,7 @@
                 failsafe.setConfiguration(config.failsafe);clearKeys();if(active){pose();publish();}
             },
             linkAssessment(value){linkAssessment=value??null;},
-            resumeAfterFailsafe(){if(failsafe.recover()){clearKeys();gpsHeadingTarget=heading;if(active){pose();publish();}return true;}return false;},
+            resumeAfterFailsafe(){if(failsafe.recover(linkAssessment)){clearKeys();gpsHeadingTarget=heading;if(active){pose();publish();}return true;}return false;},
             signalHudSettings(value){
                 config={...config,signalHud:signalHud.settings(value)};if(active){pose();publish();}
             },
@@ -948,11 +948,11 @@
                 if(config.physicsModel==='advanced')gpsHeadingTarget=wrap(gpsHeadingTarget+dx*.004);
                 else {heading=wrap(heading+dx*.004);pitch=clamp(pitch-dy*.004,-85*rad,85*rad);}}},
             key(key,down){if(playback)return;
-                if(failsafe.status().active){if(down&&['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','i','j','k','l','e','q'].includes(key)&&failsafe.recover()){
+                if(failsafe.status().active){if(down&&['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','i','j','k','l','e','q'].includes(key)&&failsafe.recover(linkAssessment)){
                     clearKeys();gpsHeadingTarget=heading;keys.add(key);pose();publish();}return;}
                 if(down&&active)keys.add(key);else keys.delete(key);},
             stick(f,r){if(playback||!Number.isFinite(f)||!Number.isFinite(r))return;
-                if(failsafe.status().active){if(Math.max(Math.abs(f),Math.abs(r))<.3||!failsafe.recover())return;clearKeys();gpsHeadingTarget=heading;}
+                if(failsafe.status().active){if(Math.max(Math.abs(f),Math.abs(r))<.3||!failsafe.recover(linkAssessment))return;clearKeys();gpsHeadingTarget=heading;}
                 forward=clamp(f,-1,1);right=clamp(r,-1,1);},
             flightInput(frame){if(!active||playback||!frame||
                 ![frame.throttle,frame.yaw,frame.pitch,frame.roll].every(Number.isFinite))return;
@@ -960,13 +960,13 @@
                     // As in Betaflight, recover only after a sustained RC link AND
                     // deliberate yaw/pitch/roll movement, not an idle throttle.
                     if(Math.max(Math.abs(frame.yaw),Math.abs(frame.pitch),Math.abs(frame.roll))<.3||
-                        !failsafe.recover())return;
+                        !failsafe.recover(linkAssessment))return;
                     clearKeys();gpsHeadingTarget=heading;
                 }
                 input.throttle=clamp(frame.throttle,-1,1);input.yaw=clamp(frame.yaw,-1,1);
                 input.pitch=clamp(frame.pitch,-1,1);input.roll=clamp(frame.roll,-1,1);},
             vertical(v){if(playback||!Number.isFinite(v))return;
-                if(failsafe.status().active){if(Math.abs(v)<.3||!failsafe.recover())return;clearKeys();gpsHeadingTarget=heading;}
+                if(failsafe.status().active){if(Math.abs(v)<.3||!failsafe.recover(linkAssessment))return;clearKeys();gpsHeadingTarget=heading;}
                 vertical=clamp(v,-1,1);},
             pause(value){if(!playback&&paused!==value&&active){runtime?.discardBacklog();paused=value;clearKeys();brake();reason=value?'Paused: tap the view to resume':null;pose();publish();}},
             clearKeys};

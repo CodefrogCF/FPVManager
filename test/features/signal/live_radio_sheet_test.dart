@@ -173,4 +173,38 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets('RF diagnostics are opt-in and fit a narrow settings sheet', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 640);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final globe = GlobeController();
+    addTearDown(globe.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showLiveRadioSettings(context, globe),
+              child: const Text('Configure'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Configure'));
+    await tester.pumpAndSettle();
+    final toggle = find.widgetWithText(SwitchListTile, 'Live RF diagnostics');
+    await tester.ensureVisible(toggle);
+    expect(globe.liveRadio.diagnosticsEnabled, false);
+    expect(find.textContaining('Active/queued'), findsNothing);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(globe.liveRadio.diagnosticsEnabled, true);
+    expect(find.textContaining('Active/queued'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

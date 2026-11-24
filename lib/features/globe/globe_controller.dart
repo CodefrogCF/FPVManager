@@ -225,16 +225,18 @@ class GlobeController extends ChangeNotifier {
     List<Wgs84Coordinate> positions,
   ) async {
     if (!_terrainAvailable || positions.isEmpty || positions.length > 256) {
-      throw StateError('Live terrain unavailable');
+      throw StateError('TERRAIN_UNAVAILABLE: Live terrain unavailable');
     }
     final epoch = terrainRevision;
     final data = await _request({
       'type': 'query-live-radio-terrain',
+      'generation': liveRadio.generation,
+      'analysisRequestId': liveRadio.requestId,
       'positions': [
         for (final p in positions)
           {'latitude': p.latitude, 'longitude': p.longitude},
       ],
-    }, timeout: _bridge.options.terrainTimeout);
+    }, timeout: liveRadio.requestTimeout);
     final heights = data['heights'];
     if (!_terrainAvailable ||
         terrainRevision != epoch ||
@@ -244,6 +246,9 @@ class GlobeController extends ChangeNotifier {
         heights.length != positions.length ||
         heights.any((h) => h is! num || !h.isFinite || h.abs() > 100000)) {
       throw const FormatException('Incomplete live terrain');
+    }
+    if (data['diagnostics'] case final Map<String, dynamic> diagnostics) {
+      liveRadio.recordTerrainDiagnostics(diagnostics);
     }
     return heights.map((h) => (h as num).toDouble()).toList(growable: false);
   }

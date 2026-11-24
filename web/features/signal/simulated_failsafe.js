@@ -6,6 +6,9 @@
         activationDelaySeconds:.6,recoveryDelaySeconds:.6,rescueAltitudeMeters:100,
         returnSpeedMetersPerSecond:8,climbSpeedMetersPerSecond:5,autoRecover:false});
     const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    // Shared with the live terrain observation window. This bounds evidence,
+    // not the user's configured loss/recovery delays.
+    const maximumObservationAgeMs=5000;
     function configuration(value={}){
         if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid simulated failsafe configuration');
         const s={...defaults,...value};
@@ -20,6 +23,9 @@
         return s;
     }
     function rcQuality(assessment){
+        const observation=assessment?.observation;
+        if(observation&&(observation.quality!=='valid'||!Number.isFinite(observation.ageMs)||
+            observation.ageMs<0||observation.ageMs>=maximumObservationAgeMs))return null;
         const link=assessment?.controlLink;
         if(!link||typeof link!=='object'||!Number.isFinite(link.quality)||link.quality<0||link.quality>1||
             !['rfModel','estimatedModel'].includes(link.source))return null;
@@ -27,19 +33,25 @@
     }
     function create(settings=defaults){
         let cfg=configuration(settings),phase='normal',lossTime=0,recoveryTime=0,phaseTime=0;
-        let reason=null,quality=null,targetAltitude=null;
+        let reason=null,quality=null,targetAltitude=null,observationQuality='unknown';
+        let observationId=null,observationAgeSeconds=null,unknownSeconds=0,observationTracking=false;
         // A confirmed RC restoration stays usable through marginal link quality
         // and short missing terrain results. Do not require the pilot to catch
         // a single frame immediately after the reconnection timer completes.
         // A sustained new loss or stale/unknown RC evidence revokes takeover.
         let recoveryArmed=false,reLossTime=0,unknownRecoveryTime=0;
-        const maximumUnknownRecoverySeconds=5;
+        const maximumUnknownRecoverySeconds=maximumObservationAgeMs/1000;
         function reset(){phase='normal';lossTime=0;recoveryTime=0;phaseTime=0;reason=null;quality=null;targetAltitude=null;
-            recoveryArmed=false;reLossTime=0;unknownRecoveryTime=0;}
+            recoveryArmed=false;reLossTime=0;unknownRecoveryTime=0;observationQuality='unknown';
+            observationId=null;observationAgeSeconds=null;unknownSeconds=0;observationTracking=false;}
         function setConfiguration(value){cfg=configuration(value);reset();}
         function setPhase(next){if(next!==phase){phase=next;phaseTime=0;}}
         function status(){return {enabled:cfg.enabled,mode:cfg.mode,phase,reason,rcQuality:quality,
-            active:!['normal','pending'].includes(phase),recoveryReady:recoveryArmed&&!['normal','pending','landed'].includes(phase),
+            observationQuality,observationAgeMs:observationAgeSeconds===null?null:observationAgeSeconds*1000,
+            lossTimeSeconds:lossTime,uncertain:phase==='uncertain'||observationTracking&&quality===null&&unknownSeconds>0,
+            active:!['normal','pending'].includes(phase),recoveryReady:recoveryArmed&&
+                observationAgeSeconds!==null&&observationAgeSeconds<maximumUnknownRecoverySeconds&&
+                !['normal','pending','landed'].includes(phase),
             recovering:recoveryTime>0&&!recoveryArmed&&!['normal','pending','landed'].includes(phase),
             targetAltitudeMeters:targetAltitude};}
         function takeControl(context){
@@ -57,10 +69,46 @@
             if(!cfg.enabled||context.playback){reset();return status();}
             const seconds=Number.isFinite(dt)?clamp(dt,0,.1):0;
             quality=rcQuality(assessment);
+            const observation=assessment?.observation;
+            if(quality!==null||observation&&observation.enabled!==false)observationTracking=true;
+            observationQuality=observation?.quality??(quality===null?'unknown':'valid');
+            if(quality!==null){
+                // A held bridge object is not a fresh sample on every physics
+                // step. Age by deterministic simulation time as well as the
+                // renderer's monotonic age. Manual training is an intentional
+                // session input rather than asynchronously sampled terrain.
+                const training=assessment.controlLink?.detail==='manualTraining';
+                const id=observation?.id??assessment?.sampledAtMs??observation;
+                const suppliedAge=observation?observation.ageMs/1000:0;
+                if(!observation||training)observationAgeSeconds=suppliedAge;
+                else if(id!==observationId)observationAgeSeconds=suppliedAge+seconds;
+                else observationAgeSeconds=Math.max((observationAgeSeconds??0)+seconds,suppliedAge);
+                observationId=id;
+                if(observationAgeSeconds>=maximumUnknownRecoverySeconds){quality=null;observationQuality='stale';}
+                else unknownSeconds=0;
+            }else{
+                if(observationAgeSeconds!==null)observationAgeSeconds+=seconds;
+                if(Number.isFinite(observation?.ageMs)&&observation.ageMs>=0)
+                    observationAgeSeconds=Math.max(observationAgeSeconds??0,observation.ageMs/1000);
+            }
+            if(quality===null)unknownSeconds+=seconds;
+            const evidenceExpired=observationTracking&&((observationAgeSeconds!==null&&
+                observationAgeSeconds>=maximumUnknownRecoverySeconds)||unknownSeconds>=maximumUnknownRecoverySeconds);
+            if(evidenceExpired){recoveryArmed=false;recoveryTime=0;}
             if(phase==='normal'||phase==='pending'){
-                if(quality===null||quality>cfg.lossThreshold){setPhase('normal');lossTime=0;}
+                if(quality===null){
+                    // Missing terrain is neither restored reception nor a new
+                    // confirmed loss interval. Preserve, but pause, pending
+                    // loss time while awaiting fresh model evidence.
+                    if(evidenceExpired){setPhase('uncertain');reason='observationUnavailable';}
+                }else if(quality>cfg.lossThreshold){setPhase('normal');lossTime=0;reason=null;}
                 else {lossTime+=seconds;setPhase('pending');
                     if(lossTime>=cfg.activationDelaySeconds)takeControl(context);}
+                return status();
+            }
+            if(phase==='uncertain'&&quality!==null&&quality<=cfg.lossThreshold){
+                reason=null;setPhase('pending');lossTime+=seconds;
+                if(lossTime>=cfg.activationDelaySeconds)takeControl(context);
                 return status();
             }
             phaseTime+=seconds;
@@ -90,7 +138,7 @@
             }else if(quality===null){
                 reLossTime=0;
                 if(!recoveryArmed)recoveryTime=0;
-                else if((unknownRecoveryTime+=seconds)>=maximumUnknownRecoverySeconds){
+                else if((unknownRecoveryTime+=seconds)>=maximumUnknownRecoverySeconds||evidenceExpired){
                     recoveryArmed=false;recoveryTime=0;
                 }
             }else{
@@ -120,8 +168,18 @@
             }
             return status();
         }
-        function recover(){if(!status().recoveryReady)return false;reset();return true;}
+        function recover(currentAssessment){
+            // Paused flight does not advance the state machine. Its most
+            // recent renderer assessment can still expire before a pilot
+            // presses takeover, so validate the supplied evidence as well.
+            const observation=currentAssessment?.observation;
+            if(observation&&(observation.quality==='stale'||!Number.isFinite(observation.ageMs)||
+                observation.ageMs<0||observation.ageMs>=maximumObservationAgeMs))return false;
+            const latestQuality=rcQuality(currentAssessment);
+            if(latestQuality!==null&&latestQuality<=cfg.lossThreshold)return false;
+            if(!status().recoveryReady)return false;reset();return true;
+        }
         return {step,reset,recover,status,setConfiguration,get settings(){return {...cfg};}};
     }
-    return {defaults,configuration,rcQuality,create};
+    return {defaults,configuration,rcQuality,create,maximumObservationAgeMs};
 });

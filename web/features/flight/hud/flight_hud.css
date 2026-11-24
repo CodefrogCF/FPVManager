@@ -6,6 +6,9 @@
     font-variant-numeric:tabular-nums;
 }
 #navigation-hud[hidden],#navigation-hud [hidden] { display:none; }
+.hud-terrain-diagnostics { position:absolute;top:70px;left:12px;max-width:min(340px,calc(100% - 24px));
+    margin:0;padding:8px;border-radius:6px;background:rgba(12,18,24,.78);color:#e2e5e8;
+    white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.35 monospace;text-shadow:none;pointer-events:none; }
 #ground-controls[data-mode="flight"],#ground-controls[data-mode="gps"] {
     bottom:max(125px,calc(env(safe-area-inset-bottom) + 110px));
 }

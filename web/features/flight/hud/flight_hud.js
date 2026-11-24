@@ -27,7 +27,7 @@
             vertical:number(state.verticalSpeed),throttle:number(Number.isFinite(state.throttle)?state.throttle*100:null,0),
             coordinates,angle:homeDirection(state,viewHeading),atHome:Number.isFinite(d)&&d<1};
     }
-    function create(doc,language){
+    function create(doc,language,{diagnostics=()=>null,diagnosticsEnabled=()=>true,clock=()=>performance.now()}={}){
         const hud=doc.getElementById('navigation-hud');
         const elements=Object.fromEntries(['speed','agl','height','distance','distance-unit','vertical','throttle','throttle-readout','mode','warning','home-arrow','home-marker','coordinates']
             .map(key=>[key,doc.getElementById('hud-'+key)]));
@@ -40,14 +40,45 @@
         const batteryVoltage=doc.getElementById('hud-battery-voltage'),batteryCellVoltage=doc.getElementById('hud-battery-cell-voltage');
         const batteryStatus=doc.getElementById('hud-battery-status');
         const failsafeStatus=doc.getElementById('hud-failsafe');
+        let diagnosticPanel=null,lastDiagnosticAt=-Infinity;
+        function updateDiagnostics(state){
+            if(!diagnosticsEnabled()){
+                if(diagnosticPanel)diagnosticPanel.hidden=true;
+                lastDiagnosticAt=-Infinity;return;
+            }
+            if(clock()-lastDiagnosticAt<1000)return;
+            const data=diagnostics();
+            if(!data||data.enabled===false){if(diagnosticPanel)diagnosticPanel.hidden=true;return;}
+            lastDiagnosticAt=clock();
+            if(!diagnosticPanel){
+                diagnosticPanel=doc.createElement('pre');diagnosticPanel.className='hud-terrain-diagnostics';
+                diagnosticPanel.setAttribute('aria-label','Terrain diagnostics');hud.appendChild(diagnosticPanel);
+            }
+            const value=(key,fallback='—')=>data[key]??fallback;
+            const metric=(value,unit)=>`${number(value,0)}${unit}`;
+            const fs=state.failsafe??{};
+            const content=[
+                `LoS: ${value('los')} | ${value('quality',value('observationQuality'))}`,
+                `Age: ${metric(data.ageMs??data.lastValidAgeMs,' ms')} | Calc: ${metric(data.durationMs??data.lastDurationMs,' ms')}`,
+                `P50: ${metric(data.p50Ms,' ms')} | P95: ${metric(data.p95Ms,' ms')}`,
+                `Requests: ${value('active',0)} active / ${value('queued',0)} queued | Failures: ${value('failures',0)}`,
+                `Error: ${value('error',value('errorCategory'))} | ID: ${value('requestId')}/${value('generation')}`,
+                `Path: ${metric(data.distanceMeters,' m')} | Samples: ${value('samples',value('sampleCount'))}`,
+                `Terrain: ${value('provider')} | Moved: ${metric(data.movementMeters,' m')}`,
+                `RC: ${number(fs.rcQuality,2)} | Failsafe: ${fs.phase??'normal'}`,
+            ].join('\n');
+            diagnosticPanel.hidden=false;
+            if(diagnosticPanel.textContent!==content)diagnosticPanel.textContent=content;
+        }
         function text(key,value){if(elements[key].textContent!==value)elements[key].textContent=value;}
         function warning(){text('warning',translate(reason||inputWarning));elements.warning.hidden=!(reason||inputWarning);}
         function update(state,viewHeading,assessment){
             if(lastFlightId!==state.flightId){signalDisplay.reset();lastFlightId=state.flightId;}
             lastState=state;lastHeading=viewHeading;lastAssessment=assessment;
             signalDisplay.update(state,assessment);
+            updateDiagnostics(state);
             if(failsafeStatus){const fs=state.failsafe??{phase:'normal'};
-                const labels={pending:'SIM RC · LOSS PENDING',hold:'SIM FAILSAFE · HOLD',
+                const labels={pending:'SIM RC · LOSS PENDING',uncertain:'SIM RC · UNCERTAIN · HOLD',hold:'SIM FAILSAFE · HOLD',
                     descend:'SIM FAILSAFE · DESCEND',rescueHold:'SIM GPS RESCUE · HOLD',climb:'SIM GPS RESCUE · CLIMB',turn:'SIM GPS RESCUE · TURN',
                     return:'SIM GPS RESCUE · RETURN',landing:'SIM GPS RESCUE · LANDING',landed:'SIM GPS RESCUE · LANDED',
                     unavailable:'SIM RESCUE UNAVAILABLE',awaitingManual:'SIM RC RESTORED · TAKE CONTROL'};

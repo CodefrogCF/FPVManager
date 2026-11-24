@@ -4,6 +4,35 @@ const rad=Math.PI/180;
 const state={mode:'acro',hudStyle:'goggles',horizontalSpeed:10,verticalSpeed:-3.5,throttle:.62,
     agl:17.5,heightAboveHome:25,distance:111,position:{latitude:0,longitude:0},home:{latitude:0,longitude:1}};
 
+test('prolonged RF uncertainty is displayed as uncertainty rather than confirmed signal loss',()=>{
+    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},dataset:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
+    const hud=create(doc);hud.update({...state,failsafe:{enabled:true,phase:'uncertain',reason:'observationUnavailable'}},0);
+    const notice=nodes.get('hud-failsafe');assert.equal(notice.hidden,false);
+    assert.match(notice.textContent,/UNCERTAIN.*HOLD/);assert.doesNotMatch(notice.textContent,/LOSS PENDING|GPS RESCUE/);
+    assert.equal(notice.dataset.phase,'uncertain');
+});
+
+test('optional terrain diagnostics allocate once, show actual RC/failsafe, and stay absent by default',()=>{
+    let snapshot=null,created=0,time=0,reads=0;const nodes=new Map(),children=[];
+    const node=()=>({style:{},dataset:{},setAttribute(k,v){this[k]=v;},appendChild(child){children.push(child);}});
+    const doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},
+        createElement(){created++;return node();}};
+    const hud=create(doc,null,{diagnosticsEnabled:()=>snapshot!==null,
+        clock:()=>time,diagnostics:()=>{reads++;return snapshot;}});
+    hud.update(state,0);assert.equal(created,0);
+    snapshot={enabled:true,los:'obstructed',observationQuality:'pending',lastValidAgeMs:250,durationMs:45,
+        p50Ms:40,p95Ms:80,active:1,queued:1,failures:2,error:'TIMEOUT',requestId:8,generation:2,
+        distanceMeters:6000,samples:381,provider:'test terrain',movementMeters:20};
+    hud.update({...state,failsafe:{enabled:true,phase:'pending',rcQuality:.1}},0);
+    assert.equal(created,1);const panel=children[0];assert.equal(panel.hidden,false);
+    assert.match(panel.textContent,/LoS: obstructed \| pending/);assert.match(panel.textContent,/P50: 40 ms \| P95: 80 ms/);
+    assert.match(panel.textContent,/RC: 0.10 \| Failsafe: pending/);assert.match(panel.textContent,/TIMEOUT/);
+    hud.update(state,0);assert.equal(created,1);
+    assert.equal(reads,1,'Snapshot and percentiles are throttled to once per second');
+    time=1000;hud.update(state,0);assert.equal(reads,2);
+    snapshot=null;hud.update(state,0);assert.equal(panel.hidden,true);assert.equal(created,1);
+});
+
 test('coordinate readout is opt-in, updates in both layouts and clears invalid or missing positions',()=>{
     const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},dataset:{},setAttribute(k,v){this[k]=v;}});return nodes.get(id);}};
     const hud=create(doc),readout=()=>nodes.get('hud-coordinates');

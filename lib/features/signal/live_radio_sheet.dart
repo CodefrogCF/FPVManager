@@ -737,6 +737,17 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(c.status),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Live RF diagnostics'),
+                            subtitle: const Text(
+                              'Show the optional debug panel in the flight HUD',
+                            ),
+                            value: c.diagnosticsEnabled,
+                            onChanged: c.setDiagnosticsEnabled,
+                          ),
+                          if (c.diagnosticsEnabled)
+                            SelectableText(_diagnosticsText(c.diagnostics)),
                           if (c.calculatedAt != null)
                             Text(
                               context.localizedWithArgs(
@@ -835,4 +846,18 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
       ),
     );
   }
+}
+
+String _diagnosticsText(Map<String, Object?> d) {
+  String value(String key) => switch (d[key]) {
+    final double number => number.toStringAsFixed(1),
+    final Object value => '$value',
+    null => '—',
+  };
+  return 'LoS ${value('los')} · ${value('quality')} · age ${value('ageMs')} ms\n'
+      'Calculation ${value('durationMs')} ms · P50/P95 ${value('p50Ms')}/${value('p95Ms')} ms\n'
+      'Active/queued ${value('active')}/${value('queued')} · failures ${value('failures')} · ${value('error')}\n'
+      'Distance ${value('distanceMeters')} m · movement ${value('movementMeters')} m\n'
+      'Samples ${value('validSamples')}/${value('samples')} · missing ${value('missingSamples')}\n'
+      'Request ${value('requestId')} · generation ${value('generation')} · ${value('provider')}';
 }

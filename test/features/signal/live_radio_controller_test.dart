@@ -82,6 +82,7 @@ void main() {
     final messages = <Map<String, dynamic>>[];
     final c = LiveRadioController(
       now: () => time,
+      elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
       send: (m) async {
         messages.add(m);
       },
@@ -123,6 +124,115 @@ void main() {
     expect(c.current, false);
   });
 
+  test('fast flight uses a short most-detailed ridge pass only after a failed full profile', () async {
+    var time = DateTime.utc(2026, 11, 23);
+    final requests = <int>[];
+    final messages = <Map<String, dynamic>>[];
+    final c = LiveRadioController(
+      now: () => time,
+      elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
+      send: (event) async {
+        messages.add(event);
+      },
+      sample: (positions) async {
+        requests.add(positions.length);
+        if (requests.length == 1) {
+          throw TimeoutException('Terrain request timed out');
+        }
+        final heights = List.filled(positions.length, 500.0);
+        heights[positions.length ~/ 2] = 800.0;
+        return heights;
+      },
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings(enabled: true));
+    c.telemetry({...pose(lon: 8.015), 'speed': 38.0});
+    await c.settled;
+    expect(
+      requests.single,
+      greaterThan(96),
+      reason: 'Keep the original single-pass fast path initially',
+    );
+    expect(c.current, false);
+    expect(c.status, contains('timed out'));
+    time = time.add(const Duration(seconds: 2));
+    c.telemetry({...pose(lon: 8.015), 'speed': 38.0});
+    await c.settled;
+    expect(
+      requests.last,
+      96,
+      reason: 'Prioritize sampled blockage after prior timeout',
+    );
+    expect(c.current, true);
+    expect(c.result!.state, RadioPathState.obstructed);
+    expect(c.samplingDiagnostics!.queryCount, 1);
+    expect(
+      messages.lastWhere(
+        (m) =>
+            m['type'] == 'set-live-radio-result' && m['state'] == 'obstructed',
+      )['assessment']['source'],
+      'sampledTerrain',
+    );
+    time = time.add(const Duration(seconds: 2));
+    c.telemetry({...pose(lon: 8.01505), 'speed': 38.0});
+    await c.settled;
+    expect(
+      requests.last,
+      96,
+      reason: 'A confirmed ridge must not reset the fast obstruction search',
+    );
+    expect(c.result!.state, RadioPathState.obstructed);
+  });
+
+  test('moving flight skips refinement of a stale clear ray and immediately retries newest pose', () async {
+    var time = DateTime.utc(2026, 11, 23);
+    final first = Completer<List<double>>();
+    var calls = 0;
+    final batches = <int>[];
+    final events = <Map<String, dynamic>>[];
+    final c = LiveRadioController(
+      now: () => time,
+      elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
+      send: (event) async {
+        events.add(event);
+      },
+      sample: (positions) {
+        ++calls;
+        batches.add(positions.length);
+        if (calls == 1) return first.future;
+        return Future.value(List.filled(positions.length, 500.0));
+      },
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings(enabled: true));
+    c.telemetry({...pose(lon: 8.015), 'speed': 40.0});
+    expect(
+      batches.single,
+      greaterThan(96),
+      reason: 'Do not slow down a working first near-field query',
+    );
+    time = time.add(const Duration(seconds: 2));
+    c.telemetry({...pose(lon: 8.017), 'speed': 40.0});
+    first.complete(List.filled(batches.first, 500.0));
+    await c.settled;
+    await Future<void>.delayed(Duration.zero);
+    await c.settled;
+    expect(calls, greaterThan(1));
+    expect(c.current, true);
+    expect(c.result!.target.longitude, closeTo(8.017, 0.000001));
+    expect(
+      events.where(
+        (event) =>
+            event['state'] == 'noSampledObstruction' &&
+            (event['rays'] as List).isNotEmpty,
+      ),
+      hasLength(1),
+      reason: 'The overtaken clear ray must never be published as current',
+    );
+  });
+
   test('fast motion expires the old HUD profile but does not cancel a newer in-flight sample', () async {
     var time = DateTime.utc(2026, 11, 23);
     Completer<List<double>>? pending;
@@ -130,6 +240,7 @@ void main() {
     final emitted = <Map<String, dynamic>>[];
     final c = LiveRadioController(
       now: () => time,
+      elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
       send: (message) async {
         emitted.add(message);
       },
@@ -216,6 +327,7 @@ void main() {
     var firstCount = 0;
     final c = LiveRadioController(
       now: () => time,
+      elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
       send: (_) async {},
       sample: (points) {
         ++calls;
@@ -412,6 +524,9 @@ void main() {
       var length = 0;
       final c = LiveRadioController(
         now: () => tester.binding.clock.now(),
+        elapsed: () => Duration(
+          milliseconds: tester.binding.clock.now().millisecondsSinceEpoch,
+        ),
         send: (_) async {},
         sample: (p) async {
           length = p.length;
@@ -541,5 +656,323 @@ void main() {
     await controller.settled;
     expect(controller.groundStation?.longitude, 8);
     expect(controller.assessment.hasCurrentGeometry, true);
+  });
+  testWidgets(
+    'watchdog releases a hung slot and publishes only the latest pose',
+    (tester) async {
+      final origin = tester.binding.clock.now();
+      final old = Completer<List<double>>();
+      var calls = 0, oldCount = 0;
+      final messages = <Map<String, dynamic>>[];
+      final c = LiveRadioController(
+        elapsed: () => tester.binding.clock.now().difference(origin),
+        now: () => tester.binding.clock.now(),
+        requestTimeout: const Duration(seconds: 1),
+        send: (m) async {
+          messages.add(m);
+        },
+        sample: (p) {
+          if (++calls == 1) {
+            oldCount = p.length;
+            return old.future;
+          }
+          return Future.value(List.filled(p.length, 500.0));
+        },
+      );
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        c.telemetry(pose());
+        await tester.pump(const Duration(milliseconds: 200));
+        c.telemetry(pose(lon: 8.006));
+        expect(c.diagnostics['active'], 1);
+        expect(c.diagnostics['queued'], 1);
+        await tester.pump(const Duration(milliseconds: 801));
+        await c.settled;
+        expect(c.current, true);
+        expect(c.result!.target.longitude, 8.006);
+        expect(calls, 2);
+        expect(c.diagnostics['active'], 0);
+        expect(
+          (c.diagnostics['history'] as List).first['errorCategory'],
+          'TIMEOUT',
+        );
+        old.complete(List.filled(oldCount, 900.0));
+        await tester.pump();
+        expect(c.result!.target.longitude, 8.006);
+        expect(messages.where((m) => m['state'] == 'obstructed'), isEmpty);
+      } finally {
+        c.dispose();
+      }
+    },
+  );
+
+  testWidgets(
+    'queued latest pose wakes after throttle without more telemetry',
+    (tester) async {
+      final origin = tester.binding.clock.now();
+      final first = Completer<List<double>>();
+      var calls = 0, count = 0;
+      final c = LiveRadioController(
+        elapsed: () => tester.binding.clock.now().difference(origin),
+        send: (_) async {},
+        sample: (p) {
+          count = p.length;
+          return ++calls == 1
+              ? first.future
+              : Future.value(List.filled(p.length, 500.0));
+        },
+      );
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        c.telemetry(pose());
+        await tester.pump(const Duration(milliseconds: 100));
+        c.telemetry(pose(lon: 8.0052));
+        first.complete(List.filled(count, 500.0));
+        await tester.pump();
+        expect(calls, 1);
+        await tester.pump(const Duration(milliseconds: 701));
+        await c.settled;
+        expect(calls, 2);
+        expect(c.result!.target.longitude, 8.0052);
+      } finally {
+        c.dispose();
+      }
+    },
+  );
+
+  testWidgets(
+    'provider generation releases old work and rejects its late reply',
+    (tester) async {
+      final first = Completer<List<double>>();
+      var calls = 0, count = 0;
+      final c = LiveRadioController(
+        send: (_) async {},
+        sample: (p) {
+          if (++calls == 1) {
+            count = p.length;
+            return first.future;
+          }
+          return Future.value(List.filled(p.length, 500.0));
+        },
+      );
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        c.telemetry(pose());
+        final generation = c.generation;
+        c.terrainChanged(true);
+        c.telemetry(pose(lon: 8.007));
+        await tester.pump();
+        await c.settled;
+        expect(c.generation, greaterThan(generation));
+        expect(c.current, true);
+        expect(calls, 2);
+        first.complete(List.filled(count, 950.0));
+        await tester.pump();
+        expect(c.result!.target.longitude, 8.007);
+        expect(c.result!.state, RadioPathState.noSampledObstruction);
+      } finally {
+        c.dispose();
+      }
+    },
+  );
+
+  testWidgets(
+    'latency consumes freshness and wall-clock jumps do not change scheduling',
+    (tester) async {
+      final origin = tester.binding.clock.now();
+      var wall = DateTime.utc(2026), calls = 0, count = 0;
+      final slow = Completer<List<double>>();
+      final messages = <Map<String, dynamic>>[];
+      final c = LiveRadioController(
+        elapsed: () => tester.binding.clock.now().difference(origin),
+        now: () => wall,
+        send: (m) async {
+          messages.add(m);
+        },
+        sample: (p) {
+          calls++;
+          count = p.length;
+          return slow.future;
+        },
+      );
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        c.telemetry(pose());
+        await tester.pump(const Duration(seconds: 3));
+        wall = wall.subtract(const Duration(days: 10));
+        slow.complete(List.filled(count, 500.0));
+        await tester.pump();
+        await c.settled;
+        final valid = messages.lastWhere(
+          (m) => m['state'] == 'noSampledObstruction',
+        );
+        expect(valid['observation']['ageMs'], 3000);
+        expect(
+          valid['expiresAtMs'],
+          wall.add(const Duration(seconds: 2)).millisecondsSinceEpoch,
+        );
+        expect(c.current, true);
+        await tester.pump(const Duration(milliseconds: 2001));
+        expect(c.current, false);
+        expect(c.diagnostics['quality'], 'stale');
+        c.telemetry(pose());
+        await tester.pump();
+        await c.settled;
+        expect(
+          calls,
+          2,
+          reason: 'Backward wall time must not starve the scheduler',
+        );
+      } finally {
+        c.dispose();
+      }
+    },
+  );
+
+  testWidgets('response beyond freshness horizon is explicitly stale', (
+    tester,
+  ) async {
+    final origin = tester.binding.clock.now();
+    final slow = Completer<List<double>>();
+    var count = 0;
+    final c = LiveRadioController(
+      elapsed: () => tester.binding.clock.now().difference(origin),
+      send: (_) async {},
+      sample: (p) {
+        count = p.length;
+        return slow.future;
+      },
+    );
+    try {
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings());
+      c.telemetry(pose());
+      await tester.pump(const Duration(seconds: 6));
+      slow.complete(List.filled(count, 500.0));
+      await tester.pump();
+      await c.settled;
+      expect(c.current, false);
+      expect(c.diagnostics['quality'], 'stale');
+      expect(c.diagnostics['error'], 'STALE');
+    } finally {
+      c.dispose();
+    }
+  });
+
+  test(
+    'missing samples and repeated errors retain bounded diagnostics',
+    () async {
+      var tick = Duration.zero;
+      final c = LiveRadioController(
+        elapsed: () => tick,
+        send: (_) async {},
+        sample: (p) async => List.filled(p.length - 1, 500.0),
+      );
+      addTearDown(c.dispose);
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings());
+      for (var i = 0; i < 80; ++i) {
+        c.telemetry(pose());
+        await c.settled;
+        tick += const Duration(seconds: 1);
+      }
+      expect(c.current, false);
+      expect(c.diagnostics['failures'], 80);
+      expect(c.diagnostics['missingSamples'], 1);
+      expect(c.diagnostics['error'], 'INVALID_RESULT');
+      expect(c.diagnostics['history'], hasLength(64));
+    },
+  );
+  testWidgets('pause and resume replace a cancelled throttle wakeup', (
+    tester,
+  ) async {
+    final origin = tester.binding.clock.now();
+    var calls = 0;
+    final c = LiveRadioController(
+      elapsed: () => tester.binding.clock.now().difference(origin),
+      send: (_) async {},
+      sample: (p) async {
+        calls++;
+        return List.filled(p.length, 500.0);
+      },
+    );
+    try {
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings());
+      c.telemetry(pose());
+      await c.settled;
+      await tester.pump(const Duration(milliseconds: 100));
+      c.telemetry(pose(lon: 8.0051));
+      c.telemetry(pose(paused: true));
+      await tester.pump(const Duration(milliseconds: 100));
+      c.telemetry(pose(lon: 8.0052));
+      await tester.pump(const Duration(milliseconds: 601));
+      await c.settled;
+      expect(calls, 2);
+      expect(c.result!.target.longitude, 8.0052);
+    } finally {
+      c.dispose();
+    }
+  });
+
+  testWidgets(
+    'an old queued aircraft pose cannot become a fresh observation after a timeout',
+    (tester) async {
+      final origin = tester.binding.clock.now();
+      final old = Completer<List<double>>();
+      var calls = 0, count = 0;
+      final c = LiveRadioController(
+        elapsed: () => tester.binding.clock.now().difference(origin),
+        send: (_) async {},
+        sample: (p) {
+          calls++;
+          count = p.length;
+          return old.future;
+        },
+      );
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        c.telemetry(pose());
+        await tester.pump(const Duration(milliseconds: 100));
+        c.telemetry(pose(lon: 8.0052));
+        await tester.pump(const Duration(seconds: 12));
+        await c.settled;
+        expect(calls, 1);
+        expect(c.current, false);
+        expect(c.diagnostics['active'], 0);
+        expect(c.diagnostics['queued'], 0);
+        expect(c.diagnostics['quality'], 'stale');
+        old.complete(List.filled(count, 500.0));
+        await tester.pump();
+        expect(c.current, false);
+      } finally {
+        c.dispose();
+      }
+    },
+  );
+
+  test('invalid telemetry publishes its explicit error quality', () async {
+    final events = <Map<String, dynamic>>[];
+    final c = LiveRadioController(
+      send: (m) async {
+        events.add(m);
+      },
+      sample: (p) async => List.filled(p.length, 500.0),
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings());
+    c.telemetry({...pose(), 'height': double.nan});
+    await Future<void>.delayed(Duration.zero);
+    final observation = events.lastWhere(
+      (m) => m['type'] == 'set-live-radio-result',
+    )['observation'];
+    expect(observation['quality'], 'error');
+    expect(observation['errorCategory'], 'INVALID_RESULT');
   });
 }

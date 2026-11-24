@@ -1,0 +1,1017 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic",
+  "nodeVersion": "v23.9.0",
+  "recordedAtUtc": "2026-11-24T13:18:12.785Z",
+  "scope": "Live JS terrain sampling adapter/cache. Bundled Cesium coordinate/tiling math; analytic mock terrain interpolation and deterministic IO clock.",
+  "fixture": {
+    "attemptIntervalMs": 2000,
+    "healthyAttempts": 30,
+    "terrainLevel": 17,
+    "tileIoLatencyMs": 80,
+    "terrain": "1000–1825 m analytic ridge crossing each path; finite detailed heights",
+    "rapidMotion": "sinusoidal lateral endpoint movement, about70 m/s peak",
+    "missing": "all interpolation unavailable on every seventh uncached batch",
+    "stuck": "first tile never settles; all later requests healthy; existing12s terrain-manager bound modeled"
+  },
+  "processHeapMeasurement": {
+    "source": "process.memoryUsage().heapUsed",
+    "explicitGcSupported": true,
+    "sampling": "Before fixture; after fixture creation, virtual event turns and requests; after disposal/microtask draining. End measured after explicit GC when available.",
+    "limitation": "Sampled peak, not continuous peak. Includes fixture/promises, analytic tiles, reports and retained module allocations. Sequential process retention and GC noise prevent device-memory or improvement claims."
+  },
+  "unmeasured": [
+    "real network/device/GPU latency",
+    "end-to-end Flutter calculation latency",
+    "HUD UNKNOWN duration",
+    "application/device heap and GPU memory",
+    "bridge framing/transport time",
+    "RF/failsafe transitions"
+  ],
+  "before": {
+    "scenarios": [
+      {
+        "distanceM": 1000,
+        "motion": "stationary",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 0,
+          "coldFirstAttempt": 240,
+          "max": 240
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 0.7225000000000819,
+          "p95": 3.2252999999998337
+        },
+        "processHeap": {
+          "beforeBytes": 24292128,
+          "sampledPeakBytes": 28849056,
+          "endBytes": 24472088,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 11,
+        "interpolations": 402,
+        "bulkCalls": 0,
+        "logicalBatches": 2,
+        "serializedPayloadBytes": {
+          "commands": 289380,
+          "replies": 115320
+        },
+        "sampledHeightsSha256": "1c4557af4903caafbdacb732f44bcb07b6d9f7929878d2d7178ce2b8b091ba93",
+        "diagnostics": null,
+        "errors": []
+      },
+      {
+        "distanceM": 1000,
+        "motion": "rapid",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 160,
+          "coldFirstAttempt": 240,
+          "max": 240
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 1.6725999999998749,
+          "p95": 5.625
+        },
+        "processHeap": {
+          "beforeBytes": 24421928,
+          "sampledPeakBytes": 29105296,
+          "endBytes": 24551216,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 20,
+        "interpolations": 6002,
+        "bulkCalls": 0,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 365968,
+          "replies": 115844
+        },
+        "sampledHeightsSha256": "d072e1d2620ad614fdfe32f92bf4dbd8921333dd7b3052ae3dde4d6ebad983b4",
+        "diagnostics": null,
+        "errors": []
+      },
+      {
+        "distanceM": 3000,
+        "motion": "stationary",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 0,
+          "coldFirstAttempt": 640,
+          "max": 640
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.201400000000149,
+          "p95": 4.075399999999945
+        },
+        "processHeap": {
+          "beforeBytes": 24493960,
+          "sampledPeakBytes": 28724968,
+          "endBytes": 24560968,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 30,
+        "interpolations": 512,
+        "bulkCalls": 0,
+        "logicalBatches": 2,
+        "serializedPayloadBytes": {
+          "commands": 368100,
+          "replies": 143790
+        },
+        "sampledHeightsSha256": "4980803b79a5243cf8f7c655d8b9dafef9f277c1bf81a140f2355263f6cbc1c9",
+        "diagnostics": null,
+        "errors": []
+      },
+      {
+        "distanceM": 3000,
+        "motion": "rapid",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 480,
+          "coldFirstAttempt": 640,
+          "max": 640
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 3.172800000000052,
+          "p95": 5.772699999999986
+        },
+        "processHeap": {
+          "beforeBytes": 24536528,
+          "sampledPeakBytes": 33570832,
+          "endBytes": 24556296,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 55,
+        "interpolations": 7652,
+        "bulkCalls": 0,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 465798,
+          "replies": 146603
+        },
+        "sampledHeightsSha256": "d39e747cbb297aa2cf47638d6477c854e89f8f39a1954a4365b5b349c4b71fc9",
+        "diagnostics": null,
+        "errors": []
+      },
+      {
+        "distanceM": 6000,
+        "motion": "stationary",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 0,
+          "coldFirstAttempt": 1200,
+          "max": 1200
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.7922000000000935,
+          "p95": 4.394399999999905
+        },
+        "processHeap": {
+          "beforeBytes": 24509376,
+          "sampledPeakBytes": 32300504,
+          "endBytes": 24570384,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 59,
+        "interpolations": 512,
+        "bulkCalls": 0,
+        "logicalBatches": 2,
+        "serializedPayloadBytes": {
+          "commands": 368100,
+          "replies": 142350
+        },
+        "sampledHeightsSha256": "ce5d020c72888edf6ee62ba8e2087dd94d73fd42d4343f71f2d2bf9e74376450",
+        "diagnostics": null,
+        "errors": []
+      },
+      {
+        "distanceM": 6000,
+        "motion": "rapid",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 960,
+          "coldFirstAttempt": 1200,
+          "max": 1200
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.9742999999998574,
+          "p95": 5.48030000000017
+        },
+        "processHeap": {
+          "beforeBytes": 24510584,
+          "sampledPeakBytes": 33303792,
+          "endBytes": 24551576,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 108,
+        "interpolations": 7652,
+        "bulkCalls": 0,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 465798,
+          "replies": 146666
+        },
+        "sampledHeightsSha256": "51d78111f240c4b52297e12c6e819595fbca1511852493407c9e4ab87e031cfb",
+        "diagnostics": null,
+        "errors": []
+      },
+      {
+        "distanceM": 3000,
+        "motion": "rapid",
+        "mode": "missing",
+        "attempts": 30,
+        "successes": 26,
+        "samplingSuccessRate": 0.8666666666666667,
+        "failedSamplingFrequency": 0.13333333333333333,
+        "maxSamplingUnavailableIntervalMs": 2000,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 480,
+          "coldFirstAttempt": 640,
+          "max": 640
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.7971999999999753,
+          "p95": 4.35570000000007
+        },
+        "processHeap": {
+          "beforeBytes": 24511648,
+          "sampledPeakBytes": 33056520,
+          "endBytes": 24586504,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 55,
+        "interpolations": 6753,
+        "bulkCalls": 4,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 465798,
+          "replies": 127211
+        },
+        "sampledHeightsSha256": "509643506a584e65c4d2a016f828f9959f9e24a2720ddcbbed639b377a97b0fa",
+        "diagnostics": null,
+        "errors": [
+          "Incomplete detailed terrain fallback"
+        ]
+      },
+      {
+        "distanceM": 3000,
+        "motion": "rapid",
+        "mode": "stuck-first-tile",
+        "attempts": 5,
+        "successes": 0,
+        "samplingSuccessRate": 0,
+        "failedSamplingFrequency": 1,
+        "maxSamplingUnavailableIntervalMs": 60000,
+        "prescribedIoLatencyMs": {
+          "p50": null,
+          "p95": null,
+          "coldFirstAttempt": 12000,
+          "max": null
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.257999999999811,
+          "p95": 3.0949000000000524
+        },
+        "processHeap": {
+          "beforeBytes": 24520472,
+          "sampledPeakBytes": 28256152,
+          "endBytes": 24562720,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 55,
+        "interpolations": 1270,
+        "bulkCalls": 0,
+        "logicalBatches": 5,
+        "serializedPayloadBytes": {
+          "commands": 74829,
+          "replies": 185
+        },
+        "sampledHeightsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "diagnostics": null,
+        "errors": [
+          "Terrain request timed out"
+        ]
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "distanceM": 1000,
+      "motion": "stationary",
+      "mode": "healthy",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 1000,
+      "motion": "rapid",
+      "mode": "healthy",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 3000,
+      "motion": "stationary",
+      "mode": "healthy",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 3000,
+      "motion": "rapid",
+      "mode": "healthy",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 6000,
+      "motion": "stationary",
+      "mode": "healthy",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 6000,
+      "motion": "rapid",
+      "mode": "healthy",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 3000,
+      "motion": "rapid",
+      "mode": "missing",
+      "successfulHeightStreamsMatch": true
+    },
+    {
+      "distanceM": 3000,
+      "motion": "rapid",
+      "mode": "stuck-first-tile",
+      "successfulHeightStreamsMatch": null
+    }
+  ],
+  "after": {
+    "scenarios": [
+      {
+        "distanceM": 1000,
+        "motion": "stationary",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 0,
+          "coldFirstAttempt": 240,
+          "max": 240
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 0.8697000000001935,
+          "p95": 3.0575999999996384
+        },
+        "processHeap": {
+          "beforeBytes": 24647432,
+          "sampledPeakBytes": 31637728,
+          "endBytes": 24879384,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 11,
+        "interpolations": 402,
+        "bulkCalls": 0,
+        "logicalBatches": 2,
+        "serializedPayloadBytes": {
+          "commands": 289380,
+          "replies": 125873
+        },
+        "sampledHeightsSha256": "1c4557af4903caafbdacb732f44bcb07b6d9f7929878d2d7178ce2b8b091ba93",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 201,
+          "sampleCount": 201,
+          "validSamples": 201,
+          "missingSamples": 0,
+          "sampledSamples": 0,
+          "cacheHits": 201,
+          "provider": "Object",
+          "tileRequests": 11,
+          "tileCacheHits": 11,
+          "fallbackSamples": 0,
+          "timeouts": 0,
+          "cachedTiles": 11,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 30,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 0,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 201
+        },
+        "errors": []
+      },
+      {
+        "distanceM": 1000,
+        "motion": "rapid",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 160,
+          "coldFirstAttempt": 240,
+          "max": 240
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.4800999999997657,
+          "p95": 3.3045999999999367
+        },
+        "processHeap": {
+          "beforeBytes": 24794184,
+          "sampledPeakBytes": 33160696,
+          "endBytes": 24915016,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 20,
+        "interpolations": 6002,
+        "bulkCalls": 0,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 365968,
+          "replies": 126434
+        },
+        "sampledHeightsSha256": "d072e1d2620ad614fdfe32f92bf4dbd8921333dd7b3052ae3dde4d6ebad983b4",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 201,
+          "sampleCount": 201,
+          "validSamples": 201,
+          "missingSamples": 0,
+          "sampledSamples": 200,
+          "cacheHits": 1,
+          "provider": "Object",
+          "tileRequests": 20,
+          "tileCacheHits": 324,
+          "fallbackSamples": 0,
+          "timeouts": 0,
+          "cachedTiles": 20,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 30,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 160,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 160,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 4096
+        },
+        "errors": []
+      },
+      {
+        "distanceM": 3000,
+        "motion": "stationary",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 0,
+          "coldFirstAttempt": 640,
+          "max": 640
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.4572000000002845,
+          "p95": 4.144800000000032
+        },
+        "processHeap": {
+          "beforeBytes": 24853992,
+          "sampledPeakBytes": 33298000,
+          "endBytes": 24865184,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 30,
+        "interpolations": 512,
+        "bulkCalls": 0,
+        "logicalBatches": 2,
+        "serializedPayloadBytes": {
+          "commands": 368100,
+          "replies": 154343
+        },
+        "sampledHeightsSha256": "4980803b79a5243cf8f7c655d8b9dafef9f277c1bf81a140f2355263f6cbc1c9",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 256,
+          "sampleCount": 256,
+          "validSamples": 256,
+          "missingSamples": 0,
+          "sampledSamples": 0,
+          "cacheHits": 256,
+          "provider": "Object",
+          "tileRequests": 30,
+          "tileCacheHits": 30,
+          "fallbackSamples": 0,
+          "timeouts": 0,
+          "cachedTiles": 30,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 30,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 0,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 256
+        },
+        "errors": []
+      },
+      {
+        "distanceM": 3000,
+        "motion": "rapid",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 480,
+          "coldFirstAttempt": 640,
+          "max": 640
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 3.897100000000137,
+          "p95": 7.0945999999999
+        },
+        "processHeap": {
+          "beforeBytes": 24825200,
+          "sampledPeakBytes": 33300048,
+          "endBytes": 24874408,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 55,
+        "interpolations": 7652,
+        "bulkCalls": 0,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 465798,
+          "replies": 157198
+        },
+        "sampledHeightsSha256": "d39e747cbb297aa2cf47638d6477c854e89f8f39a1954a4365b5b349c4b71fc9",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 256,
+          "sampleCount": 256,
+          "validSamples": 256,
+          "missingSamples": 0,
+          "sampledSamples": 255,
+          "cacheHits": 1,
+          "provider": "Object",
+          "tileRequests": 55,
+          "tileCacheHits": 858,
+          "fallbackSamples": 0,
+          "timeouts": 0,
+          "cachedTiles": 55,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 30,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 480,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 480,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 4096
+        },
+        "errors": []
+      },
+      {
+        "distanceM": 6000,
+        "motion": "stationary",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 0,
+          "coldFirstAttempt": 1200,
+          "max": 1200
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 2.600199999999859,
+          "p95": 4.503400000000056
+        },
+        "processHeap": {
+          "beforeBytes": 24832168,
+          "sampledPeakBytes": 33300880,
+          "endBytes": 24944096,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 59,
+        "interpolations": 512,
+        "bulkCalls": 0,
+        "logicalBatches": 2,
+        "serializedPayloadBytes": {
+          "commands": 368100,
+          "replies": 152905
+        },
+        "sampledHeightsSha256": "ce5d020c72888edf6ee62ba8e2087dd94d73fd42d4343f71f2d2bf9e74376450",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 256,
+          "sampleCount": 256,
+          "validSamples": 256,
+          "missingSamples": 0,
+          "sampledSamples": 0,
+          "cacheHits": 256,
+          "provider": "Object",
+          "tileRequests": 59,
+          "tileCacheHits": 59,
+          "fallbackSamples": 0,
+          "timeouts": 0,
+          "cachedTiles": 59,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 30,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 0,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 256
+        },
+        "errors": []
+      },
+      {
+        "distanceM": 6000,
+        "motion": "rapid",
+        "mode": "healthy",
+        "attempts": 30,
+        "successes": 30,
+        "samplingSuccessRate": 1,
+        "failedSamplingFrequency": 0,
+        "maxSamplingUnavailableIntervalMs": 0,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 960,
+          "coldFirstAttempt": 1200,
+          "max": 1200
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 4.410599999999704,
+          "p95": 9.130500000000211
+        },
+        "processHeap": {
+          "beforeBytes": 24851168,
+          "sampledPeakBytes": 33734280,
+          "endBytes": 24936280,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 108,
+        "interpolations": 7652,
+        "bulkCalls": 0,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 465798,
+          "replies": 157336
+        },
+        "sampledHeightsSha256": "51d78111f240c4b52297e12c6e819595fbca1511852493407c9e4ab87e031cfb",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 256,
+          "sampleCount": 256,
+          "validSamples": 256,
+          "missingSamples": 0,
+          "sampledSamples": 255,
+          "cacheHits": 1,
+          "provider": "Object",
+          "tileRequests": 108,
+          "tileCacheHits": 1646,
+          "fallbackSamples": 0,
+          "timeouts": 0,
+          "cachedTiles": 108,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 30,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 960,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 960,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 4096
+        },
+        "errors": []
+      },
+      {
+        "distanceM": 3000,
+        "motion": "rapid",
+        "mode": "missing",
+        "attempts": 30,
+        "successes": 26,
+        "samplingSuccessRate": 0.8666666666666667,
+        "failedSamplingFrequency": 0.13333333333333333,
+        "maxSamplingUnavailableIntervalMs": 2000,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 480,
+          "coldFirstAttempt": 640,
+          "max": 640
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 4.314000000000306,
+          "p95": 8.093399999999747
+        },
+        "processHeap": {
+          "beforeBytes": 24885776,
+          "sampledPeakBytes": 42116248,
+          "endBytes": 24934512,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 55,
+        "interpolations": 6753,
+        "bulkCalls": 4,
+        "logicalBatches": 30,
+        "serializedPayloadBytes": {
+          "commands": 465798,
+          "replies": 136517
+        },
+        "sampledHeightsSha256": "509643506a584e65c4d2a016f828f9959f9e24a2720ddcbbed639b377a97b0fa",
+        "diagnostics": {
+          "requestId": 30,
+          "generation": 0,
+          "startMs": 58000,
+          "completionMs": 58000,
+          "durationMs": 0,
+          "samples": 256,
+          "sampleCount": 256,
+          "validSamples": 256,
+          "missingSamples": 0,
+          "sampledSamples": 255,
+          "cacheHits": 1,
+          "provider": "Object",
+          "tileRequests": 55,
+          "tileCacheHits": 858,
+          "fallbackSamples": 1020,
+          "timeouts": 0,
+          "cachedTiles": 55,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 26,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 0,
+          "p95Ms": 480,
+          "latencyP50Ms": 0,
+          "latencyP95Ms": 480,
+          "latencyWindowSamples": 30,
+          "cacheEntries": 4096
+        },
+        "errors": [
+          "TERRAIN_UNAVAILABLE: Incomplete detailed terrain fallback"
+        ]
+      },
+      {
+        "distanceM": 3000,
+        "motion": "rapid",
+        "mode": "stuck-first-tile",
+        "attempts": 5,
+        "successes": 4,
+        "samplingSuccessRate": 0.8,
+        "failedSamplingFrequency": 0.2,
+        "maxSamplingUnavailableIntervalMs": 12560,
+        "prescribedIoLatencyMs": {
+          "p50": 0,
+          "p95": 560,
+          "coldFirstAttempt": 12000,
+          "max": 560
+        },
+        "nodeFixtureCpuMs": {
+          "p50": 5.953700000000026,
+          "p95": 11.62519999999995
+        },
+        "processHeap": {
+          "beforeBytes": 24858776,
+          "sampledPeakBytes": 29855056,
+          "endBytes": 24899600,
+          "explicitGcBeforeAndAfter": true
+        },
+        "tileRequests": 56,
+        "interpolations": 1273,
+        "bulkCalls": 1,
+        "logicalBatches": 5,
+        "serializedPayloadBytes": {
+          "commands": 74829,
+          "replies": 20955
+        },
+        "sampledHeightsSha256": "14a502b009bae03204d743f77376853bd887aafa9135d9546266f90114e429d7",
+        "diagnostics": {
+          "requestId": 5,
+          "generation": 0,
+          "startMs": 12640,
+          "completionMs": 12640,
+          "durationMs": 0,
+          "samples": 256,
+          "sampleCount": 256,
+          "validSamples": 256,
+          "missingSamples": 0,
+          "sampledSamples": 255,
+          "cacheHits": 1,
+          "provider": "Object",
+          "tileRequests": 56,
+          "tileCacheHits": 96,
+          "fallbackSamples": 2,
+          "timeouts": 1,
+          "cachedTiles": 55,
+          "enabled": false,
+          "observationQuality": "unknown",
+          "quality": "unknown",
+          "los": "unknown",
+          "ageMs": null,
+          "lastValidAgeMs": null,
+          "distanceMeters": null,
+          "active": 0,
+          "queued": 0,
+          "activeRequests": 0,
+          "queuedRequests": 0,
+          "completedRequests": 4,
+          "consecutiveFailures": 0,
+          "failures": 0,
+          "error": null,
+          "errorCategory": null,
+          "lastErrorCategory": null,
+          "p50Ms": 80,
+          "p95Ms": 12000,
+          "latencyP50Ms": 80,
+          "latencyP95Ms": 12000,
+          "latencyWindowSamples": 5,
+          "cacheEntries": 1021
+        },
+        "errors": [
+          "TIMEOUT: Live terrain sampling timed out"
+        ]
+      }
+    ]
+  }
+}

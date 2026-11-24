@@ -40,6 +40,7 @@ class LiveTerrainSampler {
     required LiveSamplingTier tier,
     required Future<List<double>> Function(List<Wgs84Coordinate>) sample,
     required bool Function() valid,
+    bool Function()? shouldRefine,
   }) async {
     if (tier.coarsePoints < 2 ||
         tier.coarsePoints > 256 ||
@@ -134,9 +135,11 @@ class LiveTerrainSampler {
       );
     }
 
-    // Bounded adaptive refinement. Re-rank after every batch so that an
-    // obstruction found on a later pass can be reported without waiting for
-    // the rest of the theoretical budget.
+    // Bounded adaptive refinement. If the aircraft has already left the
+    // sampled ray, do not spend additional most-detailed terrain requests
+    // refining an obsolete *clear* profile. The controller rejects that
+    // outdated result and queues the newest pose. Confirmed obstacles may
+    // still be rechecked against the current ray before publication.
     while (true) {
       if (!valid()) throw const FormatException('Stale live terrain request');
       final evaluated = evaluate();
@@ -144,7 +147,8 @@ class LiveTerrainSampler {
           (evaluated.state == RadioPathState.noSampledObstruction &&
               maximumGap() <= tier.coverageGapMeters) ||
           refined >= tier.refinementPoints ||
-          data.length >= count) {
+          data.length >= count ||
+          (shouldRefine != null && !shouldRefine())) {
         return snapshot(evaluated);
       }
       final sorted = data.keys.toList()..sort();

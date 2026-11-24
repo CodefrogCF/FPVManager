@@ -25,7 +25,7 @@ test('failsafe is opt-in and rejects invalid config and implicit LOS/video signa
 test('short glitches and unknown terrain cannot trigger; sustained modeled RC loss can',()=>{
     const machine=F.create({enabled:true,mode:'hold',activationDelaySeconds:1,recoveryDelaySeconds:1,autoRecover:true});
     assert.equal(steps(machine,0,.6).phase,'pending');
-    assert.equal(steps(machine,null,2).phase,'normal');
+    assert.equal(steps(machine,null,2).phase,'pending','unknown pauses rather than resets confirmed loss time');
     assert.equal(steps(machine,0,1.2).phase,'hold');
     assert.equal(steps(machine,null,2).phase,'hold','unknown is not proof of reconnection');
     assert.equal(steps(machine,.45,.5).phase,'hold');

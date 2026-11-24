@@ -68,6 +68,77 @@ void main() {
     );
   }
 
+  test(
+    'abandoned moving-ray refinement cannot claim a verified clear path',
+    () async {
+      const preciseTier = LiveSamplingTier(
+        name: 'highResolution',
+        coarsePoints: 96,
+        refinementPoints: 384,
+        coverageGapMeters: 5.5,
+        minimumInterval: Duration(milliseconds: 250),
+      );
+      final target = const Wgs84Coordinate(latitude: 47.010, longitude: 8);
+      final distance = routeDistance(station, target);
+      var queries = 0;
+      final partial = await LiveTerrainSampler.calculate(
+        signal: const SignalSettings(pilot: station),
+        target: target,
+        targetHeight: 1100,
+        distanceMeters: distance,
+        tier: preciseTier,
+        valid: () => true,
+        shouldRefine: () => false,
+        sample: (positions) async {
+          ++queries;
+          return List.filled(positions.length, 500.0);
+        },
+      );
+      expect(queries, 1);
+      expect(partial.queryCount, 1);
+      expect(partial.coverageLimited, true);
+      expect(
+        partial.maximumGapMeters,
+        greaterThan(preciseTier.coverageGapMeters),
+      );
+      expect(partial.path.state, RadioPathState.noSampledObstruction);
+    },
+  );
+
+  test(
+    'fast coarse obstruction remains evidence despite cancelled refinement',
+    () async {
+      const tier = LiveSamplingTier(
+        name: 'highResolution',
+        coarsePoints: 96,
+        refinementPoints: 384,
+        coverageGapMeters: 5.5,
+        minimumInterval: Duration(milliseconds: 250),
+      );
+      final target = const Wgs84Coordinate(latitude: 47.010, longitude: 8);
+      final distance = routeDistance(station, target);
+      var calls = 0;
+      final blocked = await LiveTerrainSampler.calculate(
+        signal: const SignalSettings(pilot: station, antennaHeight: 2),
+        target: target,
+        targetHeight: 550,
+        distanceMeters: distance,
+        tier: tier,
+        valid: () => true,
+        shouldRefine: () => false,
+        sample: (positions) async {
+          ++calls;
+          final heights = List.filled(positions.length, 500.0);
+          heights[positions.length ~/ 2] = 800.0;
+          return heights;
+        },
+      );
+      expect(calls, 1);
+      expect(blocked.path.state, RadioPathState.obstructed);
+      expect(blocked.path.minimumClearance, lessThan(-8));
+    },
+  );
+
   test('dense short clear path finishes in one terrain query instead of exhausting budget', () async {
     final target = const Wgs84Coordinate(latitude: 47.009, longitude: 8);
     final distance = routeDistance(station, target);

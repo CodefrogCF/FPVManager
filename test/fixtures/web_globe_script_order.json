@@ -41,6 +41,7 @@
   "map_labels.js",
   "route_editor.js",
   "signal_analysis.js",
+  "live_terrain_tile_cache.js",
   "live_radio.js",
   "obstacle_models.js",
   "obstacle_layers.js",

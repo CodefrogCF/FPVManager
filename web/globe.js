@@ -838,6 +838,7 @@ function postToFlutter(message) {
             case 'set-flight-radio-monitor': return liveRadio.monitor(command);
             case 'query-live-radio-terrain': if(regionalTerrain)throw Error('BKG beta terrain is not validated for RF planning');return liveRadio.sample(command,signal);
             case 'set-live-radio-result': return liveRadio.set(command);
+            case 'set-live-radio-diagnostics': return liveRadio.setDiagnostics(command);
             case 'set-live-radio-ground-station': return liveRadio.station(command);
             case "navigation-input": disposeGroundControls?.native(command); return {};
             case 'set-bkg-3d-test': {
@@ -1224,7 +1225,9 @@ function postToFlutter(message) {
             : null;
         const groundPanel = document.getElementById("ground-controls");
         const flightButtons=document.getElementById('flight-buttons'),hud=document.getElementById('navigation-hud');
-        const flightHud=FPVFlightHud.create(document,rendererLanguage),device=document.getElementById('navigation-device');
+        const flightHud=FPVFlightHud.create(document,rendererLanguage,
+            {diagnosticsEnabled:()=>liveRadio.diagnosticsEnabled,
+                diagnostics:()=>liveRadio.diagnostics()}),device=document.getElementById('navigation-device');
         liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,language:rendererLanguage,
             onAssessmentChange:()=>{if(flyer?.active){flyer.linkAssessment(liveRadio.assessment());
                 flightHud.update(flyer.status(),viewer.camera.heading,liveRadio.assessment());}},

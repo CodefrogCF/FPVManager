@@ -3,7 +3,7 @@ description: "Open-source FPV flight planning and situational awareness app with
 
 publish_to: 'none'
 
-version: 0.19.24+51
+version: 0.19.27+54
 
 environment:
   sdk: ^3.13.0
@@ -154,6 +154,7 @@ flutter:
     - web/features/weather/wind_field.js
     - web/features/navigation/route_editor.js
     - web/features/signal/signal_analysis.js
+    - web/features/signal/live_terrain_tile_cache.js
     - web/features/signal/live_radio.js
     - web/features/infrastructure/obstacle_layers.js
     - web/features/infrastructure/obstacle_models.js

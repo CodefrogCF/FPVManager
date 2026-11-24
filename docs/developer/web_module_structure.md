@@ -16,7 +16,7 @@ It runs both in a Flutter Web build and in a native Flutter WebView through
 | `web/features/flight/` | Free flight, rendering, recording and autonomous control |
 | `web/features/flight/physics/` | Motors, batteries, aerodynamics, collision, dynamics and rescue velocity |
 | `web/features/flight/hud/` | Flight HUD, signal bars and HUD CSS |
-| `web/features/signal/` | RF estimation, live signal analysis and simulated failsafe |
+| `web/features/signal/` | RF estimation, live signal analysis, bounded volatile detailed-terrain tile reuse and simulated failsafe |
 | `web/features/scenery/` | Scenery catalog, placement, collision, calibration and local preview |
 | `web/features/scene/` | Cesium 3D scene and tile scheduling |
 | `web/features/infrastructure/` | Bridges, tunnels, obstacle models and layers |
