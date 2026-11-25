@@ -11,7 +11,7 @@ text for optional arguments. Python tooling dependencies are pinned in
 | `build/` | Cesium vendoring, offline Web snapshot, SQLite Android preparation and opt-in test APK |
 | `data/` | Battery/obstacle/tree/height/forest generation, tunnel catalogue and offline-region preparation |
 | `benchmarks/` | Synthetic performance runners, reports, comparison, physics scenarios and dated reference data |
-| `browser/` | Local globe/smoke server and explicit offline preparation browser check |
+| `browser/` | Local globe/smoke server, offline preparation and live 3D Tiles checks |
 | `maintenance/` | Checksum-protected ZIP cleanup and legacy migration helpers |
 | `scenery/` | Source-dependent scenery processing, collision generation and local workbench |
 
@@ -47,6 +47,16 @@ validation commands do not implicitly launch them. See
 [performance](../docs/developer/performance.md). Scenery's revision scripts/data
 are source-reproduction tools, not additional current documentation or runtime
 assets. Do not remove their source provenance as a directory cleanup.
+
+The optional live provider check is separate from deterministic CI. It streams
+official Brandenburg tiles in headless Chromium without packaging provider assets:
+
+```sh
+node tool/browser/check_scenery_tileset.cjs
+```
+
+Use `--url=`, `--longitude=` and `--latitude=` for another permitted HTTPS provider.
+See [Scenery providers](../docs/developer/scenery.md#external-3d-tiles-providers-147).
 
 ## After extracting a changed-files ZIP
 

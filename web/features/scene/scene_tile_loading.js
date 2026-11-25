@@ -77,7 +77,7 @@
             if(typeof uri!=='string')return uri;
             if(/^data:/i.test(uri))return uri;
             const url=new URL(uri,base);
-            for(const [key,values] of query)if(!url.searchParams.has(key))
+            for(const [key,values] of query)if(url.origin===base.origin&&!url.searchParams.has(key))
                 for(const value of values)url.searchParams.append(key,value);
             return url.href;
         }
@@ -187,9 +187,7 @@
                 this.request.state=C.RequestState.RECEIVED;
                 return Promise.resolve(buffer);
             }
-            async function slicedExternal(tileset,tile,resource,json){
-                const owner=owners.get(tileset);
-                if(!owner)return external(tileset,tile,resource,json);
+            async function prepare(owner,resource,json){
                 const signal=owner.abort.signal;signal.throwIfAborted();
                 let result=json;
                 if(!resource._url.startsWith(prefix)){
@@ -222,6 +220,12 @@
                         }
                     }
                 }
+                return result;
+            }
+            async function slicedExternal(tileset,tile,resource,json){
+                const owner=owners.get(tileset);
+                if(!owner)return external(tileset,tile,resource,json);
+                const signal=owner.abort.signal,result=await prepare(owner,resource,json);
                 return enqueue(()=>{
                     expandedBounds+=encloseTileAncestors(tile,result.root?.boundingVolume?.region);
                     return external(tileset,tile,resource,result);
@@ -235,16 +239,17 @@
                     if(resourcePrototype.getUrlComponent===urlComponent)resourcePrototype.getUrlComponent=getUrl;
                     if(resourcePrototype.fetchArrayBuffer===fetchArrayBuffer)resourcePrototype.fetchArrayBuffer=fetchBuffer;
                 }},
-                owners,releaseOwner:release,
+                owners,releaseOwner:release,prepare,
                 status:()=>({supported:true,prepared,fragments,liveFragments:localFragments.size,liveBytes,queued:queue.length,expandedBounds,maxConstructionMs})
             };
             registries.set(factory,registry);
         }
         registry.acquire();const active=new Set();let disposed=false;
         return {
-            async load(url,options){
+            async load(url,options,configureRoot){
                 const owner={abort:new AbortController(),urls:new Map(),bytes:0,headerBudgetBytes};active.add(owner);
                 try{
+                    configureRoot?.((json,resource)=>registry.prepare(owner,resource,json));
                     const tileset=await C.Cesium3DTileset.fromUrl(url,options);
                     if(disposed){tileset.destroy();throw Error('Scene loader disposed');}
                     registry.owners.set(tileset,owner);

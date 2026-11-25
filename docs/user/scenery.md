@@ -1,7 +1,7 @@
-# Real-world scenery and Rüdersdorf (experimental)
+# Real-world scenery and model imports
 
-This chapter describes **the current Rüdersdorf test scene**, not a generally
-available surveyed 3D city. Standard map and simulation features are covered by
+This chapter covers imported models, external 3D Tiles providers and the
+experimental Rüdersdorf reference scene. Standard map and simulation features are covered by
 the [user handbook](../user_guide.md). Technical reproducibility is documented in
 [Scenery and heights](../developer/scenery.md).
 
@@ -71,6 +71,37 @@ packages remain a later feature.
 New imports are **visual only**. They do not yet add physical collisions, replace
 base terrain/buildings or obstruct simulated radio paths. The existing Rüdersdorf
 reference scene's separately prepared collision model is a different capability.
+
+### Add an external 3D Tiles provider
+
+1. Open **Manage scenery → Add 3D Tiles provider**. Enter a complete public HTTPS
+   tileset URL, or select the **Brandenburg example**.
+2. Select **Check provider**. This checks the header and geographic bounds;
+   individual tiles may still fail later. The service must support browser CORS.
+3. Review name, source, license and attribution. Choose maximum screen-space
+   error (smaller means more detail and more loading), loading/unloading distances
+   and HTTP caching policy. Save, then enable the scene if needed.
+
+Existing provider coordinates and transforms are preserved. Leave **Optional
+positioning correction** at its defaults unless a correction is needed. East/north/up offsets,
+rotation and scale act around the absolute WGS84 correction pivot. A wide
+dataset's initial pivot can be below ground; it does not relocate the source by
+itself. Loading distance is measured from coverage to the camera or aircraft,
+with a larger unloading distance to avoid repeated loading at the boundary.
+
+**Runtime only, no browser disk cache** is the default. **HTTP cache according to provider rules**
+uses the provider's normal browser caching rules. These are online services;
+offline map modes stop external requests. Definitions, settings and credits
+survive restart and backup restore, but backups do not contain provider tiles.
+Recheck the URL if the provider changes its coverage. Respect its licensing and
+caching terms; the Brandenburg example uses DL-DE-BY 2.0 with LGB attribution.
+
+A failed provider does not stop the globe or simulator. Status reports header
+errors and degraded tile streaming; already loaded tiles remain available after
+individual tile errors. Check internet access, URL, service availability and CORS,
+then use the scene retry control. Credentials-based provider sign-in is not
+supported. At most four remote tilesets are active at once. Like new model imports,
+external tiles are **visual only**; they do not add collisions or RF obstructions.
 
 ### Height reference and ground alignment
 

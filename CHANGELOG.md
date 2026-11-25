@@ -45,6 +45,15 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Added
 
+- Add configurable external HTTPS OGC 3D Tiles 1.0/1.1 scenery providers using
+  the existing catalog, persistence and backup architecture. Check endpoints,
+  preserve source georeferencing, configure optional ENU corrections, detail,
+  activation distances and HTTP caching, and retain source credits. Scoped,
+  abortable loading shares Cesium's scheduler and cooperative header loader;
+  partial tile failures retain loaded geometry and report degraded streaming.
+  Include an official Brandenburg preset and tested live integration, plus
+  deterministic lifecycle, bridge, persistence and real Cesium rendering tests.
+  External scenery is online and visual only; offline map modes stop requests.
 - Import local static GLB/glTF 2.0 scenery with platform file selection, safe
   resource resolution and self-contained model storage. Models retain core
   materials, transparency and PNG/JPEG textures; unsupported/compressed assets
@@ -61,7 +70,6 @@ working state; they do not announce a published v0.20.0 release.
   definitions. Unsupported providers/formats remain explicitly unavailable.
 - Runtime scenery catalog updates preserve unchanged models and reject obsolete
   loads. Multiple visual/collision assets share ENU heading, pitch, roll and scale.
-
 - Official Berlin/Brandenburg online imagery, topographic and relief layers
   alongside the existing Swiss/offline providers, with regional source credits.
 - Experimental Rüdersdorf photogrammetry scenery with local georeferencing,

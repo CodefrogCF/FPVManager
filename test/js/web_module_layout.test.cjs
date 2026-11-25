@@ -12,12 +12,12 @@ const assets = new Set([...read('pubspec.yaml').matchAll(/^\s+-\s+(web\/[^\s#]+)
 const found = asset => fs.statSync(path.join(web, asset)).isFile();
 
 // These are classic scripts: their execution order is part of the renderer's
-// public/global API, even though their files now live in feature directories.
-const originalOrder = require('../fixtures/web_globe_script_order.json');
+// public/global API. Keep dependencies before their consumers when adding modules.
+const expectedOrder = require('../fixtures/web_globe_script_order.json');
 
-test('reorganized globe keeps the original classic-script loading order', () => {
+test('globe keeps the declared classic-script dependency loading order', () => {
   const current = scripts(read('web/globe.html'));
-  assert.deepEqual(current.map(name => path.posix.basename(name)), originalOrder);
+  assert.deepEqual(current.map(name => path.posix.basename(name)), expectedOrder);
   for (const script of current) {
     assert.ok(found(script), `Missing globe script: ${script}`);
     if (script.startsWith('cesium/')) continue; // Registered as a Cesium directory.
@@ -42,7 +42,7 @@ test('all moved CommonJS dependencies resolve without legacy root shims', () => 
     }
   };
   for (const folder of features) visit(folder);
-  assert.equal(checked, 61);
+  assert.equal(checked, 62);
 });
 
 test('offline preparation HTML and workers resolve moved helpers from web root', () => {

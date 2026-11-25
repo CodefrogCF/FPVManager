@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "sceneries": [
+    {
+      "id": "synthetic-tileset",
+      "name": "Synthetic tileset",
+      "author": "FPVManager tests",
+      "sourceUrl": "https://provider.example/terms",
+      "license": "CC0-1.0",
+      "attribution": "Synthetic fixture, CC0-1.0",
+      "enabled": true,
+      "heightDatum": "WGS84 ellipsoid",
+      "alignment": {
+        "schemaVersion": 1,
+        "longitude": 13.8,
+        "latitude": 52.4,
+        "ellipsoidHeightM": 100,
+        "rotationDeg": 0,
+        "pitchDeg": 0,
+        "rollDeg": 0,
+        "scale": 1,
+        "opacity": 1
+      },
+      "heightAlignmentMode": "fixed",
+      "physicalCollisionsEnabled": false,
+      "assets": [
+        {
+          "kind": "3d-tiles",
+          "url": "https://provider.example/tileset.json?key=fixture",
+          "options": {
+            "version": "1.1",
+            "boundingSphere": {
+              "center": [
+                3787292.237531,
+                930245.043917,
+                5030166.351224
+              ],
+              "radiusM": 1000
+            },
+            "cachePolicy": "no-store",
+            "maximumScreenSpaceError": 16,
+            "correction": {
+              "eastM": 0,
+              "northM": 0,
+              "upM": 0,
+              "headingDeg": 0,
+              "pitchDeg": 0,
+              "rollDeg": 0,
+              "scale": 1
+            }
+          }
+        }
+      ],
+      "loadRadiusM": 2500,
+      "unloadRadiusM": 4000,
+      "clipTerrain": false
+    }
+  ],
+  "unavailable": []
+}

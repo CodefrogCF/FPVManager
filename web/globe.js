@@ -711,6 +711,12 @@ function postToFlutter(message) {
 
     async function executeCommand(command, signal) {
         signal.throwIfAborted();
+        if(command.type==='probe-scenery-tileset'){
+            if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before checking a provider.');
+            await sceneryCatalogReady;
+            if(!sceneryManager)throw Error('Scenery unavailable');
+            return {tileset:await sceneryManager.inspectTileset(command.url,command.cachePolicy,signal)};
+        }
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
             case 'scenery-catalog': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {catalog:sceneryManager.bundledCatalog()};
@@ -1565,6 +1571,8 @@ function postToFlutter(message) {
 
         // Local catalog integrates with the normal globe; never moves the camera.
         if(typeof FPVSceneryManager!=='undefined') sceneryManager = FPVSceneryManager.create(Cesium,viewer,{
+            canStreamRemote:()=>!offline&&navigator.onLine!==false&&!window.FPVMapProviderConfig?.prepared&&!window.FPVMapProviderConfig?.preparedUnavailable&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
+            flightPosition:()=>flyer?.active?flyer.status().position:walker?.status().active?walker.status().position:null,
             debugWireframe:new URLSearchParams(window.location.search).get('sceneryCollisionDebug')==='1',
             sampleSeamGround:sampleSceneTerrain,
             terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,

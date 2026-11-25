@@ -55,6 +55,7 @@
   "renderer_language.js",
   "scenery_alignment.js",
   "scenery_collision.js",
+  "scenery_tileset_provider.js",
   "scenery_manager.js",
   "scenery_bridge_calibration.js",
   "regional_3d.js",

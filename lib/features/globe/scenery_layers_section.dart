@@ -354,6 +354,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         load: controller.sceneryDefinitions,
                         templates: controller.sceneryTemplates,
                         importModel: controller.importSceneryModel,
+                        probeTileset: controller.probeSceneryTileset,
                         save: (manifest, create) async {
                           await controller.saveSceneryDefinition(
                             manifest,
@@ -406,6 +407,14 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   )
                 : null,
           ),
+          if (item['remote'] == true &&
+              (item['message'] is String || item['tileError'] is String))
+            Text(
+              '${item['message'] ?? item['tileError']}',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          if (item['remote'] == true && item['streamingState'] == 'loading')
+            Text(german ? 'Kacheln werden nachgeladen…' : 'Streaming tiles…'),
           if (kDeveloperMenusEnabled && item['collisionState'] != null)
             Text(
               german
@@ -636,7 +645,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                 icon: const Icon(Icons.location_on_outlined),
                 label: Text(german ? 'Auf Karte zeigen' : 'Show on map'),
               ),
-              if (kDeveloperMenusEnabled)
+              if (kDeveloperMenusEnabled && item['remote'] != true)
                 TextButton.icon(
                   onPressed: enabled ? () => _editScenery(item, german) : null,
                   icon: const Icon(Icons.tune),
@@ -646,7 +655,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         : 'Alignment & replacement regions',
                   ),
                 ),
-              if (item['state'] == 'error')
+              if (item['state'] == 'error' || item['tileError'] is String)
                 TextButton(
                   onPressed: enabled
                       ? () => _load(

@@ -18,7 +18,7 @@ test('regular builds hide internal menu widgets behind one explicit opt-in flag'
   for(const diagnostic of ['_replacement != null',"item['collisionState'] != null","item['lastHit'] is Map", "item['heightAlignmentMode'] == 'fixed'", "item['id'] == 'de-bb-ruedersdorf-chemical-plant'", "(item['buildingRegions'] as List?)", "(item['terrainRegions'] as List?)", '_editScenery(item, german)']){
     assert.ok(scenery.includes(diagnostic),`missing diagnostic control: ${diagnostic}`);
   }
-  assert.match(scenery,/if \(kDeveloperMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: enabled \? \(\) => _editScenery/);
+  assert.match(scenery,/if \(kDeveloperMenusEnabled && item\['remote'\] != true\)\s*TextButton\.icon\(\s*onPressed: enabled \? \(\) => _editScenery/);
   assert.match(structures,/if \(kDeveloperMenusEnabled\)\s*ExpansionTile\(\s*key: const PageStorageKey\('map-tunnel-data'\)/);
   assert.match(structures,/if \(kDeveloperMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: enabled && !controller\.tunnelModelPending/);
   assert.match(airspace,/if \(kDeveloperMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: controller\.isReady && controller\.canClearUasCache/);

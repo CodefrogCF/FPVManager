@@ -137,7 +137,8 @@
         "known_sha256": [
           "a4f395205ed80c2644a067bbfec9c87f6a7de4fb739b3cf43592622187960f31",
           "b5eccc1f6472b2336d1ce61fca351877a0b8907e588207d0a56cb4265554b47c",
-          "0034cc0da4c30e603948a956e11c340918b3a140ffa7f5b073dd55adc442e8f6"
+          "0034cc0da4c30e603948a956e11c340918b3a140ffa7f5b073dd55adc442e8f6",
+          "39ba3d9f33d5259ffe7b1a4444e68789d6de48fba15b0452003903fce7fbbf2c"
         ]
       },
       "reason": "consolidated current documentation"
@@ -488,7 +489,8 @@
         "known_sha256": [
           "a4f395205ed80c2644a067bbfec9c87f6a7de4fb739b3cf43592622187960f31",
           "b5eccc1f6472b2336d1ce61fca351877a0b8907e588207d0a56cb4265554b47c",
-          "0034cc0da4c30e603948a956e11c340918b3a140ffa7f5b073dd55adc442e8f6"
+          "0034cc0da4c30e603948a956e11c340918b3a140ffa7f5b073dd55adc442e8f6",
+          "39ba3d9f33d5259ffe7b1a4444e68789d6de48fba15b0452003903fce7fbbf2c"
         ]
       },
       "reason": "consolidated current documentation"
@@ -503,7 +505,8 @@
         "known_sha256": [
           "a4f395205ed80c2644a067bbfec9c87f6a7de4fb739b3cf43592622187960f31",
           "b5eccc1f6472b2336d1ce61fca351877a0b8907e588207d0a56cb4265554b47c",
-          "0034cc0da4c30e603948a956e11c340918b3a140ffa7f5b073dd55adc442e8f6"
+          "0034cc0da4c30e603948a956e11c340918b3a140ffa7f5b073dd55adc442e8f6",
+          "39ba3d9f33d5259ffe7b1a4444e68789d6de48fba15b0452003903fce7fbbf2c"
         ]
       },
       "reason": "consolidated current documentation"

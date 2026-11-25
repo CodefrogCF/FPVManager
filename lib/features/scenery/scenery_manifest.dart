@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import '../../core/geo/geo_coordinate_service.dart';
 import 'scenery_model_bounds.dart';
 import 'scenery_storage.dart';
+import 'scenery_tileset_options.dart';
 
 /// Application-independent scenery definition. Provider-specific calibration
 /// stays in extensions; asset bytes and runtime readiness never enter the DB.
@@ -75,6 +76,12 @@ final class SceneryManifest {
       throw const FormatException('Invalid scenery assets');
     }
     final assets = rawAssets.map(SceneryAsset.fromJson).toList();
+    if (assets.any((a) => a.provider == remoteTilesetProvider) &&
+        anchor['reference'] != 'WGS84_ELLIPSOID') {
+      throw const FormatException(
+        'Georeferenced tilesets require an absolute correction pivot',
+      );
+    }
     final ids = assets.map((a) => a.id).toSet();
     if (ids.length != assets.length ||
         !assets.any((a) => a.role == 'visual') ||
@@ -134,6 +141,57 @@ final class SceneryManifest {
         (anchor['latitude'] as num).toDouble(),
         localRadius,
       );
+    }
+    if (assets.any((a) => a.tileset != null)) {
+      final pivotBounds = transformedSceneryBounds({
+        ...doc,
+        'assets': [
+          {
+            'model': {
+              'localBounds': [0, 0, 0, 0, 0, 0],
+            },
+          },
+        ],
+      });
+      final pivot = (pivotBounds['sphere'] as Map)['center'] as List;
+      var radius = assets.any((a) => a.model != null)
+          ? (((doc['extensions'] as Map)['modelBounds'] as Map)['sphere']
+                    as Map)['radiusM']
+                as double
+          : 0.0;
+      for (final asset in assets.where((a) => a.tileset != null)) {
+        final sphere = asset.tileset!['boundingSphere'] as Map,
+            c = asset.tileset!['correction'] as Map;
+        final center = sphere['center'] as List;
+        final distance = math.sqrt(
+          List.generate(
+            3,
+            (i) => math.pow((center[i] as num) - (pivot[i] as num), 2),
+          ).reduce((a, b) => a + b),
+        );
+        final translation = math.sqrt(
+          [
+            'eastM',
+            'northM',
+            'upM',
+          ].map((k) => math.pow(c[k] as num, 2)).reduce((a, b) => a + b),
+        );
+        radius = math.max(
+          radius,
+          (distance + (sphere['radiusM'] as num)) * (c['scale'] as num) +
+              translation,
+        );
+      }
+      // Conservative coverage around the correction pivot encloses rotations,
+      // translation and scale. Cesium retains the exact runtime bounding sphere.
+      doc['bounds'] = sceneryCoverageBounds(
+        (anchor['longitude'] as num).toDouble(),
+        (anchor['latitude'] as num).toDouble(),
+        radius,
+      );
+    }
+    if (utf8.encode(jsonEncode(doc)).length > maxBytes) {
+      throw const FormatException('Scenery manifest exceeds size limit');
     }
     return SceneryManifest._(doc);
   }
@@ -298,9 +356,11 @@ final class SceneryAsset {
     this.format,
     this.uri,
     this.model,
+    this.tileset,
   );
   final String id, role, provider, format, uri;
   final Map<String, dynamic>? model;
+  final Map<String, dynamic>? tileset;
   factory SceneryAsset.fromJson(Object? value) {
     final a = _map(value);
     _identifier(a['id']);
@@ -353,6 +413,14 @@ final class SceneryAsset {
             model == null)) {
       throw const FormatException('Invalid managed model definition');
     }
+    Map<String, dynamic>? tileset;
+    if (a['provider'] == remoteTilesetProvider) {
+      validateTilesetUrl(a['uri']);
+      if (a['format'] != remoteTilesetFormat || a['role'] != 'visual') {
+        throw const FormatException('Remote tilesets are visual assets');
+      }
+      tileset = validateTilesetOptions(a['tileset']);
+    }
     return SceneryAsset._(
       a['id'] as String,
       a['role'] as String,
@@ -360,6 +428,7 @@ final class SceneryAsset {
       a['format'] as String,
       a['uri'] as String,
       model == null ? null : Map.unmodifiable(model),
+      tileset == null ? null : Map.unmodifiable(tileset),
     );
   }
 }

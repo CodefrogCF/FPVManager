@@ -2106,6 +2106,25 @@ class GlobeController extends ChangeNotifier {
   Future<List<SceneryManifest>> sceneryTemplates() async =>
       _sceneryCatalog?.templates() ?? Future.value(<SceneryManifest>[]);
 
+  Future<Map<String, dynamic>> probeSceneryTileset(
+    String url,
+    String cachePolicy,
+  ) async {
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError('Stop navigation before checking a provider');
+    }
+    final response = await _request({
+      'type': 'probe-scenery-tileset',
+      'url': url,
+      'cachePolicy': cachePolicy,
+    }, timeout: const Duration(seconds: 60));
+    final metadata = response['tileset'];
+    if (metadata is! Map<String, dynamic>) {
+      throw const FormatException('Tileset validation did not return metadata');
+    }
+    return metadata;
+  }
+
   Future<Map<String, dynamic>> saveSceneryDefinition(
     SceneryManifest manifest, {
     required bool create,

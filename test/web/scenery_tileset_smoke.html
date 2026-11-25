@@ -1,0 +1,67 @@
+<!doctype html><meta charset="utf-8"><title>Remote scenery runtime</title>
+<script src="../../web/cesium/Cesium.js"></script>
+<script src="../../web/features/scene/scene_tile_loading.js"></script>
+<script src="../../web/features/scenery/scenery_alignment.js"></script>
+<script src="../../web/features/scenery/scenery_collision.js"></script>
+<script src="../../web/features/scenery/scenery_tileset_provider.js"></script>
+<script src="../../web/features/scenery/scenery_manager.js"></script>
+<canvas id="canvas" width="400" height="400"></canvas><div id="credits"></div><pre id="result">pending</pre>
+<script>
+(async()=>{
+ const C=Cesium,T=FPVSceneryTilesets,M=FPVSceneryManager,query=new URLSearchParams(location.search),fixtureBase=query.get('fixtureBase'),live=query.get('url');
+ const checks=[];let scene,manager,ticks=0,rootMetadata;
+ const clock=setInterval(()=>ticks++,10),check=(condition,message)=>{if(!condition)throw Error(message);checks.push(message);};
+ const fetcher=fixtureBase?async(url,options)=>{
+  const source=new URL(url),response=await fetch(fixtureBase+source.pathname+source.search,options);
+  Object.defineProperty(response,'url',{value:url});return response;
+ }:undefined;
+ const probe=url=>T.probe(C,url,{cachePolicy:'no-store',fetcher});
+ async function framesUntil(predicate,limit=300){for(let i=0;i<limit;i++){manager?.tick(true);scene.initializeFrame();scene.render(C.JulianDate.now());if(predicate())return true;await new Promise(requestAnimationFrame);}return false;}
+ try{
+  scene=new C.Scene({canvas:document.getElementById('canvas'),creditContainer:document.getElementById('credits'),contextOptions:{webgl:{preserveDrawingBuffer:true}}});scene.backgroundColor=C.Color.BLACK;
+  const before=ticks;rootMetadata=await probe(live||'https://provider.example/slow11.json');
+  if(!live)check(ticks-before>=10,'simulation timers continue during a delayed provider request');
+  check(['1.0','1.1'].includes(rootMetadata.version),'Cesium validates remote tileset metadata');
+  const viewer={scene,camera:scene.camera,cesiumWidget:{creditDisplay:scene.frameState?.creditDisplay??scene._frameState?.creditDisplay??scene.creditDisplay}};
+  let cameraPoint={...rootMetadata.anchor,height:rootMetadata.anchor.heightM},flightPoint=null;
+  const near={...cameraPoint};
+  const alignment={...rootMetadata.anchor,ellipsoidHeightM:rootMetadata.anchor.heightM,rotationDeg:0,pitchDeg:0,rollDeg:0,scale:1,opacity:1};
+  const makeItem=(url,meta)=>({id:'remote-runtime',name:live?'Brandenburg 3D Mesh':'Synthetic provider',author:live?'LGB Brandenburg':'FPVManager fixtures',sourceUrl:live?new URL(live).origin:'https://provider.example/terms',license:live?'dl-de/by-2-0':'CC0-1.0',attribution:live?'© GeoBasis-DE/LGB, dl-de/by-2-0':'Synthetic fixture, CC0-1.0',
+   heightDatum:'WGS84 ellipsoid',heightAlignmentMode:'fixed',physicalCollisionsEnabled:false,enabled:true,alignment,loadRadiusM:1000,unloadRadiusM:2000,
+   assets:[{kind:'3d-tiles',url,options:{version:meta.version,maximumScreenSpaceError:live?32:16,cachePolicy:'no-store',boundingSphere:meta.boundingSphere,correction:{}}}]});
+  manager=M.create(C,viewer,{fetchCatalog:async()=>({schemaVersion:1,sceneries:[]}),position:()=>cameraPoint,flightPosition:()=>flightPoint,
+   tilesetFactory:(url,options,signal)=>T.load(C,url,options,{signal,fetcher})});await manager.initialize();
+  const url=live||'https://provider.example/root11.json';let item=makeItem(url,rootMetadata);
+  manager.replaceCatalog({schemaVersion:1,sceneries:[item],unavailable:[]});
+  const aim=live?C.Cartesian3.fromDegrees(Number(query.get('longitude')??13.05),Number(query.get('latitude')??52.4),150):C.Cartesian3.fromDegrees(13.8,52.4,105);
+  if(live){cameraPoint={longitude:Number(query.get('longitude')??13.05),latitude:Number(query.get('latitude')??52.4),height:500};}
+  scene.camera.lookAt(aim,new C.HeadingPitchRange(C.Math.toRadians(45),C.Math.toRadians(-25),live?1500:80));
+  check(await framesUntil(()=>manager.snapshot()[0]?.state==='ready'),'external header becomes ready without blocking frame ticks');
+  let model=manager.previewModels(item.id)[0],loaded=0;model.tileLoad.addEventListener(()=>loaded++);
+  check(C.Matrix4.equals(model.modelMatrix,C.Matrix4.IDENTITY),'default placement keeps the tileset model matrix unchanged');
+  check(await framesUntil(()=>loaded>0,live?1500:300),'Cesium streams real tile content');
+  if(live){
+   const pixels=new Uint8Array(400*400*4),gl=scene.context._gl;
+   check(await framesUntil(()=>{gl.readPixels(0,0,400,400,gl.RGBA,gl.UNSIGNED_BYTE,pixels);let visible=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]>20||pixels[i+1]>20||pixels[i+2]>20)visible++;return visible>100;},600),'official photogrammetric geometry produces visible pixels at the requested location');
+  }
+  if(!live){
+   const expected=C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(13.8,52.4,100));
+   check(C.Matrix4.equalsEpsilon(model.root.transform,expected,1e-8),'source georeferencing remains in the original root transform');
+   const pixels=new Uint8Array(400*400*4),gl=scene.context._gl;let colored=0;
+   check(await framesUntil(()=>{gl.readPixels(0,0,400,400,gl.RGBA,gl.UNSIGNED_BYTE,pixels);colored=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]>15&&pixels[i]>pixels[i+1]*1.5)colored++;return colored>20;}),'textured remote geometry renders visible pixels');
+   check(document.getElementById('credits').textContent.includes('Synthetic'),'provider attribution remains accessible');
+   cameraPoint={longitude:0,latitude:0,height:100};flightPoint=near;manager.tick(true);check(manager.previewModels(item.id).length===1,'nearby aircraft retains streaming while the map camera moves away');
+   flightPoint=null;manager.tick(true);check(manager.previewModels(item.id).length===0,'provider unloads when camera and aircraft leave coverage');
+   cameraPoint=near;manager.tick(true);check(await framesUntil(()=>manager.previewModels(item.id).length===1),'provider reloads after returning');
+   item=makeItem('https://provider.example/root10.json',{...rootMetadata,version:'1.0'});manager.replaceCatalog({schemaVersion:1,sceneries:[item],unavailable:[]});
+   check(await framesUntil(()=>manager.snapshot()[0]?.state==='ready'),'OGC 1.0 external header loads');
+   model=manager.previewModels(item.id)[0];let b3dm=0;model.tileLoad.addEventListener(()=>b3dm++);
+   check(await framesUntil(()=>b3dm>0),'OGC 1.0 b3dm content loads through pinned Cesium');
+   let failure;try{await probe('https://provider.example/missing.json');}catch(error){failure=T.describe(error);}check(failure?.category==='HTTP_ERROR','unavailable providers report HTTP errors');
+   failure=null;try{await probe('https://provider.example/cors.json');}catch(error){failure=T.describe(error);}check(failure?.category==='NETWORK_OR_CORS','browser-enforced CORS denial remains an explicit uncertainty');
+  }
+  document.body.dataset.status='pass';document.getElementById('result').textContent=JSON.stringify({status:'pass',checks,version:rootMetadata.version,loadedTiles:loaded,timerTicks:ticks,metadata:rootMetadata});
+ }catch(error){document.body.dataset.status='fail';document.getElementById('result').textContent=JSON.stringify({status:'fail',checks,message:String(error.stack||error),metadata:rootMetadata});}
+ finally{clearInterval(clock);manager?.dispose();if(scene&&!scene.isDestroyed())scene.destroy();}
+})();
+</script>

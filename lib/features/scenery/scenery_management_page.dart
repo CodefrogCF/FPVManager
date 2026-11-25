@@ -6,6 +6,8 @@ import 'scenery_manifest.dart';
 import 'scenery_asset_provider.dart';
 import 'scenery_model_import.dart';
 import 'scenery_import_files.dart';
+import 'scenery_tileset_dialog.dart';
+import 'scenery_tileset_options.dart';
 
 /// Definition management; selecting/importing new asset bytes belongs to the
 /// asset provider/import workflow. Existing templates retain their provenance.
@@ -19,6 +21,7 @@ class SceneryManagementPage extends StatefulWidget {
     required this.german,
     this.importModel,
     this.pickImport,
+    this.probeTileset,
   });
   final Future<List<SceneryManifest>> Function() load, templates;
   final Future<void> Function(SceneryManifest manifest, bool create) save;
@@ -27,6 +30,7 @@ class SceneryManagementPage extends StatefulWidget {
   final Future<void> Function(SceneryManifest, PreparedSceneryModel)?
   importModel;
   final Future<(String, PreparedSceneryModel)?> Function()? pickImport;
+  final SceneryTilesetProbe? probeTileset;
   @override
   State<SceneryManagementPage> createState() => _SceneryManagementPageState();
 }
@@ -59,6 +63,11 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
   }
 
   Future<void> _edit(SceneryManifest? existing) async {
+    if (existing?.assets.any((a) => a.provider == remoteTilesetProvider) ==
+        true) {
+      await _tileset(existing);
+      return;
+    }
     List<SceneryManifest> templates;
     try {
       templates = existing == null ? await widget.templates() : [existing];
@@ -137,6 +146,33 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
   }
 
   String? _progress;
+  Future<void> _tileset(SceneryManifest? existing) async {
+    if (widget.probeTileset == null) return;
+    final route = DialogRoute<SceneryManifest>(
+      context: context,
+      builder: (_) => SceneryTilesetDialog(
+        probe: widget.probeTileset!,
+        german: widget.german,
+        existing: existing,
+      ),
+    );
+    final result = await Navigator.of(context).push(route);
+    await route.completed;
+    if (result == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.save(result, existing == null);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+    final error = _error;
+    await _load();
+    if (mounted && error != null) setState(() => _error = error);
+  }
+
   bool _placing = false;
   Future<void> _import() async {
     setState(() {
@@ -306,6 +342,18 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
               onPressed: _busy ? null : _import,
               icon: const Icon(Icons.file_open_outlined),
               label: Text(t('GLB / glTF importieren', 'Import GLB / glTF')),
+            ),
+          ),
+        if (widget.probeTileset != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const ValueKey('scenery-add-tileset'),
+              onPressed: _busy ? null : () => _tileset(null),
+              icon: const Icon(Icons.cloud_outlined),
+              label: Text(
+                t('3D-Tiles-Anbieter hinzufügen', 'Add 3D Tiles provider'),
+              ),
             ),
           ),
         for (final item in _items)

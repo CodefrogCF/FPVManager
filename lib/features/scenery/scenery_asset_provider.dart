@@ -1,5 +1,6 @@
 import 'scenery_manifest.dart';
 import 'scenery_storage.dart';
+import 'scenery_tileset_options.dart';
 
 // Keep aligned with pubspec's application version; checked by regression test.
 const sceneryApplicationVersion = '0.19.29';
@@ -35,6 +36,7 @@ final class SceneryAssetProviders {
     Iterable<SceneryAssetProvider> providers = const [
       BundledSceneryAssetProvider(),
       ManagedSceneryAssetProvider(),
+      RemoteTilesetAssetProvider(),
     ],
     this.applicationVersion = sceneryApplicationVersion,
     this.managedOptions = const {'backend': 'server'},
@@ -68,7 +70,10 @@ final class SceneryAssetProviders {
         } catch (_) {
           reason ??= 'Asset provider failed: ${asset.provider}';
         }
-        if (path == null || !isSceneryRelativePath(path)) {
+        if (path == null ||
+            (asset.provider == remoteTilesetProvider
+                ? !_remotePath(path)
+                : !isSceneryRelativePath(path))) {
           reason ??=
               'Asset provider or format is unavailable: ${asset.provider}/${asset.format}';
         } else {
@@ -146,8 +151,14 @@ final class SceneryAssetProviders {
           'assets': [
             for (final a in manifest.assets.where((a) => a.role == 'visual'))
               {
-                'kind': 'glb',
-                'path': resolved[a.id],
+                'kind': a.provider == remoteTilesetProvider
+                    ? '3d-tiles'
+                    : 'glb',
+                if (a.provider == remoteTilesetProvider) ...{
+                  'url': resolved[a.id],
+                  'options': a.tileset,
+                } else
+                  'path': resolved[a.id],
                 if (a.provider == 'managed') ...{
                   'managed': true,
                   ...managedOptions,
@@ -218,6 +229,29 @@ final class SceneryAssetProviders {
     }
     return true;
   }
+}
+
+bool _remotePath(String value) {
+  try {
+    validateTilesetUrl(value);
+    return true;
+  } on FormatException {
+    return false;
+  }
+}
+
+final class RemoteTilesetAssetProvider implements SceneryAssetProvider {
+  const RemoteTilesetAssetProvider();
+  @override
+  String get id => remoteTilesetProvider;
+  @override
+  String? resolve(SceneryAsset asset) =>
+      asset.role == 'visual' &&
+          asset.format == remoteTilesetFormat &&
+          asset.tileset != null &&
+          _remotePath(asset.uri)
+      ? asset.uri
+      : null;
 }
 
 final class ManagedSceneryAssetProvider implements SceneryAssetProvider {

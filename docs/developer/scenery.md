@@ -1,4 +1,4 @@
-# Real-world scenery: Rüdersdorf, heights and collisions
+# Real-world scenery: providers, placement and collisions
 
 **Status:** experimental local reference scene, current geometry revision **R35**.
 This is the current technical reference; chronological changes belong in the
@@ -14,6 +14,7 @@ This is the current technical reference; chronological changes belong in the
 | Scene catalog, activation, height state, collisions and credits | `web/features/scenery/scenery_manager.js`, `web/assets/scenery/catalog.json` |
 | Reference and transformation | `web/features/scenery/scenery_alignment.js`, `web/assets/scenery/reference_alignment.json` |
 | GLB rendering | `web/assets/scenery/local_reference.glb` |
+| External 3D Tiles transport and validation | `web/features/scenery/scenery_tileset_provider.js`, `web/features/scene/scene_tile_loading.js` |
 | FPC collisions | `web/assets/scenery/local_reference.fpc`, `web/features/scenery/scenery_collision.js` |
 | Experimental BKG buildings and regional 3D selection | `web/features/terrain/regional_3d.js`, `web/features/scenery/scenery_bridge_calibration.js` |
 | Workbench view and local data relay | `tool/scenery/cesium_georeference_workbench.html`, `tool/scenery/serve_workbench.py` |
@@ -73,6 +74,7 @@ surveyed accuracy. Terrain-relative absolute bounds require a real ground height
 `SceneryAssetProvider` resolves logical references. The current `bundled`
 provider supports self-contained GLB and FPC within the scenery asset root. The
 `managed` provider resolves verified, content-addressed local GLBs.
+The `remote-tiles` provider resolves checked HTTPS 3D Tiles endpoints.
 Other providers/formats can be defined and stored; a scene remains
 **unavailable** without a matching loader or when its minimum app version is too
 high. Front-/back-only collision and newly tilted, previously terrain-calibrated
@@ -91,8 +93,8 @@ rejected. The current database state is replayed after renderer reconnection.
 
 Scene definitions and initialization state are included in the existing backup
 format; model bytes and provider caches are not exported as an exchangeable
-scenery package. Older backups remain readable. Arbitrary 3D Tiles services and
-`.fpvscenery` packages remain separate follow-up features. The reference-scene
+scenery package. Older backups remain readable. Portable `.fpvscenery` packages
+remain a separate follow-up feature. The reference-scene
 and BKG limitations below still apply.
 
 ## Local model import (#146)
@@ -129,7 +131,7 @@ and **512 MiB** managed storage. Geometry and texture limits are enforced before
 commit. These limits bound resource use; they are not measured device performance
 budgets. Native validation/checksums run off the UI isolate; Web uses asynchronous
 Web Crypto and periodically yields during position scans. Import is disabled
-during navigation. Existing scenery loading remains sequential.
+during navigation. Local model loading remains sequential.
 
 Native models are atomically written under application support `scenery/v1/`,
 named by SHA-256, and served through a fixed same-origin loopback route with at
@@ -157,6 +159,94 @@ against the pinned Cesium matrices. The real Chromium regression uploads and
 renders a georeferenced PNG-textured transparent GLB, reloads the page, and checks
 that the model comes from cache without another model HTTP request. Device smoke
 tests and hardware performance measurements remain separate release checks.
+
+## External 3D Tiles providers (#147)
+
+`SceneryTilesetDialog` checks a public HTTPS endpoint through
+`probe-scenery-tileset` before saving. The probe creates a temporary Cesium tileset
+to validate the header, version and geographic bounds, then destroys it without
+adding geometry to the scene. The existing database, backup and catalog-replay
+paths persist its definition; there is no provider-specific database table.
+`SceneryAsset.tileset` stores version, maximum screen-space error, caching policy,
+ECEF bounding sphere and optional placement correction. Definitions use an
+absolute WGS84 ellipsoid pivot. See the
+[OGC 3D Tiles 1.1 specification](https://docs.ogc.org/cs/22-025r4/22-025r4.pdf) and
+the pinned [Cesium3DTileset API](https://cesium.com/learn/cesiumjs/ref-doc/Cesium3DTileset.html).
+
+Default placement is the **identity matrix**: the provider's root transform,
+georeferencing, nested transforms and region bounds are retained. An optional
+correction composes `ENU(pivot) × localCorrection × inverse(ENU(pivot))` with the
+original tileset model matrix. It does not reinterpret tile heights as local GLB
+coordinates. The initial pivot is the coverage-sphere center, whose ellipsoid
+height can be below ground for a wide dataset; changing that pivot alone does
+not move a tileset with identity correction. Corrections recalculate conservative
+stored bounds. Runtime activation uses the loaded tileset's current sphere when
+available, otherwise its checked sphere, and the nearest camera/aircraft distance
+to that coverage. Load/unload radii provide hysteresis.
+
+OGC 1.0 and 1.1 content supported by **Cesium 1.145.0** is delegated to Cesium,
+including supported extensions, implicit subtrees and multiple contents. A
+cooperative validator checks header structure, volumes, transforms and HTTPS
+resource references. The shared explicit-tree partitioner yields during large
+header preparation. The scoped transport retains Cesium's request scheduler,
+removes its private ownership marker before network requests, and does not copy
+inherited URL query parameters to another origin. Requests omit browser
+credentials and referrers. Signed URLs are supported; provider-specific sign-in
+is not. Inline binary/image resources remain local; arbitrary inline documents
+and unsafe schemes are rejected.
+
+The default **no-store** policy avoids persistent HTTP caching. The alternative
+uses normal provider HTTP cache headers. Neither downloads an offline package;
+offline map modes stop external scenery requests. Attribution/license metadata
+remains in management, the map sources panel and active Cesium credits. Providers
+must permit client access and the chosen use; no CORS proxy is introduced.
+
+One external header load can progress alongside local-only scenery loading.
+There are at most **four active remote tilesets**, with a shared **128 MiB Cesium
+tile-cache target** and no configured overflow. These bound concurrency/cache
+targets, not total GPU allocation or a measured device budget. Individual
+responses are limited to **64 MiB**, hierarchies to **300,000 tiles / 128 levels**,
+and each request has a **15-second abortable timeout** with at most two retries
+for transient failures. The existing **60-second** scene-load deadline releases
+a stuck slot. Removal, replacement, offline mode and disposal abort owned
+requests; generation checks reject late results.
+
+Root failures are explicit, recoverable scene errors. A later tile failure keeps
+already loaded geometry, reports degraded streaming, and clears the current error
+after successful tile delivery. Repeated error bridge notifications are throttled
+to once per second per scene. HTTP errors retain their status; browsers cannot
+reliably distinguish CORS, TLS and network failures, so these share an actionable
+`NETWORK_OR_CORS` category. URLs/query secrets are omitted from generic errors.
+External loads are asynchronous and do not run inside physics ticks.
+
+### Brandenburg evaluation and regression evidence
+
+On **2026-11-25**, the official
+[LGB 3D mesh endpoint](https://isk.geobasis-bb.de/geodienste/lgb/3d_sentinel/3dmeshes/tileset.json)
+returned an OGC **1.1** header, HTTP 200, permissive CORS and `Cache-Control:
+no-cache`, with 22 regional children. Its
+[LGB-published metadata](https://www.distributions.informationgrid.eu/trefferanzeige?docuuid=f5a6d881-f36a-473c-a33a-4c1d1f982cf5)
+identifies **DL-DE-BY 2.0** and `© GeoBasis-DE/LGB, dl-de/by-2-0`.
+The optional UI preset includes this source and attribution. Regional coverage
+is not a guarantee of full-state or Rüdersdorf coverage. The
+[LGB service announcement](https://geobasis-bb.de/lgb/de/presse/pressemitteilungen/~17-06-2026-brandenburg-in-3d-entdecken)
+describes an aerial photogrammetric surface, not surveyed flyable interiors.
+
+An explicit headless Chromium/Cesium check at **13.05° E / 52.4° N** loaded **20
+real tiles**, verified visible geometry and identity placement while timer ticks
+continued. Reproduce separately from deterministic CI:
+
+```sh
+node tool/browser/check_scenery_tileset.cjs
+```
+
+Automated synthetic tests cover real 1.0 b3dm and 1.1 GLB rendering, texture and
+credits, CORS/HTTP failures, timeout/cancellation, partial-tile recovery,
+activation/aircraft priority, bounds/transforms, resource release, persistence,
+backup, UI cancellation and bridge replay. The live check is integration evidence,
+not a hardware performance benchmark. Android/iOS and native UI smoke tests remain
+release checks. Remote scenery is visual only: collision meshes (#149), replacement
+regions (#150), packages (#152) and scenery RF obstruction (#153) remain separate.
 
 ## Geometry and orientation
 
