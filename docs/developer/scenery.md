@@ -53,7 +53,7 @@ this table; existing tables are not restructured for it.
 | Field | Contract |
 |---|---|
 | `id`, `name`, `description` | Stable identifier and description |
-| `source` | `author`, HTTPS `url`, `license`, `attribution` |
+| `source` | `author`, optional HTTPS `url` (null for local files), `license`, `attribution` |
 | `anchor` | `longitude`, `latitude`, `heightM`, `reference`: `WGS84_ELLIPSOID` or `TERRAIN_RELATIVE` |
 | `bounds` | Geographic region `west`, `south`, `east`, `north`; west > east indicates an antimeridian crossing |
 | `rotation`, `scale` | `headingDeg`, `pitchDeg`, `rollDeg`, uniform scale in the local ENU frame |
@@ -65,12 +65,14 @@ this table; existing tables are not restructured for it.
 
 Definitions are immutable snapshots. Limits are 64 scenes, 128 KiB per
 definition, 1 MiB per catalog, and at most 16 visual and 16 collision assets.
-Catalog bounds from templates/placement forms are conservative coverage regions,
-not surveyed mesh bounds. Actual mesh bounds, file selection and resource import
-belong to the asset import workflow.
+Template bounds are conservative coverage regions. Managed model imports store
+local mesh bounds and recalculate transformed ECEF bounds and a conservative
+geographic footprint when placement changes; these are mathematical bounds, not
+surveyed accuracy. Terrain-relative absolute bounds require a real ground height.
 
 `SceneryAssetProvider` resolves logical references. The current `bundled`
-provider supports self-contained GLB and FPC within the scenery asset root.
+provider supports self-contained GLB and FPC within the scenery asset root. The
+`managed` provider resolves verified, content-addressed local GLBs.
 Other providers/formats can be defined and stored; a scene remains
 **unavailable** without a matching loader or when its minimum app version is too
 high. Front-/back-only collision and newly tilted, previously terrain-calibrated
@@ -89,9 +91,72 @@ rejected. The current database state is replayed after renderer reconnection.
 
 Scene definitions and initialization state are included in the existing backup
 format; model bytes and provider caches are not exported as an exchangeable
-scenery package. Older backups remain readable. General GLB/glTF file import,
-arbitrary 3D Tiles services and `.fpvscenery` packages are separate follow-up
-features. The reference-scene and BKG limitations below still apply.
+scenery package. Older backups remain readable. Arbitrary 3D Tiles services and
+`.fpvscenery` packages remain separate follow-up features. The reference-scene
+and BKG limitations below still apply.
+
+## Local model import (#146)
+
+`scenery_import_files.dart` uses the existing platform file selector. Safe relative
+resources beside a native model are resolved within its directory, including a
+canonical-path check. Where directory access is unavailable, the user selects
+each requested resource explicitly. Absolute/network paths, traversal, encoded
+separators, query strings and fragments are rejected; no resource is downloaded.
+
+`SceneryModelImporter` accepts static **glTF 2.0 JSON and GLB 2.0**, validates
+buffer ranges, strides, indices, node hierarchy/transforms and PNG/JPEG headers,
+and combines all buffers and images into one self-contained GLB. POSITION bounds
+are recomputed from the actual vertices. Core PBR materials, alpha blending/masks,
+embedded textures, `KHR_materials_unlit` and `KHR_texture_transform` are retained.
+Sparse accessors, animations, skins, morph targets and other extensions fail
+explicitly. External glTF resources and bounded base64 data URIs are supported.
+
+The importer follows the [Khronos glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html).
+Compression evaluation: [Draco](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_draco_mesh_compression)
+compresses mesh data, [Meshopt](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Vendor/EXT_meshopt_compression)
+compresses buffer views, and [KTX2/Basis](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_texture_basisu)
+requires texture transcoding. The pinned Cesium distribution contains Draco and
+Basis Wasm decoders, but the import validator has no corresponding bounded CPU
+decoders for checking geometry bounds and decoded allocation. These compression
+extensions are therefore rejected, including optional declarations. Export an
+uncompressed static glTF/GLB with PNG/JPEG textures for this import path. Renderer
+decoder availability alone is not import validation.
+
+Limits: **64 MiB** combined input/output, **4 MiB** JSON, **128** external resources,
+**1,024** nodes, **2 million** scanned positions/drawn triangles, **4,096 × 4,096**
+per texture, **128 MiB** estimated decoded resources across active managed models,
+and **512 MiB** managed storage. Geometry and texture limits are enforced before
+commit. These limits bound resource use; they are not measured device performance
+budgets. Native validation/checksums run off the UI isolate; Web uses asynchronous
+Web Crypto and periodically yields during position scans. Import is disabled
+during navigation. Existing scenery loading remains sequential.
+
+Native models are atomically written under application support `scenery/v1/`,
+named by SHA-256, and served through a fixed same-origin loopback route with at
+most two coalesced reads. Web models use app-scoped CacheStorage on HTTPS or
+localhost; the renderer verifies the checksum and uses a revocable Blob URL,
+without HTTP fallback. Cancellation before confirmation commits nothing; database
+failure rolls back new unreferenced bytes, while bridge failure retains committed
+definitions and files. Removing the last scene reference removes its file.
+Browser storage can be evicted or cleared; missing/corrupt files report a
+reimport error. Definitions in backups do **not** transfer model bytes to another
+device; portable packages belong to #152.
+
+Placement uses a WGS84 ellipsoid height or a height relative to the displayed
+terrain, then local ENU heading/pitch/roll and uniform scale. Generic relative
+placement samples the model anchor; it does not reuse reference-site ground
+controls. Missing terrain hides the model until alignment succeeds; a stalled
+height request reaches an explicit recoverable error. Newly imported visuals do
+not create collision geometry (#149), replacement regions (#150) or RF obstacles
+(#153). Existing collision-backed reference scenes retain their own behavior.
+
+Regression coverage includes synthetic imports, unsafe/missing resources,
+allocation limits, database/file restart, rollback and shutdown, UI cancellation,
+loopback serving, cache-only reads and Blob disposal. ECEF bounds are compared
+against the pinned Cesium matrices. The real Chromium regression uploads and
+renders a georeferenced PNG-textured transparent GLB, reloads the page, and checks
+that the model comes from cache without another model HTTP request. Device smoke
+tests and hardware performance measurements remain separate release checks.
 
 ## Geometry and orientation
 

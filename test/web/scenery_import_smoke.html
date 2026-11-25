@@ -1,0 +1,50 @@
+<!doctype html><meta charset="utf-8"><title>Local scenery runtime regression</title>
+<script src="../../web/cesium/Cesium.js"></script>
+<script src="../../web/features/scenery/scenery_alignment.js"></script>
+<script src="../../web/features/scenery/scenery_collision.js"></script>
+<script src="../../web/features/scenery/scenery_manager.js"></script>
+<canvas id="canvas" width="400" height="400"></canvas><div id="credits"></div><pre id="result">pending</pre>
+<script>
+(async()=>{
+ const C=Cesium,A=FPVSceneryAlignment,M=FPVSceneryManager,checks=[];
+ const check=(ok,message)=>{if(!ok)throw Error(message);checks.push(message);};
+ let scene,resource;
+ try{
+  const root=new URL('../../scenery-local/v1/',location.href).href,cache=await caches.open('fpvmanager-scenery-v1:'+root);
+  const resumed=location.search.includes('resume=1');let key;
+  if(!resumed){
+   const bytes=await(await fetch('../fixtures/scenery/imported_triangle.glb')).arrayBuffer();
+   key=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('')+'.glb';
+   await cache.put(root+key,new Response(bytes));sessionStorage.setItem('scenery-import-key',key);
+  }else key=sessionStorage.getItem('scenery-import-key');
+  resource=await M.managedModelUrl({path:'managed/'+key,backend:'cache',cacheRoot:root});
+  check(resource.url.startsWith('blob:'),'loaded cache-only model as Blob');
+  const pose={longitude:13.8,latitude:52.4,ellipsoidHeightM:100,rotationDeg:23,pitchDeg:15,rollDeg:-10,scale:2,opacity:1};
+  scene=new C.Scene({canvas:document.getElementById('canvas'),creditContainer:document.getElementById('credits'),contextOptions:{webgl:{preserveDrawingBuffer:true}}});
+  scene.backgroundColor=C.Color.BLACK;
+  const model=await C.Model.fromGltfAsync({url:resource.url,modelMatrix:A.modelMatrix(C,pose),scale:pose.scale,asynchronous:false});
+  scene.primitives.add(model);
+  scene.camera.lookAt(C.Cartesian3.fromDegrees(13.8,52.4,100),new C.HeadingPitchRange(C.Math.toRadians(90),C.Math.toRadians(-15),60));
+  let error;model.errorEvent.addEventListener(e=>{error=e;});
+  for(let frame=0;frame<300&&!model.ready;frame++){
+   if(error)throw error;scene.initializeFrame();scene.render(C.JulianDate.now());await new Promise(requestAnimationFrame);
+  }
+  check(model.ready,'pinned Cesium completed texture and GPU upload');
+  const expected=C.Matrix4.multiplyByPoint(A.modelMatrix(C,pose),new C.Cartesian3(6,2,14),new C.Cartesian3());
+  check(C.Cartesian3.distance(model.boundingSphere.center,expected)<.01,'georeferenced bounds include node, axis, HPR and scale transforms');
+  check(Math.abs(model.boundingSphere.radius-Math.sqrt(200))<.01,'scaled model bounds retain meter units');
+  const gl=scene.context._gl,pixels=new Uint8Array(400*400*4);let colored=0;
+  for(let i=0;i<180&&colored<=20;i++){
+   scene.initializeFrame();scene.render(C.JulianDate.now());gl.readPixels(0,0,400,400,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+   colored=0;for(let j=0;j<pixels.length;j+=4)if(pixels[j]>15&&pixels[j]>pixels[j+1]*1.5)colored++;
+   if(colored<=20)await new Promise(requestAnimationFrame);
+  }
+  check(colored>20,'PNG texture and transparent material produce visible pixels ('+colored+')');
+  const result={status:'pass',checks,reloaded:resumed,coloredPixels:colored,radius:model.boundingSphere.radius};
+  scene.destroy();scene=null;resource.release();resource=null;
+  if(!resumed){location.replace(location.pathname+'?resume=1');return;}
+  document.body.dataset.status='pass';document.getElementById('result').textContent=JSON.stringify(result);
+ }catch(error){document.body.dataset.status='fail';document.getElementById('result').textContent=JSON.stringify({status:'fail',message:String(error.stack||error),checks});}
+ finally{if(scene&&!scene.isDestroyed())scene.destroy();resource?.release();}
+})();
+</script>

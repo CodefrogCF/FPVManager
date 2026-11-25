@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import '../../core/geo/geo_coordinate_service.dart';
+import 'scenery_model_bounds.dart';
+import 'scenery_storage.dart';
 
 /// Application-independent scenery definition. Provider-specific calibration
 /// stays in extensions; asset bytes and runtime readiness never enter the DB.
@@ -42,7 +44,7 @@ final class SceneryManifest {
     for (final key in ['author', 'license', 'attribution']) {
       _text(source[key], 2048);
     }
-    _https(source['url']);
+    if (source['url'] != null) _https(source['url']);
     final anchor = _map(doc['anchor']);
     _number(anchor['longitude'], -180, 180);
     _number(anchor['latitude'], -90, 90);
@@ -106,6 +108,33 @@ final class SceneryManifest {
     }
     parseSceneryVersion(doc['minimumAppVersion']);
     if (doc['extensions'] != null) _map(doc['extensions']);
+    if (assets.any((a) => a.model != null)) {
+      final modelBounds = transformedSceneryBounds(doc);
+      (doc['extensions'] ??= <String, dynamic>{})['modelBounds'] = modelBounds;
+      final radius = (modelBounds['sphere']?['radiusM'] as num?)?.toDouble();
+      // The footprint includes the transformed model. Streaming distances are
+      // configured separately; a terrain-relative footprint is height-independent.
+      final localRadius =
+          radius ??
+          assets.where((a) => a.model != null).fold<double>(0, (value, a) {
+            final b = a.model!['localBounds'] as List;
+            final r = math.sqrt(
+              List.generate(
+                3,
+                (i) => math.pow(
+                  math.max((b[i] as num).abs(), (b[i + 3] as num).abs()),
+                  2,
+                ),
+              ).reduce((a, b) => a + b),
+            );
+            return math.max(value, r * (doc['scale'] as num));
+          });
+      doc['bounds'] = sceneryCoverageBounds(
+        (anchor['longitude'] as num).toDouble(),
+        (anchor['latitude'] as num).toDouble(),
+        localRadius,
+      );
+    }
     return SceneryManifest._(doc);
   }
 
@@ -234,15 +263,21 @@ Map<String, double> sceneryCoverageBounds(
   double latitude,
   double radiusM,
 ) {
-  final dLat = radiusM / 6378137 * 180 / math.pi;
+  // Lower than WGS84's minimum curvature radius, including allowed anchor
+  // heights. A sphere enclosing the local model must not understate its footprint.
+  const conservativeRadiusM = 6300000.0;
+  if (radiusM >= conservativeRadiusM) {
+    return {'west': -180, 'east': 180, 'south': -90, 'north': 90};
+  }
+  final angular = math.asin(radiusM / conservativeRadiusM);
+  final dLat = angular * 180 / math.pi;
   final polar = latitude - dLat <= -90 || latitude + dLat >= 90;
   final dLon = polar
       ? 180.0
       : math.asin(
               math.min(
                 1,
-                math.sin(radiusM / 6378137) /
-                    math.cos(latitude * math.pi / 180),
+                math.sin(angular) / math.cos(latitude * math.pi / 180),
               ),
             ) *
             180 /
@@ -256,8 +291,16 @@ Map<String, double> sceneryCoverageBounds(
 }
 
 final class SceneryAsset {
-  SceneryAsset._(this.id, this.role, this.provider, this.format, this.uri);
+  SceneryAsset._(
+    this.id,
+    this.role,
+    this.provider,
+    this.format,
+    this.uri,
+    this.model,
+  );
   final String id, role, provider, format, uri;
+  final Map<String, dynamic>? model;
   factory SceneryAsset.fromJson(Object? value) {
     final a = _map(value);
     _identifier(a['id']);
@@ -276,12 +319,47 @@ final class SceneryAsset {
         !uri.hasScheme && !isSceneryRelativePath(a['uri'] as String)) {
       throw const FormatException('Unsafe scenery asset reference');
     }
+    Map<String, dynamic>? model;
+    if (a['model'] != null) {
+      model = _clone(_map(a['model']));
+      final b = model['localBounds'];
+      if (b is! List ||
+          b.length != 6 ||
+          b.any((v) => v is! num || !v.isFinite || v.abs() > 2000000) ||
+          List.generate(
+            3,
+            (i) => (b[i] as num) > (b[i + 3] as num),
+          ).any((v) => v)) {
+        throw const FormatException('Invalid local model bounds');
+      }
+      for (final key in [
+        'triangles',
+        'vertices',
+        'textures',
+        'estimatedBytes',
+        'byteLength',
+      ]) {
+        if (model[key] is! int ||
+            (model[key] as int) < 0 ||
+            (model[key] as int) > 128 * 1024 * 1024) {
+          throw const FormatException('Invalid model resource estimate');
+        }
+      }
+    }
+    if (a['provider'] == 'managed' &&
+        (!isManagedSceneryKey(a['uri'] as String) ||
+            a['format'] != 'glb' ||
+            a['role'] != 'visual' ||
+            model == null)) {
+      throw const FormatException('Invalid managed model definition');
+    }
     return SceneryAsset._(
       a['id'] as String,
       a['role'] as String,
       a['provider'] as String,
       a['format'] as String,
       a['uri'] as String,
+      model == null ? null : Map.unmodifiable(model),
     );
   }
 }

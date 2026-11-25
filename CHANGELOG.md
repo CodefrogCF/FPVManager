@@ -45,6 +45,15 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Added
 
+- Import local static GLB/glTF 2.0 scenery with platform file selection, safe
+  resource resolution and self-contained model storage. Models retain core
+  materials, transparency and PNG/JPEG textures; unsupported/compressed assets
+  and resource limits produce explicit errors. Placement supports ENU, WGS84 or
+  terrain-relative heights, heading/pitch/roll and scale with recalculated bounds.
+  Imports persist after restart; native loopback and Web cache-only loading keep
+  model bytes local. New imports are visual only, and model bytes are not yet
+  included in portable backups. Add import, persistence, bounds and real Cesium
+  rendering/offline-asset regression coverage.
 - Persistent scenery definitions with a versioned, provider-independent manifest,
   database migration and backup/restore support. Existing scenery activation and
   alignment are migrated without replacing user settings. Scenery management can

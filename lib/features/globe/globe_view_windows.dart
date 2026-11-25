@@ -80,6 +80,7 @@ class _GlobeViewWindowsState extends State<GlobeViewWindows>
       if (_disposed) return;
 
       final server = await GlobeAssetServer.start(
+        managedScenery: widget.controller.readManagedScenery,
         offlineCache: NativeOfflineMapStore(),
       );
       _assetServer = server;

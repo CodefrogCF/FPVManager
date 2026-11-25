@@ -353,6 +353,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                       builder: (_) => SceneryManagementPage(
                         load: controller.sceneryDefinitions,
                         templates: controller.sceneryTemplates,
+                        importModel: controller.importSceneryModel,
                         save: (manifest, create) async {
                           await controller.saveSceneryDefinition(
                             manifest,

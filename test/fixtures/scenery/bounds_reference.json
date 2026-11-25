@@ -1,0 +1,125 @@
+{
+  "source": "Pinned Cesium runtime ENU/HPR matrix, synthetic CC0-1.0 fixture",
+  "cases": [
+    {
+      "pose": {
+        "longitude": 13.8,
+        "latitude": 52.4,
+        "ellipsoidHeightM": 100,
+        "rotationDeg": 0,
+        "pitchDeg": 0,
+        "rollDeg": 0,
+        "scale": 1,
+        "opacity": 1
+      },
+      "localBounds": [
+        -2,
+        -3,
+        -4,
+        10,
+        20,
+        30
+      ],
+      "minimum": [
+        3787260.761018497,
+        930239.108581374,
+        5030157.066900238
+      ],
+      "maximum": [
+        3787301.4661889607,
+        930260.0572683102,
+        5030198.03808701
+      ]
+    },
+    {
+      "pose": {
+        "longitude": 179.99999,
+        "latitude": -50,
+        "ellipsoidHeightM": 125,
+        "rotationDeg": 123,
+        "pitchDeg": -75,
+        "rollDeg": 170,
+        "scale": 3,
+        "opacity": 1
+      },
+      "localBounds": [
+        -2,
+        -3,
+        -4,
+        10,
+        20,
+        30
+      ],
+      "minimum": [
+        -4108015.8606936806,
+        -41.90528299496543,
+        -4862899.601269897
+      ],
+      "maximum": [
+        -4107911.5996056744,
+        64.45225392220358,
+        -4862784.3888299335
+      ]
+    },
+    {
+      "pose": {
+        "longitude": -179.99999,
+        "latitude": 0,
+        "ellipsoidHeightM": -20,
+        "rotationDeg": -45,
+        "pitchDeg": 60,
+        "rollDeg": -30,
+        "scale": 100,
+        "opacity": 1
+      },
+      "localBounds": [
+        -2,
+        -3,
+        -4,
+        10,
+        20,
+        30
+      ],
+      "minimum": [
+        -6380357.063894425,
+        -800.0759719676237,
+        -876.6083600716729
+      ],
+      "maximum": [
+        -6377270.589895902,
+        3333.6202426186915,
+        2261.381375799312
+      ]
+    },
+    {
+      "pose": {
+        "longitude": 0,
+        "latitude": 90,
+        "ellipsoidHeightM": 500,
+        "rotationDeg": 230,
+        "pitchDeg": 45,
+        "rollDeg": 90,
+        "scale": 0.1,
+        "opacity": 1
+      },
+      "localBounds": [
+        -2,
+        -3,
+        -4,
+        10,
+        20,
+        30
+      ],
+      "minimum": [
+        -2.632540615213338,
+        -0.8972930982212481,
+        6357251.960691789
+      ],
+      "maximum": [
+        1.4488005291898522,
+        3.29807618023543,
+        6357254.435565523
+      ]
+    }
+  ]
+}

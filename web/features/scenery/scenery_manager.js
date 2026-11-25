@@ -14,8 +14,8 @@
         return input.sceneries.map(item=>{
             if(!item||typeof item.id!=='string'||!/^[a-z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id))throw Error('Invalid or duplicate scenery ID');
             ids.add(item.id);
-            for(const k of ['name','author','license','sourceUrl'])if(typeof item[k]!=='string'||!item[k].trim()||item[k].length>1024)throw Error('Invalid scenery '+k);
-            const source=new URL(item.sourceUrl);if(source.protocol!=='https:')throw Error('Invalid scenery source URL');
+            for(const k of ['name','author','license'])if(typeof item[k]!=='string'||!item[k].trim()||item[k].length>2048)throw Error('Invalid scenery '+k);
+            if(item.sourceUrl!=null){const source=new URL(item.sourceUrl);if(source.protocol!=='https:'||source.username||source.password)throw Error('Invalid scenery source URL');}
             if(item.enabled!==undefined&&typeof item.enabled!=='boolean')throw Error('Invalid enabled setting');
             if(!item.alignment||!['longitude','latitude','ellipsoidHeightM','scale','rotationDeg','opacity'].every(k=>Object.hasOwn(item.alignment,k)))throw Error('Explicit alignment required');
             const alignment=A.normalize(item.alignment);
@@ -28,8 +28,15 @@
                 item.collisionAssets.some(p=>typeof p!=='string'||!/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.fpc$/.test(p))))throw Error('Invalid collision assets');
             if(!Array.isArray(item.assets)||!item.assets.length||item.assets.length>16)throw Error('Invalid scenery assets');
             const assets=item.assets.map(asset=>{
-                // Bundled self-contained GLB only. No paths outside the dedicated asset root.
+                // Self-contained GLB only. No paths outside the dedicated asset root.
                 if(!asset||asset.kind!=='glb'||typeof asset.path!=='string'||!/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.glb$/.test(asset.path))throw Error('Invalid scenery asset');
+                if(asset.managed===true){
+                    if(!/^managed\/[a-f0-9]{64}\.glb$/.test(asset.path)||!['cache','server'].includes(asset.backend)||
+                        !Number.isSafeInteger(asset.estimatedBytes)||asset.estimatedBytes<1||asset.estimatedBytes>128*1024*1024)throw Error('Invalid managed model');
+                    if(asset.backend==='cache'&&(typeof asset.cacheRoot!=='string'||asset.cacheRoot.length>2048))throw Error('Invalid scenery cache root');
+                    return {kind:'glb',path:asset.path,managed:true,backend:asset.backend,cacheRoot:asset.cacheRoot,estimatedBytes:asset.estimatedBytes};
+                }
+                if(asset.path.startsWith('managed/'))throw Error('Managed models require storage metadata');
                 return {kind:'glb',path:asset.path};
             });
             const loadRadiusM=item.loadRadiusM??2500,unloadRadiusM=item.unloadRadiusM??4000;
@@ -177,6 +184,19 @@
         }
         return result;
     }
+    async function sampleAnchorGround(C,viewer,alignment,{regional=false,sample}={}){
+        const point=C.Cartographic.fromDegrees(alignment.longitude,alignment.latitude);
+        let height;
+        if(regional){
+            // Relative placement follows the *displayed* surface, without
+            // pretending a raw provider height has a verified absolute datum.
+            const globe=viewer.scene.globe;
+            if(globe.tilesLoaded===false||!Number.isFinite(globe.getHeight?.(point)))throw Error('Local terrain is not resident at the model anchor');
+            height=pickRenderedGroundHeights(C,viewer,[point])[0];
+        }else height=(await sample([point]))?.[0]?.height;
+        if(!Number.isFinite(height))throw Error('Terrain is unavailable at the model anchor');
+        return height;
+    }
     // Estimate the active-renderer ground height at the catalog reference from
     // multiple scan-surveyed ground points. Ignore invalid tiles and outliers;
     // a single anomalous terrain sample must never lift the entire plant.
@@ -202,8 +222,32 @@
         if(!Number.isFinite(height)||!Number.isFinite(item.groundReferenceLocalUp))throw Error('Invalid terrain alignment sample');
         return A.normalize({...item.alignment,ellipsoidHeightM:height-item.groundReferenceLocalUp*item.alignment.scale+(item.heightOffsetM??0)});
     }
+    async function managedModelUrl(asset,{baseUrl=globalThis.location?.href,cacheStorage=globalThis.caches,crypto=globalThis.crypto,urls=globalThis.URL}={}){
+        if(asset.backend==='server')return {url:'./'+ROOT+asset.path,release(){}};
+        const base=new URL(baseUrl),root=new URL(asset.cacheRoot);
+        if(root.origin!==base.origin||root.search||root.hash||!root.pathname.endsWith('/scenery-local/v1/'))throw Error('Invalid scenery cache origin');
+        const key=asset.path.split('/').at(-1);
+        if(!/^[a-f0-9]{64}\.glb$/.test(key))throw Error('Invalid scenery cache key');
+        if(!cacheStorage||!crypto?.subtle)throw Error('Local scenery requires secure browser storage');
+        const cache=await cacheStorage.open('fpvmanager-scenery-v1:'+root.href);
+        // Cache-only lookup: an evicted local model must never turn into a
+        // network request to the app host or to an original asset provider.
+        const response=await cache.match(root.href+key);
+        if(!response||!response.ok)throw Error('Local scenery file is unavailable. Reimport the model on this device.');
+        const reader=response.body?.getReader();if(!reader)throw Error('Empty local scenery file');
+        const chunks=[];let total=0;
+        try{for(;;){const {value,done}=await reader.read();if(done)break;total+=value.byteLength;
+            if(total>64*1024*1024)throw Error('Local scenery exceeds 64 MiB');chunks.push(value);}}
+        catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
+        const bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+        const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');
+        if(hash+'.glb'!==key)throw Error('Local scenery checksum mismatch. Reimport the model.');
+        const url=urls.createObjectURL(new Blob([bytes],{type:'model/gltf-binary'}));let released=false;
+        return {url,release(){if(!released){released=true;urls.revokeObjectURL(url);}}};
+    }
     function create(C,viewer,{fetchCatalog=()=>fetch(catalogUrl,{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Scenery catalog HTTP '+r.status);return r.json();}),
         debugWireframe=false,
+        managedUrl=managedModelUrl,
         modelFactory=(url,config,credit)=>C.Model.fromGltfAsync({url,modelMatrix:A.modelMatrix(C,config),scale:config.scale,allowPicking:true,enableCollision:false,enableDebugWireframe:debugWireframe,debugWireframe,credit,showCreditsOnScreen:true}),
         collisionFactory=(url,signal)=>Collision.load(url,signal),
         position=()=>{const x=viewer.camera.positionCartographic;return {latitude:C.Math.toDegrees(x.latitude),longitude:C.Math.toDegrees(x.longitude),height:x.height};},
@@ -214,7 +258,8 @@
         try{storage??=globalThis.localStorage;}catch(_){}
         let prefs={};try{const parsed=JSON.parse(storage?.getItem(storageKey)||'{}');if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))prefs=parsed;}catch(_){}
         function publish(e,state,message=null){e.state=state;e.message=message;onStatus({id:e.item.id,state,message,visualOnly:!collisionReady(e)});}
-        function disposeModel(model,added){if(added)viewer.scene.primitives.remove(model);else if(!model.isDestroyed?.())model.destroy?.();}
+        const modelReleases=new WeakMap();
+        function disposeModel(model,added){try{if(added)viewer.scene.primitives.remove(model);else if(!model.isDestroyed?.())model.destroy?.();}finally{modelReleases.get(model)?.();modelReleases.delete(model);}}
         function effectiveOffset(e){return (e.item.heightOffsetM??0)+(regionalHeightMode()?(e.item.bkgHeightOffsetM??0):0);}
         function aligned(e,height){return terrainAligned({...e.item,heightOffsetM:effectiveOffset(e)},height);}
         function original(e){return A.normalize({...e.item.alignment,ellipsoidHeightM:e.item.alignment.ellipsoidHeightM+effectiveOffset(e)});}
@@ -223,7 +268,7 @@
             if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}
             e.groundCollider=null;e.groundVerified=false;e.groundState='idle';e.groundError=null;
         }
-        function remove(e){clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.colliders=[];e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
+        function remove(e){for(const release of e.pendingResources??[])release();e.pendingResources?.clear();clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.colliders=[];e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
         function escape(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
         // An estimated DGM1 absolute fallback is not visual evidence that the
         // active BKG/other terrain is aligned. Hide scenery until actual
@@ -267,6 +312,7 @@
             if(!Number.isFinite(e.item.groundReferenceLocalUp))return;
             const key=terrainKey()??null;
             if(e.heightKey!==key){
+                clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;
                 clearSeams(e);clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;
                 e.heightRevision=(e.heightRevision??0)+1;e.heightKey=key;e.heightPending=false;e.heightRetryAt=0;
                 e.heightState=key===null?'original':'pending';e.heightError=null;e.groundHeightM=null;e.effectiveAlignment=original(e);
@@ -278,6 +324,7 @@
             const rev=e.revision,hrev=e.heightRevision;
             const current=()=>!disposed&&e.revision===rev&&e.heightRevision===hrev&&terrainKey()===key;
             e.heightPending=true;e.heightState='pending';
+            e.heightSampleTimer=setTimer(()=>{if(current()){remove(e);publish(e,'error','Terrain alignment timed out. Retry when local terrain is available.');}},timeoutMs);
             Promise.resolve().then(()=>sampleGround(e.item.alignment,e.item)).then(height=>{
                 if(!current())return;
                 const cfg=aligned(e,height);
@@ -291,7 +338,7 @@
                 e.heightError=String(error?.message??error);
                 syncCalibrationVisibility(e);scheduleHeightRetry(e);
             }})
-              .finally(()=>{if(current())e.heightPending=false;});
+              .finally(()=>{if(current()){clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;e.heightPending=false;}});
         }
         function heightReady(e){
             if(e.item.requireGroundCalibration)return e.heightState==='adjusted'&&e.heightKey!=null&&e.heightKey===terrainKey();
@@ -361,10 +408,26 @@
             const current=()=>!disposed&&e.revision===rev;
             e.timer=setTimer(()=>{if(current()){remove(e);publish(e,'error','Scenery load timed out');}},timeoutMs);
             try{
+                const required=e.item.assets.reduce((n,a)=>n+(a.managed?a.estimatedBytes:0),0);
+                const occupied=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.reduce((n,a)=>n+(a.managed?a.estimatedBytes:0),0),0);
+                if(required+occupied>128*1024*1024)throw Error('Active local scenery exceeds the 128 MiB decoded resource budget. Disable another local model.');
                 // Sequential loads cap concurrent GPU uploads; cancelled models cannot be attached later.
                 for(const asset of e.item.assets){
-                    const credit=new C.Credit(`${escape(e.item.author)} · <a href="${escape(e.item.sourceUrl)}" target="_blank" rel="noopener">${escape(e.item.name)}</a> · ${escape(e.item.license)} · ${escape(e.item.attribution??'')} · georeferenced placement; experimental simulation only`,true);
-                    const model=await modelFactory('./'+ROOT+asset.path,e.item.alignment,credit);
+                    const title=e.item.sourceUrl?`<a href="${escape(e.item.sourceUrl)}" target="_blank" rel="noopener">${escape(e.item.name)}</a>`:escape(e.item.name);
+                    const credit=new C.Credit(`${escape(e.item.author)} · ${title} · ${escape(e.item.license)} · ${escape(e.item.attribution??'')} · georeferenced placement; experimental simulation only`,true);
+                    const acquired=asset.managed?await managedUrl(asset):{url:'./'+ROOT+asset.path,release(){}};
+                    let released=false;
+                    const resource={url:acquired.url,release(){if(!released){released=true;acquired.release();}}};
+                    if(!current()){resource.release();return;}
+                    e.pendingResources??=new Set();e.pendingResources.add(resource.release);
+                    let model;
+                    try{model=await modelFactory(resource.url,e.item.alignment,credit);}catch(error){e.pendingResources.delete(resource.release);resource.release();throw error;}
+                    e.pendingResources.delete(resource.release);
+                    let offError;
+                    modelReleases.set(model,()=>{offError?.();resource.release();});
+                    offError=model.errorEvent?.addEventListener(error=>{
+                        if(current()){remove(e);publish(e,'error',String(error?.message||error));}
+                    });
                     if(!current()){disposeModel(model,false);return;}
                     try{
                         A.apply(C,model,e.effectiveAlignment??e.item.alignment);
@@ -598,5 +661,5 @@
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
         return {initialize,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.groundModel?.show?[e.groundModel]:[])])};
     }
-    return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,create,catalogUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
+    return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

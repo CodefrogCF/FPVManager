@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'scenery_asset_provider.dart';
 import 'scenery_manifest.dart';
 import 'scenery_repository.dart';
+import 'scenery_storage.dart';
+import 'scenery_storage_platform.dart';
+import 'scenery_model_import.dart';
 
 typedef SceneryCommand = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> command,
@@ -18,15 +22,21 @@ final class SceneryCatalogController {
     required this.loadBundled,
     required this.canSend,
     SceneryAssetProviders? providers,
-  }) : providers = providers ?? SceneryAssetProviders();
+    SceneryStorage? storage,
+  }) : storage = storage ?? createSceneryStorage(),
+       _customProviders = providers;
   final SceneryRepository repository;
   final SceneryCommand send;
   final Future<String> Function() loadBundled;
   final bool Function() canSend;
-  final SceneryAssetProviders providers;
+  final SceneryStorage storage;
+  final SceneryAssetProviders? _customProviders;
+  late final SceneryAssetProviders providers =
+      _customProviders ??
+      SceneryAssetProviders(managedOptions: storage.rendererOptions);
   Future<void>? _initializing;
   Future<void>? _pending;
-  Future<void>? _databaseWork;
+  final _storageWork = <Future<void>>{};
   bool _disposed = false;
   Map<String, SceneryManifest> _defaults = {};
 
@@ -38,8 +48,9 @@ final class SceneryCatalogController {
   }
 
   Future<void> get storageSettled async {
-    final work = _databaseWork;
-    if (work != null) await work;
+    while (_storageWork.isNotEmpty) {
+      await Future.wait(_storageWork.toList());
+    }
   }
 
   void dispose() {
@@ -57,11 +68,11 @@ final class SceneryCatalogController {
       (_) {},
       onError: (Object _, StackTrace _) {},
     );
-    _databaseWork = tracked;
+    _storageWork.add(tracked);
     try {
       return await work;
     } finally {
-      if (identical(_databaseWork, tracked)) _databaseWork = null;
+      _storageWork.remove(tracked);
     }
   }
 
@@ -110,8 +121,15 @@ final class SceneryCatalogController {
 
   Future<List<SceneryManifest>> definitions() =>
       _serial(() => _database(repository.list));
-  Future<List<SceneryManifest>> templates() =>
-      _serial(() async => List.unmodifiable(_defaults.values));
+  Future<List<SceneryManifest>> templates() => _serial(
+    () async => List.unmodifiable(
+      {
+        ..._defaults,
+        for (final m in await _database(repository.list))
+          if (m.assets.any((a) => a.provider == 'managed')) m.id: m,
+      }.values,
+    ),
+  );
   Future<Map<String, dynamic>> synchronize({bool Function()? isCurrent}) =>
       _serial(() => _synchronize(isCurrent: isCurrent));
   Future<Map<String, dynamic>> _synchronize({
@@ -140,9 +158,65 @@ final class SceneryCatalogController {
     return _synchronize();
   });
   Future<Map<String, dynamic>> remove(String id) => _serial(() async {
+    final before = await _database(repository.list);
     await _database(() => repository.remove(id));
+    final retained = (await _database(repository.list))
+        .expand((m) => m.assets)
+        .map((a) => a.uri)
+        .toSet();
+    for (final asset
+        in before.where((m) => m.id == id).expand((m) => m.assets)) {
+      if (asset.provider == 'managed' && !retained.contains(asset.uri)) {
+        try {
+          await _database(() => storage.remove(asset.uri));
+        } catch (_) {
+          /* Retry by reimport/removal; the definition is already removed. */
+        }
+      }
+    }
     return _synchronize();
   });
+
+  Future<Map<String, dynamic>> importModel(
+    SceneryManifest manifest,
+    PreparedSceneryModel model,
+  ) => _serial(() async {
+    if (!manifest.assets.any(
+      (a) => a.provider == 'managed' && a.uri == model.key,
+    )) {
+      throw const FormatException(
+        'Imported model does not match the scenery definition',
+      );
+    }
+    final referenced = (await _database(repository.list)).any(
+      (m) => m.assets.any((a) => a.provider == 'managed' && a.uri == model.key),
+    );
+    // Track the entire owned transaction, including rollback, through disposal.
+    // No new database operation may start once the controller is disposed.
+    await _database(() async {
+      final created = await storage.put(model.key, model.bytes);
+      try {
+        _checkOpen();
+        await repository.create(manifest);
+      } catch (_) {
+        if (created && !referenced) await storage.remove(model.key);
+        rethrow;
+      }
+    });
+    // A bridge failure must retain both the definition and its committed bytes.
+    return _synchronize();
+  });
+
+  Future<Uint8List?> readManagedModel(String key) async {
+    if (_disposed || !isManagedSceneryKey(key)) return null;
+    final definitions = await _database(repository.list);
+    if (!definitions.any(
+      (m) => m.assets.any((a) => a.provider == 'managed' && a.uri == key),
+    )) {
+      return null;
+    }
+    return _database(() => storage.read(key));
+  }
 
   Future<Map<String, dynamic>> setEnabled(String id, bool enabled) =>
       _serial(() async {

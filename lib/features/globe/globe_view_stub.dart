@@ -100,6 +100,7 @@ class _GlobeViewState extends State<GlobeView> with WidgetsBindingObserver {
     AppLifecycleProbe.record('native-webview-initialization');
     try {
       final server = await GlobeAssetServer.start(
+        managedScenery: widget.controller.readManagedScenery,
         offlineCache: NativeOfflineMapStore(),
       );
       if (!mounted) {

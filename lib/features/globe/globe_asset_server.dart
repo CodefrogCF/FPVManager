@@ -8,7 +8,15 @@ import '../offline/offline_map_store_native.dart';
 /// Serves only manifest-listed Flutter Web assets on IPv4 loopback.
 /// HTTP keeps Cesium workers/Wasm on a real origin without file-URL exceptions.
 class GlobeAssetServer {
-  GlobeAssetServer._(this._server, this._paths, this._load, this._offlineCache);
+  GlobeAssetServer._(
+    this._server,
+    this._paths,
+    this._load,
+    this._offlineCache,
+    this._managedScenery,
+  );
+  final Future<Uint8List?> Function(String)? _managedScenery;
+  final _managedReads = <String, Future<Uint8List?>>{};
 
   final HttpServer _server;
   final Set<String> _paths;
@@ -21,6 +29,7 @@ class GlobeAssetServer {
     Set<String>? paths,
     Future<ByteData> Function(String)? load,
     NativeOfflineMapStore? offlineCache,
+    Future<Uint8List?> Function(String)? managedScenery,
   }) async {
     final manifest =
         paths ??
@@ -35,6 +44,7 @@ class GlobeAssetServer {
       manifest,
       load ?? rootBundle.load,
       offlineCache,
+      managedScenery,
     );
     socket.listen(server._serve);
     return server;
@@ -56,6 +66,39 @@ class GlobeAssetServer {
         return;
       }
       final parts = request.uri.pathSegments;
+      if (_managedScenery != null &&
+          parts.length == 4 &&
+          parts.take(3).join('/') == 'assets/scenery/managed' &&
+          RegExp(r'^[a-f0-9]{64}\.glb$').hasMatch(parts.last) &&
+          request.headers.host == '127.0.0.1' &&
+          request.headers.port == _server.port &&
+          !request.uri.hasAuthority &&
+          !request.uri.hasQuery) {
+        final key = parts.last;
+        var job = _managedReads[key];
+        if (job == null) {
+          if (_managedReads.length >= 2) {
+            request.response.statusCode = HttpStatus.serviceUnavailable;
+            return;
+          }
+          job = _managedScenery(key);
+          _managedReads[key] = job;
+        }
+        Uint8List? bytes;
+        try {
+          bytes = await job;
+        } finally {
+          if (identical(_managedReads[key], job)) _managedReads.remove(key);
+        }
+        if (bytes == null) {
+          request.response.statusCode = HttpStatus.notFound;
+          return;
+        }
+        request.response.headers.set('Content-Type', 'model/gltf-binary');
+        request.response.contentLength = bytes.length;
+        if (request.method == 'GET') request.response.add(bytes);
+        return;
+      }
       if (_offlineCache != null &&
           request.headers.host == '127.0.0.1' &&
           request.headers.port == _server.port &&

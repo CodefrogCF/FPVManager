@@ -37,10 +37,40 @@ scale and loading distances are saved and restored through the normal backup.
 Changes require navigation to be stopped. **Cancel** discards unsubmitted form
 changes.
 
-Templates use models already bundled with the app and retain their source credits.
-A copied template does not inherit verified terrain replacement regions. Importing
-model files and exchanging scenery packages are not yet part of this management
-workflow. Unsupported data sources remain explicitly unavailable.
+Templates use bundled or previously imported models and retain their source credits.
+A copied template does not inherit verified terrain replacement regions.
+Unsupported data sources remain explicitly unavailable.
+
+### Import a local GLB or glTF model
+
+1. Open **Manage scenery → Import GLB / glTF** and choose a static glTF 2.0 model.
+   Keep separate `.bin`, PNG and JPEG resources beside a native `.gltf` file.
+   On platforms without directory access, select each resource when prompted;
+   the prompt shows the exact relative model reference.
+2. Enter longitude, latitude, height, altitude reference, heading, pitch, roll and
+   scale. Heights are metres above the **WGS84 ellipsoid** or relative to the
+   displayed terrain; a sea-level height must be converted before absolute use.
+3. Check the author, license and attribution, then save. **Cancel** saves nothing.
+   The model activates when the camera/aircraft enters its loading distance.
+   Missing terrain delays relative placement; errors can be retried from status.
+
+Imports retain core materials, transparency and PNG/JPEG textures. Compressed
+Draco, Meshopt and KTX2 models, animations, skins, morph targets and sparse meshes
+are not supported by this importer; export an uncompressed static model first.
+The import screen reports progress and validation errors. Files are limited to
+64 MiB including resources, textures to 4096 pixels per side; models also have
+decoded geometry/texture limits to keep allocations bounded.
+
+Imported models remain on this device after restart and their resources are
+self-contained for offline use. Web requires HTTPS/localhost and available
+browser storage; clearing or evicting that storage requires reimport. Current
+backups transfer the **definitions only**, not the model files. Removing the last
+definition using a managed model removes its local file. Portable scenery
+packages remain a later feature.
+
+New imports are **visual only**. They do not yet add physical collisions, replace
+base terrain/buildings or obstruct simulated radio paths. The existing Rüdersdorf
+reference scene's separately prepared collision model is a different capability.
 
 ### Height reference and ground alignment
 

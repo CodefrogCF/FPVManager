@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../scenery/scenery_manifest.dart';
+import '../scenery/scenery_model_import.dart';
+
 import '../scenery/scenery_repository.dart';
 import '../scenery/scenery_catalog_controller.dart';
 
@@ -1489,6 +1491,20 @@ class GlobeController extends ChangeNotifier {
   ];
   UserPreferencesRepository? _preferencesRepository;
   SceneryCatalogController? _sceneryCatalog;
+  Future<Uint8List?> readManagedScenery(String key) async =>
+      _sceneryCatalog?.readManagedModel(key);
+  Future<void> importSceneryModel(
+    SceneryManifest manifest,
+    PreparedSceneryModel model,
+  ) async {
+    final catalog = _sceneryCatalog;
+    if (catalog == null) throw StateError('Scenery database unavailable');
+    if (navigationActive) {
+      throw StateError('Stop the flight before importing scenery');
+    }
+    await catalog.importModel(manifest, model);
+  }
+
   UserPreferences _preferences = const UserPreferences();
   Future<void>? _preferencesLoad;
   Future<void>? _preferencesWrites;

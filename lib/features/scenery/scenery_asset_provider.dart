@@ -1,4 +1,5 @@
 import 'scenery_manifest.dart';
+import 'scenery_storage.dart';
 
 // Keep aligned with pubspec's application version; checked by regression test.
 const sceneryApplicationVersion = '0.19.29';
@@ -33,8 +34,10 @@ final class SceneryAssetProviders {
   SceneryAssetProviders({
     Iterable<SceneryAssetProvider> providers = const [
       BundledSceneryAssetProvider(),
+      ManagedSceneryAssetProvider(),
     ],
     this.applicationVersion = sceneryApplicationVersion,
+    this.managedOptions = const {'backend': 'server'},
   }) {
     for (final provider in providers) {
       if (_providers.containsKey(provider.id)) {
@@ -44,6 +47,7 @@ final class SceneryAssetProviders {
     }
   }
   final String applicationVersion;
+  final Map<String, String> managedOptions;
   final Map<String, SceneryAssetProvider> _providers = {};
 
   /// Unsupported definitions remain persisted and explicitly unavailable.
@@ -141,7 +145,15 @@ final class SceneryAssetProviders {
           },
           'assets': [
             for (final a in manifest.assets.where((a) => a.role == 'visual'))
-              {'kind': 'glb', 'path': resolved[a.id]},
+              {
+                'kind': 'glb',
+                'path': resolved[a.id],
+                if (a.provider == 'managed') ...{
+                  'managed': true,
+                  ...managedOptions,
+                  'estimatedBytes': a.model!['estimatedBytes'],
+                },
+              },
           ],
           'loadRadiusM': visibility['loadRadiusM'],
           'unloadRadiusM': visibility['unloadRadiusM'],
@@ -206,4 +218,17 @@ final class SceneryAssetProviders {
     }
     return true;
   }
+}
+
+final class ManagedSceneryAssetProvider implements SceneryAssetProvider {
+  const ManagedSceneryAssetProvider();
+  @override
+  String get id => 'managed';
+  @override
+  String? resolve(SceneryAsset asset) =>
+      asset.role == 'visual' &&
+          asset.format == 'glb' &&
+          isManagedSceneryKey(asset.uri)
+      ? 'managed/${asset.uri}'
+      : null;
 }

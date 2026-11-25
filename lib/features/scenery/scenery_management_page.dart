@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'scenery_manifest.dart';
+import 'scenery_asset_provider.dart';
+import 'scenery_model_import.dart';
+import 'scenery_import_files.dart';
 
 /// Definition management; selecting/importing new asset bytes belongs to the
 /// asset provider/import workflow. Existing templates retain their provenance.
@@ -14,11 +17,16 @@ class SceneryManagementPage extends StatefulWidget {
     required this.save,
     required this.remove,
     required this.german,
+    this.importModel,
+    this.pickImport,
   });
   final Future<List<SceneryManifest>> Function() load, templates;
   final Future<void> Function(SceneryManifest manifest, bool create) save;
   final Future<void> Function(String id) remove;
   final bool german;
+  final Future<void> Function(SceneryManifest, PreparedSceneryModel)?
+  importModel;
+  final Future<(String, PreparedSceneryModel)?> Function()? pickImport;
   @override
   State<SceneryManagementPage> createState() => _SceneryManagementPageState();
 }
@@ -128,6 +136,139 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
     if (mounted && error != null) setState(() => _error = error);
   }
 
+  String? _progress;
+  bool _placing = false;
+  Future<void> _import() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _progress = t('Modell auswählen', 'Selecting model');
+    });
+    try {
+      final picked =
+          await (widget.pickImport?.call() ??
+              pickSceneryModel(
+                progress: (stage) {
+                  if (mounted) setState(() => _progress = stage);
+                },
+                requestResource: (uri) async {
+                  if (!mounted) return false;
+                  return await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(
+                            t(
+                              'Zugehörige Datei auswählen',
+                              'Select model resource',
+                            ),
+                          ),
+                          content: Text(
+                            t(
+                                  'Bitte die zu dieser Modellreferenz gehörende Datei auswählen:\n',
+                                  'Select the file belonging to this model reference:\n',
+                                ) +
+                                uri,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text(t('Abbrechen', 'Cancel')),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(t('Datei auswählen', 'Select file')),
+                            ),
+                          ],
+                        ),
+                      ) ??
+                      false;
+                },
+              ));
+      if (picked == null || !mounted) return;
+      final (filename, model) = picked;
+      final name = filename.replaceFirst(
+        RegExp(r'\.(glb|gltf)$', caseSensitive: false),
+        '',
+      );
+      final draft = SceneryManifest.fromJson({
+        'schemaVersion': 1,
+        'id': 'scenery-${DateTime.now().microsecondsSinceEpoch}',
+        'name': name.length > 120 ? name.substring(0, 120) : name,
+        'description': '',
+        'source': {
+          'author': 'Local import',
+          'url': null,
+          'license': 'Unspecified',
+          'attribution': 'Local import — rights retained by the asset owner',
+        },
+        'anchor': {
+          'longitude': 0,
+          'latitude': 0,
+          'heightM': 0,
+          'reference': 'TERRAIN_RELATIVE',
+        },
+        'bounds': {'west': 0, 'south': 0, 'east': 0, 'north': 0},
+        'rotation': {'headingDeg': 0, 'pitchDeg': 0, 'rollDeg': 0},
+        'scale': 1,
+        'assets': [
+          {
+            'id': 'visual',
+            'role': 'visual',
+            'provider': 'managed',
+            'format': 'glb',
+            'uri': model.key,
+            'model': model.metadata,
+          },
+        ],
+        'collision': {
+          'enabled': false,
+          'assetIds': <String>[],
+          'sidedness': 'double',
+        },
+        'visibility': {
+          'enabled': true,
+          'loadRadiusM': 2500,
+          'unloadRadiusM': 4000,
+        },
+        'minimumAppVersion': sceneryApplicationVersion,
+      });
+      final route = DialogRoute<SceneryManifest>(
+        context: context,
+        builder: (_) => _SceneryDefinitionDialog(
+          templates: [draft],
+          existing: draft,
+          german: widget.german,
+          importing: true,
+        ),
+      );
+      setState(() {
+        _placing = true;
+        _progress = null;
+      });
+      final result = await Navigator.of(context).push(route);
+      await route.completed;
+      if (result == null || !mounted) return;
+      setState(() {
+        _placing = false;
+        _progress = t('Modell speichern', 'Saving model');
+      });
+      await widget.importModel!(result, model);
+      await _load();
+    } on SceneryImportCancelled {
+      /* No files were committed. */
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+          _placing = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -138,11 +279,12 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
       children: [
         Text(
           t(
-            'Umgebungen verwenden vorhandene Modellvorlagen. Ausrichtung und Aktivierung werden auf diesem Gerät gespeichert.',
-            'Scenery uses existing model templates. Placement and activation are saved on this device.',
+            'Modelle und Ausrichtung werden auf diesem Gerät gespeichert. Lokale Modelle sind rein visuell; Kollisionen benötigen ein separates Modell. Backups enthalten derzeit nur die Definitionen.',
+            'Models and placement are saved on this device. Local models are visual only; collisions require separate geometry. Backups currently contain definitions only.',
           ),
         ),
-        if (_busy) const LinearProgressIndicator(),
+        if (_busy && !_placing) const LinearProgressIndicator(),
+        if (_progress != null) Text(_progress!),
         if (_error != null)
           Text(
             _error!,
@@ -156,6 +298,16 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
             label: Text(t('Neue Umgebung', 'New scenery')),
           ),
         ),
+        if (widget.importModel != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const ValueKey('scenery-import'),
+              onPressed: _busy ? null : _import,
+              icon: const Icon(Icons.file_open_outlined),
+              label: Text(t('GLB / glTF importieren', 'Import GLB / glTF')),
+            ),
+          ),
         for (final item in _items)
           ListTile(
             title: Text(item.name),
@@ -179,10 +331,12 @@ class _SceneryDefinitionDialog extends StatefulWidget {
     required this.templates,
     required this.existing,
     required this.german,
+    this.importing = false,
   });
   final List<SceneryManifest> templates;
   final SceneryManifest? existing;
   final bool german;
+  final bool importing;
   @override
   State<_SceneryDefinitionDialog> createState() =>
       _SceneryDefinitionDialogState();
@@ -214,6 +368,8 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
       'name':
           widget.existing?.name ?? '${template.name} (${t('Kopie', 'copy')})',
       'description': doc['description'],
+      ...((doc['source'] as Map).map((k, v) => MapEntry('source-$k', v ?? '')))
+          .cast<String, Object?>(),
       'longitude': a['longitude'],
       'latitude': a['latitude'],
       'heightM': a['heightM'],
@@ -246,6 +402,14 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
       doc['id'] = _fields['id']!.text.trim();
       doc['name'] = _fields['name']!.text.trim();
       doc['description'] = _fields['description']!.text;
+      if (_template.assets.any((a) => a.provider == 'managed')) {
+        doc['source'] = {
+          for (final key in ['author', 'license', 'attribution', 'url'])
+            key: key == 'url' && _fields['source-$key']!.text.trim().isEmpty
+                ? null
+                : _fields['source-$key']!.text.trim(),
+        };
+      }
       doc['anchor'] = {
         'longitude': number('longitude'),
         'latitude': number('latitude'),
@@ -284,7 +448,9 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
-      widget.existing == null
+      widget.importing
+          ? t('Modell platzieren', 'Place model')
+          : widget.existing == null
           ? t('Neue Umgebung', 'New scenery')
           : t('Umgebung bearbeiten', 'Edit scenery'),
     ),
@@ -323,6 +489,15 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
             for (final entry in <String, String>{
               'name': t('Name', 'Name'),
               'description': t('Beschreibung', 'Description'),
+              if (_template.assets.any((a) => a.provider == 'managed')) ...{
+                'source-author': t('Autor / Quelle', 'Author / source'),
+                'source-url': t(
+                  'Quellen-URL (optional, HTTPS)',
+                  'Source URL (optional, HTTPS)',
+                ),
+                'source-license': t('Lizenz', 'License'),
+                'source-attribution': t('Quellenangabe', 'Attribution'),
+              },
               'longitude': t('Längengrad', 'Longitude'),
               'latitude': t('Breitengrad', 'Latitude'),
               'heightM': t('Höhe (m)', 'Height (m)'),
@@ -341,7 +516,9 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
                 controller: _fields[entry.key],
                 enabled: entry.key != 'id' || widget.existing == null,
                 decoration: InputDecoration(labelText: entry.value),
-                keyboardType: {'id', 'name', 'description'}.contains(entry.key)
+                keyboardType:
+                    {'id', 'name', 'description'}.contains(entry.key) ||
+                        entry.key.startsWith('source-')
                     ? TextInputType.text
                     : const TextInputType.numberWithOptions(
                         decimal: true,
@@ -373,6 +550,10 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
               },
             ),
             Text('${(_template.toJson()['source'] as Map)['attribution']}'),
+            for (final a in _template.assets.where((a) => a.model != null))
+              Text(
+                '${a.model!['triangles']} triangles · ${a.model!['textures']} textures · ${((a.model!['byteLength'] as num) / 1048576).toStringAsFixed(1)} MiB',
+              ),
             SwitchListTile.adaptive(
               title: Text(t('Modellkollisionen', 'Model collisions')),
               subtitle: Text(

@@ -1578,6 +1578,14 @@ function postToFlutter(message) {
             // never gets interpreted as sea level in BKG mode.
             terrainKey:()=>!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
             sampleGround:async (alignment,item)=>{
+                if(item.heightCalibration?.method!=='terrain-provider-rendered-ground'){
+                    return FPVSceneryManager.sampleAnchorGround(Cesium,viewer,alignment,{
+                        regional:regionalTerrain,
+                        sample:positions=>terrainManager.sample(provider=>provider.availability
+                            ?Cesium.sampleTerrainMostDetailed(provider,positions,true)
+                            :Cesium.sampleTerrain(provider,12,positions,true))
+                    });
+                }
                 // Calibration points sampled from the original ground scan,
                 // rather than an arbitrary single courtyard cell (which may
                 // be a roof, steep edge or a missing BKG terrain patch).
