@@ -53,7 +53,7 @@ preparation; it is not an automatic app update.
   while its replacement is prepared. Source catalogue coverage is not a survey.
 - The user enables models under **Karte & Ansicht → 3D & Licht → 3D-Tunnel
   automatisch laden**. Catalogue search, model import and diagnostics are under
-  **Tunnelwerkzeuge** and **Tunnelstatus & Daten**. The retired surface-axis overlay
+  **Tunnel tools** and **Tunnel status & data**. The retired surface-axis overlay
   and schematic surface exploration switches are no longer exposed.
 
 Terrain-derived approaches, bridge profiles and slope-aware cutouts improve

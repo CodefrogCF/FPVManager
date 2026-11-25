@@ -9,7 +9,7 @@ copyright notices, licences and service terms continue to apply.
 
 | Component | Notices and licence |
 |---|---|
-| Flutter and Dart packages | Retain the resolved packages' licence files. The app's **Einstellungen → Datenquellen → Open-Source-Lizenzen** page includes Flutter's collected package notices and the project licence. |
+| Flutter and Dart packages | Retain the resolved packages' licence files. The app's **Settings → Data sources → Open-source licenses** page includes Flutter's collected package notices and the project licence. |
 | CesiumJS | [Apache-2.0 notice](web/cesium/LICENSE.md); additional bundled components and their notices are recorded in [ThirdParty.json](web/cesium/ThirdParty.json). Do not replace these with the project's licence. |
 | GeoTIFF.js 2.1.3 | [MIT licence](web/vendor/geotiff/LICENSE) and [notices for the browser bundle](web/vendor/geotiff/THIRD_PARTY_NOTICES.txt), including pako, Lerc and Zstandard. Both are in the app's licence page. |
 | h5wasm 0.10.3 | Local MeteoSwiss radar decoder from the National Institute of Standards and Technology. Retain the [original licence](web/vendor/h5wasm/LICENSE.txt) and the [HDF5 and runtime notices](web/vendor/h5wasm/THIRD_PARTY_NOTICES.txt). |

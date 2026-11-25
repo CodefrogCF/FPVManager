@@ -135,8 +135,8 @@
       "replacement": {
         "path": "docs/developer/scenery.md",
         "known_sha256": [
-          "3f65a05b03fb7e491230baf954e2ba12cb4d6db3d86a269509e14cd6666aed78",
-          "954832d9995603520930ff87b7c215216db70e102a294d520d1b05d8e5fbabc0"
+          "a4f395205ed80c2644a067bbfec9c87f6a7de4fb739b3cf43592622187960f31",
+          "b5eccc1f6472b2336d1ce61fca351877a0b8907e588207d0a56cb4265554b47c"
         ]
       },
       "reason": "consolidated current documentation"
@@ -281,8 +281,8 @@
       "replacement": {
         "path": "docs/developer/architecture.md",
         "known_sha256": [
-          "5ea47873d770919aea36929c8e8a7e932eb35d89d8087d5f1f4e5faf5d942635",
-          "ac19521c747dcb1efcfd12be51b64a63cd35b28ab8066fa41dab642cdfde3d15"
+          "41c889f07fdf8f2a6e2d455d90d6e72478807dcb187d62e3a19b60c78e7a6c7d",
+          "49f626dfa4285c3956586f0157e6a6d920a6c90f161bd103e51d16b9fedc3159"
         ]
       },
       "reason": "consolidated current documentation"
@@ -485,8 +485,8 @@
       "replacement": {
         "path": "docs/developer/scenery.md",
         "known_sha256": [
-          "3f65a05b03fb7e491230baf954e2ba12cb4d6db3d86a269509e14cd6666aed78",
-          "954832d9995603520930ff87b7c215216db70e102a294d520d1b05d8e5fbabc0"
+          "a4f395205ed80c2644a067bbfec9c87f6a7de4fb739b3cf43592622187960f31",
+          "b5eccc1f6472b2336d1ce61fca351877a0b8907e588207d0a56cb4265554b47c"
         ]
       },
       "reason": "consolidated current documentation"
@@ -499,8 +499,8 @@
       "replacement": {
         "path": "docs/developer/scenery.md",
         "known_sha256": [
-          "3f65a05b03fb7e491230baf954e2ba12cb4d6db3d86a269509e14cd6666aed78",
-          "954832d9995603520930ff87b7c215216db70e102a294d520d1b05d8e5fbabc0"
+          "a4f395205ed80c2644a067bbfec9c87f6a7de4fb739b3cf43592622187960f31",
+          "b5eccc1f6472b2336d1ce61fca351877a0b8907e588207d0a56cb4265554b47c"
         ]
       },
       "reason": "consolidated current documentation"

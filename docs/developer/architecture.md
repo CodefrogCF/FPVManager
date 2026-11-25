@@ -87,7 +87,7 @@ obstacle options and advisory hazard areas disabled; horizontal buffer distance
 and visibility are stored independently. Reads do not write defaults; serialized atomic saves
 and reset preserve unrelated settings. Obstacle settings retain the requested
 state through network failures so an explicit retry or renderer reload can recover.
-The shared **Karte & Ansicht** menu owns display/layer controls; the general
+The shared **Map & view** menu owns display/layer controls; the general
 settings route links to that same hub. Long technical/source details are disclosed
 on demand while current failures, validity and restricted-use status stay visible.
 Retired axis-overlay and surface-exploration flags are ignored on restore;

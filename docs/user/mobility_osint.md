@@ -2,19 +2,19 @@
 
 Open **Navigation & OSINT** from navigation. Its tabs separate driving routes,
 public transport, traffic, aircraft, environmental layers, nearby POIs, EV
-charging and shared mobility. **Karte & Ansicht → OSINT** controls their map
+charging and shared mobility. **Map & view → OSINT** controls their map
 layers and source details. These sources are independent; a successful map
 request does not establish current completeness, access rights or flight permission.
 
 ## Driving, walking and cycling
 
-For a driving route, choose a start and a saved place or **Freies Ziel**.
-**Ziel suchen** submits a Swiss address/place query; typing stays local. Saved
+For a driving route, choose a start and a saved place or **Free destination**.
+**Search Target** submits a Swiss address/place query; typing stays local. Saved
 parking coordinates take priority over an access point, then the place itself.
 Consent is required before start/destination coordinates go to FOSSGIS/OSRM.
 Select among the returned alternatives; the service may return only one.
 
-**Bodenrouten** is separate walking/cycling planning. Explicitly select the mode
+**Ground routes** is separate walking/cycling planning. Explicitly select the mode
 and consent before calculating. Geometry, mode, endpoints, source and calculation
 time are stored locally and can be backed up or exchanged as GPX. Missing access,
 surface or elevation information remains unknown. These routes do not use drone
@@ -26,7 +26,7 @@ logs. The client limits/coalesces requests; it is not a bulk routing service.
 
 ## Android road navigation
 
-A calculated driving route offers **Navigation starten**. The start dialog
+A calculated driving route offers **Start navigation**. The start dialog
 confirms foreground GPS and automatic rerouting, which can send current position
 and destination to FOSSGIS after leaving the route. The app follows accepted GPS
 fixes, speaks supported turns with an installed German offline voice and shows
@@ -35,11 +35,11 @@ remaining distance/time. It does not download a voice automatically.
 Use **+ / −** for follow distance, the recenter control for free-map/follow mode
 and the compass for north-facing/follow views. The displayed camera/marker blends
 accepted fixes without predicting beyond the latest one. Guidance and speed use
-the original fixes. Poor or stale GPS pauses guidance; **GPS erneut verbinden**
+the original fixes. Poor or stale GPS pauses guidance; **Reconnect GPS**
 retries. Backgrounding pauses navigation; exit stops tracking.
 
-Buildings and vegetation independently use **Wie Karte / Aus / Ein** under
-**Einstellungen → Navigation** or the navigation layer menu. These are temporary
+Buildings and vegetation independently use **As on map / Off / On** under
+**Settings → Navigation** or the navigation layer menu. These are temporary
 navigation overrides; normal map/flight settings and aviation obstacles remain
 separate. Missing streaming models do not stop guidance.
 
@@ -71,7 +71,7 @@ retain the last valid session snapshot. During confirmed navigation, optional
 60-second refresh pauses in the background. Authorization/rate errors disable
 automatic refresh until explicitly enabled again.
 
-**TMC-Ortsdaten** loads matching official table versions or imports a selected
+**TMC location data** loads matching official table versions or imports a selected
 LTEF ZIP. Supported versions are 7.3–7.5. Tables persist in the public-data cache;
 local imports remain informational until replaced by a direct official download.
 Unmatched codes, broken chains and version conflicts stay unresolved. A name or
@@ -119,10 +119,10 @@ reroute a saved route.
 Aerodromes/heliports, wildfire danger and cantonal forest-fire prevention measures
 are separate layers. Source categories and regional/local restrictions should be
 read from their own details. Aerodrome planning data does not replace the AIP;
-regional wildfire maps do not replace local orders. **Quellen & Grenzen** opens
+regional wildfire maps do not replace local orders. **Sources & Limits** opens
 longer source explanations without hiding current failure indicators.
 
-**Lawinenbulletin · SLF** loads the national bulletin only on request. Regions
+**Avalanche bulletin · SLF** loads the national bulletin only on request. Regions
 retain published periods, elevation bands, aspects and source descriptions.
 Licensed snapshots preserve publication, retrieval and validity separately;
 expired areas are hidden and unconfirmed/old data are grey. Missing current data
@@ -141,7 +141,7 @@ For Blatten, select **Rapid Mapping / Blatten** and search around
 and [19 September 2025](https://data.geo.admin.ch/api/stac/v1/collections/ch.swisstopo.spezialbefliegungen/items/kry-2025-09-19t09470000)
 can be displayed where their pixels cover the selected area.
 
-**BAKOM Mobilfunk-Basisstationen** queries official station points after explicit
+**BAKOM mobile phone base stations** queries official station points after explicit
 area-sharing consent. It displays only supplied station type, power class and
 technology. A station coordinate can describe its first mast; no mast height,
 obstruction volume or FPV signal-coverage estimate is inferred. Source metadata,
@@ -176,5 +176,5 @@ unsupported or malformed imports fail explicitly rather than being silently
 truncated into a complete-looking result.
 
 Network triggers and credential storage are summarized once in
-[privacy and permissions](privacy_and_permissions.md). The map's **Quellen**
+[privacy and permissions](privacy_and_permissions.md). The map's **Sources**
 control and [sources guide](map_sources_and_attribution.md) retain attribution.

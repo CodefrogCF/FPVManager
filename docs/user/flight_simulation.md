@@ -6,12 +6,12 @@ and [simulation/collision reference](../developer/simulation_and_collision.md).
 
 ## Start and control a flight
 
-1. Select a map location, then open **Kartenaktionen → Flugsimulator**.
+1. Select a map location, then open **Map actions → Flight simulator**.
 2. Select a drone profile and the **Angle**, **Acro** or **GPS** flight mode.
 3. Check **spawn height**, controller assignment, camera settings and terrain availability.
-4. Start the flight. Reopen **Flugeinstellungen** to adjust camera/HUD, graphics,
+4. Start the flight. Reopen **Flight settings** to adjust camera/HUD, graphics,
    wind and radio settings without recreating the flight.
-5. Use **Flug zurücksetzen** to return to the spawn state, or exit to the globe.
+5. Use **Reset flight** to return to the spawn state, or exit to the globe.
 
 Angle self-levels; Acro responds to angular-rate inputs; GPS is an assisted
 position/altitude-control mode. The **Advanced** physics model is the default
@@ -20,8 +20,8 @@ directional drag, inertia, wind, ground contact and GPS Rescue using a fixed
 physics timestep. These are conservative simulation approximations, not a
 measured aircraft certification or a Betaflight implementation. Missing motor
 specifications use the existing approximate propulsion fallback. See the
-[main user guide](../user_guide.md#ground-inspection-and-flight-simulation)
-for controller bindings and supported platforms.
+[main user guide](../user_guide.md#start-a-session)
+for the general session workflow.
 
 ## Physics selection and recording view
 
@@ -72,7 +72,7 @@ For derivation and limits, see
 
 ## Optional ground effect and powered-descent airflow
 
-Under **Ground effect & propwash / Bodeneffekt & Propwash** in Advanced
+Under **Ground effect & propwash** in Advanced
 physics, three independent options approximate near-ground thrust improvement,
 powered-descent buffeting and vortex-ring-like thrust loss. All three are
 disabled by default. The model uses the configured rotor diameter, or the
@@ -89,7 +89,7 @@ for assumptions, limitations and tests.
 
 ## Live radio line of sight
 
-Open the **Radio line of sight / Funkvorschau** section during a flight. The
+Open the **Radio line of sight** section during a flight. The
 operator/ground station defaults to the flight takeoff point. You may instead
 use a selected map point, saved spot or manually specified coordinates. Set
 antenna height above the local ground; use **Reset to takeoff position** when

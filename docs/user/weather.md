@@ -1,6 +1,6 @@
 # Weather, radar and observations
 
-Open **Wetter** from navigation or the map actions. Forecast provider, forecast
+Open **Weather** from navigation or the map actions. Forecast provider, forecast
 time and drone criteria are independent of the map's lighting time. Unknown
 readings stay unknown; a suitable forecast does not establish flight permission
 or obstacle clearance.
@@ -27,7 +27,7 @@ not predicted turbulence.
 Open-Meteo's [free API terms](https://open-meteo.com/en/terms) restrict free-service
 access to non-commercial use; the data licence and the API access conditions are
 separate. The project's Apache-2.0 code licence does not extend those terms.
-Source attribution remains available through the map's **Quellen** control.
+Source attribution remains available through the map's **Sources** control.
 
 ## Forecast map and 3D wind
 
@@ -38,8 +38,8 @@ forecast time. The 1 km / 5 km choice is display sampling, not native model
 resolution. Missing cells are omitted; expired grids are hidden. These model
 cells are neither measured clouds nor radar observations.
 
-**Karte & Ansicht → Karte → 3D-Wind und Prognose** loads a separate wind field.
-It is also available in flight settings and **Flugeinstellungen → Wind**.
+**Map & view → Map → 3D wind and forecast** loads a separate wind field.
+It is also available in flight settings and **Flight settings → Wind**.
 Select the region/time, load it, then enable arrows and/or flight influence.
 Nine query points supply available vectors at 10/80/120/180 m AGL; interpolation
 between points/heights is approximate. Arrows follow airflow, opposite the
@@ -68,7 +68,7 @@ or a nowcast. Unsupported products are not substituted.
 
 ## Measured stations
 
-**Messstationen** shows MeteoSwiss SwissMetNet and BAFU hydrological observations
+**Measuring stations** shows MeteoSwiss SwissMetNet and BAFU hydrological observations
 near a point, place or route. Station identity/elevation, native units, timestamps
 and available validation states remain visible. MeteoSwiss precipitation is a
 ten-minute total; BAFU live values are uncorrected and are kept separate from

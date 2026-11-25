@@ -32,17 +32,17 @@ For Android, run `flutter devices` and `flutter run -d <device-id>`. Platform-sp
 
 | Audience | Start here |
 |---|---|
-| App users | [User handbook](docs/user_guide.md) · [Deutscher Schnellstart](docs/user/schnellstart.de.md) |
+| App users | [User handbook](docs/user_guide.md) · [German quick start](docs/user/schnellstart.de.md) |
 | Developers and contributors | [Developer guide](docs/developer_guide.md) · [Contributing](CONTRIBUTING.md) |
 | All topics and limitations | [Documentation index](docs/README.md) |
 
-The app also includes **Settings → Help / Einstellungen → Hilfe**. Feature details are maintained in the audience-specific guides; historical changes belong in the [Changelog](CHANGELOG.md).
+The app also includes **Settings → Help**. Feature details are maintained in the audience-specific guides; historical changes belong in the [Changelog](CHANGELOG.md).
 
 ## Safety and data
 
 FPVManager is a planning and visualization tool, **not** an aviation authorization or a substitute for current official information and real-world obstacle surveys. Simulated RF quality, route estimates and approximate collision meshes are not measured telemetry. Terrain or source gaps remain unknown rather than being treated as safe clearance.
 
-Personal data are stored locally; optional internet functions contact third-party providers. See [Privacy policy / Datenschutzerklärung](PRIVACY.md).
+Personal data are stored locally; optional internet functions contact third-party providers. See [Privacy policy](PRIVACY.md).
 
 ## Licenses
 

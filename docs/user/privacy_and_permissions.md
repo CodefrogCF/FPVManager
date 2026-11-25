@@ -9,7 +9,7 @@ metadata and the areas or query inputs required for their services.
 
 Places, photos, notes, equipment, routes, checklists, telemetry, activity profiles
 and preferences use local Drift/SQLite storage. There is no automatic sync.
-**Offline & Daten** exports a portable personal backup, optionally password-
+**Offline & data** exports a portable personal backup, optionally password-
 protected, and validates/restores it only after confirmation. API keys and public
 map/OSINT caches are excluded. Unencrypted exports remain readable; an explicitly
 chosen system file provider can store them in a cloud destination.
@@ -35,7 +35,7 @@ needed, permission. Android requests foreground coarse/fine location and support
 approximate fixes; background access is not requested. Manual entry remains
 available, late results cannot replace newer edits, and Save is required.
 
-**Mein Standort** on the globe separately enables foreground position updates.
+**My location** on the globe separately enables foreground position updates.
 They stop when disabled, backgrounded or disposed and are suspended during ground
 inspection/simulation. The app keeps no GPS history. Centering and following
 change the viewed map area, which online tile requests can reveal.
@@ -78,8 +78,8 @@ above. External browsers opened for source pages operate under their own setting
 ## Public-data caches and offline preparation
 
 Public snapshots use a separate bounded cache and retain source/retrieval/validity
-information. UAS cache retention is up to 30 days; **Karte & Ansicht → Luftraum →
-Daten & Quellen** provides cache removal without deleting personal records.
+information. UAS cache retention is up to 30 days; **Map & view → Airspace →
+Data & Sources** provides cache removal without deleting personal records.
 Traffic/aircraft snapshots are session data; TMC tables and other supported public
 sources have their own persistence policies. Explicitly saved OJP journeys remain
 dated local records rather than live information.

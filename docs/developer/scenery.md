@@ -1,136 +1,189 @@
-# Reale 3D-Szenen: Rüdersdorf, Höhen und Kollisionen
+# Real-world scenery: Rüdersdorf, heights and collisions
 
-**Status:** experimentelle lokale Referenzszene, aktueller Geometriestand **R35**. Diese Datei ist die technische **aktuelle** Referenz; für chronologische Änderungen gilt ausschließlich das [Changelog](../../CHANGELOG.md). Bedienung und Sicherheitsgrenzen sind unter [Nutzer: Reale 3D-Umgebungen](../user/scenery.md) beschrieben.
+**Status:** experimental local reference scene, current geometry revision **R35**.
+This is the current technical reference; chronological changes belong in the
+[changelog](../../CHANGELOG.md). Operation and safety limits are described in
+[Real-world scenery](../user/scenery.md).
 
-## Systemgrenzen und Datenfluss
+## System boundaries and data flow
 
-| Aufgabe | Implementierung |
+| Responsibility | Implementation |
 |---|---|
-| Persistente Definitionen, Manifest v1 und Asset-Provider | `lib/features/scenery/`, Drift-Tabelle `sceneries` (Schema 13) |
-| Flutter/Cesium-Kommunikation und Kartenmenü | `lib/features/globe/`, `web/globe.js`, `web/core/globe_bridge.js` |
-| Szenenkatalog, Aktivierung, Höhenzustand, Kollision und Quellen | `web/features/scenery/scenery_manager.js`, `web/assets/scenery/catalog.json` |
-| Referenz/Transformation | `web/features/scenery/scenery_alignment.js`, `web/assets/scenery/reference_alignment.json` |
-| GLB-Darstellung | `web/assets/scenery/local_reference.glb` |
-| FPC-Kollisionen | `web/assets/scenery/local_reference.fpc`, `web/features/scenery/scenery_collision.js` |
-| Testweise BKG-Gebäude und örtliche 3D-Auswahl | `web/features/terrain/regional_3d.js`, `web/features/scenery/scenery_bridge_calibration.js` |
-| Workbench-Ansicht / lokaler Datenrelay | `tool/scenery/cesium_georeference_workbench.html`, `tool/scenery/serve_workbench.py` |
-| Reproduzierbare Rekonstruktionen, Messberichte und Regressionen | `tool/scenery/`, `test/js/scenery_*.test.cjs`, `tool/scenery/test_ruedersdorf_*.py` |
+| Persistent definitions, manifest v1 and asset providers | `lib/features/scenery/`, Drift table `sceneries` (schema 13) |
+| Flutter/Cesium communication and map menu | `lib/features/globe/`, `web/globe.js`, `web/core/globe_bridge.js` |
+| Scene catalog, activation, height state, collisions and credits | `web/features/scenery/scenery_manager.js`, `web/assets/scenery/catalog.json` |
+| Reference and transformation | `web/features/scenery/scenery_alignment.js`, `web/assets/scenery/reference_alignment.json` |
+| GLB rendering | `web/assets/scenery/local_reference.glb` |
+| FPC collisions | `web/assets/scenery/local_reference.fpc`, `web/features/scenery/scenery_collision.js` |
+| Experimental BKG buildings and regional 3D selection | `web/features/terrain/regional_3d.js`, `web/features/scenery/scenery_bridge_calibration.js` |
+| Workbench view and local data relay | `tool/scenery/cesium_georeference_workbench.html`, `tool/scenery/serve_workbench.py` |
+| Reproducible reconstructions, measurement reports and regressions | `tool/scenery/`, `test/js/scenery_*.test.cjs`, `tool/scenery/test_ruedersdorf_*.py` |
 
-Die **Haupt-GLB und FPC werden zusammen erstellt**: Die physische Kollision muss exakt zu den gerenderten Dreiecken passen. In `catalog.json` und allen Terrain-Zertifikaten muss die SHA-256 der jeweils aktuellen FPC stehen. Beim Ändern der Scan-/Ersatzgeometrie dürfen solche Zertifikate nicht unverändert auf eine andere FPC zeigen. Ein aktuelles Geometriemodell ersetzt keine physische Kalibrierung.
+The **main GLB and FPC are built together**: physical collisions must match the
+rendered triangles exactly. `catalog.json` and every terrain certificate must
+contain the SHA-256 of the current FPC. When scan/replacement geometry changes,
+certificates must not continue pointing to a different FPC unchanged. An updated
+geometry model does not replace physical calibration.
 
-### Provenienz und nichtkommerzielle Bedingungen
+### Provenance and non-commercial conditions
 
-Basis ist der Original-RAWscan von **Andrea Spognetta (spogna)**, „Abandoned Chemical plant Rüdersdorf – RAWscan“, [Originalmodell](https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64), **CC BY-NC 4.0**. Die ursprünglichen Positionen, Normalen und UV-Koordinaten der wiederhergestellten Rohscanflächen bleiben erhalten; zusätzliche Gebäude und Kollisionsflächen sind **fotogestützte Simulation**, keine vermessene Aufnahme. Original-RAWscan-Quellen und hochauflösende Texturen dürfen nicht ungeprüft weiterverteilt oder unter Apache-2.0 umgelabelt werden. Die mobilen Assets können eine verkleinerte Texturatlas-Version verwenden. Hinweise zur Herkunft von DGM1, GCG2016 und BKG finden sich unter [Third-party notices](../../THIRD_PARTY_NOTICES.md) und in den Asset-Credits `web/assets/scenery/ATTRIBUTION.md`.
+The source is **Andrea Spognetta (spogna)**'s original RAWscan, *Abandoned Chemical
+plant Rüdersdorf – RAWscan*, [original model](https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64),
+**CC BY-NC 4.0**. Restored raw-scan surfaces retain their original positions,
+normals and UV coordinates; additional buildings and collision surfaces are
+**photo-informed simulation**, not surveyed geometry. Original RAWscan sources
+and high-resolution textures must not be redistributed without checking their
+terms or relabeled as Apache-2.0. Mobile assets may use a smaller texture atlas.
+DGM1, GCG2016 and BKG provenance is documented in the
+[third-party notices](../../THIRD_PARTY_NOTICES.md) and asset credits at
+`web/assets/scenery/ATTRIBUTION.md`.
 
-## Persistente Scenery-Architektur
+## Persistent scenery architecture
 
-Der Renderer liefert seinen bereits geladenen gebündelten Katalog über
-`scenery-catalog` einmalig als anfängliche Definitionen. `SceneryRepository`
-übernimmt diese einmalig in die Drift-Tabelle `sceneries`; eine gespeicherte
-Initialisierungsmarke verhindert, dass absichtlich entfernte Vorlagen nach einem
-Neustart oder Backup-Restore wieder erscheinen. Alte Aktivierungen und
-Ausrichtungen werden transaktional übernommen. Ungültige Bestandsdaten werden
-als Fehler gemeldet und bleiben erhalten. Datenbankschema 13 ergänzt ausschließlich
-diese Tabelle; bestehende Tabellen werden dafür nicht umgebaut.
+The renderer supplies its already loaded bundled catalog once through
+`scenery-catalog` as the initial definitions. `SceneryRepository` imports these
+into the Drift table `sceneries` once; a stored initialization marker prevents
+intentionally removed templates from reappearing after restart or backup restore.
+Existing activation and alignment settings are imported transactionally. Invalid
+existing data is reported as an error and retained. Database schema 13 adds only
+this table; existing tables are not restructured for it.
 
-`SceneryManifest` definiert das JSON-Format **schemaVersion 1**:
+`SceneryManifest` defines JSON format **schemaVersion 1**:
 
-| Feld | Vertrag |
+| Field | Contract |
 |---|---|
-| `id`, `name`, `description` | Stabile Kennung und Beschreibung |
-| `source` | `author`, HTTPS-`url`, `license`, `attribution` |
-| `anchor` | `longitude`, `latitude`, `heightM`, `reference`: `WGS84_ELLIPSOID` oder `TERRAIN_RELATIVE` |
-| `bounds` | Geographische Region `west`, `south`, `east`, `north`; West > Ost kennzeichnet den Datumswechsel |
-| `rotation`, `scale` | `headingDeg`, `pitchDeg`, `rollDeg`, einheitlicher Maßstab im lokalen ENU-System |
-| `assets` | Eigene Kennung, Rolle `visual`/`collision`, `provider`, `format`, `uri` pro Asset |
-| `collision` | `enabled`, Referenzen über `assetIds`, `sidedness` |
-| `visibility` | `enabled`, `loadRadiusM`, `unloadRadiusM` mit Hysterese |
-| `minimumAppVersion` | Semantische Mindestversion `major.minor.patch` |
-| `extensions` | Provideroptionen; die Cesium-Kompatibilität enthält bestehende Höhen-/Terrainzertifikate |
+| `id`, `name`, `description` | Stable identifier and description |
+| `source` | `author`, HTTPS `url`, `license`, `attribution` |
+| `anchor` | `longitude`, `latitude`, `heightM`, `reference`: `WGS84_ELLIPSOID` or `TERRAIN_RELATIVE` |
+| `bounds` | Geographic region `west`, `south`, `east`, `north`; west > east indicates an antimeridian crossing |
+| `rotation`, `scale` | `headingDeg`, `pitchDeg`, `rollDeg`, uniform scale in the local ENU frame |
+| `assets` | Identifier, `visual`/`collision` role, `provider`, `format`, `uri` for each asset |
+| `collision` | `enabled`, references through `assetIds`, `sidedness` |
+| `visibility` | `enabled`, `loadRadiusM`, `unloadRadiusM` with hysteresis |
+| `minimumAppVersion` | Minimum semantic version `major.minor.patch` |
+| `extensions` | Provider options; the Cesium compatibility adapter retains existing height/terrain certificates |
 
-Definitionen sind unveränderliche Snapshots. Es gelten höchstens 64 Szenen,
-128 KiB pro Definition, 1 MiB pro Katalog sowie höchstens je 16 visuelle und
-Kollisionsassets. Katalog-Bounds aus Vorlagen/Platzierungsformularen sind
-konservative Abdeckungsregionen, keine vermessenen Mesh-Grenzen. Tatsächliche
-Mesh-Bounds, Dateiauswahl und Ressourcenimport gehören zum Asset-Importworkflow.
+Definitions are immutable snapshots. Limits are 64 scenes, 128 KiB per
+definition, 1 MiB per catalog, and at most 16 visual and 16 collision assets.
+Catalog bounds from templates/placement forms are conservative coverage regions,
+not surveyed mesh bounds. Actual mesh bounds, file selection and resource import
+belong to the asset import workflow.
 
-`SceneryAssetProvider` löst logische Referenzen auf. Der vorhandene Provider
-`bundled` unterstützt selbstenthaltende GLB und FPC innerhalb des Szenen-Assetroots.
-Weitere Provider/Formate können definiert und gespeichert werden; ohne passenden
-Ladepfad bleibt die Szene **unavailable**, ebenso bei einer zu hohen Mindestversion.
-Front-/Back-only-Kollision und neu geneigte, bereits terrainkalibrierte Szenen
-bleiben bis zu einer passenden Implementierung/Neukalibrierung nicht verfügbar.
-Es wird kein nicht unterstütztes Format als GLB oder gültige Kollision ausgegeben.
+`SceneryAssetProvider` resolves logical references. The current `bundled`
+provider supports self-contained GLB and FPC within the scenery asset root.
+Other providers/formats can be defined and stored; a scene remains
+**unavailable** without a matching loader or when its minimum app version is too
+high. Front-/back-only collision and newly tilted, previously terrain-calibrated
+scenes remain unavailable until implemented or recalibrated appropriately.
+Unsupported formats are never presented as GLB or valid collision geometry.
 
-Die Bridge-Nachricht `replace-scenery-catalog` überträgt einen vollständigen
-aufgelösten Katalog. Unveränderte Einträge behalten Modelle und Kollisionsdaten;
-entfernte/geänderte Einträge entwerten laufende Ladevorgänge. Fehlerhafte optionale
-Szenen erhalten einen eigenen Fehlerzustand. Alle Kollisionsassets einer Szene
-müssen geladen sein, bevor ihre physische Kollision aktiv wird. Darstellungs- und
-Kollisionsgeometrie verwenden dieselbe ENU-Rotation einschließlich Pitch und Roll.
-Eine veränderte Platzierung entwertet alte Gebäude-/Terrain-Ersatzmasken;
-Grundkarte und optionale Szenen werden unabhängig wiederhergestellt. Veraltete
-Wiederherstellungsgenerationen übertragen keinen Katalog.
-Änderungen während Navigation werden abgewiesen. Nach Renderer-Neuverbindung
-wird der aktuelle Datenbankstand erneut übertragen.
+The bridge message `replace-scenery-catalog` transfers a complete resolved catalog.
+Unchanged entries retain their models and collision data; removed/changed entries
+invalidate in-flight loads. Invalid optional scenes receive their own error state.
+All collision assets of a scene must be loaded before physical collisions become
+active. Visual and collision geometry share the same ENU rotation, including
+pitch and roll. Changed placement invalidates old building/terrain replacement
+masks. The base map and optional scenes are restored independently. Obsolete
+restore generations do not transmit a catalog. Changes during navigation are
+rejected. The current database state is replayed after renderer reconnection.
 
-Szenendefinitionen und Initialisierungszustand werden im bestehenden Backupformat
-mitgeführt; Modellbytes und Provider-Caches werden damit nicht als austauschbares
-Scenery-Paket exportiert. Alte Backups bleiben einlesbar. Ein allgemeiner
-GLB/glTF-Dateiimport, frei wählbare 3D-Tiles-Dienste und `.fpvscenery`-Pakete sind
-separate Ausbauschritte. Die Referenzszene und die BKG-Grenzen unten bleiben gültig.
+Scene definitions and initialization state are included in the existing backup
+format; model bytes and provider caches are not exported as an exchangeable
+scenery package. Older backups remain readable. General GLB/glTF file import,
+arbitrary 3D Tiles services and `.fpvscenery` packages are separate follow-up
+features. The reference-scene and BKG limitations below still apply.
 
-## Geometrie und Orientierung
+## Geometry and orientation
 
-- Der Modellmaßstab ist `16.023268178233355`; Rotation um die lokale Vertikale `99.7993823133657°`; geographischer Anker bei **13.789853720999993° E / 52.48411904363446° N**.
-- In der verwendeten lokalen Baustellenkoordinate zeigt **−X nach Norden** und **+Y nach Osten**. Die Cesium-/GLB-Transformationsmatrizen und die Transformationsachse für FPC dürfen nicht unabhängig geändert werden.
-- Die nördliche Originalscan-Gebäudegruppe und die südlichen rekonstruierten Produktionsgebäude **sind unterschiedliche Orte**. Rekonstruktionsänderungen müssen auf eindeutig kontrollierten lokalen Bounding Boxes erfolgen; die gewünschte Himmelsrichtung allein ist keine hinreichende Maskendefinition.
-- **R29** fügte fehlende Rohscan-Dreiecke aus dem Originalarchiv zurück. **R34** restaurierte versehentlich entfernte südliche Rekonstruktionsflächen. **R35** entfernte ausschließlich das künstliche, teils in den nördlichen Scan hineinragende R24-Gerüst. Details der einzelnen Bearbeitungsschritte stehen in maschinenlesbaren `refinement_*_report.json` und im Changelog; alte inkrementelle Release-READMEs sind keine aktuelle Spezifikation.
-- Die äußere Leiterplattform der langen Halle liegt **außerhalb** der Halle, nicht in einer künstlich geöffneten Dachfläche. Beim Modellieren dürfen echte Dachöffnungen (z. B. der zentralen Silos) nicht mit anderen Silo-Gebäuden verwechselt werden.
+- Model scale is `16.023268178233355`; rotation about the local vertical is
+  `99.7993823133657°`; the geographic anchor is
+  **13.789853720999993° E / 52.48411904363446° N**.
+- In the site's local coordinate frame, **−X points north** and **+Y points east**.
+  Cesium/GLB transformation matrices and the FPC transformation axis must not
+  be changed independently.
+- The northern original-scan building group and the southern reconstructed
+  production buildings **are different locations**. Reconstruction changes must
+  use explicitly checked local bounding boxes; a desired compass direction alone
+  does not sufficiently define a mask.
+- **R29** restored missing raw-scan triangles from the original archive. **R34**
+  restored accidentally removed southern reconstruction surfaces. **R35** removed
+  only the artificial R24 gantry that partly extended into the northern scan.
+  Individual steps are recorded in machine-readable `refinement_*_report.json`
+  files and the changelog; old incremental release READMEs are not the current
+  specification.
+- The long hall's external ladder platform is **outside** the hall, not inside
+  an artificially opened roof. Actual roof openings, such as those in the central
+  silos, must not be confused with other silo buildings during modeling.
 
-## Höhenbezüge – keine doppelte Korrektur
+## Height references: avoid double correction
 
-Unterscheide **(a)** Workbench-Flat-Preview, **(b)** lokal gesampelte Scan-Bodenhöhe, **(c)** vertikalen Referenzrahmen einer Datenquelle und **(d)** den tatsächlich gerenderten Terrainprovider.
+Distinguish **(a)** the flat workbench preview, **(b)** the locally sampled scan
+ground height, **(c)** a source's vertical reference frame, and **(d)** the terrain
+provider actually being rendered.
 
-| Referenz | Wert / Bedeutung |
+| Reference | Value / meaning |
 |---|---|
-| Workbench-Export (flacher Ellipsoid) | **34,25 m** Ankerhöhe; visuelle Vorschau, keine übertragbare Geländeankerhöhe |
-| DGM1 am geographischen Anker | **40,949489589 m NHN** (DHHN2016), aus amtlichem Raster interpoliert |
-| GCG2016-Anomalie | **+38,871142785 m**; Umrechnung normal/ellipsoid |
-| Daraus ermittelte ellipsoidale Bodenhöhe | **79,820632374 m** |
-| Lokale Bodenreferenz | `groundReferenceLocalUp = -2.02575` |
-| Modellanker für diese DGM1-Kontrolle | **112,279767886 m** vor zusätzlichem Vergleich mit tatsächlich gerendertem Gelände |
-| Nutzerbestätigter BKG-spezifischer visueller Versatz | **−16,90 m**; nur für die experimentelle BKG-Variante, nicht als Geoidkonstante |
+| Workbench export (flat ellipsoid) | **34.25 m** anchor height; visual preview, not a transferable terrain anchor height |
+| DGM1 at the geographic anchor | **40.949489589 m NHN** (DHHN2016), interpolated from the official raster |
+| GCG2016 anomaly | **+38.871142785 m**; normal/ellipsoidal height conversion |
+| Resulting ellipsoidal ground height | **79.820632374 m** |
+| Local ground reference | `groundReferenceLocalUp = -2.02575` |
+| Model anchor for this DGM1 check | **112.279767886 m**, before further comparison with the terrain actually rendered |
+| User-confirmed BKG-specific visual offset | **−16.90 m**; experimental BKG variant only, not a geoid constant |
 
-Die Beziehung für eine **bekannte** ellipsoidale Bodenhöhe lautet:
+For a **known** ellipsoidal ground height:
 
 `rootEllipsoidHeightM = groundEllipsoidHeightM - groundReferenceLocalUp * scale`
 
-Der aktuelle Katalog verwendet `heightAlignmentMode: "terrain"`, `requireGroundCalibration: true` und ein eigenes `bkgHeightOffsetM`. Während der automatischen Kalibrierung werden gerenderte Geländehöhen in mehreren Kontrollpositionen gelesen und robust zu einer Modellankerhöhe zusammengeführt. Fehlende Kacheln sind **kein** Wert null, und der dynamische BKG-Korrekturwert darf nicht zusätzlich als allgemeiner Geoidversatz verstanden werden. Nutzerseitige gespeicherte Einstellungen können den Katalogstandard übersteuern. Laufzeitstatus (`heightState`, `groundHeightM`, `effectiveAlignment`, `bkgHeightOffsetM`) ist bei Problemen vor der Änderung von Konstanten zu protokollieren.
+The current catalog uses `heightAlignmentMode: "terrain"`,
+`requireGroundCalibration: true` and a separate `bkgHeightOffsetM`. Automatic
+calibration reads rendered terrain heights at several control positions and
+robustly combines them into a model anchor height. Missing tiles are **not** zero,
+and the dynamic BKG correction must not additionally be treated as a general
+geoid offset. Saved user settings may override catalog defaults. When diagnosing
+problems, record runtime state (`heightState`, `groundHeightM`,
+`effectiveAlignment`, `bkgHeightOffsetM`) before changing constants.
 
-### Bediengestützter Bodenabgleich
+### User-assisted ground alignment
 
-`web/features/scenery/scenery_bridge_calibration.js` verwendet ein Scan-Oberflächen-Pick und nach Ausblenden des Scans einen Pick auf das **gleiche offene Gelände**. Das Programm prüft den horizontalen Abstand und berechnet die signed Höhendifferenz. Das Ergebnis wird erst nach expliziter Bestätigung als **BKG-only** Einstellung gespeichert. Es dürfen keine LoD2-Dächer/Vegetation mit Scan-Bodenpunkten verglichen werden. Der visuell bestätigte Versatz ist nur eine reproduzierbare Betriebseinstellung, keine Vermessung.
+`web/features/scenery/scenery_bridge_calibration.js` picks the scan surface, hides
+the scan, then picks the **same open ground**. It checks horizontal separation and
+calculates the signed height difference. Only explicit confirmation stores the
+result as a **BKG-only** setting. Do not compare LoD2 roofs/vegetation with scan
+ground points. The visually confirmed offset is a reproducible operating setting,
+not a survey measurement.
 
-## BKG-LoD2-Workbench
+## BKG LoD2 workbench
 
-Der Workbench braucht einen HTTP-Server statt `file://`. Die lokale Relay-Route wird nur von `serve_workbench.py` bedient; `python -m http.server` stellt sie **nicht** bereit.
+The workbench requires an HTTP server rather than `file://`. Its local relay route
+is provided only by `serve_workbench.py`; `python -m http.server` does **not**
+provide it.
 
 ```powershell
 python tool/scenery/serve_workbench.py --port 8765
 ```
 
-Danach [Workbench öffnen](http://localhost:8765/tool/scenery/cesium_georeference_workbench.html?lod2=relay). Ein Relay-`404` kann einen falschen Server oder einen Upstream-404 bedeuten; ein `502` weist auf fehlgeschlagene Kommunikation zwischen lokalem Relay und BKG hin. Zuerst die lokale Konsole lesen und den offiziellen Dienst gegebenenfalls getrennt mit `curl.exe` und Python `urllib.request` prüfen. Das Relay begrenzt erlaubte Upstream-Pfade, nutzt keine Zugangsdaten und speichert keine heruntergeladenen BKG-Assets im Projekt.
+Then [open the workbench](http://localhost:8765/tool/scenery/cesium_georeference_workbench.html?lod2=relay).
+A relay `404` may indicate the wrong server or an upstream 404; a `502` indicates
+failed communication between the local relay and BKG. Read the local console
+first, then check the official service separately with `curl.exe` and Python
+`urllib.request` if needed. The relay restricts upstream paths, uses no
+credentials and does not store downloaded BKG assets in the project.
 
-**Der BKG-Beta-Modus verwendet seinen eigenen Höhen-/Modellstatus und ist nicht gleichzusetzen mit der normalen Schweiz-Karte.** Die URL `lod2_4326_null.json` ist die LoD2-Variante ohne DGM5-Höhenversatz; sie allein bestätigt nicht die tatsächliche Terrainhöhe.
+**BKG Beta uses its own height/model state and is not equivalent to the normal
+Swiss map.** The URL `lod2_4326_null.json` selects the LoD2 variant without the
+DGM5 height offset; it does not by itself establish the actual terrain height.
 
-## Android-Testbuild und Validierung
+## Android test build and validation
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tool/build/build_android_ruedersdorf_test.ps1
 ```
 
-Der Build aktiviert `--dart-define=FPV_REGIONAL_3D_TEST=true`, prüft die notwendigen GLB-/FPC-Dateien und erstellt eine **experimentelle** Test-APK. Die öffentliche Release-Konfiguration aktiviert den BKG-Modus nicht standardmäßig. Für die normale App sind die Vorgaben unter [Contributing](../../CONTRIBUTING.md) maßgeblich.
+This enables `--dart-define=FPV_REGIONAL_3D_TEST=true`, checks required GLB/FPC
+files and produces an **experimental** test APK. The public release configuration
+does not enable BKG mode by default. Normal app builds follow
+[Contributing](../../CONTRIBUTING.md).
 
 ```sh
 node --test test/js/*.test.cjs
@@ -138,24 +191,38 @@ python -m unittest discover -s test/tool -p 'test_*.py'
 python tool/quality/check_docs.py
 ```
 
-Aktuell gepflegte JavaScript-Regressionen: `scenery_site_integrity.test.cjs`
-(Originalscan, Südgebäude, Öffnungen und FPC), `scenery_underlay.test.cjs`
-(optionale Geländeersetzung), `scenery_rendered_ground.test.cjs`
-(Render-/Höhenproben) sowie `scenery_ground_calibration.test.cjs` (BKG-only
-Bodenabgleich und Android-Asset). Dateinamen mit einer Revisionsnummer können weiterhin aktive
-Geometrieregressionen sein und werden nicht pauschal entfernt. Für alte Pfade nach
-einem ZIP-Update den geprüften [Struktur-Cleanup](../README.md#applying-a-changed-files-zip)
-verwenden.
+Maintained JavaScript regressions include `scenery_site_integrity.test.cjs`
+(original scan, southern buildings, openings and FPC), `scenery_underlay.test.cjs`
+(optional terrain replacement), `scenery_rendered_ground.test.cjs`
+(rendered-height samples), and `scenery_ground_calibration.test.cjs` (BKG-only
+ground alignment and Android asset). Revision-numbered filenames may still be
+active geometry regressions and must not be removed indiscriminately. For old
+paths after a ZIP update, use the checked
+[repository cleanup](../README.md#applying-a-changed-files-zip).
 
-Zusätzlich die passende `test_ruedersdorf_*.py`-Geometrieprüfung ausführen und das Modell real auf einem Gerät mit verschiedenen Kamerawinkeln vergleichen. Tests von Rohdreiecken, BVH-Hashes und Codepfaden beweisen **keine** richtige Höhenlage im BKG-Globus. Bei einer Geometrieänderung sowohl Ausschnitt als auch kollidierbare Öffnungen prüfen; bei Höhenänderung Oberkante/Boden in mehreren Bildbereichen und nach Providerwechsel.
+Also run the relevant `test_ruedersdorf_*.py` geometry check and compare the model
+on an actual device from different camera angles. Raw-triangle, BVH-hash and code
+tests do **not** prove correct vertical placement in the BKG globe. Geometry
+changes require checking both the edited area and collidable openings; height
+changes require checking the top/ground in several parts of the view and after
+provider changes.
 
-## Sicherheit, Datenlücken und Grenzen
+## Safety, data gaps and limitations
 
-- Rüdersdorfer FPC-Kollisionen sind experimentelle Simulationsflächen, nicht reale Hindernismessungen.
-- Das optionale separate **DGM1-Unterlay** (`ruedersdorf_r11_ground.glb/.fpc`) ist nicht mit dem Hauptmodell gleichzusetzen. Das Einblenden und Clipping erfordert gültige Assets, passende Zertifikate, echte Terrainproben und aktivierte, dem Renderer gehörende Clipping-Masken. Standardmäßig ist `clipTerrain` deaktiviert.
-- Regionale BKG-Gebäude können sich visuell mit Scanflächen überlagern. Die Gebäudemaskierung ist getrennt von der optionalen, geprüften Terrainmaske.
-- **Die Echtzeit-Funk-/LoS-Analyse für BKG-Beta ist gesperrt**, solange die Terrainabfrage und 3D-Hindernisbehandlung dafür nicht validiert sind. Fehlende Höhen dürfen weder als freie Sicht noch als Funkverlust ausgegeben werden. Technische Details: [Radio/Rescue](radio_and_rescue.md).
-- Quellenangaben im UI und externe Nutzungsrechte müssen bei jeder Modelländerung erhalten bleiben. Vor jeder Veröffentlichung der abgeleiteten RAWscan-Geometrie die **CC BY-NC 4.0**-Beschränkung prüfen.
+- Rüdersdorf FPC collisions are experimental simulation surfaces, not real
+  obstacle measurements.
+- The optional separate **DGM1 underlay** (`ruedersdorf_r11_ground.glb/.fpc`) is
+  distinct from the main model. Display and clipping require valid assets,
+  matching certificates, real terrain samples and active renderer-owned clipping
+  masks. `clipTerrain` is disabled by default.
+- Regional BKG buildings can overlap scan surfaces visually. Building masking
+  is separate from the optional verified terrain mask.
+- **Live RF/LoS analysis for BKG Beta is blocked** until its terrain queries and
+  3D obstacle handling are validated. Missing heights must not be presented as
+  clear visibility or signal loss. See [Radio/Rescue](radio_and_rescue.md).
+- UI attribution and external usage rights must be retained with every model
+  change. Check the **CC BY-NC 4.0** restriction before publishing derived RAWscan
+  geometry.
 
 ## Regional 3D service boundary
 

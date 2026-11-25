@@ -33,6 +33,8 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Changed
 
+- Standardize project documentation on English; retain the integrated guides
+  and German quick start in their existing languages.
 - Group developer tools by build, data, benchmarks, browser, quality,
   maintenance and scenery; update CI, tests and documented commands together.
 - Consolidate current documentation, retire individual fix/delivery reports,
@@ -446,7 +448,7 @@ The existing Legacy physics model remains available and unchanged.
 
 - Anchor restored spots and their labels to the terrain mesh currently drawn.
 - Retain more terrain around ground view and preload adjacent tiles while the
-  walker is active. Correct the German ground-view tooltip to “Hier starten”.
+  walker is active. Correct the localized ground-view start tooltip.
 
 ## 2026-11-14
 
@@ -508,7 +510,7 @@ The existing Legacy physics model remains available and unchanged.
 
 ## 2026-11-09
 
-- Grouped map/globe controls in **Karte & Ansicht**; shortened navigation and
+- Grouped map/globe controls in **Map & view**; shortened navigation and
   simulator menus and moved secondary details into expandable sections.
 - Replaced verbose map credits with a compact sources control while retaining
   full notices and required visible provider attributions.

@@ -23,6 +23,12 @@ Treat renderer messages and downloaded data as external input. Preserve explicit
 units, coordinate/height references and the distinction between source data and
 interpreted restrictions. Add regression tests for meaningful behavior changes.
 
+## Documentation
+
+Write project documentation in English. Keep the integrated app guides and the
+German quick start in their existing languages. Preserve official source names,
+required attribution and third-party licence text.
+
 ## Checks and builds
 
 Run from the repository root. Python 3.9+ and Node.js 20+ are needed for tooling.

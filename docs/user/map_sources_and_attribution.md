@@ -115,7 +115,7 @@ before distributing data or adding services.
 ## Credits and packaged notices
 
 `web/features/map/map_providers.js` supplies imagery/terrain credits through Cesium's native
-**Quellen** control. The [swisstopo attribution FAQ](https://www.swisstopo.admin.ch/en/faq-free-geodata)
+**Sources** control. The [swisstopo attribution FAQ](https://www.swisstopo.admin.ch/en/faq-free-geodata)
 expressly accepts a linked central sources list in a dynamic map. Complete
 SWISSIMAGE/CNES/Spot/NPOC/Planet wording is retained in that dialog. Cache-help
 text is kept in Offline settings rather than repeated in the copyright line.
@@ -142,8 +142,8 @@ Apache-2.0 remain acknowledged in the sources dialog. Actual ion credits keep
 Cesium's native handling; `usesIon:true` preserves the default logo at startup.
 See [Cesium's usage guide](https://cesium.com/learn/ion/content-usage-and-attribution-guide/)
 and [official clarification for direct provider use](https://community.cesium.com/t/i-am-not-sure-if-i-am-using-cesium-ion/38283).
-Open-source package notices are available from Einstellungen → Datenquellen →
-Open-Source-Lizenzen. See [renderer assets](../developer/cesium_assets.md) for bundle updates.
+Open-source package notices are available from Settings → Data sources →
+Open-source licenses. See [renderer assets](../developer/cesium_assets.md) for bundle updates.
 
 Source references: [layer configuration](https://api3.geo.admin.ch/rest/services/api/MapServer/layersConfig?lang=en),
 [WMTS capabilities](https://wmts.geo.admin.ch/EPSG/3857/1.0.0/WMTSCapabilities.xml?lang=en),

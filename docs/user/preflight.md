@@ -1,6 +1,6 @@
 # Preflight and signal analysis
 
-Open **Flugvorbereitung** in navigation. Checklists start with battery,
+Open **Preflight** in navigation. Checklists start with battery,
 propeller, GPS, radio, video, weather and airspace items. Edit one item per line,
 assign a drone/flight plan, or save a reusable template. Starting from a template
 creates an independent, unchecked checklist. Changing its drone/plan resets
@@ -48,7 +48,7 @@ model itself does not establish the absence of buildings, vegetation or cables.
 
 ## Telemetry import and calibration
 
-Import a CSV in **Flugvorbereitung → Telemetry**. Preview its measurements,
+Import a CSV in **Preflight → Telemetry**. Preview its measurements,
 choose the drone and flight plan, then confirm local storage. Raw bytes remain
 in the personal database across restarts, independently of OSINT/map caches.
 Delete a log from the same library to remove its raw data. Limits: 50 logs or
@@ -95,6 +95,6 @@ other routes are not automatically changed. Keep an original curve if needed;
 the raw telemetry remains available for re-evaluation.
 
 For the flight HUD's temporary recording-to-route workflow, use the
-[user guide](../user_guide.md#ground-inspection-and-flight-simulation). It is separate
+[user guide](../user_guide.md#start-a-session). It is separate
 from importing measurements for energy calibration. Network requests and local
 storage are summarized in [privacy](privacy_and_permissions.md).

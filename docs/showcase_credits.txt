@@ -1,20 +1,20 @@
-FPVManager - Quellen zum Vorstellungsvideo
+FPVManager - Showcase video credits
 
-Videoaufnahmen, Originalton und Sprecheraufnahme: Chaos Core FPV
+Video footage, original audio and voice recording: Chaos Core FPV
 
-Luftbilder, Gelände und 3D-Geodaten: © swisstopo
+Aerial imagery, terrain and 3D geodata: © swisstopo
 SWISSIMAGE Background: © CNES, Spot Image, swisstopo, NPOC
 Includes material © (2016-2018) Planet. All rights reserved
 https://www.swisstopo.admin.ch/de/orthobilder-swissimage-10-cm
 
-Tunnelachsen: © OpenStreetMap contributors · ODbL
+Tunnel centerlines: © OpenStreetMap contributors · ODbL
 https://www.openstreetmap.org/copyright
-Datenauszug: Geofabrik · https://download.geofabrik.de/europe/switzerland.html
-Vegetationsmischung: BAFU / WSL · Waldmischungsgrad LFI 2023
+Data extract: Geofabrik · https://download.geofabrik.de/europe/switzerland.html
+Vegetation composition: BAFU / WSL · Waldmischungsgrad LFI 2023
 https://www.geocat.ch/geonetwork/srv/api/records/b07a4589-159b-4c3a-b1e4-dbdad11f7e62
-3D-Darstellung: CesiumJS · https://cesium.com/platform/cesiumjs/
+3D rendering: CesiumJS · https://cesium.com/platform/cesiumjs/
 
-Musik über Mixkit · Stock Music Free License
+Music via Mixkit · Stock Music Free License
 https://mixkit.co/license/modal/musicFree/
 Echoes - Andrew Ev
 Digital Clouds - Alejandro Magaña (A. M.)

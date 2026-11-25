@@ -1,69 +1,100 @@
-# Reale 3D-Umgebungen und Rüdersdorf (experimentell)
+# Real-world scenery and Rüdersdorf (experimental)
 
-Dieses Kapitel beschreibt **die derzeitige Rüdersdorf-Testszene**, nicht eine allgemein verfügbare, vermessene 3D-Stadt. Die üblichen Karten- und Simulationsfunktionen sind im [Benutzerhandbuch](../user_guide.md) beschrieben. Die technische Reproduzierbarkeit steht unter [Entwicklung: Szenen und Höhen](../developer/scenery.md).
+This chapter describes **the current Rüdersdorf test scene**, not a generally
+available surveyed 3D city. Standard map and simulation features are covered by
+the [user handbook](../user_guide.md). Technical reproducibility is documented in
+[Scenery and heights](../developer/scenery.md).
 
-## Was dargestellt wird
+## What is displayed
 
-- Der photogrammetrische **RAWscan „Abandoned Chemical plant Rüdersdorf“** von Andrea Spognetta mit ergänzter, nur näherungsweise rekonstruierter Industriegeometrie. Geometrie, Zustand und Oberflächen stammen nicht durchgehend aus demselben Aufnahmejahr.
-- Ein gesondertes Kollisionsnetz (FPC) für den Simulator. Es kann die modellierten Flächen treffen, **garantiert aber keine realen Hindernisabstände**.
-- Optional offizielle 3D-Gebäude und Gelände aus der **BKG 3D-Beta**. Dieser Modus wird ausschließlich durch einen speziellen Testbuild freigeschaltet; er ist keine Freigabe für die reale Flugplanung.
-- Die Urheber- und Datenquellen stehen im Kartenmenü **Quellen** und unter [Lizenzen/Kartendaten](map_sources_and_attribution.md).
+- Andrea Spognetta's photogrammetric **RAWscan "Abandoned Chemical plant
+  Rüdersdorf"**, with additional approximate industrial reconstruction. Geometry,
+  site condition and surfaces do not all represent the same acquisition year.
+- A separate FPC collision mesh for the simulator. It can detect contacts with
+  modeled surfaces, but **does not guarantee real-world obstacle clearance**.
+- Optional official buildings and terrain from **BKG 3D Beta**. This mode is
+  enabled only by a special test build; it is not approved for real flight planning.
+- Author and data-source credits in the map's sources panel and
+  [Map sources and attribution](map_sources_and_attribution.md).
 
-## Anzeige und Einstellungen
+## Display and settings
 
-1. Öffne die Karte in der Umgebung von Rüdersdorf bei Berlin.
-2. Öffne **Karte & Ansicht → Karte → Reale 3D-Umgebungen**. Aktiviere die lokale Szene, sofern die entsprechenden Assets im Build enthalten sind.
-3. Über **Status aktualisieren** kann die Szene bei Problemen erneut abgefragt werden. Das normale Menü zeigt Ladezustand und nutzerverständliche Fehler, nicht die internen Kollisions-, Höhen- und Maskenwerte.
-4. Die Überlagerung mit BKG-LoD2 wird durch die Szenenkonfiguration gesteuert. Manuelle Masken- und Ausrichtungseditoren sind in regulären Builds ausgeblendet.
+1. Open the map near Rüdersdorf, east of Berlin.
+2. Open **Map & view → Map → Real-world scenery**. Enable the local scene if its
+   assets are included in the build.
+3. Use **Refresh status** to query the scene again when needed. The normal menu
+   shows loading state and readable errors; internal collision, height and mask
+   values are reserved for diagnostics.
+4. Scene configuration controls overlap with BKG LoD2. The advanced developer
+   mask and alignment editors remain hidden in regular builds.
 
-### Umgebungen verwalten
+### Manage scenery
 
-Über **Umgebungen verwalten** kannst du eine neue Szenendefinition aus einer
-vorhandenen Modellvorlage anlegen, benennen, ausrichten und wieder entfernen.
-Neue Definitionen starten deaktiviert. Aktiviere sie anschließend in der Liste.
-Position, Höhenbezug, Richtung, Neigung, Rollwinkel, Maßstab und Ladeentfernungen
-werden gespeichert und mit dem normalen Backup wiederhergestellt. Änderungen
-sind bei beendeter Navigation möglich; **Abbrechen** verwirft Formulareingaben.
+Use **Manage scenery** to create a scene definition from an existing model
+template, name it, edit its placement or remove it. New definitions start disabled;
+enable them in the scene list. Position, altitude reference, heading, pitch, roll,
+scale and loading distances are saved and restored through the normal backup.
+Changes require navigation to be stopped. **Cancel** discards unsubmitted form
+changes.
 
-Die Vorlagen verwenden die bereits mitgelieferten Modelle samt Quellenangaben.
-Eine kopierte Vorlage übernimmt keine geprüften Gelände-Ersatzflächen. Ein
-Dateiimport eigener Modelle und austauschbare Scenery-Pakete sind noch nicht
-Bestandteil dieser Verwaltung. Nicht unterstützte Datenquellen bleiben als
-nicht verfügbar erkennbar.
+Templates use models already bundled with the app and retain their source credits.
+A copied template does not inherit verified terrain replacement regions. Importing
+model files and exchanging scenery packages are not yet part of this management
+workflow. Unsupported data sources remain explicitly unavailable.
 
-### Höhenreferenz und Bodenabgleich
+### Height reference and ground alignment
 
-Die Szenenhöhe im normalen Globe wird nicht unmittelbar aus dem Workbench-Export übernommen. Ein Workbench-Wert auf **flacher Ellipsoid-Oberfläche** ist nicht die spätere absolute Modellhöhe über dem tatsächlich gerenderten Gelände. Die derzeitige Szene nutzt Geländeproben und berücksichtigt zusätzlich den lokalen Bodenversatz des Photogrammetriemodells.
+Scene height in the normal globe is not taken directly from the workbench export.
+A workbench value on a **flat ellipsoid surface** is not the eventual absolute
+model height above the terrain actually rendered. The current scene uses terrain
+samples and accounts for the photogrammetry model's local ground offset.
 
-Für die aktuelle Rüdersdorf-Testversion wurde **−16,90 m** als BKG-spezifischer visueller Korrekturwert anhand zweier passender Bodenflächen bestätigt. Er ist **keine amtlich vermessene Höhe**. Andere lokale Einstellungen können Vorrang haben; beim Wechsel zum regulären Cesium-Gelände darf diese Korrektur nicht übertragen werden.
+For the current Rüdersdorf test version, **−16.90 m** was confirmed as a BKG-specific
+visual correction using two matching ground surfaces. It is **not an official
+surveyed height**. Other local settings can take precedence; this correction must
+not be transferred to the regular Cesium terrain provider.
 
-Der folgende Abgleich ist **nur im privaten Entwicklerbuild** mit
-`--dart-define=FPV_DEVELOPER_MENUS=true` verfügbar und gehört nicht zur
-normalen Flugvorbereitung.
+The following comparison is available **only in a private developer build** with
+`--dart-define=FPV_DEVELOPER_MENUS=true`. It is not part of normal flight preparation.
 
-Bei einer neuen Kontrolle:
+For a new check:
 
-1. Im Entwicklerbuild im BKG-Testmodus **Bodenhöhe vergleichen** wählen.
-2. Eine erkennbare, möglichst ebene und freie **Bodenfläche** des Scans antippen. Nicht ein Dach, eine Geschossdecke, Brücke oder Vegetation wählen.
-3. Nachdem der Scan ausgeblendet wurde, möglichst dieselbe Stelle auf dem **tatsächlich gerenderten Kartengelände** antippen.
-4. Die vorgeschlagene Differenz, den horizontalen Abstand und die Bilddarstellung prüfen. Erst anschließend **Bodenhöhe übernehmen** wählen.
+1. In the developer build's BKG test mode, select **Compare ground heights**.
+2. Tap a recognizable, reasonably level, open **ground surface** in the scan.
+   Do not select a roof, floor slab, bridge or vegetation.
+3. After the scan is hidden, tap the same location on the **map terrain actually
+   rendered**, as closely as possible.
+4. Review the proposed difference, horizontal separation and visual result before
+   selecting **Apply ground height**.
 
-Die Funktion soll kein Geländegefälle mit einem Höhenfehler verwechseln; weit entfernte Vergleichspunkte werden abgelehnt. Ein stark versetztes oder schwebendes Modell ist ein **Kalibrierungsfehler**, kein Hinweis auf sichere Überflughöhen.
+The comparison must not confuse terrain slope with a height error; points too far
+apart are rejected. A displaced or floating model indicates a **calibration
+problem**, not safe overflight clearance.
 
-## Fliegen und analysieren
+## Flight and analysis
 
-Das Scanmodell enthält begeh- beziehungsweise durchfliegbare Öffnungen und experimentelle Kontakte. Eine visuelle Öffnung ist **keine** Erlaubnis oder Garantie, sie mit einem echten FPV-Copter zu durchfliegen. Die Verwendung der FPC-Daten ist auf Simulation begrenzt.
+The scan model contains walkable/flyable openings and experimental contacts.
+A visible opening is **not** permission or a guarantee that a real FPV aircraft
+can pass through it. FPC data is for simulation only.
 
-Die **Live-Funk-/Gelände-LoS-Analyse im BKG-Beta-Modus ist derzeit ausdrücklich gesperrt**, weil die zugrundeliegenden Geländedaten nicht für diesen Anwendungsfall validiert sind. Eine fehlende Analyse ist weder eine freie Sichtlinie noch ein belegter Funkverlust. Mit der regulären schweizerischen Geländequelle stehen die dafür vorgesehenen Funktionen separat zur Verfügung. Siehe [Preflight und Funkanalyse](preflight.md) und [Flugsimulator](flight_simulation.md).
+**Live RF/terrain LoS analysis is explicitly blocked in BKG Beta mode** because
+its underlying terrain data has not been validated for this use. Missing analysis
+is neither a clear line of sight nor confirmed signal loss. The normal Swiss
+terrain source provides its supported functions separately. See
+[Preflight and signal analysis](preflight.md) and
+[Flight simulation](flight_simulation.md).
 
-## Wenn etwas nicht stimmt
+## Troubleshooting
 
-| Beobachtung | Prüfung |
+| Observation | Check |
 |---|---|
-| Modell erscheint nicht | Szene aktiviert, Assets geladen, Höheneinmessung bereit, Kartenposition in Reichweite? **Status aktualisieren**. |
-| Modell schwebt oder steckt im Boden | Aktiver Terrainprovider, Status der Geländekacheln und bestätigter BKG-Versatz prüfen. Kein zusätzliches pauschales Geoid-Offset anwenden. |
-| Doppeltes Gebäude / Gerüst im Scan | Scan und zusätzlich rekonstruierte Fläche können sich überlagern. Screenshot mit Himmelsrichtung und markiertem Gebäudeteil sichern. |
-| Gebäude erscheinen flach/vereinfacht | LoD2 ist eine separate Datenquelle; einzelne Gebäude fehlen oder wurden nach dem Scan verändert. |
-| Funkanalyse nicht verfügbar | Im BKG-Beta-Modus derzeit absichtlich deaktiviert. |
+| Model does not appear | Scene enabled, assets loaded, ground calibration ready and camera in range? Use **Refresh status**. |
+| Model floats or intersects the ground | Check the active terrain provider, tile status and confirmed BKG offset. Do not add another generic geoid offset. |
+| Duplicate building or gantry in the scan | Scan and reconstructed surfaces may overlap. Capture the view direction and mark the affected building in a screenshot. |
+| Buildings look flat or simplified | LoD2 is a separate source; buildings may be missing or may have changed since the scan. |
+| RF analysis unavailable | It is intentionally disabled in BKG Beta mode. |
 
-**Datenschutz und Nutzungsrechte:** Der Scan und die BKG-Daten haben eigene Bedingungen. Insbesondere unterliegt der Scan **CC BY-NC 4.0** und damit Nichtkommerziell-Beschränkungen. Details unter [Kartendaten und Attribution](map_sources_and_attribution.md) und [Drittanbieterhinweise](../../THIRD_PARTY_NOTICES.md).
+**Privacy and usage rights:** the scan and BKG data have separate terms. The scan
+is subject to **CC BY-NC 4.0**, including its non-commercial restriction. See
+[Map sources and attribution](map_sources_and_attribution.md) and
+[Third-party notices](../../THIRD_PARTY_NOTICES.md).

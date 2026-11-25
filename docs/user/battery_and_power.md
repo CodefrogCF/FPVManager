@@ -6,7 +6,7 @@ performance curves or electrical safety limits.
 
 ## Create a battery profile
 
-In **Ausrüstung → Akkus**, select one of the predefined chemistries:
+In **Equipment → Batteries**, select one of the predefined chemistries:
 **LiPo, LiHV, Li-ion, LiFePO₄, NiMH or NiCd**. Stable internal identifiers
 are used regardless of display language. Historical unrecognized chemistry
 values are retained as unsupported until you deliberately select another type.

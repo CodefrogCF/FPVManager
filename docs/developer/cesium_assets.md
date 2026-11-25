@@ -43,7 +43,7 @@ retries; later outages retain explicit retry. Both global root tiles are validat
 and reused instead of downloaded again when the viewer starts. See
 [architecture](architecture.md).
 
-The compact **Quellen** control uses Cesium's native accessible source dialog.
+The compact **Sources** control uses Cesium's native accessible source dialog.
 Complete applicable data notices remain reachable; provider credits requiring
 on-screen display stay visible. The optional default ion logo is suppressed only
 for the current direct-provider setup. This does not remove actual ion-data credits
