@@ -35,26 +35,28 @@ jobs:
       - name: Install locked dependencies
         run: flutter pub get --enforce-lockfile
       - name: Check formatting
-        run: dart run tool/check_format.dart
+        run: dart run tool/quality/check_format.dart
       - name: Set up Python for tooling tests
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: tool/offline_region_requirements.txt
+          cache-dependency-path: tool/data/offline_region_requirements.txt
       - name: Install Python tooling test dependencies
         run: |
-          python -m pip install --only-binary=:all: --requirement tool/offline_region_requirements.txt
+          python -m pip install --only-binary=:all: --requirement tool/data/offline_region_requirements.txt
       - name: Verify bundled Cesium resources
-        run: python tool/vendor_cesium.py --check
+        run: python tool/build/vendor_cesium.py --check
       - name: Verify documentation links
-        run: python tool/check_docs.py
+        run: python tool/quality/check_docs.py
+      - name: Verify repository tool layout
+        run: python tool/quality/check_repository_layout.py
       - name: Test Python tooling
         run: python -m unittest discover -s test/tool -p 'test_*.py'
       - name: Test renderer protocol, terrain and map interactions
         run: node --test test/js/*.test.cjs
       - name: Enforce synthetic performance protocol invariants
-        run: node tool/performance_suite.cjs --check
+        run: node tool/benchmarks/performance_suite.cjs --check
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Test
@@ -83,9 +85,9 @@ jobs:
       - name: Build web
         run: flutter build web --release --no-pub --no-web-resources-cdn
       - name: Prepare verified offline application snapshot
-        run: python3 tool/prepare_offline_web.py
+        run: python3 tool/build/prepare_offline_web.py
       - name: Verify release Web assets
-        run: python3 tool/check_release_artifacts.py --web build/web
+        run: python3 tool/quality/check_release_artifacts.py --web build/web
 
   android:
     name: Android debug build
@@ -111,10 +113,10 @@ jobs:
       - name: Install locked dependencies
         run: flutter pub get --enforce-lockfile
       - name: Prepare verified SQLite Android libraries
-        run: python3 tool/prepare_sqlite_android.py
+        run: python3 tool/build/prepare_sqlite_android.py
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v6
       - name: Build Android
         run: flutter build apk --debug --no-pub
       - name: Verify Android package assets
-        run: python3 tool/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-debug.apk
+        run: python3 tool/quality/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-debug.apk

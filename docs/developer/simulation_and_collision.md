@@ -1,98 +1,86 @@
-# Flight simulation, Cesium collision and HUD visuals
+# Flight simulation and collision
 
-This is a **simulation-only** system. It is not guaranteed obstacle detection,
-real-device telemetry or verified flight physics.
+The simulator is illustrative, with approximate hardware/environment models.
+It does not control a real aircraft or certify obstacle clearance.
 
-## Flight modes and energy input
+## Physics and state
 
-`web/features/flight/free_flight.js` and related physics modules model manual Angle/Acro and
-assisted GPS movement. Angle and Acro use thrust-driven battery-power
-approximations; GPS, automated Rescue and replay use their separate
-speed/climb-based power proxy. A freely falling unpowered aircraft may develop
-high vertical speed without incurring high motor power.
+Advanced is the default; Legacy remains an explicit compatibility fallback.
+The shared aircraft state connects manual GPS/Angle/Acro, GPS Rescue and route
+playback to the selected battery/propulsion and collision configuration.
+`flight_physics.js` uses a bounded 60/120/240 Hz fixed timestep (120 Hz default),
+limited catch-up work, dropped-time diagnostics and render interpolation.
+Battery integration remains independent of rendering.
 
-The battery source of truth and electrical assumptions are documented in the
-[battery model](battery_model.md). The flight model requires regression checks
-for motor-off descent, powered recovery, conservative power bounds, long-frame
-delta limits and reset behavior.
+| Module under `web/features/flight/` | Responsibility |
+|---|---|
+| `free_flight.js` | Flight lifecycle, controls, shared state and terrain sweeps |
+| `physics/flight_physics.js` | Integration timing and diagnostics |
+| `physics/motor_propeller.js`, `physics/electrical_propulsion.js` | RPM/thrust estimates and bounded battery-load coupling |
+| `physics/body_axis_aerodynamics.js` | Body-axis drag and optional propeller drag |
+| `physics/rotational_dynamics.js` | Rate shaping, inertia/torque response and Air Mode |
+| `physics/descent_aerodynamics.js` | Optional ground effect, propwash and vortex-ring heuristics |
+| `physics/collision_response.js` | Advanced contact normal, friction, slide/rebound and hard stop |
+| `autonomous_flight_control.js`, `physics/rescue_velocity.js` | Assisted/Rescue movement through the same constraints |
 
-## Collision sources versus visuals
+Profile coefficients are assumptions unless supported by independent measurements.
+See [battery](battery_model.md) and [propulsion](motor_propeller_model.md) for
+input provenance and electrical limits. Angle/Acro use thrust-driven power
+estimates; GPS/Rescue/replay use the existing assisted speed/climb proxy.
+Unpowered descent must not invent high motor power from falling speed.
 
-These are different concepts:
+## Configuration and persistence
 
-- **Collision candidates:** known rendered terrain triangles, supported
-  bridge/tunnel geometry and enabled 3D model collision surfaces.
-- **Visual-only objects:** radio sightline, Fresnel representation and separate
-  ground station marker (marked with the `fpvVisualOnly` data-source convention).
+`SimulationSettings` validates flight modes, frequency, rates, camera, controller,
+battery and optional advanced effects before sending a bridge command. The
+`simulation.settings.v1` preference stores the complete configuration and selected
+equipment identity. Existing signal-HUD/failsafe keys stay authoritative for those
+subsettings. All three keys are included in portable backups.
 
-Cesium's `Scene.sampleHeight` can include non-terrain primitives. The model
-collision sampler passes visual-only objects through `objectsToExclude`, so
-an RF line cannot make a drone moving toward its operator stop abruptly.
-Real supported mesh surfaces retain their existing collision handling.
+The settings dialog waits for preferences and saves even without starting a
+flight. Valid active quick-control changes are persisted; idle renderer defaults
+cannot overwrite saved choices. Restore reloads the stored configuration rather
+than retaining the previous session's camera/controller values. Missing fields
+from older backups use defaults; invalid data is rejected before replacement.
+Capture mode and flight telemetry are transient. No database schema change is
+required for these preferences.
 
-The scope is **not** exhaustive collision against every building face, wire,
-vegetation element or unseen ground feature. On a source or state change,
-preserve source-specific collision invariants and normal flight sweeps.
+## Collision and terrain quality
 
-## Missing rendered terrain at long range
+Collision candidates are known rendered terrain, supported bridge/tunnel geometry
+and enabled model surfaces. RF sightlines, Fresnel illustrations and the separate
+station marker are visual only (`fpvVisualOnly`) and must be excluded from scene
+height/collision sampling.
 
-A missing result from `scene.globe.getHeight()` means no usable rendered tile
-height was sampled. It is **neither** proof of a clear route **nor** proof of a
-solid obstruction. One missing height no longer forcibly brakes the simulated
-aircraft. Known surfaces still stop movement; the active flight reports
-`terrainVerification.state` (`complete`, `partial`, `unavailable`), counts of
-sampled/missing probes and accumulated `unverifiedDistanceMeters`.
+A missing rendered terrain height is neither a confirmed obstruction nor a clear
+path. It does not by itself brake the aircraft. `terrainVerification` reports
+`complete`, `partial` or `unavailable`, missing probes and unverified distance;
+AGL is not invented. Known surfaces still constrain movement. A valid starting
+terrain is required at spawn, and provider-wide failure retains its distinct
+recovery/exit handling. RF observation quality is a separate contract.
 
-Where terrain is missing the simulator must not invent AGL/ground clearance;
-it exposes a **terrain collision unverified** warning. A valid provider and
-starting terrain are still needed at spawn, while provider-wide loss retains
-its distinct recovery/exit behavior. Radio LoS terrain analysis has its own
-coverage/confidence model and should not be conflated with movement collision
-coverage.
+Advanced contact uses supported surface normals, bounded restitution and friction.
+Severe impacts and unsupported normals still hard-stop. Coverage is not exhaustive
+for unseen terrain, buildings, vegetation or wires. Bridge supports are illustrative:
+explicit suspension/hanging bridge structure tags or unambiguous names suppress
+automatic intermediate pillars, including aligned overlapping source decks.
+Actually mapped pylons/piers remain eligible. Ambiguous/unclassified structures
+are not inferred from imagery.
 
-## Analog visual holdover
+## HUD and uncertainty
 
-`web/features/flight/hud/signal_hud.js` owns presentation-only analog static and warning effects.
-Brief missing video RF updates keep the prior visual noise for **up to
-1,100 ms** with an occasional additional flicker. RC and video bars report
-unknown during missing data; the saved visual effect must not be read back as
-RF quality or used for simulated RC failsafe. Long gaps or new sessions reset
-this visual state.
+Analog noise is presentation only. Missing video updates may retain its previous
+visual effect for up to 1100 ms; RC/video bars still show unknown. This holdover
+cannot supply failsafe evidence. New sessions and longer gaps reset it.
+See [radio and Rescue](radio_and_rescue.md) for observation freshness, RF evidence
+and opt-in failsafe criteria.
 
-The analog overlay uses bounded DOM/CSS work, not per-frame texture readback.
-Track actual scene frame intervals and long frames when measuring device impact.
+## Validation
 
-## Repeatable checks
-
-```sh
-node --test test/js/*.test.cjs
-node tool/benchmark_simulator_terrain_gaps.cjs
-flutter test --no-pub --platform chrome test/web/globe_input_test.dart test/web/offline_storage_test.dart
-```
-
-Manual validation: fly at zero throttle in Acro, cross a visible live LoS ray
-at high speed with physical model collision enabled, then fly across a terrain
-tile gap and check that **unverified** coverage is shown rather than invented
-terrain clearance. Repeat known-surface collision checks after a tile becomes
-available.
-
-The synthetic ~49.9-km benchmark measures **CPU simulation ticks only**; it
-is not a Cesium GPU/device/network benchmark. See [performance](performance.md)
-for Android/Windows measurement procedures.
-
-## Selectable physics scheduler (v0.19 development)
-
-The physics refactor introduces Legacy and Advanced flight physics adapters and an
-optional fixed-timestep integrator. The initial Advanced adapter intentionally
-reuses the existing flight force approximations; it does not yet model actual
-motor/propeller torque or validated battery-dependent thrust. See the
-[physics architecture and timing reference](flight_physics_architecture.md)
-for units, module boundaries, accumulator limits, diagnostics and tests.
-
-## Advanced contact response
-
-Advanced Physics optionally resolves confirmed contact with a terrain normal, bounded surface
-friction and restitution; severe impacts and unsupported model normals still hard-stop.
-All existing swept collision sources, visual-only exclusions and unknown-terrain warnings
-are preserved. See [advanced collision response](advanced/advanced-collision-response.md) for limitations,
-configuration, tests and benchmarks.
+The JS suite tests fixed-step/frame-rate invariance, low-voltage/freefall behavior,
+control/Rescue handoff, wind, collision, missing terrain and reset boundaries.
+Run `node tool/benchmarks/benchmark_advanced_validation.cjs` for the controlled
+profiles/scenarios and `node tool/benchmarks/benchmark_simulator_terrain_gaps.cjs`
+for the terrain-gap simulation fixture. These measure CPU simulation work, not
+Cesium GPU/device performance. The [performance guide](performance.md) covers CSV
+comparison, recorded evidence and the remaining device/calibration gate.

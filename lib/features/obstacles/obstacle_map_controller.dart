@@ -253,12 +253,23 @@ class ObstacleMapController extends ChangeNotifier {
           (values[1] as num).abs() <= 90 &&
           (values[3] as num).abs() <= 90 &&
           (values[1] as num) <= (values[3] as num)) {
-        _viewport = ObstacleViewport(
+        final viewport = ObstacleViewport(
           (values[0] as num).toDouble(),
           (values[1] as num).toDouble(),
           (values[2] as num).toDouble(),
           (values[3] as num).toDouble(),
         );
+        // A turn can publish the same retained camera region repeatedly.
+        // Do not cancel/starve an in-flight local query for identical inputs.
+        final previous = _viewport;
+        if (previous != null &&
+            previous.west == viewport.west &&
+            previous.south == viewport.south &&
+            previous.east == viewport.east &&
+            previous.north == viewport.north) {
+          return true;
+        }
+        _viewport = viewport;
         _query++;
         _debounce?.cancel();
         _debounce = Timer(
@@ -327,6 +338,8 @@ class ObstacleMapController extends ChangeNotifier {
 
   Future<void> updateViewport() async {
     if (_disposed || !_ready || !_needsData) return;
+    _debounce?.cancel();
+    _debounce = null;
     final operation = ++_query;
     bool current() => !_disposed && _ready && _needsData && operation == _query;
     final snapshot = provider.status.dataset?.data;

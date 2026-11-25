@@ -124,6 +124,50 @@
         return {set, status, dispose() { if (disposed) return; disposed = true; revision++; clear(); }};
     }
 
+    // Camera orientation can turn computeViewRectangle() into a country-wide
+    // horizon rectangle even beside a tower. Query a stable nearby region for
+    // close/navigation views; keep the existing broad-view cutoff when far away.
+    function createViewportTracker(viewer) {
+        const rad=Math.PI/180, earth=6378137, range=Models.maximumRange,
+            padding=range*.25, radius=range+padding;
+        let provider=viewer.terrainProvider, groundAnchor=null, window=null;
+        const distance=(a,b)=>{
+            const h=Math.sin((a.latitude-b.latitude)/2)**2+
+                Math.cos(a.latitude)*Math.cos(b.latitude)*Math.sin((a.longitude-b.longitude)/2)**2;
+            return 2*earth*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));
+        };
+        return (navigation=false)=>{
+            const camera=viewer.camera,p=camera.positionCartographic;
+            if(!p||![p.longitude,p.latitude,p.height].every(Number.isFinite))return null;
+            if(viewer.terrainProvider!==provider){
+                provider=viewer.terrainProvider;groundAnchor=null;window=null;
+            }
+            let ground;
+            try{ground=viewer.scene.globe.getHeight(p);}catch(_){/* A tile can be evicted during a camera move. */}
+            if(Number.isFinite(ground)&&ground>=-1500&&ground<=16000){
+                groundAnchor={longitude:p.longitude,latitude:p.latitude,ground};
+            }else ground=groundAnchor&&distance(groundAnchor,p)<=range?groundAnchor.ground:undefined;
+            const nearby=navigation||p.height-(ground??0)<=radius;
+            if(nearby){
+                if(!window||distance(window,p)>padding){
+                    const angle=radius/earth,
+                        lonAngle=Math.asin(Math.min(1,Math.sin(angle)/Math.max(1e-9,Math.cos(p.latitude))));
+                    window={longitude:p.longitude,latitude:p.latitude,bounds:{
+                        west:Math.max(-180,(p.longitude-lonAngle)/rad),
+                        south:Math.max(-90,(p.latitude-angle)/rad),
+                        east:Math.min(180,(p.longitude+lonAngle)/rad),
+                        north:Math.min(90,(p.latitude+angle)/rad)}};
+                }
+                return {...window.bounds};
+            }
+            window=null;
+            const rect=camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+            // A distant sky view must not indefinitely retain the previous town.
+            return rect?{west:rect.west/rad,south:rect.south/rad,east:rect.east/rad,north:rect.north/rad}
+                :{west:-180,south:-90,east:180,north:90};
+        };
+    }
+
     function createVectors(C, viewer, {yieldBatch = () => new Promise(r => setTimeout(r,0)),
         isTerrainReady = () => true, now = () => performance.now(), terrainBatchSize = 128,
         onFeatures = () => {}} = {}) {
@@ -544,5 +588,5 @@
         return {replace,pick(entity) { return source?.show && entity ? selection.get(entity.id) : undefined; },
             dispose() { disposed=true; revision++; remove(source);remove(staged);source=staged=null;selection.clear();setCredit(false); }};
     }
-    return {WMS, createWms, createVectors, createHazards};
+    return {WMS, createWms, createVectors, createHazards, createViewportTracker};
 });

@@ -50,7 +50,7 @@ stalls can still drop explicitly reported catch-up time. The new model is the
 preferred default following functional Android/Windows trials, but **real
 Blackbox calibration and detailed Windows CPU/memory benchmarks remain open**.
 Switch to Legacy if a particular device or configuration behaves poorly.
-The [technical validation report](../developer/advanced_physics_validation.md)
+The [technical validation report](../developer/performance.md)
 separates measured, synthetic and pending evidence.
 
 ## Environmental wind in extended flights
@@ -68,7 +68,7 @@ and lee-side sink. Ridge/lee effects are approximate and use only nearby
 available terrain heights. Disabling wind influence restores no-wind flight.
 Settings are session-scoped; no weather outside the loaded region is measured.
 For derivation and limits, see
-[advanced environmental wind](../developer/advanced/advanced-environmental-wind.md).
+[advanced environmental wind](../developer/simulation_and_collision.md).
 
 ## Optional ground effect and powered-descent airflow
 
@@ -84,7 +84,7 @@ at the drone's current location; missing tiles **do not** generate a fictional
 surface. Powered descent can lose some effective thrust, whereas zero-throttle
 free fall retains its passive drag and no motor-induced propwash. These
 simplified approximations are **not** an aerodynamic prediction or a safety
-assurance. See [advanced ground effect and propwash](../developer/advanced/advanced-ground-effect-propwash.md)
+assurance. See [advanced ground effect and propwash](../developer/simulation_and_collision.md)
 for assumptions, limitations and tests.
 
 ## Live radio line of sight
@@ -96,40 +96,24 @@ antenna height above the local ground; use **Reset to takeoff position** when
 appropriate. The station marker and line-of-sight/Fresnel drawing can be
 shown independently.
 
-The live terrain profiler supports **1 m to 50 km** of geometric path length.
-Long paths use a coarse profile followed by targeted refinement at uncertain
-or potentially obstructed sections. A 50-km software analysis limit is **not**
-a legal, achievable or guaranteed RC range. Assessments can be:
+The live terrain profiler supports horizontal paths up to 50 km, including
+vertical links directly above the station. It needs valid terrain and at least
+1 m of spatial antenna separation. The software limit is not a guaranteed radio
+range. Results distinguish sampled clear terrain, Fresnel intrusion, obstruction
+and unknown/limited data. Blockage does not automatically mean total RC loss.
 
-- **Clear within sampled terrain**: no obstruction in the available samples;
-  gaps or unsampled obstacles can still exist.
-- **Fresnel intrusion / obstructed**: the sampled terrain potentially affects
-  the path, without proving the actual receiver will lose connection.
-- **Unknown / limited confidence**: terrain is missing, stale or too sparsely
-  sampled to confirm visibility. Such results must not be shown as confirmed
-  reception or used as confirmed RC loss.
+A profile expires within five seconds and can become unknown sooner after rapid
+movement, missing terrain or provider changes. `?` is a passive HUD notice; it
+never starts failsafe or GPS Rescue by itself. Fast flight can combine terrain
+sampling passes while retaining the existing precision/freshness requirements.
+BKG beta heights remain unsuitable for RF until their reference is verified.
+An optional diagnostic view shows sampling and result age. A **SIM free-space
+only** preview cannot replace a terrain observation or establish RC recovery.
 
-The diagnostic view reports the sampling tier, sampled points, terrain queries,
-elapsed sampling time and largest gap. A separately labeled **SIM free-space only**
-calculation may remain available even when terrain visibility is unknown.
-
-For comparison with the historical 50-km implementation, the live terrain
-profiler uses the **November 21, 2026 pre-Rüdersdorf baseline**. Up to 6 km,
-it uses an initial 129-point profile with bounded refinement; longer ranges
-use coarser profiles and targeted additional samples. A successful HUD profile
-normally expires after five seconds, or sooner if the drone moves too far
-from the position that was analysed. `?` means the geometric estimate is
-unavailable or too old; it is **not evidence of a real RC or video outage**.
-
-The R36/R37 experimental optimizations are temporarily not active. The R40
-reliability correction retains the historical 50-km sampling tiers but avoids
-invalidating an already running new terrain query when an older HUD profile
-expires. Confirmed deep terrain obstruction may be checked against the latest
-aircraft position using recent, very closely aligned terrain samples. This
-remains a simulation estimate; it never declares unsampled terrain clear. This
-provides a consistent basis for device-side comparisons at identical route,
-flight speed, antenna settings and terrain provider. BKG beta terrain remains
-unsuitable for radio planning until its height reference is validated.
+Simulator settings are saved across restarts, including the selected physics
+model, controls, camera, battery and physics options. Valid flight quick-control
+changes are saved too. New portable backups include these preferences; older
+backups cannot restore settings they did not contain.
 
 ## Video and RC profiles
 

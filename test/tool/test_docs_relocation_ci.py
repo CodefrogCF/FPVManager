@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 SPEC = importlib.util.spec_from_file_location(
-    'docs_ci_check', Path(__file__).resolve().parents[2] / 'tool/check_docs.py')
+    'docs_ci_check', Path(__file__).resolve().parents[2] / 'tool/quality/check_docs.py')
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 

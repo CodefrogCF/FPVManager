@@ -18,4 +18,4 @@ remove that extension while preserving the height geometry and other extensions.
 palette test image, with the bundled height grid). Its source URLs identify test
 fixtures, not real downloads. It is never installed as application data or used
 as a live/offline fallback. Regenerate with `FPV_WRITE_OFFLINE_FIXTURE=1` when
-running that test with `tool/offline_region_requirements.txt` installed.
+running that test with `tool/data/offline_region_requirements.txt` installed.

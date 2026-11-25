@@ -7,6 +7,7 @@
         MAST:'antenna-mast', TOWER:'lattice-tower', CRANE:'tower-crane', STACK:'chimney',
         WINDMILL:'wind-turbine', CABLE_CAR:'cableway-support', CATENARY:'cableway-support'});
     const range = 6000;
+    const maximumRange = 12000;
     // The obstacle feed is the official Swiss BAZL/Skyguide source, NOT an
     // OpenStreetMap import. Optional OSM tags refine only schematic visuals.
     // Reference point: OSM way 210985229 (Säntis transmitter); position is
@@ -65,7 +66,7 @@
         return name && catalog.has(name)?`models/obstacles/${name}.glb`:null;
     }
     function rangeFor(heightAgl) {
-        return Number.isFinite(heightAgl)&&heightAgl>=80?12000:range;
+        return Number.isFinite(heightAgl)&&heightAgl>=80?maximumRange:range;
     }
     // One listener per source, no frame polling or extra terrain queries. Keep
     // the original symbols until a model really is ready, also on load failure.
@@ -125,5 +126,5 @@
             }
         };
     }
-    return {uri,classify,create,range,rangeFor,nearbySite};
+    return {uri,classify,create,range,maximumRange,rangeFor,nearbySite};
 });

@@ -14,9 +14,11 @@ const FPVWeatherOverlay = globalThis.FPVWeatherOverlay;
 
 // Exercise the renderer's provider setup without network I/O or WebGL. The
 // visible credits themselves are checked with the actual browser smoke harness.
-async function renderer({ offline = false, terrainFails = false, configuration, groundView = false, floating = false } = {}) {
+async function renderer({ offline = false, terrainFails = false, configuration, groundView = false, floating = false, cameraHeight = 3000 } = {}) {
     const imagery = [], regional = [], terrain = [], events = [], sources = [];
     let geojsonLoads = 0;
+    let groundHeight;
+    const tileListeners = new Set();
     const colors = value => ({ value, withAlpha: a => ({value, alpha:a}) });
     const info = {addEventListener() {}};
     const window = {
@@ -95,7 +97,8 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
                     remove(layer) { const index=layers.indexOf(layer); if(index>=0)layers.splice(index,1); },
                     get length() { return layers.length; } };
                 const listeners = new Set();
-                this.scene = { globe: {}, renderError: { addEventListener() {} },
+                this.scene = { globe: {getHeight:()=>groundHeight,
+                    tileLoadProgressEvent:{addEventListener(fn){tileListeners.add(fn);return()=>tileListeners.delete(fn);}}}, renderError: { addEventListener() {} },
                     preUpdate: { addEventListener() {} },preRender: { addEventListener() {} },
                     postRender:{addEventListener(f) {listeners.add(f);return () => listeners.delete(f);}},
                     requestRender:() => setImmediate(() => {for(const f of [...listeners]) f();}) };
@@ -107,7 +110,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
                 };
                 this.clock = {currentTime:0};
                 this.camera = { setView() {}, moveEnd:{addEventListener() {}}, computeViewRectangle() {},
-                    positionCartographic:{longitude:.15,latitude:.82} };
+                    positionCartographic:{longitude:.15,latitude:.82,height:cameraHeight} };
                 this.screenSpaceEventHandler = { setInputAction() {} };
             } },
             Cartesian3: { fromDegrees() {} }, Math: { toRadians() {}, toDegrees:r => r*180/Math.PI },
@@ -121,7 +124,12 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     assert.equal(events.some(e => e.type === 'globe-error'), false, info.textContent);
     assert.equal(events.some(e => e.type === 'globe-ready'), true);
     context.evalGlobe=vm.runInContext('activeViewer',context);
-    return { imagery, regional, terrain, context, events, sources, info, get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
+    return { imagery, regional, terrain, context, events, sources, info,
+        setGround(value){groundHeight=value;}, finishTiles(){for(const fn of tileListeners)fn(0);},
+        progressTiles(remaining){for(const fn of tileListeners)fn(remaining);},
+        publishViewport(){vm.runInContext('publishObstacleViewport()',context);},
+        setCameraHeight(value){context.evalGlobe.camera.positionCartographic.height=value;},
+        get globe(){return vm.runInContext('activeViewer.scene.globe',context);}, get geojsonLoads() {return geojsonLoads;} };
 }
 
 test('floating map chrome hides redundant ready text but retains terrain outage information', async () => {
@@ -143,8 +151,37 @@ function assertSatelliteCredit(provider) {
 test('ground camera uses a local obstacle viewport independent of the ellipsoid horizon',async () => {
     const page=await renderer({groundView:true});
     const viewport=page.events.find(e => e.type==='obstacle-viewport');
-    assert.ok(viewport);assert.ok(viewport.east-viewport.west < .1);
-    assert.ok(viewport.north-viewport.south < .1);
+    assert.ok(viewport);assert.ok(viewport.east-viewport.west < .6);
+    assert.ok(viewport.north-viewport.south < .6);
+    const before=page.events.filter(e=>e.type==='obstacle-viewport').length;
+    page.context.window.FPVManager.hello();
+    assert.equal(page.events.filter(e=>e.type==='obstacle-viewport').length,before+1,
+        'A renderer handshake must replay the region even without camera movement');
+});
+
+test('obstacle region is republished after zooming out and back in',async()=>{
+    const page=await renderer();
+    const first=page.events.filter(e=>e.type==='obstacle-viewport').at(-1);
+    assert.ok(first.east-first.west<.6);
+    page.setCameraHeight(90000);page.publishViewport();
+    assert.ok(page.events.at(-1).east-page.events.at(-1).west>.6);
+    page.setCameraHeight(3000);page.publishViewport();
+    for(const key of ['west','south','east','north'])assert.equal(page.events.at(-1)[key],first[key]);
+    assert.ok(page.events.at(-1).eventSequence>first.eventSequence);
+});
+
+test('late terrain after zoom-in restores the local obstacle region without another camera move',async()=>{
+    const page=await renderer({cameraHeight:16000});
+    const first=page.events.filter(e=>e.type==='obstacle-viewport').at(-1);
+    assert.ok(first.east-first.west>.6);
+    page.setGround(4500);page.progressTiles(5);
+    const restored=page.events.filter(e=>e.type==='obstacle-viewport').at(-1);
+    assert.ok(restored.east-restored.west<.6);
+    assert.ok(restored.north-restored.south<.6);
+    const count=page.events.filter(e=>e.type==='obstacle-viewport').length;
+    page.progressTiles(4);page.finishTiles();
+    assert.equal(page.events.filter(e=>e.type==='obstacle-viewport').length,count,
+        'Further tile progress must not flood identical viewport messages');
 });
 
 test('zone inspection preserves source values and marks every display limit within the frame budget', async () => {

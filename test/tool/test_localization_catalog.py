@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class LocalizationCatalogTest(unittest.TestCase):
     def test_arb_parity_and_generated_bridge(self):
         result = subprocess.run(
-            [sys.executable, 'tool/check_localizations.py', '--check'],
+            [sys.executable, 'tool/quality/check_localizations.py', '--check'],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -22,7 +22,7 @@ class LocalizationCatalogTest(unittest.TestCase):
 
     def test_bridge_verification_ignores_formatter_only_changes(self):
         spec = importlib.util.spec_from_file_location(
-            'check_localizations', ROOT / 'tool/check_localizations.py'
+            'check_localizations', ROOT / 'tool/quality/check_localizations.py'
         )
         module = importlib.util.module_from_spec(spec)
         assert spec.loader is not None

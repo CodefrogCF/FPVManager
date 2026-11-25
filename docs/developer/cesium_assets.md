@@ -5,18 +5,18 @@
 The optimized **CesiumJS 1.145.0** runtime is bundled in `web/cesium/`.
 `globe.html` sets `CESIUM_BASE_URL` to `./cesium/`. JavaScript, CSS, Workers,
 Wasm, Assets and Widgets come from the same pinned archive. Archive URL/SHA-512
-are in `tool/cesium_vendor.json`; file sizes/SHA-256 are in
+are in `tool/build/cesium_vendor.json`; file sizes/SHA-256 are in
 `web/cesium/manifest.json`. `pubspec.yaml` lists nested asset directories explicitly.
 
 Verify the bundle offline:
 
 ```sh
-python tool/vendor_cesium.py --check
+python tool/build/vendor_cesium.py --check
 ```
 
 For an upgrade, verify the release/integrity against the upstream registry,
-update `tool/cesium_vendor.json`, move the old vendor folder outside the project,
-then run `python tool/vendor_cesium.py`. The tool refuses to overwrite an existing
+update `tool/build/cesium_vendor.json`, move the old vendor folder outside the project,
+then run `python tool/build/vendor_cesium.py`. The tool refuses to overwrite an existing
 folder, validates the archive and regenerates asset entries. Review the diff,
 manifest and notices; update version assertions in `cesium_assets_test.dart`.
 Repeat checks, both builds and real-renderer tests from
@@ -53,7 +53,7 @@ for the source-specific attribution rules.
 ## Browser harnesses
 
 ```sh
-python tool/serve_globe_smoke.py
+python tool/browser/serve_globe_smoke.py
 ```
 
 Open these paths at `http://127.0.0.1:8765`:

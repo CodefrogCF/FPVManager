@@ -44,6 +44,49 @@ function setup({image = () => Promise.resolve({}), yieldBatch, onFeatures,
         refine(){tiles.fire();clock+=201;preRender.fire();}};
 }
 const tick = () => new Promise(r => setImmediate(r));
+
+test('a cold Säntis model appears when its terrain tile arrives without replacing the obstacle batch',async()=>{
+    let ground;
+    const p=setup({groundHeight:()=>ground});
+    try{
+        await p.vectors.replace({revision:1,useModels:true,features:[{
+            id:'saentis-cold',category:'masts',sourceType:'POLE',parts:[{
+                kind:'Point',elevated:true,heightAgl:123.5,coordinates:[[9.342444,47.249464,2630]]}]}]});
+        const source=p.sources[0],model=source.entities.values.find(e=>e.model);
+        assert.equal(model.show,false,'Unknown terrain must not invent an AGL base');
+        ground=2500;p.refine();
+        assert.equal(model.show,true);assert.equal(p.sources[0],source);
+        assert.equal(source.entities.values.find(e=>e.model),model);
+        assert.deepEqual(model.position,[9.342444,47.249464,2500]);
+    }finally{p.vectors.dispose();p.wms.dispose();}
+});
+
+test('a cached Säntis tower keeps its model and anchor during camera motion and terrain tile eviction',async()=>{
+    let ground=2500;
+    const p=setup({groundHeight:()=>ground});
+    try{
+        const feature={id:'saentis',category:'masts',sourceType:'POLE',parts:[{
+            kind:'Point',elevated:true,heightAgl:123.5,coordinates:[[9.342444,47.249464,2630]]}]};
+        await p.vectors.replace({revision:1,useModels:true,features:[feature]});
+        const source=p.sources[0],model=source.entities.values.find(e=>e.model);
+        assert.ok(model);assert.equal(model.show,true);
+        const position=model.position;
+        ground=undefined;
+        for(let i=0;i<20;i++){p.camera.fire();p.frame(250);}
+        assert.equal(p.sources[0],source);assert.equal(model.show,true);
+        assert.equal(model.position,position);
+        await p.vectors.replace({revision:2,useModels:true,features:[feature]});
+        assert.equal(source.entities.values.find(e=>e.model),model);
+        assert.equal(model.model.uri,'models/obstacles/communication-tower.glb');
+        await p.vectors.replace({revision:3,useModels:true,features:[]});
+        assert.equal(source.entities.values.length,0);
+        await p.vectors.replace({revision:4,useModels:true,features:[feature]});
+        const returned=source.entities.values.find(e=>e.model);
+        assert.ok(returned);assert.equal(returned.show,true);
+        assert.deepEqual(returned.position,position,
+            'Returning after a far-view clear reuses the same-provider terrain anchor');
+    }finally{p.vectors.dispose();p.wms.dispose();}
+});
 const line = {id:'source-id',category:'powerLines',parts:[{kind:'LineString',elevated:true,
     coordinates:[[8,46,550],[8.01,46.01,560]]}]};
 

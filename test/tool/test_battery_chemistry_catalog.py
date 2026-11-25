@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class BatteryCatalogTest(unittest.TestCase):
     def test_generated_dart_and_js_are_current(self):
         spec = importlib.util.spec_from_file_location(
-            'battery_catalog_generator', ROOT / 'tool/generate_battery_chemistries.py'
+            'battery_catalog_generator', ROOT / 'tool/data/generate_battery_chemistries.py'
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

@@ -22,9 +22,9 @@ jobs:
       - name: Install osmium for one-time PBF import
         run: python -m pip install 'osmium>=4.0,<5'
       - name: Build full Swiss offline index from Geofabrik PBF
-        run: python tool/build_ch_tunnel_index.py --download
+        run: python tool/data/build_ch_tunnel_index.py --download
       - name: Verify non-empty output
-        run: python tool/build_ch_tunnel_index.py --verify
+        run: python tool/data/build_ch_tunnel_index.py --verify
       - name: Upload generated offline asset
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

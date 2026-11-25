@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-FILE = Path(__file__).resolve().parents[2] / 'tool' / 'build_ch_tunnel_index.py'
+FILE = Path(__file__).resolve().parents[2] / 'tool/data' / 'build_ch_tunnel_index.py'
 spec = importlib.util.spec_from_file_location('build_ch_tunnel_index', FILE)
 builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)

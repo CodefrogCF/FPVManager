@@ -29,12 +29,12 @@ Run from the repository root. Python 3.9+ and Node.js 20+ are needed for tooling
 
 ```sh
 flutter pub get --enforce-lockfile
-dart run tool/check_format.dart
-python tool/check_docs.py
-python tool/vendor_cesium.py --check
+dart run tool/quality/check_format.dart
+python tool/quality/check_docs.py
+python tool/build/vendor_cesium.py --check
 python -m unittest discover -s test/tool -p 'test_*.py'
 node --test test/js/*.test.cjs
-node tool/performance_suite.cjs --check
+node tool/benchmarks/performance_suite.cjs --check
 flutter analyze --no-pub
 flutter test --no-pub
 ```
@@ -44,8 +44,8 @@ generated Dart and migration fixtures. CI runs these checks before both builds:
 
 ```sh
 flutter build web --release --no-pub --no-web-resources-cdn
-python tool/prepare_offline_web.py
-python tool/prepare_sqlite_android.py
+python tool/build/prepare_offline_web.py
+python tool/build/prepare_sqlite_android.py
 flutter build apk --debug --no-pub
 ```
 
@@ -63,15 +63,15 @@ fresh `build/web/` output. The source `web/` directory contains Flutter build
 inputs. Check each finished artifact and publish its SHA-256 with the release.
 
 For documentation updates delivered as a changed-files ZIP, consult the
-[documentation index](docs/README.md#documentation-maintenance-and-zip-installation):
+[documentation index](docs/README.md#applying-a-changed-files-zip):
 retired pages are listed in a checksum-protected cleanup manifest so locally
 edited files are never deleted automatically. Keep current behavior only in
 audience-specific guides; use the Changelog for historical changes.
 
 ```sh
-python tool/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-release.apk
-python tool/check_release_artifacts.py --windows build/windows/x64/runner/Release
-python tool/check_release_artifacts.py --web build/web
+python tool/quality/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-release.apk
+python tool/quality/check_release_artifacts.py --windows build/windows/x64/runner/Release
+python tool/quality/check_release_artifacts.py --web build/web
 ```
 
 Before iOS distribution, archive the Runner on a Mac. Check foreground

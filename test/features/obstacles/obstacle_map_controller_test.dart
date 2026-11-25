@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -17,9 +18,36 @@ import 'package:fpvmanager/features/obstacles/swiss_obstacle_provider.dart';
 import '../../helpers/fake_globe_renderer.dart';
 import '../../helpers/obstacle_fixture.dart';
 
+class _GatedObstacleCache extends OsintCacheDatabase {
+  _GatedObstacleCache() : super(NativeDatabase.memory());
+  Completer<void>? gate, entered;
+  @override
+  Future<List<ObstacleFeature>> queryObstacles(
+    String key,
+    ObstacleViewport viewport,
+    Set<ObstacleCategory> categories, {
+    int limit = 1201,
+    bool localViewOnly = true,
+    bool pointsOnly = false,
+  }) async {
+    if (gate != null) {
+      if (entered?.isCompleted == false) entered!.complete();
+      await gate!.future;
+    }
+    return super.queryObstacles(
+      key,
+      viewport,
+      categories,
+      limit: limit,
+      localViewOnly: localViewOnly,
+      pointsOnly: pointsOnly,
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late OsintCacheDatabase cache;
+  late _GatedObstacleCache cache;
   late FpvDatabase database;
   late UserPreferencesRepository preferences;
   late MockClient client;
@@ -27,7 +55,7 @@ void main() {
   late GlobeController globe;
   late FakeGlobeRenderer renderer;
   setUp(() async {
-    cache = OsintCacheDatabase(NativeDatabase.memory());
+    cache = _GatedObstacleCache();
     database = FpvDatabase(NativeDatabase.memory());
     preferences = UserPreferencesRepository(database);
     client = MockClient(
@@ -49,6 +77,145 @@ void main() {
     client.close();
     await cache.close();
     await database.close();
+  });
+  test('identical camera-region events cannot supersede an in-flight obstacle query', () async {
+    final viewport = {
+      'type': 'obstacle-viewport',
+      'west': 8.3,
+      'south': 46.6,
+      'east': 8.5,
+      'north': 46.8,
+    };
+    renderer.emit(viewport);
+    cache.gate = Completer<void>();
+    cache.entered = Completer<void>();
+    final update = globe.obstacles.setVectorsVisible(true);
+    await cache.entered!.future;
+    for (var i = 0; i < 10; i++) {
+      renderer.emit(viewport);
+    }
+    // Cross the original 250 ms debounce while the initial query is blocked.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    cache.gate!.complete();
+    await update;
+    expect(
+      renderer.commands.where(
+        (c) =>
+            c['type'] == 'set-obstacle-vectors' &&
+            (c['features'] as List).isNotEmpty,
+      ),
+      hasLength(1),
+    );
+  });
+  test('Säntis remains in the cached nearby model batch across camera turns and leaves it only after departure', () async {
+    final key = provider.status.dataset!.data.key;
+    await cache.stageObstacles(key, [
+      ObstacleFeature(
+        id: 'saentis-tower',
+        name: 'Säntis tower',
+        attributes: {'obstacleType': 'POLE', 'maxHeightAGL': '123.5'},
+        parts: [
+          const ObstaclePart('Point', 'absolute', [
+            [9.342444, 47.249464, 2630],
+          ]),
+        ],
+      ),
+    ]);
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 9.14,
+      'south': 47.11,
+      'east': 9.54,
+      'north': 47.39,
+    });
+    await globe.obstacles.setVectorsVisible(true);
+    await globe.obstacles.setModelsVisible(true);
+    final before = renderer.commands
+        .where((c) => c['type'] == 'set-obstacle-vectors')
+        .length;
+    final command = renderer.commands.lastWhere(
+      (c) => c['type'] == 'set-obstacle-vectors',
+    );
+    expect(
+      (command['features'] as List).any((f) => f['id'] == 'saentis-tower'),
+      true,
+    );
+    // The renderer's padded camera region stays local even for a horizon view.
+    for (var i = 0; i < 6; i++) {
+      renderer.emit({
+        'type': 'obstacle-viewport',
+        'west': 9.141,
+        'south': 47.111,
+        'east': 9.541,
+        'north': 47.391,
+      });
+      await globe.obstacles.updateViewport();
+    }
+    expect(
+      renderer.commands
+          .where((c) => c['type'] == 'set-obstacle-vectors')
+          .length,
+      before,
+    );
+    renderer.emit({
+      'type': 'obstacle-selected',
+      'id': 'saentis-tower',
+      'revision': command['revision'],
+    });
+    expect(globe.obstacles.selected?.id, 'saentis-tower');
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 5.0,
+      'south': 44.0,
+      'east': 12.0,
+      'north': 49.0,
+    });
+    await globe.obstacles.updateViewport();
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-vectors',
+      )['features'],
+      isEmpty,
+    );
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 9.14,
+      'south': 47.11,
+      'east': 9.54,
+      'north': 47.39,
+    });
+    await globe.obstacles.updateViewport();
+    expect(
+      (renderer.commands.lastWhere(
+                (c) => c['type'] == 'set-obstacle-vectors',
+              )['features']
+              as List)
+          .any((f) => f['id'] == 'saentis-tower'),
+      true,
+    );
+    await globe.obstacles.setVectorsVisible(false);
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-vectors',
+      )['features'],
+      isEmpty,
+    );
+    renderer.emit({
+      'type': 'obstacle-viewport',
+      'west': 8.25,
+      'south': 46.55,
+      'east': 8.55,
+      'north': 46.85,
+    });
+    await globe.obstacles.setVectorsVisible(true);
+    expect(
+      (renderer.commands.lastWhere(
+                (c) => c['type'] == 'set-obstacle-vectors',
+              )['features']
+              as List)
+          .any((f) => f['id'] == 'saentis-tower'),
+      false,
+    );
   });
   test('small camera changes reuse the nearby batch and do not reload unchanged models or cables', () async {
     renderer.emit({

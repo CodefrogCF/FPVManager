@@ -9,7 +9,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 
-SCRIPT = Path(__file__).resolve().parents[2] / "tool/prepare_sqlite_android.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "tool/build/prepare_sqlite_android.py"
 SPEC = importlib.util.spec_from_file_location("prepare_sqlite_android", SCRIPT)
 prepare = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(prepare)

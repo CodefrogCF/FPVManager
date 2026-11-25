@@ -79,7 +79,7 @@ orientation of each instance come from the source tiles.
 Tree groups use the [BAFU / WSL Waldmischungsgrad LFI 2023](https://www.geocat.ch/geonetwork/srv/api/records/b07a4589-159b-4c3a-b1e7-dbdad11f7e62)
 to bias the model choice toward broadleaf or conifer. The app bundles a derived
 320 m overview of the 10 m probability raster, prepared by
-[`tool/build_forest_composition.py`](../../tool/build_forest_composition.py). The
+[`tool/data/build_forest_composition.py`](../../tool/data/build_forest_composition.py). The
 overview describes regional composition. Each group shares a model, and areas
 without data use a deterministic visual mix. The [Opendata BY terms](https://opendata.swiss/en/terms-of-use/#terms_by)
 require attribution. The overview is read locally. Source vegetation tiles still
@@ -91,7 +91,7 @@ bundled CHGeo2004/HTRANS grid converts those values to ETRS89 ellipsoid heights,
 used as a WGS84 visualization approximation. The grid originates from swisstopo
 via [PROJ-data](https://cdn.proj.org/ch_swisstopo_README.txt), under CC0;
 provenance and rebuild instructions are in `assets/geo/chgeo2004_ln02.NOTICE.txt`
-and `tool/build_swiss_height_grid.py`. Obstacle records retain their source
+and `tool/data/build_swiss_height_grid.py`. Obstacle records retain their source
 usage restriction; this grid licence does not apply to the obstacle dataset.
 
 [swisstopo OGD terms](https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices)
@@ -150,3 +150,8 @@ Source references: [layer configuration](https://api3.geo.admin.ch/rest/services
 [SWISSIMAGE product](https://www.swisstopo.admin.ch/en/orthoimage-swissimage-10),
 [terrain service](https://docs.geo.admin.ch/visualize-data/terrain-service.html),
 and [swisstopo attribution FAQ](https://www.swisstopo.admin.ch/en/faq-free-geodata).
+
+Nearby obstacle models stay in a padded camera region while you turn or look
+across the horizon. Small movements and temporary tile absence reuse the loaded
+batch. Moving away, disabling the layer or changing its data/provider can still
+remove or invalidate it; crowded regions keep the reported display limit.

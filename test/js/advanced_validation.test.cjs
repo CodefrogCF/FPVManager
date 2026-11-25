@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {run,profiles,scenarios,maximumDifference}=require('../../tool/physics_validation/scenarios.cjs');
-const {parseCsv,compare}=require('../../tool/physics_validation/telemetry.cjs');
+const {run,profiles,scenarios,maximumDifference}=require('../../tool/benchmarks/physics_validation/scenarios.cjs');
+const {parseCsv,compare}=require('../../tool/benchmarks/physics_validation/telemetry.cjs');
 const last=r=>r.trace.at(-1);
 let all;
 async function benchmarks(){return all??=Promise.all(Object.keys(profiles).map(async profile=>[profile,Object.fromEntries(await Promise.all(Object.keys(scenarios).map(async scenario=>[scenario,await run({profile,scenario})])))] )).then(Object.fromEntries);}

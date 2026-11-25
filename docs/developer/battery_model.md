@@ -14,8 +14,8 @@ unsupported historical chemistry strings remain stored without being
 silently mapped to LiPo.
 
 ```sh
-python tool/generate_battery_chemistries.py
-python tool/generate_battery_chemistries.py --check
+python tool/data/generate_battery_chemistries.py
+python tool/data/generate_battery_chemistries.py --check
 ```
 
 The generator provides

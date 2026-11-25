@@ -10,4 +10,4 @@ included. This derived dataset is distributed independently of FPVManager's
 application source code. Tunnel interiors, sections, portal positions, and
 clearances are synthetic and not surveyed. Not for real-world flight safety.
 
-Reproduce: python tool/build_ch_tunnel_index.py --download
+Reproduce: python tool/data/build_ch_tunnel_index.py --download

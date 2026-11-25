@@ -75,7 +75,7 @@ function postToFlutter(message) {
         if (!event.persisted) mapCredits?.dispose();
     });
     let rendererReady = false;
-    let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null;
+    let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null, obstacleViewportTracker = null, obstacleViewportKey = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
@@ -1065,7 +1065,7 @@ function postToFlutter(message) {
                         FPVGlobeBridge.supportsGzipBase64(), transferCredits: true } });
                 sendToFlutter("terrain-status", terrainManager.status());
                 sendToFlutter('terrain-resource-warning',{active:terrainManager.hasWarning});
-                publishObstacleViewport();
+                publishObstacleViewport(true);
             }
         }
     };
@@ -1123,6 +1123,7 @@ function postToFlutter(message) {
                 activeViewer?.scene?.requestRender?.();
                 terrainInfo(status);
                 if (rendererReady) sendToFlutter("terrain-status", status);
+                if (status.state === "ready") publishObstacleViewport();
             }
         });
         await terrainManager.initialize();
@@ -1213,7 +1214,15 @@ function postToFlutter(message) {
             {isTerrainReady:terrainAvailable,onFeatures:features=>bridgeSupports?.setSourceFeatures(features,{
                 sourceId:'aviation-obstacles',visible:true,elevationReference:'WGS84_ELLIPSOID',
                 source:'BAZL aviation obstacles'})});
+        obstacleViewportTracker = FPVObstacles.createViewportTracker(viewer);
+        obstacleViewportKey = null;
         viewer.camera.moveEnd.addEventListener(publishObstacleViewport);
+        // Zooming back can finish before local terrain arrives. Re-evaluate
+        // as tiles arrive even when the camera no longer moves. The publisher
+        // coalesces identical regions; unrelated pending tiles need not finish.
+        viewer.scene.globe.tileLoadProgressEvent?.addEventListener(() => {
+            publishObstacleViewport();
+        });
         modelCollisions = typeof FPVSceneModelCollision !== 'undefined'
             ? FPVSceneModelCollision.create(Cesium,viewer,
                 {hasVisibleModels:()=>flyer?.active===true&&(
@@ -1767,19 +1776,16 @@ function postToFlutter(message) {
         );
     }
 
-    function publishObstacleViewport() {
+    function publishObstacleViewport(force = false) {
         if (!rendererReady || !activeViewer) return;
-        const camera = activeViewer.camera;
-        let rect;
-        if (navigationActive()) {
-            const p = camera.positionCartographic;
-            // The ellipsoid horizon below mountain terrain can otherwise look
-            // like a country-wide viewport from a two-metre ground camera.
-            rect = new Cesium.Rectangle(p.longitude-0.0005,p.latitude-0.0005,p.longitude+0.0005,p.latitude+0.0005);
-        } else rect = camera.computeViewRectangle(activeViewer.scene.globe.ellipsoid);
-        if (rect) sendToFlutter('obstacle-viewport',{
-            west:Cesium.Math.toDegrees(rect.west),south:Cesium.Math.toDegrees(rect.south),
-            east:Cesium.Math.toDegrees(rect.east),north:Cesium.Math.toDegrees(rect.north)});
+        const bounds = obstacleViewportTracker?.(navigationActive());
+        if (bounds) {
+            const key = JSON.stringify(bounds);
+            if (force || key !== obstacleViewportKey) {
+                sendToFlutter('obstacle-viewport',bounds);
+                obstacleViewportKey = key;
+            }
+        }
     }
 
     initializeGlobe().catch((error) => {

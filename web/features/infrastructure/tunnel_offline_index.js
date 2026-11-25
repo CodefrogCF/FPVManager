@@ -48,7 +48,7 @@
             typeof document.tiles!=='object'||!document.tiles||
             typeof document.source!=='string'||document.source!=='OpenStreetMap (Geofabrik Switzerland extract)'||
             typeof document.snapshotDateUtc!=='string')
-            throw Error('Bundled Swiss tunnel index missing or not generated. Run tool/build_ch_tunnel_index.py --download before release.');
+            throw Error('Bundled Swiss tunnel index missing or not generated. Run tool/data/build_ch_tunnel_index.py --download before release.');
         if(document.routes.length>120000||Object.keys(document.tiles).length>2000)
             throw Error('Bundled tunnel index exceeds memory budget');
         for(const r of document.routes){

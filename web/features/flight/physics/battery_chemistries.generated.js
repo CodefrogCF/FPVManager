@@ -1,5 +1,5 @@
 // GENERATED from assets/battery/chemistries.json; do not edit by hand.
-// Run: python tool/generate_battery_chemistries.py
+// Run: python tool/data/generate_battery_chemistries.py
 (function(root, factory){
   const model=factory();
   if(typeof module==='object'&&module.exports)module.exports=model;

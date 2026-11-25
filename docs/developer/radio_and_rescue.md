@@ -1,187 +1,94 @@
-# Live radio LoS, RF modeling and GPS Rescue
+# Live LoS, modeled RF and GPS Rescue
 
-**Status:** current simulator architecture and live-RF profile behavior.
-This is a deterministic **illustrative** modeling system, not measured RF
-telemetry, transmitter configuration or validated flight safety logic.
+This is an illustrative simulator model, not measured receiver telemetry.
+Geometric terrain visibility and modeled RC/video reception are separate.
 
-## Data flow and modules
+## Data flow
 
-### Current fast-motion and uncertainty policy (2026-11-24)
+`LiveRadioController` receives aircraft/home telemetry, selects the configured
+antenna position and schedules `LiveTerrainSampler`. The sampler uses the shared
+`calculateRadioLink()` route kernel. `set-live-radio-result` carries geometry,
+observation quality, generation/request IDs and expiry through the existing
+[globe bridge](globe_bridge.md). The renderer's `rf_estimation.js` supplies
+independent RC/video estimates; `simulated_failsafe.js` consumes only valid modeled
+RC evidence. `free_flight.js` and `rescue_velocity.js` implement flight movement.
+Changing the antenna location does not change GPS Rescue home.
 
-Unknown, pending, stale or unavailable analysis is a **passive HUD notice**.
-It never starts Hold, descent, failsafe or GPS Rescue and does not intercept
-pilot controls, even when simulated failsafe is enabled. Brief gaps pause an
-existing pending-loss interval; beyond the five-second evidence horizon that
-unconfirmed interval is discarded. A maneuver already activated by confirmed
-modeled RC loss retains its normal recovery requirements.
+## Scheduling and sampling
 
-Fast-flight calculations use the renderer's existing 200/400 ms pose cadence.
-If the first 256 points cannot meet the existing 16 m near-field coverage
-criterion, the next uniform refinement round is fused into the first logical
-query using the existing 384-point refinement budget. Near 5–6 km this gives
-511 points in one round trip. A failed profile no longer reduces future
-first passes to 96 points. Terrain resolution and spatial freshness guards
-are preserved. Logical terrain queries use the existing 4096-point geometry
-bound; cached-tile workers remain capped at four.
+One request is active with at most the latest aircraft pose pending. Timeout,
+provider generation, pause, respawn and disable guards release obsolete work;
+older messages cannot replace newer observations. Expiring a displayed result
+does not cancel a newer in-flight calculation. Timings use a monotonic clock.
 
-BKG 3D Beta terrain remains excluded from RF evaluation while its vertical
-reference is unverified. This now has an explicit passive reason; repeated
-queries are suspended until provider/configuration changes. It does not cause
-automatic flight control. See [motion measurements](live_rf_motion_measurements.md)
-for deterministic before/after results and their limits. The R39/R40 sections
-below describe the historical baseline where they differ from this policy.
-
-1. `lib/features/signal/live_radio_controller.dart` owns the active ground
-   station, lifecycle, sampling schedule and stale-result protection.
-2. The existing route geometry kernel `calculateRadioLink()` evaluates
-   sampled geometric obstruction and Fresnel margins; a separate LoS engine
-   is not introduced. Samples are positioned by geodesic fraction because
-   long-range refinement produces uneven spacing.
-3. `lib/features/signal/live_link_assessment.dart` provides the immutable
-   assessment contract. The renderer receives `set-live-radio-result`.
-4. `web/features/signal/live_radio.js` and `web/features/signal/rf_estimation.js` compute separate video/RC
-   *assumed* link budgets when reliable terrain is available. The HUD and
-   optional failsafe consume separate presentation and RC-quality channels.
-5. `web/features/signal/simulated_failsafe.js` manages opt-in RC link loss/recovery; flight
-   movement is implemented through `web/features/flight/free_flight.js` and normal collision
-   checks. `web/features/flight/physics/rescue_velocity.js` handles bounded return acceleration/braking.
-
-Keep the operator/antenna position independent of the flight home/takeoff
-point. Repositioning the ground-station marker does not change GPS Rescue home.
-
-## 50-km live terrain sampling — baseline with R40 reliability fixes
-
-**Baseline:** GitHub commit `d1fca7e` (2026-11-21), immediately before the
-Rüdersdorf integration (`623d6bf`). The 50-km implementation was introduced
-by `3509854` (2026-11-20). The live radio modules are restored from a
-project archive carrying that post-50-km implementation. R36/R37 experiments
-are not active in this build; they remain available in the Git history.
-R40 makes narrowly scoped reliability corrections to the restored R39 baseline.
-
-The live sampler supports **1 m to 50 km**. It obtains an initial full-path
-profile, then samples selected midpoints of gaps, steep relief and potential
-Fresnel conflicts only while they remain necessary. An already sampled
-obstruction can be reported after the first terrain batch. A clear result
-requires the tier-specific gap limit; sparse clear data stay limited. There is no second LoS engine: the route analysis kernel
-is shared, and samples use geodesic fractions. Each terrain bridge request
-contains at most the existing **4096 profile positions**; bounded sampling and a 30-second
-cache avoid unlimited requests. A concurrent browser terrain request is
-rejected rather than queued (historical behavior). A limited coverage result
-never asserts unobstructed RF reception.
-
-| Distance | First-pass points (max) | Refinement points (max) | Coverage gap limit | Minimum interval |
+| Horizontal distance | Coarse points | Refinement budget | Clear-coverage gap | Minimum tier interval |
 |---|---:|---:|---:|---:|
-| 1 m–6 km | 129 | 384 | 16 m | 250 ms |
+| 0–6 km | 256 | 384 | 16 m | 200 ms |
 | >6–15 km | 128 | 128 | 80 m | 450 ms |
 | >15–30 km | 96 | 96 | 165 m | 850 ms |
-| >30–50 km | 96 | 96 decreasing to 64 | 300 m | 1500 ms |
+| >30–50 km | 96 | 96 down to 64 | 300 m | 1500 ms |
 
-The controller also adapts update intervals and permissible position drift
-to aircraft speed and path distance. **HUD profiles expire after five seconds**
-and may become `unknown` earlier when the aircraft moves too far from the
-sampled endpoint, the terrain changes or a query fails. Unknown means the
-profile is not validated; it is not a measured RC signal loss. The bounded
-simulated link estimate and optional failsafe continue to use independent
-RC/video channels.
+Speed-dependent scheduling can lengthen these intervals. Fast near-field flight
+can fuse a full midpoint wave into the first query (511 samples near 5–6 km).
+Requests retain the 4096-position geometry bound, bounded provider-aware caches
+and four terrain tile workers. Sampling stops when a measured obstruction or
+adequate clear coverage is available. Sparse clear coverage remains uncertain.
 
-This rollback is an **A/B test baseline**, not a claim that historical behavior
-is universally faster or more accurate. In particular, high-speed position
-changes can invalidate pending calculations in this original implementation.
-The Rüdersdorf/BKG beta terrain restriction remains in the modern map layer;
-its unvalidated heights are not used for RF planning.
+Profiles expire within five seconds from the captured aircraft pose, sooner if
+movement/provider changes invalidate them. Near-field position drift is bounded
+to 12–24 m with a separate 12 m height guard. A departed ray can reuse only recent,
+closely aligned, deep obstruction evidence; it cannot establish a new clear ray.
 
-### R40 live-update and fast-motion rules
+Vertical and near-vertical links above the station are supported. Fractions on an
+exactly vertical profile use the height interval; clearance is measured against
+the finite antenna segment. The RF minimum of 1 m applies to spatial antenna
+separation. Valid ground samples remain necessary. BKG 3D Beta's unverified height
+reference is explicitly unavailable to RF, with retry suspended until inputs or
+provider change.
 
-A movement-driven invalidation clears an obsolete *displayed* assessment but
-does **not** cancel a newer terrain request. The controller uses distinct
-generation and message revision counters, so older unknown notifications
-cannot overwrite successful newer results. A truly superseded path causes a
-fresh query for the current pose; provider switches, paused flights, respawns
-and disabled monitoring still invalidate in-flight results.
+## Observation quality and flight state
 
-When the aircraft has already moved past a pending profile, sampled terrain
-points may only be reused to confirm a **deep geometric obstruction** on the
-current ray: an interior sample must be within 2 m of the new horizontal ray
-and show at least 8 m negative clearance when recalculated against the current
-3D aircraft position. The resulting assessment is explicitly
-`confidence: limited` and labeled `recheckedMovingPath`; it must never be
-used to infer clear reception. Without this strict evidence the result stays
-unknown and is resampled. Any endpoint ground value in this limited mode is
-from the nearest earlier sample, not a newly sampled aircraft ground height.
+`valid`, `pending`, `stale`, `unknown` and `error` describe observation quality.
+They do not mean RC recovery or loss. Failures are classified as `PENDING`,
+`TIMEOUT`, `TERRAIN_UNAVAILABLE`, `SAMPLING_ERROR`, `STALE`, `SUPERSEDED`,
+`BRIDGE_ERROR` or `INVALID_RESULT`. Optional diagnostics are disabled by default,
+retain bounded latency history and update the HUD at most once per second.
 
-The terrain sampler now ends refinement as soon as it has a sampled
-obstruction or sufficiently dense clear coverage. This avoids repeated queries
-on short, already fully sampled paths; missing terrain and sparse clear
-coverage remain unknown. Neither failsafe thresholds nor GPS Rescue behaviour
-are changed.
+Uncertainty alone is a passive HUD notice: it must not initiate Hold, descent,
+failsafe or GPS Rescue or intercept pilot controls. Brief gaps pause a pending
+loss interval; beyond the five-second evidence horizon an unconfirmed interval
+is discarded. A maneuver already activated by confirmed modeled RC loss keeps
+its configured recovery criteria and requires fresh valid recovery evidence.
 
-## Independent video and control link budgets
+## Link budget and Rescue
 
-The model uses frequency, EIRP, assumed effective receive threshold, fade
-reserve and heuristic terrain loss. Its free-space component follows:
+`rf_estimation.js` uses each profile's frequency, EIRP, assumed receive threshold,
+fade reserve and heuristic terrain loss:
 
 ```text
 FSPL(dB) = 32.44 + 20 log10(frequency_MHz) + 20 log10(distance_km)
-estimated RX power = EIRP - FSPL - assumed terrain loss
-estimated margin = estimated RX power - assumed threshold - fade reserve
+RX estimate = EIRP - FSPL - terrain loss
+margin = RX estimate - assumed threshold - fade reserve
 ```
 
-The simplified link quality is neither RSSI, SNR, packet success rate nor an
-actual connection probability. Terrain/frequency-dependent fade, antenna
-orientation, multipath, adaptive bitrate, radio horizon, foliage and
-manufacturing differences are incompletely modeled.
+The score is not RSSI, packet probability or real-world range. Antenna patterns,
+multipath, foliage and adaptive radio behavior are incompletely represented.
+Preset constants and validation live in `rf_estimation.js` and `rf_profile_settings.dart`;
+keep them out of duplicated documentation tables. A free-space-only preview when
+terrain is missing cannot supply RC evidence. Blockage alone does not guarantee
+RC loss; limited coverage may provide obstruction evidence only under the existing
+strict negative-clearance/sample-count rules.
 
-### Regional reference scenarios
+Failsafe is opt-in with configured loss/recovery thresholds, delays and hysteresis.
+GPS Rescue uses home, configured rescue altitude/return/climb speeds, normal
+collision handling and the selected physics model. GPS Rescue handoff requires the existing fresh recovery evidence and deliberate
+pilot action; other failsafe modes retain their configured `autoRecover` option. Manual training input is explicitly labeled and resets independently of
+terrain observations.
 
-| Preset | Frequency | Reference EIRP | Assumed effective threshold | Fade reserve |
-|---|---:|---:|---:|---:|
-| DJI O4 Pro EU/CE video | 5800 MHz | 13.9 dBm | -124 dBm | 12 dB |
-| DJI O4 Pro FCC video | 5800 MHz | 32.9 dBm | -110.3 dBm | 12 dB |
-| TBS Crossfire EU/CE RC | 868 MHz | 14 dBm | -120 dBm | 10 dB |
-| TBS Crossfire FCC sample RC | 915 MHz | 24 dBm | -120 dBm | 10 dB |
+## Checks
 
-The O4 receive thresholds are **derived planning parameters**, intentionally
-adjusted relative to idealized manufacturer test ranges; **they are not real
-measured sensitivity**. The Crossfire FCC row is one sample 250-mW profile,
-not a legal or universally supported hardware setting. EU/CE, FCC and Custom
-settings are separate for each channel. Scenario selection never operates a
-transmitter or licenses its use.
-
-## RC failsafe and manual takeover
-
-`web/features/signal/simulated_failsafe.js` owns the state transitions. The optional behavior
-is **disabled by default**. Loss/recovery require appropriate modeled RC
-quality, thresholds and duration, with separate hysteresis. Unknown terrain,
-video impairment and the optional terrain-only video demonstration do **not**
-assert RC loss. A session-only manual training RC input can demonstrate modes.
-
-The GPS Rescue state sequence is **hold → climb approximately 100 m above loss
-altitude → turn toward home → controlled-altitude return → auto-land near the
-home ground surface**. Flight movement still uses its usual bounded velocity,
-wind and terrain/model contact handling. Inadequate navigation or known battery
-shortfall must not be presented as a guaranteed safe return.
-
-A stable RC reconnection alone does not cancel the maneuver: a deliberate
-pitch/roll/yaw action is required. Once reconnection is qualified, brief
-unknown values or intermediate hysteresis-band values do not immediately revoke
-pilot takeover; sustained renewed loss or about five seconds without modeled
-RC data does. Throttle alone is not a deliberate control takeover. The RC
-state, not the video overlay, authorizes takeover.
-
-## Regression and performance checks
-
-```sh
-node --test test/js/*.test.cjs
-flutter test test/features/signal/live_radio_controller_test.dart
-node tool/benchmark_simulator_terrain_gaps.cjs
-```
-
-Check paths around **5.9, 6.1, 10, 20, 30 and 49.9 km**; record terrain query
-counts, elapsed time, maximum spatial gap and coverage classification. Repeat
-on Android/Windows in profile mode and distinguish cold/warm caches. For the
-full measurement procedure see [performance](performance.md). Synthetic Node
-benchmarks are **not** GPU/real-tile evidence.
-
-Read the [user-facing flight guide](../user/flight_simulation.md) and
-[historical implementation notes](../../CHANGELOG.md) for context; dated
-notes may describe superseded defaults such as the old 6-km cap.
+Run signal Dart tests and the full JS suite from [Contributing](../../CONTRIBUTING.md).
+The regression set covers vertical paths, mountain ridges, missing data, timeouts,
+out-of-order/provider changes, fast motion, uncertainty and Rescue transitions.
+Reproduce device behavior using [performance procedures](performance.md); dated
+benchmark files are not current phone latency claims.

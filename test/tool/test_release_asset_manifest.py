@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from tool.check_release_artifacts import (
+from tool.quality.check_release_artifacts import (
     renderer_files, validate_glb_meshes, check_optional_local_scenery,
 )
 

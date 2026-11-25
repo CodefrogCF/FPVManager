@@ -68,7 +68,7 @@ Danach [Workbench öffnen](http://localhost:8765/tool/scenery/cesium_georeferenc
 ## Android-Testbuild und Validierung
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tool/build_android_ruedersdorf_test.ps1
+powershell -ExecutionPolicy Bypass -File tool/build/build_android_ruedersdorf_test.ps1
 ```
 
 Der Build aktiviert `--dart-define=FPV_REGIONAL_3D_TEST=true`, prüft die notwendigen GLB-/FPC-Dateien und erstellt eine **experimentelle** Test-APK. Die öffentliche Release-Konfiguration aktiviert den BKG-Modus nicht standardmäßig. Für die normale App sind die Vorgaben unter [Contributing](../../CONTRIBUTING.md) maßgeblich.
@@ -76,17 +76,17 @@ Der Build aktiviert `--dart-define=FPV_REGIONAL_3D_TEST=true`, prüft die notwen
 ```sh
 node --test test/js/*.test.cjs
 python -m unittest discover -s test/tool -p 'test_*.py'
-python tool/check_docs.py
+python tool/quality/check_docs.py
 ```
 
 Aktuell gepflegte JavaScript-Regressionen: `scenery_site_integrity.test.cjs`
 (Originalscan, Südgebäude, Öffnungen und FPC), `scenery_underlay.test.cjs`
 (optionale Geländeersetzung), `scenery_rendered_ground.test.cjs`
 (Render-/Höhenproben) sowie `scenery_ground_calibration.test.cjs` (BKG-only
-Bodenabgleich und Android-Asset). Historische `scenery_r*.test.cjs` wurden
-zusammengeführt; vor dem Testen älterer ZIP-Installationen den Cleanup aus
-[Contributing](../../CONTRIBUTING.md#aktuelle-tests-statt-historischer-release-prüfungen)
-ausführen.
+Bodenabgleich und Android-Asset). Dateinamen mit einer Revisionsnummer können weiterhin aktive
+Geometrieregressionen sein und werden nicht pauschal entfernt. Für alte Pfade nach
+einem ZIP-Update den geprüften [Struktur-Cleanup](../README.md#applying-a-changed-files-zip)
+verwenden.
 
 Zusätzlich die passende `test_ruedersdorf_*.py`-Geometrieprüfung ausführen und das Modell real auf einem Gerät mit verschiedenen Kamerawinkeln vergleichen. Tests von Rohdreiecken, BVH-Hashes und Codepfaden beweisen **keine** richtige Höhenlage im BKG-Globus. Bei einer Geometrieänderung sowohl Ausschnitt als auch kollidierbare Öffnungen prüfen; bei Höhenänderung Oberkante/Boden in mehreren Bildbereichen und nach Providerwechsel.
 
@@ -97,3 +97,18 @@ Zusätzlich die passende `test_ruedersdorf_*.py`-Geometrieprüfung ausführen un
 - Regionale BKG-Gebäude können sich visuell mit Scanflächen überlagern. Die Gebäudemaskierung ist getrennt von der optionalen, geprüften Terrainmaske.
 - **Die Echtzeit-Funk-/LoS-Analyse für BKG-Beta ist gesperrt**, solange die Terrainabfrage und 3D-Hindernisbehandlung dafür nicht validiert sind. Fehlende Höhen dürfen weder als freie Sicht noch als Funkverlust ausgegeben werden. Technische Details: [Radio/Rescue](radio_and_rescue.md).
 - Quellenangaben im UI und externe Nutzungsrechte müssen bei jeder Modelländerung erhalten bleiben. Vor jeder Veröffentlichung der abgeleiteten RAWscan-Geometrie die **CC BY-NC 4.0**-Beschränkung prüfen.
+
+## Regional 3D service boundary
+
+BKG 3D Beta is an independently gated online test source. Its transport omits
+credentials, uses no-store semantics for root/descendant requests, and fails closed
+when that transport cannot be installed. FPVManager does not persist these tiles;
+embedding/browser/proxy caches require separate host review. Keep official on-screen
+credits and test-license change notices. Raster/hillshade have distinct CC BY 4.0 /
+DL-DE BY 2.0 terms: see [map sources](../user/map_sources_and_attribution.md) and
+[third-party notices](../../THIRD_PARTY_NOTICES.md).
+
+Rendered BKG geometry does not validate the height datum or certify RF/route
+clearance. Unknown tiles remain unknown. Copernicus GLO-30 is not an active fallback
+or a ready-made Quantized Mesh endpoint; hosting, conversion, datum and rights would
+need independent verification. The existing local DGM/geoid alignment is separate.

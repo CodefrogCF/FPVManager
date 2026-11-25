@@ -68,3 +68,6 @@ app.*.map.json
 
 # Explicitly generated local-only developer performance reports and captured logs.
 /.local-performance/
+
+# Python tool caches
+__pycache__/

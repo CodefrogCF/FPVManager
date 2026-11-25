@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 SPEC = importlib.util.spec_from_file_location(
-    'cleanup_docs', Path(__file__).resolve().parents[2] / 'tool/clean_obsolete_docs.py')
+    'cleanup_docs', Path(__file__).resolve().parents[2] / 'tool/maintenance/clean_obsolete_docs.py')
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 

@@ -17,7 +17,7 @@ from rasterio.transform import from_origin
 from pyproj import Transformer
 
 ROOT=Path(__file__).resolve().parents[2]
-spec=importlib.util.spec_from_file_location('prepare',ROOT/'tool/prepare_offline_region.py')
+spec=importlib.util.spec_from_file_location('prepare',ROOT/'tool/data/prepare_offline_region.py')
 prepare=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(prepare)
 

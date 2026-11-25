@@ -5,7 +5,7 @@ The app bundles a generated Swiss OSM tunnel index in
 catalogue, not the builder's placeholder. Verify it before packaging a release:
 
 ```sh
-python tool/build_ch_tunnel_index.py --verify
+python tool/data/build_ch_tunnel_index.py --verify
 ```
 
 ## Rebuild the catalogue
@@ -15,8 +15,8 @@ onto a user's phone.
 
 ```sh
 python -m pip install "osmium>=4,<5"
-python tool/build_ch_tunnel_index.py --download
-python tool/build_ch_tunnel_index.py --verify
+python tool/data/build_ch_tunnel_index.py --download
+python tool/data/build_ch_tunnel_index.py --verify
 flutter pub get --enforce-lockfile
 flutter build apk --release
 ```

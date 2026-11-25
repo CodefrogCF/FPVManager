@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT.
-// Regenerate with: python tool/check_localizations.py --write
+// Regenerate with: python tool/quality/check_localizations.py --write
 import 'generated/fpv_strings.dart';
 
 String lookupLocalizedMessage(

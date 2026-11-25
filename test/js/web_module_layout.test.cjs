@@ -68,7 +68,7 @@ test('browser smoke pages only load scripts at existing web-root URLs', () => {
     const html = read(`test/web/${name}`);
     for (const script of scripts(html)) {
       if (!script.startsWith('/') || script === '/prepared-storage-test.js') continue;
-      // Smoke fixture scripts are served by tool/serve_globe_smoke.py.
+      // Smoke fixture scripts are served by tool/browser/serve_globe_smoke.py.
       assert.ok(found(script.slice(1)), `${name}: missing script ${script}`);
     }
   }

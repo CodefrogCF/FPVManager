@@ -1,54 +1,53 @@
-## Unreleased – v0.20.0 preparation
+# Changelog
 
-- R40 live radio reliability correction on top of the archived 50-km
-  baseline: expire an obsolete HUD assessment without cancelling a newer
-  in-flight terrain sample; stop redundant refinement when adequate
-  clear-path coverage or an actually sampled obstruction is already
-  available; promptly recheck deep obstruction evidence against the current
-  aircraft ray during fast motion only with strict spatial and clearance
-  limits. Do not reinterpret unknown terrain as clear reception, modify
-  radio physics thresholds, or alter GPS Rescue. Add focused Dart
-  regression scenarios.
-- Restored the **pre-Rüdersdorf 50-km live radio analysis baseline** for a
-  controlled on-device comparison: controller, sampling policy, terrain
-  sampler and WebView live radio module. Reverted associated R36/R37-only
-  regression expectations to the historical contract. All other scenery,
-  flight simulation, RF equipment, terrain and menu features remain on the
-  current implementation. This is a regression-isolation baseline, not a
-  verified improvement in real-device latency.
-- Simplified public map menus: hide developer-only scenery/height and
-  collision diagnostics, raw terrain sampling metadata, tunnel JSON
-  import and debug counters, and low-level UAS/cache internals. Preserve
-  simulation controls, scene visibility, airspace safety notices and
-  official source credits. Internal menu tools remain explicitly opt-in
-  via `FPV_DEVELOPER_MENUS=true`.
-- Previously experimented with **6–10 km fast-flight radio terrain previews**
-  with a grid-aligned single-batch first pass (maximum 256 terrain points),
-  targeted optional refinement, and bounded/coalesced WebView height
-  requests. Stale displayed results no longer cancel a newer in-flight
-  calculation, and separately ordered renderer revisions prevent a late
-  `unknown` notification from overwriting an accepted profile. Missing
-  detailed heights and unverified terrain remain unknown; this is not a
-  guaranteed physical RC link.
-- Added official Berlin/Brandenburg **online raster imagery** to the globe
-  for satellite (DOP20c), topographic (basemap.de 2025) and relief
-  (DGM hillshade) styles while retaining the existing Swiss providers and
-  offline behavior. Geographic WMS rectangles and source credits limit the
-  regional overlays.
-- Added an experimental Rüdersdorf real-world scenery with source-based
-  photogrammetry, approximate architectural repairs, matching GLB/FPC
-  collisions, local georeferencing and separately gated BKG 3D-Beta
-  terrain/buildings. Its current R35 geometry removes an overlapping
-  northern scaffold while retaining the restored original scan and
-  southern building. The user-confirmed BKG visual ground correction is
-  −16.90 m; vertical source datums, RF planning and real-world clearance
-  remain unverified.
-- Reorganized documentation into maintained user and developer guides.
-  Rüdersdorf calibration, workbench relay, model provenance and collision
-  limitations now have canonical reference pages. Superseded revision
-  READMEs, archived implementation notes and duplicate copies are retired
-  by a checksum-protected cleanup manifest; no runtime or scene geometry
-  was changed by the documentation update.
+## Unreleased
+
+Current development build: **0.19.29+56**. These entries describe the implemented
+working state; they do not announce a published v0.20.0 release.
+
+### Fixed
+
+- Nearby aviation obstacles (including the Säntis tower) remain loaded through
+  camera rotations, horizon views and temporary terrain-tile eviction. A padded,
+  camera-centered region follows existing model ranges; identical region events
+  do not cancel an in-flight obstacle query. Zoom-in regions are re-evaluated
+  after delayed terrain arrives, without requiring another camera movement.
+  Display/cache limits remain bounded.
+- Live terrain-dependent RF analysis now handles vertical and near-vertical
+  paths above the takeoff/ground-station position. Distance includes antenna
+  height separation; missing terrain still remains unknown.
+- Simulator settings, including Advanced/Legacy selection, controller mapping,
+  camera, battery and physics configuration, survive restarts and portable
+  backup restore. Flight quick controls save valid changes without allowing
+  an idle renderer to overwrite preferences.
+- Clearly tagged or explicitly named suspension bridges no longer receive
+  guessed intermediate pillars, including overlapping imported/native decks.
+  Explicitly mapped supports remain available.
+- Live RF scheduling uses one active calculation with the latest pending pose,
+  generation/revision guards, recoverable timeouts and bounded freshness.
+  Expiring an old HUD observation does not cancel a newer query. Fast flight
+  preserves terrain precision and can fuse the required refinement pass.
+- Pending, stale or unavailable RF observations show a passive HUD notice.
+  Uncertainty alone does not trigger Hold, failsafe or GPS Rescue. Actual
+  modeled RC loss and fresh recovery retain the configured delays/hysteresis.
+
+### Changed
+
+- Group developer tools by build, data, benchmarks, browser, quality,
+  maintenance and scenery; update CI, tests and documented commands together.
+- Consolidate current documentation, retire individual fix/delivery reports,
+  and keep dated measurement evidence with benchmark tools. ZIP updates include
+  a checksum-protected cleanup plan that preserves locally edited files.
+- Simplify public menus; internal diagnostics remain opt-in with
+  `FPV_DEVELOPER_MENUS=true`.
+
+### Added
+
+- Official Berlin/Brandenburg online imagery, topographic and relief layers
+  alongside the existing Swiss/offline providers, with regional source credits.
+- Experimental Rüdersdorf photogrammetry scenery with local georeferencing,
+  approximate repairs and matching collision assets. BKG 3D Beta is separately
+  gated; its unverified vertical reference is not accepted as RF evidence.
 
 ## [v0.19.0] - 2026-11-21
 

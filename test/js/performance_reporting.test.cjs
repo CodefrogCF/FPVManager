@@ -5,12 +5,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { SCENARIOS, fromManualOptions, parseMetricPairs, parseLifecycleLog,
-    parseSceneSnapshot, validateReport, writeJson } = require('../../tool/performance_report.cjs');
-const { verify, reports } = require('../../tool/performance_suite.cjs');
-const { summarize } = require('../../tool/performance_compare.cjs');
-const rules = require('../../tool/performance_ci_baselines.json');
-const scenarioDefinitions = require('../../docs/performance/scenarios.json');
-const deviceReference = require('../../docs/performance/device_reference_2026-11-05.json');
+    parseSceneSnapshot, validateReport, writeJson } = require('../../tool/benchmarks/performance_report.cjs');
+const { verify, reports } = require('../../tool/benchmarks/performance_suite.cjs');
+const { summarize } = require('../../tool/benchmarks/performance_compare.cjs');
+const rules = require('../../tool/benchmarks/performance_ci_baselines.json');
+const scenarioDefinitions = require('../../tool/benchmarks/reference/scenarios.json');
+const deviceReference = require('../../tool/benchmarks/reference/device_reference_2026-11-05.json');
 
 test('documented scenario IDs and manual recording command stay consistent', () => {
   assert.equal(new Set(SCENARIOS).size, SCENARIOS.length);

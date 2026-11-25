@@ -1,232 +1,37 @@
-# User guide
+# User handbook
 
-Under **Einstellungen → Sprache** (**Settings → Language**), choose
-**Deutsch** or **English**. FPVManager saves your choice and applies it to the
-app and the map and flight controls. This guide uses the German menu labels.
+FPVManager combines local flight preparation, a Cesium 3D map and a configurable
+flight simulator. It does not control a physical aircraft. For a short German
+walkthrough, see [Schnellstart](user/schnellstart.de.md).
 
-For a shorter German introduction use the
-[Deutsch: Schnellstart](user/schnellstart.de.md). For newer simulator and
-battery features, consult [flight simulation, radio and GPS Rescue](user/flight_simulation.md)
-and [battery/ESC/motor profiles](user/battery_and_power.md). These are the maintained, audience-specific guides.
+## Start a session
 
-## Find the right control
+1. Open the map and wait for the required terrain/data status. Downloaded maps
+   and personal records can be used offline within their prepared coverage.
+2. Select or save a spot and configure aircraft, battery and radio profiles.
+3. Create/check a route or open the simulator. Choose GPS, Angle or Acro and the
+   preferred control method. Advanced is the default physics model; Legacy is
+   available as a compatibility fallback.
+4. Review warnings and data ages. Unknown terrain/RF data are not a confirmed
+   clear path, signal loss or flight authorization.
 
-| Where | What it contains |
+Simulator settings persist after restart and are included in newly created
+portable backups. Canceling the settings dialog discards unsubmitted changes.
+
+## Guides by task
+
+| Task | Guide |
 |---|---|
-| Navigation menu, upper left | Saved places, flight routes, weather, navigation/OSINT, ground routes, observations, equipment and offline data |
-| **Karte & Ansicht**, layers button or map actions | **Karte**, **Luftraum**, **Hindernisse** and **OSINT** tabs |
-| **Einstellungen** | Language, map and flight controls, navigation overrides, data sources, offline data and help |
-| **Quellen**, at the map edge | Complete active map-source notices and renderer acknowledgments |
-| Selected map object | Coordinates, source attributes and actions relevant to that selection |
+| Spots, routes, terrain and preflight checks | [Preflight and analysis](user/preflight.md) |
+| Simulator controls, recording, live RF and GPS Rescue | [Flight simulation](user/flight_simulation.md) |
+| Aircraft/battery profiles and energy estimates | [Battery and power](user/battery_and_power.md) |
+| Heights and coordinate systems | [Coordinates and heights](user/coordinates_and_heights.md) |
+| Forecasts, radar and simulated wind | [Weather](user/weather.md) |
+| Ground navigation, POIs and information layers | [Mobility and OSINT](user/mobility_osint.md) |
+| Experimental Rüdersdorf scenery | [Scenery](user/scenery.md) |
+| Backups, local data, permissions and network requests | [Privacy and permissions](user/privacy_and_permissions.md) |
+| Official map providers and credits | [Map sources](user/map_sources_and_attribution.md) |
 
-Activity profiles select shortcuts, not a different application. **Alle Werkzeuge**
-keeps the full toolset reachable. Switching profiles does not erase personal
-records or interrupt an active draft. Settings reuse the same saved values across
-entry points. Internal diagnostics, asset editors and raw provider data do not appear in
-ordinary menus. Active errors, validity and relevant restrictions remain visible.
-
-## Map, location and 3D
-
-In **Karte & Ansicht → Karte**, choose Satellite, Topo or Relief. Place/street
-names, roads/paths and saved places are independent switches. Overlay order is
-under **Reihenfolge der Ebenen**; moving an overlay forward does not reveal it
-through terrain. Names cover a bounded Swiss area and are not a complete street
-index or an offline-region layer.
-
-The compass faces north when tapped. **Mein Standort** requests foreground
-location and recentres once; long-press it or open **Standortanzeige** for accuracy
-and following controls. Moving the map stops following. Old fixes are grey.
-**Ort suchen** accepts WGS84 latitude/longitude, LV95 east/north and submitted
-Swiss place/street searches. Selecting a result does not save a place.
-
-**3D & Licht** groups buildings, trees/forests, bridges/structures, automatic 3D
-tunnels and sun/moon lighting. Models stream where source data is available;
-they are separate from prepared offline maps. Schematic bridge supports and
-tunnel interiors are approximations, not surveyed construction or clearance.
-Automatic tunnels still load their source axes internally. The former separate
-axis-overlay and surface-exploration switches are no longer offered. Tunnel discovery, simulation model preparation and collision controls remain
-available. Internal JSON import and diagnostic counters are hidden in regular
-builds.
-
-Route and flight settings can temporarily use a selected date/time for lighting.
-Enter device-local time; stored values use UTC. Fixed time remains frozen, and
-leaving the activity restores the map's lighting choice. Navigation has separate
-**Wie Karte / Aus / Ein** overrides for buildings and vegetation under
-**Einstellungen → Navigation**.
-
-The experimental local scene at Rüdersdorf has a separate [real-world scenery guide](user/scenery.md): its BKG 3D-Beta build and height comparison are not validated for real-world clearance or RF planning.
-
-Select a raw map point for coordinates and terrain height. WGS84 ellipsoid,
-Swiss LN02 and AGL are different references; see [coordinates and heights](user/coordinates_and_heights.md).
-Missing terrain pauses ground-dependent actions. A labelled flat fallback is
-not measured ground. Retry terrain, then select a fresh point after recovery.
-
-## Places, equipment and routes
-
-**Gespeicherte Orte** stores places, notes, favourites, categories, tags and photos.
-A selected raw map point prefills a new place; device location is optional and
-Save is required. Search/filtering affects the library, not the complete map
-marker set. More summaries load while scrolling. Photo imports accept up to six
-JPEG/PNG/WebP stills per place, each up to 12 MiB and 16 megapixels; stored copies
-are resized and omit source EXIF/GPS metadata. Originals remain unchanged.
-Map markers and labels follow terrain, including after a restart; buildings,
-tree crowns and bridge decks do not raise them. Existing places need no re-save.
-
-**Ausrüstung** groups **Drohnen**, **Akkus** and **Funk & Video**. Unknown values
-stay empty; measured/estimated provenance belongs to the number entered. Battery
-types are templates, while packs are physical batteries: later template edits
-do not silently change existing packs. Equipment records do not certify RF
-compatibility, permitted transmit power or endurance.
-
-In **Flugrouten**, create a route and edit its waypoints on the globe. Use
-**Height & speed** for AGL or an explicit absolute height and outgoing airspeed;
-Save stores the draft and equipment/planning assumptions. Missing or incompatible
-heights produce a marked 30 m AGL preview, not a clearance result.
-
-**Route analysis** separates terrain Profile, Flight, Energy and Checks. Recalculate
-after changing the route, inputs or datasets. Terrain is sampled between points;
-power/energy results require a compatible speed/power curve and battery values.
-No extrapolation, sampled clearance or reserve estimate guarantees feasibility.
-**Checks** finds horizontal UAS intersections, configured height-limit findings
-and approximate proximity to loaded obstacle data. Inspect the source records;
-an empty result does not determine legal access or continuous clearance.
-
-Import previews supported GeoJSON/GPX before adding new local routes. Exports are
-explicit and exclude equipment assignments. Files support up to 4 MiB, 20 routes
-and 10,000 total points, with 2–1,000 points per route. GPX segments remain
-separate; undeclared elevation references remain unverified. Other tools may
-ignore FPVManager's AGL, datum and airspeed extensions.
-
-## Airspace and obstacles
-
-**Karte & Ansicht → Luftraum** controls UAS zones and opacity. Select a zone to
-inspect source restriction text, separate height limits, times and authority
-contacts; expand source attributes for the remaining supplied fields. Saved
-places and route drafts offer horizontal airspace checks. Activation, legal
-applicability and unspecified height datums are not inferred. DABS/NOTAM data
-is not integrated.
-
-Data status, cache age, official validity and coverage are distinct. Failed
-replacement retains the last displayed snapshot; explicit refresh retries the
-source. **Daten & Quellen** contains detailed metadata and cache management.
-Empty or limited data is reported and is never an all-clear.
-
-**Hindernisse** separates the transparent official WMS imagery from selectable
-3D/vector data. The first full KMZ import can take time. Zoom into a local area,
-filter categories and inspect a feature for published values. Update checks fetch
-a changed dataset; cached vectors can reopen offline. WMS imagery still needs
-a connection. Category/opacity choices persist locally.
-
-Optional bundled obstacle models draw supported masts, poles, cranes and similar
-objects using available published heights. Shapes/headings remain illustrative;
-unsupported objects retain symbols. Cable sag is not reconstructed. **Highlight
-hazard areas** draws calculated advisory buffers, not mandatory legal separation.
-The detailed height rules are in [coordinates and heights](user/coordinates_and_heights.md).
-
-## Ground inspection and flight simulation
-
-For the current long-range LoS (up to 50 km), simulation-only EU/FCC radio
-profiles, GPS Rescue takeover, analog signal effects and unverified terrain
-collision states, see the [simulation and radio guide](user/flight_simulation.md).
-For chemistry-aware consumption, pack ratings and separate ESC/motor warnings,
-see [battery and equipment profiles](user/battery_and_power.md).
-
-
-The walking icon starts a ground camera about two metres above a selected point
-or place. WASD/arrows or the left stick move; dragging or the right stick looks.
-Escape or the globe icon restores the previous map camera. Missing rendered
-terrain pauses movement; this ground camera is not an exact object collider.
-
-Choose **Kartenaktionen → Flugsimulator**. The compact form shows flight mode,
-profile and spawn height; camera/HUD, graphics/time, controller and flight
-parameters are expandable. **Flug starten** remains at the bottom. Spawn uses
-the selected point/place or the terrain under the camera target. Detailed terrain
-is required. Reapplying spawn settings starts level and stationary.
-
-| Mode | Main controls |
-|---|---|
-| Angle | Mode 2: left stick throttle/yaw, right stick pitch/roll; limited tilt and self-levelling |
-| Acro | Same sticks command body rotation; attitude and momentum persist; configurable rates, expo and simplified thrust/drag |
-| GPS | Assisted translation/looking; neutral input brakes and holds height |
-
-FPV keyboard uses E/Q for throttle, A/D for yaw, W/S for pitch and left/right
-arrows for roll. IJKL also commands pitch/roll. In GPS, WASD/arrows move and
-E/Q changes height. Touch sticks stay at fixed opposite positions. Hiding touch
-controls releases their input without disabling keyboard/controllers.
-
-The flight sliders button opens **Flugeinstellungen** with **Kamera & Anzeige**,
-**Grafik & Licht**, **Controller**, **Wind** and **Funkvorschau** groups. Camera tilt
-and horizontal FOV change the view without changing thrust. HUD layout and an
-optional coordinate line are independent. Quality, Balanced, Performance and
-Compatibility graphics can change during flight without respawning.
-
-**Flug zurücksetzen**, R or controller A returns to spawn; Escape, controller B
-or the exit button returns to the map. HUD AGL is local clearance above terrain;
-**H START** is height above the spawn ground and **D HOME** is horizontal
-straight-line distance home. It excludes turns along a road or tunnel; a curved
-tunnel's length can therefore exceed D HOME at the exit. Unknown heights remain
-unknown.
-
-Synthetic tunnels use their lining, floor and roof for geometric contact.
-Optional experimental native-model collision approximates nearby loaded top
-surfaces; it does not reproduce every wall, tree or cable. Portal openings and
-long-tunnel windows are model-derived. Contact or missing continuation can pause
-movement. Background geometry/probe work is spread over frames, and long rendering
-gaps do not replay a large unseen flight step. These measures do not guarantee a
-particular device frame rate or a safe real-world passage.
-
-External gamepads/USB radios need a matching layout, channel assignment and
-zero-throttle position. Check directions before flight. Reconnect with zero gas,
-other sticks centred and buttons released. Focus loss/disconnection stops input;
-longer interruptions require the idle check again. Android needs joystick/USB-host
-support; Web needs HTTPS/localhost and browser Gamepad API support.
-
-The recording button captures a simulated flight. Review supports trimming and
-conversion into a new local planning route, up to 1,000 waypoints. Recordings stop
-on reset/exit and are temporary until saved. The capture limit is 30 minutes or
-4,096 samples. **Flugaufzeichnung** reopens retained unsaved samples.
-
-Optional wind and live radio-path previews are described in
-[weather](user/weather.md) and [preflight/signal analysis](user/preflight.md).
-
-## Offline maps and personal backups
-
-Open **Offline & Daten** to prepare a region, activate an existing region or
-manage personal backups. Mark a centre and choose a radius up to 25 km; Web also
-offers **Gesamte Schweiz**. Select imagery, terrain/detail and storage limits,
-then **Bereich offline vorbereiten**. Keep preparation open; cancelling leaves
-the prior region active, and repeating the same choice can reuse prepared tiles.
-Source editions, preparation time and gaps remain separate.
-
-**Use cached base map and terrain** blocks remote fallback for those providers,
-not every network action in the app. Streaming 3D, WMS overlays and live services
-are not promised as complete offline layers. The viewed-tile buffer is separate
-from a prepared region and can be incomplete. Browser storage can be evicted.
-
-The optional laptop workflow exports `.fpvofflineplan`, prepares a `.fpvregion`
-with `tool/prepare_offline_region.py`, then imports the validated package. Follow
-the preparation instructions shown with that export; imported data is limited to
-its bounds and selected detail. Package import does not fetch remote data.
-
-**Create backup** exports personal records, images and planning preferences in a
-portable file up to 64 MiB. Password protection is enabled by default. Keep that
-password separately. Restore previews and validates the contents before replacing
-personal data. API keys and public map/OSINT caches are excluded. Make a current
-backup before restoring another one; no automatic account sync is provided.
-
-## Specialist tools and data handling
-
-- [Flight simulation and radio](user/flight_simulation.md): LoS, video/RC estimates,
-  GPS Rescue, analog HUD and terrain loading limitations.
-- [Battery and power](user/battery_and_power.md): battery chemistry, C-ratings,
-  ESC/motor limits and estimated energy use.
-- [Weather](user/weather.md): forecasts, observed radar, 3D wind and measured stations.
-- [Navigation and OSINT](user/mobility_osint.md): driving, walking/cycling, traffic,
-  aircraft, outdoor restrictions, wildfire, avalanche and dated imagery.
-- [Preflight and signal analysis](user/preflight.md): checklists, LOS/Fresnel and telemetry.
-- [Privacy](user/privacy_and_permissions.md): local storage, permissions and requests.
-- [Sources and attribution](user/map_sources_and_attribution.md): data rights and credits.
-
-**Einstellungen → Hilfe** provides bundled explanations offline. Source details
-and current errors remain in their original tools. The app does not establish
-flight permission, real-world obstacle clearance or current data completeness.
+Help is also available under **Settings → Help / Einstellungen → Hilfe**.
+[Documentation index](README.md) · [Changelog](../CHANGELOG.md) ·
+[Privacy policy](../PRIVACY.md)

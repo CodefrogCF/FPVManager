@@ -1,0 +1,1170 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "docs/developer/advanced/README.md",
+      "known_sha256": [
+        "fedb60891190dda69810cd3c6992afad2eb92b7f5bb37627349e52c26e3b8047"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced/advanced-body-axis-aerodynamics.md",
+      "known_sha256": [
+        "6a638afae03f97dd8949b0524b25e73047b2d2afff84c432637d9df3f32d39df"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced/advanced-collision-response.md",
+      "known_sha256": [
+        "366549d04fd78229429e0ab3801da6105d97f7848f25e61c916bd8632776eb07"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced/advanced-environmental-wind.md",
+      "known_sha256": [
+        "79798661220f35e7f1163fc6dc30a5232e98c04789d28d0c4dd4502597e360d3"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced/advanced-gps-rescue-flight-control.md",
+      "known_sha256": [
+        "71d18c003c25fbcbcfecf040944ffb564abae20b164ad3a3062d207df2a9e000"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced/advanced-ground-effect-propwash.md",
+      "known_sha256": [
+        "e2f29bc23148c7c37dde049a07d5dfd61ef6b0805b05fe92837fd478860f25b7"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced/advanced-rotational-dynamics.md",
+      "known_sha256": [
+        "c7910f7d014248cb506f18605644374a6c2393bb4d0bb88f9ed94bac1b85f607"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/advanced_physics_validation.md",
+      "known_sha256": [
+        "a4917db98e50bade93204ae68b58ae457ca42afab4c29b15c164d8a841fe713d"
+      ],
+      "replacement": {
+        "path": "docs/developer/performance.md",
+        "known_sha256": [
+          "61057b8e5bb256ae5b45df88bde047dd5984f37a845e6c63b76a150bf596b617",
+          "c1e38006da1715fbac7645aa7f29e5e01593cc0d11a19f6ddf8950432e54b22c"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/flight_physics_architecture.md",
+      "known_sha256": [
+        "e779f5e49990fad876f13613058bca9b2b6a2fc3904a7113c78b6f6968601f3c"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/germany_3d_streaming.md",
+      "known_sha256": [
+        "38f45a2b2d3e7546f3a22541a2cea6b0d0c5806379e84ad17585718547c1031a"
+      ],
+      "replacement": {
+        "path": "docs/developer/scenery.md",
+        "known_sha256": [
+          "04d8b30646425863ae45358bd61380c891b889bdc1f19340679ac1d6a9153f72",
+          "44014f2447bf2a26fd46162e48f4a4de20d158f27d2159ca24140b0fdbf3650d"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_radio_baseline_comparison.md",
+      "known_sha256": [
+        "0a772e424e2c2ce0cdaa03540296d76e0a43c096433dc0d1040f44906472d6a5"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_browser_hotfix.md",
+      "known_sha256": [
+        "54f6fe904f6b2c4092eb46d416526557ff8c139f7ba208409af5a8b05c897386"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_browser_hotfix_manifest.json",
+      "known_sha256": [
+        "5fe3758111045d85fe9b708e4664cdddb72e940a233dafd1ae4b8fd13d898dc4",
+        "822df9a401703a51c5c601d881fefb8b5286c3f47c64009169d368aebbcdaa58"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_delivery_manifest.json",
+      "known_sha256": [
+        "6aa43589ee1732be1c6f3ef5873b5e9cce2334167006d7d910d24c9f3e7816fa",
+        "b20649ad9cd7c69fa518a31e8ddfeb0fdd78838a569087e7357a4e3b66dcc60a"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_motion_delivery_manifest.json",
+      "known_sha256": [
+        "68167598d6109536757e51c0780bbb6d721baf108bf73797d9c7232f8d98956e",
+        "7f14d08d14fb01b6aad25d7709bd78834c48661a4677dac6d2ad621aba2db8bb"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_motion_measurements.md",
+      "known_sha256": [
+        "52364c4ca3271a522922e3cac88e3b20bd211c7dd079a99ea2f01321c449c4be",
+        "e425891ae6368e310eb5b8cf64c776d3ea983222c83cd71dcbb969cae5044f2d"
+      ],
+      "replacement": {
+        "path": "docs/developer/performance.md",
+        "known_sha256": [
+          "61057b8e5bb256ae5b45df88bde047dd5984f37a845e6c63b76a150bf596b617",
+          "c1e38006da1715fbac7645aa7f29e5e01593cc0d11a19f6ddf8950432e54b22c"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_reliability.md",
+      "known_sha256": [
+        "6ecf06f1ebb49a328679fb28dfe80897fdbeae85928d144575b339c54b0fab7b"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/live_rf_vertical_start_fix.md",
+      "known_sha256": [
+        "34b40ab57a8886e768e3a1c7221d8d49fb40f3d7c067656b5ce925c7d5afd5eb",
+        "f915b1aea3420c6b068ec62636c9bd84740367f22dc3faa18fa3312ef38dead5"
+      ],
+      "replacement": {
+        "path": "docs/developer/radio_and_rescue.md",
+        "known_sha256": [
+          "94dba53db56409c09d7a016d5e00138d2360d62fa2e82e61af3891d2655af886",
+          "ee0174a470b6011d708f74212c55f12b15f45097a3a9c6453ccf908fe99688d3"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/simulator_preferences_and_suspension_bridges.md",
+      "known_sha256": [
+        "89e52b92da8dee9995db217074847c2f177ac5cc9e1d7f53e4605e75723c3cec",
+        "d0626005deef3b1c603d08a225d4295d0e27f5ddc1d5873ea86df84cdd1bf264"
+      ],
+      "replacement": {
+        "path": "docs/developer/simulation_and_collision.md",
+        "known_sha256": [
+          "17b9781ff786caa3a3f06af8cf0645c680b27357485715ec87264725d30f1e63",
+          "22fcf3a8912b23e867c4d99e253cec6318723861a952d3be80e8d42570a5f175"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/developer/web_module_structure.md",
+      "known_sha256": [
+        "5a6c0dd2c220bf26188b5cefec2d40436997de9ba9b6b840defd60a6f2be6850"
+      ],
+      "replacement": {
+        "path": "docs/developer/architecture.md",
+        "known_sha256": [
+          "5ea47873d770919aea36929c8e8a7e932eb35d89d8087d5f1f4e5faf5d942635",
+          "ac19521c747dcb1efcfd12be51b64a63cd35b28ab8066fa41dab642cdfde3d15"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/performance/acro_maneuvers_2026-11-11.json",
+      "known_sha256": [
+        "70f854fadefecd3932b3653f2a70fe5436a02f9a40c943ed8329895b993faf32"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/acro_maneuvers_2026-11-11.json",
+        "known_sha256": [
+          "70f854fadefecd3932b3653f2a70fe5436a02f9a40c943ed8329895b993faf32"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/advanced_physics_device_template.json",
+      "known_sha256": [
+        "cb08b3807ee1ca91a3375b6d2ba8a99cf0105a0cbd2940bbbea8f36ef1a4373c"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/advanced_physics_device_template.json",
+        "known_sha256": [
+          "cb08b3807ee1ca91a3375b6d2ba8a99cf0105a0cbd2940bbbea8f36ef1a4373c"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/advanced_physics_synthetic_reference.json",
+      "known_sha256": [
+        "dcf45b6d9588001e8b13ab9308af23cfbe05967b2d6d758b85cdcea40b311280"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/advanced_physics_synthetic_reference.json",
+        "known_sha256": [
+          "dcf45b6d9588001e8b13ab9308af23cfbe05967b2d6d758b85cdcea40b311280"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/building_visibility_2026-11-10.json",
+      "known_sha256": [
+        "46bdb18c31bd1bf6ab812ef5cc7090754a42994a93ea7caa3950a6777d4a39e3",
+        "c57453f87e05deef3d1c297fb14640f12b2056de661796083f12f90df3ad363c"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/building_visibility_2026-11-10.json",
+        "known_sha256": [
+          "46bdb18c31bd1bf6ab812ef5cc7090754a42994a93ea7caa3950a6777d4a39e3",
+          "c57453f87e05deef3d1c297fb14640f12b2056de661796083f12f90df3ad363c"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/device_reference_2026-11-05.json",
+      "known_sha256": [
+        "ccf476e9c916f09639381fc9126aabf720fd48f95865867bd08fd39585e1044c"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/device_reference_2026-11-05.json",
+        "known_sha256": [
+          "ccf476e9c916f09639381fc9126aabf720fd48f95865867bd08fd39585e1044c"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/flight_trace_2026-11-10.json",
+      "known_sha256": [
+        "13af3f76bb52a30473e3e1e6fa3a34431182bddcee18fe95c7dbb367a5aec02e",
+        "2ccbb924293d636ee0c387bfc313070a26339881e0216d6f94bfea31f942aa0c"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/flight_trace_2026-11-10.json",
+        "known_sha256": [
+          "13af3f76bb52a30473e3e1e6fa3a34431182bddcee18fe95c7dbb367a5aec02e",
+          "2ccbb924293d636ee0c387bfc313070a26339881e0216d6f94bfea31f942aa0c"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/live_rf_motion_after_2026-11-24.json",
+      "known_sha256": [
+        "9812597d69d13152839885243a1ada2579733e585cabe0304b9fb4410116f2b3"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/live_rf_motion_after_2026-11-24.json",
+        "known_sha256": [
+          "9812597d69d13152839885243a1ada2579733e585cabe0304b9fb4410116f2b3"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/live_rf_motion_before_2026-11-24.json",
+      "known_sha256": [
+        "4fdf678c766715f6c116adf4be9ea1d7725fef851d03ea2d2aef48dff22f3e76"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/live_rf_motion_before_2026-11-24.json",
+        "known_sha256": [
+          "4fdf678c766715f6c116adf4be9ea1d7725fef851d03ea2d2aef48dff22f3e76"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/live_rf_motion_comparison_2026-11-24.json",
+      "known_sha256": [
+        "977ab57a09a003d006ef55b85a133db0bd095d42762ce5465ddda368521006a2"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/live_rf_motion_comparison_2026-11-24.json",
+        "known_sha256": [
+          "977ab57a09a003d006ef55b85a133db0bd095d42762ce5465ddda368521006a2"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/live_rf_reliability_2026-11-24.json",
+      "known_sha256": [
+        "ead6d2fd309f41a264d935e9d8fd0548aa7407081f5195a3987f9643f58c7dc8"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/live_rf_reliability_2026-11-24.json",
+        "known_sha256": [
+          "ead6d2fd309f41a264d935e9d8fd0548aa7407081f5195a3987f9643f58c7dc8"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/scenarios.json",
+      "known_sha256": [
+        "77ce3a883d64790af650f9ed2407d287be8519592f8c2dea963fcc584a4ea912"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/scenarios.json",
+        "known_sha256": [
+          "77ce3a883d64790af650f9ed2407d287be8519592f8c2dea963fcc584a4ea912"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/scene_streaming_2026-11-10.json",
+      "known_sha256": [
+        "4baa9efcac2d80f60e93519728c94835e9e4961b4897ec0dfb03e3cd3d3b0339",
+        "9e069df558a6946470e21897db626a69871243d746bf86f76c9706c78cfbccf6"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/scene_streaming_2026-11-10.json",
+        "known_sha256": [
+          "4baa9efcac2d80f60e93519728c94835e9e4961b4897ec0dfb03e3cd3d3b0339",
+          "9e069df558a6946470e21897db626a69871243d746bf86f76c9706c78cfbccf6"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/showcase_flight_2026-11-14.json",
+      "known_sha256": [
+        "2b25325ea8a924d73ddb4c898bbaa27f661f4188254b70ebfc7c504cc0b34296"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/showcase_flight_2026-11-14.json",
+        "known_sha256": [
+          "2b25325ea8a924d73ddb4c898bbaa27f661f4188254b70ebfc7c504cc0b34296"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/performance/vegetation_2026-11-11.json",
+      "known_sha256": [
+        "11d340d0ca3919cf16049d8cdb5570fa66e1e3e48ccb5566d4fc8e1db4cef21e",
+        "61a26005383ff67e0803490a67bfd88f90cc64f2a057ab1a5598a09cf12e1e08"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/reference/vegetation_2026-11-11.json",
+        "known_sha256": [
+          "11d340d0ca3919cf16049d8cdb5570fa66e1e3e48ccb5566d4fc8e1db4cef21e",
+          "61a26005383ff67e0803490a67bfd88f90cc64f2a057ab1a5598a09cf12e1e08"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "docs/research/v0.20.0_ruedersdorf_glb_analysis.json",
+      "known_sha256": [
+        "d65177a60d442880bdda2ada950f0313a2736222323856a8574b845275c1ddbf"
+      ],
+      "replacement": {
+        "path": "docs/developer/scenery.md",
+        "known_sha256": [
+          "04d8b30646425863ae45358bd61380c891b889bdc1f19340679ac1d6a9153f72",
+          "44014f2447bf2a26fd46162e48f4a4de20d158f27d2159ca24140b0fdbf3650d"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "docs/research/v0.20.0_scenery_feasibility.md",
+      "known_sha256": [
+        "8ad5b6ec864f21fbc30296469ee7b6810a60316dc2dedf81e1943929060ba65c"
+      ],
+      "replacement": {
+        "path": "docs/developer/scenery.md",
+        "known_sha256": [
+          "04d8b30646425863ae45358bd61380c891b889bdc1f19340679ac1d6a9153f72",
+          "44014f2447bf2a26fd46162e48f4a4de20d158f27d2159ca24140b0fdbf3650d"
+        ]
+      },
+      "reason": "consolidated current documentation"
+    },
+    {
+      "path": "tool/benchmark_advanced_validation.cjs",
+      "known_sha256": [
+        "a7d6560c69e7fe2e678c51d3eb5f2ae221fade9808abbc64c4297fd224447edf"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_advanced_validation.cjs",
+        "known_sha256": [
+          "3915c20008c7e4e69e980c166b7abe12261102c3825b5691f421028c50551dc5",
+          "a7d6560c69e7fe2e678c51d3eb5f2ae221fade9808abbc64c4297fd224447edf"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_collision_response.cjs",
+      "known_sha256": [
+        "b1f9bbc4e5f5aeaecebc31ed4e0033e73d4c26d8daf6d661ba8f17309abaa9ea"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_collision_response.cjs",
+        "known_sha256": [
+          "26d893450fb494b99201631aee51c720c8eb93f97be375cc54d946b17363ba52",
+          "694f4a9bd1cfeef6738ec8b2b0f87506289d0f3c4524e1fd8e0fa58c81c79f54"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_descent_aerodynamics.cjs",
+      "known_sha256": [
+        "328377e23e089e593bdde66944bac765c5d668324265b68229b4068b8b35a4cc"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_descent_aerodynamics.cjs",
+        "known_sha256": [
+          "7566366eace0618e93fcd61528e7f3e46a88e73493bafbaad2401cb11f7f56a0",
+          "86de2efa96297ebed3fd1e0cdb729033e48544ba304337ce725d4e23f75c133a"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_electrical_propulsion.cjs",
+      "known_sha256": [
+        "e1ea55c3906efac7fdde07613175716a3107f1781c38fdac9e7db6b56261c63b"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_electrical_propulsion.cjs",
+        "known_sha256": [
+          "2973057fd2636d8cf5c7fe632585e9cdb5010ea755ed6092a4ff95cefe698f6f",
+          "d8833c91315b51185bbdcb76bfffff652bf2fd5d1b9e3b0b011eb1970ef39f8e"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_environment_wind.cjs",
+      "known_sha256": [
+        "71dd49e26b0e87b7a56d9253b85294efcf79a681c2af53134c96d4b72158c628"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_environment_wind.cjs",
+        "known_sha256": [
+          "6eaf3157861199d801db81b59fcfa292d9e679180161563229274b6af246fd85",
+          "9538206aab7dd2595b2dcf320dc187b97321476e7fb449fea7688513ed517330"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_flight_physics.cjs",
+      "known_sha256": [
+        "99bcc04f8bd0da131f30e85ff80dd76a73a6615fea77b65efc642c4425b21518"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_flight_physics.cjs",
+        "known_sha256": [
+          "430b431a149561b10ae16876bc5c8a2b14ac683ed32980ce31535d8d1fb1f506",
+          "85b12a6140e659d9b557daf16d9a2fecf3c83ed2a582308e9cced7c728ba73e0"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_globe_transfer.cjs",
+      "known_sha256": [
+        "43bb7224dcf1b0cb6ca7b4c31968516343a41f410d94a07bbb5eed05f8221cea"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_globe_transfer.cjs",
+        "known_sha256": [
+          "3993e3edd715500dae779264d0a1769faa76fd5a77f0a98cf76b5aacbc302bc9",
+          "9d614496abed7740e272fa7b82692cf94685accb7ba01bf9a60b27a613672241"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_live_rf_reliability.cjs",
+      "known_sha256": [
+        "5e0cea3274be867f6ec858723b9f630e1d4a3fe5417092c41cb7fda16436bd84"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_live_rf_reliability.cjs",
+        "known_sha256": [
+          "a90e41cabe5dfecb48a1e9ba224d4d65b13f7e1fe95a38c6cf15d4e5b9cc4cf3",
+          "ddb26bcd9899a185a2e203154dc38dd6de50344ba440ce18326e1d6e9574b9d1"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_motor_propeller.cjs",
+      "known_sha256": [
+        "42eefcc5af0195a38a149076dc8628dbff29ba61db4bbbf2317ee0ce83e0db6a"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_motor_propeller.cjs",
+        "known_sha256": [
+          "250ee35ad1ae7f99d5a32242ea27dcd425b7bd1e4f69e1852fd2681fc5380b8e",
+          "53719a30f39f1355c2b7709e29cccaf8820d50abf423563d0d3c1ca07b55b559"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_scene_scheduling.cjs",
+      "known_sha256": [
+        "c91b7dd8c61b033b4bb73c2452a5a9609aa2bbc9240a0becdd7cd49a34d5472c"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_scene_scheduling.cjs",
+        "known_sha256": [
+          "a57e1f7775bbd0d8123ac295bb791013e75d67c2feaf1ab725c23090a8d0cafd",
+          "d1baf8604169ff2b5aeb6a42c8602fa2cdc34a3bd1468893dd92634570804c26"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_simulator_terrain_gaps.cjs",
+      "known_sha256": [
+        "1ee850180c79e4b3a5ac4b0fc2351e597dec2298cd4f13acf3a0163bf5d0604c"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_simulator_terrain_gaps.cjs",
+        "known_sha256": [
+          "007581466483a2794899889d392d8c370eb991bad7229eeaa51640466c170824",
+          "dfd3f1fe2c4e7a99f60141ed7e7459943babf4a6247db030547b8284030cddfc"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_sqlite_cache.dart",
+      "known_sha256": [
+        "226df0fa7928b1f7d024d43bbcd18cc5170fb29d8769a05ff9883a6440ba2ff3"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_sqlite_cache.dart",
+        "known_sha256": [
+          "226df0fa7928b1f7d024d43bbcd18cc5170fb29d8769a05ff9883a6440ba2ff3",
+          "e08533ca0ed5655263e71437b7ae9dc29bbe35cdc70d903bc46f1066de75408f"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_uas_http.dart",
+      "known_sha256": [
+        "8f2feccc3ea7bcab9db2db9c36cecb4814769ae86aa72de8816f249d7723ceac"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_uas_http.dart",
+        "known_sha256": [
+          "1a2e3d02137e04104e54246f9acf2fe49f77cd459707cef0b293be5a78005554",
+          "e60c7b6fb38b47d480d8bf49949ebbe49dc370bb0239ed64c59a908b837d3f0a"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/benchmark_uas_memory.dart",
+      "known_sha256": [
+        "d35469d582b5f411c577eaf931815623762afa69987cc7806259dfd9b4709b0d"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/benchmark_uas_memory.dart",
+        "known_sha256": [
+          "723d9535cf77b53eb8474f0636e52f0a2d2156f2c6021a8e6dc812fee7b83938",
+          "d2d86353dbef1a9be74144497300db7844d872f3e29c6b39e5399114c5b6bb04"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/build_android_ruedersdorf_test.ps1",
+      "known_sha256": [
+        "331d195253b69673c5737f6529bf971844c95cff4cd1d8395f1c691d9dc65335"
+      ],
+      "replacement": {
+        "path": "tool/build/build_android_ruedersdorf_test.ps1",
+        "known_sha256": [
+          "a4e276b0f8fca9743b5c2e48bd9ebe4c3aab6bf9df1a4ae82b8388c45bbfdca3",
+          "c859322509b2af4d0b55e6f22f5d538352348815b646ab9a0a33472442eb6b10"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/build_ch_tunnel_index.py",
+      "known_sha256": [
+        "25ccc15397f8a3b6eeac60ff0207e54b701b5e8cf3f196ffb4226316225108f0"
+      ],
+      "replacement": {
+        "path": "tool/data/build_ch_tunnel_index.py",
+        "known_sha256": [
+          "4e728cef9efcecdb33ef614d11e43c672da7b98d99c208afe032ca7004c633fc",
+          "cc90b8df0434cdd962b09a45726bbf7a29487c4e30119c95bb53c98b02f04bc9"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/build_forest_composition.py",
+      "known_sha256": [
+        "0493a4abdacbcedc10d162703f9a0dea8043134f4aa62f9a3183619eb3edb633"
+      ],
+      "replacement": {
+        "path": "tool/data/build_forest_composition.py",
+        "known_sha256": [
+          "9ad59e8054f0e93a2cb9965c81240d877b0d6462438d39b91b16be6bacb4dd65",
+          "b43ddb490b2dba9ac6feebcf5b5bf3269646582a76b9ef2457c6e2254526e413"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/build_swiss_height_grid.py",
+      "known_sha256": [
+        "b5bdc2bbe231e2f5403f835b3a211c63a7b166aa30ef762ffd3453a62414c45f"
+      ],
+      "replacement": {
+        "path": "tool/data/build_swiss_height_grid.py",
+        "known_sha256": [
+          "106f6b3f330bc1717c391a703c6b02dc4ec44e9350f15b60692ddc8006d9fb84",
+          "309b3bdfcdd25980597a677f665a6f51ed31777b2bce5030172efee4f60711a4"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/build_tree_models.py",
+      "known_sha256": [
+        "cde06adafdd58abec6964d6f7518b5caa7b7d33add2610b0c1d303bf6abeec87"
+      ],
+      "replacement": {
+        "path": "tool/data/build_tree_models.py",
+        "known_sha256": [
+          "2b5c7da05b83c2467c7e72256e8931ddef1bb770162adfef2bfaeb8464706c66",
+          "68ec2b2e53e589a2e5c5bec580e340fd1359fce4bd8ddbc6b5ad23e1da8363ae"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/cesium_vendor.json",
+      "known_sha256": [
+        "ce452dda717ca8aa2799caf41d23cd3d47c9f94dc6a8f5d05ebb6cca1eb7192c"
+      ],
+      "replacement": {
+        "path": "tool/build/cesium_vendor.json",
+        "known_sha256": [
+          "131fd312e71244bb305034c9e832c46aa44c1640303de9bce1b5df5df3bf1088",
+          "ce452dda717ca8aa2799caf41d23cd3d47c9f94dc6a8f5d05ebb6cca1eb7192c"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/check_docs.py",
+      "known_sha256": [
+        "4dcd53b38993f53ecb42c9958a67c5954db633bd6c9fa6fa01e41e678e3833fe"
+      ],
+      "replacement": {
+        "path": "tool/quality/check_docs.py",
+        "known_sha256": [
+          "7ab64d51782f9a3220a0565735b67b251b9c97f1669207bb1ebbe94e23d05fe1",
+          "c2c5431bb4f20911db0f4732755692fc625919b1164621ec25501a433302b944"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/check_format.dart",
+      "known_sha256": [
+        "6870336164f28789aa7faee060ce2117e3db93f606cce6a055d57379a47eb492"
+      ],
+      "replacement": {
+        "path": "tool/quality/check_format.dart",
+        "known_sha256": [
+          "06223d6bc20cc73e406cf962af8c6b09de77e06ee1a781c306050c6843aca6b3",
+          "6870336164f28789aa7faee060ce2117e3db93f606cce6a055d57379a47eb492"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/check_localizations.py",
+      "known_sha256": [
+        "95684e3b0b7391134b2c7085618cda0e54ed6a29e49fc93a4778b327058a1c6c"
+      ],
+      "replacement": {
+        "path": "tool/quality/check_localizations.py",
+        "known_sha256": [
+          "a79d567ae55241250e98b1f5c6d10c7082c685e94b32648c9bf62e999401e8d0",
+          "e364a59cf18bd9cfae89319d45cc40a4dbbc1b2cff6bc3d00a9be02be6cbb1d4"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/check_obstacle_kmz.dart",
+      "known_sha256": [
+        "4a579cf554dbedc2bbf011a3ff463175dadb926de79832a488ebdcdd97c44f2b"
+      ],
+      "replacement": {
+        "path": "tool/quality/check_obstacle_kmz.dart",
+        "known_sha256": [
+          "44aae454f8fa4c059d301e80be90651a0cf14ccb386e073f4e7998e07704743a",
+          "d2ce148c508052d779bd6185e399a8b15950c1e85b90ca6c903b8cfdeea4b561"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/check_release_artifacts.py",
+      "known_sha256": [
+        "0c2a8ef7bf466ee4f3b5e9f9b06c24532a4205ef7dd4af0531e6762dbd4ed575"
+      ],
+      "replacement": {
+        "path": "tool/quality/check_release_artifacts.py",
+        "known_sha256": [
+          "4c6aa5fb6a99fb02d7264bec15fd2e2e3b1179fd2a7749be77b562d818203fe8",
+          "919d5d9982b92b1e54bac2884aedd3df8d9524a13f924f7d636185f001f818bd"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/clean_obsolete_docs.py",
+      "known_sha256": [
+        "f8c0e61f2d0287c41834c4fa279ebcc235e03681c2bc04b3b585f1250856daff"
+      ],
+      "replacement": {
+        "path": "tool/maintenance/clean_obsolete_docs.py",
+        "known_sha256": [
+          "8956663fea3af96fa6d04b7b3b57c5ac551bde6219d203316dd037c9f3ea16aa",
+          "aa63aa6e93e3cd51f05cc618964d8adaeb4b99a4c942fbcfad0bd8c01acb36dc"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/clean_obsolete_tests.py",
+      "known_sha256": [
+        "b775364bf12ab27142cbcee6e73850274245ff0d29979119a2180e2e8ef37a84"
+      ],
+      "replacement": {
+        "path": "tool/maintenance/clean_obsolete_tests.py",
+        "known_sha256": [
+          "546e29c74fb87d210562f4b93112d6bec3cf66ce8a59e4c02eb490b92b2d375c",
+          "9b1df68932b567cc5caa289ef206fdb8783a9b59eb94139969a3e776928511a5"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/cleanup_web_module_move.ps1",
+      "known_sha256": [
+        "2ca47cc95ab654955537a4662ab26a503bf16283acc1b128fe47fc7e4a92c795"
+      ],
+      "replacement": {
+        "path": "tool/maintenance/cleanup_web_module_move.ps1",
+        "known_sha256": [
+          "6e5de1993940acee4424c0b0abfb1ece988dea742797cf4ed2ca30f16595ec6c",
+          "7f5b041f61b00096ce80ebe260cd7f23fc0a921c2b6b6bd9709ff8876d8a192f"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/compare_live_rf_motion.cjs",
+      "known_sha256": [
+        "029f9cc439f3e8384326c8819993181afb6424bd13e49ff6ed95f02d39a672fd"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/compare_live_rf_motion.cjs",
+        "known_sha256": [
+          "5785ef9cf128429571bf5d9a77cf04b23f7f7e0350450a0021e5cba109735e5c",
+          "d1b3ea10520d9d71595dcf2d9f59cdde4e8357aba2ca45a80a86bbd3204c498a"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/convert_tunnel_obj.py",
+      "known_sha256": [
+        "ddcace556b8704258ca5d0da0d348e8fcf8c934f03cdc5b7a9df149840579859"
+      ],
+      "replacement": {
+        "path": "tool/data/convert_tunnel_obj.py",
+        "known_sha256": [
+          "88953c37edf0cc4b937af3d17e977e764f69c5fccd07073034529e9c8658f42b",
+          "ddcace556b8704258ca5d0da0d348e8fcf8c934f03cdc5b7a9df149840579859"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/generate_battery_chemistries.py",
+      "known_sha256": [
+        "b82c3f20a993ba76a85beedec5fc591ec855a641d35fb72576f3835359a4af59"
+      ],
+      "replacement": {
+        "path": "tool/data/generate_battery_chemistries.py",
+        "known_sha256": [
+          "0460a791c47140fffb6a51dfe24be66c65dc686912b121864515684332a22619",
+          "4219b8692418f35d5803f4e64c27eecaef6c10cade3b45f32e7af3c3e3879dde"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/generate_obstacle_models.py",
+      "known_sha256": [
+        "eef0d4b693142ca1a073b2fe7587331bfe01641d03317c9c261b7dc177ea1133"
+      ],
+      "replacement": {
+        "path": "tool/data/generate_obstacle_models.py",
+        "known_sha256": [
+          "923c91a844054e4733cb7fcff8e98352ae6e8c3967f1921863208e8c7a36bfbc",
+          "b2f0a2ac009b91d774a76f46cc97c23da62787ce4f3672e336ff90a173fbfc4d"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/offline_region_requirements.txt",
+      "known_sha256": [
+        "10a8ed8f6a866146c326ab8f885856ed1bc5ebe542d85632b25770c448885118"
+      ],
+      "replacement": {
+        "path": "tool/data/offline_region_requirements.txt",
+        "known_sha256": [
+          "10a8ed8f6a866146c326ab8f885856ed1bc5ebe542d85632b25770c448885118",
+          "1875142978ced8d7fdd94bbe100724ac55196208f6abe7a254f4dd924c178f64"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/performance_ci_baselines.json",
+      "known_sha256": [
+        "66214804391f2f747af58a3a115dc86d299ae01c900070b2707922dce0bca229"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/performance_ci_baselines.json",
+        "known_sha256": [
+          "43163718d5849176934e8167e44e011f5b876f47edd5decbda8cb59a4289fb90",
+          "66214804391f2f747af58a3a115dc86d299ae01c900070b2707922dce0bca229"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/performance_compare.cjs",
+      "known_sha256": [
+        "2ce96f882961931a62b6af26b720be88e8f06ef93315d7f2846c4cfcbbcad637"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/performance_compare.cjs",
+        "known_sha256": [
+          "3e150347f7850511f3382b172bf112057071f26ca9f826fa4953f0c5559037a3",
+          "e05fa4084a1885a846e105c25c687b7f0a33c3c8c4368242ad6453fe978afc27"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/performance_report.cjs",
+      "known_sha256": [
+        "0971a89465230bf61afb4e099f59a73ae52127379521f711d647da1235085b74",
+        "b6f937c3bd5b7714414031e7e262a3a662384bd583659326f89147c2a4ffd650"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/performance_report.cjs",
+        "known_sha256": [
+          "0971a89465230bf61afb4e099f59a73ae52127379521f711d647da1235085b74",
+          "b6f937c3bd5b7714414031e7e262a3a662384bd583659326f89147c2a4ffd650"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/performance_suite.cjs",
+      "known_sha256": [
+        "8c46bf3436a4e1bc29102b99e2f3b47cd3f373980228207af8f6915c8eeaecff",
+        "dc02daa66193f9c57d7b61fa08e9b3684812d066c7b57d2f44465c3197451510"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/performance_suite.cjs",
+        "known_sha256": [
+          "2079ead5348c88b47a36826d83e01cf8fd8350f701ce9b61b612c8dc8e1cd4af",
+          "edd2dc7747b8fdcbad335c7207e1914a81ecb6ac0e230d9b3002fd9c0053932c"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/physics_validation/profiles.json",
+      "known_sha256": [
+        "b523d1197976d7a908142c00169b28037d8123bfdd7e5418b7499587d9b9e907"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/physics_validation/profiles.json",
+        "known_sha256": [
+          "0001da4107a869d7300e9ee072373583d3f0b5bd0787f386531ba7408659eafb",
+          "b523d1197976d7a908142c00169b28037d8123bfdd7e5418b7499587d9b9e907"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/physics_validation/scenarios.cjs",
+      "known_sha256": [
+        "c39acfaa0ff108bfb176c87b0b90b52e493999403048cad9f97c58f2d88597aa"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/physics_validation/scenarios.cjs",
+        "known_sha256": [
+          "50308b950fb54acec25847d755dc3f1f276ac53a1aec752dcd908d59d543587d",
+          "b42bac1706daa7d286980d9f08594367db6bc0e85c3d035301650ff3ca8a8ee1"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/physics_validation/telemetry.cjs",
+      "known_sha256": [
+        "6425474ae83e53abd449213cb30648260bdd58845d44008fc2e8c960639638bd"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/physics_validation/telemetry.cjs",
+        "known_sha256": [
+          "29ccf084a72cb43f1a3fa21d627b01cc8430d1991811879f5c7c4387d0e28ad8",
+          "6425474ae83e53abd449213cb30648260bdd58845d44008fc2e8c960639638bd"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/prepare_offline_region.py",
+      "known_sha256": [
+        "58961d908e9e62eebd0c96ae5e4d082eb381b33eb7a3ec905d50a4e8515a5cce"
+      ],
+      "replacement": {
+        "path": "tool/data/prepare_offline_region.py",
+        "known_sha256": [
+          "0e5a130596243b1c36d9e4551786c22b6ce1f23527a6f9a1c1ebdcc146f9cc5c",
+          "198d397519550176a660836d407bf25c8df4c76c4d3ffc8eadf8e09fcc552e08"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/prepare_offline_web.py",
+      "known_sha256": [
+        "42f451d90f32a173df00c1a8aa2c12ea307e5bceffb0c3d69b4cea07e228ad40"
+      ],
+      "replacement": {
+        "path": "tool/build/prepare_offline_web.py",
+        "known_sha256": [
+          "756a5f0f2452b6317f7f2c47994bab7705e52f31d3bf1865adc466f7a57dcf4e",
+          "c7afe3bab2749d60475ea026511544f1138209f2a62ff6ce5ed127986bbad6a3"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/prepare_sqlite_android.py",
+      "known_sha256": [
+        "806cc7c7de6b4da02f0304b1c8922fa16faf051441e7358fb52dce68912e24dd"
+      ],
+      "replacement": {
+        "path": "tool/build/prepare_sqlite_android.py",
+        "known_sha256": [
+          "0797c7016a4f604af008338924ec9a73cb70daa4a38744b488286e0ca144601a",
+          "3f1bcb073c4567102304cfe3dbc6567adcb7593477e103e1805accfbf13125fe"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/serve_globe_smoke.py",
+      "known_sha256": [
+        "4ec3ac4a57080b832b76008cb8380cc9d2d592f68a41058ac183885888a69fd0"
+      ],
+      "replacement": {
+        "path": "tool/browser/serve_globe_smoke.py",
+        "known_sha256": [
+          "079c165d8d3850c1f545b27c12da810abf5dcc992fb7669f3de69fe3f52217ec",
+          "bfabb8451ca0353b71842c5ae8b46ca804e24e7ba8cd849510b92439f9982885"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/test_offline_preparation_browser.cjs",
+      "known_sha256": [
+        "337263b378fdf25f3cc4747f0f38ae14c335625f04105281f4300828a307a028",
+        "f18f7e8acad727572aa7fb2eef94472f71777d14d489d0c4da1f46a5fe209947"
+      ],
+      "replacement": {
+        "path": "tool/browser/test_offline_preparation_browser.cjs",
+        "known_sha256": [
+          "10c9fc95e69a22a6669e8f2012ed8ac838a2b045cefdcb5ed987bee5eddff71a",
+          "e125534115c5b9c91f8aa2bb3846f679344667c913c8f4377f180ac01d99dbfc"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/uas_loading_benchmark.dart",
+      "known_sha256": [
+        "90766de1b67420e3abc4d7a0eaa8d21de73d0912348829c603ffc6028211ec6b"
+      ],
+      "replacement": {
+        "path": "tool/benchmarks/uas_loading_benchmark.dart",
+        "known_sha256": [
+          "b2441569328503ffa224fc210da96ba1e53e0bbd880766da558717ef0a672cdd",
+          "f1ce84c762b7d0288459ee4eedbf8582766a8113cb4a161ee42059da834217b1"
+        ]
+      },
+      "reason": "relocated"
+    },
+    {
+      "path": "tool/vendor_cesium.py",
+      "known_sha256": [
+        "2e2200e45aaae8bf59f8b64da289e01a0deaf9358405540bce057a3e6482c178"
+      ],
+      "replacement": {
+        "path": "tool/build/vendor_cesium.py",
+        "known_sha256": [
+          "bbc559e4ded750002e55c96b9a7ddac9573836037fffd95001b2dcb419ccd683",
+          "e9258feaa353dbac5e82afcf4c37fef129625660cea66da93ab94203ba7db150"
+        ]
+      },
+      "reason": "relocated"
+    }
+  ]
+}

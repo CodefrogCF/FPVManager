@@ -32,7 +32,7 @@ test('R32: Ruedersdorf requires terrain alignment with official DGM1/GCG2016 roo
 test('BKG beta LoD2 remains explicitly opt-in in Flutter release configuration',()=>{
     const source=fs.readFileSync(path.join(__dirname,'../../lib/features/globe/globe_page_path.dart'),'utf8');
     assert.match(source,/const bool\.fromEnvironment\('FPV_REGIONAL_3D_TEST'\)/);
-    const build=fs.readFileSync(path.join(__dirname,'../../tool/build_android_ruedersdorf_test.ps1'),'utf8');
+    const build=fs.readFileSync(path.join(__dirname,'../../tool/build/build_android_ruedersdorf_test.ps1'),'utf8');
     assert.match(build,/flutter build apk --release --dart-define=FPV_REGIONAL_3D_TEST=true/);
     assert.match(build,/check_release_artifacts\.py --apk/);
 });

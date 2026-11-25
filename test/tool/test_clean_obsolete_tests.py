@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = importlib.util.spec_from_file_location('test_retirement', ROOT / 'tool/clean_obsolete_tests.py')
+SPEC = importlib.util.spec_from_file_location('test_retirement', ROOT / 'tool/maintenance/clean_obsolete_tests.py')
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 

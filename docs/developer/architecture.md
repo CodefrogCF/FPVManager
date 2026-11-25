@@ -165,10 +165,10 @@ unchanged entities/models survive reconciliation. Terrain anchors retain known
 heights across tile eviction and invalidate when the terrain provider changes.
 WMS imagery has its own non-fatal status/retry and
 does not share UAS or vector visibility. For offline KMZ validation use
-`dart run tool/check_obstacle_kmz.dart <full.kmz>`.
+`dart run tool/quality/check_obstacle_kmz.dart <full.kmz>`.
 Optional obstacle GLBs are Y-up, unit-height meshes scaled by trusted source AGL
 and anchored to the shared terrain sample. Regenerate with
-`python tool/generate_obstacle_models.py`; use `--check` to verify bundled files.
+`python tool/data/generate_obstacle_models.py`; use `--check` to verify bundled files.
 
 ## Portable backups and offline maps
 
@@ -188,7 +188,7 @@ paths. Web uses Cache Storage with a scoped app service worker. Both retain
 viewed tiles inside configured regions, deduplicate requests, bound responses
 to 4 MiB and tile payloads to 256 MiB, and honor `no-store`/`private`. Terrain
 metadata retains its dated template; cached-only availability is rebuilt from
-stored tiles. After a Web build, `python tool/prepare_offline_web.py` creates an
+stored tiles. After a Web build, `python tool/build/prepare_offline_web.py` creates an
 integrity manifest. The worker verifies a complete staged application snapshot
 before activation; failed installs retain the previous snapshot. Updates wait
 until existing app tabs close. Development without this manifest supports map
@@ -265,3 +265,38 @@ Cesium picking when runtime details or scene modes are unsupported.
 See [coordinates and heights](../user/coordinates_and_heights.md) for calculation
 contracts, [privacy](../user/privacy_and_permissions.md) for requests and permissions,
 and [map sources](../user/map_sources_and_attribution.md) for attribution.
+
+## Repository/module layout
+
+`web/globe.html` and `web/globe.js` are the renderer entry points. Shared protocol,
+position and localization helpers live in `web/core/`; features are grouped under
+`web/features/` (flight/physics/HUD, map, terrain, signal, scenery, infrastructure,
+navigation, overlays, vegetation, offline and weather). Keep static dependency
+order and worker/asset URLs valid from each real browser entry point. Offline
+snapshots and release verification must include the complete module tree.
+
+`tool/` contains only its index and purpose-specific subdirectories. CI, Python
+imports, CommonJS imports, Dart imports and generated command comments must move
+with a tool. Use the [tool index](../../tool/README.md) and run its layout/doc checks.
+Dated measurement data live beside benchmarks, not among current feature guides.
+
+## Nearby obstacle retention
+
+`FPVObstacles.createViewportTracker()` sends a camera-centered local query region
+for close/navigation views. Its radius is the existing maximum model display
+range (12 km) plus 25% spatial hysteresis; it recenters after 3 km of horizontal travel.
+A horizontal/horizon turn no longer substitutes a country-wide ellipsoid view
+rectangle that would clear local vectors. Terrain-ready transitions and arriving
+tiles re-evaluate the region even after the camera stops, so zooming back
+before local terrain arrives cannot leave the obstacle layer permanently empty. Far/overview views retain the existing
+local-view cutoff. One provider-aware terrain anchor bridges temporary tile
+absence; no source heights, RF observations or collision validity are invented.
+
+Identical region events neither cancel an active query nor restart its debounce;
+starting the query consumes any queued debounce. The existing coverage batch and
+renderer entity reconciliation retain unchanged tower/model identities. Provider
+switch, layer disable, source/category changes and actual departure still apply.
+Feature/vertex/part limits and terrain-height cache bounds are unchanged. Dense
+regions can still reach the explicitly reported display limit. Regressions cover
+Säntis, horizon/sky turns, tile eviction, small translations, departure, provider
+changes, slow queries and explicit disable. Device validation remains separate.
