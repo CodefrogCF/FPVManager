@@ -5,6 +5,67 @@ const center={longitude:8.6,latitude:46.7};
 const at=x=>[center.longitude+x/(111319.49*Math.cos(center.latitude*Math.PI/180)),center.latitude,532.6];
 const profile={id:'bazl-bridge',sourceType:'BRIDGE',parts:[{kind:'LineString',elevated:true,coordinates:[at(-72),at(72)]}]};
 const sourceOptions={sourceId:'aviation-obstacles',source:'BAZL aviation obstacles',elevationReference:'WGS84_ELLIPSOID'};
+
+test('explicit suspension tags and unambiguous multilingual names survive every source parser',()=>{
+    for(const fields of [
+        {'bridge:structure':'suspension'}, {'bridge:structure':'hanging'},
+        {bridgeType:'suspension'}, {name:'Hängebrücke Test'}, {name:'Haengebruecke Test'},
+        {name:'Test Suspension Bridge'}, {name:'Test hanging footbridge'},
+        {name:'Passerelle suspendue de Test'}, {name:'Ponte sospeso Test'},
+    ]){
+        const aviation=B.parseSourceFeatures([{...profile,properties:fields}],sourceOptions);
+        assert.equal(aviation.bridges[0].mappedOnly,true,JSON.stringify(fields));
+        assert.equal(B.stations(aviation.bridges,center).length,0);
+        const geojson=B.parseSourceFeatures([{type:'Feature',properties:{bridge:'yes',...fields},
+            geometry:{type:'LineString',coordinates:[at(-72),at(72)]}}],sourceOptions);
+        assert.equal(B.stations(geojson.bridges,center).length,0);
+        const osm=B.parseBridgeData({elements:[{type:'way',id:1,
+            tags:{bridge:'yes',highway:'footway',...fields},
+            geometry:[at(-72),at(72)].map(a=>({lon:a[0],lat:a[1]}))}]});
+        assert.equal(B.stations(osm.bridges,center).length,0);
+    }
+});
+
+test('ordinary footbridge names and unrelated place names do not imply suspension',()=>{
+    for(const name of ['Footbridge Test','March Bridge','Suspension Road Overpass','Bridge']){
+        const data=B.parseSourceFeatures([{...profile,name}],sourceOptions);
+        assert.equal(B.stations(data.bridges,center).length,5,name);
+    }
+});
+
+test('classified suspension span suppresses automatic piers from overlapping native decks in any order',()=>{
+    const suspended=B.parseSourceFeatures([{...profile,properties:{'bridge:structure':'suspension'}}],sourceOptions).bridges[0];
+    const native={...B.parseSourceFeatures([profile],sourceOptions).bridges[0],id:'native'};
+    for(const bridges of [[native,suspended],[suspended,native]]){
+        assert.equal(B.stations(bridges,center).length,0);
+    }
+    const crossing={...native,id:'crossing',coordinates:[-72,72].map(y=>({
+        longitude:center.longitude,latitude:center.latitude+y/111319.49,height:532.6}))};
+    assert.equal(B.stations([crossing,suspended],center).length,5,
+        'A crossing ordinary bridge must not inherit the suspension classification');
+});
+
+test('explicit mapped piers remain available on a suspension bridge; only guessed supports disappear',()=>{
+    const data=B.parseBridgeData({elements:[
+        {type:'way',id:1,tags:{bridge:'yes',highway:'footway','bridge:structure':'suspension'},
+            geometry:[at(-72),at(72)].map(a=>({lon:a[0],lat:a[1]}))},
+        {type:'node',id:2,tags:{'bridge:support':'pylon'},lon:at(17)[0],lat:center.latitude},
+    ]});
+    const result=B.stations(data.bridges,center,96,data.piers);
+    assert.equal(result.length,1);assert.equal(result[0].mapped,true);
+});
+
+test('cached suspension profile emits no synthetic geometry or unnecessary terrain samples',async()=>{
+    let samples=0;
+    const f=fixture({sampleTerrain:async points=>{samples++;return points.map(()=>500);}});
+    try{
+        f.manager.setSourceFeatures([{...profile,name:'Hängebrücke Test'}],sourceOptions);
+        const state=await f.manager.refresh(center);
+        assert.equal(state.count,0);assert.equal(f.primitives.length,0);
+        assert.equal(samples,0);assert.equal(f.requests.length,0);
+    }finally{f.manager.dispose();}
+});
+
 function fixture(options={}){
     class Value{constructor(value){Object.assign(this,value);}}
     const primitives=[],listeners=new Set(),requests=[];

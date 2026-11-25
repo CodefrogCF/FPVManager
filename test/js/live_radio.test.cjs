@@ -12,6 +12,36 @@ function setup(options={}){
 }
 const command={positions:[{latitude:46.7,longitude:8.4},{latitude:46.701,longitude:8.4}]};
 
+test('valid vertical observations reach the RF model using antenna-to-aircraft slant distance',()=>{
+    const p=setup();
+    try{
+        p.api.monitor({enabled:true,revision:1,rfProfiles:{video:{eirpDbm:14},control:{eirpDbm:14}}});
+        p.api.observe({active:true,paused:false,flightId:1});
+        p.api.set({revision:2,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',
+            distanceMeters:48,observation:{quality:'valid',ageMs:0},
+            pilot:{latitude:47,longitude:8,height:502},
+            rays:[{latitude:47,longitude:8,height:550,state:'noSampledObstruction'}],
+            assessment:{visibility:'clear',source:'sampledTerrain',confidence:'approximate',
+                controlLink:'unknown',videoLink:'unknown',sampleCount:2,
+                minimumClearanceMeters:2,minimumFresnelMarginMeters:2}});
+        const assessment=p.api.assessment();
+        assert.equal(assessment.observation.quality,'valid');
+        assert.equal(assessment.visibility,'clear');
+        assert.equal(assessment.controlLink.source,'rfModel');
+        assert.equal(assessment.controlLink.distanceMeters,48);
+        assert.ok(Number.isFinite(assessment.controlLink.quality));
+        assert.ok(assessment.controlLink.quality>0);
+        assert.equal(assessment.videoLink.source,'rfModel');
+        assert.equal(assessment.videoLink.distanceMeters,48);
+        assert.equal(p.nodes.get('hud-live-radio').dataset.state,'noSampledObstruction');
+        p.api.set({revision:3,state:'unknown',rays:[],observation:{quality:'unknown',ageMs:0},
+            assessment:{visibility:'unknown',source:'unavailable',confidence:'unavailable',
+                controlLink:'unknown',videoLink:'unknown'}});
+        assert.equal(p.api.assessment().controlLink,'unknown',
+            'Missing terrain must not be turned into a recovered RF observation above home');
+    }finally{p.api.dispose();}
+});
+
 test('default sampling timers preserve browser Window receiver semantics',async()=>{
     const nativeSet=globalThis.setTimeout,nativeClear=globalThis.clearTimeout;
     let started=0,cleared=0,api;
@@ -53,8 +83,44 @@ test('highest-available terrain samples are cached exactly, expire and are inval
     p.api.terrainChanged();await p.api.sample(command,signal);assert.equal(p.calls,3);
     p.fail=true;p.api.terrainChanged();await assert.rejects(p.api.sample(command,signal),/Incomplete/);
     p.fail=false;await p.api.sample(command,signal);assert.equal(p.calls,5);
-    await assert.rejects(p.api.sample({positions:Array(257).fill(command.positions[0])},signal));
+    await assert.rejects(p.api.sample({positions:Array(4097).fill(command.positions[0])},signal));
     await assert.rejects(p.api.sample({positions:[{latitude:91,longitude:0}]},signal));
+});
+
+test('fused fast-flight profiles cross one logical request within the shared geometry bound',async()=>{
+    const p=setup(),signal=new AbortController().signal;
+    try{
+        const positions=count=>Array.from({length:count},(_,i)=>({latitude:46.7,longitude:8.4+i*.000001}));
+        const fused=await p.api.sample({positions:positions(511)},signal);
+        assert.equal(fused.heights.length,511);assert.ok(fused.heights.every(h=>h===1000));
+        assert.deepEqual(p.sampleSizes,[511],'a fused profile must not become multiple bridge/native batches');
+        assert.equal(fused.diagnostics.sampleCount,511);
+        p.api.terrainChanged();
+        const maximum=await p.api.sample({positions:positions(4096)},signal);
+        assert.equal(maximum.heights.length,4096);assert.equal(p.calls,2);
+        assert.equal(p.api.diagnostics().cacheEntries,4096,'the existing exact-height cache remains bounded');
+        await assert.rejects(p.api.sample({positions:positions(4097)},signal),error=>error.category==='INVALID_RESULT');
+        assert.equal(p.calls,2,'oversized geometry must fail before terrain I/O');
+    }finally{p.api.dispose();}
+});
+
+test('a fused 511-point terrain request retains four detailed-tile workers and exact heights',async()=>{
+    let active=0,peak=0,requests=0,fallback=0;
+    const provider={availability:{computeMaximumLevelAtPosition:()=>17},
+        tilingScheme:{positionToTileXY:p=>({x:Math.round((p.longitude-8.4)*1e6),y:0}),tileXYToRectangle:()=>({})},
+        async requestTileGeometry(){requests++;active++;peak=Math.max(peak,active);
+            await Promise.resolve();active--;return {interpolateHeight:(_rect,lon)=>500+lon};}};
+    const p=setup({terrain:{provider,sample:fn=>fn(provider)},C:{
+        Cartographic:{fromDegrees:(longitude,latitude)=>({latitude,longitude})},
+        sampleTerrainMostDetailed:async()=>{fallback++;throw Error('Unexpected fallback');}}});
+    try{
+        const positions=Array.from({length:511},(_,i)=>({latitude:46.7,longitude:8.4+i*.000001}));
+        const result=await p.api.sample({positions},new AbortController().signal);
+        assert.equal(result.heights.length,511);
+        result.heights.forEach((height,i)=>assert.equal(height,500+positions[i].longitude));
+        assert.equal(requests,511);assert.equal(peak,4);assert.equal(active,0);assert.equal(fallback,0);
+        assert.equal(p.api.diagnostics().cachedTiles,128,'decoded terrain retention keeps its existing bound');
+    }finally{p.api.dispose();}
 });
 test('missing detailed-terrain availability cannot be presented as clear terrain',async()=>{
     const p=setup(),signal=new AbortController().signal;
@@ -440,4 +506,25 @@ test('repeated insufficient clear profiles never refresh the last valid observat
     p.clock(6000);p.api.observe({active:true,paused:false,flightId:1});
     assert.equal(p.api.assessment().observation.ageMs,6000);assert.equal(p.api.assessment().observation.id,2);
     assert.equal(p.api.diagnostics().lastValidAgeMs,6000);p.api.dispose();
+});
+
+test('bounded provider reason is an observation hint and cannot supply RF evidence',()=>{
+    const p=setup(),reason='BKG 3D Beta: RF height reference unverified';
+    try{
+        p.api.monitor({enabled:true,revision:1});p.api.observe({active:true,paused:false,flightId:1});
+        const missing=revision=>({revision,state:'unknown',rays:[],observation:{quality:'unknown',
+            ageMs:null,errorCategory:'TERRAIN_UNAVAILABLE',reason}});
+        p.api.set(missing(2));
+        assert.equal(p.api.assessment().observation.reason,reason);
+        assert.equal(p.api.assessment().controlLink,'unknown');assert.equal(p.api.assessment().videoLink,'unknown');
+        assert.equal(p.api.assessment().observation.quality,'unknown');
+        p.api.set({...missing(3),observation:{...missing(3).observation,reason:'x'.repeat(10000)}});
+        assert.equal(p.api.assessment().observation.reason.length,160);
+        p.api.set({revision:4,state:'unknown',rays:[]});
+        assert.equal(p.api.assessment().observation.reason,null,'later results must not inherit a provider reason');
+        p.api.set(missing(5));p.api.terrainChanged();
+        assert.equal(p.api.assessment().observation.reason,null,'provider reset clears the old reason');
+        p.api.monitor({enabled:true,revision:7});
+        assert.equal(p.api.assessment().observation.reason,null);
+    }finally{p.api.dispose();}
 });

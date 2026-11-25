@@ -94,8 +94,8 @@ void main() {
 
   test('adaptive LoS intervals have a strict bound at fast flight speeds', () {
     expect(LiveSamplingPolicy.interval(0).inMilliseconds, 800);
-    expect(LiveSamplingPolicy.interval(15).inMilliseconds, 450);
-    expect(LiveSamplingPolicy.interval(65).inMilliseconds, 250);
+    expect(LiveSamplingPolicy.interval(15).inMilliseconds, 400);
+    expect(LiveSamplingPolicy.interval(65).inMilliseconds, 200);
     expect(LiveSamplingPolicy.spacing(100), 5);
     expect(LiveSamplingPolicy.spacing(6000), 6);
     // All live tiers must satisfy the shared RouteSamplingPlan constraints.

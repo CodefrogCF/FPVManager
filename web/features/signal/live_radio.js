@@ -4,7 +4,7 @@
         sampleTimeoutMs=12000,timers={setTimeout:(fn,ms)=>setTimeout(fn,ms),clearTimeout:id=>clearTimeout(id)}}){
         const cache=new Map(),tileCache=terrainTiles.create({C,clock,tileTimeoutMs:sampleTimeoutMs,timers}),latencies=[];
         let sequence=0,completed=0,failures=0,lastError=null,lastSample=null,lastSampleId=0,sampledProvider=null;
-        let lastValidAt=-Infinity,observationId=null,observationQuality='unknown',observationError=null;
+        let lastValidAt=-Infinity,observationId=null,observationQuality='unknown',observationError=null,observationReason=null;
         let diagnosticsEnabled=false,remoteDiagnostics={},lastDistance=null,latestAnalysisGeneration=-1;
         let epoch=0,busy=null,enabled=false,showPath=true,showMarker=true,useSpawn=true,last=-Infinity,lastMode=null,flightId=-1,active=false,paused=false,revision=0,disposed=false,expiry=null,resultAt=-Infinity;
         const badge=doc.getElementById('hud-live-radio'),toggle=doc.getElementById('flight-radio-enabled'),details=doc.getElementById('flight-radio-status');
@@ -29,9 +29,9 @@
             const ageMs=lastValidAt===-Infinity?null:Math.max(0,clock()-lastValidAt);
             const observation=Object.freeze({id:observationId,enabled,
                 quality:observationQuality==='valid'&&ageMs>=5000?'stale':observationQuality,
-                ageMs,freshnessMs:5000,errorCategory:observationError});
+                ageMs,freshnessMs:5000,errorCategory:observationError,reason:observationReason});
             return Object.freeze(trainingRc===null?{...currentAssessment,observation}:{...currentAssessment,
-                observation:Object.freeze({id:'manualTraining',enabled:true,quality:'valid',ageMs:0,freshnessMs:5000,errorCategory:null,manual:true}),
+                observation:Object.freeze({id:'manualTraining',enabled:true,quality:'valid',ageMs:0,freshnessMs:5000,errorCategory:null,reason:null,manual:true}),
                 controlLink:Object.freeze({quality:trainingRc,source:'estimatedModel',detail:'manualTraining'})});
         }
         function setTrainingRc(value){
@@ -45,7 +45,7 @@
         }
         const removeLanguage=language?.onChange(updateLabels);
         function unknown(quality='unknown',errorCategory=null,reset=false){clearTimeout(expiry);expiry=null;resultAt=-Infinity;
-            observationQuality=quality;observationError=errorCategory;if(reset){lastValidAt=-Infinity;observationId=null;}currentAssessment=unknownAssessment;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();onAssessmentChange();}
+            observationQuality=quality;observationError=errorCategory;observationReason=null;if(reset){lastValidAt=-Infinity;observationId=null;}currentAssessment=unknownAssessment;layer.clear();badge.dataset.state='unknown';detailMessage='Unknown / awaiting a terrain profile';updateLabels();onAssessmentChange();}
         function monitor(c){
             if(disposed)throw Error('Live radio disposed');
             if(typeof c.enabled!=='boolean'||!Number.isInteger(c.revision)||c.revision<0)throw Error('Invalid live radio monitor');
@@ -110,7 +110,10 @@
         }
         async function sample(c,signal){
             if(disposed||!ready())throw error('TERRAIN_UNAVAILABLE','Live terrain unavailable');
-            if(!Array.isArray(c.positions)||!c.positions.length||c.positions.length>256)
+            // Match the existing shared radio geometry's 4096-point bound.
+            // A fast-flight profile may fuse coarse and gap-refinement points
+            // into one bridge command; cached-tile I/O still has four workers.
+            if(!Array.isArray(c.positions)||!c.positions.length||c.positions.length>4096)
                 throw error('INVALID_RESULT','Invalid live terrain sample batch');
             signal?.throwIfAborted();
             if(c.generation!==undefined){
@@ -241,6 +244,7 @@
                     videoLink:currentAssessment.videoLink==='unknown'?estimated.videoLink:currentAssessment.videoLink});
             }
             observationQuality=quality;observationError=c.observation?.errorCategory??c.errorCategory??null;
+            observationReason=typeof c.observation?.reason==='string'?c.observation.reason.slice(0,160):null;
             if(c.state!=='unknown'&&quality==='valid'){lastValidAt=clock()-(inputAge??0);observationId=c.observation?.id??c.revision;}
             // A successful, flight-matched profile can restore the station even
             // if its earlier standalone marker command arrived out of order.

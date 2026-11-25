@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/user_preferences.dart';
+import '../../../features/simulation/simulation_settings.dart';
 import '../../../features/simulation/signal_hud_settings.dart';
 import '../../../features/simulation/failsafe_settings.dart';
 import '../../models/outdoor_layer.dart';
@@ -125,6 +126,7 @@ final class DriftUserPreferencesRepository
   static const _opacity = 'map.uas.fillOpacity';
   static const _spotsVisible = 'map.spots.visible';
   static const _touchControls = 'simulation.touchControls.visible';
+  static const _simulation = 'simulation.settings.v1';
   static const _signalHud = 'simulation.hud.signal.v1';
   static const _failsafe = 'simulation.failsafe.v1';
   static const _roadsVisible = 'map.roads.visible';
@@ -159,6 +161,7 @@ final class DriftUserPreferencesRepository
     _opacity,
     _spotsVisible,
     _touchControls,
+    _simulation,
     _signalHud,
     _failsafe,
     _order,
@@ -296,6 +299,9 @@ final class DriftUserPreferencesRepository
           _touchControls,
           defaults.touchControlsVisible,
         ),
+        simulation: values[_simulation] == null
+            ? defaults.simulation
+            : SimulationSettings.fromJson(jsonDecode(values[_simulation]!)),
         signalHud: values[_signalHud] == null
             ? defaults.signalHud
             : SignalHudSettings.fromJson(jsonDecode(values[_signalHud]!)),
@@ -402,6 +408,12 @@ final class DriftUserPreferencesRepository
             _labelsVisible: snapshot.labelsVisible.toString(),
             _roadsOpacity: snapshot.roadsOpacity.toString(),
             _touchControls: snapshot.touchControlsVisible.toString(),
+            // Existing keys remain the sole authority for HUD and failsafe.
+            _simulation: jsonEncode(
+              snapshot.simulation.toJson()
+                ..remove('signalHud')
+                ..remove('failsafe'),
+            ),
             _signalHud: jsonEncode(snapshot.signalHud.toJson()),
             _failsafe: jsonEncode(snapshot.failsafe.toJson()),
             _avalancheVisible: snapshot.avalancheVisible.toString(),

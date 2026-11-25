@@ -14,6 +14,7 @@
 (async () => {
     const result = document.getElementById('result'), checks = [];
     let live, terrain, bridge, tileRequests = 0, fallbackCalls = 0, sequence = 0;
+    let activeTileRequests = 0, maximumActiveTileRequests = 0;
     const pending = new Map(), C = Cesium;
     const check = (ok, message) => { if (!ok) throw Error(message); checks.push(message); };
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -29,7 +30,10 @@
             tilingScheme: scheme, errorEvent: new C.Event(),
             requestTileGeometry() {
                 ++tileRequests;
-                return wait(2).then(() => ({ interpolateHeight: () => 500 }));
+                ++activeTileRequests;
+                maximumActiveTileRequests = Math.max(maximumActiveTileRequests, activeTileRequests);
+                return wait(2).then(() => ({ interpolateHeight: () => 500 }))
+                    .finally(() => { --activeTileRequests; });
             },
         };
         terrain = FPVTerrain.createTerrainManager({
@@ -70,14 +74,16 @@
         live.observe({ active: true, paused: false, flightId: 1,
             position: { latitude: 47, longitude: 8.00075 },
             height: 600, speed: 0, home: { latitude: 47, longitude: 8 } });
-        for (const count of [13, 25]) {
+        for (const count of [13, 25, 511]) {
+            const longitudeSpan = count === 511 ? .08 : .0015;
             const positions = Array.from({ length: count }, (_, i) => ({
-                latitude: 47, longitude: 8 + .0015 * i / (count - 1) }));
+                latitude: 47, longitude: 8 + longitudeSpan * i / (count - 1) }));
             const sampled = await command('query-live-radio-terrain', {
                 generation: 6, analysisRequestId: count, positions });
             check(sampled.heights.length === count && sampled.heights.every(h => h === 500),
                 `${count} exact terrain samples cross the JSON bridge`);
-            check(sampled.diagnostics.active === 0 && sampled.diagnostics.errorCategory === null,
+            check(sampled.diagnostics.active === 0 && sampled.diagnostics.errorCategory === null &&
+                activeTileRequests === 0 && maximumActiveTileRequests <= 4,
                 `${count}-point request releases its slot without a sampling error`);
         }
         const requestsBefore = tileRequests;
@@ -105,7 +111,7 @@
         } finally { cache.reset(); }
         document.body.dataset.status = 'pass';
         result.textContent = JSON.stringify({ status: 'pass', checks, tileRequests,
-            fallbackCalls, browser: navigator.userAgent });
+            maximumActiveTileRequests, fallbackCalls, browser: navigator.userAgent });
     } catch (error) {
         document.body.dataset.status = 'fail';
         result.textContent = JSON.stringify({ status: 'fail', error: error.message,

@@ -120,70 +120,74 @@ void main() {
     expect(messages.last['rays'], hasLength(1));
     c.telemetry(pose(id: 2, lon: 8.0));
     await c.settled;
-    expect(c.status, contains('vertical'));
-    expect(c.current, false);
+    expect(c.current, true);
+    expect(c.result!.state, RadioPathState.noSampledObstruction);
   });
 
-  test('fast flight uses a short most-detailed ridge pass only after a failed full profile', () async {
-    var time = DateTime.utc(2026, 11, 23);
-    final requests = <int>[];
-    final messages = <Map<String, dynamic>>[];
-    final c = LiveRadioController(
-      now: () => time,
-      elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
-      send: (event) async {
-        messages.add(event);
-      },
-      sample: (positions) async {
-        requests.add(positions.length);
-        if (requests.length == 1) {
-          throw TimeoutException('Terrain request timed out');
-        }
-        final heights = List.filled(positions.length, 500.0);
-        heights[positions.length ~/ 2] = 800.0;
-        return heights;
-      },
-    );
-    addTearDown(c.dispose);
-    c.renderer(true);
-    await c.configure(const LiveRadioSettings(enabled: true));
-    c.telemetry({...pose(lon: 8.015), 'speed': 38.0});
-    await c.settled;
-    expect(
-      requests.single,
-      greaterThan(96),
-      reason: 'Keep the original single-pass fast path initially',
-    );
-    expect(c.current, false);
-    expect(c.status, contains('timed out'));
-    time = time.add(const Duration(seconds: 2));
-    c.telemetry({...pose(lon: 8.015), 'speed': 38.0});
-    await c.settled;
-    expect(
-      requests.last,
-      96,
-      reason: 'Prioritize sampled blockage after prior timeout',
-    );
-    expect(c.current, true);
-    expect(c.result!.state, RadioPathState.obstructed);
-    expect(c.samplingDiagnostics!.queryCount, 1);
-    expect(
-      messages.lastWhere(
-        (m) =>
-            m['type'] == 'set-live-radio-result' && m['state'] == 'obstructed',
-      )['assessment']['source'],
-      'sampledTerrain',
-    );
-    time = time.add(const Duration(seconds: 2));
-    c.telemetry({...pose(lon: 8.01505), 'speed': 38.0});
-    await c.settled;
-    expect(
-      requests.last,
-      96,
-      reason: 'A confirmed ridge must not reset the fast obstruction search',
-    );
-    expect(c.result!.state, RadioPathState.obstructed);
-  });
+  test(
+    'fast flight retains its full precision budget after a failed profile',
+    () async {
+      var time = DateTime.utc(2026, 11, 23);
+      final requests = <int>[];
+      final messages = <Map<String, dynamic>>[];
+      final c = LiveRadioController(
+        now: () => time,
+        elapsed: () => Duration(milliseconds: time.millisecondsSinceEpoch),
+        send: (event) async {
+          messages.add(event);
+        },
+        sample: (positions) async {
+          requests.add(positions.length);
+          if (requests.length == 1) {
+            throw TimeoutException('Terrain request timed out');
+          }
+          final heights = List.filled(positions.length, 500.0);
+          heights[positions.length ~/ 2] = 800.0;
+          return heights;
+        },
+      );
+      addTearDown(c.dispose);
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings(enabled: true));
+      c.telemetry({...pose(lon: 8.015), 'speed': 38.0});
+      await c.settled;
+      expect(
+        requests.single,
+        greaterThan(96),
+        reason: 'Keep the original single-pass fast path initially',
+      );
+      expect(c.current, false);
+      expect(c.status, contains('timed out'));
+      time = time.add(const Duration(seconds: 2));
+      c.telemetry({...pose(lon: 8.015), 'speed': 38.0});
+      await c.settled;
+      expect(
+        requests.last,
+        requests.first,
+        reason: 'A timeout must not reduce the next precise terrain pass',
+      );
+      expect(c.current, true);
+      expect(c.result!.state, RadioPathState.obstructed);
+      expect(c.samplingDiagnostics!.queryCount, 1);
+      expect(
+        messages.lastWhere(
+          (m) =>
+              m['type'] == 'set-live-radio-result' &&
+              m['state'] == 'obstructed',
+        )['assessment']['source'],
+        'sampledTerrain',
+      );
+      time = time.add(const Duration(seconds: 2));
+      c.telemetry({...pose(lon: 8.01505), 'speed': 38.0});
+      await c.settled;
+      expect(
+        requests.last,
+        greaterThan(96),
+        reason: 'Confirmed blockage must retain the precise first-pass budget',
+      );
+      expect(c.result!.state, RadioPathState.obstructed);
+    },
+  );
 
   test('moving flight skips refinement of a stale clear ray and immediately retries newest pose', () async {
     var time = DateTime.utc(2026, 11, 23);
@@ -975,4 +979,164 @@ void main() {
     expect(observation['quality'], 'error');
     expect(observation['errorCategory'], 'INVALID_RESULT');
   });
+  test('BKG beta unverified datum is an explicit notice and is not retried until provider change', () async {
+    var tick = Duration.zero, calls = 0;
+    final events = <Map<String, dynamic>>[];
+    var unsupported = true;
+    final c = LiveRadioController(
+      elapsed: () => tick,
+      send: (m) async {
+        events.add(m);
+      },
+      sample: (p) async {
+        calls++;
+        if (unsupported) {
+          throw StateError(
+            'TERRAIN_UNAVAILABLE: BKG beta terrain vertical datum is not verified for RF planning',
+          );
+        }
+        return List.filled(p.length, 500.0);
+      },
+    );
+    addTearDown(c.dispose);
+    c.renderer(true);
+    await c.configure(const LiveRadioSettings());
+    for (var i = 0; i < 10; i++) {
+      c.telemetry(pose());
+      await c.settled;
+      tick += const Duration(seconds: 1);
+    }
+    expect(calls, 1);
+    expect(c.current, false);
+    expect(c.diagnostics['provider'], 'BKG 3D Beta');
+    expect(c.diagnostics['quality'], 'unknown');
+    expect(c.diagnostics['error'], 'TERRAIN_UNAVAILABLE');
+    final message = events.lastWhere(
+      (m) => m['type'] == 'set-live-radio-result',
+    );
+    expect(
+      message['observation']['reason'],
+      contains('height reference unverified'),
+    );
+    expect(message['rays'], isEmpty);
+    unsupported = false;
+    c.terrainChanged(true);
+    c.telemetry(pose());
+    await c.settled;
+    expect(calls, 2);
+    expect(c.current, true);
+  });
+
+  test(
+    'fast 6km terrain crosses the real Dart bridge in one complete first pass',
+    () async {
+      final globe = GlobeController();
+      addTearDown(globe.dispose);
+      final sizes = <int>[];
+      final peer = FakeGlobeRenderer(globe)
+        ..attach()
+        ..ready();
+      peer.onCommand = (command) {
+        if (command['type'] != 'query-live-radio-terrain') {
+          return;
+        }
+        final size = (command['positions'] as List).length;
+        sizes.add(size);
+        peer.acknowledge(
+          command,
+          result: {
+            'heightReference': 'wgs84Ellipsoid',
+            'samplingMethod': 'most-detailed-available',
+            'heights': List.filled(size, 500),
+          },
+        );
+      };
+      await globe.liveRadio.configure(const LiveRadioSettings());
+      peer.emit({
+        'type': 'flight-radio-position',
+        ...pose(lon: 8.078, height: 1200),
+        'speed': 140 / 3.6,
+      });
+      await globe.liveRadio.settled;
+      expect(sizes, hasLength(1));
+      expect(sizes.single, greaterThan(256));
+      expect(sizes.single, lessThanOrEqualTo(256 + 384));
+      expect(globe.liveRadio.current, true);
+      expect(
+        globe.liveRadio.samplingDiagnostics!.maximumGapMeters,
+        lessThanOrEqualTo(16),
+      );
+    },
+  );
+  testWidgets(
+    'new telemetry at the same monotonic timestamp still replaces a queued pose',
+    (tester) async {
+      final origin = tester.binding.clock.now();
+      final first = Completer<List<double>>();
+      var calls = 0, count = 0;
+      final c = LiveRadioController(
+        elapsed: () => tester.binding.clock.now().difference(origin),
+        send: (_) async {},
+        sample: (p) {
+          count = p.length;
+          return ++calls == 1
+              ? first.future
+              : Future.value(List.filled(p.length, 500.0));
+        },
+      );
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        c.telemetry({...pose(height: 1200), 'speed': 140 / 3.6});
+        c.telemetry({...pose(lon: 8.006, height: 1200), 'speed': 140 / 3.6});
+        first.complete(List.filled(count, 500.0));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 201));
+        await c.settled;
+        expect(calls, 2);
+        expect(c.current, true);
+        expect(c.result!.target.longitude, 8.006);
+      } finally {
+        c.dispose();
+      }
+    },
+  );
+
+  testWidgets(
+    '140kmh with frame-jittered telemetry keeps fresh 5km clear coverage',
+    (tester) async {
+      final origin = tester.binding.clock.now();
+      const speed = 140 / 3.6;
+      final c = LiveRadioController(
+        elapsed: () => tester.binding.clock.now().difference(origin),
+        send: (_) async {},
+        sample: (p) async {
+          await Future<void>.delayed(const Duration(milliseconds: 160));
+          return List.filled(p.length, 500.0);
+        },
+      );
+      var warmUnknown = 0;
+      try {
+        c.renderer(true);
+        await c.configure(const LiveRadioSettings());
+        for (var ms = 0; ms < 6000; ms += 12) {
+          if (ms % 216 == 0) {
+            c.telemetry({
+              ...pose(lon: 8.066, height: 1200),
+              'latitude': 47 + speed * (ms / 1000) / 111195,
+              'speed': speed,
+            });
+          }
+          await tester.pump(const Duration(milliseconds: 12));
+          if (ms >= 2000 && !c.current) warmUnknown++;
+        }
+        expect(warmUnknown, 0);
+        expect(c.samplingDiagnostics!.maximumGapMeters, lessThanOrEqualTo(16));
+        expect(c.result!.state, RadioPathState.noSampledObstruction);
+      } finally {
+        c.dispose();
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+    },
+  );
 }

@@ -27,7 +27,7 @@ class LiveTerrainSampleResult {
 }
 
 /// Reuses the route radio kernel and route point interpolation. All terrain
-/// calls are sequential and bounded to at most 256 points per request.
+/// calls are sequential and bounded by the existing 4096-point geometry limit.
 /// A sparse *clear* profile must remain explicitly uncertain.
 class LiveTerrainSampler {
   const LiveTerrainSampler._();
@@ -41,6 +41,7 @@ class LiveTerrainSampler {
     required Future<List<double>> Function(List<Wgs84Coordinate>) sample,
     required bool Function() valid,
     bool Function()? shouldRefine,
+    bool completeFirstPass = false,
   }) async {
     if (tier.coarsePoints < 2 ||
         tier.coarsePoints > 256 ||
@@ -61,6 +62,38 @@ class LiveTerrainSampler {
     for (var i = 0; i < coarseCount; ++i) {
       indices.add((i * (count - 1) / (coarseCount - 1)).round());
     }
+    final originalCoarseCount = indices.length;
+    var refined = 0;
+    if (completeFirstPass) {
+      // Spend the existing refinement budget before the first round trip when
+      // uniform gaps already prove that a clear path needs another pass.
+      // This changes neither the candidate grid nor the clear-coverage limit.
+      while (refined < tier.refinementPoints) {
+        final ordered = indices.toList()..sort();
+        final needsCoverage = Iterable<int>.generate(ordered.length - 1).any(
+          (i) =>
+              distanceMeters *
+                  (all[ordered[i + 1]].fraction - all[ordered[i]].fraction) >
+              tier.coverageGapMeters,
+        );
+        if (!needsCoverage) break;
+        final additions = <int>[];
+        for (var i = 1; i < ordered.length; ++i) {
+          final left = ordered[i - 1], right = ordered[i];
+          if (right - left > 1) {
+            additions.add((left + right) ~/ 2);
+          }
+        }
+        if (additions.isEmpty) break;
+        // A partial wave needs measured relief/Fresnel priorities. Do not
+        // spend a limited far-range budget only near the ground station.
+        if (additions.length > tier.refinementPoints - refined) break;
+        for (final index in additions) {
+          if (refined >= tier.refinementPoints) break;
+          if (indices.add(index)) ++refined;
+        }
+      }
+    }
     final data = <int, double>{};
     var requests = 0;
 
@@ -68,8 +101,15 @@ class LiveTerrainSampler {
       if (!valid()) {
         return;
       }
-      for (var offset = 0; offset < positions.length; offset += 256) {
-        final batch = positions.skip(offset).take(256).toList();
+      for (
+        var offset = 0;
+        offset < positions.length;
+        offset += LiveSamplingPolicy.maximumQueryPoints
+      ) {
+        final batch = positions
+            .skip(offset)
+            .take(LiveSamplingPolicy.maximumQueryPoints)
+            .toList();
         final heights = await sample([
           for (final index in batch) all[index].position,
         ]);
@@ -108,7 +148,6 @@ class LiveTerrainSampler {
     // intersection; proving a clear corridor requires adequate coverage.
     // Otherwise the old implementation always exhausted every refinement
     // point, even on a flat 500 m path already sampled every few metres.
-    var refined = 0;
     double maximumGap() {
       final ordered = data.keys.toList()..sort();
       var gap = 0.0;
@@ -126,7 +165,7 @@ class LiveTerrainSampler {
       final gap = maximumGap();
       return LiveTerrainSampleResult(
         path: path,
-        coarseCount: indices.length,
+        coarseCount: originalCoarseCount,
         refinedCount: refined,
         queryCount: requests,
         maximumGapMeters: gap,

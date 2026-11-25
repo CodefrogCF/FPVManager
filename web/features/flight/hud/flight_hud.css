@@ -147,7 +147,7 @@
     text-align:center;max-width:calc(100% - 110px);padding:5px 10px;
     background:#6d1b19d9;border:1px solid #ffb0a8;border-radius:7px;
     pointer-events:none;color:#fff;white-space:normal; }
-#hud-failsafe[data-phase="recovering"],#hud-failsafe[data-phase="awaitingManual"] { background:#73510ee8;border-color:#f6c768; }
+#hud-failsafe[data-phase="uncertain"],#hud-failsafe[data-phase="recovering"],#hud-failsafe[data-phase="awaitingManual"] { background:#73510ee8;border-color:#f6c768; }
 #flight-failsafe-settings { border:1px solid #ffcd7047;border-radius:8px;margin:10px 0;padding:8px;min-width:0; }
 #flight-failsafe-settings legend { padding:0 4px;font-size:12px; }
 #flight-failsafe-settings label {font-size:12px;line-height:1.3;}

@@ -63,6 +63,8 @@
                 `P50: ${metric(data.p50Ms,' ms')} | P95: ${metric(data.p95Ms,' ms')}`,
                 `Requests: ${value('active',0)} active / ${value('queued',0)} queued | Failures: ${value('failures',0)}`,
                 `Error: ${value('error',value('errorCategory'))} | ID: ${value('requestId')}/${value('generation')}`,
+                ...(typeof data.errorDetail==='string'&&data.errorDetail.trim()
+                    ?[`Detail: ${data.errorDetail.replace(/\s+/g,' ').trim().slice(0,160)}`]:[]),
                 `Path: ${metric(data.distanceMeters,' m')} | Samples: ${value('samples',value('sampleCount'))}`,
                 `Terrain: ${value('provider')} | Moved: ${metric(data.movementMeters,' m')}`,
                 `RC: ${number(fs.rcQuality,2)} | Failsafe: ${fs.phase??'normal'}`,
@@ -78,13 +80,21 @@
             signalDisplay.update(state,assessment);
             updateDiagnostics(state);
             if(failsafeStatus){const fs=state.failsafe??{phase:'normal'};
-                const labels={pending:'SIM RC · LOSS PENDING',uncertain:'SIM RC · UNCERTAIN · HOLD',hold:'SIM FAILSAFE · HOLD',
+                const observation=assessment?.observation;
+                const uncertain=fs.uncertain===true||observation?.enabled===true&&observation.quality!=='valid';
+                const noticeOnly=uncertain&&!fs.active;
+                const analysisReason=typeof observation?.reason==='string'
+                    ?observation.reason.replace(/\s+/g,' ').trim().slice(0,160):'';
+                const labels={pending:'SIM RC · LOSS PENDING',hold:'SIM FAILSAFE · HOLD',
                     descend:'SIM FAILSAFE · DESCEND',rescueHold:'SIM GPS RESCUE · HOLD',climb:'SIM GPS RESCUE · CLIMB',turn:'SIM GPS RESCUE · TURN',
                     return:'SIM GPS RESCUE · RETURN',landing:'SIM GPS RESCUE · LANDING',landed:'SIM GPS RESCUE · LANDED',
                     unavailable:'SIM RESCUE UNAVAILABLE',awaitingManual:'SIM RC RESTORED · TAKE CONTROL'};
-                failsafeStatus.hidden=!fs.enabled||!labels[fs.phase];
-                if(failsafeStatus.dataset)failsafeStatus.dataset.phase=fs.recovering?'recovering':fs.phase;
-                if(!failsafeStatus.hidden)failsafeStatus.textContent=labels[fs.phase]+(fs.recoveryReady?' · STICK TO TAKE OVER':fs.recovering?' · RC RECOVERING':'')+(fs.reason?` · ${fs.reason}`:'');
+                failsafeStatus.hidden=!noticeOnly&&(!fs.enabled||!labels[fs.phase]);
+                if(failsafeStatus.dataset)failsafeStatus.dataset.phase=noticeOnly?'uncertain':fs.recovering?'recovering':fs.phase;
+                if(!failsafeStatus.hidden)failsafeStatus.textContent=noticeOnly?
+                    'SIM RF · ANALYSIS UNCERTAIN'+(analysisReason?` · ${analysisReason}`:''):
+                    labels[fs.phase]+(fs.recoveryReady?' · STICK TO TAKE OVER':fs.recovering?' · RC RECOVERING':'')+
+                    (uncertain?' · ANALYSIS UNCERTAIN':'')+(fs.reason?` · ${fs.reason}`:'');
             }
             const t=telemetry(state,viewHeading),next=state.hudStyle==='betaflight'?'betaflight':'goggles';
             if(style!==next){style=next;hud.setAttribute('data-style',style);}

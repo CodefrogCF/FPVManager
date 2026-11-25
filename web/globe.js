@@ -836,7 +836,7 @@ function postToFlutter(message) {
             case 'route-playback-control': return routePlayback.control(command);
             case 'flight-recording-control': return flightRecording.control(command);
             case 'set-flight-radio-monitor': return liveRadio.monitor(command);
-            case 'query-live-radio-terrain': if(regionalTerrain)throw Error('BKG beta terrain is not validated for RF planning');return liveRadio.sample(command,signal);
+            case 'query-live-radio-terrain': if(regionalTerrain)throw Error('TERRAIN_UNAVAILABLE: BKG beta terrain height datum is not validated for RF planning');return liveRadio.sample(command,signal);
             case 'set-live-radio-result': return liveRadio.set(command);
             case 'set-live-radio-diagnostics': return liveRadio.setDiagnostics(command);
             case 'set-live-radio-ground-station': return liveRadio.station(command);

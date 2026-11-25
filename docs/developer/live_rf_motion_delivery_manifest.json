@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-25",
+  "purpose": "Passive analysis uncertainty, precision-preserving fast-flight sampling and explicit BKG beta availability",
+  "originalCheckoutReadOnly": true,
+  "sourceSnapshot": {
+    "filesVerified": 1556,
+    "unchanged": 1555,
+    "externalChanges": [
+      {
+        "path": "pubspec.yaml",
+        "kind": "version only",
+        "snapshotVersion": "0.19.27+54",
+        "currentVersion": "0.19.28+55",
+        "excludedFromZip": true
+      }
+    ]
+  },
+  "application": "Review baseline hashes and extract repository-relative replacement/new files into the current project; rebuild the APK/app for updated JS assets. No files were applied to the original checkout. pubspec.yaml and the user version bump are excluded.",
+  "validationEnvironment": {
+    "platform": "Windows x64",
+    "flutter": "3.47.0",
+    "dart": "3.13.0",
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.0.0 Safari/537.36"
+  },
+  "validation": [
+    {
+      "command": "flutter analyze",
+      "result": "passed; no issues found"
+    },
+    {
+      "command": "flutter test",
+      "result": "passed",
+      "tests": 1073
+    },
+    {
+      "command": "node --test test/js/*.test.cjs",
+      "result": "passed",
+      "tests": 991,
+      "skipped": 0
+    },
+    {
+      "command": "flutter test test/features/signal/live_terrain_sampler_test.dart test/features/signal/rf_profile_settings_test.dart test/features/signal/live_radio_controller_test.dart",
+      "result": "passed",
+      "tests": 54
+    },
+    {
+      "command": "dart format --output=none --set-exit-if-changed <10 changed/new Dart files>",
+      "result": "passed; zero formatting changes"
+    },
+    {
+      "command": "flutter test test/features/signal/live_radio_motion_benchmark_test.dart --reporter expanded",
+      "result": "passed",
+      "scenariosPerVersion": 64,
+      "falseClearPublications": 0
+    },
+    {
+      "command": "node tool/compare_live_rf_motion.cjs <before> <after> <comparison>",
+      "result": "matched fixtures and scenario keys"
+    },
+    {
+      "command": "real Chromium runtime/JSON bridge",
+      "result": "passed",
+      "checks": [
+        "Native Window timer rejects a plain-object receiver",
+        "Actual terrain manager is ready",
+        "13 exact terrain samples cross the JSON bridge",
+        "13-point request releases its slot without a sampling error",
+        "25 exact terrain samples cross the JSON bridge",
+        "25-point request releases its slot without a sampling error",
+        "511 exact terrain samples cross the JSON bridge",
+        "511-point request releases its slot without a sampling error",
+        "A new coordinate reuses detailed tile data",
+        "Valid RF observation reaches the consumer",
+        "Standalone tile cache uses native host timers without fallback"
+      ],
+      "maximumActiveTileRequests": 4,
+      "fallbackCalls": 0
+    }
+  ],
+  "behavior": {
+    "uncertaintyOnly": "passive HUD notice; no new control takeover",
+    "prolongedUncertainty": "discard expired pending-loss evidence without asserting recovery",
+    "confirmedActiveFailsafe": "existing recovery and Rescue rules remain",
+    "bkgBetaTerrain": "RF unavailable while vertical reference is unverified; explicit HUD reason, no repeated query until provider/config changes"
+  },
+  "limitations": [
+    "Synthetic motion measurements do not establish Android/device or real-provider performance",
+    "At 140 km/h with prescribed 400 ms batches valid data can remain unavailable under the preserved spatial guard",
+    "Ruedersdorf BKG beta RF remains intentionally unavailable until its height reference is validated"
+  ],
+  "payloadFiles": [
+    {
+      "path": "docs/developer/globe_bridge.md",
+      "status": "changed",
+      "baselineSha256": "1cf7976490da24c919a9ed72dce0494f0f767c003adf88190fc5c7e119ec2910",
+      "sha256": "ce139ce5b5b67f003b8e4d0b6ca5348cabb872ccc1b14d090fb1924f5f0f0ffd",
+      "bytes": 12101
+    },
+    {
+      "path": "docs/developer/live_rf_motion_measurements.md",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "e425891ae6368e310eb5b8cf64c776d3ea983222c83cd71dcbb969cae5044f2d",
+      "bytes": 12888
+    },
+    {
+      "path": "docs/developer/live_rf_reliability.md",
+      "status": "changed",
+      "baselineSha256": "da7799ab162f5fcac8d10453586e040c9a3b0723909c028109c4c699869c619d",
+      "sha256": "6ecf06f1ebb49a328679fb28dfe80897fdbeae85928d144575b339c54b0fab7b",
+      "bytes": 18235
+    },
+    {
+      "path": "docs/developer/radio_and_rescue.md",
+      "status": "changed",
+      "baselineSha256": "86616fecd486bb1ea4608002ff04693948107b35dffc026377f64fd46ff9a43d",
+      "sha256": "cecae0d39ec7c5c3069e6eddbd1558f491aa0dcf71b5612dc2f88df5b4330f8a",
+      "bytes": 10561
+    },
+    {
+      "path": "docs/performance/live_rf_motion_after_2026-11-24.json",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "9812597d69d13152839885243a1ada2579733e585cabe0304b9fb4410116f2b3",
+      "bytes": 60479
+    },
+    {
+      "path": "docs/performance/live_rf_motion_before_2026-11-24.json",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "4fdf678c766715f6c116adf4be9ea1d7725fef851d03ea2d2aef48dff22f3e76",
+      "bytes": 61289
+    },
+    {
+      "path": "docs/performance/live_rf_motion_comparison_2026-11-24.json",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "977ab57a09a003d006ef55b85a133db0bd095d42762ce5465ddda368521006a2",
+      "bytes": 140831
+    },
+    {
+      "path": "lib/features/globe/globe_controller.dart",
+      "status": "changed",
+      "baselineSha256": "11472af3a25a17c9f15b947b4dd0d2b9505c632d01baee31c49c1b50fb31081c",
+      "sha256": "00826f15a53a48c50b12f71813d3a72558be85819c4cc7857826b45efa35104b",
+      "bytes": 124405
+    },
+    {
+      "path": "lib/features/signal/live_radio_controller.dart",
+      "status": "changed",
+      "baselineSha256": "52cf6271f252b9079966ae21b5f497b4098649ef9d30871ebe69252cb37a9216",
+      "sha256": "29023e892dd2096a10de665a22968cfced7d82e2d56bc8d9173b772bfb8ab5c4",
+      "bytes": 34185
+    },
+    {
+      "path": "lib/features/signal/live_radio_diagnostics.dart",
+      "status": "changed",
+      "baselineSha256": "3205a7bd880195633d59f01e65572b55f1f4ede1222d89c822627e5080f05d9f",
+      "sha256": "24b95c73ecbe22986a3df52e76dfe5f863b1f49fdaa5fa43107531a82e8fa8df",
+      "bytes": 2419
+    },
+    {
+      "path": "lib/features/signal/live_radio_sheet.dart",
+      "status": "changed",
+      "baselineSha256": "71138d397dd2edee331c4f1327581756b7f70f6ac7f5de5bece371dc3d10481c",
+      "sha256": "150d5252944e3cb1ef471cd1165ca72ec48f50e3bc805e8d7a116300f7fc0a8b",
+      "bytes": 36151
+    },
+    {
+      "path": "lib/features/signal/live_sampling_policy.dart",
+      "status": "changed",
+      "baselineSha256": "58c0752742eb9c64d858a2b159e8ef9e3c5ac915e6b63d7d32f39c6b99e2ab3b",
+      "sha256": "3f4496a64af1fdf26c1d76798555a81b20d26d6821a283bb1d03e99a0b00497d",
+      "bytes": 4327
+    },
+    {
+      "path": "lib/features/signal/live_terrain_sampler.dart",
+      "status": "changed",
+      "baselineSha256": "970d0acd8e87cb538c7b515e7ba61b1e9880e7bd96711e6391bf541ee63041cd",
+      "sha256": "c5fe490ed1142d67f35aceb71f168f1f60dcc51dc79f5828e1f43a64bd5e7294",
+      "bytes": 8868
+    },
+    {
+      "path": "test/features/signal/live_radio_controller_test.dart",
+      "status": "changed",
+      "baselineSha256": "441614cfb23315b67c6cca6ee3b952fb6b58e290418bc3fabe7c036b4d43137a",
+      "sha256": "497379f6a3e3373fa5d03a3798f58f64d5f444f5dd6a79c43f48cfbf1ff4a9fd",
+      "bytes": 39199
+    },
+    {
+      "path": "test/features/signal/live_radio_motion_benchmark_test.dart",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "3ebac4c780c5bd78780145436de7fe0d21343e913b1c787f1bd8dabf32c5def5",
+      "bytes": 10543
+    },
+    {
+      "path": "test/features/signal/live_terrain_sampler_test.dart",
+      "status": "changed",
+      "baselineSha256": "5463da17f651f04dcbd73443d841d722987b23f584e65ef97cecc4b0ee47b6f8",
+      "sha256": "9eb29230b99a288f8894cce64025fc87e7cc1fb28965bb86939310b05a43cc00",
+      "bytes": 17418
+    },
+    {
+      "path": "test/features/signal/rf_profile_settings_test.dart",
+      "status": "changed",
+      "baselineSha256": "3dd1fbd214220304991b80e176df4c1d6c191d92d1aee276117e976fa46f0239",
+      "sha256": "39b4b6e7c03d4d016e530f7cea38ed06117583dcc1549ef1754167184020525a",
+      "bytes": 3966
+    },
+    {
+      "path": "test/js/flight_hud.test.cjs",
+      "status": "changed",
+      "baselineSha256": "c6fc39e9532ad8bbd618b1654398ce7feefa2e13bf4ddc819421daea8c662b10",
+      "sha256": "ef0bd2b60439bc1fb26019581a20d1b5e3693ba9944141cb613511842ab9dfcb",
+      "bytes": 10542
+    },
+    {
+      "path": "test/js/live_radio.test.cjs",
+      "status": "changed",
+      "baselineSha256": "4c88e413db368f79cff37a8e9514eaf2eeccf26d4517440e133074b47c36e680",
+      "sha256": "65370be428c8a4e2976e201a595f7cfdedf98a1f91d6c3a784d0c2e95f0235a3",
+      "bytes": 36303
+    },
+    {
+      "path": "test/js/live_radio_browser.test.cjs",
+      "status": "changed",
+      "baselineSha256": "c25b6639e407de0f14687ff0922c5bd2463c0959e7ce82c7ec210cb482a2b2bd",
+      "sha256": "49c737b66f6457c22fbb36bac98c63cb4af95bb06a3ef6f1bf370975d23b9204",
+      "bytes": 4263
+    },
+    {
+      "path": "test/js/live_radio_provider_guard.test.cjs",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "bc526e4d7413f85d068783103960004226579a0a5627b9d815584ade35ffd387",
+      "bytes": 2289
+    },
+    {
+      "path": "test/js/rf_observation_freshness.test.cjs",
+      "status": "changed",
+      "baselineSha256": "59b3791f15ea951762abce1028fdddcf53a13c7c0dbd4271a5cc7847a2df4360",
+      "sha256": "720325d1e72893b3a1c4befd3567c569df0b0a112f42d004fd8f2c92c6aa3cda",
+      "bytes": 9290
+    },
+    {
+      "path": "test/web/live_radio_runtime_smoke.html",
+      "status": "changed",
+      "baselineSha256": "bd2a2e9355559e7577ff246d1b37f6e9694caae4df007a8a4d3ec2d2c88172a1",
+      "sha256": "47fb236335fa0f08ba1db870a649981e416748e964131d5812cc3b182d3555ab",
+      "bytes": 7350
+    },
+    {
+      "path": "tool/compare_live_rf_motion.cjs",
+      "status": "new",
+      "baselineSha256": null,
+      "sha256": "029f9cc439f3e8384326c8819993181afb6424bd13e49ff6ed95f02d39a672fd",
+      "bytes": 2753
+    },
+    {
+      "path": "web/features/flight/hud/flight_hud.css",
+      "status": "changed",
+      "baselineSha256": "81ef8d09c4dcb7c3a8f2e431ec2a51582c11bcb41de3c1cb63d3a907dcb56e7b",
+      "sha256": "5de487b0e74587adeed7ce9cb601bd0e7d3a51c2ca489a659f173024106418ec",
+      "bytes": 16245
+    },
+    {
+      "path": "web/features/flight/hud/flight_hud.js",
+      "status": "changed",
+      "baselineSha256": "309019e4dbb116ba91a4c8562c81501fe8323dc18f24e3d9a2841eb1ac214568",
+      "sha256": "ef80580aa63624e073b1701cc3b1fe2f8f90e77b9187ad5a2d1e7703254cc7d4",
+      "bytes": 10919
+    },
+    {
+      "path": "web/features/signal/live_radio.js",
+      "status": "changed",
+      "baselineSha256": "7e3ff4229a761ce6cab0d9c5f6988f21a1a384cd6429cc98a1535c07930d5d59",
+      "sha256": "c92379c89395f541c0c2bc1b4ca2c8799aaaee7ff45e90b731319d7d7677521b",
+      "bytes": 25315
+    },
+    {
+      "path": "web/features/signal/simulated_failsafe.js",
+      "status": "changed",
+      "baselineSha256": "3b68477c6a17530aeed2be2d2823d6e5ea5dd05031e51f9f0ef99c8ef8d5cefd",
+      "sha256": "248b40a13de199572406ea31f203f49f7d33600917f6b8cef72577c61c130c10",
+      "bytes": 11935
+    },
+    {
+      "path": "web/globe.js",
+      "status": "changed",
+      "baselineSha256": "0c79e3fd53ade4cf4197348be6d8e6d2f9438533038aa5c6679fd5e72ce1b77b",
+      "sha256": "013cedac2584c58083f49cc28f6b19228fb59c40a4e6a061004f3d24e456b74c",
+      "bytes": 102532
+    }
+  ],
+  "manifestSelfHashExcluded": true
+}

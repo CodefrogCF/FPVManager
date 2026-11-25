@@ -3,6 +3,7 @@
 class LiveRadioDiagnostics {
   String quality = 'unknown';
   String? errorCategory;
+  String? errorDetail;
   String provider = 'unavailable';
   int requestId = 0, generation = 0, failures = 0;
   int samples = 0, validSamples = 0, missingSamples = 0;
@@ -16,6 +17,7 @@ class LiveRadioDiagnostics {
     generation = epoch;
     startedMs = ms;
     samples = validSamples = missingSamples = 0;
+    errorDetail = null;
     ++attempts;
   }
 
@@ -41,6 +43,7 @@ class LiveRadioDiagnostics {
       'validSamples': validSamples,
       'missingSamples': missingSamples,
       'errorCategory': error,
+      'errorDetail': errorDetail,
     });
     if (_history.length > 64) _history.removeAt(0);
   }
@@ -53,6 +56,7 @@ class LiveRadioDiagnostics {
     return {
       'quality': quality,
       'error': errorCategory,
+      'errorDetail': errorDetail,
       'provider': provider,
       'requestId': requestId,
       'generation': generation,

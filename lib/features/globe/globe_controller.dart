@@ -39,6 +39,7 @@ import '../simulation/flight_recording.dart';
 import '../simulation/route_playback.dart';
 import '../../core/models/flight_route.dart';
 import '../signal/live_radio_controller.dart';
+import '../signal/live_sampling_policy.dart';
 import '../../core/models/scene_time.dart';
 import '../weather/wind_field.dart';
 import '../weather/wind_field_service.dart';
@@ -224,7 +225,9 @@ class GlobeController extends ChangeNotifier {
   Future<List<double>> _queryLiveRadioTerrain(
     List<Wgs84Coordinate> positions,
   ) async {
-    if (!_terrainAvailable || positions.isEmpty || positions.length > 256) {
+    if (!_terrainAvailable ||
+        positions.isEmpty ||
+        positions.length > LiveSamplingPolicy.maximumQueryPoints) {
       throw StateError('TERRAIN_UNAVAILABLE: Live terrain unavailable');
     }
     final epoch = terrainRevision;
@@ -1152,6 +1155,25 @@ class GlobeController extends ChangeNotifier {
       _simulationGraphicsProfile;
   SimulationHudStyle? _simulationHudStyle;
   SimulationHudStyle? get simulationHudStyle => _simulationHudStyle;
+  SimulationSettings get simulationSettings =>
+      _preferences.simulation.withCameraTilt(
+        _preferences.simulation.cameraTiltDegrees,
+        signalHud: _preferences.signalHud,
+        failsafe: _preferences.failsafe,
+      );
+
+  Future<void> setSimulationSettings(SimulationSettings value) async {
+    _checkPreferencesEditable();
+    value.validate();
+    await _savePreferences(
+      _preferences.copyWith(
+        simulation: value,
+        signalHud: value.signalHud,
+        failsafe: value.failsafe,
+      ),
+    );
+  }
+
   FailsafeSettings get simulationFailsafe => _preferences.failsafe;
   Future<void> setSimulationFailsafe(FailsafeSettings value) async {
     value.validate();
@@ -2578,8 +2600,9 @@ class GlobeController extends ChangeNotifier {
         if (rawFailsafe is Map<String, dynamic>) {
           try {
             final next = FailsafeSettings.fromJson(rawFailsafe);
-            if (jsonEncode(next.toJson()) !=
-                jsonEncode(_preferences.failsafe.toJson())) {
+            if (_simulationActive &&
+                jsonEncode(next.toJson()) !=
+                    jsonEncode(_preferences.failsafe.toJson())) {
               unawaited(setSimulationFailsafe(next).catchError((Object _) {}));
             }
           } catch (_) {
@@ -2590,8 +2613,9 @@ class GlobeController extends ChangeNotifier {
         if (rawSignalHud is Map<String, dynamic>) {
           try {
             final next = SignalHudSettings.fromJson(rawSignalHud);
-            if (jsonEncode(next.toJson()) !=
-                jsonEncode(_preferences.signalHud.toJson())) {
+            if (_simulationActive &&
+                jsonEncode(next.toJson()) !=
+                    jsonEncode(_preferences.signalHud.toJson())) {
               unawaited(setSimulationSignalHud(next).catchError((Object _) {}));
             }
           } catch (_) {
@@ -2612,14 +2636,14 @@ class GlobeController extends ChangeNotifier {
         final criticalCell = data['criticalBatteryCellVoltage'];
         if (lowCell is num &&
             lowCell.isFinite &&
-            lowCell >= 2.9 &&
-            lowCell <= 4.3) {
+            lowCell >= .6 &&
+            lowCell <= 4.5) {
           _simulationLowBatteryCellVoltage = lowCell.toDouble();
         }
         if (criticalCell is num &&
             criticalCell.isFinite &&
-            criticalCell >= 2.8 &&
-            criticalCell <= 4.2) {
+            criticalCell >= .5 &&
+            criticalCell <= 4.4) {
           _simulationCriticalBatteryCellVoltage = criticalCell.toDouble();
         }
         final controller = ControllerSettings.tryParse(data['controller']);
@@ -2629,6 +2653,51 @@ class GlobeController extends ChangeNotifier {
         }
         if (fov is num && fov.isFinite && fov >= 50 && fov <= 140) {
           _simulationCameraFovDegrees = fov.toDouble();
+        }
+        try {
+          final current = simulationSettings;
+          final next = current.withCameraTilt(
+            tilt is num && tilt.isFinite && tilt >= 0 && tilt <= 80
+                ? tilt.toDouble()
+                : current.cameraTiltDegrees,
+            cameraFovDegrees:
+                fov is num && fov.isFinite && fov >= 50 && fov <= 140
+                ? fov.toDouble()
+                : null,
+            graphicsProfile: profile,
+            hudStyle: hud,
+            showCoordinates: data['showCoordinates'] is bool
+                ? data['showCoordinates'] as bool
+                : null,
+            showBatteryVoltage: data['showBatteryVoltage'] is bool
+                ? data['showBatteryVoltage'] as bool
+                : null,
+            showBatteryCellVoltage: data['showBatteryCellVoltage'] is bool
+                ? data['showBatteryCellVoltage'] as bool
+                : null,
+            lowBatteryCellVoltage:
+                lowCell is num &&
+                    lowCell.isFinite &&
+                    lowCell >= .6 &&
+                    lowCell <= 4.5
+                ? lowCell.toDouble()
+                : null,
+            criticalBatteryCellVoltage:
+                criticalCell is num &&
+                    criticalCell.isFinite &&
+                    criticalCell >= .5 &&
+                    criticalCell <= 4.4
+                ? criticalCell.toDouble()
+                : null,
+            controller: controller,
+          );
+          next.validate();
+          if (_simulationActive &&
+              jsonEncode(next.toJson()) != jsonEncode(current.toJson())) {
+            unawaited(setSimulationSettings(next).catchError((Object _) {}));
+          }
+        } catch (_) {
+          // Invalid renderer settings cannot overwrite the saved configuration.
         }
         final reason = data['reason'];
         _simulationMessage = reason is String
@@ -2937,7 +3006,20 @@ class GlobeController extends ChangeNotifier {
         }
       case 'scene-time-state':
         try {
-          _simulationSceneTime = SceneTime.fromJson(data);
+          final time = SceneTime.fromJson(data);
+          _simulationSceneTime = time;
+          if (_simulationActive &&
+              jsonEncode(time.toJson()) !=
+                  jsonEncode(simulationSettings.sceneTime.toJson())) {
+            unawaited(
+              setSimulationSettings(
+                simulationSettings.withCameraTilt(
+                  simulationSettings.cameraTiltDegrees,
+                  sceneTime: time,
+                ),
+              ).catchError((Object _) {}),
+            );
+          }
           notifyListeners();
         } catch (_) {
           /* Ignore invalid renderer state. */

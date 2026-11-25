@@ -47,9 +47,9 @@ RouteSamplingPlan? _radioLinkPlan(
   SignalSettings settings,
   RouteProfilePoint target,
 ) {
-  if (target.altitude == null) return null;
+  if (target.altitude == null || target.ground == null) return null;
   final distance = routeDistance(settings.pilot, target.sample.position);
-  if (distance < 1 || distance > radioMaximumPathMeters) return null;
+  if (distance > radioMaximumPathMeters) return null;
   return RouteSamplingPlan.create([
     RouteWaypointInput(position: settings.pilot),
     RouteWaypointInput(position: target.sample.position),
@@ -108,7 +108,7 @@ class RadioAnalysisBatch {
       final target = targets[i], position = target.sample.position;
       final distance = routeDistance(settings.pilot, position);
       if (target.altitude == null ||
-          distance < 1 ||
+          target.ground == null ||
           distance > radioMaximumPathMeters) {
         results.add(
           RadioPathResult(
@@ -181,28 +181,33 @@ RadioPathResult calculateRadioLink({
       pilotHeight.abs() > 100000) {
     throw ArgumentError('Incomplete radio path');
   }
-  if (routeDistance(settings.pilot, target) < 1) {
+  final pathDistance = routeDistance(settings.pilot, target);
+  final a = _ecef(settings.pilot, pilotHeight),
+      b = _ecef(target, altitude),
+      delta = b - a,
+      length = delta.length;
+  // Apply the established 1 m RF minimum to the actual antenna separation,
+  // not to its ground projection. Coincident antennas have no usable ray.
+  if (length < 1) {
     return RadioPathResult(
       target: target,
       altitude: altitude,
       state: RadioPathState.unknown,
     );
   }
-  // Live profiles may be refined non-uniformly; using the sample index as
-  // line fraction would misplace the Fresnel zone and the clearance plane.
-  final pathDistance = routeDistance(settings.pilot, target);
-  final a = _ecef(settings.pilot, pilotHeight),
-      b = _ecef(target, altitude),
-      delta = b - a,
-      length = delta.length,
-      direction = delta * (1 / length);
+  final direction = delta * (1 / length);
   final samples = <RadioPathSample>[];
   var minimum = double.infinity, fresnelMinimum = double.infinity;
   for (var i = 0; i < positions.length; i++) {
     final p = positions[i], ground = heights[i];
-    final t = (routeDistance(settings.pilot, p) / pathDistance)
-        .clamp(0.0, 1.0)
-        .toDouble();
+    // Preserve distance-based fractions for non-uniform horizontal sampling.
+    // A vertical column repeats one terrain coordinate; index fractions then
+    // describe its height interval without dividing by zero.
+    final t = pathDistance == 0
+        ? i / (positions.length - 1)
+        : (routeDistance(settings.pilot, p) / pathDistance)
+              .clamp(0.0, 1.0)
+              .toDouble();
     var surface = ground;
     if (settings.useSurfaces) {
       for (final s in settings.surfaces) {
@@ -212,11 +217,14 @@ RadioPathResult calculateRadioLink({
       }
     }
     final up = _up(p), line = a + delta * t;
-    final verticalClearance = (line - _ecef(p, surface)).dot(up);
-    final perpendicularScale = math.sqrt(
-      math.max(0, 1 - math.pow(up.dot(direction), 2)),
-    );
-    final clearance = verticalClearance * perpendicularScale;
+    final surfacePoint = _ecef(p, surface);
+    final verticalClearance = (line - surfacePoint).dot(up);
+    // Distance to the finite antenna segment. Projection onto an infinite
+    // vertical line would incorrectly give zero clearance for ground below
+    // both antennas. Terrain/surface penetrations retain a non-positive sign.
+    final along = (surfacePoint - a).dot(direction).clamp(0.0, length);
+    final separation = (a + direction * along - surfacePoint).length;
+    final clearance = verticalClearance <= 0 ? -separation : separation;
     final radius = fresnelRadius(
       settings.frequencyMhz,
       length * t,

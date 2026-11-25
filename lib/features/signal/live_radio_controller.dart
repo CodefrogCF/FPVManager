@@ -65,8 +65,8 @@ class LiveRadioController extends ChangeNotifier {
       _active = false,
       _paused = false;
   int _revision = 0, _flightId = -1, _terrainGeneration = 0;
+  int? _unsupportedTerrainGeneration;
   bool _retryLatestPose = false;
-  int _unusableProfiles = 0;
   double _speedMetersPerSecond = 0;
   bool _monitorEnabled = false;
   ({Wgs84Coordinate position, Wgs84Coordinate home, double height})? _pose;
@@ -81,6 +81,7 @@ class LiveRadioController extends ChangeNotifier {
   Duration? _lastDiagnostic;
   Completer<void>? _cancelRequest;
   int _requestSequence = 0;
+  int _poseSequence = 0, _lastAttemptPoseSequence = -1;
   int? _activeRequest;
   final _diagnostics = LiveRadioDiagnostics();
   bool diagnosticsEnabled = false;
@@ -181,7 +182,6 @@ class LiveRadioController extends ChangeNotifier {
     _active = false;
     _lastAttempt = null;
     _lastFreeSpacePreview = null;
-    _unusableProfiles = 0;
     _invalidate(clear: true);
     status = value.enabled ? 'Waiting for an active flight' : 'Disabled';
     _notify();
@@ -200,7 +200,6 @@ class LiveRadioController extends ChangeNotifier {
     _flightId = -1;
     _lastAttempt = null;
     _lastFreeSpacePreview = null;
-    _unusableProfiles = 0;
     _invalidate(clear: true);
     status = settings.enabled ? 'Terrain / renderer unavailable' : 'Disabled';
     _notify();
@@ -224,6 +223,7 @@ class LiveRadioController extends ChangeNotifier {
   }) {
     ++_revision;
     ++_terrainGeneration;
+    _unsupportedTerrainGeneration = null;
     _wake?.cancel();
     _wake = null;
     _cancelRequest?.complete();
@@ -234,6 +234,7 @@ class LiveRadioController extends ChangeNotifier {
     loading = false;
     assessment = const LiveLinkAssessment();
     _diagnostics.quality = quality;
+    _diagnostics.errorDetail = null;
     _diagnostics.errorCategory =
         error ?? (_available ? 'SUPERSEDED' : 'TERRAIN_UNAVAILABLE');
     samplingDiagnostics = null;
@@ -284,9 +285,9 @@ class LiveRadioController extends ChangeNotifier {
         'analysisRequestId': _activeRequest,
         'generation': _terrainGeneration,
         if (diagnosticsEnabled) 'diagnostics': _diagnosticPayload(),
-        'message': settings.enabled
-            ? 'Unknown · open radio details'
-            : 'Disabled',
+        'message':
+            _diagnostics.errorDetail ??
+            (settings.enabled ? 'Unknown · open radio details' : 'Disabled'),
         'rays': [],
       });
     } catch (_) {}
@@ -296,7 +297,6 @@ class LiveRadioController extends ChangeNotifier {
     _available = available;
     _lastAttempt = null;
     _lastFreeSpacePreview = null;
-    _unusableProfiles = 0;
     _invalidate(clear: true);
     status = available
         ? 'Terrain changed; awaiting a new profile'
@@ -369,7 +369,6 @@ class LiveRadioController extends ChangeNotifier {
       if (id != _flightId) {
         _flightId = id;
         _lastAttempt = null;
-        _unusableProfiles = 0;
         _invalidate(clear: true);
       }
       _active = active;
@@ -400,6 +399,7 @@ class LiveRadioController extends ChangeNotifier {
         height: read('height', -100000, 100000),
       );
       _poseObservedAt = elapsed();
+      ++_poseSequence;
       final station = settings.useSpawn ? _pose!.home : settings.signal.pilot;
       // A flying aircraft may move materially during a detailed terrain
       // request. Do not interrupt the in-flight work or mistake its old ray
@@ -460,30 +460,6 @@ class LiveRadioController extends ChangeNotifier {
     }
   }
 
-  // Preserve the fast single-pass 5 m near-field scan while it works.
-  // Only after an unusable or overtaken terrain profile on a fast aircraft,
-  // switch to a smaller most-detailed first pass to detect a blockage sooner.
-  // A free path still needs a full-resolution verification pass.
-  LiveSamplingTier _flightTier(double distanceMeters) {
-    final tier = chooseTier(distanceMeters);
-    if (_unusableProfiles == 0 ||
-        _speedMetersPerSecond < 20 ||
-        distanceMeters > 6000 ||
-        tier.name != 'highResolution' ||
-        tier.coarsePoints <= 96) {
-      return tier;
-    }
-    return LiveSamplingTier(
-      name: tier.name,
-      coarsePoints: 96,
-      refinementPoints: tier.refinementPoints,
-      // Preserve the original complete 5 m candidate grid within ~1.28 km.
-      // Merely sampling 96 points must not certify a narrow ridge as clear.
-      coverageGapMeters: distanceMeters <= 1280 ? 5.5 : tier.coverageGapMeters,
-      minimumInterval: tier.minimumInterval,
-    );
-  }
-
   void _schedule() {
     if (_disposed ||
         !settings.enabled ||
@@ -491,6 +467,12 @@ class LiveRadioController extends ChangeNotifier {
         _paused ||
         !_available ||
         _pose == null) {
+      return;
+    }
+    if (_unsupportedTerrainGeneration == _terrainGeneration) {
+      // A documented provider restriction cannot recover by retrying the
+      // same query at flight-update rate. Retry after provider/config change.
+      _retryLatestPose = false;
       return;
     }
     if (_pending != null || _activeRequest != null) {
@@ -503,6 +485,12 @@ class LiveRadioController extends ChangeNotifier {
       status = 'Unknown: last aircraft position older than 5 seconds';
       _expirePosition();
       _notify();
+      return;
+    }
+    if (_lastAttempt != null && _poseSequence == _lastAttemptPoseSequence) {
+      // A throttle wakeup can precede the next rendered pose by one frame.
+      // Wait for that telemetry instead of starting another old-position scan.
+      _retryLatestPose = false;
       return;
     }
     final pose = _pose!;
@@ -528,6 +516,7 @@ class LiveRadioController extends ChangeNotifier {
     _wake = null;
     _retryLatestPose = false;
     _lastAttempt = elapsed();
+    _lastAttemptPoseSequence = _poseSequence;
     final id = ++_requestSequence;
     _activeRequest = id;
     final cancel = Completer<void>();
@@ -620,6 +609,7 @@ class LiveRadioController extends ChangeNotifier {
         : (elapsed() - (capturedAt ?? _lastValidElapsed!)).inMilliseconds,
     'freshnessMs': 5000,
     'errorCategory': _diagnostics.errorCategory,
+    'reason': _diagnostics.errorDetail,
   };
 
   Future<void> _calculate(int request, Completer<void> cancel) async {
@@ -639,10 +629,10 @@ class LiveRadioController extends ChangeNotifier {
     final pilot = config.useSpawn ? pose.home : config.signal.pilot;
     final distance = routeDistance(pilot, pose.position);
     if (!distance.isFinite ||
-        distance < 1 ||
+        distance < 0 ||
         distance > radioMaximumPathMeters) {
-      status = distance < 1
-          ? 'Unknown: vertical path / less than 1 m'
+      status = !distance.isFinite || distance < 0
+          ? 'Unknown: invalid RF path coordinates'
           : 'Unknown: beyond the 50 km terrain analysis limit';
       _invalidate(error: 'INVALID_RESULT');
       _diagnostics.finish(
@@ -653,7 +643,7 @@ class LiveRadioController extends ChangeNotifier {
       _notify();
       return;
     }
-    final tier = _flightTier(distance);
+    final tier = chooseTier(distance);
     loading = true;
     if (!current) {
       _diagnostics.quality = 'pending';
@@ -679,6 +669,7 @@ class LiveRadioController extends ChangeNotifier {
           targetHeight: pose.height,
           distanceMeters: distance,
           tier: tier,
+          completeFirstPass: _speedMetersPerSecond >= 12,
           sample: (positions) async {
             _diagnostics.samples += positions.length;
             final heights = await sample(positions);
@@ -749,7 +740,6 @@ class LiveRadioController extends ChangeNotifier {
               );
         if (rechecked == null) {
           status = 'Unknown: profile overtaken by flight';
-          _unusableProfiles = math.min(3, _unusableProfiles + 1);
           _expirePosition();
           _diagnostics.finish(
             elapsed().inMicroseconds / 1000,
@@ -766,14 +756,10 @@ class LiveRadioController extends ChangeNotifier {
         publishedPose = latest!;
         updatedFromExistingSamples = true;
       }
-      if (calculated.state == RadioPathState.noSampledObstruction) {
-        _unusableProfiles = sampled.coverageLimited
-            ? math.min(3, _unusableProfiles + 1)
-            : 0;
+      if (calculated.state == RadioPathState.unknown ||
+          calculated.profile.isEmpty) {
+        throw const FormatException('RF endpoints less than 1 m apart');
       }
-      // Keep prioritizing evidenced obstruction after an outage. Resume the
-      // original fast single-pass policy only when a full clear profile works.
-
       result = calculated;
       assessment = LiveLinkAssessment.fromTerrainProfile(
         calculated,
@@ -836,7 +822,10 @@ class LiveRadioController extends ChangeNotifier {
           'analysisRequestId': request,
           'generation': generation,
           if (diagnosticsEnabled) 'diagnostics': _diagnosticPayload(),
-          'distanceMeters': routeDistance(pilot, publishedPose.position),
+          'distanceMeters': math.sqrt(
+            math.pow(routeDistance(pilot, publishedPose.position), 2) +
+                math.pow(publishedPose.height - transmitterHeight!, 2),
+          ),
           'sampling': {
             'tier': sampled.tier.name,
             'samples': sampled.sampleCount,
@@ -888,7 +877,6 @@ class LiveRadioController extends ChangeNotifier {
       );
     } catch (error) {
       if (valid()) {
-        _unusableProfiles = math.min(3, _unusableProfiles + 1);
         // Distinguish exhausted terrain requests from an RF link loss. Both
         // must remain UNKNOWN, never an invented clear or disconnected link.
         final message = error.toString().toLowerCase();
@@ -909,6 +897,13 @@ class LiveRadioController extends ChangeNotifier {
         status = category == 'TIMEOUT'
             ? 'Unknown: terrain request timed out'
             : 'Unknown: terrain profile unavailable';
+        if (category == 'TERRAIN_UNAVAILABLE' && message.contains('bkg')) {
+          _unsupportedTerrainGeneration = generation;
+          _diagnostics.provider = 'BKG 3D Beta';
+          _diagnostics.errorDetail =
+              'BKG 3D Beta: RF height reference unverified';
+          status = 'Unknown: ${_diagnostics.errorDetail}';
+        }
         _expirePosition(
           quality: category == 'TERRAIN_UNAVAILABLE' ? 'unknown' : 'error',
           error: category,

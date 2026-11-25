@@ -487,7 +487,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   String? _lastLocationMessage;
   String? _lastSimulationReason;
   String? _lastRecordingMessage;
-  SimulationSettings _simulationSettings = const SimulationSettings();
+  SimulationSettings get _simulationSettings =>
+      _globeController.simulationSettings;
   bool _captureMode = false;
   bool _captureModeBusy = false;
 
@@ -667,6 +668,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _openSimulation({bool configureOnly = false}) async {
+    await _globeController.initializePreferences(
+      widget.preferencesRepository ??
+          UserPreferencesRepository(_planningDatabase),
+    );
+    if (!mounted || !_globeController.canEditPreferences) return;
     final spot = _spotsById[_globeController.selectedSpotId],
         point = _globeController.selectedPoint;
     final settings = await showSimulationSettings(
@@ -675,41 +681,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           widget.droneRepository ?? DroneRepository(_planningDatabase),
       batteryRepository: _batteryRepository ??=
           widget.batteryRepository ?? BatteryRepository(_planningDatabase),
-      initial: _simulationSettings.withCameraTilt(
-        _globeController.simulationCameraTiltDegrees ??
-            _simulationSettings.cameraTiltDegrees,
-        cameraFovDegrees:
-            _globeController.simulationCameraFovDegrees ??
-            _simulationSettings.cameraFovDegrees,
-        sceneTime:
-            _globeController.simulationSceneTime ??
-            _simulationSettings.sceneTime,
-        graphicsProfile:
-            _globeController.simulationGraphicsProfile ??
-            _simulationSettings.graphicsProfile,
-        hudStyle:
-            _globeController.simulationHudStyle ?? _simulationSettings.hudStyle,
-        showCoordinates:
-            _globeController.simulationShowCoordinates ??
-            _simulationSettings.showCoordinates,
-        signalHud: _globeController.simulationSignalHud,
-        failsafe: _globeController.simulationFailsafe,
-        showBatteryVoltage:
-            _globeController.simulationShowBatteryVoltage ??
-            _simulationSettings.showBatteryVoltage,
-        showBatteryCellVoltage:
-            _globeController.simulationShowBatteryCellVoltage ??
-            _simulationSettings.showBatteryCellVoltage,
-        lowBatteryCellVoltage:
-            _globeController.simulationLowBatteryCellVoltage ??
-            _simulationSettings.lowBatteryCellVoltage,
-        criticalBatteryCellVoltage:
-            _globeController.simulationCriticalBatteryCellVoltage ??
-            _simulationSettings.criticalBatteryCellVoltage,
-        controller:
-            _globeController.simulationController ??
-            _simulationSettings.controller,
-      ),
+      initial: _simulationSettings,
       hasSelection: spot != null || point != null,
       configureOnly: configureOnly,
       windControls: WindControlsLauncher(globe: _globeController, flight: true),
@@ -723,9 +695,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       ),
     );
     if (settings == null || !mounted) return;
-    _simulationSettings = settings;
-    await _globeController.setSimulationSignalHud(settings.signalHud);
-    await _globeController.setSimulationFailsafe(settings.failsafe);
+    await _globeController.setSimulationSettings(settings);
     if (configureOnly) return;
     await _runCommand(
       () => _globeController.enterSimulation(

@@ -1,3 +1,4 @@
+import '../../features/simulation/simulation_settings.dart';
 import '../../features/obstacles/obstacle_models.dart';
 import 'outdoor_layer.dart';
 import '../../features/simulation/signal_hud_settings.dart';
@@ -28,6 +29,7 @@ class UserPreferences {
     this.uasZonesFillOpacity = 0.20,
     this.savedSpotsVisible = true,
     this.touchControlsVisible = true,
+    this.simulation = const SimulationSettings(),
     this.signalHud = const SignalHudSettings(),
     this.failsafe = const FailsafeSettings(),
     this.roadsVisible = false,
@@ -63,6 +65,7 @@ class UserPreferences {
   final double uasZonesFillOpacity;
   final bool savedSpotsVisible;
   final bool touchControlsVisible;
+  final SimulationSettings simulation;
   final SignalHudSettings signalHud;
   final FailsafeSettings failsafe;
   final bool roadsVisible;
@@ -93,6 +96,7 @@ class UserPreferences {
     double? uasZonesFillOpacity,
     bool? savedSpotsVisible,
     bool? touchControlsVisible,
+    SimulationSettings? simulation,
     SignalHudSettings? signalHud,
     FailsafeSettings? failsafe,
     bool? roadsVisible,
@@ -127,6 +131,7 @@ class UserPreferences {
     uasZonesFillOpacity: uasZonesFillOpacity ?? this.uasZonesFillOpacity,
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
     touchControlsVisible: touchControlsVisible ?? this.touchControlsVisible,
+    simulation: simulation ?? this.simulation,
     signalHud: signalHud ?? this.signalHud,
     failsafe: failsafe ?? this.failsafe,
     roadsVisible: roadsVisible ?? this.roadsVisible,

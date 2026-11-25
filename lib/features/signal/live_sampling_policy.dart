@@ -21,25 +21,26 @@ class LiveSamplingTier {
 
 class LiveSamplingPolicy {
   static const maximumPathMeters = radioMaximumPathMeters;
+  // The established route/profile geometry bound. A logical terrain query can
+  // carry a complete first pass while Cesium's tile workers remain bounded.
+  static const maximumQueryPoints = 4096;
 
   static LiveSamplingTier forDistance(double distanceMeters) {
     if (!distanceMeters.isFinite ||
-        distanceMeters < 1 ||
+        distanceMeters < 0 ||
         distanceMeters > maximumPathMeters) {
       throw ArgumentError.value(distanceMeters, 'distanceMeters');
     }
     if (distanceMeters <= 6000) {
       return const LiveSamplingTier(
         name: 'highResolution',
-        // A single most-detailed terrain request can contain 256 points.
-        // At ~1 km, the 5 m route grid therefore fits in one pass; at
-        // ~4 km, 256 points already meet the 16 m coverage budget. From
-        // ~4–6 km, one more bounded refinement pass is usually enough.
-        // The previous 129-point first pass could need three round trips.
+        // The first 256 points cover short paths. Fast flight fuses the next
+        // complete midpoint wave when the 16 m coverage limit requires it,
+        // spending this same refinement budget without another round trip.
         coarsePoints: 256,
         refinementPoints: 384,
         coverageGapMeters: 16,
-        minimumInterval: Duration(milliseconds: 250),
+        minimumInterval: Duration(milliseconds: 200),
       );
     }
     if (distanceMeters <= 15000) {
@@ -77,9 +78,9 @@ class LiveSamplingPolicy {
     double distanceMeters = 0,
   ]) {
     final speedInterval = speedMetersPerSecond >= 30
-        ? 250
+        ? 200
         : speedMetersPerSecond >= 12
-        ? 450
+        ? 400
         : 800;
     if (distanceMeters < 1 ||
         !distanceMeters.isFinite ||
@@ -104,19 +105,21 @@ class LiveSamplingPolicy {
 
   static double maximumStaleness(
     double speedMetersPerSecond, [
-    double distanceMeters = 0,
+    double? distanceMeters,
   ]) {
     // A 60–70 m/s aircraft can travel tens of metres while terrain is being
     // sampled. Never treat an old, clear near-field ray as verified across a
     // 40 m displacement near a cliff or ridge. Recompute instead. Unknown is
     // preferable to a false clear if the provider cannot keep up.
-    if (distanceMeters >= 1 && distanceMeters <= 6000) {
+    if (distanceMeters != null &&
+        distanceMeters >= 0 &&
+        distanceMeters <= 6000) {
       return math.max(12, math.min(24, speedMetersPerSecond * 0.35));
     }
     return math.max(
       12,
       speedMetersPerSecond *
-          math.min(3.5, 0.6 + math.max(0, distanceMeters) / 18000),
+          math.min(3.5, 0.6 + math.max(0, distanceMeters ?? 0) / 18000),
     );
   }
 }

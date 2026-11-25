@@ -6,6 +6,31 @@ telemetry, transmitter configuration or validated flight safety logic.
 
 ## Data flow and modules
 
+### Current fast-motion and uncertainty policy (2026-11-24)
+
+Unknown, pending, stale or unavailable analysis is a **passive HUD notice**.
+It never starts Hold, descent, failsafe or GPS Rescue and does not intercept
+pilot controls, even when simulated failsafe is enabled. Brief gaps pause an
+existing pending-loss interval; beyond the five-second evidence horizon that
+unconfirmed interval is discarded. A maneuver already activated by confirmed
+modeled RC loss retains its normal recovery requirements.
+
+Fast-flight calculations use the renderer's existing 200/400 ms pose cadence.
+If the first 256 points cannot meet the existing 16 m near-field coverage
+criterion, the next uniform refinement round is fused into the first logical
+query using the existing 384-point refinement budget. Near 5–6 km this gives
+511 points in one round trip. A failed profile no longer reduces future
+first passes to 96 points. Terrain resolution and spatial freshness guards
+are preserved. Logical terrain queries use the existing 4096-point geometry
+bound; cached-tile workers remain capped at four.
+
+BKG 3D Beta terrain remains excluded from RF evaluation while its vertical
+reference is unverified. This now has an explicit passive reason; repeated
+queries are suspended until provider/configuration changes. It does not cause
+automatic flight control. See [motion measurements](live_rf_motion_measurements.md)
+for deterministic before/after results and their limits. The R39/R40 sections
+below describe the historical baseline where they differ from this policy.
+
 1. `lib/features/signal/live_radio_controller.dart` owns the active ground
    station, lifecycle, sampling schedule and stale-result protection.
 2. The existing route geometry kernel `calculateRadioLink()` evaluates
@@ -39,7 +64,7 @@ Fresnel conflicts only while they remain necessary. An already sampled
 obstruction can be reported after the first terrain batch. A clear result
 requires the tier-specific gap limit; sparse clear data stay limited. There is no second LoS engine: the route analysis kernel
 is shared, and samples use geodesic fractions. Each terrain bridge request
-contains **at most 256 positions**; sequential batches and a bounded 30-second
+contains at most the existing **4096 profile positions**; bounded sampling and a 30-second
 cache avoid unlimited requests. A concurrent browser terrain request is
 rejected rather than queued (historical behavior). A limited coverage result
 never asserts unobstructed RF reception.

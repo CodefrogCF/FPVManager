@@ -857,6 +857,7 @@ String _diagnosticsText(Map<String, Object?> d) {
   return 'LoS ${value('los')} · ${value('quality')} · age ${value('ageMs')} ms\n'
       'Calculation ${value('durationMs')} ms · P50/P95 ${value('p50Ms')}/${value('p95Ms')} ms\n'
       'Active/queued ${value('active')}/${value('queued')} · failures ${value('failures')} · ${value('error')}\n'
+      '${d['errorDetail'] == null ? '' : '${value('errorDetail')}\n'}'
       'Distance ${value('distanceMeters')} m · movement ${value('movementMeters')} m\n'
       'Samples ${value('validSamples')}/${value('samples')} · missing ${value('missingSamples')}\n'
       'Request ${value('requestId')} · generation ${value('generation')} · ${value('provider')}';

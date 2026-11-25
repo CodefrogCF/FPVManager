@@ -25,6 +25,36 @@
         (a.latitude-b.latitude)*DEG*R);
     const valid=p=>p&&[p.longitude,p.latitude].every(finite)&&p.longitude>=5.8&&p.longitude<=10.7&&
         p.latitude>=45.6&&p.latitude<=47.9;
+    // Structural tags are authoritative; names only qualify when they explicitly
+    // name the bridge type. A generic footbridge or a road name is insufficient.
+    function mappedOnlyBridge(value){
+        const tags=value?.tags||value||{};
+        const structure=`${tags.bridge||''} ${tags['bridge:structure']||''} ${tags.bridgeType||''} ${tags.structure||''}`;
+        const name=String(value?.name||tags.name||'').normalize('NFKC');
+        return value?.mappedOnly===true||
+            /(?:^|[\s;,])(?:suspension|cable[-_ ]?stayed|arch|hanging|suspended)(?=$|[\s;,])/i.test(structure)||
+            /\b(?:suspension|hanging|suspended|rope)[ -]+(?:foot[ -]?)?bridge\b|\b(?:Hängebrücke|Haengebruecke)\b|\b(?:pont|passerelle)\s+suspendu[e]?\b|\bponte\s+sospeso\b/i.test(name);
+    }
+    // An unclassified native/aviation deck can overlap a classified OSM span.
+    // Exclude guesses only along that span, not on a road crossing underneath it.
+    function onMappedOnlySpan(point,before,after,bridges){
+        const scale=R*DEG*Math.cos(point.latitude*DEG),dy=R*DEG,
+            vx=(after.longitude-before.longitude)*scale,vy=(after.latitude-before.latitude)*dy;
+        for(const bridge of bridges){
+            const line=bridge.coordinates;
+            for(let i=1;i<line.length;i++){
+                const a=line[i-1],b=line[i],dx=(b.longitude-a.longitude)*scale,by=(b.latitude-a.latitude)*dy,
+                    length2=dx*dx+by*by;
+                if(!length2)continue;
+                const px=(point.longitude-a.longitude)*scale,py=(point.latitude-a.latitude)*dy,
+                    t=(px*dx+py*by)/length2;
+                if(t<0||t>1||Math.hypot(px-t*dx,py-t*by)>12)continue;
+                const alignment=Math.abs(vx*dx+vy*by)/Math.sqrt((vx*vx+vy*vy)*length2);
+                if(alignment>=.9)return true;
+            }
+        }
+        return false;
+    }
     const supportKind=tags=>/^(?:pier|lift_pier|pivot_pier|pylon)$/.test(String(tags?.['bridge:support']||''))||
         tags?.man_made==='bridge_pier';
     const metres=value=>{
@@ -71,7 +101,7 @@
                 /^(?:no|false|0)$/i.test(tags.bridge)||coordinates.length<2||bridges.length>=48)continue;
             bridges.push({id:`osm-bridge:${element.id}`,coordinates,
                 name:String(tags.name||'Bridge').slice(0,120),source:'OpenStreetMap',sourceId:`way/${element.id}`,
-                mappedOnly:/suspension|cable.?stayed|arch|hanging/i.test(`${tags.bridge} ${tags['bridge:structure']||''}`)});
+                mappedOnly:mappedOnlyBridge(tags)});
         }
         return {bridges,piers};
     }
@@ -108,7 +138,8 @@
                             longitude:lon+d*Math.cos(angle)/scale,latitude:lat+d*Math.sin(angle)/(R*DEG),height:meanH+grade*d}));
                     }
                     bridges.push({id:`${sourceId}:${feature.id??index}:${part}`,source,
-                        sourceId:String(feature.id??index),coordinates,mappedOnly:false,
+                        sourceId:String(feature.id??index),coordinates,
+                        mappedOnly:mappedOnlyBridge({...properties,...tags,name:feature.name||tags.name}),
                         profileMethod:'aviation-obstacle-profile',name:String(feature.name||'Bridge').slice(0,120)});
                 }
                 continue;
@@ -136,7 +167,7 @@
                 if(!coordinates.every(valid))continue;
                 bridges.push({id:`${id}:${part}`,source,sourceId:id,coordinates,
                     name:String(feature.name||tags.name||'Bridge').slice(0,120),
-                    mappedOnly:/suspension|cable.?stayed|arch|hanging/i.test(`${tags.bridge} ${tags['bridge:structure']||''}`)});
+                    mappedOnly:mappedOnlyBridge(tags)});
             }
         }
         return {bridges:bridges.slice(0,48),piers:piers.slice(0,192)};
@@ -145,7 +176,7 @@
         return parseBridgeData(document).bridges.filter(bridge=>!bridge.mappedOnly);
     }
     function stations(bridges,center,budget=96,piers=[]){
-        const result=[],matched=new Set();
+        const result=[],matched=new Set(),mappedOnly=bridges.filter(mappedOnlyBridge);
         for(const bridge of bridges){
             const line=bridge.coordinates,cumulative=[0];
             for(let i=1;i<line.length;i++)cumulative.push(cumulative.at(-1)+distance(line[i-1],line[i]));
@@ -185,10 +216,11 @@
                 }
                 continue;
             }
-            if(bridge.mappedOnly)continue;
+            if(mappedOnlyBridge(bridge))continue;
             const spans=Math.max(2,Math.ceil(total/28));
             for(let i=1;i<spans;i++){
                 const along=total*i/spans,p=at(along);
+                if(onMappedOnlySpan(p,at(Math.max(0,along-4)),at(Math.min(total,along+4)),mappedOnly))continue;
                 if(center&&distance(p,center)>RADIUS+100)continue;
                 if(result.some(q=>distance(p,q)<2))continue;
                 result.push({...p,id:`${bridge.id}:${i}`,sourceId:bridge.sourceId,

@@ -88,14 +88,23 @@ retains received samples across renderer loss. Capture has a 30-minute / 4,096-s
 limit, and reset/exit ends capture. Neither simulated velocity nor a display AGL
 default is converted into a planned speed or an assumed height.
 Live radio uses `set-flight-radio-monitor` and bounded `flight-radio-position`
-events (1 Hz plus mode transitions). `query-live-radio-terrain` accepts up to 256
+events (200/400/750 ms by speed, plus mode transitions). `query-live-radio-terrain` accepts up to 4096
 positions and returns explicitly labelled WGS84 ellipsoidal heights from the
 most-detailed available terrain (never a fixed low-LOD substitute). Exact-point
 heights are cached for 30 seconds, up to 4,096 entries, and invalidated with
 the terrain provider. `set-live-radio-result` carries a monotonic revision and
-`expiresAtMs`; Flutter and the renderer both expire results after eight seconds
+`expiresAtMs`; Flutter and the renderer both expire results within five seconds of pose capture
 or sooner if the flight outruns the sampled path.
 The live layer is independent of route radio analysis and is cleared on interruption.
+Fast flight may fuse the initial and uniform gap-refinement samples into one
+logical request (typically 511 points around 5–6 km). This consumes the existing
+profile budget; cached terrain tile I/O still has four workers. A partial
+refinement wave retains measured relief/Fresnel priority rather than station-first
+ordering. Observation quality/reason is independent of RC quality; uncertainty
+alone is a passive HUD hint and never initiates autonomous control. BKG beta
+terrain's unverified height datum reports `TERRAIN_UNAVAILABLE` until provider
+changes. Optional `set-live-radio-diagnostics` is disabled by default and its
+HUD updates at most once per second.
 `navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,
 reset/exit/connected booleans). Frames retain physical axes: forward/right are

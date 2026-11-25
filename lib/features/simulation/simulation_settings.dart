@@ -12,6 +12,8 @@ import 'simulation_descent_aerodynamics_settings.dart';
 import 'simulation_collision_settings.dart';
 import '../../core/models/scene_time.dart';
 
+part 'simulation_settings_json.dart';
+
 enum SimulationFlightMode { gps, angle, acro }
 
 /// Advanced is the default; Legacy remains an explicit compatibility fallback.
@@ -230,6 +232,13 @@ class SimulationSettings {
       }
     }
   }
+
+  /// Complete local configuration, including the selected equipment identity.
+  Map<String, dynamic> toJson() => {'droneId': droneId, ...toCommand()};
+
+  /// Missing fields use current defaults; malformed fields never silently reset.
+  factory SimulationSettings.fromJson(Object? source) =>
+      _simulationSettingsFromJson(source);
 
   Map<String, dynamic> toCommand() {
     validate();

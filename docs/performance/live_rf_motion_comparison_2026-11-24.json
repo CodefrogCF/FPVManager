@@ -1,0 +1,4374 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic-controller-motion-comparison",
+  "fixture": {
+    "clock": "deterministic Flutter test clock",
+    "controller": "actual LiveRadioController and adaptive terrain sampler",
+    "batchLatency": "prescribed per request, not measured provider/network latency",
+    "durationMs": 12000,
+    "tickMs": 20,
+    "steadyWindowStartsMs": 2000,
+    "terrain": "analytic radial mountain ring; exact requested coordinates",
+    "radialMotion": "straight outward motion, centered on nominal range",
+    "lateralMotion": "constant-radius circle at stated speed",
+    "near6kmRadiusMeters": 5990
+  },
+  "unmeasured": [
+    "real device/network/GPU performance",
+    "recorded flight unknown durations"
+  ],
+  "scenarios": [
+    {
+      "key": "1000/100/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 624,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5387,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111221696,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6011,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 624,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5387,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111221696,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6011,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 624,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5387,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111221696,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6011,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 624,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5387,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111221696,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 833.3333333334119,
+        "finalRangeMeters": 1166.6666666666983,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6011,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 603,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5435,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111053910304152,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6038,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 603,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5435,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111053910304152,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6038,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 603,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5435,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11105391062452,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6038,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/100/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 603,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5435,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11105391062452,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 1000.0000000000482,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 6038,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2216,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 9827,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777966428,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 12043,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2216,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 9827,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777966428,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 12043,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 3104,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3095,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777682563,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 6199,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777682563,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 0,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 31,
+        "validPublications": 30,
+        "validTimeFraction": 0.5166666666666666,
+        "unknownDurationMs": 5800,
+        "steadyUnknownDurationMs": 4500,
+        "steadyValidTimeFraction": 0.55,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 6199,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777682563,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 766.6666666667032,
+        "finalRangeMeters": 1233.3333333333885,
+        "attempts": 31,
+        "validPublications": 30,
+        "validTimeFraction": 0.5166666666666666,
+        "unknownDurationMs": 5800,
+        "steadyUnknownDurationMs": 4500,
+        "steadyValidTimeFraction": 0.55,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 6199,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777682563,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2214,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 9870,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.7777581428205815,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 12084,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2214,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 9870,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.7777581428205815,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 12084,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 3057,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3187,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777758141673029,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 6244,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777758141673029,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "1000/140/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 3057,
+      "before": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3187,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777758141673029,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 1000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 999.9999999999718,
+        "finalRangeMeters": 999.9999999996149,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 6244,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777758141673029,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111218957,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111218957,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111254745,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111254745,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 2833.333333333356,
+        "finalRangeMeters": 3166.6666666666447,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11110435078386,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11110435078386,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111104351650441,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/100/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 768,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111104351650441,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.0000000000337,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 7680,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2816,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777778025246,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 15360,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2816,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777778025246,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 15360,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 4640,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3296,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777822509,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 7936,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777822509,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 0,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 31,
+        "validPublications": 30,
+        "validTimeFraction": 0.5166666666666666,
+        "unknownDurationMs": 5800,
+        "steadyUnknownDurationMs": 4500,
+        "steadyValidTimeFraction": 0.55,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 7936,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777822509,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 2766.6666666666824,
+        "finalRangeMeters": 3233.3333333333962,
+        "attempts": 31,
+        "validPublications": 30,
+        "validTimeFraction": 0.5166666666666666,
+        "unknownDurationMs": 5800,
+        "steadyUnknownDurationMs": 4500,
+        "steadyValidTimeFraction": 0.55,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 7936,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777822509,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2816,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777775313680142,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 15360,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 2816,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777775313680142,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 15360,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 4640,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3296,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.7777753126306095,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 7936,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.7777753126306095,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "3000/140/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 4640,
+      "before": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3296,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.7777753126306095,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 3000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 3000.0000000000905,
+        "finalRangeMeters": 3000.000000000177,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 7936,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.7777753126306095,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 42.599999999999994,
+      "terrainBatchChange": -24,
+      "requestedSampleChange": 1533,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.615,
+        "unknownDurationMs": 4620,
+        "steadyUnknownDurationMs": 4260,
+        "steadyValidTimeFraction": 0.5740000000000001,
+        "maximumUnknownGapMs": 360,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "publishedObservationAgeMs": {
+          "p50": 520,
+          "p95": 720
+        },
+        "terrainBatches": 54,
+        "requestedSamples": 13797,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111277463,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 8418,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111227409,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 100,
+      "terrainBatchChange": -1,
+      "requestedSampleChange": 11729,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 16,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11200,
+        "calculationLatencyMs": {
+          "p50": 800,
+          "p95": 800
+        },
+        "publishedObservationAgeMs": {
+          "p50": 800,
+          "p95": 800
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3601,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111177214,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 8418,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111277463,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 4833.333333333286,
+        "finalRangeMeters": 5166.666666666714,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 42.599999999999994,
+      "terrainBatchChange": -24,
+      "requestedSampleChange": 1533,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.615,
+        "unknownDurationMs": 4620,
+        "steadyUnknownDurationMs": 4260,
+        "steadyValidTimeFraction": 0.5740000000000001,
+        "maximumUnknownGapMs": 360,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "publishedObservationAgeMs": {
+          "p50": 520,
+          "p95": 720
+        },
+        "terrainBatches": 54,
+        "requestedSamples": 13797,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11110768569985,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 8418,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11110768521648,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 100,
+      "terrainBatchChange": -1,
+      "requestedSampleChange": 11729,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 16,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11200,
+        "calculationLatencyMs": {
+          "p50": 800,
+          "p95": 800
+        },
+        "publishedObservationAgeMs": {
+          "p50": 800,
+          "p95": 800
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3601,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111107684243942,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/100/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 8418,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11110768569985,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 5000.000000000012,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 100,
+      "terrainBatchChange": -16,
+      "requestedSampleChange": 21439,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.008333333333333304,
+        "unknownDurationMs": 11900,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 480
+        },
+        "publishedObservationAgeMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "terrainBatches": 76,
+        "requestedSamples": 9221,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777736552,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 30660,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 18116,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777956303,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 30660,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 12546,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 30,
+        "validPublications": 0,
+        "validTimeFraction": 0,
+        "unknownDurationMs": 12000,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 12000,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": null,
+          "p95": null
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3295,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 15841,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777736552,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 7905,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 31,
+        "validPublications": 30,
+        "validTimeFraction": 0.5166666666666666,
+        "unknownDurationMs": 5800,
+        "steadyUnknownDurationMs": 4500,
+        "steadyValidTimeFraction": 0.55,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 7936,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777736552,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 4766.6666666667215,
+        "finalRangeMeters": 5233.333333333441,
+        "attempts": 31,
+        "validPublications": 30,
+        "validTimeFraction": 0.5166666666666666,
+        "unknownDurationMs": 5800,
+        "steadyUnknownDurationMs": 4500,
+        "steadyValidTimeFraction": 0.55,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 15841,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777736552,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 100,
+      "terrainBatchChange": -16,
+      "requestedSampleChange": 21439,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.008333333333333304,
+        "unknownDurationMs": 11900,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 480
+        },
+        "publishedObservationAgeMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "terrainBatches": 76,
+        "requestedSamples": 9221,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776194191888,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 30660,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 18116,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776197322144,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 30660,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 12546,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 30,
+        "validPublications": 0,
+        "validTimeFraction": 0,
+        "unknownDurationMs": 12000,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 12000,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": null,
+          "p95": null
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3295,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 15841,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776194191888,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5000/140/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 12545,
+      "before": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3296,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776194191888,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5000,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5000.000000000062,
+        "finalRangeMeters": 4999.999999999933,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 15841,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776194191888,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 17.000000000000004,
+      "terrainBatchChange": -13,
+      "requestedSampleChange": 639,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8283333333333334,
+        "unknownDurationMs": 2060,
+        "steadyUnknownDurationMs": 1700,
+        "steadyValidTimeFraction": 0.83,
+        "maximumUnknownGapMs": 360,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "publishedObservationAgeMs": {
+          "p50": 470,
+          "p95": 670
+        },
+        "terrainBatches": 42,
+        "requestedSamples": 9201,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111242487,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 29,
+        "validPublications": 28,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 510
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 9840,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111201122,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 4.800000000000004,
+      "terrainBatchChange": 2,
+      "requestedSampleChange": 4464,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.9483333333333334,
+        "unknownDurationMs": 620,
+        "steadyUnknownDurationMs": 480,
+        "steadyValidTimeFraction": 0.952,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5376,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111201122,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 29,
+        "validPublications": 28,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 510
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 9840,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111201122,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 56.199999999999996,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 6073,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 20,
+        "validPublications": 11,
+        "validTimeFraction": 0.3633333333333333,
+        "unknownDurationMs": 7640,
+        "steadyUnknownDurationMs": 5660,
+        "steadyValidTimeFraction": 0.43400000000000005,
+        "maximumUnknownGapMs": 6780,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 800
+        },
+        "publishedObservationAgeMs": {
+          "p50": 650,
+          "p95": 800
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 3767,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111260158,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 29,
+        "validPublications": 28,
+        "validTimeFraction": 0.965,
+        "unknownDurationMs": 420,
+        "steadyUnknownDurationMs": 40,
+        "steadyValidTimeFraction": 0.996,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 750
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 9840,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111204941,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 25.4,
+      "terrainBatchChange": 2,
+      "requestedSampleChange": 4464,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.7316666666666667,
+        "unknownDurationMs": 3220,
+        "steadyUnknownDurationMs": 2580,
+        "steadyValidTimeFraction": 0.742,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 5376,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111242487,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5823.3333333333,
+        "finalRangeMeters": 6156.666666666609,
+        "attempts": 29,
+        "validPublications": 28,
+        "validTimeFraction": 0.965,
+        "unknownDurationMs": 420,
+        "steadyUnknownDurationMs": 40,
+        "steadyValidTimeFraction": 0.996,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 750
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 9840,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111111111204941,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 42.599999999999994,
+      "terrainBatchChange": -24,
+      "requestedSampleChange": 1533,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.615,
+        "unknownDurationMs": 4620,
+        "steadyUnknownDurationMs": 4260,
+        "steadyValidTimeFraction": 0.5740000000000001,
+        "maximumUnknownGapMs": 360,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "publishedObservationAgeMs": {
+          "p50": 520,
+          "p95": 720
+        },
+        "terrainBatches": 54,
+        "requestedSamples": 13797,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111107883014217,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 14.400000000000002,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 8418,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 27,
+        "validPublications": 27,
+        "validTimeFraction": 0.8683333333333334,
+        "unknownDurationMs": 1580,
+        "steadyUnknownDurationMs": 1440,
+        "steadyValidTimeFraction": 0.856,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 360,
+          "p95": 560
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.11110788238968,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 100,
+      "terrainBatchChange": -1,
+      "requestedSampleChange": 11729,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 16,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11200,
+        "calculationLatencyMs": {
+          "p50": 800,
+          "p95": 800
+        },
+        "publishedObservationAgeMs": {
+          "p50": 800,
+          "p95": 800
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3601,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111107881068762,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/100/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 60.199999999999996,
+      "terrainBatchChange": 3,
+      "requestedSampleChange": 8418,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 27,
+        "validPublications": 26,
+        "validTimeFraction": 0.44499999999999995,
+        "unknownDurationMs": 6660,
+        "steadyUnknownDurationMs": 6020,
+        "steadyValidTimeFraction": 0.398,
+        "maximumUnknownGapMs": 440,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 800
+        },
+        "terrainBatches": 27,
+        "requestedSamples": 6912,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 11.111107883014217,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 100,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 400,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5989.999999999977,
+        "attempts": 30,
+        "validPublications": 30,
+        "validTimeFraction": 0.9683333333333334,
+        "unknownDurationMs": 380,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 30,
+        "requestedSamples": 15330,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/radial/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48.6,
+      "terrainBatchChange": -10,
+      "requestedSampleChange": 10945,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 29,
+        "validPublications": 13,
+        "validTimeFraction": 0.43666666666666665,
+        "unknownDurationMs": 6760,
+        "steadyUnknownDurationMs": 4860,
+        "steadyValidTimeFraction": 0.514,
+        "maximumUnknownGapMs": 6460,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 480
+        },
+        "publishedObservationAgeMs": {
+          "p50": 280,
+          "p95": 330
+        },
+        "terrainBatches": 54,
+        "requestedSamples": 6943,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.77777777791714,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 44,
+        "validPublications": 44,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 360
+        },
+        "terrainBatches": 44,
+        "requestedSamples": 17888,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777966375,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/radial/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 22.599999999999998,
+      "terrainBatchChange": 6,
+      "requestedSampleChange": 9696,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 38,
+        "validPublications": 38,
+        "validTimeFraction": 0.7483333333333333,
+        "unknownDurationMs": 3020,
+        "steadyUnknownDurationMs": 2260,
+        "steadyValidTimeFraction": 0.774,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 38,
+        "requestedSamples": 8192,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777990196,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 44,
+        "validPublications": 44,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 360
+        },
+        "terrainBatches": 44,
+        "requestedSamples": 17888,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777777777966375,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/radial/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 6736,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 28,
+        "validPublications": 11,
+        "validTimeFraction": 0.39,
+        "unknownDurationMs": 7320,
+        "steadyUnknownDurationMs": 5320,
+        "steadyValidTimeFraction": 0.46799999999999997,
+        "maximumUnknownGapMs": 7240,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 500,
+          "p95": 600
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 3487,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 15.55555555568891,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 29,
+        "validPublications": 12,
+        "validTimeFraction": 0.3916666666666667,
+        "unknownDurationMs": 7300,
+        "steadyUnknownDurationMs": 5320,
+        "steadyValidTimeFraction": 0.46799999999999997,
+        "maximumUnknownGapMs": 6840,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 500,
+          "p95": 600
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 10223,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 15.55555555568891,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/radial/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 4335,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 29,
+        "validPublications": 28,
+        "validTimeFraction": 0.72,
+        "unknownDurationMs": 3360,
+        "steadyUnknownDurationMs": 2060,
+        "steadyValidTimeFraction": 0.794,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 5888,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 15.55555555568891,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "radial",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5756.666666666587,
+        "finalRangeMeters": 6223.333333333434,
+        "attempts": 29,
+        "validPublications": 28,
+        "validTimeFraction": 0.72,
+        "unknownDurationMs": 3360,
+        "steadyUnknownDurationMs": 2060,
+        "steadyValidTimeFraction": 0.794,
+        "maximumUnknownGapMs": 380,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 600,
+          "p95": 600
+        },
+        "terrainBatches": 29,
+        "requestedSamples": 10223,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 15.55555555568891,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/lateral/clearMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 100,
+      "terrainBatchChange": -16,
+      "requestedSampleChange": 21439,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.008333333333333304,
+        "unknownDurationMs": 11900,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 320,
+          "p95": 480
+        },
+        "publishedObservationAgeMs": {
+          "p50": 320,
+          "p95": 320
+        },
+        "terrainBatches": 76,
+        "requestedSamples": 9221,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776085423646,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 30660,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/lateral/blockedMountainRing/160",
+      "steadyValidTimeChangePercentagePoints": 48,
+      "terrainBatchChange": 11,
+      "requestedSampleChange": 18116,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 49,
+        "validPublications": 48,
+        "validTimeFraction": 0.5366666666666666,
+        "unknownDurationMs": 5560,
+        "steadyUnknownDurationMs": 4800,
+        "steadyValidTimeFraction": 0.52,
+        "maximumUnknownGapMs": 200,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 260,
+          "p95": 360
+        },
+        "terrainBatches": 49,
+        "requestedSamples": 12544,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776087395904,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 160,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 60,
+        "validPublications": 60,
+        "validTimeFraction": 0.9883333333333333,
+        "unknownDurationMs": 140,
+        "steadyUnknownDurationMs": 0,
+        "steadyValidTimeFraction": 1,
+        "maximumUnknownGapMs": 140,
+        "calculationLatencyMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "publishedObservationAgeMs": {
+          "p50": 160,
+          "p95": 160
+        },
+        "terrainBatches": 60,
+        "requestedSamples": 30660,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/lateral/clearMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 12546,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 30,
+        "validPublications": 0,
+        "validTimeFraction": 0,
+        "unknownDurationMs": 12000,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 12000,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": null,
+          "p95": null
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3295,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 0,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "clearMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 15841,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776085423646,
+        "falseClearPublications": 0
+      }
+    },
+    {
+      "key": "5990/140/lateral/blockedMountainRing/400",
+      "steadyValidTimeChangePercentagePoints": 0,
+      "terrainBatchChange": 0,
+      "requestedSampleChange": 12545,
+      "before": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 3296,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776085423646,
+        "falseClearPublications": 0
+      },
+      "after": {
+        "distanceMeters": 5990,
+        "speedKmh": 140,
+        "motion": "lateral",
+        "terrain": "blockedMountainRing",
+        "prescribedBatchLatencyMs": 400,
+        "durationMs": 12000,
+        "telemetryIntervalMs": 200,
+        "initialRangeMeters": 5989.999999999996,
+        "finalRangeMeters": 5990.000000000036,
+        "attempts": 31,
+        "validPublications": 1,
+        "validTimeFraction": 0.0016666666666667052,
+        "unknownDurationMs": 11980,
+        "steadyUnknownDurationMs": 10000,
+        "steadyValidTimeFraction": 0,
+        "maximumUnknownGapMs": 11600,
+        "calculationLatencyMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "publishedObservationAgeMs": {
+          "p50": 400,
+          "p95": 400
+        },
+        "terrainBatches": 31,
+        "requestedSamples": 15841,
+        "maximumActiveTerrainBatches": 1,
+        "maximumPublishedTelemetryDriftMeters": 7.777776085423646,
+        "falseClearPublications": 0
+      }
+    }
+  ]
+}

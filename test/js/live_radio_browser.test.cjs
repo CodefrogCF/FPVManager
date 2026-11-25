@@ -53,7 +53,8 @@ test('real Chromium host timers sample terrain through the JSON bridge',
         const result = JSON.parse(content);
         assert.equal(result.status, 'pass', content);
         assert.ok(/data-status="pass"/.test(output), 'Browser page status must agree with the result');
-        assert.equal(result.checks.length, 9);
+        assert.equal(result.checks.length, 11);
+        assert.equal(result.maximumActiveTileRequests, 4);
         assert.equal(result.fallbackCalls, 0);
         console.log('Browser runtime:', JSON.stringify(result));
     } finally {

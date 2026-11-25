@@ -1,5 +1,12 @@
 # Live RF terrain reliability investigation
 
+> Historical investigation of the initial reliability patch. The uncertainty
+> Hold policy and 256-point logical query limit described below have been
+> superseded: uncertainty is now a passive HUD notice only, and fast motion
+> uses fused precision-preserving queries within the existing geometry bound.
+> See [current motion measurements](live_rf_motion_measurements.md) and
+> [current radio/Rescue policy](radio_and_rescue.md).
+
 Date: 2026-11-24. The baseline is the supplied working tree, including its R40
 RF and Advanced Physics changes. This investigation does not use an older
 archive as the baseline. The original checkout is read-only; the delivery ZIP

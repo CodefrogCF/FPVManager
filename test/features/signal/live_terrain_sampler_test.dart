@@ -337,4 +337,124 @@ void main() {
       throwsFormatException,
     );
   });
+  for (final distance in [1000.0, 3000.0, 5000.0, 5990.0]) {
+    test(
+      'fused fast first pass preserves terrain precision at $distance m',
+      () async {
+        final target = Wgs84Coordinate(
+          latitude: 47 + distance / 111195,
+          longitude: 8,
+        );
+        final actual = routeDistance(station, target),
+            tier = LiveSamplingPolicy.forDistance(
+              routeDistance(station, target),
+            );
+        Future<LiveTerrainSampleResult> run(bool fused) =>
+            LiveTerrainSampler.calculate(
+              signal: const SignalSettings(pilot: station, antennaHeight: 2),
+              target: target,
+              targetHeight: 1400,
+              distanceMeters: actual,
+              tier: tier,
+              valid: () => true,
+              completeFirstPass: fused,
+              sample: (points) async => points
+                  .map(
+                    (p) =>
+                        500.0 + 30 * (p.latitude - 47) / (target.latitude - 47),
+                  )
+                  .toList(),
+            );
+        final adaptive = await run(false), fused = await run(true);
+        expect(fused.queryCount, 1);
+        expect(fused.coverageLimited, false);
+        expect(
+          fused.maximumGapMeters,
+          lessThanOrEqualTo(tier.coverageGapMeters),
+        );
+        expect(
+          fused.sampleCount,
+          lessThanOrEqualTo(tier.coarsePoints + tier.refinementPoints),
+        );
+        expect(fused.path.state, adaptive.path.state);
+        expect(
+          fused.path.minimumClearance,
+          closeTo(adaptive.path.minimumClearance!, 1e-9),
+        );
+        expect(
+          fused.path.profile.map((p) => p.ground),
+          adaptive.path.profile.map((p) => p.ground),
+        );
+        if (distance >= 5000) {
+          expect(adaptive.queryCount, greaterThan(fused.queryCount));
+        } else {
+          expect(fused.sampleCount, lessThanOrEqualTo(256));
+        }
+      },
+    );
+  }
+  test('fused pass never invents clear coverage when an explicit budget cannot meet the gap limit', () async {
+    const target = Wgs84Coordinate(latitude: 47.054, longitude: 8);
+    const tier = LiveSamplingTier(
+      name: 'limited',
+      coarsePoints: 96,
+      refinementPoints: 384,
+      coverageGapMeters: 16,
+      minimumInterval: Duration(milliseconds: 250),
+    );
+    final result = await LiveTerrainSampler.calculate(
+      signal: const SignalSettings(pilot: station),
+      target: target,
+      targetHeight: 1400,
+      distanceMeters: routeDistance(station, target),
+      tier: tier,
+      valid: () => true,
+      completeFirstPass: true,
+      sample: (p) async => List.filled(p.length, 500.0),
+    );
+    expect(result.sampleCount, lessThanOrEqualTo(480));
+    expect(result.coverageLimited, true);
+  });
+  test('a partial far-range refinement budget preserves measured priority near the remote endpoint', () async {
+    final target = Wgs84Coordinate(latitude: 47 + 49900 / 111195, longitude: 8);
+    final distance = routeDistance(station, target);
+    // Isolate a partial wave: four coarse points but only one refinement.
+    // Only the remote gap has the largest measured relief, so it must win
+    // over an unmeasured station-first midpoint at one sixth of the path.
+    const tier = LiveSamplingTier(
+      name: 'priority-stress',
+      coarsePoints: 4,
+      refinementPoints: 1,
+      coverageGapMeters: 300,
+      minimumInterval: Duration(milliseconds: 1500),
+    );
+    double terrain(Wgs84Coordinate p) {
+      final t = routeDistance(station, p) / distance;
+      if ((t - 5 / 6).abs() < .01) return 1600;
+      if (t > .99) return 1000;
+      if ((t - 2 / 3).abs() < .02) return 700;
+      return 500;
+    }
+
+    Future<LiveTerrainSampleResult> run(bool fused) =>
+        LiveTerrainSampler.calculate(
+          signal: const SignalSettings(pilot: station),
+          target: target,
+          targetHeight: 1200,
+          distanceMeters: distance,
+          tier: tier,
+          valid: () => true,
+          completeFirstPass: fused,
+          sample: (p) async => p.map(terrain).toList(),
+        );
+    final adaptive = await run(false), fused = await run(true);
+    expect(adaptive.path.state, RadioPathState.obstructed);
+    expect(fused.path.state, adaptive.path.state);
+    expect(
+      fused.path.profile.map((p) => p.ground),
+      adaptive.path.profile.map((p) => p.ground),
+    );
+    expect(fused.sampleCount, adaptive.sampleCount);
+    expect(fused.queryCount, adaptive.queryCount);
+  });
 }

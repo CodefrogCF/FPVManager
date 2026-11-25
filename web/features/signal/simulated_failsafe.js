@@ -48,7 +48,7 @@
         function setPhase(next){if(next!==phase){phase=next;phaseTime=0;}}
         function status(){return {enabled:cfg.enabled,mode:cfg.mode,phase,reason,rcQuality:quality,
             observationQuality,observationAgeMs:observationAgeSeconds===null?null:observationAgeSeconds*1000,
-            lossTimeSeconds:lossTime,uncertain:phase==='uncertain'||observationTracking&&quality===null&&unknownSeconds>0,
+            lossTimeSeconds:lossTime,uncertain:observationTracking&&quality===null&&unknownSeconds>0,
             active:!['normal','pending'].includes(phase),recoveryReady:recoveryArmed&&
                 observationAgeSeconds!==null&&observationAgeSeconds<maximumUnknownRecoverySeconds&&
                 !['normal','pending','landed'].includes(phase),
@@ -97,18 +97,13 @@
             if(evidenceExpired){recoveryArmed=false;recoveryTime=0;}
             if(phase==='normal'||phase==='pending'){
                 if(quality===null){
-                    // Missing terrain is neither restored reception nor a new
-                    // confirmed loss interval. Preserve, but pause, pending
-                    // loss time while awaiting fresh model evidence.
-                    if(evidenceExpired){setPhase('uncertain');reason='observationUnavailable';}
+                    // Uncertainty is a passive observation warning, never an
+                    // autonomous flight command. Brief gaps pause pending loss;
+                    // expired evidence cannot accumulate toward a later loss.
+                    if(evidenceExpired){setPhase('normal');lossTime=0;reason=null;}
                 }else if(quality>cfg.lossThreshold){setPhase('normal');lossTime=0;reason=null;}
                 else {lossTime+=seconds;setPhase('pending');
                     if(lossTime>=cfg.activationDelaySeconds)takeControl(context);}
-                return status();
-            }
-            if(phase==='uncertain'&&quality!==null&&quality<=cfg.lossThreshold){
-                reason=null;setPhase('pending');lossTime+=seconds;
-                if(lossTime>=cfg.activationDelaySeconds)takeControl(context);
                 return status();
             }
             phaseTime+=seconds;

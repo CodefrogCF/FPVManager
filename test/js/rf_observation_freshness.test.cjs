@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const F=require('../../web/features/signal/simulated_failsafe.js');
-const {createSimulator}=require('../../web/features/flight/free_flight.js');
+const {createSimulator,distance}=require('../../web/features/flight/free_flight.js');
 const home={latitude:46.7,longitude:8.4};
 const context={position:home,home,height:1020,homeHeight:1000,distanceToHome:40};
 function observation(quality,{id=1,ageMs=0,state=quality===null?'unknown':'valid',errorCategory=null}={}){
@@ -37,28 +37,34 @@ test('unknown does not restore RC and stable recovery must use valid fresh model
     assert.equal(step(machine,observation(.9,{id:3}),.21).phase,'normal');
 });
 
-test('prolonged uncertainty holds without inventing RC loss or launching GPS Rescue',()=>{
-    const machine=F.create({enabled:true,mode:'gpsRescue',activationDelaySeconds:10,recoveryDelaySeconds:.3});
-    step(machine,observation(0),.4);const confirmed=machine.status().lossTimeSeconds;
-    const uncertain=step(machine,observation(null,{state:'error'}),12);
-    assert.equal(uncertain.phase,'uncertain');assert.equal(uncertain.active,true);
-    assert.equal(uncertain.reason,'observationUnavailable');assert.equal(uncertain.rcQuality,null);
-    assert.equal(uncertain.lossTimeSeconds,confirmed);assert.equal(uncertain.targetAltitudeMeters,null);
-    assert.equal(machine.recover(),false);
-    step(machine,observation(.9,{id:2}),.2);assert.equal(machine.recover(),false);
-    step(machine,observation(.9,{id:2}),.11);assert.equal(machine.status().recoveryReady,true);
-    assert.equal(machine.recover(),true);assert.equal(machine.status().phase,'normal');
+for(const mode of ['hold','descend','gpsRescue'])test(`${mode}: prolonged uncertainty is notice-only and discards expired pending loss`,()=>{
+    const machine=F.create({enabled:true,mode,activationDelaySeconds:1,recoveryDelaySeconds:.3});
+    step(machine,observation(0),.4);
+    for(const state of ['pending','error','stale','unknown']){
+        const uncertain=step(machine,observation(null,{state}),3);
+        assert.equal(uncertain.active,false,'uncertainty never takes control');
+        assert.equal(uncertain.uncertain,true);assert.equal(uncertain.rcQuality,null);
+        assert.equal(uncertain.targetAltitudeMeters,null);
+    }
+    assert.equal(machine.status().phase,'normal');assert.equal(machine.status().lossTimeSeconds,0);
+    assert.equal(machine.recover(),false,'there was no failsafe to recover from');
+    assert.equal(step(machine,observation(0,{id:2}),.61).phase,'pending',
+        'fresh loss must satisfy the full configured delay after prolonged uncertainty');
+    assert.equal(machine.status().active,false);
+    assert.equal(step(machine,observation(0,{id:2}),.4).active,true,
+        'confirmed RF loss still activates the configured action');
 });
 
 test('a frozen or repeatedly wrapped result ages out and cannot count loss indefinitely',()=>{
     const machine=F.create({enabled:true,mode:'gpsRescue',activationDelaySeconds:10});
     for(let i=0;i<1200;i++)machine.step(.01,observation(0,{id:7,ageMs:0}),context);
-    const status=machine.status();assert.equal(status.phase,'uncertain');assert.equal(status.rcQuality,null);
-    assert.equal(status.observationQuality,'stale');assert.ok(status.lossTimeSeconds<=5);
+    const status=machine.status();assert.equal(status.phase,'normal');assert.equal(status.rcQuality,null);
+    assert.equal(status.observationQuality,'stale');assert.equal(status.lossTimeSeconds,0);
+    assert.equal(status.active,false);assert.equal(status.uncertain,true);
     const before=status.lossTimeSeconds;
     step(machine,observation(null,{state:'stale',ageMs:12000}),10);
     assert.equal(machine.status().lossTimeSeconds,before);
-    assert.equal(step(machine,observation(0,{id:8}),.4).phase,'pending','a fresh position may resume confirmed timing');
+    assert.equal(step(machine,observation(0,{id:8}),.4).phase,'pending','a fresh position starts a new confirmed interval');
 });
 
 test('stale clear RF cannot arm recovery and fresh evidence requalifies GPS takeover',()=>{
@@ -79,11 +85,32 @@ test('explicit invalid, missing and superseded observation qualities never provi
     assert.equal(F.rcQuality({visibility:'obstructed',controlLink:'unknown'}),null);
 });
 
-test('disabled monitoring does not engage uncertainty hold before any RF observation',()=>{
+test('disabled monitoring does not report uncertainty before any RF observation',()=>{
     const machine=F.create({enabled:true,mode:'gpsRescue'});
     assert.equal(step(machine,{controlLink:'unknown',observation:{enabled:false,quality:'unknown',ageMs:null}},20).phase,'normal');
     assert.equal(step(machine,null,20).phase,'normal');
     assert.equal(machine.status().active,false);
+    assert.equal(machine.status().uncertain,false);
+});
+
+for(const physicsModel of ['advanced','legacy'])test(`${physicsModel} pilot controls remain available through prolonged RF uncertainty`,async()=>{
+    const model=createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,isTerrainReady:()=>true,
+        captureCamera:()=>({heading:0}),restoreCamera:()=>{},applyPose:()=>{},onState:()=>{}});
+    try{
+        await model.start({...home,agl:60,physicsModel,flightMode:'gps',failsafe:{enabled:true,
+            mode:'gpsRescue',activationDelaySeconds:.2,recoveryDelaySeconds:.3}},new AbortController().signal);
+        model.linkAssessment(observation(null,{state:'error',ageMs:6000}));
+        for(let i=0;i<7*60;i++)model.tick(1/60);
+        const before=model.status();
+        assert.equal(before.failsafe.phase,'normal');assert.equal(before.failsafe.active,false);
+        assert.equal(before.failsafe.uncertain,true);
+        model.stick(1,0);
+        for(let i=0;i<2*60;i++)model.tick(1/60);
+        const moving=model.status();
+        assert.equal(moving.failsafe.active,false);assert.equal(moving.failsafe.targetAltitudeMeters,null);
+        assert.ok(distance(before.position,moving.position)>1,'pilot input must keep moving the aircraft');
+        assert.equal(model.resumeAfterFailsafe(),false,'no forced takeover qualification is necessary');
+    }finally{model.stop();}
 });
 
 for(const physicsModel of ['advanced','legacy'])test(`${physicsModel} GPS Rescue survives terrain gaps and requires fresh RC takeover`,async()=>{
