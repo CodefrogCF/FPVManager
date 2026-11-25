@@ -12,6 +12,7 @@ import '../../core/database/repositories/flight_plan_repository.dart';
 import '../../core/models/route_planning_settings.dart';
 import '../../core/models/spot_classification.dart';
 import '../preflight/checklist.dart';
+import '../scenery/scenery_repository.dart';
 import '../ground_routes/ground_route_repository.dart';
 import 'backup_codec.dart';
 
@@ -28,6 +29,9 @@ bool backupSetting(String key) =>
       'map.spots.visible',
       'simulation.touchControls.visible',
       'simulation.settings.v1',
+      SceneryRepository.initializedKey,
+      'map.scenery.enabled.v1',
+      'map.scenery.edits.v1',
       'simulation.hud.signal.v1',
       'simulation.failsafe.v1',
       'map.roads.visible',
@@ -155,6 +159,7 @@ class BackupRepository {
       if (schema >= 7) 'radio_equipment_drones',
       if (schema >= 9) ...['preflight_checklists', 'telemetry_flights'],
       if (schema >= 10) 'ground_routes',
+      if (schema >= 13) 'sceneries',
     };
     if (requiredTables.any((key) => !input.containsKey(key))) {
       throw const FormatException('Incomplete backup for its database version');
@@ -168,6 +173,18 @@ class BackupRepository {
     if (schema == database.schemaVersion &&
         tables.keys.any((k) => !input.containsKey(k))) {
       throw const FormatException('Incomplete current-version backup');
+    }
+    final sceneryRows = input['sceneries'] as List? ?? [];
+    var sceneryBytes = 0;
+    for (final row in sceneryRows) {
+      if (row is! Map || row['manifest_json'] is! String) {
+        throw const FormatException('Invalid scenery record');
+      }
+      sceneryBytes += utf8.encode(row['manifest_json'] as String).length;
+    }
+    if (sceneryRows.length > SceneryRepository.maxCount ||
+        sceneryBytes > SceneryRepository.maxCatalogBytes) {
+      throw const FormatException('Scenery catalog exceeds storage limit');
     }
     for (final entry in input.entries) {
       final name = entry.key as String;
@@ -207,9 +224,21 @@ class BackupRepository {
             throw const FormatException('Backup image exceeds the image limit');
           }
         }
-        if (columns.containsKey('id') &&
+        if (name != 'sceneries' &&
+            columns.containsKey('id') &&
             (row['id'] is! int || (row['id'] as int) <= 0)) {
           throw const FormatException('Invalid record identifier');
+        }
+        if (name == 'sceneries') {
+          if (row['id'] is! String ||
+              row['manifest_json'] is! String ||
+              (entry.value as List).length > SceneryRepository.maxCount) {
+            throw const FormatException('Invalid scenery record');
+          }
+          SceneryRepository.validateStoredRow(
+            row['id'] as String,
+            row['manifest_json'] as String,
+          );
         }
         if (name == 'spot_photos') {
           for (final field in ['image_bytes', 'thumbnail_bytes']) {
@@ -256,6 +285,30 @@ class BackupRepository {
           throw const FormatException(
             'Backup contains an unsupported or protected setting',
           );
+        }
+        if (name == 'app_settings' &&
+            row['key'] == SceneryRepository.initializedKey &&
+            row['value'] != '1') {
+          throw const FormatException('Invalid scenery initialization marker');
+        }
+        if (name == 'app_settings' &&
+            {
+              'map.scenery.enabled.v1',
+              'map.scenery.edits.v1',
+            }.contains(row['key'])) {
+          final value = jsonDecode(row['value'] as String);
+          final enabled = row['key'] == 'map.scenery.enabled.v1';
+          if (value is! Map<String, dynamic> ||
+              value.length > 64 ||
+              value.entries.any(
+                (e) =>
+                    !RegExp(r'^[a-z0-9_-]{1,80}$').hasMatch(e.key) ||
+                    (enabled
+                        ? e.value is! bool
+                        : e.value is! Map<String, dynamic>),
+              )) {
+            throw const FormatException('Invalid legacy scenery settings');
+          }
         }
         for (final field in ['planning_json', 'items_json']) {
           if (row[field] case final String text) {

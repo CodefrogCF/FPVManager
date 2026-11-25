@@ -3,6 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../scenery/scenery_manifest.dart';
+import '../scenery/scenery_repository.dart';
+import '../scenery/scenery_catalog_controller.dart';
+
 import '../../core/osint/osint_provider.dart';
 import '../../core/osint/osint_dataset.dart';
 import '../../core/osint/osint_provider_state.dart';
@@ -1484,6 +1488,7 @@ class GlobeController extends ChangeNotifier {
     GlobeOverlay.savedSpots,
   ];
   UserPreferencesRepository? _preferencesRepository;
+  SceneryCatalogController? _sceneryCatalog;
   UserPreferences _preferences = const UserPreferences();
   Future<void>? _preferencesLoad;
   Future<void>? _preferencesWrites;
@@ -1508,6 +1513,11 @@ class GlobeController extends ChangeNotifier {
   Future<void> get preferencesSettled async {
     if (_preferencesLoading) await _preferencesLoad;
     await _preferencesWrites;
+    if (_disposed) {
+      await _sceneryCatalog?.storageSettled;
+    } else {
+      await _sceneryCatalog?.settled;
+    }
   }
 
   Future<void> initializePreferences(UserPreferencesRepository repository) {
@@ -1515,6 +1525,20 @@ class GlobeController extends ChangeNotifier {
       return _preferencesLoad ?? Future.value();
     }
     _preferencesRepository = repository;
+    if (repository is DriftUserPreferencesRepository) {
+      _sceneryCatalog = SceneryCatalogController(
+        repository: SceneryRepository(repository.database),
+        send: _request,
+        loadBundled: () async {
+          final result = await _request({'type': 'scenery-catalog'});
+          if (result['catalog'] is! Map<String, dynamic>) {
+            throw const FormatException('Scenery catalog unavailable');
+          }
+          return jsonEncode(result['catalog']);
+        },
+        canSend: () => _ready && !_disposed && !navigationActive,
+      );
+    }
     return retryLoadingPreferences();
   }
 
@@ -2053,8 +2077,39 @@ class GlobeController extends ChangeNotifier {
     await _request(command);
   }
 
-  Future<Map<String, dynamic>> sceneryStatus() =>
-      _request({'type': 'scenery-status'});
+  Future<Map<String, dynamic>> sceneryStatus() async {
+    if (_sceneryCatalog != null && !navigationActive) {
+      await _sceneryCatalog!.synchronize();
+    }
+    return _request({'type': 'scenery-status'});
+  }
+
+  Future<List<SceneryManifest>> sceneryDefinitions() async =>
+      _sceneryCatalog?.definitions() ?? Future.value(<SceneryManifest>[]);
+
+  Future<List<SceneryManifest>> sceneryTemplates() async =>
+      _sceneryCatalog?.templates() ?? Future.value(<SceneryManifest>[]);
+
+  Future<Map<String, dynamic>> saveSceneryDefinition(
+    SceneryManifest manifest, {
+    required bool create,
+  }) {
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError('Stop navigation before changing scenery');
+    }
+    final catalog = _sceneryCatalog;
+    if (catalog == null) throw StateError('Scenery storage unavailable');
+    return catalog.save(manifest, create: create);
+  }
+
+  Future<Map<String, dynamic>> removeSceneryDefinition(String id) {
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError('Stop navigation before changing scenery');
+    }
+    final catalog = _sceneryCatalog;
+    if (catalog == null) throw StateError('Scenery storage unavailable');
+    return catalog.remove(id);
+  }
 
   Future<Map<String, dynamic>> beginSceneryBridgeHeightMatch(String id) =>
       _request({'type': 'begin-scenery-bridge-height-match', 'id': id});
@@ -2066,6 +2121,12 @@ class GlobeController extends ChangeNotifier {
     String id,
     bool enabled,
   ) async {
+    if (_sceneryCatalog != null) {
+      if (navigationActive) {
+        throw StateError('Stop navigation before changing scenery');
+      }
+      return _sceneryCatalog!.setEnabled(id, enabled);
+    }
     final result = await _request({
       'type': 'set-scenery-enabled',
       'id': id,
@@ -2082,6 +2143,12 @@ class GlobeController extends ChangeNotifier {
     String id,
     Map<String, dynamic>? edit,
   ) async {
+    if (_sceneryCatalog != null) {
+      if (navigationActive) {
+        throw StateError('Stop navigation before editing scenery');
+      }
+      return _sceneryCatalog!.setEdit(id, edit);
+    }
     final result = await _request({
       'type': 'set-scenery-edit',
       'id': id,
@@ -3266,6 +3333,22 @@ class GlobeController extends ChangeNotifier {
     }
   }
 
+  Future<void> _restoreSceneryState(int generation) async {
+    bool current() =>
+        !_disposed &&
+        _ready &&
+        generation == _connectionGeneration &&
+        !navigationActive;
+    try {
+      if (current()) {
+        await _sceneryCatalog?.synchronize(isCurrent: current);
+      }
+    } catch (_) {
+      // Optional scenery recovery must not delay or prevent base-map recovery.
+      // An explicit scenery-status request reports persistent/provider errors.
+    }
+  }
+
   Future<void> _restoreRendererState(
     int generation, {
     bool forceSettings = false,
@@ -3273,28 +3356,11 @@ class GlobeController extends ChangeNotifier {
     bool current() =>
         !_disposed && _ready && generation == _connectionGeneration;
     final uasOperationAtStart = _uasOperation;
+    unawaited(_restoreSceneryState(generation));
     unawaited(obstacles.rendererReady(force: forceSettings));
     unawaited(wind.rendererReady());
     if (location.enabled) unawaited(location.rendererReady());
     try {
-      final repository = _preferencesRepository;
-      if (repository is DriftUserPreferencesRepository) {
-        try {
-          final values = await repository.getSceneryPreferences();
-          if (current() && values.isNotEmpty) {
-            await _send({
-              'type': 'restore-scenery-preferences',
-              'preferences': values,
-            });
-          }
-          final edits = await repository.getSceneryEdits();
-          if (current() && edits.isNotEmpty) {
-            await _send({'type': 'restore-scenery-edits', 'edits': edits});
-          }
-        } catch (_) {
-          // Optional scenery must not interrupt restoring the map.
-        }
-      }
       if (!current()) return;
       if (forceSettings || !touchControlsVisible) {
         await _send({
@@ -3494,6 +3560,7 @@ class GlobeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _sceneryCatalog?.dispose();
     final uas = _uasProvider;
     final pending = [
       if (uas is CachedOsintProvider<Map<String, dynamic>>) uas.settled,

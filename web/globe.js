@@ -713,6 +713,12 @@ function postToFlutter(message) {
         signal.throwIfAborted();
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case 'scenery-catalog': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {catalog:sceneryManager.bundledCatalog()};
+            case 'replace-scenery-catalog':
+                if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before changing scenery');
+                await sceneryCatalogReady;if(!sceneryManager)throw Error('Scenery unavailable');
+                resetBridgeHeightMatch();
+                {const sceneries=sceneryManager.replaceCatalog(command.catalog);regional3D?.tick(true);return {sceneries};}
             case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,bridgeHeightMatch:bridgeMatchStatus(),replacement:regional3D?.replacementStatus()??null};
             case 'begin-scenery-bridge-height-match': {
                 await sceneryCatalogReady;

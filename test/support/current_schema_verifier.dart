@@ -7,14 +7,13 @@ import 'package:fpvmanager/core/database/fpv_database.dart';
 /// Validates migrations against an independently created database at the
 /// application's CURRENT schema version.
 ///
-/// Historical fixtures are still created using drift's versioned snapshots.
-/// The snapshots committed in `test/generated_migrations` currently stop at
-/// v10; using `SchemaVerifier.migrateAndValidate(db, 10)` after upgrading to
-/// schema v12 incorrectly compares the new schema to an older one.
+/// Historical tests use versioned snapshots, including the v12 scenery
+/// migration fixture. Older paths still start at v10 or earlier; compare their
+/// migrated result with an independently created current database rather than
+/// assuming the last historical fixture is the application's current schema.
 ///
-/// This comparison checks all SQLite tables, their columns, foreign keys and
-/// indexes. It doesn't replace drift's versioned snapshot generation; when
-/// snapshots for v11/v12 are regenerated, prefer drift's SchemaVerifier.
+/// This checks tables, columns, foreign keys and indexes. Keep adding independent
+/// historical snapshots when the application schema changes.
 /// Capture the current schema before opening a database under migration.
 ///
 /// The reference database is closed before any migration tests run, avoiding

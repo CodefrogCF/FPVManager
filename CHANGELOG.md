@@ -43,6 +43,14 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Added
 
+- Persistent scenery definitions with a versioned, provider-independent manifest,
+  database migration and backup/restore support. Existing scenery activation and
+  alignment are migrated without replacing user settings. Scenery management can
+  create configurations from existing model templates, edit placement and remove
+  definitions. Unsupported providers/formats remain explicitly unavailable.
+- Runtime scenery catalog updates preserve unchanged models and reject obsolete
+  loads. Multiple visual/collision assets share ENU heading, pitch, roll and scale.
+
 - Official Berlin/Brandenburg online imagery, topographic and relief layers
   alongside the existing Swiss/offline providers, with regional source credits.
 - Experimental Rüdersdorf photogrammetry scenery with local georeferencing,

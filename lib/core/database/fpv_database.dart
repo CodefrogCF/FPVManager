@@ -307,6 +307,16 @@ class GroundRoutes extends Table {
   DateTimeColumn get savedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Atomic, versioned scenery definitions; asset bytes are owned by providers.
+class Sceneries extends Table {
+  TextColumn get id => text().withLength(min: 1, max: 80)();
+  TextColumn get manifestJson => text()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Spots,
@@ -325,6 +335,7 @@ class GroundRoutes extends Table {
     PreflightChecklists,
     TelemetryFlights,
     GroundRoutes,
+    Sceneries,
   ],
 )
 class FpvDatabase extends _$FpvDatabase {
@@ -344,7 +355,7 @@ class FpvDatabase extends _$FpvDatabase {
       );
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -499,6 +510,7 @@ class FpvDatabase extends _$FpvDatabase {
         await m.createTable(telemetryFlights);
       }
       if (from < 10) await m.createTable(groundRoutes);
+      if (from < 13) await m.createTable(sceneries);
       if (from >= 2 && from < 12) {
         await m.addColumn(drones, drones.escContinuousCurrentAmpsPerChannel);
         await m.addColumn(drones, drones.motorContinuousCurrentAmpsPerMotor);

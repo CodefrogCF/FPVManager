@@ -16,6 +16,21 @@ Dieses Kapitel beschreibt **die derzeitige Rüdersdorf-Testszene**, nicht eine a
 3. Über **Status aktualisieren** kann die Szene bei Problemen erneut abgefragt werden. Das normale Menü zeigt Ladezustand und nutzerverständliche Fehler, nicht die internen Kollisions-, Höhen- und Maskenwerte.
 4. Die Überlagerung mit BKG-LoD2 wird durch die Szenenkonfiguration gesteuert. Manuelle Masken- und Ausrichtungseditoren sind in regulären Builds ausgeblendet.
 
+### Umgebungen verwalten
+
+Über **Umgebungen verwalten** kannst du eine neue Szenendefinition aus einer
+vorhandenen Modellvorlage anlegen, benennen, ausrichten und wieder entfernen.
+Neue Definitionen starten deaktiviert. Aktiviere sie anschließend in der Liste.
+Position, Höhenbezug, Richtung, Neigung, Rollwinkel, Maßstab und Ladeentfernungen
+werden gespeichert und mit dem normalen Backup wiederhergestellt. Änderungen
+sind bei beendeter Navigation möglich; **Abbrechen** verwirft Formulareingaben.
+
+Die Vorlagen verwenden die bereits mitgelieferten Modelle samt Quellenangaben.
+Eine kopierte Vorlage übernimmt keine geprüften Gelände-Ersatzflächen. Ein
+Dateiimport eigener Modelle und austauschbare Scenery-Pakete sind noch nicht
+Bestandteil dieser Verwaltung. Nicht unterstützte Datenquellen bleiben als
+nicht verfügbar erkennbar.
+
 ### Höhenreferenz und Bodenabgleich
 
 Die Szenenhöhe im normalen Globe wird nicht unmittelbar aus dem Workbench-Export übernommen. Ein Workbench-Wert auf **flacher Ellipsoid-Oberfläche** ist nicht die spätere absolute Modellhöhe über dem tatsächlich gerenderten Gelände. Die derzeitige Szene nutzt Geländeproben und berücksichtigt zusätzlich den lokalen Bodenversatz des Photogrammetriemodells.

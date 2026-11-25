@@ -9,6 +9,7 @@
       "sourceUrl": "https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64",
       "enabled": true,
       "heightDatum": "WGS84 ellipsoid",
+      "legacyAlignmentHeightsM": [32.25, 33, 34.25],
       "physicalCollisionsEnabled": true,
       "surveyVerified": false,
       "alignment": {

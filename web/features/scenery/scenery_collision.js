@@ -1,5 +1,5 @@
 // Static, texture-free local-space collider. No GPU reads or network in sweeps.
-(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('../scene/scene_environment.js').FPVTunnelFlythrough:root.FPVTunnelFlythrough);if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVSceneryCollision=api;})(globalThis,function(T){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('../scene/scene_environment.js').FPVTunnelFlythrough:root.FPVTunnelFlythrough,typeof module==='object'&&module.exports?require('./scenery_alignment.js'):root.FPVSceneryAlignment);if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVSceneryCollision=api;})(globalThis,function(T,A){
     'use strict';
     const maxBytes=64*1024*1024;
     const sub=(a,b)=>a.map((v,i)=>v-b[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
@@ -69,9 +69,11 @@
     // including clockwise heading and the Cesium model's uniform scale.
     const rad=Math.PI/180;
     function ecef(lon,lat,h){const x=lon*rad,y=lat*rad,s=Math.sin(y),c=Math.cos(y),n=6378137/Math.sqrt(1-.0066943799901413165*s*s);return [(n+h)*c*Math.cos(x),(n+h)*c*Math.sin(x),(n*(1-.0066943799901413165)+h)*s];}
-    function transform(a){const lon=a.longitude*rad,lat=a.latitude*rad,h=a.rotationDeg*rad,c=Math.cos(h),s=Math.sin(h),origin=ecef(a.longitude,a.latitude,a.ellipsoidHeightM);
+    function transform(a){const lon=a.longitude*rad,lat=a.latitude*rad,origin=ecef(a.longitude,a.latitude,a.ellipsoidHeightM),rotation=A.rotationMatrix(a);
         const east=[-Math.sin(lon),Math.cos(lon),0],north=[-Math.sin(lat)*Math.cos(lon),-Math.sin(lat)*Math.sin(lon),Math.cos(lat)],up=[Math.cos(lat)*Math.cos(lon),Math.cos(lat)*Math.sin(lon),Math.sin(lat)];
-        return {local(p){const d=sub(ecef(p.longitude,p.latitude,p.height),origin),e=dot(d,east),n=dot(d,north);return [(c*e-s*n)/a.scale,(s*e+c*n)/a.scale,dot(d,up)/a.scale];},normal(n){return n?{east:c*n[0]+s*n[1],north:-s*n[0]+c*n[1],up:n[2]}:null;},scale:a.scale};
+        return {local(p){const d=sub(ecef(p.longitude,p.latitude,p.height),origin),enu=[dot(d,east),dot(d,north),dot(d,up)];
+            return [0,1,2].map(j=>(rotation[j]*enu[0]+rotation[3+j]*enu[1]+rotation[6+j]*enu[2])/a.scale);},
+            normal(n){return n?{east:dot(rotation.slice(0,3),n),north:dot(rotation.slice(3,6),n),up:dot(rotation.slice(6,9),n)}:null;},scale:a.scale};
     }
     function contact(mesh,frame,from,to,radius=.25){const hit=sweep(mesh,frame.local(from),frame.local(to),radius/frame.scale);return hit?{kind:'scenery',fraction:hit.fraction,normal:frame.normal(hit.normal),triangle:hit.triangle}:false;}
     return {parse,load,sweep,transform,contact,maxBytes};

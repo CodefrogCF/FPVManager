@@ -32,7 +32,21 @@
                 throw Error(`Invalid scenery alignment ${key}`);
             config[key] = value;
         }
+        for(const [key,limit] of [['pitchDeg',90],['rollDeg',180]])if(Object.hasOwn(input,key)){
+            if(!Number.isFinite(input[key])||Math.abs(input[key])>limit)throw Error('Invalid scenery '+key);
+            config[key]=input[key];
+        }
         return config;
+    }
+
+    // Cesium HPR convention: negative Z heading, negative Y pitch, positive X
+    // roll. Shared by visual and CPU collision geometry.
+    function rotationMatrix(input){
+        const a=normalize(input),rad=Math.PI/180,h=-a.rotationDeg*rad,
+            p=-(a.pitchDeg??0)*rad,r=(a.rollDeg??0)*rad,
+            ch=Math.cos(h),sh=Math.sin(h),cp=Math.cos(p),sp=Math.sin(p),cr=Math.cos(r),sr=Math.sin(r);
+        return [ch*cp,ch*sp*sr-sh*cr,ch*sp*cr+sh*sr,
+            sh*cp,sh*sp*sr+ch*cr,sh*sp*cr-ch*sr,-sp,cp*sr,cp*cr];
     }
 
     // Positive degrees: clockwise around the local ENU up axis. Model rotation
@@ -42,7 +56,8 @@
         const origin = Cesium.Cartesian3.fromDegrees(value.longitude, value.latitude, value.ellipsoidHeightM);
         const enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
         const rotation = Cesium.Matrix4.fromRotationTranslation(
-            Cesium.Matrix3.fromRotationZ(-Cesium.Math.toRadians(value.rotationDeg)));
+            value.pitchDeg||value.rollDeg?Cesium.Matrix3.fromRowMajorArray(rotationMatrix(value)):
+                Cesium.Matrix3.fromRotationZ(-Cesium.Math.toRadians(value.rotationDeg)));
         return Cesium.Matrix4.multiply(enu, rotation, new Cesium.Matrix4());
     }
 
@@ -173,5 +188,5 @@
         if(value.clipTerrain!==undefined&&typeof value.clipTerrain!=='boolean')throw Error('Invalid terrain replacement switch');
         return {alignment,heightOffsetM,bkgHeightOffsetM,buildingRegions:normalizeRegions(value.buildingRegions,alignment),terrainRegions:normalizeRegions(value.terrainRegions,alignment),replaceBuildings:value.replaceBuildings===true,clipTerrain:value.clipTerrain===true};
     }
-    return {DEFAULT, STORAGE_KEY, normalize, modelMatrix, apply, exportDocument, nudge,fitControlPoints,localPoint,offset,normalizeRegions,normalizeEdit,projectFootprint};
+    return {DEFAULT, STORAGE_KEY, normalize, rotationMatrix, modelMatrix, apply, exportDocument, nudge,fitControlPoints,localPoint,offset,normalizeRegions,normalizeEdit,projectFootprint};
 });

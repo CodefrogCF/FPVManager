@@ -8790,6 +8790,274 @@ class GroundRoutesCompanion extends UpdateCompanion<GroundRoute> {
   }
 }
 
+class $SceneriesTable extends Sceneries
+    with TableInfo<$SceneriesTable, Scenery> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SceneriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 80,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _manifestJsonMeta = const VerificationMeta(
+    'manifestJson',
+  );
+  @override
+  late final GeneratedColumn<String> manifestJson = GeneratedColumn<String>(
+    'manifest_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, manifestJson, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sceneries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Scenery> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('manifest_json')) {
+      context.handle(
+        _manifestJsonMeta,
+        manifestJson.isAcceptableOrUnknown(
+          data['manifest_json']!,
+          _manifestJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_manifestJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Scenery map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Scenery(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      manifestJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}manifest_json'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SceneriesTable createAlias(String alias) {
+    return $SceneriesTable(attachedDatabase, alias);
+  }
+}
+
+class Scenery extends DataClass implements Insertable<Scenery> {
+  final String id;
+  final String manifestJson;
+  final DateTime updatedAt;
+  const Scenery({
+    required this.id,
+    required this.manifestJson,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['manifest_json'] = Variable<String>(manifestJson);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SceneriesCompanion toCompanion(bool nullToAbsent) {
+    return SceneriesCompanion(
+      id: Value(id),
+      manifestJson: Value(manifestJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Scenery.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Scenery(
+      id: serializer.fromJson<String>(json['id']),
+      manifestJson: serializer.fromJson<String>(json['manifestJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'manifestJson': serializer.toJson<String>(manifestJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Scenery copyWith({String? id, String? manifestJson, DateTime? updatedAt}) =>
+      Scenery(
+        id: id ?? this.id,
+        manifestJson: manifestJson ?? this.manifestJson,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Scenery copyWithCompanion(SceneriesCompanion data) {
+    return Scenery(
+      id: data.id.present ? data.id.value : this.id,
+      manifestJson: data.manifestJson.present
+          ? data.manifestJson.value
+          : this.manifestJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Scenery(')
+          ..write('id: $id, ')
+          ..write('manifestJson: $manifestJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, manifestJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Scenery &&
+          other.id == this.id &&
+          other.manifestJson == this.manifestJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SceneriesCompanion extends UpdateCompanion<Scenery> {
+  final Value<String> id;
+  final Value<String> manifestJson;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SceneriesCompanion({
+    this.id = const Value.absent(),
+    this.manifestJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SceneriesCompanion.insert({
+    required String id,
+    required String manifestJson,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       manifestJson = Value(manifestJson);
+  static Insertable<Scenery> custom({
+    Expression<String>? id,
+    Expression<String>? manifestJson,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (manifestJson != null) 'manifest_json': manifestJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SceneriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? manifestJson,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SceneriesCompanion(
+      id: id ?? this.id,
+      manifestJson: manifestJson ?? this.manifestJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (manifestJson.present) {
+      map['manifest_json'] = Variable<String>(manifestJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SceneriesCompanion(')
+          ..write('id: $id, ')
+          ..write('manifestJson: $manifestJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$FpvDatabase extends GeneratedDatabase {
   _$FpvDatabase(QueryExecutor e) : super(e);
   $FpvDatabaseManager get managers => $FpvDatabaseManager(this);
@@ -8817,6 +9085,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     this,
   );
   late final $GroundRoutesTable groundRoutes = $GroundRoutesTable(this);
+  late final $SceneriesTable sceneries = $SceneriesTable(this);
   late final Index spotsCategoryId = Index(
     'spots_category_id',
     'CREATE INDEX spots_category_id ON spots (category_key, id)',
@@ -8854,6 +9123,7 @@ abstract class _$FpvDatabase extends GeneratedDatabase {
     preflightChecklists,
     telemetryFlights,
     groundRoutes,
+    sceneries,
     spotsCategoryId,
     spotsFavoriteId,
     spotTagsTagSpot,
@@ -16718,6 +16988,171 @@ typedef $$GroundRoutesTableProcessedTableManager =
       GroundRoute,
       PrefetchHooks Function()
     >;
+typedef $$SceneriesTableCreateCompanionBuilder = SceneriesCompanion Function({
+  required String id,
+  required String manifestJson,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$SceneriesTableUpdateCompanionBuilder = SceneriesCompanion Function({
+  Value<String> id,
+  Value<String> manifestJson,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$SceneriesTableFilterComposer
+    extends Composer<_$FpvDatabase, $SceneriesTable> {
+  $$SceneriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get manifestJson => $composableBuilder(
+    column: $table.manifestJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SceneriesTableOrderingComposer
+    extends Composer<_$FpvDatabase, $SceneriesTable> {
+  $$SceneriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get manifestJson => $composableBuilder(
+    column: $table.manifestJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SceneriesTableAnnotationComposer
+    extends Composer<_$FpvDatabase, $SceneriesTable> {
+  $$SceneriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get manifestJson => $composableBuilder(
+    column: $table.manifestJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SceneriesTableTableManager
+    extends
+        RootTableManager<
+          _$FpvDatabase,
+          $SceneriesTable,
+          Scenery,
+          $$SceneriesTableFilterComposer,
+          $$SceneriesTableOrderingComposer,
+          $$SceneriesTableAnnotationComposer,
+          $$SceneriesTableCreateCompanionBuilder,
+          $$SceneriesTableUpdateCompanionBuilder,
+          (Scenery, BaseReferences<_$FpvDatabase, $SceneriesTable, Scenery>),
+          Scenery,
+          PrefetchHooks Function()
+        > {
+  $$SceneriesTableTableManager(_$FpvDatabase db, $SceneriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SceneriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SceneriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SceneriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> manifestJson = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SceneriesCompanion(
+                id: id,
+                manifestJson: manifestJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String manifestJson,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SceneriesCompanion.insert(
+                id: id,
+                manifestJson: manifestJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SceneriesTable, Scenery>(table),
+                  BaseReferences<_$FpvDatabase, $SceneriesTable, Scenery>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SceneriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$FpvDatabase,
+      $SceneriesTable,
+      Scenery,
+      $$SceneriesTableFilterComposer,
+      $$SceneriesTableOrderingComposer,
+      $$SceneriesTableAnnotationComposer,
+      $$SceneriesTableCreateCompanionBuilder,
+      $$SceneriesTableUpdateCompanionBuilder,
+      (Scenery, BaseReferences<_$FpvDatabase, $SceneriesTable, Scenery>),
+      Scenery,
+      PrefetchHooks Function()
+    >;
 
 class $FpvDatabaseManager {
   final _$FpvDatabase _db;
@@ -16754,4 +17189,6 @@ class $FpvDatabaseManager {
       $$TelemetryFlightsTableTableManager(_db, _db.telemetryFlights);
   $$GroundRoutesTableTableManager get groundRoutes =>
       $$GroundRoutesTableTableManager(_db, _db.groundRoutes);
+  $$SceneriesTableTableManager get sceneries =>
+      $$SceneriesTableTableManager(_db, _db.sceneries);
 }

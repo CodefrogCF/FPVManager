@@ -6,6 +6,7 @@
 
 | Aufgabe | Implementierung |
 |---|---|
+| Persistente Definitionen, Manifest v1 und Asset-Provider | `lib/features/scenery/`, Drift-Tabelle `sceneries` (Schema 13) |
 | Flutter/Cesium-Kommunikation und Kartenmenü | `lib/features/globe/`, `web/globe.js`, `web/core/globe_bridge.js` |
 | Szenenkatalog, Aktivierung, Höhenzustand, Kollision und Quellen | `web/features/scenery/scenery_manager.js`, `web/assets/scenery/catalog.json` |
 | Referenz/Transformation | `web/features/scenery/scenery_alignment.js`, `web/assets/scenery/reference_alignment.json` |
@@ -20,6 +21,64 @@ Die **Haupt-GLB und FPC werden zusammen erstellt**: Die physische Kollision muss
 ### Provenienz und nichtkommerzielle Bedingungen
 
 Basis ist der Original-RAWscan von **Andrea Spognetta (spogna)**, „Abandoned Chemical plant Rüdersdorf – RAWscan“, [Originalmodell](https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64), **CC BY-NC 4.0**. Die ursprünglichen Positionen, Normalen und UV-Koordinaten der wiederhergestellten Rohscanflächen bleiben erhalten; zusätzliche Gebäude und Kollisionsflächen sind **fotogestützte Simulation**, keine vermessene Aufnahme. Original-RAWscan-Quellen und hochauflösende Texturen dürfen nicht ungeprüft weiterverteilt oder unter Apache-2.0 umgelabelt werden. Die mobilen Assets können eine verkleinerte Texturatlas-Version verwenden. Hinweise zur Herkunft von DGM1, GCG2016 und BKG finden sich unter [Third-party notices](../../THIRD_PARTY_NOTICES.md) und in den Asset-Credits `web/assets/scenery/ATTRIBUTION.md`.
+
+## Persistente Scenery-Architektur
+
+Der Renderer liefert seinen bereits geladenen gebündelten Katalog über
+`scenery-catalog` einmalig als anfängliche Definitionen. `SceneryRepository`
+übernimmt diese einmalig in die Drift-Tabelle `sceneries`; eine gespeicherte
+Initialisierungsmarke verhindert, dass absichtlich entfernte Vorlagen nach einem
+Neustart oder Backup-Restore wieder erscheinen. Alte Aktivierungen und
+Ausrichtungen werden transaktional übernommen. Ungültige Bestandsdaten werden
+als Fehler gemeldet und bleiben erhalten. Datenbankschema 13 ergänzt ausschließlich
+diese Tabelle; bestehende Tabellen werden dafür nicht umgebaut.
+
+`SceneryManifest` definiert das JSON-Format **schemaVersion 1**:
+
+| Feld | Vertrag |
+|---|---|
+| `id`, `name`, `description` | Stabile Kennung und Beschreibung |
+| `source` | `author`, HTTPS-`url`, `license`, `attribution` |
+| `anchor` | `longitude`, `latitude`, `heightM`, `reference`: `WGS84_ELLIPSOID` oder `TERRAIN_RELATIVE` |
+| `bounds` | Geographische Region `west`, `south`, `east`, `north`; West > Ost kennzeichnet den Datumswechsel |
+| `rotation`, `scale` | `headingDeg`, `pitchDeg`, `rollDeg`, einheitlicher Maßstab im lokalen ENU-System |
+| `assets` | Eigene Kennung, Rolle `visual`/`collision`, `provider`, `format`, `uri` pro Asset |
+| `collision` | `enabled`, Referenzen über `assetIds`, `sidedness` |
+| `visibility` | `enabled`, `loadRadiusM`, `unloadRadiusM` mit Hysterese |
+| `minimumAppVersion` | Semantische Mindestversion `major.minor.patch` |
+| `extensions` | Provideroptionen; die Cesium-Kompatibilität enthält bestehende Höhen-/Terrainzertifikate |
+
+Definitionen sind unveränderliche Snapshots. Es gelten höchstens 64 Szenen,
+128 KiB pro Definition, 1 MiB pro Katalog sowie höchstens je 16 visuelle und
+Kollisionsassets. Katalog-Bounds aus Vorlagen/Platzierungsformularen sind
+konservative Abdeckungsregionen, keine vermessenen Mesh-Grenzen. Tatsächliche
+Mesh-Bounds, Dateiauswahl und Ressourcenimport gehören zum Asset-Importworkflow.
+
+`SceneryAssetProvider` löst logische Referenzen auf. Der vorhandene Provider
+`bundled` unterstützt selbstenthaltende GLB und FPC innerhalb des Szenen-Assetroots.
+Weitere Provider/Formate können definiert und gespeichert werden; ohne passenden
+Ladepfad bleibt die Szene **unavailable**, ebenso bei einer zu hohen Mindestversion.
+Front-/Back-only-Kollision und neu geneigte, bereits terrainkalibrierte Szenen
+bleiben bis zu einer passenden Implementierung/Neukalibrierung nicht verfügbar.
+Es wird kein nicht unterstütztes Format als GLB oder gültige Kollision ausgegeben.
+
+Die Bridge-Nachricht `replace-scenery-catalog` überträgt einen vollständigen
+aufgelösten Katalog. Unveränderte Einträge behalten Modelle und Kollisionsdaten;
+entfernte/geänderte Einträge entwerten laufende Ladevorgänge. Fehlerhafte optionale
+Szenen erhalten einen eigenen Fehlerzustand. Alle Kollisionsassets einer Szene
+müssen geladen sein, bevor ihre physische Kollision aktiv wird. Darstellungs- und
+Kollisionsgeometrie verwenden dieselbe ENU-Rotation einschließlich Pitch und Roll.
+Eine veränderte Platzierung entwertet alte Gebäude-/Terrain-Ersatzmasken;
+Grundkarte und optionale Szenen werden unabhängig wiederhergestellt. Veraltete
+Wiederherstellungsgenerationen übertragen keinen Katalog.
+Änderungen während Navigation werden abgewiesen. Nach Renderer-Neuverbindung
+wird der aktuelle Datenbankstand erneut übertragen.
+
+Szenendefinitionen und Initialisierungszustand werden im bestehenden Backupformat
+mitgeführt; Modellbytes und Provider-Caches werden damit nicht als austauschbares
+Scenery-Paket exportiert. Alte Backups bleiben einlesbar. Ein allgemeiner
+GLB/glTF-Dateiimport, frei wählbare 3D-Tiles-Dienste und `.fpvscenery`-Pakete sind
+separate Ausbauschritte. Die Referenzszene und die BKG-Grenzen unten bleiben gültig.
 
 ## Geometrie und Orientierung
 

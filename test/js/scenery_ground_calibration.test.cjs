@@ -77,7 +77,7 @@ test('tap workflow uses local scanned ground and bare terrain, confirmation is e
   const controller=fs.readFileSync('lib/features/globe/globe_controller.dart','utf8');
   assert.match(html,/scenery_bridge_calibration\.js/);
   assert.ok(html.indexOf('scenery_bridge_calibration.js')<html.indexOf('globe.js'));
-  assert.match(manager,/allowPicking:url\.endsWith\("local_reference\.glb"\)/);
+  assert.match(manager,/allowPicking:true/,'all scenery models must support the same guarded pick workflow');
   assert.match(js,/sceneryManager\.setPreviewHidden\(id,true\)/);
   assert.match(js,/FPVSceneryBridgeCalibration\.compare/);
   assert.match(js,/case 'begin-scenery-bridge-height-match'/);

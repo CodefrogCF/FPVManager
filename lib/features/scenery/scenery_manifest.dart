@@ -1,0 +1,365 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
+import '../../core/geo/geo_coordinate_service.dart';
+
+/// Application-independent scenery definition. Provider-specific calibration
+/// stays in extensions; asset bytes and runtime readiness never enter the DB.
+final class SceneryManifest {
+  SceneryManifest._(this._json);
+  static const schemaVersion = 1;
+  static const maxBytes = 128 * 1024;
+  final Map<String, dynamic> _json;
+
+  String get id => _json['id'] as String;
+  String get name => _json['name'] as String;
+  bool get enabled => (_json['visibility'] as Map)['enabled'] as bool;
+  List<SceneryAsset> get assets => List.unmodifiable(
+    (_json['assets'] as List).map((v) => SceneryAsset.fromJson(v)),
+  );
+  VerticalReference get verticalReference =>
+      (_json['anchor'] as Map)['reference'] == 'WGS84_ELLIPSOID'
+      ? VerticalReference.wgs84Ellipsoid
+      : VerticalReference.unverified;
+  FlightAltitudeMode get altitudeMode =>
+      (_json['anchor'] as Map)['reference'] == 'TERRAIN_RELATIVE'
+      ? FlightAltitudeMode.aboveGroundLevel
+      : FlightAltitudeMode.absolute;
+  Map<String, dynamic> toJson() => _clone(_json);
+
+  factory SceneryManifest.fromJson(Object? value) {
+    final doc = _clone(_map(value));
+    if (utf8.encode(jsonEncode(doc)).length > maxBytes) {
+      throw const FormatException('Scenery manifest exceeds size limit');
+    }
+    if (doc['schemaVersion'] != schemaVersion) {
+      throw const FormatException('Unsupported scenery manifest version');
+    }
+    _identifier(doc['id']);
+    _text(doc['name'], 120);
+    _text(doc['description'], 4096, empty: true);
+    final source = _map(doc['source']);
+    for (final key in ['author', 'license', 'attribution']) {
+      _text(source[key], 2048);
+    }
+    _https(source['url']);
+    final anchor = _map(doc['anchor']);
+    _number(anchor['longitude'], -180, 180);
+    _number(anchor['latitude'], -90, 90);
+    _number(anchor['heightM'], -10000, 20000);
+    if (!{
+      'WGS84_ELLIPSOID',
+      'TERRAIN_RELATIVE',
+    }.contains(anchor['reference'])) {
+      throw const FormatException('Unsupported scenery altitude reference');
+    }
+    final bounds = _map(doc['bounds']);
+    for (final key in ['west', 'east']) {
+      _number(bounds[key], -180, 180);
+    }
+    for (final key in ['south', 'north']) {
+      _number(bounds[key], -90, 90);
+    }
+    if ((bounds['south'] as num) > (bounds['north'] as num)) {
+      throw const FormatException('Invalid scenery bounds');
+    }
+    final rotation = _map(doc['rotation']);
+    _number(rotation['headingDeg'], -360, 360);
+    _number(rotation['pitchDeg'], -90, 90);
+    _number(rotation['rollDeg'], -180, 180);
+    _number(doc['scale'], .01, 1000);
+    final rawAssets = doc['assets'];
+    if (rawAssets is! List || rawAssets.isEmpty || rawAssets.length > 32) {
+      throw const FormatException('Invalid scenery assets');
+    }
+    final assets = rawAssets.map(SceneryAsset.fromJson).toList();
+    final ids = assets.map((a) => a.id).toSet();
+    if (ids.length != assets.length ||
+        !assets.any((a) => a.role == 'visual') ||
+        assets.where((a) => a.role == 'visual').length > 16 ||
+        assets.where((a) => a.role == 'collision').length > 16) {
+      throw const FormatException('Missing visual asset or duplicate asset ID');
+    }
+    final collision = _map(doc['collision']);
+    final collisionIds = collision['assetIds'];
+    if (collision['enabled'] is! bool ||
+        collisionIds is! List ||
+        collisionIds.toSet().length != collisionIds.length ||
+        collisionIds.any(
+          (id) => !assets.any((a) => a.id == id && a.role == 'collision'),
+        ) ||
+        collision['enabled'] == true && collisionIds.isEmpty ||
+        !{'double', 'front', 'back'}.contains(collision['sidedness'])) {
+      throw const FormatException('Invalid scenery collision configuration');
+    }
+    final visibility = _map(doc['visibility']);
+    if (visibility['enabled'] is! bool) {
+      throw const FormatException('Invalid scenery visibility');
+    }
+    _number(visibility['loadRadiusM'], 100, 29999);
+    _number(visibility['unloadRadiusM'], 101, 30000);
+    if ((visibility['unloadRadiusM'] as num) <=
+        (visibility['loadRadiusM'] as num)) {
+      throw const FormatException(
+        'Scenery unloading distance needs hysteresis',
+      );
+    }
+    parseSceneryVersion(doc['minimumAppVersion']);
+    if (doc['extensions'] != null) _map(doc['extensions']);
+    return SceneryManifest._(doc);
+  }
+
+  SceneryManifest withEnabled(bool value) {
+    final doc = toJson();
+    (doc['visibility'] as Map)['enabled'] = value;
+    return SceneryManifest.fromJson(doc);
+  }
+
+  /// Compatibility adapter for bundled catalogs and existing saved alignment.
+  /// Keeps certificates/height calibration intact rather than guessing a datum.
+  factory SceneryManifest.fromBundled(Map<String, dynamic> item) {
+    final a = _map(item['alignment']);
+    final lon = (a['longitude'] as num).toDouble();
+    final lat = (a['latitude'] as num).toDouble();
+    final radius = (item['unloadRadiusM'] as num? ?? 4000).toDouble();
+    final assets = <Map<String, dynamic>>[
+      for (final (i, raw) in (item['assets'] as List).indexed)
+        {
+          'id': 'visual-$i',
+          'role': 'visual',
+          'provider': 'bundled',
+          'format': (raw as Map)['kind'],
+          'uri': raw['path'],
+        },
+      if (item['collisionAsset'] != null)
+        {
+          'id': 'collision',
+          'role': 'collision',
+          'provider': 'bundled',
+          'format': 'fpc',
+          'uri': item['collisionAsset'],
+        },
+    ];
+    return SceneryManifest.fromJson({
+      'schemaVersion': schemaVersion,
+      'id': item['id'],
+      'name': item['name'],
+      'description': item['description'] ?? '',
+      'source': {
+        'author': item['author'],
+        'url': item['sourceUrl'],
+        'license': item['license'],
+        'attribution':
+            item['attribution'] ?? '${item['author']} · ${item['license']}',
+      },
+      'anchor': {
+        'longitude': lon,
+        'latitude': lat,
+        'heightM': a['ellipsoidHeightM'],
+        'reference': 'WGS84_ELLIPSOID',
+      },
+      'bounds': sceneryCoverageBounds(lon, lat, radius),
+      'rotation': {
+        'headingDeg': a['rotationDeg'],
+        'pitchDeg': a['pitchDeg'] ?? 0,
+        'rollDeg': a['rollDeg'] ?? 0,
+      },
+      'scale': a['scale'],
+      'assets': assets,
+      'collision': {
+        'enabled': item['physicalCollisionsEnabled'] == true,
+        'assetIds': item['collisionAsset'] == null ? <String>[] : ['collision'],
+        'sidedness': 'double',
+      },
+      'visibility': {
+        'enabled': item['enabled'] != false,
+        'loadRadiusM': item['loadRadiusM'] ?? 2500,
+        'unloadRadiusM': radius,
+      },
+      'minimumAppVersion': '0.19.29',
+      'extensions': {'cesium': item, 'bundledAlignment': item['alignment']},
+    });
+  }
+
+  SceneryManifest withLegacyEdit(
+    Map<String, dynamic> edit, {
+    bool migrateLegacyBase = false,
+  }) {
+    final doc = toJson();
+    var a = _map(edit['alignment']);
+    final base = ((doc['extensions'] as Map?)?['cesium'] as Map?);
+    final original = base?['alignment'] as Map?;
+    if (migrateLegacyBase &&
+        original != null &&
+        a['ellipsoidHeightM'] != original['ellipsoidHeightM'] &&
+        (base?['legacyAlignmentHeightsM'] as List?)?.contains(
+              a['ellipsoidHeightM'],
+            ) ==
+            true &&
+        [
+          'longitude',
+          'latitude',
+          'scale',
+          'rotationDeg',
+        ].every((key) => a[key] == original[key])) {
+      a = {...a, 'ellipsoidHeightM': original['ellipsoidHeightM']};
+      edit = {...edit, 'alignment': a};
+    }
+    doc['anchor'] = {
+      'longitude': a['longitude'],
+      'latitude': a['latitude'],
+      'heightM': a['ellipsoidHeightM'],
+      'reference': 'WGS84_ELLIPSOID',
+    };
+    doc['rotation'] = {
+      'headingDeg': a['rotationDeg'],
+      'pitchDeg': a['pitchDeg'] ?? 0,
+      'rollDeg': a['rollDeg'] ?? 0,
+    };
+    doc['scale'] = a['scale'];
+    doc['bounds'] = sceneryCoverageBounds(
+      (a['longitude'] as num).toDouble(),
+      (a['latitude'] as num).toDouble(),
+      ((doc['visibility'] as Map)['unloadRadiusM'] as num).toDouble(),
+    );
+    final extensions = (doc['extensions'] ??= <String, dynamic>{}) as Map;
+    extensions['cesium'] = {...?_mapOrNull(extensions['cesium']), ...edit};
+    return SceneryManifest.fromJson(doc);
+  }
+}
+
+/// Conservative geographic coverage, not measured transformed mesh bounds.
+Map<String, double> sceneryCoverageBounds(
+  double longitude,
+  double latitude,
+  double radiusM,
+) {
+  final dLat = radiusM / 6378137 * 180 / math.pi;
+  final polar = latitude - dLat <= -90 || latitude + dLat >= 90;
+  final dLon = polar
+      ? 180.0
+      : math.asin(
+              math.min(
+                1,
+                math.sin(radiusM / 6378137) /
+                    math.cos(latitude * math.pi / 180),
+              ),
+            ) *
+            180 /
+            math.pi;
+  return {
+    'west': polar ? -180 : (longitude - dLon + 540) % 360 - 180,
+    'east': polar ? 180 : (longitude + dLon + 540) % 360 - 180,
+    'south': math.max(-90, latitude - dLat),
+    'north': math.min(90, latitude + dLat),
+  };
+}
+
+final class SceneryAsset {
+  SceneryAsset._(this.id, this.role, this.provider, this.format, this.uri);
+  final String id, role, provider, format, uri;
+  factory SceneryAsset.fromJson(Object? value) {
+    final a = _map(value);
+    _identifier(a['id']);
+    _identifier(a['provider']);
+    _identifier(a['format']);
+    if (!{'visual', 'collision'}.contains(a['role'])) {
+      throw const FormatException('Invalid scenery asset role');
+    }
+    _text(a['uri'], 2048);
+    final uri = Uri.tryParse(a['uri'] as String);
+    if (uri == null ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasFragment ||
+        uri.hasScheme && uri.scheme != 'https' ||
+        uri.scheme == 'https' && uri.host.isEmpty ||
+        !uri.hasScheme && !isSceneryRelativePath(a['uri'] as String)) {
+      throw const FormatException('Unsafe scenery asset reference');
+    }
+    return SceneryAsset._(
+      a['id'] as String,
+      a['role'] as String,
+      a['provider'] as String,
+      a['format'] as String,
+      a['uri'] as String,
+    );
+  }
+}
+
+bool isSceneryRelativePath(String value) =>
+    RegExp(r'^([a-zA-Z0-9_-]+/)*[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$').hasMatch(value);
+
+List<int> parseSceneryVersion(Object? value) {
+  if (value is! String ||
+      !RegExp(r'^\d{1,4}\.\d{1,4}\.\d{1,4}$').hasMatch(value)) {
+    throw const FormatException('Invalid minimum application version');
+  }
+  return value.split('.').map(int.parse).toList(growable: false);
+}
+
+Map<String, dynamic> _clone(Map<String, dynamic> value) {
+  final pending = <(Object?, int)>[(value, 0)];
+  var nodes = 0;
+  while (pending.isNotEmpty) {
+    final (node, depth) = pending.removeLast();
+    if (depth > 24 || ++nodes > 32768) {
+      throw const FormatException('Scenery object exceeds structural limits');
+    }
+    if (node is Map) {
+      if (node.keys.any((key) => key is! String)) {
+        throw const FormatException('Invalid scenery object key');
+      }
+      for (final child in node.values) {
+        pending.add((child, depth + 1));
+      }
+    } else if (node is List) {
+      for (final child in node) {
+        pending.add((child, depth + 1));
+      }
+    } else if (node is num && !node.isFinite ||
+        node != null && node is! num && node is! bool && node is! String) {
+      throw const FormatException('Invalid scenery JSON value');
+    }
+  }
+  return jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
+}
+
+Map<String, dynamic> _map(Object? value) {
+  if (value is! Map<String, dynamic>) {
+    throw const FormatException('Expected scenery object');
+  }
+  return value;
+}
+
+Map<String, dynamic>? _mapOrNull(Object? value) =>
+    value == null ? null : _map(value);
+void _identifier(Object? value) {
+  if (value is! String || !RegExp(r'^[a-z0-9_-]{1,80}$').hasMatch(value)) {
+    throw const FormatException('Invalid scenery identifier');
+  }
+}
+
+void _text(Object? value, int limit, {bool empty = false}) {
+  if (value is! String ||
+      value.length > limit ||
+      !empty && value.trim().isEmpty) {
+    throw const FormatException('Invalid scenery text');
+  }
+}
+
+void _number(Object? value, double min, double max) {
+  if (value is! num || !value.isFinite || value < min || value > max) {
+    throw const FormatException('Invalid scenery coordinate or setting');
+  }
+}
+
+void _https(Object? value) {
+  _text(value, 2048);
+  final uri = Uri.tryParse(value as String);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) {
+    throw const FormatException('Invalid scenery source URL');
+  }
+}

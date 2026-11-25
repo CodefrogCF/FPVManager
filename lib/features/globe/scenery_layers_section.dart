@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 import 'globe_controller.dart';
+import '../scenery/scenery_management_page.dart';
 
 /// Optional scenery assets with experimental, non-surveyed collision geometry.
 class SceneryLayersSection extends StatefulWidget {
@@ -345,6 +346,33 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
             overflow: TextOverflow.ellipsis,
           ),
         TextButton.icon(
+          onPressed: enabled && !controller.navigationActive
+              ? () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SceneryManagementPage(
+                        load: controller.sceneryDefinitions,
+                        templates: controller.sceneryTemplates,
+                        save: (manifest, create) async {
+                          await controller.saveSceneryDefinition(
+                            manifest,
+                            create: create,
+                          );
+                        },
+                        remove: (id) async {
+                          await controller.removeSceneryDefinition(id);
+                        },
+                        german: german,
+                      ),
+                    ),
+                  );
+                  if (mounted) await _load(controller.sceneryStatus);
+                }
+              : null,
+          icon: const Icon(Icons.folder_open),
+          label: Text(german ? 'Umgebungen verwalten' : 'Manage scenery'),
+        ),
+        TextButton.icon(
           onPressed: enabled ? () => _load(controller.sceneryStatus) : null,
           icon: const Icon(Icons.refresh),
           label: Text(german ? 'Status aktualisieren' : 'Refresh status'),
@@ -359,7 +387,11 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   : switch (item['state']) {
                       'ready' => german ? 'Bereit' : 'Ready',
                       'loading' => german ? 'Wird geladen' : 'Loading',
-                      'error' => german ? 'Nicht verfügbar' : 'Unavailable',
+                      'error' => german ? 'Fehler beim Laden' : 'Loading error',
+                      'unavailable' =>
+                        german
+                            ? 'Derzeit nicht verfügbar'
+                            : 'Currently unavailable',
                       _ => german ? 'Nicht geladen' : 'Not loaded',
                     },
             ),
