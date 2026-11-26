@@ -124,8 +124,13 @@ are constant. Surface loss is limited to 100 dB, total scenery loss to 160 dB.
 Coincident surface intersections (within 1 cm) count once, retaining the
 strongest assumption. Opposite faces are treated as one slab only when the
 explicit thickness agrees with separation and normals; the model does not
-infer solid volumes or actual thickness from photogrammetry. The conservative
-unknown preset is used for unclassified meshes. Material applies to the entire
+infer solid volumes or actual thickness from photogrammetry. For unclassified meshes without explicit thickness or attenuation overrides,
+use an effective NLOS loss of the unknown preset plus 5 dB (868 MHz) to 7 dB
+(5800 MHz) per doubling of the number of distinct unknown crossings. This
+heuristic avoids counting scan surfaces as surveyed independent walls; it
+is not a measured alternate-path model and may underestimate dense barriers.
+Explicit material or attenuation assumptions retain additive wall loss.
+Raw intersection counts remain visible in diagnostics. Material applies to the entire
 collision asset, not individual triangles; split distinct materials into meshes.
 
 Direct intersections take priority. An otherwise clear path is checked against

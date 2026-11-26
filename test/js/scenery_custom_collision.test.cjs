@@ -118,3 +118,32 @@ test('RF manager waits for independent geometry, deduplicates overlapping faces 
  f.manager.setEnabled('a',false);const clear=f.manager.radioPath(p,q,5800,0);assert.equal(clear.obstructions,0);assert.equal(clear.lossDb,0);
  }finally{f.manager.dispose();}
 });
+test('unclassified scan loss grows gradually, explicit walls retain additive attenuation',()=>{
+ const hit=(f,profile={material:'unknown'})=>Collision.rfCrossing(Collision.normalizeRf(profile),f,1);
+ for(const f of [868,5800]){
+  const report=n=>Collision.rfPathLoss(Array.from({length:n},()=>hit(f)),f);
+  assert.equal(report(0).lossDb,0);
+  assert.equal(report(1).lossDb,f===868?12:22);
+  assert.equal(report(2).lossDb,f===868?17:29);
+  assert.equal(report(4).lossDb,f===868?22:36);
+  assert.ok(report(41).lossDb>report(8).lossDb);
+  assert.equal(report(41).assumedCrossings,41);
+  const wall=hit(f,{material:'reinforcedConcrete'}),override=hit(f,{material:'unknown',surfaceLossDb:30});
+  assert.equal(Collision.rfPathLoss([wall,wall],f).lossDb,2*wall.lossDb);
+  assert.equal(Collision.rfPathLoss([override,override],f).lossDb,60);
+  assert.equal(Collision.rfPathLoss([hit(f),wall],f).lossDb,hit(f).lossDb+wall.lossDb);
+  assert.equal(Collision.rfPathLoss([],f,true).lossDb,4);
+ }
+});
+test('unknown scan attenuation preserves short range RC reserve without making metal or terrain harmless',()=>{
+ const RF=require('../../web/features/signal/rf_estimation.js');
+ const from=geo([0,0,10]),to=geo([300,0,10]);
+ const terrain={source:'sampledTerrain',confidence:'approximate',visibility:'clear',minimumClearanceMeters:10,minimumFresnelMarginMeters:10};
+ const report=(frequency,material,count)=>Collision.rfPathLoss(Array.from({length:count},()=>Collision.rfCrossing({material},frequency,1)),frequency);
+ const cfg={controlScenario:'custom',videoScenario:'custom',control:{eirpDbm:24},video:{eirpDbm:30}};
+ const scene=material=>({control:report(868,material,4),video:report(5800,material,4)});
+ const clear=RF.assess(terrain,from,to,cfg),scan=RF.assess(terrain,from,to,cfg,scene('unknown'));
+ assert.ok(scan.controlLink.quality>.45);assert.ok(scan.videoLink.quality>0&&scan.videoLink.quality<clear.videoLink.quality);
+ assert.equal(RF.assess(terrain,from,to,cfg,scene('metal')).controlLink.quality,0);
+ assert.equal(RF.assess({...terrain,visibility:'obstructed',minimumClearanceMeters:-100},from,to,cfg,scene('unknown')).controlLink.quality,0);
+});

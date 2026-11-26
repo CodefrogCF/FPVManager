@@ -83,7 +83,7 @@ function validate(fixture, state, height) {
                     const trace=Collision.rfTrace(mesh,route.station,p,scale,frequency,.6,{nodes:8192,triangles:4096});
                     assert.ok(trace.complete,`${route.id} incomplete ${name} ${i}`);
                     assert.equal(trace.hits.length>0,route.expectedDirectHits[i],`${route.id} ${name} ${i}`);
-                    const lossDb=Math.min(160,trace.hits.reduce((n,h)=>n+Collision.rfLoss(material,frequency,h.cosine),0)+(trace.fresnel&&!trace.hits.length?4:0));
+                    const {lossDb}=Collision.rfPathLoss(trace.hits.map(h=>Collision.rfCrossing(material,frequency,h.cosine)),frequency,trace.fresnel);
                     links[name]={lossDb,complete:true,crossings:trace.hits.length,fresnel:trace.fresnel};
                 }
                 const g=coordinates[i],to={longitude:g[0],latitude:g[1],height:g[2]}, terrain={source:'sampledTerrain',confidence:'approximate',visibility:'clear',minimumClearanceMeters:10,minimumFresnelMarginMeters:10};
@@ -97,7 +97,7 @@ function validate(fixture, state, height) {
                 // Default short-range Crossfire may retain full quality behind this wall.
                 const training=RF.assess(terrain,from,to,{...RF.defaults,controlScenario:'custom',control:{...RF.defaults.control,receiverThresholdDbm:-60}},links);
                 assert.ok(route.expectedDirectHits[i]?training.controlLink.quality<.2:training.controlLink.quality>.5,'Training loss/recovery must be distinguishable');
-                return {...links,controlQuality:modeled.controlLink.quality,videoQuality:modeled.videoLink.quality,trainingControlQuality:training.controlLink.quality};
+                return {...links,controlQuality:modeled.controlLink.quality,videoQuality:modeled.videoLink.quality,trainingControlQuality:training.controlLink.quality,controlMarginDb:modeled.controlLink.linkMarginDb,videoMarginDb:modeled.videoLink.linkMarginDb};
             });
             result.station=station;
         }

@@ -103,7 +103,11 @@ class ConversionTests(unittest.TestCase):
         import laspy
         from pyproj import CRS
         hdr=laspy.LasHeader(point_format=3,version='1.2'); hdr.add_crs(CRS.from_epsg(25832)); hdr.offsets=[500000,5300000,100]; hdr.scales=[.01,.01,.01]
-        las=laspy.LasData(hdr); las.x=[500000,500001,500000,500001]; las.y=[5300000,5300000,5300001,5300001]; las.z=[100,100,100,120]; las.classification=[2,2,2,6]
+        las = laspy.LasData(hdr)
+        las.x = np.array([500000, 500001, 500000, 500001], dtype=np.float64)
+        las.y = np.array([5300000, 5300000, 5300001, 5300001], dtype=np.float64)
+        las.z = np.array([100, 100, 100, 120], dtype=np.float64)
+        las.classification = np.array([2, 2, 2, 6], dtype=np.uint8)
         for ext in ('las','laz'):
             if ext=='laz' and not importlib.util.find_spec('lazrs'): continue
             p=self.base/('ground.'+ext); las.write(p)

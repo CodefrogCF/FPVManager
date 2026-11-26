@@ -307,7 +307,7 @@
 
             if(scenery){
                 const v=scenery.video,r=scenery.control;
-                detailMessage+=` · SIM scenery: ${Math.max(v.obstructions,r.obstructions)} crossings; Video ${v.lossDb.toFixed(1)} dB / RC ${r.lossDb.toFixed(1)} dB${v.fresnelIntrusion||r.fresnelIntrusion?' · possible Fresnel intrusion':''}${!v.complete||!r.complete?' · incomplete scenery coverage':''} (estimated, not measured)`;
+                detailMessage+=` · SIM scenery: ${Math.max(v.obstructions,r.obstructions)} crossings; Video ${v.lossDb.toFixed(1)} dB / RC ${r.lossDb.toFixed(1)} dB${v.assumedCrossings||r.assumedCrossings?' · unclassified scan: effective NLOS estimate':''}${v.fresnelIntrusion||r.fresnelIntrusion?' · possible Fresnel intrusion':''}${!v.complete||!r.complete?' · incomplete scenery coverage':''} (estimated, not measured)`;
             }
             if(currentAssessment.videoLink!=='unknown'||currentAssessment.controlLink!=='unknown'){
                 const brief=(name,link)=>!link||link==='unknown'||!Number.isFinite(link.linkMarginDb)||!Number.isFinite(link.estimatedMaxRangeM)

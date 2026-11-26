@@ -61,7 +61,9 @@
           },
           "controlQuality": 1,
           "videoQuality": 1,
-          "trainingControlQuality": 1
+          "trainingControlQuality": 1,
+          "controlMarginDb": 85.8,
+          "videoMarginDb": 71.2
         },
         {
           "control": {
@@ -78,24 +80,28 @@
           },
           "controlQuality": 1,
           "videoQuality": 1,
-          "trainingControlQuality": 0.7855306814620391
+          "trainingControlQuality": 0.7855306814620391,
+          "controlMarginDb": 77.6,
+          "videoMarginDb": 63
         },
         {
           "control": {
-            "lossDb": 24,
+            "lossDb": 17,
             "complete": true,
             "crossings": 2,
             "fresnel": true
           },
           "video": {
-            "lossDb": 44,
+            "lossDb": 29,
             "complete": true,
             "crossings": 2,
             "fresnel": true
           },
           "controlQuality": 1,
-          "videoQuality": 0.7680129179206328,
-          "trainingControlQuality": 0
+          "videoQuality": 1,
+          "trainingControlQuality": 0.1546184301782631,
+          "controlMarginDb": 58.6,
+          "videoMarginDb": 32
         },
         {
           "control": {
@@ -112,7 +118,9 @@
           },
           "controlQuality": 1,
           "videoQuality": 1,
-          "trainingControlQuality": 0.7855306814620391
+          "trainingControlQuality": 0.7855306814620391,
+          "controlMarginDb": 77.6,
+          "videoMarginDb": 63
         },
         {
           "control": {
@@ -129,7 +137,9 @@
           },
           "controlQuality": 1,
           "videoQuality": 1,
-          "trainingControlQuality": 1
+          "trainingControlQuality": 1,
+          "controlMarginDb": 85.8,
+          "videoMarginDb": 71.2
         }
       ],
       "station": [

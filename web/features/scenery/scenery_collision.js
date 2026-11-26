@@ -110,6 +110,22 @@
         const thickness=profile.thicknessM===undefined?0:profile.thicknessM/Math.max(.2,cosine);
         return Math.min(100,surface+thickness*(profile.lossDbPerM??perM)*(profile.lossDbPerM===undefined?1+.5*mix:1));
     }
+    // An unclassified scan provides surface intersections, not a wall survey.
+    // Treat those hits as one effective NLOS estimate with diminishing added
+    // loss. Explicit materials/thickness/overrides retain their per-wall model.
+    // Coefficients are simulator assumptions, not a multipath calculation.
+    function rfCrossing(profile,frequency,cosine){
+        return {lossDb:rfLoss(profile,frequency,cosine),assumed:profile.material==='unknown'&&
+            profile.thicknessM===undefined&&profile.surfaceLossDb===undefined&&profile.lossDbPerM===undefined};
+    }
+    function rfPathLoss(hits,frequency,fresnel=false){
+        let explicit=0,unknown=0;
+        for(const hit of hits){if(hit.assumed)unknown++;else explicit+=hit.lossDb;}
+        const mix=Math.max(0,Math.min(1,Math.log(frequency/868)/Math.log(5800/868)));
+        const assumedLossDb=unknown?rfLoss({material:'unknown'},frequency,1)+(5+2*mix)*Math.log2(unknown):0;
+        return {lossDb:Math.min(160,explicit+assumedLossDb+(!hits.length&&fresnel?4:0)),
+            assumedCrossings:unknown,assumedLossDb};
+    }
     function rfBoxInterval(bounds,offset,p,d,pad=0){
         let lo=0,hi=1;
         for(let j=0;j<3;j++){
@@ -196,5 +212,5 @@
         const primitive=new C.Primitive({geometryInstances:new C.GeometryInstance({geometry,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(C.Color.ORANGE.withAlpha(.8))}}),appearance:new C.PerInstanceColorAppearance({flat:true,translucent:true}),modelMatrix:matrix,asynchronous:false,allowPicking:false});
         viewer.scene.primitives.add(primitive);return primitive;
     }
-    return {parse,parseAsync,load,sweep,transform,contact,visualize,maxBytes,rfTrace,rfBoxInterval,normalizeRf,rfLoss};
+    return {parse,parseAsync,load,sweep,transform,contact,visualize,maxBytes,rfTrace,rfBoxInterval,normalizeRf,rfLoss,rfCrossing,rfPathLoss};
 });

@@ -1033,21 +1033,21 @@
                     const material=Collision.normalizeRf(e.item.rfMaterials?.[paths[i]]);
                     let previous=null;
                     for(const hit of trace.hits){
-                        const at=hit.fraction*distance,lossDb=Collision.rfLoss(material,frequency,hit.cosine);
+                        const at=hit.fraction*distance,estimate=Collision.rfCrossing(material,frequency,hit.cosine);
                         // Only explicitly supplied slab thickness allows pairing
                         // opposing faces; never infer solid volumes from scans.
                         const expected=material.thicknessM===undefined?0:material.thicknessM/Math.max(.2,previous?.cosine??1);
                         if(previous&&expected>0&&hit.normal.reduce((n,v,k)=>n+v*previous.normal[k],0)<-.95&&Math.abs(at-previous.at-expected)<=Math.max(.02,expected*.2)){previous=null;continue;}
                         if(crossings.length>=128){complete=false;reasons.add('Scenery RF work limit');break;}
-                        crossings.push({id:e.item.id,material:material.material,at,lossDb});previous={...hit,at};
+                        crossings.push({id:e.item.id,material:material.material,at,...estimate});previous={...hit,at};
                     }
                 }
             }
             // Coincident replacement/duplicate faces must not multiply loss.
             crossings.sort((a,b)=>a.at-b.at);const hits=[];
             for(const hit of crossings){const last=hits.at(-1);if(last&&Math.abs(hit.at-last.at)<=.01){if(hit.lossDb>last.lossDb)hits[hits.length-1]=hit;}else hits.push(hit);}
-            const lossDb=Math.min(160,hits.reduce((n,h)=>n+h.lossDb,0)+(hits.length===0&&fresnel?4:0));
-            return {complete,reason:[...reasons].join('; ')||null,obstructions:hits.length,fresnelIntrusion:fresnel,lossDb,materials:[...new Set(hits.map(h=>h.material))],
+            const loss=Collision.rfPathLoss(hits,frequency,fresnel);
+            return {complete,reason:[...reasons].join('; ')||null,obstructions:hits.length,fresnelIntrusion:fresnel,...loss,materials:[...new Set(hits.map(h=>h.material))],
                 nodes:8192-budget.nodes,triangles:4096-budget.triangles,durationMs:performance.now()-start};
         }
         async function radioPaths(command,signal){

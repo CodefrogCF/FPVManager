@@ -56,7 +56,10 @@ test('exported absolute routes use the existing playback preparation and remain 
 
 test('reference wall shadow weakens default video and the deliberate training RC profile can trigger and recover a generic failsafe',()=>{
     const samples=result.report.checks.find(c=>c.id==='rf-recovery').rf;
-    assert.ok(samples[2].videoQuality<samples[1].videoQuality);
+    assert.ok(samples[2].videoMarginDb<samples[1].videoMarginDb);
+    assert.ok(samples[2].videoQuality<=samples[1].videoQuality);
+    assert.equal(samples[2].control.lossDb,17);
+    assert.equal(samples[2].video.lossDb,29);
     assert.equal(samples[2].controlQuality,1,'default RC need not fail at short distance');
     const machine=Failsafe.create({enabled:true,mode:'hold',autoRecover:true,activationDelaySeconds:.6,recoveryDelaySeconds:.6});
     function step(sample){let s;for(let i=0;i<60;i++)s=machine.step(1/60,{controlLink:{quality:sample.trainingControlQuality,source:'rfModel'},videoLink:{quality:sample.videoQuality,source:'rfModel'}});return s;}
