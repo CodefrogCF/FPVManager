@@ -348,13 +348,15 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
         TextButton.icon(
           onPressed: enabled && !controller.navigationActive
               ? () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute<void>(
+                  final aligning = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute<bool>(
                       builder: (_) => SceneryManagementPage(
                         load: controller.sceneryDefinitions,
                         templates: controller.sceneryTemplates,
                         importModel: controller.importSceneryModel,
                         probeTileset: controller.probeSceneryTileset,
+                        align: (id) =>
+                            controller.alignScenery(id: id, german: german),
                         save: (manifest, create) async {
                           await controller.saveSceneryDefinition(
                             manifest,
@@ -368,6 +370,10 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                       ),
                     ),
                   );
+                  if (context.mounted && aligning == true) {
+                    Navigator.pop(context);
+                    return;
+                  }
                   if (mounted) await _load(controller.sceneryStatus);
                 }
               : null,

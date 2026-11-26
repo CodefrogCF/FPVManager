@@ -103,6 +103,43 @@ then use the scene retry control. Credentials-based provider sign-in is not
 supported. At most four remote tilesets are active at once. Like new model imports,
 external tiles are **visual only**; they do not add collisions or RF obstructions.
 
+### Align scenery directly on the globe
+
+1. In **Manage scenery**, select **Align on globe** beside a scene, or **Select
+   and align on globe** and tap a loaded model. Navigation must be stopped. A
+   disabled scene is temporarily enabled for editing; its saved switch is retained.
+2. Use longitude, latitude, height, heading, pitch, roll and scale, or drag the
+   **E/N/U** handles. The yellow ring/knob rotates around local up. Choose
+   **Top down** or **Perspective** and adjust opacity to compare against imagery
+   or existing buildings. Collapse the panel for more viewing space.
+3. **Snap anchor to terrain** places the origin on the available terrain surface.
+   Absolute heights use the WGS84 ellipsoid; terrain-relative heights preserve
+   their offset when moving horizontally. Enable and load terrain-relative scenes
+   before opening the editor. Missing terrain produces an error, not zero height.
+4. For a local model, expand **Control points and bounds**. Pick a model surface
+   point, then its matching terrain/building point. Repeat with at least three
+   spread-out, noncollinear pairs and select **Fit control points**. Numeric pairs
+   can also be entered in the shown JSON format; target `heightM` is ellipsoidal.
+   The fit changes position, all three rotation angles and uniform scale. Inspect
+   the RMS, maximum and individual residuals; inconsistent points do not fit exactly.
+5. Use **Undo**, **Redo** or **Reset** as needed. **Apply** saves the confirmed
+   placement. **Cancel** discards the draft and restores the original model,
+   appearance, activation setting and camera. Changes made elsewhere are protected
+   against an obsolete editor overwriting them.
+
+The editor displays origin, bounds and a projected geographic footprint for local
+models; other assets use their available coverage bounds. Source/target surface
+picking requires device support for depth picking and loaded geometry. History
+and control points belong to the current editing session. Definitions and
+confirmed placement survive restart and backup restore; model-byte backup limits
+remain unchanged. Existing collision-backed scenes should use full opacity for
+flight, as their existing collision/replacement policy excludes transparent scenes.
+
+Georeferenced 3D Tiles retain their source coordinate system. Their numeric and
+graphical corrections transform the provider in its source ENU frame. Control-point
+fitting is currently for local models; regional provider datasets use correction
+controls. Alignment is a simulator placement, not a surveyed accuracy guarantee.
+
 ### Height reference and ground alignment
 
 Scene height in the normal globe is not taken directly from the workbench export.

@@ -8,6 +8,7 @@ import '../scenery/scenery_model_import.dart';
 
 import '../scenery/scenery_repository.dart';
 import '../scenery/scenery_catalog_controller.dart';
+import '../scenery/scenery_alignment_session.dart';
 
 import '../../core/osint/osint_provider.dart';
 import '../../core/osint/osint_dataset.dart';
@@ -1491,6 +1492,18 @@ class GlobeController extends ChangeNotifier {
   ];
   UserPreferencesRepository? _preferencesRepository;
   SceneryCatalogController? _sceneryCatalog;
+  SceneryAlignmentSession? _sceneryAlignment;
+  Future<void> alignScenery({String? id, required bool german}) async {
+    final catalog = _sceneryCatalog;
+    if (catalog == null) throw StateError('Scenery storage unavailable');
+    _sceneryAlignment ??= SceneryAlignmentSession(
+      catalog: catalog,
+      send: _request,
+      canSend: () => _ready && !_disposed && !navigationActive,
+    );
+    await _sceneryAlignment!.begin(id: id, german: german);
+  }
+
   Future<Uint8List?> readManagedScenery(String key) async =>
       _sceneryCatalog?.readManagedModel(key);
   Future<void> importSceneryModel(
@@ -2094,7 +2107,9 @@ class GlobeController extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> sceneryStatus() async {
-    if (_sceneryCatalog != null && !navigationActive) {
+    if (_sceneryCatalog != null &&
+        !navigationActive &&
+        _sceneryAlignment?.active != true) {
       await _sceneryCatalog!.synchronize();
     }
     return _request({'type': 'scenery-status'});
@@ -2562,6 +2577,11 @@ class GlobeController extends ChangeNotifier {
 
     if (recording.handle(data)) return;
     if (obstacles.handleEvent(data)) return;
+    if (data['type'] == 'scenery-alignment-submit' ||
+        data['type'] == 'scenery-alignment-cancel') {
+      unawaited(_sceneryAlignment?.event(data) ?? Future<void>.value());
+      return;
+    }
     switch (data['type']) {
       case 'route-playback-state':
         final phase = data['phase'];
@@ -2827,6 +2847,7 @@ class GlobeController extends ChangeNotifier {
             : 'Route preview unavailable';
         notifyListeners();
       case 'renderer-loading':
+        _sceneryAlignment?.invalidate();
         ++_infrastructureRevision;
         _infrastructureSurfaceCount = 0;
         _tunnelScanSequence++;
@@ -2871,6 +2892,7 @@ class GlobeController extends ChangeNotifier {
         _tunnelScanIncomplete = false;
         _selectedInfrastructure = null;
         if (_ready && previousSession == _bridge.session) return;
+        _sceneryAlignment?.invalidate();
         obstacles.rendererLost();
         _groundViewActive = _groundViewPending = false;
         _simulationActive = _simulationPending = _navigationFocused = false;
@@ -3596,6 +3618,7 @@ class GlobeController extends ChangeNotifier {
   @override
   void dispose() {
     _sceneryCatalog?.dispose();
+    _sceneryAlignment?.invalidate();
     final uas = _uasProvider;
     final pending = [
       if (uas is CachedOsintProvider<Map<String, dynamic>>) uas.settled,

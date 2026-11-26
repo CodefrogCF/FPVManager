@@ -8,6 +8,7 @@ import 'scenery_repository.dart';
 import 'scenery_storage.dart';
 import 'scenery_storage_platform.dart';
 import 'scenery_model_import.dart';
+import 'scenery_alignment_edit.dart';
 
 typedef SceneryCommand = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> command,
@@ -134,6 +135,7 @@ final class SceneryCatalogController {
       _serial(() => _synchronize(isCurrent: isCurrent));
   Future<Map<String, dynamic>> _synchronize({
     bool Function()? isCurrent,
+    String? alignmentToken,
   }) async {
     final manifests = await _database(repository.list);
     if (isCurrent != null && !isCurrent()) {
@@ -142,6 +144,7 @@ final class SceneryCatalogController {
     if (!canSend()) throw StateError('Scenery is saved; renderer unavailable');
     return send({
       'type': 'replace-scenery-catalog',
+      'alignmentToken': ?alignmentToken,
       'catalog': providers.compile(manifests),
     });
   }
@@ -157,6 +160,35 @@ final class SceneryCatalogController {
     }
     return _synchronize();
   });
+  Future<Map<String, dynamic>> saveAlignment(
+    SceneryManifest expected,
+    Map<String, dynamic> edit, {
+    bool Function()? isCurrent,
+    String? token,
+  }) => _serial(() async {
+    final current = (await _database(repository.list))
+        .where((m) => m.id == expected.id)
+        .firstOrNull;
+    if (current == null ||
+        jsonEncode(current.toJson()) != jsonEncode(expected.toJson())) {
+      throw StateError(
+        'Scenery changed during editing. Reopen the alignment editor.',
+      );
+    }
+    if (isCurrent != null && !isCurrent()) {
+      throw StateError('Obsolete alignment session');
+    }
+    final updated = applySceneryAlignment(current, edit);
+    await _database(() => repository.update(updated));
+    try {
+      return await _synchronize(alignmentToken: token);
+    } catch (error) {
+      throw StateError(
+        'Alignment was saved; renderer synchronization failed: $error',
+      );
+    }
+  });
+
   Future<Map<String, dynamic>> remove(String id) => _serial(() async {
     final before = await _database(repository.list);
     await _database(() => repository.remove(id));

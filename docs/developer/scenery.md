@@ -248,6 +248,58 @@ not a hardware performance benchmark. Android/iOS and native UI smoke tests rema
 release checks. Remote scenery is visual only: collision meshes (#149), replacement
 regions (#150), packages (#152) and scenery RF obstruction (#153) remain separate.
 
+## Interactive alignment editor (#148)
+
+`SceneryManagementPage` opens the renderer editor by identifier or in globe-pick
+mode, then closes management so the globe remains interactive. The modules
+`scenery_editor.js` and `scenery_editor_math.js` are loaded only as code; their
+DOM panel, input listeners and Cesium entities exist only during a session.
+Numerical edits and ENU handles use the same normalized draft and matrix path.
+Camera snapshots, input flags, preview entities and loaded-model ownership are
+restored/released on cancellation or teardown. Draft edits retain GPU models;
+late model completions inherit the current transform.
+
+The manager's transient `beginAlignment` / `previewAlignment` / `endAlignment`
+API pins the selected entry without changing activation preferences or storage.
+It temporarily suspends replacement masks and height fitting. Local GLB and FPC
+assets use the same effective ENU transformation. In mixed scenes the first
+remote asset defines a world correction composed with the shared local frame;
+other tilesets retain their relative corrections. Source tileset root matrices
+remain intact. Existing opacity-based collision/replacement policy is preserved.
+
+`SceneryAlignmentSession` handles short start/result commands and token-guarded
+submit/cancel events; no bridge request waits for a human editing session.
+`saveAlignment` serially compares the original definition with the current DB
+record, checks session freshness, validates placement-only fields and persists
+before catalog synchronization. An alignment token distinguishes its own catalog
+commit from an external replacement. Renderer loss invalidates the session. A
+database failure retains a retryable draft; synchronization failure explicitly
+reports that the definition has already been saved. A missing save acknowledgement
+unlocks the UI after a bounded wait and explicitly reports that the write may
+already have completed; closing the editor does not undo an applied DB commit.
+Residuals are remeasured when the draft changes. Source metadata, asset
+references and collision policy cannot be replaced by an editor submission.
+Placement changes invalidate old terrain/replacement calibration; opacity-only
+changes retain it. Manifest schema and database version remain unchanged.
+
+Control points use post-glTF-axis-conversion local metres and WGS84 ellipsoid
+targets. A Horn quaternion similarity fit solves a proper 3D rotation, positive
+uniform scale and translation in a local tangent frame; output rotation is
+converted to the new anchor's ENU frame. At least three noncollinear points are
+required. Limits are 64 pairs, 10 km target distance, 64 KiB UI input and 80 undo
+entries. Individual residuals, RMS and maximum are shown; this is visual alignment,
+not geodetic adjustment. Regional 3D Tiles use correction controls rather than
+local-mesh point fitting. Terrain snap uses the current terrain sampling path with
+a recoverable deadline and revision/provider guards. Relative scenes need a
+resolved anchor before editing; stale/missing samples never become zero height.
+
+Regressions cover math, non-exact/degenerate control sets, antimeridian/polar
+coordinates, mixed visual/collision transforms, cancellation and late loads,
+persistence/restart, real bridge replay and conflicts. Headless Chromium exercises
+the actual Cesium editor with numerical fields, mouse/touch PointerEvents,
+rotation, views, snapping, fitting and geometry picking. These synthetic gestures
+do not replace Android/iOS device interaction tests or hardware benchmarks.
+
 ## Geometry and orientation
 
 - Model scale is `16.023268178233355`; rotation about the local vertical is

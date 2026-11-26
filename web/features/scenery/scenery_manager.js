@@ -268,7 +268,8 @@
         const hasRemote=e=>e.item.assets.some(a=>a.kind==='3d-tiles');
         function applyVisual(model,config){
             const remote=remoteAssets.get(model);
-            if(remote)Tilesets.applyCorrection(C,model,remote.pivot,remote.asset.options.correction,remote.original);
+            if(remote){Tilesets.applyCorrection(C,model,remote.pivot,remote.asset.options.correction,remote.original);
+                model.style=config.opacity<1?new C.Cesium3DTileStyle({color:`color('white', ${config.opacity})`}):remote.style;}
             else A.apply(C,model,config);
         }
         function rebalanceRemoteCache(){
@@ -298,7 +299,11 @@
         function disposeModel(model,added){try{if(added)viewer.scene.primitives.remove(model);else if(!model.isDestroyed?.())model.destroy?.();}finally{modelReleases.get(model)?.();modelReleases.delete(model);}}
         function effectiveOffset(e){return (e.item.heightOffsetM??0)+(regionalHeightMode()?(e.item.bkgHeightOffsetM??0):0);}
         function aligned(e,height){return terrainAligned({...e.item,heightOffsetM:effectiveOffset(e)},height);}
-        function original(e){return A.normalize({...e.item.alignment,ellipsoidHeightM:e.item.alignment.ellipsoidHeightM+effectiveOffset(e)});}
+        function original(e){
+            const a=A.normalize({...e.item.alignment,ellipsoidHeightM:e.item.alignment.ellipsoidHeightM+effectiveOffset(e)}),remote=e.item.assets.find(x=>x.kind==='3d-tiles');
+            return remote&&(e.item.physicalCollisionsEnabled||e.item.assets.some(x=>x.kind==='glb'))
+                ?A.transformed(C,a,Tilesets.correctionMatrix(C,e.item.alignment,remote.options.correction)):a;
+        }
         function releaseUnderlay(e){
             clearSeams(e);e.groundRevision=(e.groundRevision??0)+1;e.groundAbort?.abort();e.groundAbort=null;
             if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}
@@ -452,13 +457,13 @@
                 const occupied=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.reduce((n,a)=>n+(a.managed?a.estimatedBytes:0),0),0);
                 if(required+occupied>128*1024*1024)throw Error('Active local scenery exceeds the 128 MiB decoded resource budget. Disable another local model.');
                 // Sequential loads cap concurrent GPU uploads; cancelled models cannot be attached later.
-                for(const asset of e.item.assets){
+                for(const [assetIndex,asset] of e.item.assets.entries()){
                     const title=e.item.sourceUrl?`<a href="${escape(e.item.sourceUrl)}" target="_blank" rel="noopener">${escape(e.item.name)}</a>`:escape(e.item.name);
                     const credit=new C.Credit(`${escape(e.item.author)} · ${title} · ${escape(e.item.license)} · ${escape(e.item.attribution??'')} · georeferenced placement; experimental simulation only`,true);
                     if(asset.kind==='3d-tiles'){
                         const model=await tilesetFactory(asset.url,asset.options,e.remoteAbort.signal);
                         if(!current()){disposeModel(model,false);return;}
-                        const stops=[];remoteAssets.set(model,{asset,pivot:e.item.alignment,original:C.Matrix4.clone(model.modelMatrix??C.Matrix4.IDENTITY)});
+                        const stops=[];remoteAssets.set(model,{asset:e.item.assets[assetIndex],index:assetIndex,pivot:e.preview?.item.alignment??e.item.alignment,original:C.Matrix4.clone(model.modelMatrix??C.Matrix4.IDENTITY),style:model.style});
                         modelReleases.set(model,()=>{for(const stop of stops)stop?.();});
                         try{
                             applyVisual(model,e.item.alignment);
@@ -512,7 +517,7 @@
                 const d=Math.min(...positions.map(point=>Math.min(...e.item.assets.map(asset=>asset.kind==='3d-tiles'
                     ?remoteDistance(e,asset,point)
                     :Math.hypot(distanceM(e.item.alignment,point),Math.max(0,point.height-e.item.alignment.ellipsoidHeightM))))));
-                if(!e.enabled||!canLoad()||d>e.item.unloadRadiusM){if(e.state!=='idle'){remove(e);publish(e,'idle');}continue;}
+                if(!e.enabled||!canLoad()||!e.preview&&d>e.item.unloadRadiusM){if(e.state!=='idle'){remove(e);publish(e,'idle');}continue;}
                 if(hasRemote(e)&&!canStreamRemote()){
                     if(e.state!=='unavailable'||e.errorCategory!=='OFFLINE'){remove(e);publish(e,'unavailable','External tilesets require an online globe; no offline provider cache is created.','OFFLINE');}continue;
                 }
@@ -521,8 +526,8 @@
                     const count=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.filter(a=>a.kind==='3d-tiles').length,0);
                     if(count+e.item.assets.filter(a=>a.kind==='3d-tiles').length<=maxActiveTilesets)publish(e,'idle');
                 }
-                if(e.state==='idle'&&d<=e.item.loadRadiusM&&!Array.from(entries.values()).some(x=>x.state==='loading'&&hasRemote(x)===hasRemote(e)))void load(e);
-                if(e.state==='loading'||e.state==='ready')updateHeight(e);
+                if(e.state==='idle'&&(e.preview||d<=e.item.loadRadiusM)&&!Array.from(entries.values()).some(x=>x.state==='loading'&&hasRemote(x)===hasRemote(e)))void load(e);
+                if(!e.preview&&(e.state==='loading'||e.state==='ready'))updateHeight(e);
                 if(e.state==='ready'&&wantsUnderlay(e))loadUnderlay(e,e.revision);
                 else if(e.groundState&&e.groundState!=='idle'&&!wantsUnderlay(e))releaseUnderlay(e);
                 syncUnderlay(e);
@@ -728,8 +733,28 @@
         });
         function dispose(){if(disposed)return;disposed=true;probeAbort?.abort();probeAbort=null;catalogRevision++;off?.();offTerrain?.();clearTimer(tileReadyRetryTimer);tileReadyRetryTimer=null;for(const e of entries.values())remove(e);entries.clear();unavailableEntries=[];}
         function previewModels(id){const e=entries.get(id);return e?.enabled?[...e.models]:[];}
+        function beginAlignment(id){
+            const e=entries.get(id);if(!e||e.preview)throw Error('Scenery is unavailable or already being edited');
+            const status=snapshot().find(x=>x.id===id);e.preview={item:e.item,enabled:e.enabled,effectiveAlignment:e.effectiveAlignment,heightState:e.heightState,heightKey:e.heightKey,groundHeightM:e.groundHeightM};e.enabled=true;
+            previewAlignment(id,status.effectiveAlignment,[]);return status;
+        }
+        function previewAlignment(id,alignment,corrections){
+            const e=entries.get(id);if(!e?.preview)throw Error('No active scenery edit');const a=A.normalize(alignment),base=e.preview.item;
+            let remoteIndex=0;const assets=base.assets.map(asset=>{const edit=asset.kind==='3d-tiles'?corrections[remoteIndex++]:null;return edit?{...asset,options:Tilesets.normalizeOptions({...asset.options,correction:edit.correction})}:asset;});
+            e.heightRevision=(e.heightRevision??0)+1;e.heightPending=false;clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;clearSeams(e);releaseUnderlay(e);
+            e.item={...base,assets,alignment:hasRemote(e)?{...base.alignment,opacity:a.opacity}:a,heightAlignmentMode:'fixed',heightOffsetM:0,bkgHeightOffsetM:0,requireGroundCalibration:false,replaceBuildings:false,clipTerrain:false,buildingRegions:[],terrainRegions:[]};e.effectiveAlignment=original(e);e.collisionAlignment=null;
+            for(const model of e.models){const remote=remoteAssets.get(model);if(remote)remote.asset=assets[remote.index];applyVisual(model,e.effectiveAlignment);model.show=true;}
+            tick(true);viewer.scene.requestRender?.();
+        }
+        function endAlignment(id){
+            const e=entries.get(id);if(!e?.preview)return;const base=e.preview;e.preview=null;e.item=base.item;e.enabled=base.enabled;
+            e.heightRevision=(e.heightRevision??0)+1;e.heightPending=false;e.heightKey=base.heightKey;e.heightState=base.heightState;e.groundHeightM=base.groundHeightM;e.effectiveAlignment=base.effectiveAlignment??original(e);e.collisionAlignment=null;
+            for(const model of e.models){const remote=remoteAssets.get(model);if(remote)remote.asset=e.item.assets[remote.index];applyVisual(model,e.effectiveAlignment);}
+            syncCalibrationVisibility(e);tick(true);viewer.scene.requestRender?.();
+        }
+        function selectedScenery(primitive){return Array.from(entries.values()).find(e=>e.models.includes(primitive))?.item.id??null;}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
-        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.groundModel?.show?[e.groundModel]:[])])};
+        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.groundModel?.show?[e.groundModel]:[])])};
     }
     return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

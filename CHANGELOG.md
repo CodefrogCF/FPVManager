@@ -45,6 +45,13 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Added
 
+- Add interactive globe scenery alignment with direct model selection, ENU
+  translation and rotation handles, numerical placement, top-down/perspective
+  views, terrain snap and opacity controls. Fit local models to geographic 3D
+  control points with visible residuals; display origin, bounds and footprint.
+  Bounded undo/redo and cancellation retain the original configuration and camera.
+  Confirmed edits persist through the existing database and backup architecture,
+  with conflict/session guards and shared visual/collision transformations.
 - Add configurable external HTTPS OGC 3D Tiles 1.0/1.1 scenery providers using
   the existing catalog, persistence and backup architecture. Check endpoints,
   preserve source georeferencing, configure optional ENU corrections, detail,

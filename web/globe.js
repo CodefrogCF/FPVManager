@@ -71,7 +71,7 @@ function postToFlutter(message) {
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) spotGrounding?.dispose();
         if (!event.persisted) mapLabels?.dispose();
-        if (!event.persisted) { localSceneryPreview?.dispose(); sceneryManager?.dispose(); regional3D?.dispose(); }
+        if (!event.persisted) { sceneryEditor?.dispose(); localSceneryPreview?.dispose(); sceneryManager?.dispose(); regional3D?.dispose(); }
         if (!event.persisted) mapCredits?.dispose();
     });
     let rendererReady = false;
@@ -80,7 +80,7 @@ function postToFlutter(message) {
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
-    let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryManager = null, regional3D = null;
+    let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryManager = null, sceneryEditor = null, regional3D = null;
     let regionalTerrain = false, regionalTerrainChanging = false, regionalBuildingsRequested = false, regionalTerrainRevision = 0;
     let sceneryCatalogReady = Promise.resolve();
     let bridgeHeightMatch={phase:"idle"};
@@ -515,6 +515,7 @@ function postToFlutter(message) {
                 : Cesium.sampleTerrain(terrainProvider, 12, [position], true);
         }, signal);
         signal.throwIfAborted();
+        if(sceneryEditor?.active&&['set-map-style','retry-terrain','set-bkg-3d-test'].includes(command.type))sceneryEditor.close();
         const height = sampled[0]?.height;
         if (!Number.isFinite(height)) throw new Error("No terrain elevation available at these coordinates");
         return { latitude, longitude, heightMeters: height,
@@ -711,6 +712,7 @@ function postToFlutter(message) {
 
     async function executeCommand(command, signal) {
         signal.throwIfAborted();
+        if(sceneryEditor?.active&&(['enter-simulation','enter-ground-view','start-route-playback','enter-tunnel-flight','explore-tunnel-route','set-scenery-enabled','set-scenery-edit','retry-scenery'].includes(command.type)))throw Error('Close the scenery alignment editor before navigation or changing scenery.');
         if(command.type==='probe-scenery-tileset'){
             if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before checking a provider.');
             await sceneryCatalogReady;
@@ -719,12 +721,17 @@ function postToFlutter(message) {
         }
         if (!activeViewer) throw new Error("Globe is not initialized");
         switch (command.type) {
+            case 'begin-scenery-alignment':
+                if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before aligning scenery');
+                await sceneryCatalogReady;if(!sceneryEditor)throw Error('Scenery editor unavailable');resetBridgeHeightMatch();return sceneryEditor.begin(command);
+            case 'scenery-alignment-result': sceneryEditor?.result(command.token,command.error);return {};
+            case 'cancel-scenery-alignment': sceneryEditor?.close();return {};
             case 'scenery-catalog': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {catalog:sceneryManager.bundledCatalog()};
             case 'replace-scenery-catalog':
                 if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before changing scenery');
                 await sceneryCatalogReady;if(!sceneryManager)throw Error('Scenery unavailable');
                 resetBridgeHeightMatch();
-                {const sceneries=sceneryManager.replaceCatalog(command.catalog);regional3D?.tick(true);return {sceneries};}
+                {sceneryEditor?.catalogChanged(command.alignmentToken);const sceneries=sceneryManager.replaceCatalog(command.catalog);regional3D?.tick(true);return {sceneries};}
             case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,bridgeHeightMatch:bridgeMatchStatus(),replacement:regional3D?.replacementStatus()??null};
             case 'begin-scenery-bridge-height-match': {
                 await sceneryCatalogReady;
@@ -1641,6 +1648,11 @@ function postToFlutter(message) {
             sendToFlutter('scenery-preview-status',value);
         }});
         if(sceneryManager) sceneryCatalogReady=sceneryManager.initialize().catch(error=>console.warn('[scenery-catalog]',error));
+        if(sceneryManager&&typeof FPVSceneryEditor!=='undefined')sceneryEditor=FPVSceneryEditor.create(Cesium,viewer,{
+            manager:sceneryManager,onSubmit:value=>sendToFlutter('scenery-alignment-submit',value),onCancel:token=>sendToFlutter('scenery-alignment-cancel',{token}),
+            terrainKey:()=>!regionalTerrainChanging&&terrainManager.status().state==='ready'?terrainManager.provider:null,
+            sampleGround:alignment=>FPVSceneryManager.sampleAnchorGround(Cesium,viewer,alignment,{regional:regionalTerrain,
+                sample:positions=>terrainManager.sample(provider=>provider.availability?Cesium.sampleTerrainMostDetailed(provider,positions,true):Cesium.sampleTerrain(provider,12,positions,true))})});
         const preparedMaps=window.FPVMapProviderConfig?.prepared||window.FPVMapProviderConfig?.preparedUnavailable;
         if(typeof FPVRegional3D!=='undefined') regional3D=FPVRegional3D.create(Cesium,viewer,{
             enabled:()=>regional3DEnabled&&!offline&&!preparedMaps&&!window.FPVMapProviderConfig?.terrain&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
@@ -1698,7 +1710,7 @@ function postToFlutter(message) {
                     sendToFlutter('obstacle-selected',obstacle); return;
                 }
                 sendToFlutter('obstacle-cleared');
-                if (navigationActive() || routeEditor.click(event.position)) return;
+                if (sceneryEditor?.active || navigationActive() || routeEditor.click(event.position)) return;
                 if (tunnels?.pick(entity)) return;
                 if (situationalLayers.pick(entity)) return;
 

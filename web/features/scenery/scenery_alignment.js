@@ -69,6 +69,16 @@
         return value;
     }
 
+    // Compose an ECEF correction with an ENU model without changing its assets.
+    // This keeps local visuals and CPU collision meshes together in mixed scenes.
+    function transformed(C,input,correction){
+        const a=normalize(input),source=C.Matrix4.multiplyByUniformScale(modelMatrix(C,a),a.scale,new C.Matrix4()),m=C.Matrix4.multiply(correction,source,new C.Matrix4());
+        const position=C.Matrix4.getTranslation(m,new C.Cartesian3()),cart=C.Cartographic.fromCartesian(position),scale=C.Matrix4.getMaximumScale(m);
+        if(!cart||!Number.isFinite(scale)||scale<=0)throw Error('Invalid scenery correction');
+        const enu=C.Transforms.eastNorthUpToFixedFrame(position),world=C.Matrix3.multiplyByScalar(C.Matrix4.getMatrix3(m,new C.Matrix3()),1/scale,new C.Matrix3()),rotation=C.Matrix3.multiply(C.Matrix3.transpose(C.Matrix4.getMatrix3(enu,new C.Matrix3()),new C.Matrix3()),world,new C.Matrix3()),hpr=C.HeadingPitchRoll.fromQuaternion(C.Quaternion.fromRotationMatrix(rotation));
+        return normalize({...a,longitude:C.Math.toDegrees(cart.longitude),latitude:C.Math.toDegrees(cart.latitude),ellipsoidHeightM:cart.height,scale,rotationDeg:C.Math.toDegrees(hpr.heading),pitchDeg:C.Math.toDegrees(hpr.pitch),rollDeg:C.Math.toDegrees(hpr.roll)});
+    }
+
     function exportDocument(input) {
         const alignment = normalize(input);
         return {
@@ -188,5 +198,5 @@
         if(value.clipTerrain!==undefined&&typeof value.clipTerrain!=='boolean')throw Error('Invalid terrain replacement switch');
         return {alignment,heightOffsetM,bkgHeightOffsetM,buildingRegions:normalizeRegions(value.buildingRegions,alignment),terrainRegions:normalizeRegions(value.terrainRegions,alignment),replaceBuildings:value.replaceBuildings===true,clipTerrain:value.clipTerrain===true};
     }
-    return {DEFAULT, STORAGE_KEY, normalize, rotationMatrix, modelMatrix, apply, exportDocument, nudge,fitControlPoints,localPoint,offset,normalizeRegions,normalizeEdit,projectFootprint};
+    return {DEFAULT, STORAGE_KEY, normalize, rotationMatrix, modelMatrix, apply, transformed, exportDocument, nudge,fitControlPoints,localPoint,offset,normalizeRegions,normalizeEdit,projectFootprint};
 });

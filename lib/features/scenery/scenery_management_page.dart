@@ -22,6 +22,7 @@ class SceneryManagementPage extends StatefulWidget {
     this.importModel,
     this.pickImport,
     this.probeTileset,
+    this.align,
   });
   final Future<List<SceneryManifest>> Function() load, templates;
   final Future<void> Function(SceneryManifest manifest, bool create) save;
@@ -31,6 +32,7 @@ class SceneryManagementPage extends StatefulWidget {
   importModel;
   final Future<(String, PreparedSceneryModel)?> Function()? pickImport;
   final SceneryTilesetProbe? probeTileset;
+  final Future<void> Function(String? id)? align;
   @override
   State<SceneryManagementPage> createState() => _SceneryManagementPageState();
 }
@@ -40,6 +42,24 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
   bool _busy = true;
   String? _error;
   String t(String de, String en) => widget.german ? de : en;
+  Future<void> _align(String? id) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.align!(id);
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = error.toString();
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -356,6 +376,17 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
               ),
             ),
           ),
+        if (widget.align != null)
+          TextButton.icon(
+            onPressed: _busy ? null : () => _align(null),
+            icon: const Icon(Icons.touch_app_outlined),
+            label: Text(
+              t(
+                'Im Globus auswählen und ausrichten',
+                'Select and align on globe',
+              ),
+            ),
+          ),
         for (final item in _items)
           ListTile(
             title: Text(item.name),
@@ -363,10 +394,21 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
               '${item.enabled ? t('Aktiviert', 'Enabled') : t('Deaktiviert', 'Disabled')} · ${(item.toJson()['source'] as Map)['attribution']}',
             ),
             onTap: _busy ? null : () => _edit(item),
-            trailing: IconButton(
-              tooltip: t('Entfernen', 'Remove'),
-              onPressed: _busy ? null : () => _remove(item),
-              icon: const Icon(Icons.delete_outline),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.align != null)
+                  IconButton(
+                    tooltip: t('Im Globus ausrichten', 'Align on globe'),
+                    onPressed: _busy ? null : () => _align(item.id),
+                    icon: const Icon(Icons.open_with),
+                  ),
+                IconButton(
+                  tooltip: t('Entfernen', 'Remove'),
+                  onPressed: _busy ? null : () => _remove(item),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
             ),
           ),
       ],

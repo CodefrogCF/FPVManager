@@ -113,6 +113,8 @@ flutter:
     - web/features/scenery/scenery_collision.js
     - web/features/scenery/scenery_tileset_provider.js
     - web/features/scenery/scenery_manager.js
+    - web/features/scenery/scenery_editor_math.js
+    - web/features/scenery/scenery_editor.js
     - web/features/scenery/scenery_bridge_calibration.js
     - web/features/terrain/regional_3d.js
     - web/assets/scenery/
