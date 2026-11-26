@@ -87,7 +87,7 @@
     function create(C,viewer,{enabled=false,online=()=>true,position=()=>{const p=viewer.camera.positionCartographic;return {longitude:C.Math.toDegrees(p.longitude),latitude:C.Math.toDegrees(p.latitude),height:p.height};},
         navigationBusy=()=>false,onRegionChange=()=>{},onStatus=()=>{},buildingsRequested=()=>false,now=()=>Date.now(),
         loadTiles=()=>C.Cesium3DTileset.fromUrl(buildingsUrl,{maximumScreenSpaceError:24,cacheBytes:32*1024*1024,maximumCacheOverflowBytes:8*1024*1024,enableCollision:false,showCreditsOnScreen:true}),
-        buildingRegions=()=>[],flightBuildingRegions=()=>[],terrainRegions=()=>[],flightTerrainRegions=()=>[],terrainReady=()=>false,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=20000}={}){
+        manageClipping=true,buildingRegions=()=>[],flightBuildingRegions=()=>[],terrainRegions=()=>[],flightTerrainRegions=()=>[],terrainReady=()=>false,setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=20000}={}){
         // Test harnesses may inject a mock Cesium object without Resource.
         // A real Cesium scene must never silently fall back to disk-cached XHR.
         if(C.Resource&&!installRuntimeOnlyTransport(C)) throw Error('BKG buildings require cache:no-store transport');
@@ -117,7 +117,7 @@
                 console.warn('[scenery replacement]',error);return null;
             }
         }
-        function syncCuts(){
+        function syncCuts(){if(!manageClipping)return;
             const live=region&&online(),busy=navigationBusy();
             buildingCut=syncCut(tiles,buildingCut,live&&tiles?(busy?flightBuildingRegions():buildingRegions()):[]);
             const globe=viewer.scene.globe;
@@ -141,7 +141,7 @@
             if(!show){if(tiles||pending)remove();failed=false;return;}if(!tiles&&!pending&&!failed)load();
         }
         const off=viewer.scene.preUpdate.addEventListener(()=>tick());
-        return {tick,region:()=>region,terrainMaskActive(polygon){
+        return {tick,buildingTileset:()=>tiles,region:()=>region,terrainMaskActive(polygon){
             // Never bypass terrain unless the clipping collection is ours and still applied.
             if(!terrainCut||!region||!online()||!terrainReady()||viewer.scene.globe.clippingPolygons!==terrainCut.collection||terrainCut.collection.enabled===false||!C.ClippingPolygonCollection?.isSupported?.(viewer.scene)||viewer.scene.globe.material||viewer.scene.globe.clippingPlanes?.length)return false;
             return terrainCut.regionKeys.has(JSON.stringify(polygon));

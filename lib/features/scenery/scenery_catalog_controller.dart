@@ -10,6 +10,7 @@ import 'scenery_storage_platform.dart';
 import 'scenery_model_import.dart';
 import 'scenery_alignment_edit.dart';
 import 'scenery_collision_import.dart';
+import 'scenery_replacement.dart';
 
 typedef SceneryCommand = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> command,
@@ -186,6 +187,33 @@ final class SceneryCatalogController {
     } catch (error) {
       throw StateError(
         'Alignment was saved; renderer synchronization failed: $error',
+      );
+    }
+  });
+
+  Future<Map<String, dynamic>> saveReplacement(
+    SceneryManifest expected,
+    Object? replacement,
+  ) => _serial(() async {
+    final current = (await _database(repository.list))
+        .where((m) => m.id == expected.id)
+        .firstOrNull;
+    if (current == null ||
+        jsonEncode(current.toJson()) != jsonEncode(expected.toJson())) {
+      throw StateError('Scenery changed. Reopen replacement settings.');
+    }
+    final next = configureSceneryReplacement(current, replacement);
+    await _database(() async {
+      if (!canSend()) {
+        throw StateError('Stop navigation before changing replacement regions');
+      }
+      await repository.update(next);
+    });
+    try {
+      return await _synchronize();
+    } catch (error) {
+      throw StateError(
+        'Replacement was saved; renderer synchronization failed: $error',
       );
     }
   });

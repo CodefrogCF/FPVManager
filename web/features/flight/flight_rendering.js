@@ -408,7 +408,7 @@
                 terrainLoadSliceMs:surface?._loadQueueTimeSlice})
         };
     }
-    function create(C,viewer,{onProfile=()=>{},terrainPassage=()=>false,now}={}){
+    function create(C,viewer,{onProfile=()=>{},terrainPassage=()=>false,terrainIntervals=()=>[[0,1]],now}={}){
         // Each result stays private to this adapter. Cesium copies camera
         // poses; no retained scene geometry refers to these scratch objects.
         const destination=new C.Cartesian3(),transform=new C.Matrix4(),direction=new C.Cartesian3(),up=new C.Cartesian3();
@@ -477,11 +477,14 @@
                 // fragments discarded by a portal material. Only a bounded
                 // modeled passage may exempt those invisible fragments.
                 if(terrainPassage(from,to)===true)return false;
-                cartesian(from,a);cartesian(to,b);
-                const length=C.Cartesian3.distance(a,b);if(length<.001)return false;
-                C.Cartesian3.subtract(b,a,rayDirection);C.Cartesian3.normalize(rayDirection,rayDirection);
-                C.Cartesian3.clone(a,ray.origin);C.Cartesian3.clone(rayDirection,ray.direction);
-                return terrainSegmentIntersects(C,viewer,ray,from,length,hit);
+                const interpolate=t=>({longitude:from.longitude+(((to.longitude-from.longitude+540)%360)-180)*t,latitude:from.latitude+(to.latitude-from.latitude)*t,height:from.height+(to.height-from.height)*t});
+                for(const [start,end] of terrainIntervals(from,to)){
+                    const first=start===0?from:interpolate(start),last=end===1?to:interpolate(end);cartesian(first,a);cartesian(last,b);
+                    const length=C.Cartesian3.distance(a,b);if(length<.001)continue;
+                    C.Cartesian3.subtract(b,a,rayDirection);C.Cartesian3.normalize(rayDirection,rayDirection);
+                    C.Cartesian3.clone(a,ray.origin);C.Cartesian3.clone(rayDirection,ray.direction);
+                    if(terrainSegmentIntersects(C,viewer,ray,first,length,hit))return true;
+                }return false;
             }
         };
     }

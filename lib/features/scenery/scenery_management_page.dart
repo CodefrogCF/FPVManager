@@ -10,6 +10,7 @@ import 'scenery_tileset_dialog.dart';
 import 'scenery_tileset_options.dart';
 import 'scenery_collision_dialog.dart';
 import 'scenery_collision_import.dart';
+import 'scenery_replacement_dialog.dart';
 
 /// Definition management; selecting/importing new asset bytes belongs to the
 /// asset provider/import workflow. Existing templates retain their provenance.
@@ -27,6 +28,7 @@ class SceneryManagementPage extends StatefulWidget {
     this.align,
     this.generateCollider,
     this.saveCollision,
+    this.saveReplacement,
   });
   final Future<List<SceneryManifest>> Function() load, templates;
   final Future<void> Function(SceneryManifest manifest, bool create) save;
@@ -38,6 +40,7 @@ class SceneryManagementPage extends StatefulWidget {
   final SceneryTilesetProbe? probeTileset;
   final Future<void> Function(String? id)? align;
   final SceneryColliderGenerator? generateCollider;
+  final Future<void> Function(SceneryManifest, Object?)? saveReplacement;
   final Future<void> Function(
     SceneryManifest,
     SceneryManifest,
@@ -53,6 +56,29 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
   bool _busy = true;
   String? _error;
   String t(String de, String en) => widget.german ? de : en;
+  Future<void> _replacement(SceneryManifest item) async {
+    final route = DialogRoute<Map<String, dynamic>>(
+      context: context,
+      builder: (_) =>
+          SceneryReplacementDialog(existing: item, german: widget.german),
+    );
+    final config = await Navigator.of(context).push(route);
+    await route.completed;
+    if (config == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.saveReplacement!(item, config);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+    final error = _error;
+    await _load();
+    if (mounted && error != null) setState(() => _error = error);
+  }
+
   Future<void> _collision(SceneryManifest item) async {
     final route = DialogRoute<SceneryCollisionSelection>(
       context: context,
@@ -434,6 +460,15 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (widget.saveReplacement != null)
+                  IconButton(
+                    tooltip: t(
+                      'Gelände und Gebäude ersetzen',
+                      'Replace terrain and buildings',
+                    ),
+                    onPressed: _busy ? null : () => _replacement(item),
+                    icon: const Icon(Icons.layers_clear),
+                  ),
                 if (widget.saveCollision != null &&
                     widget.generateCollider != null)
                   IconButton(
@@ -565,7 +600,22 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
         number('latitude'),
         number('unloadRadiusM'),
       );
+      final previous = _template.toJson();
+      final moved =
+          ['longitude', 'latitude', 'heightM', 'reference'].any(
+            (k) => (doc['anchor'] as Map)[k] != (previous['anchor'] as Map)[k],
+          ) ||
+          ['headingDeg', 'pitchDeg', 'rollDeg'].any(
+            (k) =>
+                (doc['rotation'] as Map)[k] != (previous['rotation'] as Map)[k],
+          ) ||
+          doc['scale'] != previous['scale'];
+      if (moved && doc['replacement'] is Map) {
+        ((doc['replacement'] as Map)['buildings'] as Map)['enabled'] = false;
+        ((doc['replacement'] as Map)['terrain'] as Map)['enabled'] = false;
+      }
       if (widget.existing == null) {
+        doc.remove('replacement');
         // Reusing visual data at another location does not transfer certified
         // terrain replacement patches or their provider-specific calibration.
         doc['extensions'] = <String, dynamic>{};

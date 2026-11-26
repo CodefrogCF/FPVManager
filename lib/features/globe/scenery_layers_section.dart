@@ -334,6 +334,10 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                 ? 'Aktive Masken: Gebäude ${_replacement!['buildingActive'] == true ? 'an' : 'aus'} · Gelände ${_replacement!['terrainActive'] == true ? 'an' : 'aus'}'
                 : 'Active masks: buildings ${_replacement!['buildingActive'] == true ? 'on' : 'off'} · terrain ${_replacement!['terrainActive'] == true ? 'on' : 'off'}',
           ),
+        if ((_replacement?['errors'] as List? ?? []).isNotEmpty)
+          Text(
+            '${german ? 'Ersatzflächen nicht aktiv' : 'Replacement unavailable'}: ${(_replacement!['errors'] as List).join(' · ')}',
+          ),
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           Text(
@@ -357,6 +361,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         probeTileset: controller.probeSceneryTileset,
                         generateCollider: controller.generateSceneryCollider,
                         saveCollision: controller.saveSceneryCollision,
+                        saveReplacement: controller.saveSceneryReplacement,
                         align: (id) =>
                             controller.alignScenery(id: id, german: german),
                         save: (manifest, create) async {
@@ -423,6 +428,11 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
             ),
           if (item['remote'] == true && item['streamingState'] == 'loading')
             Text(german ? 'Kacheln werden nachgeladen…' : 'Streaming tiles…'),
+          if (item['replacementState'] != null &&
+              item['replacementState'] != 'disabled')
+            Text(
+              '${german ? 'Geländeersatz' : 'Terrain replacement'}: ${item['replacementState']} · ${(item['replacementChecks'] as List? ?? []).where((r) => r['approved'] == true).length} ${german ? 'freigegeben' : 'approved'} · ${item['replacementApplied'] ?? 0} ${german ? 'aktiv' : 'applied'}${item['replacementError'] == null ? '' : ' · ${item['replacementError']}'}',
+            ),
           if (item['collisionIndependent'] == true) ...[
             Text(
               german
@@ -692,7 +702,12 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         : 'Alignment & replacement regions',
                   ),
                 ),
-              if (item['state'] == 'error' || item['tileError'] is String)
+              if (item['state'] == 'error' ||
+                  item['tileError'] is String ||
+                  item['replacementState'] == 'unavailable' ||
+                  (item['replacementChecks'] as List? ?? []).any(
+                    (r) => r['approved'] != true,
+                  ))
                 TextButton(
                   onPressed: enabled
                       ? () => _load(

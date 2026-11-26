@@ -246,8 +246,8 @@ activation/aircraft priority, bounds/transforms, resource release, persistence,
 backup, UI cancellation and bridge replay. The live check is integration evidence,
 not a hardware performance benchmark. Android/iOS and native UI smoke tests remain
 release checks. Remote tiles are visual by default; attach independent local
-collision meshes through the workflow below. Replacement regions (#150), packages
-(#152) and scenery RF obstruction (#153) remain separate.
+collision meshes through the workflow below. Replacement is configured separately below; packages (#152) and scenery RF
+obstruction (#153) remain separate.
 
 ## Interactive alignment editor (#148)
 
@@ -300,6 +300,66 @@ persistence/restart, real bridge replay and conflicts. Headless Chromium exercis
 the actual Cesium editor with numerical fields, mouse/touch PointerEvents,
 rotation, views, snapping, fitting and geometry picking. These synthetic gestures
 do not replace Android/iOS device interaction tests or hardware benchmarks.
+
+## Selective base-world replacement (#150)
+
+The optional manifest-v1 `replacement` member has `schemaVersion: 1`, independent
+`buildings`/`terrain` objects and explicit geographic polygons. Building settings
+contain `enabled`, `regions` (arrays of `[longitude, latitude]`) and `features`
+(`provider`, `property`, string `id`). Terrain settings contain `enabled` and
+`regions` with `polygon`, `minimumUpM`, `maximumUpM`, `seamToleranceM`.
+`scenery_replacement.dart` and `scenery_replacement.js` validate equivalent limits:
+24 regions per kind, 3–64 vertices, 1 km anchor distance, simple polygons of
+1–250,000 m², at most 128 stable building selectors and finite local ground bands.
+Regions near the antimeridian use local unwrapped longitude. The existing manifest
+size limit remains authoritative. No DB migration or new asset format is needed.
+
+The dedicated Flutter dialog saves through the serial catalog controller with a
+stored-definition conflict check and navigation guard. Source/assets are preserved.
+DB restart and normal definition backups retain settings; copies drop them and
+placement edits disable them. The globe alignment editor displays optional saved
+building/terrain outlines without activating draft cuts.
+
+The replacement coordinator owns only its own Cesium polygon collections on the
+Globe and the normal/BKG base-building tilesets. Existing tunnel/portal code was
+evaluated: its aperture shader is appropriate for directional portal openings;
+whole geographic regions reuse public `ClippingPolygonCollection` with the same
+foreign-ownership guards. Foreign polygon collections, globe materials and clipping
+planes are not replaced. The BKG wrapper delegates ownership to this coordinator;
+its legacy terrain certificates remain restricted to BKG mode.
+
+Actual Cesium 1.145 browser testing found loaded tile models retaining a collection
+after tileset detachment. Release/update therefore disables and empties the owned
+collection first. No vendor patch or provider reload is needed. Feature-ID rules
+use `tileVisible`, recurse through composite contents and restore original `show`
+values when removed. `tileUnload` releases retained feature references. Selectors
+are indexed by property/ID; feature hiding does not affect other layers. See the
+[Cesium clipping contract](https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Documentation/ClippingPolygonCollection.html)
+and [feature lifecycle](https://cesium.com/learn/cesiumjs/ref-doc/Cesium3DTileFeature.html).
+
+Generic terrain cuts require ready visuals at full opacity, resolved stable height,
+loaded physical geometry and level placement. The declared local height band
+selects physical ground through BVH sweeps. Provider-scoped perimeter checks sample
+edges at up to 3 m spacing, at most 2,048 points total, in 128-point terrain batches;
+physical evaluation yields every 32 points. Missing data, >0.05–0.5 m configured
+seam mismatch and bounded timeout retain terrain. Old/provider-obsolete responses
+cannot approve new regions. Explicit retry is available. This checks sampled seams,
+not every interior point or a watertight mesh; intentional interior openings remain.
+
+Physics trusts only an enabled, non-inverse, still-owned clipping collection from
+the current terrain provider. Polygon-edge interval partitioning retains all
+outside terrain segments, including concavities/disconnected regions. Rendered
+height uses the highest actual physical ground across approved overlapping regions;
+missing interior physical ground stays unknown rather than falling back to the
+invisible base surface. Building mask/ID revisions invalidate approximate roof
+collision caches. Existing physical scenery contacts, roads, bridges and tunnel
+collisions remain independent; no RF/failsafe state is synthesized.
+
+Regression coverage includes configuration, persistence, cancellation/conflicts,
+placement invalidation, overlaps, provider changes, missing ground/seams, timeout
+recovery, both flight modes and actual rendered globe/building cuts, stable feature
+IDs, CPU terrain exemptions, restoration and editor outlines. Device-specific
+clipping support and real-world seam quality still require release smoke tests.
 
 ## Custom collision meshes (#149)
 

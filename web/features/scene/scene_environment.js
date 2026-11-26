@@ -426,6 +426,7 @@
                 // application geometry and other GPU allocations.
                 return {resident,visible,pending,estimatedTilesetBytes};
             },
+            buildingsTileset(){return layers.buildings.tileset;},
             structuresTileset(){return layers.structures.tileset;},
             loadingDiagnostics(){return tileLoader.status?.()??{supported:false};},
             dispose(){
@@ -4513,11 +4514,11 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
     'use strict';
     const MIN_INTERVAL_MS=350,MAX_INTERVAL_MS=2500,MAX_CACHE_AGE_MS=500;
-    function create(C,viewer,{hasVisibleModels=()=>false,extraVisualOnly=()=>[],now=()=>performance.now(),
+    function create(C,viewer,{hasVisibleModels=()=>false,extraVisualOnly=()=>[],exclusionRevision=()=>0,now=()=>performance.now(),
         setTimer=setTimeout,clearTimer=clearTimeout}={}){
         const scene=viewer.scene;
         let enabled=false,disposed=false,nextSampleAt=-Infinity,lastSampleMs=0,samples=0;
-        let requested=null,cached=null,timer=null;
+        let requested=null,cached=null,timer=null,lastExclusionRevision=exclusionRevision();
         const horizontalDistance=(a,b)=>Math.hypot((a.longitude-b.longitude)*111320*
             Math.cos((a.latitude+b.latitude)*Math.PI/360),(a.latitude-b.latitude)*111320);
         function supported(){
@@ -4575,6 +4576,7 @@
             return {enabled};
         }
         function collision(from,to,radius=.25){
+            const revision=exclusionRevision();if(revision!==lastExclusionRevision){lastExclusionRevision=revision;cached=requested=null;nextSampleAt=-Infinity;}
             if(!supported()||!Number.isFinite(radius)||radius<0||radius>1||
                 !from||!to||![from.latitude,from.longitude,from.height,
                     to.latitude,to.longitude,to.height].every(Number.isFinite))return false;

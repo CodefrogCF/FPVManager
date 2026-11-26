@@ -42,7 +42,7 @@ test('all moved CommonJS dependencies resolve without legacy root shims', () => 
     }
   };
   for (const folder of features) visit(folder);
-  assert.equal(checked, 65);
+  assert.equal(checked, 66);
 });
 
 test('offline preparation HTML and workers resolve moved helpers from web root', () => {

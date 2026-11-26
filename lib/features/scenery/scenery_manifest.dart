@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import '../../core/geo/geo_coordinate_service.dart';
 import 'scenery_model_bounds.dart';
 import 'scenery_storage.dart';
+import 'scenery_replacement.dart';
 import 'scenery_tileset_options.dart';
 
 /// Application-independent scenery definition. Provider-specific calibration
@@ -115,6 +116,12 @@ final class SceneryManifest {
     }
     parseSceneryVersion(doc['minimumAppVersion']);
     if (doc['extensions'] != null) _map(doc['extensions']);
+    if (doc['replacement'] != null) {
+      doc['replacement'] = validateSceneryReplacement(
+        doc['replacement'],
+        anchor,
+      );
+    }
     if (assets.any((a) => a.model != null)) {
       final modelBounds = transformedSceneryBounds(doc);
       (doc['extensions'] ??= <String, dynamic>{})['modelBounds'] = modelBounds;

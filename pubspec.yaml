@@ -113,6 +113,7 @@ flutter:
     - web/features/scenery/scenery_collision.js
     - web/features/scenery/scenery_collision_worker.js
     - web/features/scenery/scenery_tileset_provider.js
+    - web/features/scenery/scenery_replacement.js
     - web/features/scenery/scenery_manager.js
     - web/features/scenery/scenery_editor_math.js
     - web/features/scenery/scenery_editor.js

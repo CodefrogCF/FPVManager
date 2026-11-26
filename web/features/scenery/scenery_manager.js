@@ -2,9 +2,10 @@
 (function(root,factory){
     const api=factory(typeof module==='object'&&module.exports?require('./scenery_alignment.js'):root.FPVSceneryAlignment,
         typeof module==='object'&&module.exports?require('./scenery_collision.js'):root.FPVSceneryCollision,
-        typeof module==='object'&&module.exports?require('./scenery_tileset_provider.js'):root.FPVSceneryTilesets);
+        typeof module==='object'&&module.exports?require('./scenery_tileset_provider.js'):root.FPVSceneryTilesets,
+        typeof module==='object'&&module.exports?require('./scenery_replacement.js'):root.FPVSceneryReplacement);
     if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVSceneryManager=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(A,Collision,Tilesets){
+})(typeof globalThis!=='undefined'?globalThis:this,function(A,Collision,Tilesets,Replacement){
     'use strict';
     const ROOT='assets/scenery/';
     const catalogUrl='./'+ROOT+'catalog.json';
@@ -94,7 +95,7 @@
                 throw Error('Mismatched DGM underlay coverage or asset');
             if(terrainCertificates.some(c=>!c||!terrainCertificate||c.collisionSha256!==terrainCertificate.collisionSha256)||
                 (terrainCertificate&&JSON.stringify(terrainCertificates[0])!==JSON.stringify(terrainCertificate))||new Set(terrainCertificates.map(c=>JSON.stringify(c.polygon))).size!==terrainCertificates.length)throw Error('Mismatched terrain certificate list');
-            return {...item,...A.normalizeEdit({...item,alignment,buildingRegions},alignment),heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,assets,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
+            return {...item,replacement:Replacement.normalize(item.replacement,alignment),...A.normalizeEdit({...item,alignment,buildingRegions},alignment),heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,assets,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
         });
     }
     // Certified ground patch is an offline geometry coverage proof, not an altitude survey.
@@ -655,12 +656,38 @@
             return overlay&&e.groundVerified&&e.groundCollider&&e.groundModel?.ready===true&&
                 requested.has(JSON.stringify(overlay.polygon))?[overlay,...standard]:standard;
         }
-        function clearSeams(e){if(e.seamCheck){e.seamCheck.abort.abort();clearTimer(e.seamCheck.timer);e.seamCheck=null;}}
-        function updateSeams(e){
+        function replacementReady(e){return !e.preview&&e.ready&&e.enabled&&e.state==='ready'&&e.item.alignment.opacity>=.99&&heightReady(e)&&terrainStable();}
+        function clearReplacementCheck(e){if(e.replacementCheck){e.replacementCheck.abort.abort();clearTimer(e.replacementCheck.timer);e.replacementCheck=null;}}
+        function updateReplacementCheck(e){
+            if(!e.item.replacement?.terrain.enabled||!replacementReady(e)||!collisionReady(e)||terrainKey()==null){clearReplacementCheck(e);return;}
+            const key=terrainKey(),alignment=e.effectiveAlignment??original(e),meshes=e.colliders??[e.collider];
+            if(e.replacementCheck?.item===e.item&&e.replacementCheck.key===key&&e.replacementCheck.alignment===alignment&&e.replacementCheck.collider===e.collider)return;
+            clearReplacementCheck(e);
+            const check=e.replacementCheck={item:e.item,key,alignment,collider:e.collider,state:'pending',results:[],abort:new AbortController(),timer:null};
+            const current=()=>!disposed&&e.replacementCheck===check&&!check.abort.signal.aborted&&terrainKey()===key&&replacementReady(e)&&collisionReady(e);
+            const fail=message=>{if(current()){check.state='unavailable';check.message=message;check.results=[];check.abort.abort();viewer.scene.requestRender?.();}};
+            if(alignment.pitchDeg||alignment.rollDeg){fail('Terrain replacement requires level scenery placement');return;}
+            if(typeof sampleSeamGround!=='function'){fail('Terrain seam sampling unavailable');return;}
+            const work=e.item.replacement.terrain.regions.map(region=>({region,points:Replacement.seamPoints(region,alignment)})),points=work.flatMap(w=>w.points);
+            if(work.some(w=>!w.points.length)||points.length>2048){fail('Terrain perimeter exceeds the bounded seam sampling budget');return;}
+            check.timer=setTimer(()=>fail('Terrain seam sampling timed out'),timeoutMs);
+            (async()=>{try{
+                const heights=[];for(let i=0;i<points.length;i+=128){if(!current())return;const batch=points.slice(i,i+128),values=await sampleSeamGround(batch,check.abort.signal);if(!Array.isArray(values)||values.length!==batch.length)throw Error('Incomplete terrain seam samples');heights.push(...values);}
+                if(!current())return;let i=0;const frame=frameFor(e);
+                const results=[];for(const w of work){let approved=true,samples=0,maxErrorM=0;
+                    for(let j=0;j<w.points.length;j+=32){if(!current())return;const result=Replacement.evaluate(meshes,frame,w.region,w.points.slice(j,j+32),heights.slice(i+j,i+j+32));approved=approved&&result.approved;samples+=result.samples;maxErrorM=maxErrorM===null||result.maxErrorM===null?null:Math.max(maxErrorM,result.maxErrorM);if(j+32<w.points.length)await new Promise(resolve=>setTimeout(resolve,0));}
+                    i+=w.points.length;results.push({approved,samples,maxErrorM,region:w.region});
+                }
+                if(!current())return;check.results=results;check.state='checked';viewer.scene.requestRender?.();
+            }catch(error){fail(String(error.message||error));}finally{clearTimer(check.timer);check.timer=null;}})();
+        }
+        function approvedReplacement(e){const check=e.replacementCheck;return replacementReady(e)&&collisionReady(e)&&check?.state==='checked'&&!check.abort.signal.aborted&&check.item===e.item&&check.key===terrainKey()&&check.alignment===(e.effectiveAlignment??original(e))&&check.collider===e.collider?check.results.filter(r=>r.approved).map(r=>r.region):[];}
+        function clearSeams(e,keepReplacement=false){if(!keepReplacement)clearReplacementCheck(e);if(e.seamCheck){e.seamCheck.abort.abort();clearTimer(e.seamCheck.timer);e.seamCheck=null;}}
+        function updateSeams(e){updateReplacementCheck(e);
             const candidates=candidatePatches(e).filter(c=>c.seamToleranceM!==undefined);
-            if(!candidates.length){clearSeams(e);return;}
+            if(!candidates.length){clearSeams(e,true);return;}
             if(e.seamCheck&&e.seamCheck.item===e.item&&e.seamCheck.key===terrainKey()&&e.seamCheck.collider===e.collider&&e.seamCheck.groundCollider===e.groundCollider&&e.seamCheck.alignment===e.effectiveAlignment)return;
-            clearSeams(e);
+            clearSeams(e,true);
             const check={item:e.item,key:terrainKey(),collider:e.collider,groundCollider:e.groundCollider,alignment:e.effectiveAlignment,abort:new AbortController(),timer:null,results:new Map(),state:'pending'};
             e.seamCheck=check;
             const current=()=>!disposed&&e.seamCheck===check&&!check.abort.signal.aborted&&check.key===terrainKey()&&check.collider===e.collider&&check.groundCollider===e.groundCollider&&check.alignment===e.effectiveAlignment&&check.item===e.item;
@@ -689,23 +716,33 @@
             const large=approved.find(c=>c.source==='underlay');return large?[large]:approved;
         }
         function frameFor(e){if(!e.collisionFrame||e.collisionAlignment!==e.effectiveAlignment){e.collisionAlignment=e.effectiveAlignment;e.collisionFrame=Collision.transform(e.effectiveAlignment??original(e));}return e.collisionFrame;}
-        function activeRegions(kind,forFlight=false){
+        function activeRegions(kind,forFlight=false,includeLegacy=true){
             if(kind==='terrain')return Array.from(entries.values()).flatMap(e=>{
+                const generic=approvedReplacement(e).map(r=>r.polygon);
+                if(e.item.replacement)return generic;if(!includeLegacy)return [];
                 if(e.base.terrainCertificate)return verifiedPatches(e).map(c=>c.polygon);
                 return !forFlight&&e.ready&&e.enabled&&e.state==='ready'&&e.item.alignment.opacity>=.99&&heightReady(e)&&e.item.clipTerrain?e.item.terrainRegions:[];
             });
-            return Array.from(entries.values()).filter(e=>e.ready&&e.enabled&&e.state==='ready'&&e.item.alignment.opacity>=.99&&heightReady(e)&&(!forFlight||collisionReady(e))&&e.item.replaceBuildings).flatMap(e=>e.item.buildingRegions);
+            const generic=Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.regions);
+            return generic.concat(Array.from(entries.values()).filter(e=>!e.item.replacement&&e.ready&&e.enabled&&e.state==='ready'&&e.item.alignment.opacity>=.99&&heightReady(e)&&(!forFlight||collisionReady(e))&&e.item.replaceBuildings).flatMap(e=>e.item.buildingRegions));
         }
         function replacementHeight(point,maskActive){
+            const candidates=[];let masked=false;
+            for(const e of entries.values())for(const r of approvedReplacement(e))if(maskActive(r.polygon)&&Replacement.inside(point,r.polygon)){
+                masked=true;const h=Replacement.ground(e.colliders??[e.collider],frameFor(e),r,point);if(Number.isFinite(h))candidates.push(h);
+            }
+
             for(const e of entries.values()){
                 const patches=verifiedPatches(e);if(!patches.length)continue;
                 const f=frameFor(e),p=f.local(point);
                 for(const c of patches){if(!maskActive(c.polygon)||!insideGroundPatch(p,c,f.scale))continue;
-                    const z=groundLocal(groundMesh(e,c),c,p);if(Number.isFinite(z))return point.height+(z-p[2])*f.scale;}
+                    masked=true;const z=groundLocal(groundMesh(e,c),c,p);if(Number.isFinite(z))candidates.push(point.height+(z-p[2])*f.scale);}
             }
-            return undefined;
+            return masked?(candidates.length?Math.max(...candidates):NaN):undefined;
         }
         function replacementPassage(from,to,maskActive){
+            const polygons=Array.from(entries.values()).flatMap(e=>approvedReplacement(e).filter(r=>maskActive(r.polygon)).map(r=>r.polygon));
+            if(polygons.length&&!Replacement.outsideIntervals(from,to,polygons).length)return true;
             for(const e of entries.values()){
                 const patches=verifiedPatches(e).filter(c=>maskActive(c.polygon));if(!patches.length)continue;
                 const f=frameFor(e),a=f.local(from),b=f.local(to);
@@ -760,7 +797,7 @@
             }
             return first;
         }
-        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,...remoteStatus(e),alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.triangleCount,0):null,collisionIndependent:e.item.collisionIndependent===true,collisionDebug:e.collisionDebug===true,collisionDebugError:e.collisionDebugError??null,collisionBytes:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.byteLength,0):null,lastHit:e.lastHit??null})).concat(unavailableEntries.map(e=>({...e})));}
+        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,...remoteStatus(e),alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.triangleCount,0):null,collisionIndependent:e.item.collisionIndependent===true,replacementState:e.replacementCheck?.state??(e.item.replacement?.terrain.enabled?'waiting':'disabled'),replacementChecks:e.replacementCheck?.results??[],replacementError:e.replacementCheck?.message??null,replacementApplied:approvedReplacement(e).filter(r=>terrainMaskActive(r.polygon)).length,collisionDebug:e.collisionDebug===true,collisionDebugError:e.collisionDebugError??null,collisionBytes:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.byteLength,0):null,lastHit:e.lastHit??null})).concat(unavailableEntries.map(e=>({...e})));}
         const off=viewer.scene.preUpdate.addEventListener(()=>tick());
         // Terrain tiles may become resident *after* the first height sample has
         // failed. Retry as soon as Cesium drains its tile queue, without forcing
@@ -803,7 +840,7 @@
         }
         function selectedScenery(primitive){return Array.from(entries.values()).find(e=>e.models.includes(primitive))?.item.id??null;}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
-        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
+        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
     }
     return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

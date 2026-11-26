@@ -7,6 +7,7 @@
 <script src="../../web/features/scenery/scenery_collision.js"></script>
 <script src="../../web/features/scene/scene_tile_loading.js"></script>
 <script src="../../web/features/scenery/scenery_tileset_provider.js"></script>
+<script src="../../web/features/scenery/scenery_replacement.js"></script>
 <script src="../../web/features/scenery/scenery_manager.js"></script>
 <script src="../../web/features/scenery/scenery_editor_math.js"></script>
 <script src="../../web/features/scenery/scenery_editor.js"></script>
@@ -15,6 +16,7 @@
  const C=Cesium,A=FPVSceneryAlignment,M=FPVSceneryEditorMath,checks=[],check=(ok,text)=>{if(!ok)throw Error(text);checks.push(text);},wait=ms=>new Promise(r=>setTimeout(r,ms));let viewer,manager,editor;
  const pose={longitude:13.8,latitude:52.4,ellipsoidHeightM:100,rotationDeg:0,pitchDeg:0,rollDeg:0,scale:1,opacity:1};
  const doc={schemaVersion:1,id:'editor-test',name:'Synthetic geometry',anchor:{longitude:13.8,latitude:52.4,heightM:100,reference:'WGS84_ELLIPSOID'},assets:[{id:'mesh',provider:'bundled',model:{localBounds:[0,0,0,20,20,20]}}]};
+ const region=[[13.79995,52.39995],[13.80005,52.39995],[13.80005,52.40005],[13.79995,52.40005]];doc.replacement={buildings:{regions:[region]},terrain:{regions:[{polygon:region}]}};
  const item={id:doc.id,name:doc.name,author:'FPVManager tests',license:'CC0-1.0',heightDatum:'WGS84 ellipsoid',enabled:true,alignment:pose,heightAlignmentMode:'fixed',physicalCollisionsEnabled:false,loadRadiusM:2500,unloadRadiusM:4000,assets:[{kind:'glb',path:'synthetic.glb'}]};
  try{
   C.Ion.defaultAccessToken='';viewer=new C.Viewer('globe',{baseLayer:false,terrainProvider:new C.EllipsoidTerrainProvider(),animation:false,timeline:false,geocoder:false,baseLayerPicker:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,selectionIndicator:false,infoBox:false});
@@ -25,6 +27,7 @@
   const camera=C.Cartesian3.clone(viewer.camera.positionWC),matrix=C.Matrix4.clone(model.modelMatrix),entities=viewer.entities.values.length;
   await editor.begin({definitions:[doc],id:doc.id,token:'first'});await wait(200);if(innerWidth<680){const r=document.getElementById('fpv-scenery-editor').getBoundingClientRect();check(r.top>innerHeight/2+15&&r.right<=innerWidth,'mobile panel leaves the globe center and handles available');}
   const panel=()=>document.getElementById('fpv-scenery-editor'),action=key=>panel().querySelector(`[data-action="${key}"]`).click(),field=(key,value)=>{const input=panel().querySelector(`[data-field="${key}"]`);input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));},value=key=>Number(panel().querySelector(`[data-field="${key}"]`).value);
+  action('replacement');await wait(20);check(viewer.entities.getById('fpv-replacement-buildings-0')&&viewer.entities.getById('fpv-replacement-terrain-0'),'editor shows separate geographic building and terrain replacement outlines');action('replacement');await wait(20);check(!viewer.entities.getById('fpv-replacement-buildings-0'),'replacement outlines can be hidden without applying masks');
   field('rotationDeg','25');await wait(10);field('pitchDeg','12');await wait(10);field('scale','1.5');await wait(10);field('opacity','.45');await wait(20);
   check(Math.abs(model.color.alpha-.45)<1e-6&&model.scale===1.5,'numeric scale and transparency update the rendered model');check(C.Matrix4.equalsEpsilon(model.modelMatrix,A.modelMatrix(C,{...pose,rotationDeg:25,pitchDeg:12}),1e-7),'numeric HPR uses the shared Cesium transform');
   action('undo');await wait(10);check(model.color.alpha===1,'undo restores the previous draft');action('redo');await wait(10);check(Math.abs(model.color.alpha-.45)<1e-6,'redo restores the next draft');action('reset');await wait(10);check(C.Matrix4.equalsEpsilon(model.modelMatrix,matrix,1e-7)&&model.scale===1,'reset restores the initial transform');

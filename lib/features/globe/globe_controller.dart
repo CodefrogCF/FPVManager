@@ -1535,6 +1535,16 @@ class GlobeController extends ChangeNotifier {
     return mesh;
   }
 
+  Future<void> saveSceneryReplacement(
+    SceneryManifest expected,
+    Object? replacement,
+  ) async {
+    if (navigationActive || !_ready || _disposed || _sceneryCatalog == null) {
+      throw StateError('Stop navigation before changing replacement regions');
+    }
+    await _sceneryCatalog!.saveReplacement(expected, replacement);
+  }
+
   Future<void> saveSceneryCollision(
     SceneryManifest expected,
     SceneryManifest draft,

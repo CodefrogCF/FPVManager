@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><title>Scenery replacement regression</title>
+<script src="../../web/cesium/Cesium.js"></script>
+<script src="../../web/features/scenery/scenery_alignment.js"></script>
+<script src="../../web/features/scene/scene_environment.js"></script>
+<script src="../../web/features/scenery/scenery_collision.js"></script>
+<script src="../../web/features/scenery/scenery_replacement.js"></script>
+<script src="../../web/features/flight/flight_rendering.js"></script>
+<canvas id="canvas" width="600" height="500"></canvas><div id="credits"></div><pre id="result">pending</pre>
+<script>
+(async()=>{
+ const C=Cesium,R=FPVSceneryReplacement,checks=[],check=(ok,message)=>{if(!ok)throw Error(message);checks.push(message);};let scene,masks;
+ try{
+  scene=new C.Scene({canvas:document.getElementById('canvas'),creditContainer:document.getElementById('credits'),contextOptions:{webgl:{preserveDrawingBuffer:true}}});scene.backgroundColor=C.Color.BLACK;
+  scene.globe=new C.Globe(C.Ellipsoid.WGS84);scene.globe.baseColor=C.Color.GRAY;scene.globe.depthTestAgainstTerrain=true;scene.globe.showGroundAtmosphere=false;scene.terrainProvider=new C.EllipsoidTerrainProvider();
+  const anchor={longitude:13.8,latitude:52.4},matrix=C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(13.8,52.4)),world=(x,y,z)=>C.Matrix4.multiplyByPoint(matrix,new C.Cartesian3(x,y,z),new C.Cartesian3()),geo=(x,y,z)=>{const g=C.Cartographic.fromCartesian(world(x,y,z));return {longitude:C.Math.toDegrees(g.longitude),latitude:C.Math.toDegrees(g.latitude),height:g.height};},pixel=(x,y,z)=>C.SceneTransforms.worldToWindowCoordinates(scene,world(x,y,z));
+  const viewer={scene,camera:scene.camera,resolutionScale:1},tile=await C.Cesium3DTileset.fromUrl('/replacement-fixture/tileset.json');scene.primitives.add(tile);const errors=[];tile.tileFailed.addEventListener(e=>errors.push(e.message));scene.renderError.addEventListener((_,e)=>errors.push(String(e.message||e)));
+  scene.camera.lookAt(C.Cartesian3.fromDegrees(13.8,52.4),new C.HeadingPitchRange(0,-Math.PI/2,90));
+  async function frames(n=5){for(let i=0;i<n;i++){scene.initializeFrame();scene.render(C.JulianDate.now());await new Promise(requestAnimationFrame);}}
+  for(let i=0;i<300;i++){await frames(1);if(tile.root.content?.featuresLength===2&&tile.tilesLoaded&&scene.globe.tilesLoaded&&scene.globe._surface._tilesToRender.length)break;}
+  const at=(x,y,z)=>scene.pick(pixel(x,y,z)),height=(x,y)=>scene.sampleHeight(C.Cartographic.fromCartesian(world(x,y,0)),[],.1);
+  check(at(-12,-3,10)?.getProperty('uuid')==='building-1'&&at(12,-3,10)?.getProperty('uuid')==='building-2','two actual provider buildings with stable IDs render before replacement');
+  const points=[[-21,-11],[0,-11],[0,11],[-21,11]].map(([x,y])=>{const p=geo(x,y,0);return [p.longitude,p.latitude];});let building=[],terrain=[],features=[];
+  masks=R.create(C,viewer,{buildingTargets:()=>[{key:'swisstopo',tileset:tile}],buildingRegions:()=>building,buildingFeatures:()=>features,terrainRegions:()=>terrain,terrainReady:()=>true});
+  building=[points];masks.sync();await frames(10);
+  check(!at(-12,-3,10)?.getProperty&&at(12,-3,10)?.getProperty('uuid')==='building-2','polygon removes only overlapping base building and preserves its neighbour');
+  check(!Number.isFinite(height(-12,-3))||height(-12,-3)<1,'clipped building has no invisible sampled roof collision');
+  const rightPoints=points.map(([lon,lat])=>[lon+(geo(12,0,0).longitude-geo(-12,0,0).longitude),lat]);building=[rightPoints];masks.sync();await frames(8);
+  check(at(-12,-3,10)?.getProperty('uuid')==='building-1'&&!at(12,-3,10)?.getProperty,'changing polygons updates already loaded provider content without stale cuts');
+  building=[points];masks.sync();await frames(8);
+  terrain=[points];masks.sync();await frames(10);check(masks.terrainMaskActive(points),'actual globe clipping is owned and active');
+  const adapter=FPVFlightRendering.create(C,viewer,{terrainIntervals:(a,b)=>masks.terrainIntervals(a,b)});
+  check(adapter.terrainCollision(geo(-12,-3,2),geo(-12,-3,-2))===false,'CPU terrain ray ignores the visually removed ground');
+  check(adapter.terrainCollision(geo(12,-3,2),geo(12,-3,-2))===true,'outside terrain remains physically collidable');
+  const p=pixel(-12,3,0),gl=scene.context._gl,rgba=new Uint8Array(4);gl.readPixels(Math.round(p.x),scene.canvas.height-Math.round(p.y),1,1,gl.RGBA,gl.UNSIGNED_BYTE,rgba);check(rgba[0]<10&&rgba[1]<10&&rgba[2]<10,'terrain cut produces an actual visible hole in the globe');
+  const custom=scene.primitives.add(new C.Primitive({geometryInstances:new C.GeometryInstance({id:'replacement-object',geometry:C.BoxGeometry.fromDimensions({dimensions:new C.Cartesian3(3,3,3),vertexFormat:C.PerInstanceColorAppearance.VERTEX_FORMAT}),modelMatrix:C.Matrix4.multiplyByTranslation(matrix,new C.Cartesian3(-12,0,2),new C.Matrix4()),attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(C.Color.BLUE)}}),appearance:new C.PerInstanceColorAppearance({flat:true,translucent:false}),asynchronous:false}));
+  await frames(5);check(at(-12,0,3)?.id==='replacement-object','independent replacement/road geometry remains visible inside a base-world cut');
+  building=[];terrain=[];masks.sync();await frames(10);check(scene.globe.clippingPolygons===undefined&&tile.clippingPolygons===undefined,'disabling regions restores original terrain and building collections');
+  check(at(-12,-3,10)?.getProperty('uuid')==='building-1','base building reappears after polygon removal');
+  features=[{provider:'swisstopo',property:'uuid',id:'building-1'}];masks.sync();await frames(8);check(!at(-12,-3,10)?.getProperty&&at(12,-3,10)?.getProperty('uuid')==='building-2','stable feature exclusion hides a single building without clipping neighbours');
+  check(!Number.isFinite(height(-12,-3))||height(-12,-3)<1,'hidden feature has no invisible sampled collision');
+  features=[];masks.sync();await frames(5);check(at(-12,-3,10)?.getProperty('uuid')==='building-1','clearing feature rule restores original visibility');
+  const foreign=new C.ClippingPolygonCollection({polygons:[new C.ClippingPolygon({positions:points.map(([x,y])=>C.Cartesian3.fromDegrees(x,y))})]});scene.globe.clippingPolygons=foreign;terrain=[points];masks.sync();check(scene.globe.clippingPolygons===foreign&&!masks.terrainMaskActive(points),'foreign tunnel clipping is retained without a false physical exemption');
+  check(scene.globe.depthTestAgainstTerrain===true,'terrain depth testing remains enabled');masks.dispose();masks=null;scene.primitives.remove(custom);
+  document.body.dataset.status='pass';document.getElementById('result').textContent=JSON.stringify({status:'pass',checks});
+ }catch(error){document.body.dataset.status='fail';document.getElementById('result').textContent=JSON.stringify({status:'fail',message:String(error.stack||error),checks});}
+ finally{masks?.dispose();if(scene&&!scene.isDestroyed())scene.destroy();}
+})();
+</script>

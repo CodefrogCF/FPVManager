@@ -116,11 +116,11 @@
     }
     function offset(anchor,east,north) {
         const m=metric(anchor);
-        return {longitude:anchor.longitude+east/m.east,latitude:anchor.latitude+north/m.north};
+        const longitude=anchor.longitude+east/m.east;return {longitude:longitude>=-180&&longitude<=180?longitude:((longitude+540)%360)-180,latitude:anchor.latitude+north/m.north};
     }
     function localPoint(anchor,p) {
         const m=metric(anchor);
-        return {x:(p.longitude-anchor.longitude)*m.east,y:(p.latitude-anchor.latitude)*m.north};
+        return {x:((p.longitude-anchor.longitude+540)%360-180)*m.east,y:(p.latitude-anchor.latitude)*m.north};
     }
     // Source points are unscaled model EN coordinates (after glTF up-axis
     // conversion); target points are corresponding WGS84 ground positions.

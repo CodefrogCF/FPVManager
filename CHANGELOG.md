@@ -7,6 +7,9 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Fixed
 
+- Restore loaded base-building geometry when scenery masks change or are removed:
+  disable and empty owned Cesium clipping collections before detaching them.
+  Invalidate approximate collision observations when exclusion rules change.
 - Scenery control-point picking hides editor gizmos/bounds and bypasses handle
   dragging while picking surfaces, so handles cannot consume pointer releases or
   contaminate target depth. Extend the real browser regression for the reported CI failure.
@@ -48,6 +51,10 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Added
 
+- Configure independent scenery building and terrain replacement, with geographic
+  polygons, provider-specific stable building IDs, editor outlines and persistent
+  settings. Terrain cuts require collision geometry and provider-specific perimeter
+  checks; physical queries retain surrounding terrain and respect foreign tunnel cuts.
 - Import independent scenery collision meshes (FPC1 or compatible local GLB/glTF),
   or generate a static triangle BVH from a visual GLB. Retain real geometric
   openings, bake node transforms/winding and support front/back/double-sided sweeps.

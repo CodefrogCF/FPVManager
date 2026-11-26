@@ -137,6 +137,7 @@ final class SceneryAssetProviders {
           'attribution': source['attribution'],
           'enabled': manifest.enabled,
           'heightDatum': 'WGS84 ellipsoid',
+          if (doc['replacement'] != null) 'replacement': doc['replacement'],
           'alignment': alignment,
           if (anchor['reference'] == 'TERRAIN_RELATIVE') ...{
             'heightAlignmentMode': 'terrain',

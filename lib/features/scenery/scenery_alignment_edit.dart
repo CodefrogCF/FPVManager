@@ -78,6 +78,11 @@ SceneryManifest applySceneryAlignment(
         });
       }
     }
+    if (doc['replacement'] is Map) {
+      final replacement = doc['replacement'] as Map;
+      (replacement['buildings'] as Map)['enabled'] = false;
+      (replacement['terrain'] as Map)['enabled'] = false;
+    }
     // Verified terrain/building replacement belongs to its original placement.
     for (final key in [
       'heightCalibration',

@@ -71,7 +71,7 @@ function postToFlutter(message) {
         if (!event.persisted) globePositions?.dispose();
         if (!event.persisted) spotGrounding?.dispose();
         if (!event.persisted) mapLabels?.dispose();
-        if (!event.persisted) { sceneryEditor?.dispose(); localSceneryPreview?.dispose(); sceneryManager?.dispose(); regional3D?.dispose(); }
+        if (!event.persisted) { sceneryEditor?.dispose(); localSceneryPreview?.dispose(); sceneryReplacement?.dispose(); sceneryManager?.dispose(); regional3D?.dispose(); }
         if (!event.persisted) mapCredits?.dispose();
     });
     let rendererReady = false;
@@ -80,7 +80,7 @@ function postToFlutter(message) {
     let terrainManager = null;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
-    let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryManager = null, sceneryEditor = null, regional3D = null;
+    let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryReplacement = null, sceneryManager = null, sceneryEditor = null, regional3D = null;
     let regionalTerrain = false, regionalTerrainChanging = false, regionalBuildingsRequested = false, regionalTerrainRevision = 0;
     let sceneryCatalogReady = Promise.resolve();
     let bridgeHeightMatch={phase:"idle"};
@@ -733,7 +733,7 @@ function postToFlutter(message) {
                 await sceneryCatalogReady;if(!sceneryManager)throw Error('Scenery unavailable');
                 resetBridgeHeightMatch();
                 {sceneryEditor?.catalogChanged(command.alignmentToken);const sceneries=sceneryManager.replaceCatalog(command.catalog);regional3D?.tick(true);return {sceneries};}
-            case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,bridgeHeightMatch:bridgeMatchStatus(),replacement:regional3D?.replacementStatus()??null};
+            case 'scenery-status': await sceneryCatalogReady; return {sceneries:sceneryManager?.snapshot()??[],regionalTerrain,regionalTerrainChanging,bridgeHeightMatch:bridgeMatchStatus(),replacement:sceneryReplacement?.status()??regional3D?.replacementStatus()??null};
             case 'begin-scenery-bridge-height-match': {
                 await sceneryCatalogReady;
                 if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)
@@ -758,7 +758,7 @@ function postToFlutter(message) {
             case 'set-scenery-enabled': if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before changing scenery'); await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {sceneries:sceneryManager.setEnabled(command.id,command.enabled)};
             case 'set-scenery-edit': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');
                 if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before editing scenery');
-                {resetBridgeHeightMatch();const sceneries=sceneryManager.setEdit(command.id,command.edit);regional3D?.tick(true);return {sceneries,bridgeHeightMatch:bridgeMatchStatus(),replacement:regional3D?.replacementStatus()??null};}
+                {resetBridgeHeightMatch();const sceneries=sceneryManager.setEdit(command.id,command.edit);regional3D?.tick(true);return {sceneries,bridgeHeightMatch:bridgeMatchStatus(),replacement:sceneryReplacement?.status()??regional3D?.replacementStatus()??null};}
             case 'restore-scenery-edits': await sceneryCatalogReady; sceneryManager?.restoreEdits(command.edits);regional3D?.tick(true);return {};
             case 'retry-scenery': if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before reloading scenery'); await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {sceneries:sceneryManager.retry(command.id)};
             case 'tunnel-runtime-diagnostics': {
@@ -1173,10 +1173,11 @@ function postToFlutter(message) {
         }
         const flightRenderer = FPVFlightRendering.create(Cesium,viewer,{onProfile:value=>{sceneEnvironment?.performance(value);windLayer?.performance(value);
             tunnelVolumes?.setPerformanceProfile?.(value);},
+            terrainIntervals:(from,to)=>sceneryReplacement?.terrainIntervals(from,to)??[[0,1]],
             terrainPassage:(from,to)=>tunnelVolumes?.segmentInside(from,to)===true||
                 tunnelVolumes?.artificialBoundaryNear(from)===true||
                 tunnelVolumes?.artificialBoundaryNear(to)===true||
-                sceneryManager?.replacementPassage(from,to,poly=>regional3D?.terrainMaskActive(poly)===true)===true});
+                sceneryManager?.replacementPassage(from,to,poly=>sceneryReplacement?.terrainMaskActive(poly)===true||regional3D?.terrainMaskActive(poly)===true)===true});
         roadNavigation = FPVRoadNavigation.create(Cesium,viewer,
             follow=>sendToFlutter('road-navigation-follow',{follow}),
             {isTerrainReady:terrainAvailable,onActive:active=>{sceneEnvironment?.navigationActive(active);mapLabels?.navigation(active);}});
@@ -1245,7 +1246,7 @@ function postToFlutter(message) {
         });
         modelCollisions = typeof FPVSceneModelCollision !== 'undefined'
             ? FPVSceneModelCollision.create(Cesium,viewer,
-                {hasVisibleModels:()=>flyer?.active===true&&(
+                {exclusionRevision:()=>sceneryReplacement?.revision()??0,hasVisibleModels:()=>flyer?.active===true&&(
                     sceneEnvironment?.hasVisibleModels?.()===true ||
                     obstacleVectors?.hasVisibleModels?.()===true),
                     extraVisualOnly:()=>[...(sceneryManager?.visualOnlyModels()??[]),...(regional3D?.visualOnlyModels()??[])]}) : null;
@@ -1441,7 +1442,7 @@ function postToFlutter(message) {
                     (deviceMessage?` | ${translate(deviceMessage)}`:'');
             },onState:state=>modeState('ground',state)});
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
-            renderedHeight:point=>tunnelVolumes?.floorAt(point)??sceneryManager?.replacementHeight(point,poly=>regional3D?.terrainMaskActive(poly)===true)??flightRenderer.renderedHeight(point),
+            renderedHeight:point=>tunnelVolumes?.floorAt(point)??sceneryManager?.replacementHeight(point,poly=>sceneryReplacement?.terrainMaskActive(poly)===true||regional3D?.terrainMaskActive(poly)===true)??flightRenderer.renderedHeight(point),
             measurePhysicsStep:(integrate,dt)=>scenePerformance.measurePhysicsStep(integrate,dt),
             collisionAvailability:(from,to)=>sceneryManager?.collisionAvailability(from,to)??{ready:true},
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
@@ -1584,7 +1585,7 @@ function postToFlutter(message) {
             flightPosition:()=>flyer?.active?flyer.status().position:walker?.status().active?walker.status().position:null,
             debugWireframe:new URLSearchParams(window.location.search).get('sceneryCollisionDebug')==='1',
             sampleSeamGround:sampleSceneTerrain,
-            terrainMaskActive:polygon=>regional3D?.terrainMaskActive(polygon)===true,
+            terrainMaskActive:polygon=>sceneryReplacement?.terrainMaskActive(polygon)===true||regional3D?.terrainMaskActive(polygon)===true,
             terrainStable:()=>!regionalTerrainChanging,
             regionalHeightMode:()=>regionalTerrain,
             // R32: preserve the independent 34.25-m flat-ellipsoid Workbench
@@ -1657,6 +1658,7 @@ function postToFlutter(message) {
                 sample:positions=>terrainManager.sample(provider=>provider.availability?Cesium.sampleTerrainMostDetailed(provider,positions,true):Cesium.sampleTerrain(provider,12,positions,true))})});
         const preparedMaps=window.FPVMapProviderConfig?.prepared||window.FPVMapProviderConfig?.preparedUnavailable;
         if(typeof FPVRegional3D!=='undefined') regional3D=FPVRegional3D.create(Cesium,viewer,{
+            manageClipping:false,
             enabled:()=>regional3DEnabled&&!offline&&!preparedMaps&&!window.FPVMapProviderConfig?.terrain&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
             online:()=>navigator.onLine!==false,
             navigationBusy:()=>Boolean(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded),
@@ -1673,6 +1675,15 @@ function postToFlutter(message) {
                 const revision=++regionalTerrainRevision;
                 void terrainManager.switchProvider().finally(()=>{if(regionalTerrainRevision===revision)regionalTerrainChanging=false;});
             }
+        });
+
+        if(typeof FPVSceneryReplacement!=='undefined')sceneryReplacement=FPVSceneryReplacement.create(Cesium,viewer,{
+            buildingTargets:()=>[{key:'swisstopo',tileset:sceneEnvironment?.buildingsTileset?.()},{key:'bkg',tileset:regional3D?.buildingTileset?.()}],
+            buildingRegions:()=>sceneryManager?.activeRegions('buildings',navigationActive())??[],
+            buildingFeatures:()=>sceneryManager?.buildingFeatures()??[],
+            terrainRegions:()=>sceneryManager?.activeRegions('terrain',true,regionalTerrain)??[],
+            terrainKey:()=>terrainManager.provider,
+            terrainReady:()=>!regionalTerrainChanging&&terrainManager.status().state==='ready'
         });
 
         // Initial camera position: Swiss Alps

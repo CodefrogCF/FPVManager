@@ -25,8 +25,9 @@ the [user handbook](../user_guide.md). Technical reproducibility is documented i
 3. Use **Refresh status** to query the scene again when needed. The normal menu
    shows loading state and readable errors; internal collision, height and mask
    values are reserved for diagnostics.
-4. Scene configuration controls overlap with BKG LoD2. The advanced developer
-   mask and alignment editors remain hidden in regular builds.
+4. Use **Manage scenery** for alignment, collision geometry and selective base
+   building/terrain replacement. The older provider-calibration controls remain
+   available only in developer builds.
 
 ### Manage scenery
 
@@ -69,8 +70,40 @@ definition using a managed model removes its local file. Portable scenery
 packages remain a later feature.
 
 New imports are **visual only by default**. Attach or generate physical geometry
-through **Collision geometry** below. Terrain/building replacement and scenery RF
-obstruction remain separate features.
+through **Collision geometry** below. Configure base-world replacement separately;
+scenery RF obstruction remains a later feature.
+
+### Replace base terrain and buildings
+
+Open the **Replace terrain and buildings** action beside a managed scene. Building
+and terrain switches are independent. Enter polygon arrays as longitude/latitude
+pairs; **Add 20 m region at anchor** provides an editable starting rectangle.
+**Individual buildings** accepts a provider (`swisstopo` or `bkg`), published stable
+property name and string ID. If IDs are unavailable or change between datasets,
+use a polygon. Only base buildings are excluded; other scenery, roads, vegetation,
+bridges and tunnels retain their own geometry.
+
+Terrain entries add `minimumUpM`, `maximumUpM` and `seamToleranceM` to each polygon.
+The height band uses **local collision-mesh metres**, before scenery scale. Select
+actual ground rather than roofs. **Copy building regions** starts with a −1…1 m
+band; adjust it to your mesh. Cuts need fully visible, loaded scenery, enabled
+physical geometry, level placement and valid terrain. Perimeter samples at up to
+3 m spacing must find physical ground within the configured **0.05–0.5 m** mismatch.
+Missing heights, physical gaps, timeouts or incompatible clipping keep base terrain
+intact. Refresh status to inspect approval/application and use **Retry** after a
+failed check. This sampled perimeter check is not a complete mesh-quality survey.
+
+In **Align on globe → Show replacement regions**, green outlines mark building
+regions and magenta outlines mark terrain regions. Outlines show saved geographic
+regions; previewing alignment suspends actual replacement. Moving, rotating or
+scaling a scene disables its saved replacement switches until reviewed. New template
+copies do not inherit replacement. Cancel leaves saved configuration unchanged.
+
+Overlapping active regions are combined. Where several approved meshes supply a
+floor, the highest physical ground is used consistently. Disabling/unloading a
+scene restores its exclusions; other enabled scenes may still cover that location.
+Unsupported WebGL clipping and foreign tunnel clipping never authorize a physical
+terrain exception. No global terrain-depth or building-collision switch is disabled.
 
 ### Add an external 3D Tiles provider
 
