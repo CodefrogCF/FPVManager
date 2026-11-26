@@ -159,3 +159,12 @@ test('stop while preparing cancels late terrain data rather than launching simul
     assert.equal(replay.status().phase,'idle');
     assert.equal(m.simulator.active,false);
 });
+
+test('scenery lookahead is bounded, rate-aware and inactive during pause/stop',async()=>{
+ const m=mock();assert.deepEqual(m.playback.sceneryLookahead(),[]);
+ await m.playback.start(base([a,{...b,latitude:a.latitude+.01}]),signal());
+ const slow=m.playback.sceneryLookahead();assert.equal(slow.length,3);assert.ok(slow[0].latitude>a.latitude);assert.ok(slow[2].latitude>slow[0].latitude);
+ m.playback.control({action:'speed',speed:4});assert.ok(m.playback.sceneryLookahead()[0].latitude>slow[0].latitude);
+ m.playback.control({action:'pause'});assert.deepEqual(m.playback.sceneryLookahead(),[]);
+ m.playback.control({action:'stop'});assert.deepEqual(m.playback.sceneryLookahead(),[]);
+});

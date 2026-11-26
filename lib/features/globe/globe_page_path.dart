@@ -3,7 +3,10 @@ String globePagePath({
   bool cachedMaps = false,
   bool floatingControls = false,
 }) {
+  const sceneryPreset = String.fromEnvironment('FPV_SCENERY_PRESET');
   final parameters = {
+    if (const ['low', 'balanced', 'high'].contains(sceneryPreset))
+      'sceneryPreset': sceneryPreset,
     if (offline) 'offline': '1' else if (cachedMaps) 'cachedMaps': '1',
     if (floatingControls) 'chrome': 'floating',
     // Local developer preview only. Must be explicitly opted into at build time.

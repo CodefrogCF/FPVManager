@@ -58,6 +58,10 @@
     }
     function normalizeOptions(value){
         if(!value||typeof value!=='object'||!['1.0','1.1'].includes(value.version)||!['provider','no-store'].includes(value.cachePolicy)||!Number.isFinite(value.maximumScreenSpaceError)||value.maximumScreenSpaceError<1||value.maximumScreenSpaceError>128)throw failure('INVALID_OPTIONS','Invalid tileset version, caching or screen-space error setting.');
+        if(value.qualityScreenSpaceError!==undefined){
+            const levels=value.qualityScreenSpaceError;
+            if(!levels||typeof levels!=='object'||Array.isArray(levels)||Object.entries(levels).some(([key,n])=>!['low','balanced','high'].includes(key)||!Number.isFinite(n)||n<1||n>128))throw failure('INVALID_OPTIONS','Invalid quality-specific screen-space error.');
+        }
         const sphere=value.boundingSphere;
         if(!sphere||!Array.isArray(sphere.center)||sphere.center.length!==3||!sphere.center.every(x=>Number.isFinite(x)&&Math.abs(x)<=1e9)||!Number.isFinite(sphere.radiusM)||sphere.radiusM<0||sphere.radiusM>1e8)throw failure('INVALID_OPTIONS','Validated tileset bounds are required.');
         const c=value.correction??{};
@@ -193,7 +197,7 @@
     async function load(C,url,options,{signal,fetcher,loaderFactory=Loading.create}={}){
         safeUrl(url);const scope=createScope(C,{cachePolicy:options.cachePolicy,signal,fetcher}),loader=loaderFactory(C);let tileset;
         try{
-            tileset=await loader.load(scope.resource(url),{maximumScreenSpaceError:options.maximumScreenSpaceError,cacheBytes:64*1024*1024,maximumCacheOverflowBytes:0,
+            tileset=await loader.load(scope.resource(url),{maximumScreenSpaceError:options.maximumScreenSpaceError,cacheBytes:options.cacheBytes??64*1024*1024,maximumCacheOverflowBytes:0,
                 preloadWhenHidden:false,preloadFlightDestinations:false,showCreditsOnScreen:true,enableCollision:false},prepare=>{scope.prepareRoot=prepare;});
             if(signal?.aborted)throw failure('CANCELLED','Tileset load cancelled.');
             let released=false;const destroy=tileset.destroy;

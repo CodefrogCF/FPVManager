@@ -40,6 +40,16 @@ Map<String, dynamic> validateTilesetOptions(Object? value) {
     );
   }
   number(options['maximumScreenSpaceError'], 1, 128);
+  final quality = options['qualityScreenSpaceError'];
+  if (quality != null) {
+    if (quality is! Map ||
+        quality.keys.any((key) => !['low', 'balanced', 'high'].contains(key))) {
+      throw const FormatException('Invalid scenery quality levels');
+    }
+    for (final value in quality.values) {
+      number(value, 1, 128);
+    }
+  }
   final sphere = options['boundingSphere'];
   if (sphere is! Map ||
       sphere['center'] is! List ||

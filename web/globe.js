@@ -777,7 +777,7 @@ function postToFlutter(message) {
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
-                if(command.action==='start')scenePerformance.start();
+                if(command.action==='start'){if(!scenePerformance.running)sceneryManager?.resetPerformance();scenePerformance.start();}
                 else if(command.action==='stop')scenePerformance.stop();
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
@@ -1208,7 +1208,7 @@ function postToFlutter(message) {
             getTunnelApertureRevision:()=>tunnelVolumes?.apertureRevision?.()??0});
         scenePerformance = FPVScenePerformance.create(viewer,{
             isContinuous:()=>flyer?.active===true&&!flyer.status().paused,
-            resources:()=>sceneEnvironment?.resourceStats()??{}
+            resources:()=>({...sceneEnvironment?.resourceStats(),scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{
@@ -1582,7 +1582,11 @@ function postToFlutter(message) {
         // Local catalog integrates with the normal globe; never moves the camera.
         if(typeof FPVSceneryManager!=='undefined') sceneryManager = FPVSceneryManager.create(Cesium,viewer,{
             canStreamRemote:()=>!offline&&navigator.onLine!==false&&!window.FPVMapProviderConfig?.prepared&&!window.FPVMapProviderConfig?.preparedUnavailable&&new URLSearchParams(window.location.search).get('cachedMaps')!=='1',
-            flightPosition:()=>flyer?.active?flyer.status().position:walker?.status().active?walker.status().position:null,
+            // Both navigation adapters expose position and ellipsoid height separately.
+            flightPosition:()=>{const s=flyer?.active?flyer.status():walker?.active?walker.status():null;return s?.position?{...s.position,height:s.height}:null;},
+            routeLookahead:()=>routePlayback?.sceneryLookahead()??[],
+            streaming:{preset: ['low','balanced','high'].includes(new URLSearchParams(window.location.search).get('sceneryPreset'))?new URLSearchParams(window.location.search).get('sceneryPreset'):'balanced'},
+            diagnosticsEnabled:()=>scenePerformance?.running===true,
             debugWireframe:new URLSearchParams(window.location.search).get('sceneryCollisionDebug')==='1',
             sampleSeamGround:sampleSceneTerrain,
             terrainMaskActive:polygon=>sceneryReplacement?.terrainMaskActive(polygon)===true||regional3D?.terrainMaskActive(polygon)===true,

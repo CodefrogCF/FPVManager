@@ -284,7 +284,11 @@
             if(time>=flight.duration){phase='finished';simulator.playbackEnd();}
             publish(time>=flight.duration);
         }
-        return {start,control,tick,interrupt,status,get active(){return phase==='playing'||phase==='paused';},
+        function sceneryLookahead(){
+            if(!flight||phase!=='playing')return [];
+            return [1,3,5].map(seconds=>{const p=evaluate(flight,time+seconds*rate);return {latitude:p.latitude,longitude:p.longitude,height:p.height};});
+        }
+        return {start,control,tick,interrupt,status,sceneryLookahead,get active(){return phase==='playing'||phase==='paused';},
             get loaded(){return Boolean(flight);}};
     }
     return {MAX_SAMPLES,prepare,evaluate,create,distance,bearing};

@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "source": "container synthetic run; no actual model loading, real GPU or device",
+  "runs": [
+    {
+      "scope": "Synthetic lifecycle CPU benchmark; mocked asset/GPU/physics workload, no network or real device",
+      "node": "v22.16.0",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "preset": "low",
+      "cycles": 200,
+      "elapsedMs": 78.18,
+      "cycleMs": {
+        "p50": 0.13247899999998936,
+        "p95": 0.3635959999999727
+      },
+      "created": 200,
+      "destroyed": 200,
+      "colliderLoads": 200,
+      "peakModels": 1,
+      "peakCollisionBytes": 2097152,
+      "remainingModels": 0,
+      "remainingCredits": 0,
+      "remainingCollisionBytes": 0,
+      "historySamples": 128,
+      "physics": {
+        "model": "advanced",
+        "stepHz": 120,
+        "simulatedSeconds": 199.99999999998244,
+        "queuedSeconds": 0,
+        "droppedSeconds": 0,
+        "lastSubsteps": 2,
+        "interpolationAlpha": 0
+      },
+      "syntheticStepP95Ms": 4.099999995332837e-05,
+      "heapBeforeBytes": 24895096,
+      "heapAfterBytes": 25329984,
+      "heapSamples": [
+        {
+          "cycle": 50,
+          "bytes": 25307144
+        },
+        {
+          "cycle": 100,
+          "bytes": 25317200
+        },
+        {
+          "cycle": 150,
+          "bytes": 25325152
+        },
+        {
+          "cycle": 200,
+          "bytes": 25329792
+        }
+      ],
+      "explicitGc": true
+    },
+    {
+      "scope": "Synthetic lifecycle CPU benchmark; mocked asset/GPU/physics workload, no network or real device",
+      "node": "v22.16.0",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "preset": "balanced",
+      "cycles": 200,
+      "elapsedMs": 69.96,
+      "cycleMs": {
+        "p50": 0.13970000000000482,
+        "p95": 0.37531300000000556
+      },
+      "created": 200,
+      "destroyed": 200,
+      "colliderLoads": 200,
+      "peakModels": 1,
+      "peakCollisionBytes": 2097152,
+      "remainingModels": 0,
+      "remainingCredits": 0,
+      "remainingCollisionBytes": 0,
+      "historySamples": 128,
+      "physics": {
+        "model": "advanced",
+        "stepHz": 120,
+        "simulatedSeconds": 199.99999999998244,
+        "queuedSeconds": 0,
+        "droppedSeconds": 0,
+        "lastSubsteps": 2,
+        "interpolationAlpha": 0
+      },
+      "syntheticStepP95Ms": 4.099999998175008e-05,
+      "heapBeforeBytes": 24914312,
+      "heapAfterBytes": 25342552,
+      "heapSamples": [
+        {
+          "cycle": 50,
+          "bytes": 25296072
+        },
+        {
+          "cycle": 100,
+          "bytes": 25320032
+        },
+        {
+          "cycle": 150,
+          "bytes": 25328840
+        },
+        {
+          "cycle": 200,
+          "bytes": 25332616
+        }
+      ],
+      "explicitGc": true
+    },
+    {
+      "scope": "Synthetic lifecycle CPU benchmark; mocked asset/GPU/physics workload, no network or real device",
+      "node": "v22.16.0",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "preset": "high",
+      "cycles": 200,
+      "elapsedMs": 72.22,
+      "cycleMs": {
+        "p50": 0.13612500000002115,
+        "p95": 0.3849379999999769
+      },
+      "created": 200,
+      "destroyed": 200,
+      "colliderLoads": 200,
+      "peakModels": 1,
+      "peakCollisionBytes": 2097152,
+      "remainingModels": 0,
+      "remainingCredits": 0,
+      "remainingCollisionBytes": 0,
+      "historySamples": 128,
+      "physics": {
+        "model": "advanced",
+        "stepHz": 120,
+        "simulatedSeconds": 199.99999999998244,
+        "queuedSeconds": 0,
+        "droppedSeconds": 0,
+        "lastSubsteps": 2,
+        "interpolationAlpha": 0
+      },
+      "syntheticStepP95Ms": 4.100000001017179e-05,
+      "heapBeforeBytes": 24889576,
+      "heapAfterBytes": 25330120,
+      "heapSamples": [
+        {
+          "cycle": 50,
+          "bytes": 25307184
+        },
+        {
+          "cycle": 100,
+          "bytes": 25316488
+        },
+        {
+          "cycle": 150,
+          "bytes": 25325488
+        },
+        {
+          "cycle": 200,
+          "bytes": 25329928
+        }
+      ],
+      "explicitGc": true
+    }
+  ]
+}

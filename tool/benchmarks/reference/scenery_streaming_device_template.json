@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "source": "physical-device-measurement-template-not-yet-measured",
+  "date": null,
+  "appCommit": null,
+  "device": {"platform": null, "model": null, "osVersion": null, "webViewVersion": null, "cpu": null, "gpu": null, "ramBytes": null, "refreshHz": null, "powerMode": null},
+  "conditions": {"preset": null, "route": null, "sceneryId": null, "physicsHz": null, "graphicsProfile": null, "renderResolution": null, "cacheState": null, "terrainProvider": null, "network": null, "thermalState": null, "cycles": null},
+  "metrics": {"modelLoadMs": null, "textureReadyMs": null, "firstTileMs": null, "allTilesReadyMs": null, "cpuRenderP95Ms": null, "gpuRenderP95Ms": null, "gpuSamples": null, "framePacingP95Ms": null, "processMemoryBeforeBytes": null, "processMemoryPeakBytes": null, "processMemoryAfterEachCycleBytes": null, "localEstimatedBytes": null, "remoteEstimatedBytes": null, "selectedTileTriangles": null, "shownModelTriangles": null, "activeCollisionTriangles": null, "collisionBytes": null, "physicsStepP95Ms": null, "maxQueuedSeconds": null, "droppedSeconds": null},
+  "checks": {"automaticLoadUnload": null, "hysteresis": null, "collisionInvariant": null, "stableFixedTimestep": null, "memoryPlateau": null},
+  "limitations": null,
+  "decision": "pending"
+}

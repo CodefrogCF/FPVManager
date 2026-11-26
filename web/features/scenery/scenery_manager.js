@@ -10,6 +10,34 @@
     const ROOT='assets/scenery/';
     const catalogUrl='./'+ROOT+'catalog.json';
     const storageKey='fpvmanager.scenery.enabled.v1';
+    const MiB=1024*1024;
+    // Separate cache targets from decoded GLB admission estimates and CPU FPC storage.
+    const presets=Object.freeze({
+        low:Object.freeze({remoteCacheBytes:64*MiB,localBudgetBytes:128*MiB,collisionBudgetBytes:128*MiB,maxVisualLoads:1,sseFactor:2}),
+        balanced:Object.freeze({remoteCacheBytes:128*MiB,localBudgetBytes:128*MiB,collisionBudgetBytes:128*MiB,maxVisualLoads:2,sseFactor:1}),
+        high:Object.freeze({remoteCacheBytes:256*MiB,localBudgetBytes:256*MiB,collisionBudgetBytes:128*MiB,maxVisualLoads:2,sseFactor:.5})
+    });
+    function streamingOptions(value={}){
+        const preset=value.preset??'balanced';if(!Object.hasOwn(presets,preset))throw Error('Invalid scenery quality preset');
+        const options={...presets[preset],...value,preset};
+        for(const key of ['remoteCacheBytes','localBudgetBytes','collisionBudgetBytes'])if(!Number.isSafeInteger(options[key])||options[key]<16*MiB||options[key]>1024*MiB)throw Error('Invalid scenery memory budget');
+        if(!Number.isInteger(options.maxVisualLoads)||options.maxVisualLoads<1||options.maxVisualLoads>4||!Number.isFinite(options.sseFactor)||options.sseFactor<.25||options.sseFactor>4)throw Error('Invalid scenery streaming limits');
+        return options;
+    }
+    function validPoint(p){return p&&[p.latitude,p.longitude,p.height].every(Number.isFinite);}
+    // Extrapolate only short, plausible movement; teleports never prefetch a world-spanning path.
+    function predictPoint(previous,current,seconds,horizon=3){
+        if(!validPoint(previous)||!validPoint(current)||seconds<=0||seconds>2)return null;
+        const horizontal=distanceM(previous,current),vertical=current.height-previous.height;
+        if(Math.hypot(horizontal,vertical)/seconds>150)return null;
+        const f=Math.min(horizon/seconds,300/Math.max(1,Math.hypot(horizontal,vertical)));
+        const longitude=((current.longitude+f*((current.longitude-previous.longitude+540)%360-180)+540)%360)-180;
+        return {latitude:Math.max(-90,Math.min(90,current.latitude+f*(current.latitude-previous.latitude))),longitude,height:current.height+f*vertical};
+    }
+    function qualityOptions(asset,policy){
+        const explicit=asset.options.qualityScreenSpaceError?.[policy.preset];
+        return {...asset.options,maximumScreenSpaceError:explicit??Math.max(1,Math.min(128,asset.options.maximumScreenSpaceError*policy.sseFactor)),cacheBytes:policy.remoteCacheBytes};
+    }
     function validate(input){
         if(!input||input.schemaVersion!==1||!Array.isArray(input.sceneries)||input.sceneries.length>64)throw Error('Invalid scenery catalog');
         const ids=new Set();
@@ -42,6 +70,16 @@
                 if(asset.path.startsWith('managed/'))throw Error('Managed models require storage metadata');
                 return {kind:'glb',path:asset.path};
             });
+            // Alternative self-contained bundled GLBs must use the same local frame.
+            // Managed assets cannot reference unverified alternative files.
+            const visualLods=item.visualLods;
+            if(visualLods!==undefined){
+                if(!visualLods||typeof visualLods!=='object'||Array.isArray(visualLods))throw Error('Invalid visual LOD definitions');
+                for(const [path,levels] of Object.entries(visualLods)){
+                    if(!assets.some(a=>a.kind==='glb'&&!a.managed&&a.path===path)||!levels||typeof levels!=='object'||Array.isArray(levels))throw Error('Invalid visual LOD asset');
+                    for(const [level,variant] of Object.entries(levels))if(!Object.hasOwn(presets,level)||!variant||typeof variant.path!=='string'||!/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.glb$/.test(variant.path)||variant.path.startsWith('managed/')||!Number.isSafeInteger(variant.estimatedBytes)||variant.estimatedBytes<1||variant.estimatedBytes>1024*MiB)throw Error('Invalid visual LOD variant');
+                }
+            }
             if(item.collisionIndependent!==undefined&&typeof item.collisionIndependent!=='boolean')throw Error('Invalid collision loading policy');
             if(item.collisionSidedness!==undefined&&!['double','front','back'].includes(item.collisionSidedness))throw Error('Invalid collision sidedness');
             if(item.collisionIndependent){
@@ -262,13 +300,20 @@
         managedUrl=managedModelUrl,
         tilesetFactory=(url,options,signal)=>Tilesets.load(C,url,options,{signal}),
         probeTileset=(url,options)=>Tilesets.probe(C,url,options),
-        canStreamRemote=()=>globalThis.navigator?.onLine!==false,flightPosition=()=>null,maxActiveTilesets=4,
+        canStreamRemote=()=>globalThis.navigator?.onLine!==false,flightPosition=()=>null,routeLookahead=()=>[],maxActiveTilesets=4,streaming={},diagnosticsEnabled=()=>false,
         modelFactory=(url,config,credit)=>C.Model.fromGltfAsync({url,modelMatrix:A.modelMatrix(C,config),scale:config.scale,allowPicking:true,enableCollision:false,enableDebugWireframe:debugWireframe,debugWireframe,credit,showCreditsOnScreen:true}),
         collisionFactory=(url,signal)=>Collision.load(url,signal),
         position=()=>{const x=viewer.camera.positionCartographic;return {latitude:C.Math.toDegrees(x.latitude),longitude:C.Math.toDegrees(x.longitude),height:x.height};},
         onStatus=()=>{},storage,now=()=>Date.now(),setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=60000,canLoad=()=>true,terrainKey=()=>null,terrainStable=()=>true,sampleGround=async()=>NaN,sampleSeamGround=null,terrainMaskActive=()=>false,regionalHeightMode=()=>false}={}){
         let unavailableEntries=[],initialCatalog=null;
         let disposed=false,entries=new Map(),lastTick=-Infinity,catalogRevision=0,tileReadyRetryTimer=null,probeAbort=null;
+        const policy=streamingOptions(streaming);
+        let lastMotion=null,localInFlight=0;
+        const timings=new WeakMap(),history=[];
+        const remember=(sample)=>{if(history.length===128)history.shift();history.push(sample);};
+        function chosenAsset(e,asset){const variant=e.item.visualLods?.[asset.path]?.[policy.preset];return variant?{...asset,...variant}:asset;}
+        function localEstimate(e){return e.item.assets.filter(a=>a.kind==='glb').reduce((n,a)=>n+(chosenAsset(e,a).estimatedBytes??64*MiB),e.base.terrainUnderlay?16*MiB:0);}
+        function localResident(e){return Math.max(localEstimate(e),[...e.models,...(e.groundModel?[e.groundModel]:[])].filter(m=>!remoteAssets.has(m)).reduce((n,m)=>n+(m.statistics?.geometryByteLength??0)+(m.statistics?.texturesByteLength??0),0));}
         const display=viewer.cesiumWidget?.creditDisplay;
         try{storage??=globalThis.localStorage;}catch(_){}
         let prefs={};try{const parsed=JSON.parse(storage?.getItem(storageKey)||'{}');if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))prefs=parsed;}catch(_){}
@@ -284,7 +329,7 @@
         }
         function rebalanceRemoteCache(){
             const models=Array.from(entries.values()).flatMap(e=>e.models.filter(m=>remoteAssets.has(m)));
-            for(const model of models){model.cacheBytes=Math.floor(128*1024*1024/models.length);model.maximumCacheOverflowBytes=0;}
+            for(const model of models){model.cacheBytes=Math.floor(policy.remoteCacheBytes/models.length);model.maximumCacheOverflowBytes=0;}
         }
         function remoteStatus(e){
             const models=e.models.filter(m=>remoteAssets.has(m));
@@ -398,9 +443,10 @@
         function collisionReady(e){return !!((e.item.collisionIndependent||e.ready)&&e.enabled&&e.collider&&e.item.physicalCollisionsEnabled&&(e.item.collisionIndependent||e.item.alignment.opacity>=.99)&&terrainStable()&&heightReady(e));}
         function loadCollider(e,rev){
             if(!e.item.physicalCollisionsEnabled||['loading','ready'].includes(e.collisionState))return;
-            if(Array.from(entries.values()).some(x=>x!==e&&x.collisionState==='loading')){e.collisionState='queued';return;}
-            const required=(e.item.collisionResources??[]).reduce((n,r)=>n+(r.metadata?.byteLength??64*1024*1024),0),occupied=Array.from(entries.values()).filter(x=>x!==e&&x.item.collisionIndependent).reduce((n,x)=>n+(x.collisionReservedBytes??0),0);
-            if(e.item.collisionIndependent&&required+occupied>128*1024*1024){e.collisionState='error';e.collisionError='Collision geometry exceeds the active 128 MiB budget';return;}
+            if(Array.from(entries.values()).some(x=>(x!==e&&x.collisionState==='loading')||x.groundState==='loading')){e.collisionState='queued';return;}
+            const required=(e.item.collisionAssets??[e.item.collisionAsset]).reduce((n,path)=>n+(e.item.collisionResources?.find(r=>r.path===path)?.metadata?.byteLength??(e.item.collisionIndependent?64:32)*MiB),0),occupied=Array.from(entries.values()).filter(x=>x!==e).reduce((n,x)=>n+(x.collisionReservedBytes??0)+(x.groundCollider?.byteLength??0),e.groundCollider?.byteLength??0);
+            if(required>policy.collisionBudgetBytes){e.collisionState='error';e.collisionError='Collision asset estimate exceeds memory budget';return;}
+            if(required+occupied>policy.collisionBudgetBytes){e.collisionState='queued';e.collisionError='Waiting for collision memory budget';return;}
             e.collisionReservedBytes=required;
             const abort=new AbortController();e.collisionAbort=abort;e.collisionState='loading';
             e.collisionTimer=setTimer(()=>{if(e.collisionRevision===collisionRev&&!abort.signal.aborted){abort.abort();e.collisionReservedBytes=0;e.collider=null;e.collisionState='error';e.collisionError='Collision asset load timed out';e.collisionTimer=null;}},timeoutMs);
@@ -412,13 +458,13 @@
                     const resource=e.item.collisionResources?.find(x=>x.path===path);
                     const acquired=resource?.managed?await managedUrl(resource):{url:'./'+ROOT+path,release(){}};
                     try{meshes.push(await collisionFactory(acquired.url,abort.signal));}finally{acquired.release();}
-                    if(e.item.collisionIndependent&&meshes.reduce((n,m)=>n+m.byteLength,0)>128*1024*1024)throw Error('Collision geometry exceeds the active budget');
+                    if(meshes.reduce((n,m)=>n+(m.byteLength??0),0)+occupied>policy.collisionBudgetBytes)throw Error('Collision geometry exceeds the active budget');
                 }
                 return meshes;
             }).then(meshes=>{
                 if(!meshes||!current())return;
                 e.colliders=meshes;const mesh=meshes[0];
-                if(!current())return;clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=mesh;e.collisionState='ready';e.collisionReservedBytes=meshes.reduce((n,m)=>n+m.byteLength,0);e.collisionError=null;syncCollisionDebug(e);viewer.scene.requestRender?.();tick(true);
+                if(!current())return;clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=mesh;e.collisionState='ready';e.collisionReservedBytes=meshes.reduce((n,m)=>n+(m.byteLength??0),0);e.collisionError=null;syncCollisionDebug(e);viewer.scene.requestRender?.();tick(true);
                 if(e.base.terrainCertificate)void verifyTerrainAsset(mesh,e.base.terrainCertificate).then(ok=>{if(current()&&e.collider===mesh){e.terrainAssetVerified=ok;viewer.scene.requestRender?.();}});
             }).catch(error=>{if(current()){clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=null;e.collisionReservedBytes=0;e.collisionState='error';e.collisionError=String(error?.message||error);tick(true);}});
         }
@@ -428,17 +474,22 @@
         }
         function loadUnderlay(e,rev){
             if(!wantsUnderlay(e)||e.groundState&&e.groundState!=='idle')return;
+            const reserved=Array.from(entries.values()).reduce((n,x)=>n+(x.collisionReservedBytes??0)+(x.groundCollider?.byteLength??0),0);
+            if(reserved+8*MiB>policy.collisionBudgetBytes||Array.from(entries.values()).some(x=>x.collisionState==='loading'))return;
             const underlay=e.base.terrainUnderlay,abort=new AbortController(),groundRev=(e.groundRevision??0)+1;
             e.groundRevision=groundRev;e.groundAbort=abort;e.groundState='loading';
             const current=()=>!disposed&&!abort.signal.aborted&&e.revision===rev&&e.groundRevision===groundRev&&wantsUnderlay(e);
             const credit=new C.Credit('© GeoBasis-DE/LGB (dl-de/by-2-0) · GCG2016 © BKG (CC BY 4.0) · DGM1 experimental underlay',true);
+            localInFlight++;
             (async()=>{
                 let model=null;
                 try{
-                    const results=await Promise.all([
-                        modelFactory('./'+ROOT+underlay.asset,e.effectiveAlignment??e.item.alignment,credit),
-                        collisionFactory('./'+ROOT+underlay.collisionAsset,abort.signal)]);
-                    model=results[0];const mesh=results[1];
+                    // Load collision first so a rejected collider cannot orphan a GLB.
+                    const mesh=await collisionFactory('./'+ROOT+underlay.collisionAsset,abort.signal);
+                    if(!current())return;
+                    if(reserved+(mesh.byteLength??0)>policy.collisionBudgetBytes)throw Error('Underlay exceeds collision budget');
+                    model=await modelFactory('./'+ROOT+underlay.asset,e.effectiveAlignment??e.item.alignment,credit);
+
                     if(!current()){disposeModel(model,false);return;}
                     applyVisual(model,e.effectiveAlignment??e.item.alignment);model.show=false;
                     viewer.scene.primitives.add(model);e.groundModel=model;model=null;
@@ -446,9 +497,9 @@
                     const verified=await verifyTerrainAsset(mesh,underlay.certificate);
                     if(!current())return;
                     e.groundVerified=verified;e.groundState=verified?'ready':'error';
-                    if(!verified)e.groundError='DGM1 collider hash mismatch or unavailable crypto';
+                    if(!verified){e.groundError='DGM1 collider hash mismatch or unavailable crypto';disposeModel(e.groundModel,true);e.groundModel=null;e.groundCollider=null;}
                     clearSeams(e);viewer.scene.requestRender?.();
-                }catch(error){if(model)disposeModel(model,false);if(current()){e.groundState='error';e.groundError=String(error?.message??error);}}
+                }catch(error){if(model)disposeModel(model,false);if(current()){if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}e.groundCollider=null;e.groundState='error';e.groundError=String(error?.message??error);}}finally{localInFlight--;}
             })();
         }
         // A terrain model is never drawn before a *real* Cesium terrain clipping
@@ -462,27 +513,36 @@
         }
         function groundMesh(e,c){return c.source==='underlay'?e.groundCollider:e.collider;}
         function failVisual(e,message){
-            e.visualRevision=(e.visualRevision??0)+1;e.remoteAbort?.abort();clearTimer(e.timer);e.timer=null;
-            for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;publish(e,'error',message);
+            releaseUnderlay(e);e.visualRevision=(e.visualRevision??0)+1;e.remoteAbort?.abort();clearTimer(e.timer);e.timer=null;
+            for(const release of e.pendingResources??[])release();e.pendingResources?.clear();for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}e.ready=false;publish(e,'error',message);
         }
         async function load(e){
-            const rev=++e.revision,visualRev=(e.visualRevision??0)+1;e.visualRevision=visualRev;e.effectiveAlignment=original(e);publish(e,'loading');if(e.item.collisionIndependent)loadCollider(e,rev);
+            const measure=diagnosticsEnabled(),hasLocal=e.item.assets.some(a=>a.kind==='glb');
+            if(hasLocal)localInFlight++;
+            const rev=e.revision,visualRev=(e.visualRevision??0)+1;e.visualRevision=visualRev;e.effectiveAlignment??=original(e);publish(e,'loading');if(e.item.collisionIndependent&&!['loading','ready','error'].includes(e.collisionState))loadCollider(e,rev);
             e.remoteAbort=new AbortController();e.tileFailures=0;e.tileError=null;e.tileErrorCategory=null;e.streamingState=hasRemote(e)?'loading':null;
             const current=()=>!disposed&&e.revision===rev&&e.visualRevision===visualRev;
             e.timer=setTimer(()=>{if(current()){if(e.item.collisionIndependent)failVisual(e,'Scenery visual load timed out');else{remove(e);publish(e,'error','Scenery load timed out');}}},timeoutMs);
             try{
                 const remoteCount=e.item.assets.filter(a=>a.kind==='3d-tiles').length;
                 const occupiedRemote=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.filter(a=>a.kind==='3d-tiles').length,0);
-                if(remoteCount+occupiedRemote>maxActiveTilesets){remove(e);publish(e,'unavailable','External scenery capacity reached. Disable another nearby provider.','RESOURCE_LIMIT');return;}
-                const required=e.item.assets.reduce((n,a)=>n+(a.managed?a.estimatedBytes:0),0);
-                const occupied=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.reduce((n,a)=>n+(a.managed?a.estimatedBytes:0),0),0);
-                if(required+occupied>128*1024*1024)throw Error('Active local scenery exceeds the 128 MiB decoded resource budget. Disable another local model.');
+                if(remoteCount+occupiedRemote>maxActiveTilesets){if(e.item.collisionIndependent)failVisual(e,'External scenery capacity reached');else remove(e);publish(e,'unavailable','External scenery capacity reached. Disable another nearby provider.','RESOURCE_LIMIT');return;}
+                const required=localEstimate(e);
+                const occupied=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+localResident(x),0);
+                if(required>policy.localBudgetBytes)throw Error('Scenery exceeds the configured decoded resource budget.');
+                if(required+occupied>policy.localBudgetBytes){
+                    if(e.item.collisionIndependent)failVisual(e,'Waiting for local scenery memory budget');else remove(e);
+                    publish(e,'unavailable','Local scenery memory budget reached.','LOCAL_BUDGET');return;
+                }
                 // Sequential loads cap concurrent GPU uploads; cancelled models cannot be attached later.
-                for(const [assetIndex,asset] of e.item.assets.entries()){
+                for(const [assetIndex,sourceAsset] of e.item.assets.entries()){
+                    const asset=chosenAsset(e,sourceAsset),assetStarted=now();
                     const title=e.item.sourceUrl?`<a href="${escape(e.item.sourceUrl)}" target="_blank" rel="noopener">${escape(e.item.name)}</a>`:escape(e.item.name);
                     const credit=new C.Credit(`${escape(e.item.author)} · ${title} · ${escape(e.item.license)} · ${escape(e.item.attribution??'')} · georeferenced placement; experimental simulation only`,true);
                     if(asset.kind==='3d-tiles'){
-                        const model=await tilesetFactory(asset.url,asset.options,e.remoteAbort.signal);
+                        const model=await tilesetFactory(asset.url,qualityOptions(asset,policy),e.remoteAbort.signal);
+                        const timing=measure&&current()?{kind:'tileset-root',loadMs:now()-assetStarted,firstTileMs:null,allTilesReadyMs:null,textureReadyMs:null}:null;
+                        if(timing)remember(timing);
                         if(!current()){disposeModel(model,false);return;}
                         const stops=[];remoteAssets.set(model,{asset:e.item.assets[assetIndex],index:assetIndex,pivot:e.preview?.item.alignment??e.item.alignment,original:C.Matrix4.clone(model.modelMatrix??C.Matrix4.IDENTITY),style:model.style});
                         modelReleases.set(model,()=>{for(const stop of stops)stop?.();});
@@ -493,8 +553,8 @@
                                 if(e.lastTileNotice===undefined||now()-e.lastTileNotice>=1000){e.lastTileNotice=now();onStatus({id:e.item.id,state:e.state,message:detail.message,category:detail.category,visualOnly:!collisionReady(e)});}
                             }};
                             stops.push(model.tileFailed?.addEventListener(fail));
-                            stops.push(model.tileLoad?.addEventListener(()=>{if(current()){e.streamingState='streaming';e.tileError=null;e.tileErrorCategory=null;}}));
-                            stops.push(model.allTilesLoaded?.addEventListener(()=>{if(current()&&e.streamingState!=='degraded')e.streamingState='ready';}));
+                            stops.push(model.tileLoad?.addEventListener(()=>{if(current()){if(timing&&timing.firstTileMs===null)timing.firstTileMs=now()-assetStarted;e.streamingState='streaming';e.tileError=null;e.tileErrorCategory=null;}}));
+                            stops.push(model.allTilesLoaded?.addEventListener(()=>{if(current()&&e.streamingState!=='degraded'){e.streamingState='ready';if(timing&&timing.allTilesReadyMs===null)timing.allTilesReadyMs=now()-assetStarted;}}));
                             viewer.scene.primitives.add(model);e.models.push(model);rebalanceRemoteCache();
                             if(!e.credit){e.credit=credit;display?.addStaticCredit(credit);}
                         }catch(error){disposeModel(model,false);throw error;}
@@ -507,9 +567,12 @@
                     e.pendingResources??=new Set();e.pendingResources.add(resource.release);
                     let model;
                     try{model=await modelFactory(resource.url,e.item.alignment,credit);}catch(error){e.pendingResources.delete(resource.release);resource.release();throw error;}
+                    const timing=measure?{kind:'glb',loadMs:now()-assetStarted,readyMs:null,textureReadyMs:null}:null;
+                    if(timing&&current()){timings.set(model,{sample:timing,started:assetStarted});remember(timing);}
                     e.pendingResources.delete(resource.release);
-                    let offError;
-                    modelReleases.set(model,()=>{offError?.();resource.release();});
+                    let offError,offTextures;
+                    if(timing)offTextures=model.texturesReadyEvent?.addEventListener(()=>{if(current())timing.textureReadyMs=now()-assetStarted;});
+                    modelReleases.set(model,()=>{offError?.();offTextures?.();resource.release();timings.delete(model);});
                     offError=model.errorEvent?.addEventListener(error=>{
                         if(current()){if(e.item.collisionIndependent)failVisual(e,String(error?.message||error));else{remove(e);publish(e,'error',String(error?.message||error));}}
                     });
@@ -525,39 +588,88 @@
                         if(!e.credit){e.credit=credit;display?.addStaticCredit(credit);}
                     }catch(error){disposeModel(model,false);throw error;}
                 }
-                if(current()&&!e.item.collisionIndependent)loadCollider(e,rev);
+                if(current()&&!e.item.collisionIndependent&&!['loading','ready','error'].includes(e.collisionState))loadCollider(e,rev);
                 viewer.scene.requestRender?.();
-            }catch(error){if(current()){if(e.item.collisionIndependent)failVisual(e,String(error?.message||error));else remove(e);const detail=hasRemote(e)?Tilesets.describe(error):null;publish(e,'error',detail?.message??String(error?.message||error),detail?.category??null);}}
+            }catch(error){if(current()){if(e.item.collisionIndependent)failVisual(e,String(error?.message||error));else remove(e);const detail=hasRemote(e)?Tilesets.describe(error):null;publish(e,'error',detail?.message??String(error?.message||error),detail?.category??null);}}finally{if(hasLocal)localInFlight--;}
         }
         function tick(force=false){
             if(disposed)return;
             const t=now();if(!force&&t-lastTick<500)return;lastTick=t;
-            const p=position();if(!p||![p.latitude,p.longitude,p.height].every(Number.isFinite))return;
-            const airborne=flightPosition();const positions=[p,...(airborne&&[airborne.latitude,airborne.longitude,airborne.height].every(Number.isFinite)?[airborne]:[])];
-            for(const e of entries.values()){
-                const d=Math.min(...positions.map(point=>Math.min(...e.item.assets.map(asset=>asset.kind==='3d-tiles'
-                    ?remoteDistance(e,asset,point)
-                    :Math.hypot(distanceM(e.item.alignment,point),Math.max(0,point.height-e.item.alignment.ellipsoidHeightM))))));
-                if(!e.enabled||!canLoad()||!e.preview&&d>e.item.unloadRadiusM){if(e.state!=='idle'){remove(e);publish(e,'idle');}continue;}
+            const p=position();if(!validPoint(p))return;
+            const airborne=flightPosition(),air=validPoint(airborne)?airborne:null,primary=air??p;
+            const predicted=lastMotion&&lastMotion.air===!!air?predictPoint(lastMotion.point,primary,(t-lastMotion.time)/1000):null;
+            if(!lastMotion||t>lastMotion.time)lastMotion={point:{...primary},time:t,air:!!air};
+            const route=routeLookahead();
+            // Route hints are limited to the immediate reachable area, never the entire route.
+            const hints=[predicted,...(Array.isArray(route)?route.slice(0,8):[])].filter(q=>validPoint(q)&&distanceM(primary,q)<=1000);
+            const distance=(e,point)=>Math.min(...e.item.assets.map(asset=>asset.kind==='3d-tiles'
+                ?remoteDistance(e,asset,point)
+                :Math.hypot(distanceM(e.item.alignment,point),Math.max(0,point.height-e.item.alignment.ellipsoidHeightM))));
+            const candidates=Array.from(entries.values(),e=>{
+                const camera=distance(e,p),aircraft=air?distance(e,air):camera,d=Math.min(camera,aircraft);
+                const ahead=Math.min(d,...hints.map(q=>distance(e,q)));
+                return {e,d,ahead,aircraft,priority:e.preview?-Infinity:(air?aircraft*.7+d*.3:d)};
+            }).sort((a,b)=>a.priority-b.priority);
+            // Release distant scenes before any new admissions, regardless of catalog ordering.
+            for(const {e,d} of candidates){
+                if(!e.enabled||!canLoad()||!e.preview&&d>e.item.unloadRadiusM){
+                    if(e.state!=='idle'||e.collisionState&&e.collisionState!=='idle'){remove(e);publish(e,'idle');}
+                }
+            }
+            // Physical geometry gets first admission; it is never switched by visual LOD.
+            for(const {e,d,ahead} of candidates){
+                if(!e.enabled||!canLoad()||!e.preview&&d>e.item.unloadRadiusM)continue;
+                if(e.item.physicalCollisionsEnabled&&!['loading','ready','error'].includes(e.collisionState)&&
+                    (e.preview||ahead<=e.item.loadRadiusM||e.state==='ready'||e.state==='loading'))loadCollider(e,e.revision);
+            }
+            for(const {e,d,ahead} of candidates){
+                if(!e.enabled||!canLoad()||!e.preview&&d>e.item.unloadRadiusM)continue;
                 if(hasRemote(e)&&!canStreamRemote()){
-                    if(e.state!=='unavailable'||e.errorCategory!=='OFFLINE'){remove(e);publish(e,'unavailable','External tilesets require an online globe; no offline provider cache is created.','OFFLINE');}continue;
+                    if(e.state!=='unavailable'||e.errorCategory!=='OFFLINE'){
+                        if(e.item.collisionIndependent)failVisual(e,'External tilesets require an online globe');else remove(e);
+                        publish(e,'unavailable','External tilesets require an online globe; no offline provider cache is created.','OFFLINE');
+                    }
+                    if(e.item.collisionIndependent)updateHeight(e);
+                    continue;
                 }
                 if(e.state==='unavailable'&&e.errorCategory==='OFFLINE')publish(e,'idle');
                 if(e.state==='unavailable'&&e.errorCategory==='RESOURCE_LIMIT'){
                     const count=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.filter(a=>a.kind==='3d-tiles').length,0);
                     if(count+e.item.assets.filter(a=>a.kind==='3d-tiles').length<=maxActiveTilesets)publish(e,'idle');
                 }
-                if(e.item.physicalCollisionsEnabled&&(e.collisionState==='queued'||e.item.collisionIndependent&&!['loading','ready','error'].includes(e.collisionState)))loadCollider(e,e.revision);
-                if(e.state==='idle'&&(e.preview||d<=e.item.loadRadiusM)&&!Array.from(entries.values()).some(x=>x.state==='loading'&&hasRemote(x)===hasRemote(e)))void load(e);
-                if(!e.preview&&(e.state==='loading'||e.state==='ready'||e.item.collisionIndependent&&e.item.physicalCollisionsEnabled))updateHeight(e);
-                if(e.state==='ready'&&wantsUnderlay(e))loadUnderlay(e,e.revision);
+                if(e.state==='unavailable'&&e.errorCategory==='LOCAL_BUDGET'){
+                    const occupied=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+localResident(x),0);
+                    if(localEstimate(e)+occupied<=policy.localBudgetBytes)publish(e,'idle');
+                }
+                const loading=Array.from(entries.values()).filter(x=>x.state==='loading');
+                if(e.state==='idle'&&(e.preview||ahead<=e.item.loadRadiusM)&&loading.length<policy.maxVisualLoads&&
+                    !loading.some(x=>hasRemote(x)===hasRemote(e))&&(!e.item.assets.some(a=>a.kind==='glb')||localInFlight===0&&!loading.some(x=>x.item.assets.some(a=>a.kind==='glb'))))void load(e);
+                if(!e.preview&&(e.state==='loading'||e.state==='ready'||e.item.collisionIndependent&&e.item.physicalCollisionsEnabled&&e.collisionState&&e.collisionState!=='idle'))updateHeight(e);
+                if(e.state==='ready'&&wantsUnderlay(e)&&localInFlight===0&&!Array.from(entries.values()).some(x=>x.state==='loading'||x.groundState==='loading'))loadUnderlay(e,e.revision);
                 else if(e.groundState&&e.groundState!=='idle'&&!wantsUnderlay(e))releaseUnderlay(e);
                 syncUnderlay(e);syncCollisionDebug(e);
+                for(const model of e.models){const timing=timings.get(model);if(timing&&model.ready&&timing.sample.readyMs===null)timing.sample.readyMs=now()-timing.started;}
                 if(e.state==='loading'&&e.models.length===e.item.assets.length&&e.models.every(m=>remoteAssets.has(m)||m.ready===true)){
                     clearTimer(e.timer);e.timer=null;e.ready=true;publish(e,'ready');
                 }
                 updateSeams(e);
             }
+        }
+        function performanceSnapshot(){
+            const entriesList=Array.from(entries.values()),models=entriesList.flatMap(e=>[...e.models,...(e.groundModel?[e.groundModel]:[])]);
+            const remote=models.filter(m=>remoteAssets.has(m)),local=models.filter(m=>!remoteAssets.has(m));
+            const meshes=entriesList.flatMap(e=>[...(e.colliders??[]),...(e.groundCollider?[e.groundCollider]:[])]);
+            const activeMeshes=entriesList.filter(collisionReady).flatMap(e=>[...(e.colliders??[]),...(e.groundModel?.show&&e.groundCollider?[e.groundCollider]:[])]);
+            return {preset:policy.preset,budgets:{remoteCacheBytes:policy.remoteCacheBytes,localBudgetBytes:policy.localBudgetBytes,collisionBudgetBytes:policy.collisionBudgetBytes,maxVisualLoads:policy.maxVisualLoads},
+                loading:entriesList.filter(e=>e.state==='loading').length,localInFlight,residentModels:models.length,
+                remoteEstimatedBytes:remote.reduce((n,m)=>n+(m.totalMemoryUsageInBytes??0),0),
+                localEstimatedBytes:local.reduce((n,m)=>n+(m.statistics?.geometryByteLength??0)+(m.statistics?.texturesByteLength??0),0),
+                localAdmissionBytes:entriesList.filter(e=>['ready','loading'].includes(e.state)).reduce((n,e)=>n+localResident(e),0),
+                remoteStatsAvailable:remote.filter(m=>Number.isFinite(m.totalMemoryUsageInBytes)).length,localStatsAvailable:local.filter(m=>Number.isFinite(m.statistics?.geometryByteLength)&&Number.isFinite(m.statistics?.texturesByteLength)).length,
+                selectedTileTriangles:remote.reduce((n,m)=>n+(m.statistics?.numberOfTrianglesSelected??0),0),
+                shownModelTriangles:local.filter(m=>m.show!==false).reduce((n,m)=>n+(m.statistics?.trianglesLength??m.statistics?.triangleCount??0),0),
+                collisionBytes:meshes.reduce((n,m)=>n+(m.byteLength??0),0),activeCollisionTriangles:activeMeshes.reduce((n,m)=>n+(m.triangleCount??0),0),
+                loadSamples:history.map(s=>({...s})),caveat:'Cesium resource estimates and selected/submitted triangles, not full GPU memory or exact visible triangles; texture readiness is elapsed wall time, not decode time.'};
         }
         async function initialize(){
             const rev=++catalogRevision;const catalog=validate(await fetchCatalog());
@@ -840,7 +952,7 @@
         }
         function selectedScenery(primitive){return Array.from(entries.values()).find(e=>e.models.includes(primitive))?.item.id??null;}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
-        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
+        return {initialize,performanceSnapshot,resetPerformance:()=>{history.length=0;},inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
     }
-    return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
+    return {validate,presets,streamingOptions,predictPoint,qualityOptions,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

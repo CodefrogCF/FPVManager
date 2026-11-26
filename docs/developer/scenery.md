@@ -575,3 +575,143 @@ Rendered BKG geometry does not validate the height datum or certify RF/route
 clearance. Unknown tiles remain unknown. Copernicus GLO-30 is not an active fallback
 or a ready-made Quantized Mesh endpoint; hosting, conversion, datum and rights would
 need independent verification. The existing local DGM/geoid alignment is separate.
+
+## Scenery streaming, LOD and resource management (#151)
+
+The scenery manager evaluates camera and aircraft WGS84 positions (including
+ellipsoid height) every 500 ms. It releases distant/disabled entries before
+admitting new entries, gives priority to the active aircraft and camera, and
+uses separate catalog `loadRadiusM` and `unloadRadiusM` thresholds. Existing
+alignment, terrain certificates, attribution, source policy and flight safety
+checks remain in force. Short movement extrapolation predicts at most 3 s / 300 m
+and rejects teleports (>150 m/s or stale samples). Active route replay also
+provides three rate-aware lookahead points (1, 3 and 5 s); hints must remain
+within 1 km of the current position and cannot activate beyond the unload radius.
+Prefetching does not fetch or persist a complete route. Collision loading is
+prioritized before visual admission; existing FPC collision sweeps remain CPU
+only, and no network promise is awaited in a physics substep.
+
+### Quality presets and budgets
+
+| Preset | Remote tile cache target | Local decoded admission estimate | FPC budget | Concurrent visual entries | Default tileset SSE multiplier |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| low | 64 MiB | 128 MiB | 128 MiB | 1 | 2 |
+| balanced (default) | 128 MiB | 128 MiB | 128 MiB | 2 | 1 |
+| high | 256 MiB | 256 MiB | 128 MiB | 2 | 0.5 |
+
+Select a preset per renderer session with `?sceneryPreset=low` (or `balanced`,
+`high`). For Flutter on Android, Windows and web use e.g.
+`flutter run --dart-define=FPV_SCENERY_PRESET=low`. The default URL remains
+unchanged; no change to existing flight graphics settings is needed. For tests,
+`FPVSceneryManager.create(..., {streaming: {preset, remoteCacheBytes,
+localBudgetBytes, collisionBudgetBytes, maxVisualLoads, sseFactor}})` accepts
+bounded explicit overrides. There is not yet an in-app preset selector.
+
+Cesium performs frustum culling and per-tile screen-space-error LOD selection;
+cache targets are shared across active remote scenery. Override the per-asset
+SSE by adding `qualityScreenSpaceError: {"low": 32, "balanced": 16, "high": 8}`
+to that tileset's existing options. Values are validated in Dart and JS.
+Tileset texture resolution depends on provider content/LOD, not a global
+texture resizing operation. For self-contained bundled GLBs, optional authored
+alternatives can select both mesh complexity and texture resolution. Add to the
+scenery entry (or manifest `extensions.cesium`):
+
+```json
+{
+  "visualLods": {
+    "site.glb": {
+      "low": {"path": "site_low.glb", "estimatedBytes": 16777216},
+      "high": {"path": "site_high.glb", "estimatedBytes": 67108864}
+    }
+  }
+}
+```
+
+All alternatives must be authored with identical local coordinates/origin,
+scale and orientation. Missing levels use the original model. Managed imports
+retain their validated single-file model; arbitrary unmanaged alternatives are
+not allowed for them. GLB variant selection is session-level; live, distance-
+based GLB mesh swaps and runtime texture downsampling are not implemented.
+OGC 3D Tiles provides continuous distance-based LOD instead. The Rüdersdorf
+assets are unchanged and no lower-resolution files have been generated.
+
+Visual load admission permits one local GLB batch at a time, including an
+unsettled cancelled factory; a permanently stalled non-cancellable GLB factory
+can require renderer restart. Cesium schedules descendant tile requests itself.
+Independent imported FPCs remain loaded even if visual LOD loading fails or
+remote visual streaming is unavailable. Existing bundled/calibrated scenes
+retain their visual/terrain-readiness gating for physical activation and
+replacement masks. The same FPC is used across visual presets; collision
+geometry is not simplified or swapped by visual LOD. Underlay loading shares
+local and collision admission and discards failed/unverified resources.
+
+Budgets are **admission estimates**, not hard limits on process or GPU memory.
+Managed GLB estimates are supplied by the importer; unknown bundled GLBs use a
+64 MiB fallback, with 16 MiB reserved for the optional underlay. Unknown FPCs
+use 32 MiB (legacy) or 64 MiB (independent) per asset; known FPC sizes and
+resident bytes are preferred. Actual decoded size can exceed an estimate and
+Cesium can temporarily exceed its tile cache target for visible tiles. New
+visual loads wait for released capacity; active collision geometry is not
+forcibly evicted merely to admit lower-priority visual assets. Full JS/native
+heap and GPU allocations require device profilers.
+
+### Diagnostics
+
+Use the existing `scene-performance` bridge command (`start`, `snapshot`,
+`stop`) or the existing build-time validation logging
+`--dart-define=FPV_PHYSICS_VALIDATION=true`. Start before approaching a scene
+for load timings. The snapshot adds `scenery`, `gpuRenderMs` and `flightPhysics`:
+
+- At most 128 recent GLB/tileset samples (elapsed factory load, GLB model
+  readiness, texture-ready event when provided, first tile, all currently
+  required tiles ready). Texture readiness is wall-clock time to the Cesium
+  event, not isolated texture upload/decode time. Per-tile texture timings
+  are unavailable. Null means not observed or not supported.
+- Resident model count, in-flight local batches, decoded geometry/texture
+  estimates, cache targets, selected tile triangles, shown GLB model triangles,
+  resident FPC bytes and active collision triangle count. Triangle estimates
+  are selected/submitted geometry, not exact visible pixel coverage. Stats
+  availability counters distinguish absent Cesium resource statistics.
+- Existing bounded CPU render callback and fixed physics-step times, frame
+  pacing, queued/dropped simulation time. No physics integrator changes.
+- GPU elapsed time via non-blocking WebGL2 `EXT_disjoint_timer_query_webgl2`
+  when available; at most eight pending queries, dropped on context loss or
+  GPU disjoint, deleted on stop. Unsupported devices report no samples.
+  Timing spans the render callbacks, not all GPU work in the process.
+
+Diagnostics are local/on-demand; no per-frame bridge traffic or external
+telemetry. Load timing records contain no asset URLs or scenery identities.
+
+### Repeatable verification
+
+Run `node --test test/js/*.test.cjs` (Chromium required for browser cases) and:
+
+```bash
+node --expose-gc tool/benchmarks/benchmark_scenery_streaming.cjs 200 low
+node --expose-gc tool/benchmarks/benchmark_scenery_streaming.cjs 200 balanced
+node --expose-gc tool/benchmarks/benchmark_scenery_streaming.cjs 200 high
+```
+
+The synthetic benchmark uses real scenery scheduling and fixed-step runtime,
+with mock visual/collision factories and a trivial integration callback. The
+reference in `tool/benchmarks/reference/scenery_streaming_synthetic_reference.json`
+records 200 activations per preset, matching creates/destroys, zero retained
+models/credits/collider bytes, bounded diagnostics and zero dropped/queued time.
+This is **not** a model decode, GPU, or real flight performance measurement.
+
+For physical device acceptance, use the same Rüdersdorf scene, terrain and
+saved approach/exit route on a representative Windows device and Android
+(e.g. S22 and S25 Ultra). For each preset, keep the physics rate, flight graphics
+profile, resolution and route speed constant. Start outside the unload radius,
+fly in, perform an identical collision-safe pass near buildings, exit beyond
+unload distance, and repeat at least five times. Repeat with cold and warm
+cache, record thermal/power state, and check the same openings/collision
+contacts across presets. Collect validation logs while approaching, and sample
+process memory before loading, at peak and after each unload/settling period
+using Android Studio/ADB or Windows profiling tools. Record results in
+`tool/benchmarks/reference/scenery_streaming_device_template.json`. Compare p95
+CPU/GPU/physics times, dropped and maximum queued time, resource counts and the
+post-unload memory trend. Compare with the unchanged source commit using the
+same conditions. Hardware-specific FPS targets and memory plateaus remain
+pending until physical measurements exist; do not treat synthetic results as
+proof of device performance.

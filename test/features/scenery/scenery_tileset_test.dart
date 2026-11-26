@@ -39,6 +39,11 @@ void main() {
       };
       doc['assets'][0]['tileset']['cachePolicy'] = 'provider';
       doc['assets'][0]['tileset']['maximumScreenSpaceError'] = 24;
+      doc['assets'][0]['tileset']['qualityScreenSpaceError'] = {
+        'low': 48,
+        'balanced': 24,
+        'high': 12,
+      };
       final original = SceneryManifest.fromJson(doc);
       await repository.create(original);
       final backup = BackupRepository(db), bytes = await backup.create();
@@ -77,6 +82,9 @@ void main() {
     final mutations = <void Function(Map<String, dynamic>)>[
       (d) => d['assets'][0]['tileset']['version'] = '2.0',
       (d) => d['assets'][0]['tileset']['maximumScreenSpaceError'] = 0,
+      (d) => d['assets'][0]['tileset']['qualityScreenSpaceError'] = {'low': 0},
+      (d) =>
+          d['assets'][0]['tileset']['qualityScreenSpaceError'] = {'ultra': 8},
       (d) => d['assets'][0]['tileset']['cachePolicy'] = 'download-all',
       (d) => d['assets'][0]['tileset'].remove('boundingSphere'),
       (d) => d['assets'][0]['tileset']['correction'] = {'scale': 0},
