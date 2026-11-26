@@ -193,3 +193,34 @@ If native availability discovery reveals finer station data, those positions
 are sampled again. The marker visibility setting does not affect retention.
 
 Station retention is covered by deterministic cache and interpolation tests. Compare actual cache hits and frame pacing on the same device and route.
+
+### German terrain height diagnostic
+
+The BKG terrain RF guard remains active until the delivered mesh's vertical
+reference is verified. The [basemap.de 3D product documentation](https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/basemap.de_3d.pdf)
+identifies the DGM5 mesh and its horizontal CRS but does not explicitly establish
+the height datum of delivered mesh values. DHHN2016 source heights and WGS84
+ellipsoid heights must not be interchanged.
+
+For independent control heights, obtain an official local DGM GeoTIFF with
+ETRS89/UTM32 or UTM33 and documented unscaled DHHN2016 metre heights. Obtain
+the [GCG2016 PROJ grid](https://cdn.proj.org/de_bkg_gcg2016.tif) and place it
+in a local directory. With the scenery conversion dependencies installed, run
+`tool/scenery/reference/prepare_bkg_rf_controls.py --help`. Supply the DEM,
+`--source` (edition and attribution), `--grid-dir`, `--confirm-dhhn2016`,
+`--output controls.json` and at least three distinct `--point LON LAT` pairs
+on stable, flat, unobstructed ground inside the raster. The tool rejects
+missing grids, invalid heights and steep or duplicate sample cells. The
+result records both independent normal and ellipsoid heights at actual DEM
+pixel centers. Repeat with separate DEMs across different regions.
+
+From the repository root, start `python -m http.server 8765 --bind 127.0.0.1`
+and open `http://127.0.0.1:8765/tool/scenery/reference/bkg_rf_probe.html`.
+Select the control JSON and run the comparison. It uses the existing BKG
+runtime-only transport and RF terrain tile cache, then compares cold and warm
+sampling with native Cesium most-detailed sampling and the independent heights.
+Only export the diagnostic report, not provider tiles. Local agreement (2 m RMS,
+3 m maximum residual as initial diagnostic thresholds) is not certification:
+confirm provider metadata and representative regions, then validate live/route
+RF, coverage, provider transitions and real device performance. The diagnostic
+never changes application settings or authorizes RF automatically.

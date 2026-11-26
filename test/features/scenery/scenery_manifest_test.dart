@@ -125,8 +125,9 @@ void main() {
     final previous = sceneryFixture(id: 'previous-version').toJson()
       ..['minimumAppVersion'] = '0.19.29';
     final future = sceneryFixture(id: 'future-version').toJson()
-      ..['minimumAppVersion'] = '0.19.30';
-    final result = SceneryAssetProviders().compile([
+      ..['minimumAppVersion'] = '0.20.1';
+    final providers = SceneryAssetProviders(applicationVersion: '0.20.0');
+    final result = providers.compile([
       SceneryManifest.fromJson(previous),
       SceneryManifest.fromJson(future),
     ]);

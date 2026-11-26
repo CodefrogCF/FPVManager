@@ -242,7 +242,7 @@ class _SceneryTilesetDialogState extends State<SceneryTilesetDialog> {
           'loadRadiusM': number('loadRadiusM'),
           'unloadRadiusM': number('unloadRadiusM'),
         },
-        'minimumAppVersion': previous?['minimumAppVersion'] ?? '0.19.20',
+        'minimumAppVersion': previous?['minimumAppVersion'] ?? '0.20.0',
       });
       Navigator.pop(context, manifest);
     } catch (error) {

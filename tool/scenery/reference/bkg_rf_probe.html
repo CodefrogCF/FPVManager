@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FPVManager BKG terrain diagnostic</title></head>
+<body style="font: 16px system-ui; max-width: 75ch; margin: 2rem auto; padding: 0 1rem">
+<h1>BKG terrain height and RF sampling diagnostic</h1>
+<p>Choose a JSON file containing independent DHHN2016 and ellipsoid control heights. This requests the current public terrain service using the FPVManager runtime-only transport and existing transient RF tile cache. It does not enable RF or save terrain tiles.</p>
+<input type="file" id="input" accept=".json,application/json"><button id="run" disabled>Compare heights</button> <button id="save" disabled>Save diagnostic JSON</button>
+<pre id="output" style="white-space:pre-wrap;overflow-wrap:anywhere">No data loaded.</pre>
+<script src="../../../web/cesium/Cesium.js"></script>
+<script src="../../../web/features/terrain/regional_3d.js"></script>
+<script src="../../../web/features/signal/live_terrain_tile_cache.js"></script>
+<script src="bkg_rf_probe.js"></script>
+<script>
+'use strict';
+const input=document.getElementById('input'),run=document.getElementById('run'),save=document.getElementById('save'),output=document.getElementById('output');let report=null;
+input.addEventListener('change',()=>{report=null;save.disabled=true;run.disabled=!input.files.length;});
+run.addEventListener('click',async()=>{
+    run.disabled=true;input.disabled=true;save.disabled=true;report=null;output.textContent='Sampling…';
+    try{const file=input.files[0];if(!file||file.size>65536)throw Error('Invalid reference JSON size');
+        const data=JSON.parse(await file.text());report=await FPVBkgRfProbe.run(data,{C:Cesium,regional:FPVRegional3D,cacheModule:FPVLiveTerrainTileCache});output.textContent=JSON.stringify(report,null,2);save.disabled=false;
+    }catch(e){output.textContent=String(e)+'\nReload the page before repeating a timed-out request.';}
+    finally{input.disabled=false;/* reload or select a file again to run */}
+});
+save.addEventListener('click',()=>{if(!report)return;const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='bkg-rf-probe.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+</script></body></html>

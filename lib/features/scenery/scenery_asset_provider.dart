@@ -4,7 +4,7 @@ import 'scenery_storage.dart';
 import 'scenery_tileset_options.dart';
 
 // Keep aligned with pubspec's application version; checked by regression test.
-const sceneryApplicationVersion = '0.19.20';
+const sceneryApplicationVersion = '0.20.0';
 
 /// Resolve references without storing bytes or duplicating Cesium loaders.
 /// Future managed-file/3D-Tiles providers implement this same boundary.
@@ -315,11 +315,6 @@ final class SceneryAssetProviders {
   }
 
   bool _compatible(String minimum) {
-    // The previous development build used 0.19.29. This release retains
-    // its scenery capabilities despite the lower public version number.
-    if (applicationVersion == '0.19.20' && minimum == '0.19.29') {
-      return true;
-    }
     final a = parseSceneryVersion(applicationVersion),
         b = parseSceneryVersion(minimum);
     for (var i = 0; i < 3; i++) {

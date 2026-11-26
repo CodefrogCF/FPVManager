@@ -34,6 +34,7 @@ jobs:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: tool/scenery/conversion/requirements.txt
-      - run: python -m pip install --only-binary=:all: --requirement tool/scenery/conversion/requirements.txt
+      - run: >-
+          python -m pip install --only-binary=:all: --requirement tool/scenery/conversion/requirements.txt
       - run: python -c "import laspy, lazrs, shapely, rasterio, trimesh, scipy, lxml"
       - run: python -m unittest discover -s test/tool -p test_scenery_conversion.py -v
