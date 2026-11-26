@@ -158,9 +158,7 @@ python tool/scenery/conversion/convert.py tool/scenery/conversion/examples/brand
 
 No automatic source download is included. Crop to a small
 building group first and review the LoD2 surfaces against photographs and
-control points. The public file and grid could not be downloaded in the
-development environment; the real-dataset and device acceptance steps remain
-unverified. Do not redistribute the existing BKG test streaming service cache.
+control points. Real-dataset conversion and device acceptance remain unverified. Do not redistribute the existing BKG test streaming service cache.
 
 ### LAS/LAZ and DEM
 

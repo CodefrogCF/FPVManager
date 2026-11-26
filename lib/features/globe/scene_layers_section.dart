@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 
 import 'package:file_selector/file_selector.dart';
@@ -187,7 +186,8 @@ class SceneLayersSection extends StatelessWidget {
                 )
               : null,
         ),
-        if (kDeveloperMenusEnabled && controller.schematicTunnel3dEnabled)
+        if (controller.developerMenusEnabled &&
+            controller.schematicTunnel3dEnabled)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
@@ -205,7 +205,7 @@ class SceneLayersSection extends StatelessWidget {
           ),
         if (controller.schematicTunnelMeshError != null)
           Text(
-            kDeveloperMenusEnabled
+            controller.developerMenusEnabled
                 ? 'Tunnel: ${controller.schematicTunnelMeshError}'
                 : context.localized(
                     '3D-Daten derzeit nicht verfügbar.',
@@ -288,7 +288,7 @@ class SceneLayersSection extends StatelessWidget {
                 context.localizedWithArgs(
                   "Abfrage fehlgeschlagen: {0}",
                   [
-                    kDeveloperMenusEnabled
+                    controller.developerMenusEnabled
                         ? controller.tunnelScanError
                         : 'Tunnel',
                   ],
@@ -482,7 +482,7 @@ class SceneLayersSection extends StatelessWidget {
                         Text(
                           'Name: ${controller.selectedInfrastructure!['name']}',
                         ),
-                      if (kDeveloperMenusEnabled &&
+                      if (controller.developerMenusEnabled &&
                           controller.selectedInfrastructure!['sourceId'] !=
                               null)
                         Text(
@@ -493,7 +493,7 @@ class SceneLayersSection extends StatelessWidget {
                                 l10n.globeQuellkennung050247aa(value(0)),
                           ),
                         ),
-                      if (kDeveloperMenusEnabled &&
+                      if (controller.developerMenusEnabled &&
                           controller.selectedInfrastructure!['attributes']
                               is Map)
                         for (final entry
@@ -533,7 +533,7 @@ class SceneLayersSection extends StatelessWidget {
                   ),
                 ),
               ),
-            if (kDeveloperMenusEnabled)
+            if (controller.developerMenusEnabled)
               TextButton.icon(
                 onPressed: enabled && !controller.tunnelModelPending
                     ? () => change(() async {
@@ -569,7 +569,7 @@ class SceneLayersSection extends StatelessWidget {
                   ),
                 ),
               ),
-            if (kDeveloperMenusEnabled)
+            if (controller.developerMenusEnabled)
               Text(
                 context.localized(
                   "JSON mit EPSG:4979, Quelle und separatem Kollisionsmesh. GLB/IFC werden nicht direkt unterstützt.",
@@ -578,14 +578,14 @@ class SceneLayersSection extends StatelessWidget {
               ),
           ],
         ),
-        if (!kDeveloperMenusEnabled &&
+        if (!controller.developerMenusEnabled &&
             controller.tunnelRoutes.any(
               (route) => route['source'] == 'OpenStreetMap (Overpass fallback)',
             ))
           const Text(
             '© OpenStreetMap contributors (ODbL) · openstreetmap.org/copyright',
           ),
-        if (kDeveloperMenusEnabled)
+        if (controller.developerMenusEnabled)
           ExpansionTile(
             key: const PageStorageKey('map-tunnel-data'),
             tilePadding: EdgeInsets.zero,

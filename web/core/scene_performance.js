@@ -101,12 +101,13 @@
         function snapshot(){
             const renderMs=samples(render,renderCount),intervalMs=samples(interval,intervalCount);
             const resource=resources(),physicsMs=samples(physics,physicsCount),gpuMs=samples(gpu,gpuCount);
-            return {running,frames:allFrames,renderSamples:renderMs.length,intervalSamples:intervalMs.length,
+            const totalIntervalMs=intervalMs.reduce((sum,ms)=>sum+ms,0);
+            return {running,frames:allFrames,frameAgeMs:lastFrame===null?null:Math.max(0,now()-lastFrame),continuous:isContinuous(),renderFps:totalIntervalMs>0?1000*intervalMs.length/totalIntervalMs:null,renderSamples:renderMs.length,intervalSamples:intervalMs.length,
                 physicsStep:{count:physicsCount,samples:physicsMs.length,totalMs:physicsTotalMs,
                     p50Ms:percentile(physicsMs,.5),p95Ms:percentile(physicsMs,.95),maxMs:physicsMaxMs},
                 cpuRenderMs:{p50:percentile(renderMs,.5),p95:percentile(renderMs,.95),max:percentile(renderMs,1)},
                 gpuRenderMs:{supported:gpuSampler?.supported??false,samples:gpuMs.length,p50:percentile(gpuMs,.5),p95:percentile(gpuMs,.95),max:percentile(gpuMs,1)},
-                scenery:resource.scenery??null,flightPhysics:resource.flightPhysics??null,
+                pendingTerrainTiles:resource.pendingTerrainTiles??null,scenery:resource.scenery??null,flightPhysics:resource.flightPhysics??null,
                 framePacingMs:{p50:percentile(intervalMs,.5),p95:percentile(intervalMs,.95),max:percentile(intervalMs,1)},
                 over33Ms:intervalMs.filter(ms=>ms>33.34).length,
                 over100Ms:intervalMs.filter(ms=>ms>100).length,

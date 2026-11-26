@@ -535,5 +535,15 @@ test('scenery affects both modeled links and partial clear paths remain uncertai
  const send=revision=>p.api.set({revision,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',distanceMeters:48,observation:{quality:'valid',ageMs:0},pilot:{latitude:47,longitude:8,height:502},rays:[{latitude:47,longitude:8,height:550,state:'noSampledObstruction'}],assessment:{visibility:'clear',source:'sampledTerrain',confidence:'approximate',controlLink:'unknown',videoLink:'unknown',sampleCount:2,minimumClearanceMeters:2,minimumFresnelMarginMeters:2}});
  send(2);const clear=p.api.assessment();mode='blocked';send(3);const blocked=p.api.assessment();assert.equal(blocked.visibility,'obstructed');assert.ok(blocked.controlLink.quality<clear.controlLink.quality);assert.ok(blocked.videoLink.quality<clear.videoLink.quality);assert.equal(blocked.scenery.control.obstructions,3);
  mode='partial';send(4);assert.equal(p.api.assessment().controlLink,'unknown');assert.equal(p.api.assessment().videoLink,'unknown');assert.equal(p.api.assessment().visibility,'unknown');
+ assert.equal(p.api.assessment().observation.errorCategory,'SCENERY_INCOMPLETE');assert.equal(p.api.assessment().observation.reason,'Scenery coverage incomplete');
  }finally{p.api.dispose();}
+});
+
+test('ground station terrain retention works with a hidden marker and clears on monitor changes',async()=>{
+    const provider={availability:{computeMaximumLevelAtPosition:()=>17},tilingScheme:{positionToTileXY:()=>({x:0,y:0}),tileXYToRectangle:()=>({})},requestTileGeometry:()=>Promise.resolve({interpolateHeight:()=>500})};
+    const p=setup({terrain:{provider,sample:fn=>fn(provider)},C:{Cartographic:{fromDegrees:(longitude,latitude)=>({longitude:longitude*Math.PI/180,latitude:latitude*Math.PI/180})},sampleTerrainMostDetailed:async()=>{throw Error('unexpected fallback');}}});
+    try{p.api.monitor({enabled:true,revision:1,showGroundStationMarker:false});p.api.station({revision:1,position:{latitude:46.7,longitude:8.4}});
+        await p.api.sample(command,new AbortController().signal);assert.equal(p.api.diagnostics().stationCachedTiles,1);assert.equal(p.stations.length,0);
+        p.api.monitor({enabled:false,revision:2});assert.equal(p.api.diagnostics().stationCachedTiles,0);
+    }finally{p.api.dispose();}
 });

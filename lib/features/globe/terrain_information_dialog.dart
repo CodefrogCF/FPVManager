@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 
 import '../../core/geo/altitude_service.dart';
@@ -18,9 +17,11 @@ class TerrainInformationDialog extends StatefulWidget {
     super.key,
     required this.terrain,
     this.convertHeight,
+    this.developerMenusEnabled = false,
   });
 
   final TerrainElevation terrain;
+  final bool developerMenusEnabled;
   final SwissHeightConverter? convertHeight;
 
   @override
@@ -192,7 +193,7 @@ class _TerrainInformationDialogState extends State<TerrainInformationDialog> {
               _height(terrain.elevation),
               key: const ValueKey('terrain-ellipsoid-height'),
             ),
-            if (kDeveloperMenusEnabled)
+            if (widget.developerMenusEnabled)
               Text(
                 context.localizedWithArgs("Sampling: {0}", [
                   terrain.samplingMethod,

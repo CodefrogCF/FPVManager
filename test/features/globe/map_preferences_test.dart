@@ -72,6 +72,19 @@ void main() {
     await database.close();
   });
 
+  test('developer master switch gates the persisted overlay setting', () async {
+    await controller.initializePreferences(repository);
+    expect(controller.developerOverlayEnabled, isFalse);
+    await controller.setDeveloperMenusEnabled(true);
+    await controller.setDeveloperOverlayEnabled(true);
+    expect(controller.developerOverlayEnabled, isTrue);
+    await controller.setDeveloperMenusEnabled(false);
+    expect(controller.developerOverlayEnabled, isFalse);
+    expect((await repository.getPreferences()).developerOverlayEnabled, isTrue);
+    await controller.setDeveloperMenusEnabled(true);
+    expect(controller.developerOverlayEnabled, isTrue);
+  });
+
   test('labels remain independent across style changes, restart, renderer reload and reset', () async {
     await controller.initializePreferences(repository);
     await controller.setMapLabels(true);

@@ -15,7 +15,7 @@ and [simulation/collision reference](../developer/simulation_and_collision.md).
 
 Angle self-levels; Acro responds to angular-rate inputs; GPS is an assisted
 position/altitude-control mode. The **Advanced** physics model is the default
-for new flights in v0.19.0. It couples motor/propeller estimates, battery load,
+for new flights. It couples motor/propeller estimates, battery load,
 directional drag, inertia, wind, ground contact and GPS Rescue using a fixed
 physics timestep. These are conservative simulation approximations, not a
 measured aircraft certification or a Betaflight implementation. Missing motor
@@ -106,8 +106,8 @@ A profile expires within five seconds and can become unknown sooner after rapid
 movement, missing terrain or provider changes. `?` is a passive HUD notice; it
 never starts failsafe or GPS Rescue by itself. Fast flight can combine terrain
 sampling passes while retaining the existing precision/freshness requirements.
-BKG beta heights remain unsuitable for RF until their reference is verified.
-An optional diagnostic view shows sampling and result age. A **SIM free-space
+Resident custom scenery collision meshes contribute material-dependent attenuation and estimated Fresnel obstruction. Missing relevant geometry can leave the link uncertain. BKG beta heights remain unsuitable for RF until their reference is verified.
+Enable Developer options and the optional Performance overlay in Settings for sampling, result age, frame and resource diagnostics. A **SIM free-space
 only** preview cannot replace a terrain observation or establish RC recovery.
 
 Simulator settings are saved across restarts, including the selected physics
@@ -195,4 +195,3 @@ height; full provider loss is handled separately.
 
 For preflight and legal/data considerations, read [preflight and analysis](preflight.md),
 [coordinate heights](coordinates_and_heights.md) and [map data sources](map_sources_and_attribution.md).
-

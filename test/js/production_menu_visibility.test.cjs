@@ -7,22 +7,25 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const source=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('regular builds hide internal menu widgets behind one explicit opt-in flag',()=>{
+test('regular builds hide internal menu widgets behind a runtime opt-in preference',()=>{
   const flag=source('lib/core/ui/developer_menu_visibility.dart');
   assert.match(flag,/const bool kDeveloperMenusEnabled = bool\.fromEnvironment\(\s*'FPV_DEVELOPER_MENUS',\s*defaultValue: false/);
   const scenery=source('lib/features/globe/scenery_layers_section.dart');
   const structures=source('lib/features/globe/scene_layers_section.dart');
   const airspace=source('lib/features/globe/uas_map_layers_section.dart');
   const terrain=source('lib/features/globe/terrain_information_dialog.dart');
-  for(const file of [scenery,structures,airspace,terrain])assert.match(file,/import '\.\.\/\.\.\/core\/ui\/developer_menu_visibility\.dart';/);
+  for(const file of [scenery,structures,airspace])assert.match(file,/controller\.developerMenusEnabled/);
+  assert.match(terrain,/widget\.developerMenusEnabled/);
+  assert.match(source('lib/core/models/user_preferences.dart'),/this\.developerMenusEnabled = kDeveloperMenusEnabled/);
+  assert.match(source('lib/features/settings/app_settings_screen.dart'),/globe\.setDeveloperMenusEnabled\(value\)/);
   for(const diagnostic of ['_replacement != null',"item['collisionState'] != null","item['lastHit'] is Map", "item['heightAlignmentMode'] == 'fixed'", "item['id'] == 'de-bb-ruedersdorf-chemical-plant'", "(item['buildingRegions'] as List?)", "(item['terrainRegions'] as List?)", '_editScenery(item, german)']){
     assert.ok(scenery.includes(diagnostic),`missing diagnostic control: ${diagnostic}`);
   }
-  assert.match(scenery,/if \(kDeveloperMenusEnabled && item\['remote'\] != true\)\s*TextButton\.icon\(\s*onPressed: enabled \? \(\) => _editScenery/);
-  assert.match(structures,/if \(kDeveloperMenusEnabled\)\s*ExpansionTile\(\s*key: const PageStorageKey\('map-tunnel-data'\)/);
-  assert.match(structures,/if \(kDeveloperMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: enabled && !controller\.tunnelModelPending/);
-  assert.match(airspace,/if \(kDeveloperMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: controller\.isReady && controller\.canClearUasCache/);
-  assert.match(terrain,/if \(kDeveloperMenusEnabled\)\s*Text\(\s*context\.localizedWithArgs\("Sampling: \{0\}"/);
+  assert.match(scenery,/if \(controller\.developerMenusEnabled && item\['remote'\] != true\)\s*TextButton\.icon\(\s*onPressed: enabled \? \(\) => _editScenery/);
+  assert.match(structures,/if \(controller\.developerMenusEnabled\)\s*ExpansionTile\(\s*key: const PageStorageKey\('map-tunnel-data'\)/);
+  assert.match(structures,/if \(controller\.developerMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: enabled && !controller\.tunnelModelPending/);
+  assert.match(airspace,/if \(controller\.developerMenusEnabled\)\s*TextButton\.icon\(\s*onPressed: controller\.isReady && controller\.canClearUasCache/);
+  assert.match(terrain,/if \(widget\.developerMenusEnabled\)\s*Text\(\s*context\.localizedWithArgs\("Sampling: \{0\}"/);
 });
 
 test('safety notices, source licences and user simulator controls remain in ordinary menus',()=>{
@@ -35,7 +38,7 @@ test('safety notices, source licences and user simulator controls remain in ordi
   assert.match(structures,/controller\.setSceneEnvironment\(\s*modelCollisions: value/);
   assert.match(structures,/controller\.scanTunnelRoutes\(\)/);
   assert.match(structures,/Originaldaten · keine Durchflugfreigabe/);
-  assert.match(structures,/if \(!kDeveloperMenusEnabled &&\s*controller\.tunnelRoutes\.any\(/);
+  assert.match(structures,/if \(!controller\.developerMenusEnabled &&\s*controller\.tunnelRoutes\.any\(/);
   assert.match(airspace,/source\.licenseName/);
   assert.match(airspace,/showAirspaceSafetyPanel\(context, controller\)/);
   assert.match(airspace,/Official validity/);

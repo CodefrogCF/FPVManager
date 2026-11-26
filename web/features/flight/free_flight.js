@@ -912,7 +912,7 @@
             if(!active||!spawn)return {};
             return start({...spawn,...config},signal??new AbortController().signal);
         }
-        return {start,stop,reset,tick,status,playbackPose,playbackEnd,enterTunnel,get active(){return active;},get flightMode(){return config.flightMode;},
+        return {start,stop,reset,tick,status,playbackPose,playbackEnd,enterTunnel,get active(){return active;},get paused(){return paused;},get flightMode(){return config.flightMode;},
             get controller(){return config.controller;},
             controllerSettings(value){
                 config={...config,controller:controller.configuration(value)};clearKeys();

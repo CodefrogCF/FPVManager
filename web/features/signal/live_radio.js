@@ -56,7 +56,7 @@
             enabled=c.enabled;showPath=c.showSignalPath!==false;showMarker=c.showGroundStationMarker!==false;useSpawn=c.useSpawn!==false;
             if(c.rfProfiles!==undefined)rfSettings=rfEstimation.configuration(c.rfProfiles);
             revision=c.revision;last=-Infinity;lastMode=null;toggle.checked=enabled;badge.hidden=!enabled;
-            unknown('unknown',null,true);drawStation(null);return {};
+            unknown('unknown',null,true);drawStation(null);tileCache.setStation(null);return {};
         }
         function observe(s){
             if(!enabled||disposed)return;
@@ -65,7 +65,7 @@
             const speed=Number.isFinite(s.speed)?Math.max(0,s.speed):0;
             const interval=speed>=30?200:speed>=12?400:750;
             if(mode===lastMode&&clock()-last<interval)return;
-            if(lastMode!==null&&mode!==lastMode){unknown('unknown',null,true);if(useSpawn&&s.flightId!==flightId)drawStation(null);}
+            if(lastMode!==null&&mode!==lastMode){unknown('unknown',null,true);if(useSpawn&&s.flightId!==flightId){drawStation(null);tileCache.setStation(null);}}
             last=clock();lastMode=mode;flightId=s.flightId;active=!!s.active;paused=!!s.paused;
             emit('flight-radio-position',{active:!!s.active,paused:!!s.paused,flightId:s.flightId,
                 latitude:s.position?.latitude,longitude:s.position?.longitude,height:s.height,speed,homeLatitude:s.home?.latitude,homeLongitude:s.home?.longitude});
@@ -241,7 +241,7 @@
             if(sceneryPath&&c.state!=='unknown'&&c.pilot&&c.rays?.[0]&&Number.isFinite(c.pilot.height)&&Number.isFinite(c.rays[0].height)){
                 try{scenery={control:sceneryPath(c.pilot,c.rays[0],rfSettings.control.frequencyMhz,c.fraction??.6),
                     video:sceneryPath(c.pilot,c.rays[0],rfSettings.video.frequencyMhz,c.fraction??.6)};}
-                catch(_){scenery={control:{complete:false,lossDb:0,obstructions:0},video:{complete:false,lossDb:0,obstructions:0}};}
+                catch(_){scenery={control:{complete:false,lossDb:0,obstructions:0,reason:'Scenery RF calculation failed'},video:{complete:false,lossDb:0,obstructions:0,reason:'Scenery RF calculation failed'}};}
             }
             const explicitControl=currentAssessment.controlLink,explicitVideo=currentAssessment.videoLink;
             const estimated=rfEstimation.assess(currentAssessment,c.pilot,c.rays?.[0],rfSettings,scenery);
@@ -267,6 +267,12 @@
             }
             observationQuality=quality;observationError=c.observation?.errorCategory??c.errorCategory??null;
             observationReason=typeof c.observation?.reason==='string'?c.observation.reason.slice(0,160):null;
+            if(quality!=='valid'&&!observationReason){
+                if(scenery&&(!scenery.control.complete||!scenery.video.complete)){
+                    observationReason=String(scenery.control.reason??scenery.video.reason??'Scenery coverage incomplete').slice(0,160);
+                    observationError??='SCENERY_INCOMPLETE';
+                }else if(observationError&&observationError!=='PENDING')observationReason=String(observationError).slice(0,160);
+            }
             if(c.state!=='unknown'&&quality==='valid'){lastValidAt=clock()-(inputAge??0);observationId=c.observation?.id??c.revision;}
             // A successful, flight-matched profile can restore the station even
             // if its earlier standalone marker command arrived out of order.
@@ -315,6 +321,8 @@
             if(disposed||!enabled||!Number.isInteger(c.revision)||c.revision<revision)return {};
             if(c.position!==null&&(!c.position||!Number.isFinite(c.position.latitude)||Math.abs(c.position.latitude)>90||
                 !Number.isFinite(c.position.longitude)||Math.abs(c.position.longitude)>180))throw Error('Invalid ground station position');
+            // Cache ownership follows the actual station, not marker visibility.
+            tileCache.setStation(c.position);
             drawStation(showMarker?c.position:null);
             return {};
         }

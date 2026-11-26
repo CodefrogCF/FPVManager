@@ -49,28 +49,30 @@ performance in profile mode; Node timings are not device FPS.
 
 ## Internal diagnostics
 
-Public builds keep implementation diagnostics hidden. A private development
-build can enable them with:
+Implementation diagnostics are hidden by default. In **Settings → Developer options**,
+users can enable them at runtime. The separate **Performance overlay** switch
+starts the existing renderer profiler and polls an aggregate snapshot once per second
+in the map and flight view. Turning Developer options off hides the overlay and
+stops ordinary runtime profiling, RF debug HUD and collision visualization. The
+local preference persists on restart. No location or external telemetry is sent.
+
+FPS is a rolling mean of recent actual render intervals, not the recording rate;
+idle/request-render gaps are excluded and stale FPS is shown as unavailable.
+CPU render timing covers the measured render callbacks, not all browser work;
+GPU timing requires WebGL2 timer queries. Tile and mesh sizes are partial memory
+estimates, not total GPU or process memory. Profiling itself has some overhead.
+
+For a fresh private development installation, the initial preference can also
+be set with:
 
 ```sh
 flutter run --dart-define=FPV_DEVELOPER_MENUS=true
 ```
 
-This defaults to false and is independent of `FPV_REGIONAL_3D_TEST`. User-facing
+This defaults to false, may be changed in Settings, and is independent of `FPV_REGIONAL_3D_TEST`. The separate build-time physics validation flag remains independent. User-facing
 warnings, source credits and licensing remain visible. See [scenery](developer/scenery.md)
 for the separate opt-in BKG/Rüdersdorf test build.
 
 ## Validation
 
-```sh
-python tool/quality/check_docs.py
-python tool/quality/check_repository_layout.py
-python -m unittest discover -s test/tool -p 'test_*.py'
-node --test test/js/*.test.cjs
-node tool/benchmarks/performance_suite.cjs --check
-flutter analyze
-flutter test
-```
-
-Follow the platform build and browser-input checks in [Contributing](../CONTRIBUTING.md)
-when affected. A source ZIP or synthetic benchmark is not a device release test.
+Follow the canonical [pre-push checks](../CONTRIBUTING.md#checks-and-builds) and [device performance procedure](developer/performance.md).

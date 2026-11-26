@@ -57,8 +57,8 @@
         let max=0;for(let i=0;i<points.length;i++){const h=heights[i];if(!Number.isFinite(h))return {approved:false,samples:i,maxErrorM:null};const z=ground(meshes,frame,region,{...points[i],height:h});if(!Number.isFinite(z))return {approved:false,samples:i,maxErrorM:null};max=Math.max(max,Math.abs(z-h));}
         return {approved:max<=region.seamToleranceM,samples:points.length,maxErrorM:max};
     }
-    function create(C,viewer,{buildingTargets=()=>[],buildingRegions=()=>[],buildingFeatures=()=>[],terrainRegions=()=>[],terrainReady=()=>false,terrainKey=()=>null}={}){
-        const scene=viewer.scene,leases=new Map(),featureOwners=new Map();let disposed=false,revision=0,signature='',lastStatus={};
+    function create(C,viewer,{buildingTargets=()=>[],buildingRegions=()=>[],buildingFeatures=()=>[],terrainRegions=()=>[],terrainReady=()=>false,terrainKey=()=>null,regionRevision=null}={}){
+        const scene=viewer.scene,leases=new Map(),featureOwners=new Map();let disposed=false,revision=0,signature='',lastStatus={},lastInputs=null,fullSyncs=0,skippedSyncs=0,retryAt=0;
         const polygonKey=p=>JSON.stringify(p),supported=()=>!!C.ClippingPolygonCollection?.isSupported?.(scene);
         function release(key){const old=leases.get(key);if(!old)return;
             // Cesium 1.145 loaded tile models can retain the collection after
@@ -73,7 +73,7 @@
             const unique=[...new Map(regions.map(p=>[polygonKey(p),p])).values()],hash=JSON.stringify(unique);
             if(leases.get(key)?.key===hash)return null;
             try{const prior=leases.get(key);if(prior){prior.collection.enabled=false;prior.collection.removeAll?.();}
-                const collection=new C.ClippingPolygonCollection({polygons:unique.map(p=>new C.ClippingPolygon({positions:p.map(([lon,lat])=>C.Cartesian3.fromDegrees(lon,lat,0))}))});owner.clippingPolygons=collection;leases.set(key,{owner,collection,key:hash,regions:unique});scene.requestRender?.();return null;}
+                const collection=new C.ClippingPolygonCollection({polygons:unique.map(p=>new C.ClippingPolygon({positions:p.map(([lon,lat])=>C.Cartesian3.fromDegrees(lon,lat,0))}))});owner.clippingPolygons=collection;leases.set(key,{owner,collection,key:hash,regions:unique,regionSet:new Set(unique),regionKeys:new Set(unique.map(polygonKey))});scene.requestRender?.();return null;}
             catch(error){release(key);return String(error.message||error);}
         }
         function restoreFeature(owner,feature){const value=owner.hidden.get(feature);if(value===undefined)return;try{feature.show=value.show;}catch(_){}owner.hidden.delete(feature);}
@@ -97,7 +97,17 @@
             for(const f of [...owner.hidden.keys()])if(!matches(owner,f))restoreFeature(owner,f);
         }
         function active(lease){return lease&&lease.owner.clippingPolygons===lease.collection&&lease.collection.enabled!==false&&lease.collection.inverse!==true&&(lease.collection.length===undefined||lease.collection.length===lease.regions.length)&&supported();}
-        function sync(){if(disposed)return;const targets=buildingTargets().filter(t=>t.tileset&&t.tileset.show!==false),keys=new Set(),errors=[];
+        // Providers/foreign clipping owners can change independently of the
+        // scenery catalog. Check those identities and flags even on fast frames.
+        function inputs(targets){
+            const globe=scene.globe,values=[regionRevision(),terrainKey(),terrainReady(),supported(),globe,!!globe?.material,!!globe?.clippingPlanes?.length];
+            const ownerState=owner=>{const c=owner?.clippingPolygons;values.push(owner,c,c?.enabled,c?.inverse,c?.length);};
+            ownerState(globe);for(const target of targets){values.push(target.key);ownerState(target.tileset);}
+            return values;
+        }
+        function sync(){if(disposed)return;const targets=buildingTargets().filter(t=>t.tileset&&t.tileset.show!==false);
+            if(regionRevision){const next=inputs(targets);if((retryAt===0||Date.now()<retryAt)&&lastInputs&&next.length===lastInputs.length&&next.every((v,i)=>v===lastInputs[i])){skippedSyncs++;return;}}
+            fullSyncs++;const keys=new Set(),errors=[];
             const buildings=buildingRegions(),features=buildingFeatures();for(const target of targets){keys.add(target.key);const err=clip('buildings:'+target.key,target.tileset,buildings);if(err)errors.push(target.key+': '+err);syncFeatures(target,features.filter(f=>f.provider===target.key));}
             for(const key of [...leases.keys()])if(key.startsWith('buildings:')&&!keys.has(key.slice(10)))release(key);
             for(const key of [...featureOwners.keys()])if(!keys.has(key))disposeFeatures(key);
@@ -108,10 +118,15 @@
             const current=JSON.stringify({buildings:[...leases].filter(([k,v])=>k.startsWith('buildings:')&&active(v)).map(([k,v])=>[k,v.key]),terrain:active(leases.get('terrain'))?leases.get('terrain').key:null,features:features.filter(f=>keys.has(f.provider))});
             if(current!==signature){signature=current;revision++;scene.requestRender?.();}
             lastStatus={supported:supported(),buildingActive:[...leases].some(([k,v])=>k.startsWith('buildings:')&&active(v))||[...featureOwners.values()].some(o=>o.hidden.size>0),terrainActive:active(leases.get('terrain'))===true,hiddenFeatures:[...featureOwners.values()].reduce((n,o)=>n+o.hidden.size,0),errors:[...errors,...[...featureOwners.values()].map(o=>o.error).filter(Boolean)],revision};
+            // A transient Cesium construction error must not become permanent
+            // merely because dependency identities remain unchanged.
+            retryAt=errors.some(e=>!e.includes('Polygon clipping is unsupported')&&!e.includes('Another feature owns polygon clipping')&&!e.includes('Terrain clipping is reserved'))?Date.now()+1000:0;
+            if(regionRevision)lastInputs=inputs(targets);
         }
-        function terrainPolygons(){const lease=leases.get('terrain');return terrainReady()&&lease?.provider===terrainKey()&&active(lease)?lease.regions:[];}
+        function terrainLease(){const lease=leases.get('terrain');return terrainReady()&&lease?.provider===terrainKey()&&active(lease)?lease:null;}
+        function terrainMaskActive(p){const lease=terrainLease();return !!(lease&&(lease.regionSet.has(p)||lease.regionKeys.has(polygonKey(p))));}
         const off=scene.preUpdate?.addEventListener?.(sync);
-        return {sync,revision:()=>revision,status:()=>{sync();return {...lastStatus};},terrainMaskActive:p=>terrainPolygons().some(poly=>polygonKey(poly)===polygonKey(p)),terrainIntervals:(a,b)=>outsideIntervals(a,b,terrainPolygons()),
+        return {sync,revision:()=>revision,status:()=>{sync();const hiddenFeatures=[...featureOwners.values()].reduce((n,o)=>n+o.hidden.size,0);return {...lastStatus,hiddenFeatures,buildingActive:[...leases].some(([k,v])=>k.startsWith('buildings:')&&active(v))||hiddenFeatures>0};},diagnostics:()=>({fullSyncs,skippedSyncs}),terrainMaskActive,terrainIntervals:(a,b)=>{const lease=terrainLease();return lease?outsideIntervals(a,b,lease.regions):[[0,1]];},
             dispose(){if(disposed)return;disposed=true;off?.();for(const key of [...leases.keys()])release(key);for(const key of [...featureOwners.keys()])disposeFeatures(key);}};
     }
     return {normalize,inside,outsideIntervals,seamPoints,ground,evaluate,create};

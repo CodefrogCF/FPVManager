@@ -2,13 +2,16 @@
 
 **FPVManager** is an open-source, local-first application for FPV flight preparation, Swiss map exploration and flight simulation. It combines a CesiumJS 3D globe with offline personal records, terrain and airspace information, route tools, and configurable simulation physics.
 
+**Current source version:** `0.20.0+57` (published downloads may differ).
+
 [Project showcase](https://youtu.be/S1XSDf-Mf1A) · [Latest releases](https://github.com/CodefrogCF/FPVManager/releases/latest)
 
 ## What you can do
 
 - **Explore and plan:** Swiss terrain, imagery, airspace restrictions, published obstacles, saved spots, editable routes, route playback, location and equipment libraries.
 - **Prepare:** terrain-dependent checks, weather/radar, environmental conditions and data-source status, including explicit unknown or incomplete coverage.
-- **Simulate:** GPS, Angle and Acro modes; selectable Advanced/Legacy physics; touch, keyboard and supported external controls; recordings, modelled battery/propulsion behavior, wind, collisions and optional GPS Rescue.
+- **Simulate:** GPS, Angle and Acro modes; selectable Advanced/Legacy physics; touch, keyboard and supported external controls; recordings, modelled battery/propulsion behavior, wind, collisions, modeled RC/video links and optional GPS Rescue.
+- **Custom scenery:** import, align and stream local models or external 3D Tiles; configure collision and RF materials, exchange licensed `.fpvscenery` packages.
 - **Work offline:** keep personal records locally, export portable backups and prepare selected public map data for offline use.
 - **Use optional information layers:** public transport, road navigation, POIs, EV charging, shared mobility and other observation sources, subject to the availability of each provider.
 
@@ -36,7 +39,7 @@ For Android, run `flutter devices` and `flutter run -d <device-id>`. Platform-sp
 | Developers and contributors | [Developer guide](docs/developer_guide.md) · [Contributing](CONTRIBUTING.md) |
 | All topics and limitations | [Documentation index](docs/README.md) |
 
-The app also includes **Settings → Help**. Feature details are maintained in the audience-specific guides; historical changes belong in the [Changelog](CHANGELOG.md).
+The app includes **Settings → Help** and optional **Developer options → Performance overlay**. Feature details are maintained in the audience-specific guides; historical changes belong in the [Changelog](CHANGELOG.md).
 
 ## Safety and data
 

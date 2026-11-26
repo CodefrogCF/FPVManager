@@ -1,5 +1,58 @@
+import 'dart:math' as math;
+
 import 'scenery_manifest.dart';
 import 'scenery_tileset_options.dart';
+
+/// Provider masks refer to the original geographic buildings, not the scan.
+/// Keep those footprints for a bounded local registration correction only.
+/// Compare against the original bundled anchor to prevent cumulative drift.
+bool retainsBundledBuildingFootprints(
+  Map? original,
+  Map anchor,
+  Map rotation,
+  num scale,
+) {
+  if (original == null || anchor['reference'] != 'WGS84_ELLIPSOID') {
+    return false;
+  }
+  if (![
+        'latitude',
+        'longitude',
+        'ellipsoidHeightM',
+        'rotationDeg',
+        'scale',
+      ].every(
+        (key) => original[key] is num && (original[key] as num).isFinite,
+      ) ||
+      (original['scale'] as num) <= 0 ||
+      !['pitchDeg', 'rollDeg'].every(
+        (key) =>
+            original[key] == null ||
+            original[key] is num && (original[key] as num).isFinite,
+      )) {
+    return false;
+  }
+  final lat = original['latitude'] as num;
+  final dLon =
+      ((anchor['longitude'] as num) - (original['longitude'] as num) + 540) %
+          360 -
+      180;
+  final dLat = (anchor['latitude'] as num) - lat;
+  final east = dLon * math.pi / 180 * 6378137 * math.cos(lat * math.pi / 180);
+  final north = dLat * math.pi / 180 * 6378137;
+  num angle(num value, num base) => ((value - base + 540) % 360 - 180).abs();
+  return east * east + north * north <= 100 &&
+      ((anchor['heightM'] as num) - (original['ellipsoidHeightM'] as num))
+              .abs() <=
+          50 &&
+      angle(rotation['headingDeg'] as num, original['rotationDeg'] as num) <=
+          3 &&
+      angle(rotation['pitchDeg'] as num, (original['pitchDeg'] as num?) ?? 0) <=
+          3 &&
+      angle(rotation['rollDeg'] as num, (original['rollDeg'] as num?) ?? 0) <=
+          3 &&
+      (scale / (original['scale'] as num) - 1).abs() <= .02;
+}
 
 /// Applies placement fields only; source, assets and collision policy stay owned
 /// by the stored definition. The renderer never replaces arbitrary manifest data.
@@ -83,7 +136,16 @@ SceneryManifest applySceneryAlignment(
       (replacement['buildings'] as Map)['enabled'] = false;
       (replacement['terrain'] as Map)['enabled'] = false;
     }
-    // Verified terrain/building replacement belongs to its original placement.
+    final keepBuildingFootprints =
+        remote.isEmpty &&
+        retainsBundledBuildingFootprints(
+          extension['bundledAlignment'] as Map?,
+          doc['anchor'] as Map,
+          doc['rotation'] as Map,
+          doc['scale'] as num,
+        );
+    // Terrain certificates belong to the exact original placement. Building
+    // footprints are fixed to the provider buildings, not translated with the scan.
     for (final key in [
       'heightCalibration',
       'heightAlignmentMode',
@@ -93,12 +155,15 @@ SceneryManifest applySceneryAlignment(
       'bkgHeightOffsetM',
       'terrainCertificate',
       'terrainCertificates',
-      'buildingRegions',
+      'terrainUnderlay',
       'terrainRegions',
     ]) {
       cesium.remove(key);
     }
-    cesium['replaceBuildings'] = false;
+    if (!keepBuildingFootprints) {
+      cesium.remove('buildingRegions');
+      cesium['replaceBuildings'] = false;
+    }
     cesium['clipTerrain'] = false;
   }
   cesium['alignment'] = {
@@ -107,5 +172,59 @@ SceneryManifest applySceneryAlignment(
   };
   extension['cesium'] = cesium;
   doc['extensions'] = extension;
+  return SceneryManifest.fromJson(doc);
+}
+
+/// Recover only the old editor's stripped legacy mask, not an explicit disabled
+/// polygon configuration or custom replacement policy. Keep the edited pose.
+SceneryManifest recoverStrippedBundledBuildingFootprints(
+  SceneryManifest current,
+  SceneryManifest? bundled,
+) {
+  if (bundled == null || current.id != bundled.id) return current;
+  final doc = current.toJson(), source = bundled.toJson();
+  final extensions = doc['extensions'] as Map?;
+  final original = source['extensions'] as Map;
+  final cesium = extensions?['cesium'];
+  final base = original['cesium'] as Map;
+  if (cesium is! Map ||
+      doc['replacement'] != null ||
+      cesium['replaceBuildings'] != false ||
+      cesium['clipTerrain'] != false ||
+      cesium.containsKey('buildingRegions') ||
+      cesium.containsKey('terrainRegions') ||
+      cesium.containsKey('heightCalibration') ||
+      base['replaceBuildings'] != true ||
+      base['buildingRegions'] is! List ||
+      (base['buildingRegions'] as List).isEmpty ||
+      (doc['collision'] as Map)['enabled'] != true ||
+      !retainsBundledBuildingFootprints(
+        original['bundledAlignment'] as Map?,
+        doc['anchor'] as Map,
+        doc['rotation'] as Map,
+        doc['scale'] as num,
+      )) {
+    return current;
+  }
+  // The mask belongs to the original asset set; RF material edits are allowed.
+  final assets = current.assets, defaults = bundled.assets;
+  if (assets.length != defaults.length ||
+      !assets.every(
+        (a) => defaults.any(
+          (b) =>
+              a.id == b.id &&
+              a.role == b.role &&
+              a.provider == 'bundled' &&
+              b.provider == 'bundled' &&
+              a.format == b.format &&
+              a.uri == b.uri,
+        ),
+      )) {
+    return current;
+  }
+  cesium['buildingRegions'] = base['buildingRegions'];
+  cesium['replaceBuildings'] = true;
+  // Retain the original reference for the independent compile-time guard.
+  extensions!['bundledAlignment'] = original['bundledAlignment'];
   return SceneryManifest.fromJson(doc);
 }

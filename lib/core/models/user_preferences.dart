@@ -1,6 +1,7 @@
 import '../../features/simulation/simulation_settings.dart';
 import '../../features/obstacles/obstacle_models.dart';
 import 'outdoor_layer.dart';
+import '../ui/developer_menu_visibility.dart';
 import '../../features/simulation/signal_hud_settings.dart';
 import '../../features/simulation/failsafe_settings.dart';
 
@@ -29,6 +30,8 @@ class UserPreferences {
     this.uasZonesFillOpacity = 0.20,
     this.savedSpotsVisible = true,
     this.touchControlsVisible = true,
+    this.developerMenusEnabled = kDeveloperMenusEnabled,
+    this.developerOverlayEnabled = false,
     this.simulation = const SimulationSettings(),
     this.signalHud = const SignalHudSettings(),
     this.failsafe = const FailsafeSettings(),
@@ -65,6 +68,7 @@ class UserPreferences {
   final double uasZonesFillOpacity;
   final bool savedSpotsVisible;
   final bool touchControlsVisible;
+  final bool developerMenusEnabled, developerOverlayEnabled;
   final SimulationSettings simulation;
   final SignalHudSettings signalHud;
   final FailsafeSettings failsafe;
@@ -96,6 +100,8 @@ class UserPreferences {
     double? uasZonesFillOpacity,
     bool? savedSpotsVisible,
     bool? touchControlsVisible,
+    bool? developerMenusEnabled,
+    bool? developerOverlayEnabled,
     SimulationSettings? simulation,
     SignalHudSettings? signalHud,
     FailsafeSettings? failsafe,
@@ -131,6 +137,9 @@ class UserPreferences {
     uasZonesFillOpacity: uasZonesFillOpacity ?? this.uasZonesFillOpacity,
     savedSpotsVisible: savedSpotsVisible ?? this.savedSpotsVisible,
     touchControlsVisible: touchControlsVisible ?? this.touchControlsVisible,
+    developerMenusEnabled: developerMenusEnabled ?? this.developerMenusEnabled,
+    developerOverlayEnabled:
+        developerOverlayEnabled ?? this.developerOverlayEnabled,
     simulation: simulation ?? this.simulation,
     signalHud: signalHud ?? this.signalHud,
     failsafe: failsafe ?? this.failsafe,

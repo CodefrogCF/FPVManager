@@ -182,6 +182,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final globe = GlobeController();
     addTearDown(globe.dispose);
+    await globe.setDeveloperMenusEnabled(true);
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(

@@ -17,19 +17,7 @@ text for optional arguments. Python tooling dependencies are pinned in
 
 ## Routine validation
 
-```sh
-python tool/quality/check_docs.py
-python tool/quality/check_repository_layout.py
-python tool/quality/check_localizations.py --check
-python tool/build/vendor_cesium.py --check
-python -m unittest discover -s test/tool -p 'test_*.py'
-node --test test/js/*.test.cjs
-node tool/benchmarks/performance_suite.cjs --check
-node tool/benchmarks/scenery_collision.cjs
-dart run tool/quality/check_format.dart
-flutter analyze
-flutter test
-```
+Run the canonical [pre-push checks](../CONTRIBUTING.md#checks-and-builds).
 
 ## Generation and packaging
 
@@ -45,9 +33,7 @@ Preparation/build commands retain their prerequisites and download behavior; the
 validation commands do not implicitly launch them. See
 [Contributing](../CONTRIBUTING.md), [Cesium](../docs/developer/cesium_assets.md),
 [tunnel index](../docs/developer/offline_swiss_tunnel_index.md) and
-[performance](../docs/developer/performance.md). Scenery's revision scripts/data
-are source-reproduction tools, not additional current documentation or runtime
-assets. Do not remove their source provenance as a directory cleanup.
+[performance](../docs/developer/performance.md). Preserve source-reproduction data and provenance.
 
 The optional live provider check is separate from deterministic CI. It streams
 official Brandenburg tiles in headless Chromium without packaging provider assets:
@@ -57,7 +43,7 @@ node tool/browser/check_scenery_tileset.cjs
 ```
 
 Use `--url=`, `--longitude=` and `--latitude=` for another permitted HTTPS provider.
-See [Scenery providers](../docs/developer/scenery.md#external-3d-tiles-providers-147).
+See [Scenery providers](../docs/developer/scenery.md#external-3d-tiles-providers).
 
 ## After extracting a changed-files ZIP
 

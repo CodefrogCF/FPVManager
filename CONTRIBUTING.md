@@ -31,29 +31,43 @@ required attribution and third-party licence text.
 
 ## Checks and builds
 
-Run from the repository root. Python 3.9+ and Node.js 20+ are needed for tooling.
+Use Flutter 3.47.0 / Dart 3.13.0, Node.js 20+, Python 3.12 and Java 17 for the main CI. Install Python tooling dependencies; the separate conversion workflow uses Python 3.13 and its own requirements.
+
+From the repository root:
 
 ```sh
 flutter pub get --enforce-lockfile
+flutter gen-l10n
+dart format lib test tool integration_test
 dart run tool/quality/check_format.dart
-python tool/quality/check_docs.py
+python -m pip install --only-binary=:all: -r tool/data/offline_region_requirements.txt
+python tool/quality/check_version.py
 python tool/build/vendor_cesium.py --check
+python tool/quality/check_docs.py
+python tool/quality/check_repository_layout.py
+python tool/quality/check_localizations.py --check
 python -m unittest discover -s test/tool -p 'test_*.py'
 node --test test/js/*.test.cjs
 node tool/benchmarks/performance_suite.cjs --check
 flutter analyze --no-pub
 flutter test --no-pub
+flutter test --no-pub --platform chrome test/web/globe_input_test.dart test/web/offline_storage_test.dart
 ```
 
-Format edited sources with `dart format <path>`. The format check excludes
-generated Dart and migration fixtures. CI runs these checks before both builds:
+On resource-constrained Windows hosts, run JS tests with `--test-concurrency=1`; CI runs its default concurrency on Linux. Check free disk space and pagefile before browser/build tests. For version changes, keep the runtime scenery version, new manifest defaults, converter and its fixture consistent with `pubspec.yaml`; do not rewrite third-party packages. The previous development build used a higher numeric patch version; its exact scenery compatibility label is accepted because the capabilities are retained. Do not reuse build numbers or decrease published semantic versions in future releases.
+
+Verify the CI builds:
 
 ```sh
 flutter build web --release --no-pub --no-web-resources-cdn
 python tool/build/prepare_offline_web.py
+python tool/quality/check_release_artifacts.py --web build/web
 python tool/build/prepare_sqlite_android.py
 flutter build apk --debug --no-pub
+python tool/quality/check_release_artifacts.py --apk build/app/outputs/flutter-apk/app-debug.apk
 ```
+
+Run the [conversion checks](docs/developer/scenery_conversion.md) separately when conversion code or fixtures change.
 
 Serve the complete `build/web/` over HTTPS (or localhost). Offline Web startup
 requires the generated integrity manifest and a completed online installation.

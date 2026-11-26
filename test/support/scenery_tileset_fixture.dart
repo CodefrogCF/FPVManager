@@ -53,6 +53,6 @@ SceneryManifest sceneryTilesetFixture({String id = 'synthetic-tileset'}) {
       'sidedness': 'double',
     },
     'visibility': {'enabled': true, 'loadRadiusM': 2500, 'unloadRadiusM': 4000},
-    'minimumAppVersion': '0.19.29',
+    'minimumAppVersion': '0.19.20',
   });
 }

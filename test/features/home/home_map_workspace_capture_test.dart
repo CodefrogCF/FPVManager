@@ -15,6 +15,7 @@ void main() {
             actions: const Text('Map actions'),
             selection: const Text('Selection overlay'),
             sidePanel: const Text('Desktop panel'),
+            diagnosticOverlay: const Text('Developer FPS'),
             captureMode: capture,
             onExitCapture: () => restores++,
           ),
@@ -25,6 +26,7 @@ void main() {
       expect(find.text('Map actions'), findsOneWidget);
       expect(find.text('Selection overlay'), findsOneWidget);
       expect(find.text('Desktop panel'), findsOneWidget);
+      expect(find.text('Developer FPS'), findsOneWidget);
       await tester.pumpWidget(app(true));
       expect(find.text('3D globe'), findsOneWidget);
       for (final text in [
@@ -32,6 +34,7 @@ void main() {
         'Map actions',
         'Selection overlay',
         'Desktop panel',
+        'Developer FPS',
       ]) {
         expect(find.text(text), findsNothing);
       }

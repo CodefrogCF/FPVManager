@@ -169,7 +169,9 @@ test('a missing tile preserves rendered terrain and unrelated pending heights; r
         const query = manager.sample(() => height.promise, new AbortController().signal);
         const error = old.errorEvent.fail({x:2,y:3,level:4});
         assert.equal(error.retry, true);
+        assert.equal(manager.hasWarning, false, 'first attempt is not a missing tile');
         assert.equal(old.errorEvent.fail({x:2,y:3,level:4}).retry, true);
+        assert.equal(manager.hasWarning, false, 'retry remains pending');
         assert.equal(old.errorEvent.fail({x:2,y:3,level:4}).retry, false);
         assert.deepEqual(manager.status(), { state: 'ready', reason: null });
         assert.equal(manager.provider, old);
@@ -329,4 +331,45 @@ test('provider switch cancels old in-flight initialization and probes the replac
  const old=deferred(),replacement=provider();let calls=0;
  const {manager,applied}=peer({createProvider:()=>++calls===1?old.promise:Promise.resolve(replacement)});
  try{const first=manager.initialize();await tick();await manager.switchProvider();assert.equal(manager.provider,replacement);old.resolve(provider());await first;await tick();assert.equal(applied.at(-1),replacement);assert.equal(manager.status().state,'ready');}finally{manager.dispose();}
+});
+
+
+test('background tile failures and cancelled render requests do not raise the map warning', async () => {
+    const next=provider();
+    next.requestTileGeometry=async()=>{throw Error('HTTP 503');};
+    const {manager}=peer({createProvider:async()=>next});
+    try{
+        await manager.retry();
+        await assert.rejects(manager.sample(p=>p.requestTileGeometry(8,9,10)),/503/);
+        assert.equal(manager.hasWarning,false);
+        await assert.rejects(next.requestTileGeometry(8,9,10,{state:4}),/503/);
+        assert.equal(manager.hasWarning,false);
+    }finally{manager.dispose();}
+});
+
+test('abandoned tile warnings expire and re-entering the tile starts a fresh retry budget',async()=>{
+    const {manager}=peer({warningRetentionMs:40});
+    try{
+        await manager.retry();const event=manager.provider.errorEvent;
+        const key={x:1,y:2,level:3};
+        assert.equal(event.fail(key).retry,true);assert.equal(event.fail(key).retry,true);
+        assert.equal(event.fail(key).retry,false);assert.equal(manager.hasWarning,true);
+        await until(()=>!manager.hasWarning);
+        assert.equal(event.fail(key).retry,true);assert.equal(manager.hasWarning,false);
+        assert.equal(manager.status().state,'ready');
+    }finally{manager.dispose();}
+});
+
+test('startup and rendering warning diagnostics identify tile and failure category without leaking provider messages',async()=>{
+ const notices=[];const {manager}=peer({onWarning:(active,details)=>notices.push({active,details})});
+ try{
+  await manager.initialize();const e=manager.provider.errorEvent;
+  const tile={x:1,y:2,level:3,message:'private request URL'};
+  e.fail(tile);e.fail(tile);e.fail(tile);
+  assert.deepEqual(manager.warningDetails(),[{tile:'3/1/2',category:'providerError',attempts:3}]);
+  assert.deepEqual(notices[0],{active:true,details:manager.warningDetails()});
+  assert.ok(!JSON.stringify(notices).includes('private'));
+  await manager.provider.requestTileGeometry(1,2,3);
+  assert.equal(manager.hasWarning,false);assert.deepEqual(manager.warningDetails(),[]);
+ }finally{manager.dispose();}
 });

@@ -78,16 +78,21 @@ test('asynchronous texture/GPU errors release local resources immediately',async
  let fail,removed=false;const f=runtime({modelFactory:async()=>({ready:true,errorEvent:{addEventListener(fn){fail=fn;return()=>{removed=true;};}},destroy(){}})});
  try{await f.manager.initialize();await flush();fail(Error('Texture decoding failed'));assert.equal(f.manager.snapshot()[0].state,'error');assert.equal(f.releases,1);assert.equal(removed,true);assert.equal(f.models.length,0);}finally{f.manager.dispose();}
 });
-test('a stalled relative-height calculation becomes recoverable and ignores late heights',async()=>{
- const timers=new Map();let seq=0,resolve;const key={};const pending=new Promise(r=>resolve=r);
+test('a stalled relative-height calculation retries without discarding the GLB or accepting late heights',async()=>{
+ const timers=new Map();let seq=0,resolve,calls=0,clock=0;const key={};const pending=new Promise(r=>resolve=r);
  const item={...scene(),heightAlignmentMode:'terrain',requireGroundCalibration:true,groundReferenceLocalUp:0,heightOffsetM:5};
- const f=runtime({fetchCatalog:async()=>({schemaVersion:1,sceneries:[item]}),terrainKey:()=>key,sampleGround:()=>pending,
-   setTimer:fn=>{timers.set(++seq,fn);return seq;},clearTimer:id=>timers.delete(id)});
- try{await f.manager.initialize();await flush();f.tick();await flush();assert.equal(f.models[0].show,false);
-   // Once GPU ready, only the in-progress height calculation's timer remains.
-   assert.equal(timers.size,1);timers.values().next().value();assert.equal(f.manager.snapshot()[0].state,'error');assert.equal(f.models.length,0);
-   resolve(150);await flush();assert.equal(f.manager.snapshot()[0].state,'error');assert.equal(f.releases,1);
+ const f=runtime({fetchCatalog:async()=>({schemaVersion:1,sceneries:[item]}),terrainKey:()=>key,sampleGround:()=>++calls===1?pending:Promise.resolve(120),
+   now:()=>clock,setTimer:(fn,delay)=>{timers.set(++seq,{fn,due:clock+delay});return seq;},clearTimer:id=>timers.delete(id)});
+ const advance=ms=>{clock+=ms;for(const [id,t] of [...timers])if(t.due<=clock){timers.delete(id);t.fn();}};
+ try{await f.manager.initialize();await flush();f.manager.tick(true);await flush();assert.equal(f.models[0].show,false);
+   assert.equal(timers.size,1);advance(15000);
+   assert.equal(f.manager.snapshot()[0].state,'ready');assert.equal(f.manager.snapshot()[0].heightState,'unavailable');
+   assert.equal(f.models.length,1);assert.equal(f.models[0].show,false);assert.equal(f.releases,0);
+   resolve(150);await flush();assert.equal(f.manager.snapshot()[0].heightState,'unavailable');
+   advance(10000);await flush();assert.equal(calls,2);assert.equal(f.manager.snapshot()[0].heightState,'adjusted');
+   assert.equal(f.manager.snapshot()[0].effectiveAlignment.ellipsoidHeightM,125);assert.equal(f.models[0].show,true);
  }finally{f.manager.dispose();}
+ assert.equal(f.releases,1);
 });
 test('active managed assets enforce the decoded resource budget',async()=>{
  const item=scene();item.assets=[{...asset,estimatedBytes:100*1024*1024},{...asset,estimatedBytes:100*1024*1024}];

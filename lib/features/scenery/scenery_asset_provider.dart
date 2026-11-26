@@ -1,9 +1,10 @@
+import 'scenery_alignment_edit.dart';
 import 'scenery_manifest.dart';
 import 'scenery_storage.dart';
 import 'scenery_tileset_options.dart';
 
 // Keep aligned with pubspec's application version; checked by regression test.
-const sceneryApplicationVersion = '0.19.29';
+const sceneryApplicationVersion = '0.19.20';
 
 /// Resolve references without storing bytes or duplicating Cesium loaders.
 /// Future managed-file/3D-Tiles providers implement this same boundary.
@@ -98,6 +99,19 @@ final class SceneryAssetProviders {
       }
       final collision = doc['collision'] as Map;
       final pose = doc['rotation'] as Map;
+      // Old bundled alignment edits may retain the original stored bounds.
+      // Recompute the conservative envelope from the current validated anchor.
+      final anchorForCoverage = doc['anchor'] as Map;
+      final rfCoverage =
+          manifest.assets.any(
+            (a) => a.role == 'collision' && a.provider == 'bundled',
+          )
+          ? sceneryCoverageBounds(
+              (anchorForCoverage['longitude'] as num).toDouble(),
+              (anchorForCoverage['latitude'] as num).toDouble(),
+              ((doc['visibility'] as Map)['unloadRadiusM'] as num).toDouble(),
+            )
+          : doc['bounds'];
       final options = ((doc['extensions'] as Map?)?['cesium'] as Map?) ?? {};
       if ((pose['pitchDeg'] != 0 || pose['rollDeg'] != 0) &&
           (options['heightCalibration'] != null ||
@@ -110,11 +124,8 @@ final class SceneryAssetProviders {
           'name': manifest.name,
           'enabled': manifest.enabled,
           'message': reason,
-          if (collision['enabled'] == true &&
-              manifest.assets.any(
-                (a) => a.role == 'collision' && a.provider == 'managed',
-              ))
-            'safetyRegion': doc['bounds'],
+          'rfRelevant': collision['enabled'] == true,
+          if (collision['enabled'] == true) 'safetyRegion': rfCoverage,
         });
         continue;
       }
@@ -163,6 +174,7 @@ final class SceneryAssetProviders {
           } else
             'heightAlignmentMode': extension['heightAlignmentMode'] ?? 'fixed',
           'physicalCollisionsEnabled': collision['enabled'],
+          if (collision['enabled'] == true) 'collisionRegion': rfCoverage,
           if (extension.containsKey('rfMaterials') ||
               manifest.assets.any((a) => a.rf != null))
             'rfMaterials': {
@@ -181,7 +193,6 @@ final class SceneryAssetProviders {
                 (a) => a.role == 'collision' && a.provider == 'managed',
               )) ...{
             'collisionIndependent': true,
-            'collisionRegion': doc['bounds'],
             'collisionResources': [
               for (final id in collision['assetIds'] as List)
                 {
@@ -277,9 +288,24 @@ final class SceneryAssetProviders {
         ready.last['clipTerrain'] = false;
       }
       if (changedPlacement) {
-        ready.last['buildingRegions'] = <Object>[];
         ready.last['terrainRegions'] = <Object>[];
-        ready.last['replaceBuildings'] = false;
+        if (!retainsBundledBuildingFootprints(
+          baseAlignment,
+          anchor,
+          rotation,
+          doc['scale'] as num,
+        )) {
+          ready.last['buildingRegions'] = <Object>[];
+          ready.last['replaceBuildings'] = false;
+        }
+      }
+      if (ready.last['clipTerrain'] != true &&
+          (ready.last['terrainCertificate'] == null ||
+              ready.last['terrainRegions'] is! List ||
+              (ready.last['terrainRegions'] as List).isEmpty)) {
+        // Legacy alignment edits could leave an orphaned optional underlay.
+        // The main GLB/FPC pair is independent of this disabled terrain asset.
+        ready.last.remove('terrainUnderlay');
       }
       if (anchor['reference'] == 'TERRAIN_RELATIVE') {
         ready.last.remove('heightCalibration');
@@ -289,6 +315,11 @@ final class SceneryAssetProviders {
   }
 
   bool _compatible(String minimum) {
+    // The previous development build used 0.19.29. This release retains
+    // its scenery capabilities despite the lower public version number.
+    if (applicationVersion == '0.19.20' && minimum == '0.19.29') {
+      return true;
+    }
     final a = parseSceneryVersion(applicationVersion),
         b = parseSceneryVersion(minimum);
     for (var i = 0; i < 3; i++) {

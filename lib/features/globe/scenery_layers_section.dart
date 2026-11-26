@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 import 'globe_controller.dart';
 import '../scenery/scenery_management_page.dart';
@@ -23,6 +23,32 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
   String? _error;
   Map<String, dynamic>? _replacement;
   Map<String, dynamic>? _bridgeHeightMatch;
+
+  Widget _diagnostic(String message) {
+    // SelectableText embeds an editable text surface; in this floating
+    // platform-view menu use a bounded label and an explicit clipboard action.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            message,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+        IconButton(
+          tooltip:
+              AppLocalizations.maybeOf(context)?.language == AppLanguage.english
+              ? 'Copy diagnostic'
+              : 'Diagnose kopieren',
+          icon: const Icon(Icons.copy, size: 18),
+          onPressed: () => Clipboard.setData(ClipboardData(text: message)),
+        ),
+      ],
+    );
+  }
 
   Future<void> _load(Future<Map<String, dynamic>> Function() action) async {
     if (_busy || !mounted) return;
@@ -328,7 +354,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
               ? 'Experimentell: Kollisionsgeometrie aus Scan, nicht vermessen oder validiert.'
               : 'Experimental: scan-derived collision geometry, not surveyed or validated.',
         ),
-        if (kDeveloperMenusEnabled && _replacement != null)
+        if (controller.developerMenusEnabled && _replacement != null)
           Text(
             german
                 ? 'Aktive Masken: Gebäude ${_replacement!['buildingActive'] == true ? 'an' : 'aus'} · Gelände ${_replacement!['terrainActive'] == true ? 'an' : 'aus'}'
@@ -341,7 +367,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           Text(
-            kDeveloperMenusEnabled
+            controller.developerMenusEnabled
                 ? _error!
                 : (german
                       ? 'Szenendaten konnten nicht geladen werden.'
@@ -399,7 +425,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
             contentPadding: EdgeInsets.zero,
             title: Text(item['name'] as String? ?? 'Scenery'),
             subtitle: Text(
-              kDeveloperMenusEnabled
+              controller.developerMenusEnabled
                   ? '${item['state'] ?? 'idle'}${item['message'] == null ? '' : ' · ${item['message']}'}'
                   : switch (item['state']) {
                       'ready' => german ? 'Bereit' : 'Ready',
@@ -422,11 +448,70 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   )
                 : null,
           ),
-          if (item['remote'] == true &&
-              (item['message'] is String || item['tileError'] is String))
-            Text(
-              '${item['message'] ?? item['tileError']}',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+          if (item['message'] is String || item['tileError'] is String)
+            _diagnostic('${item['message'] ?? item['tileError']}'),
+          if (item['groundUnderlayError'] is String)
+            _diagnostic('${item['groundUnderlayError']}'),
+          if (item['heightError'] is String)
+            _diagnostic(
+              '${german ? 'Höhenabgleich' : 'Terrain alignment'}: ${item['heightError']}',
+            ),
+          if (item['collisionError'] is String &&
+              item['collisionIndependent'] != true)
+            _diagnostic(
+              '${german ? 'Kollision' : 'Collision'}: ${item['collisionError']}',
+            ),
+          if (item['bundled'] == true &&
+              (item['state'] == 'error' ||
+                  item['state'] == 'unavailable' ||
+                  item['heightError'] is String ||
+                  item['collisionError'] is String))
+            TextButton(
+              onPressed: enabled
+                  ? () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: Text(
+                            german
+                                ? 'Originaldefinition wiederherstellen?'
+                                : 'Restore bundled definition?',
+                          ),
+                          content: Text(
+                            german
+                                ? 'Nur die gespeicherte Definition dieser Umgebung wird durch die mitgelieferte Version ersetzt. Eigene Ausrichtung, Ersatzflächen und Materialeinstellungen dieser Umgebung gehen verloren. Andere App-Daten bleiben erhalten.'
+                                : 'Only this scenery definition is replaced with the bundled version. Its custom alignment, replacement regions and material settings are reset. Other app data is unchanged.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: Text(german ? 'Abbrechen' : 'Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              child: Text(
+                                german ? 'Wiederherstellen' : 'Restore',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true && mounted) {
+                        await _load(
+                          () => controller.restoreBundledScenery(
+                            item['id'] as String,
+                          ),
+                        );
+                      }
+                    }
+                  : null,
+              child: Text(
+                german
+                    ? 'Originaldefinition wiederherstellen'
+                    : 'Restore bundled definition',
+              ),
             ),
           if (item['remote'] == true && item['streamingState'] == 'loading')
             Text(german ? 'Kacheln werden nachgeladen…' : 'Streaming tiles…'),
@@ -441,42 +526,44 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   ? 'Kollision: ${item['collisionReady'] == true ? 'aktiv' : item['collisionState'] ?? 'wartend'}${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}'
                   : 'Collision: ${item['collisionReady'] == true ? 'active' : item['collisionState'] ?? 'pending'}${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}',
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: Text(
-                german
-                    ? 'Kollisionsmesh anzeigen (Debug)'
-                    : 'Show collision mesh (debug)',
+            if (controller.developerMenusEnabled)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(
+                  german
+                      ? 'Kollisionsmesh anzeigen (Debug)'
+                      : 'Show collision mesh (debug)',
+                ),
+                value: item['collisionDebug'] == true,
+                onChanged:
+                    enabled &&
+                        item['collisionReady'] == true &&
+                        !controller.navigationActive
+                    ? (value) => _load(() async {
+                        await controller.previewSceneryCollision(
+                          item['id'] as String,
+                          value!,
+                        );
+                        return controller.sceneryStatus();
+                      })
+                    : null,
               ),
-              value: item['collisionDebug'] == true,
-              onChanged:
-                  enabled &&
-                      item['collisionReady'] == true &&
-                      !controller.navigationActive
-                  ? (value) => _load(() async {
-                      await controller.previewSceneryCollision(
-                        item['id'] as String,
-                        value!,
-                      );
-                      return controller.sceneryStatus();
-                    })
-                  : null,
-            ),
           ],
-          if (kDeveloperMenusEnabled && item['collisionState'] != null)
+          if (controller.developerMenusEnabled &&
+              item['collisionState'] != null)
             Text(
               german
                   ? 'Kollision: ${item['collisionReady'] == true ? 'aktiv' : item['collisionState']} · ${item['collisionTriangles'] ?? 0} Dreiecke${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}'
                   : 'Collision: ${item['collisionReady'] == true ? 'active' : item['collisionState']} · ${item['collisionTriangles'] ?? 0} triangles${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}',
             ),
-          if (kDeveloperMenusEnabled && item['lastHit'] is Map)
+          if (controller.developerMenusEnabled && item['lastHit'] is Map)
             Text(
               german
                   ? 'Letzter Kontakt: Dreieck ${(item['lastHit'] as Map)['triangle']}'
                   : 'Last contact: triangle ${(item['lastHit'] as Map)['triangle']}',
             ),
-          if (kDeveloperMenusEnabled &&
+          if (controller.developerMenusEnabled &&
               item['heightAlignmentMode'] == 'fixed' &&
               item['effectiveAlignment'] is Map)
             Text(
@@ -484,7 +571,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   ? 'Höhenbezug: manuell kalibriert (Workbench; nicht vermessen) · Basisanker: ${(item['baseAnchorHeightM'] as num).toStringAsFixed(2)} m · Versatz: ${((item['appliedHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m · wirksamer Anker: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(2)} m'
                   : 'Height: manual workbench calibration (not surveyed) · Base anchor: ${(item['baseAnchorHeightM'] as num).toStringAsFixed(2)} m · Offset: ${((item['appliedHeightOffsetM'] as num?) ?? 0).toStringAsFixed(2)} m · Effective anchor: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(2)} m',
             ),
-          if (kDeveloperMenusEnabled &&
+          if (controller.developerMenusEnabled &&
               item['groundHeightM'] is num &&
               item['effectiveAlignment'] is Map)
             Text(
@@ -499,10 +586,10 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   item['calibration'] != null))
             Text(
               german
-                  ? 'Geländehöhenabgleich ausstehend: Das Scanmodell bleibt bis zur erfolgreichen Kalibrierung ausgeblendet.${!kDeveloperMenusEnabled || item['heightError'] == null ? '' : ' · ${item['heightError']}'}'
-                  : 'Terrain alignment pending: scenery remains hidden until ground calibration succeeds.${!kDeveloperMenusEnabled || item['heightError'] == null ? '' : ' · ${item['heightError']}'}',
+                  ? 'Geländehöhenabgleich ausstehend: Das Scanmodell bleibt bis zur erfolgreichen Kalibrierung ausgeblendet.${!controller.developerMenusEnabled || item['heightError'] == null ? '' : ' · ${item['heightError']}'}'
+                  : 'Terrain alignment pending: scenery remains hidden until ground calibration succeeds.${!controller.developerMenusEnabled || item['heightError'] == null ? '' : ' · ${item['heightError']}'}',
             ),
-          if (kDeveloperMenusEnabled &&
+          if (controller.developerMenusEnabled &&
               item['id'] == 'de-bb-ruedersdorf-chemical-plant') ...[
             Text(
               german
@@ -595,7 +682,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
               ),
             ],
           ],
-          if (kDeveloperMenusEnabled &&
+          if (controller.developerMenusEnabled &&
               (item['buildingRegions'] as List?)?.isNotEmpty == true)
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
@@ -627,7 +714,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     )
                   : null,
             ),
-          if (kDeveloperMenusEnabled &&
+          if (controller.developerMenusEnabled &&
               item['groundUnderlayState'] != null &&
               item['groundUnderlayState'] != 'idle')
             Text(
@@ -635,7 +722,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   ? 'DGM1-Unterlage: ${item['groundUnderlayState']} · Sichtbar: ${item['groundUnderlayVisible'] == true ? 'ja' : 'nein'}${item['groundUnderlayError'] == null ? '' : ' · ${item['groundUnderlayError']}'}'
                   : 'DGM1 underlay: ${item['groundUnderlayState']} · Visible: ${item['groundUnderlayVisible'] == true ? 'yes' : 'no'}${item['groundUnderlayError'] == null ? '' : ' · ${item['groundUnderlayError']}'}',
             ),
-          if (kDeveloperMenusEnabled &&
+          if (controller.developerMenusEnabled &&
               (item['terrainRegions'] as List?)?.isNotEmpty == true)
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
@@ -694,7 +781,7 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                 icon: const Icon(Icons.location_on_outlined),
                 label: Text(german ? 'Auf Karte zeigen' : 'Show on map'),
               ),
-              if (kDeveloperMenusEnabled && item['remote'] != true)
+              if (controller.developerMenusEnabled && item['remote'] != true)
                 TextButton.icon(
                   onPressed: enabled ? () => _editScenery(item, german) : null,
                   icon: const Icon(Icons.tune),

@@ -163,14 +163,7 @@ migration. Reference-only packages remain unavailable after restore.
 
 ## Verification
 
-Run `flutter analyze`, `flutter test test/features/scenery/scenery_package_test.dart`,
-`flutter test` and `node --test test/js/*.test.cjs`. The new Dart tests cover
-archive constraints, integrity, complete and metadata-only roundtrips, collision
-and LOD preservation, backup repair, duplicate handling and removal. The JS
-streaming test covers managed preset selection and unchanged collision resources.
-Physical Android/Windows cross-device roundtrip and offline operation require
-manual testing with a licensed scene and relevant terrain data. Browser eviction,
-platform save-dialog behavior, and Web CORS require separate integration tests.
+Run the [pre-push checks](../../CONTRIBUTING.md) and `flutter test test/features/scenery/scenery_package_test.dart`. Verify offline cross-device import, saved placement, licence display, removal and Web CORS/storage on target devices.
 
 ## Optional RF material assumptions
 

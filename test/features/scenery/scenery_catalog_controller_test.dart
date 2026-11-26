@@ -82,6 +82,59 @@ void main() {
     await controller.synchronize();
     expect((await controller.definitions()).single.id, first.single.id);
   });
+  test('synchronization repairs stripped bundled building masks without resetting saved pose', () async {
+    Map<String, dynamic>? sent;
+    final controller = SceneryCatalogController(
+      repository: repo,
+      loadBundled: () async => bundled,
+      canSend: () => true,
+      send: (command) async {
+        sent = command;
+        return {};
+      },
+    );
+    final base = (await controller.definitions()).single;
+    final doc = base.toJson();
+    final source = doc['extensions']['cesium'] as Map;
+    final originalRegions = source['buildingRegions'];
+    final anchor = doc['anchor'] as Map;
+    anchor['longitude'] = (anchor['longitude'] as num) + .00004;
+    for (final key in [
+      'buildingRegions',
+      'terrainRegions',
+      'terrainCertificate',
+      'terrainCertificates',
+      'terrainUnderlay',
+      'heightCalibration',
+      'heightAlignmentMode',
+      'requireGroundCalibration',
+      'groundReferenceLocalUp',
+    ]) {
+      source.remove(key);
+    }
+    source['replaceBuildings'] = false;
+    source['clipTerrain'] = false;
+    await repo.update(SceneryManifest.fromJson(doc));
+    await controller.synchronize();
+    final restored = (await repo.list()).single.toJson();
+    expect(restored['anchor'], anchor);
+    expect(
+      restored['extensions']['cesium']['buildingRegions'],
+      originalRegions,
+    );
+    final item = (sent!['catalog']['sceneries'] as List).single as Map;
+    expect(item['replaceBuildings'], true);
+    expect(item['clipTerrain'], false);
+    // Explicitly disabled existing footprint is authoritative.
+    restored['extensions']['cesium']['replaceBuildings'] = false;
+    await repo.update(SceneryManifest.fromJson(restored));
+    await controller.synchronize();
+    expect(
+      (sent!['catalog']['sceneries'] as List).single['replaceBuildings'],
+      false,
+    );
+    controller.dispose();
+  });
   test('legacy catalog-declared base heights upgrade without overwriting deliberate custom anchors', () {
     final raw =
         ((jsonDecode(bundled) as Map)['sceneries'] as List).single
@@ -206,6 +259,38 @@ void main() {
       );
     },
   );
+  test(
+    'restore only the requested bundled definition and retain other scenes',
+    () async {
+      final commands = <Map<String, dynamic>>[];
+      final controller = SceneryCatalogController(
+        repository: repo,
+        loadBundled: () async => bundled,
+        canSend: () => true,
+        send: (c) async {
+          commands.add(c);
+          return {'sceneries': []};
+        },
+      );
+      final base = (await controller.definitions()).single;
+      final changed = base.toJson();
+      changed['scale'] = 20.0;
+      await controller.save(SceneryManifest.fromJson(changed), create: false);
+      await controller.save(sceneryFixture(), create: true);
+      await controller.setEnabled(base.id, false);
+      await controller.restoreBundled(base.id);
+      final all = await controller.definitions();
+      final restored = all.firstWhere((m) => m.id == base.id);
+      expect(restored.toJson(), base.withEnabled(false).toJson());
+      expect(all.any((m) => m.id == 'synthetic-site'), isTrue);
+      final catalog = commands.last['catalog'] as Map;
+      final item = (catalog['sceneries'] as List).firstWhere(
+        (m) => m['id'] == base.id,
+      );
+      expect(item['collisionRegion'], base.toJson()['bounds']);
+    },
+  );
+
   test('writes serialize behind pending bridge work and recover after failed commands', () async {
     final gate = Completer<void>();
     var count = 0;

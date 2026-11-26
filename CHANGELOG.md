@@ -1,110 +1,29 @@
 # Changelog
 
-## Unreleased
-
-Current development build: **0.19.29+56**. These entries describe the implemented
-working state; they do not announce a published v0.20.0 release.
-
-### Fixed
-
-- Prioritize scenery editor endpoint handles over overlapping bounds/footprint
-  graphics for mouse and touch. Synchronize browser drags with rendered frames and
-  verify acquired handles and real coordinate changes, including cancelled drags.
-
-- Restore loaded base-building geometry when scenery masks change or are removed:
-  disable and empty owned Cesium clipping collections before detaching them.
-  Invalidate approximate collision observations when exclusion rules change.
-- Scenery control-point picking hides editor gizmos/bounds and bypasses handle
-  dragging while picking surfaces, so handles cannot consume pointer releases or
-  contaminate target depth. Extend the real browser regression for the reported CI failure.
-- Nearby aviation obstacles (including the Säntis tower) remain loaded through
-  camera rotations, horizon views and temporary terrain-tile eviction. A padded,
-  camera-centered region follows existing model ranges; identical region events
-  do not cancel an in-flight obstacle query. Zoom-in regions are re-evaluated
-  after delayed terrain arrives, without requiring another camera movement.
-  Display/cache limits remain bounded.
-- Live terrain-dependent RF analysis now handles vertical and near-vertical
-  paths above the takeoff/ground-station position. Distance includes antenna
-  height separation; missing terrain still remains unknown.
-- Simulator settings, including Advanced/Legacy selection, controller mapping,
-  camera, battery and physics configuration, survive restarts and portable
-  backup restore. Flight quick controls save valid changes without allowing
-  an idle renderer to overwrite preferences.
-- Clearly tagged or explicitly named suspension bridges no longer receive
-  guessed intermediate pillars, including overlapping imported/native decks.
-  Explicitly mapped supports remain available.
-- Live RF scheduling uses one active calculation with the latest pending pose,
-  generation/revision guards, recoverable timeouts and bounded freshness.
-  Expiring an old HUD observation does not cancel a newer query. Fast flight
-  preserves terrain precision and can fuse the required refinement pass.
-- Pending, stale or unavailable RF observations show a passive HUD notice.
-  Uncertainty alone does not trigger Hold, failsafe or GPS Rescue. Actual
-  modeled RC loss and fresh recovery retain the configured delays/hysteresis.
-
-### Changed
-
-- Standardize project documentation on English; retain the integrated guides
-  and German quick start in their existing languages.
-- Group developer tools by build, data, benchmarks, browser, quality,
-  maintenance and scenery; update CI, tests and documented commands together.
-- Consolidate current documentation, retire individual fix/delivery reports,
-  and keep dated measurement evidence with benchmark tools. ZIP updates include
-  a checksum-protected cleanup plan that preserves locally edited files.
-- Simplify public menus; internal diagnostics remain opt-in with
-  `FPV_DEVELOPER_MENUS=true`.
+## [0.20.0] - 2026-11-26
 
 ### Added
 
-- Configure independent scenery building and terrain replacement, with geographic
-  polygons, provider-specific stable building IDs, editor outlines and persistent
-  settings. Terrain cuts require collision geometry and provider-specific perimeter
-  checks; physical queries retain surrounding terrain and respect foreign tunnel cuts.
-- Import independent scenery collision meshes (FPC1 or compatible local GLB/glTF),
-  or generate a static triangle BVH from a visual GLB. Retain real geometric
-  openings, bake node transforms/winding and support front/back/double-sided sweeps.
-  Persist verified collision files separately from visuals with atomic commits,
-  shared-file cleanup and offline loading. Custom colliders load independently of
-  visual LOD/opacity, validate in an abortable worker and expose optional wireframe
-  visualization. Missing required geometry pauses affected movement with a clear
-  HUD reason without creating an RC failsafe. Add synthetic rooms, openings,
-  curved pipes, dense BVH, physics, persistence and real browser regressions.
-- Add interactive globe scenery alignment with direct model selection, ENU
-  translation and rotation handles, numerical placement, top-down/perspective
-  views, terrain snap and opacity controls. Fit local models to geographic 3D
-  control points with visible residuals; display origin, bounds and footprint.
-  Bounded undo/redo and cancellation retain the original configuration and camera.
-  Confirmed edits persist through the existing database and backup architecture,
-  with conflict/session guards and shared visual/collision transformations.
-- Add configurable external HTTPS OGC 3D Tiles 1.0/1.1 scenery providers using
-  the existing catalog, persistence and backup architecture. Check endpoints,
-  preserve source georeferencing, configure optional ENU corrections, detail,
-  activation distances and HTTP caching, and retain source credits. Scoped,
-  abortable loading shares Cesium's scheduler and cooperative header loader;
-  partial tile failures retain loaded geometry and report degraded streaming.
-  Include an official Brandenburg preset and tested live integration, plus
-  deterministic lifecycle, bridge, persistence and real Cesium rendering tests.
-  External scenery is online and visual only; offline map modes stop requests.
-- Import local static GLB/glTF 2.0 scenery with platform file selection, safe
-  resource resolution and self-contained model storage. Models retain core
-  materials, transparency and PNG/JPEG textures; unsupported/compressed assets
-  and resource limits produce explicit errors. Placement supports ENU, WGS84 or
-  terrain-relative heights, heading/pitch/roll and scale with recalculated bounds.
-  Imports persist after restart; native loopback and Web cache-only loading keep
-  model bytes local. New imports are visual only, and model bytes are not yet
-  included in portable backups. Add import, persistence, bounds and real Cesium
-  rendering/offline-asset regression coverage.
-- Persistent scenery definitions with a versioned, provider-independent manifest,
-  database migration and backup/restore support. Existing scenery activation and
-  alignment are migrated without replacing user settings. Scenery management can
-  create configurations from existing model templates, edit placement and remove
-  definitions. Unsupported providers/formats remain explicitly unavailable.
-- Runtime scenery catalog updates preserve unchanged models and reject obsolete
-  loads. Multiple visual/collision assets share ENU heading, pitch, roll and scale.
-- Official Berlin/Brandenburg online imagery, topographic and relief layers
-  alongside the existing Swiss/offline providers, with regional source credits.
-- Experimental Rüdersdorf photogrammetry scenery with local georeferencing,
-  approximate repairs and matching collision assets. BKG 3D Beta is separately
-  gated; its unverified vertical reference is not accepted as RF evidence.
+- Real-world scenery management with georeferenced local GLB/glTF imports, external OGC 3D Tiles, interactive alignment, control points, independent collision meshes and selective replacement of base buildings and terrain.
+- Distance-based scenery streaming, visual LOD alternatives, bounded loading and memory budgets, and independent physical geometry.
+- Portable `.fpvscenery` packages with offline assets, integrity checks, versioned metadata, explicit redistribution permissions and backup references.
+- Material-aware scenery RF attenuation, estimated Fresnel obstruction, live and saved-route analysis with separate RC/video links.
+- External geospatial conversion tools for CityGML, DEM, orthophotos, classified LAS/LAZ and reconstructed meshes; reproducible reference routes and validation for the experimental Rüdersdorf environment.
+- Persistent Developer options and an optional performance overlay with frame, physics, terrain, scenery and RF diagnostics.
+- Regional German map layers and opt-in BKG 3D test service; its unverified height reference remains unavailable for RF analysis.
+
+### Changed
+
+- Reuse station-local terrain tiles and unchanged scenery replacement state; retain existing sampling precision, graphics detail and fixed-step physics.
+- Preserve simulation preferences, alignments, source attribution and local data across restarts and backups. Documentation now describes current behavior without duplicated development reports.
+
+### Fixed
+
+- Recover from terrain request failures, provider transitions, delayed calibration and invalid optional underlays; isolate scenery failures geographically instead of blocking unrelated RF paths.
+- Preserve base-building replacement after small alignment corrections; require renewed terrain-mask validation after edits.
+- Improve RF scheduling, vertical paths, stale-data handling and recovery; unknown observations do not trigger failsafe.
+- Fix editor picking, geometry restoration, obstacle retention, suspension-bridge supports and compact settings layout.
+- Make browser and storage regression tests more robust without weakening integrity or collision checks.
 
 ## [v0.19.0] - 2026-11-21
 

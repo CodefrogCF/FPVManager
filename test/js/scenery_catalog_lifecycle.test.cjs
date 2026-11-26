@@ -11,7 +11,7 @@ function scene(id='synthetic-site'){
   Object.assign(item,{id,name:id,alignment:{...A.DEFAULT,longitude:13.8,latitude:52.4,ellipsoidHeightM:100,scale:1,opacity:1},
     assets:[{kind:'glb',path:'synthetic.glb'}],collisionAsset:'floor.fpc',heightAlignmentMode:'fixed',requireGroundCalibration:false,
     replaceBuildings:false,clipTerrain:false,terrainRegions:[],buildingRegions:[],heightOffsetM:0,bkgHeightOffsetM:0});
-  for(const key of ['heightCalibration','terrainCertificate','terrainCertificates','terrainUnderlay'])delete item[key];
+  for(const key of ['heightCalibration','terrainCertificate','terrainCertificates','terrainUnderlay','rfMaterials','rfLocalBounds'])delete item[key];
   return item;
 }
 function catalog(...sceneries){return {schemaVersion:1,sceneries,unavailable:[]};}
@@ -140,4 +140,151 @@ test('visual and CPU rotations match the pinned Cesium HPR implementation',()=>{
     const expected=C.Matrix4.multiply(enu,C.Matrix4.fromRotationTranslation(actual),new C.Matrix4());
     assert.ok(C.Matrix4.equalsEpsilon(matrix,expected,1e-12));
   }
+});
+
+test('actual bundled catalog survives native persistence and legacy normalized null fields; Swiss RF stays valid',async()=>{
+  const key={name:'BKG'};
+  const f=fixture({fetchCatalog:async()=>bundle,position:()=>({...bundle.sceneries[0].alignment,height:150}),terrainKey:()=>key,regionalHeightMode:()=>true,sampleGround:async()=>79});
+  const m=f.manager;
+  const swissFrom={longitude:8.4,latitude:47,height:500},swissTo={longitude:8.401,latitude:47,height:550};
+  try{
+    await m.initialize();await flush();m.tick(true);await flush();
+    const raw=m.bundledCatalog();assert.deepEqual(raw,bundle,'only the source schema crosses the persistence bridge');
+    const original=[...f.primitives][0];
+    // The previous app returned normalized entries to Flutter; those may
+    // still exist in the user's database (including explicit null defaults).
+    const legacy=JSON.parse(JSON.stringify(M.validate(bundle)[0]));
+    assert.equal(legacy.replacement,null);
+    for(const source of [legacy,raw.sceneries[0]]){
+      const item={...source,alignment:{...source.alignment,pitchDeg:0,rollDeg:0},collisionAssets:[source.collisionAsset],attribution:`${source.author} · ${source.license}`};
+      m.replaceCatalog(catalog(item));await flush();m.tick(true);await flush();
+      const status=m.snapshot()[0];assert.equal(status.state,'ready',status.message);
+      assert.equal(status.heightState,'adjusted',status.heightError);
+      assert.equal([...f.primitives][0],original,'native handover must retain the already loaded visual');
+      assert.equal(original.show,true);
+      for(const frequency of [868,5800]){
+        const report=m.radioPath(swissFrom,swissTo,frequency);
+        assert.equal(report.complete,true);assert.equal(report.lossDb,0);assert.equal(report.obstructions,0);
+      }
+    }
+    // Exercise the actual live consumer as well as the scenery provider.
+    const Live=require('../../web/features/signal/live_radio.js');
+    const nodes=new Map(),doc={getElementById:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},addEventListener(){}});return nodes.get(id);}};
+    const live=Live.create({C:{},viewer:{},terrain:{},ready:()=>true,doc,layer:{clear(){},set(){},setStation(){},dispose(){}},emit(){},clock:()=>0,wallClock:()=>100000,sceneryPath:(...args)=>m.radioPath(...args)});
+    try{
+      live.monitor({enabled:true,revision:1});live.observe({active:true,paused:false,flightId:1});
+      live.set({revision:2,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',pilot:swissFrom,rays:[{...swissTo,state:'noSampledObstruction'}],observation:{quality:'valid',ageMs:0},assessment:{visibility:'clear',source:'sampledTerrain',confidence:'approximate',controlLink:'unknown',videoLink:'unknown',sampleCount:3,minimumClearanceMeters:10,minimumFresnelMarginMeters:8}});
+      assert.equal(live.assessment().observation.quality,'valid');assert.equal(live.assessment().controlLink.source,'rfModel');assert.equal(live.assessment().videoLink.source,'rfModel');
+    }finally{live.dispose();}
+    // Actual missing scenery near the radio path must still be uncertain.
+    m.setEnabled(bundle.sceneries[0].id,false);m.setEnabled(bundle.sceneries[0].id,true);
+    const anchor=bundle.sceneries[0].alignment;
+    const localFrom={longitude:anchor.longitude,latitude:anchor.latitude,height:79},localTo={...localFrom,height:120};
+    assert.equal(m.radioPath(localFrom,localTo,868).complete,false);
+  }finally{m.dispose();}
+});
+
+test('legacy normalized absence of optional replacement and terrain certificate is idempotent, malformed objects still fail',()=>{
+  const source=catalog(scene());const normalized=JSON.parse(JSON.stringify(M.validate(source)[0]));
+  assert.equal(normalized.replacement,null);assert.equal(normalized.terrainCertificate,null);
+  assert.doesNotThrow(()=>M.validate(catalog(normalized)));
+  assert.throws(()=>M.validate(catalog({...normalized,replacement:{}})),/Invalid replacement/);
+  assert.throws(()=>M.validate(catalog({...normalized,terrainCertificate:{}})),/Invalid terrain coverage/);
+});
+
+test('rejected persisted local scene is uncertain only inside its known coverage, and bundled restore recovers',async()=>{
+  const source=bundle.sceneries[0],anchor=source.alignment;
+  const coverage={west:13.72,east:13.86,south:52.44,north:52.53};
+  const swiss=[{longitude:8.4,latitude:47,height:500},{longitude:8.401,latitude:47,height:550}];
+  const local=[{longitude:anchor.longitude,latitude:anchor.latitude,height:100},{longitude:anchor.longitude+.0001,latitude:anchor.latitude,height:120}];
+  const f=fixture({fetchCatalog:async()=>bundle,position:()=>({...anchor,height:150}),terrainKey:()=>key,sampleGround:async()=>79}),m=f.manager,key={};
+  try{
+    await m.initialize();await flush();m.tick(true);await flush();
+    const invalid={...source,collisionRegion:coverage,heightCalibration:{...source.heightCalibration,referenceRootHeightM:0}};
+    m.replaceCatalog(catalog(invalid));const error=m.snapshot()[0];
+    assert.equal(error.state,'error');assert.equal(error.bundled,true);assert.equal(error.errorCategory,'INVALID_CATALOG_ENTRY');assert.match(error.message,/Inconsistent terrain/);
+    for(const frequency of [868,5800]){
+      assert.equal(m.radioPath(...swiss,frequency).complete,true);
+      const near=m.radioPath(...local,frequency);assert.equal(near.complete,false);assert.match(near.reason,/catalog entry/);
+    }
+    assert.equal(m.collisionAvailability(...local).ready,false);
+    // A corrupted or absent coverage declaration must not claim a clear path.
+    m.replaceCatalog(catalog({...invalid,collisionRegion:{...coverage,south:95}}));
+    assert.equal(m.radioPath(...swiss,868).complete,false);
+    m.replaceCatalog(catalog({...source,collisionRegion:coverage}));await flush();m.tick(true);await flush();
+    assert.equal(m.snapshot()[0].state,'ready');assert.equal(m.snapshot()[0].heightState,'adjusted');assert.equal([...f.primitives][0].show,true);
+    assert.equal(m.radioPath(...swiss,868).complete,true);
+  }finally{m.dispose();}
+});
+
+test('an unavailable visual-only provider does not invalidate unrelated RF observations',()=>{
+  const f=fixture(),m=f.manager;
+  try{
+    m.replaceCatalog({...catalog(),unavailable:[{id:'visual',name:'Visual',enabled:true,message:'Unavailable',rfRelevant:false}]});
+    const a={longitude:8.4,latitude:47,height:500},b={...a,longitude:8.401};
+    assert.equal(m.radioPath(a,b,868).complete,true);
+    m.replaceCatalog({...catalog(),unavailable:[{id:'unknown',name:'Unknown',enabled:true,message:'Unavailable'}]});
+    assert.equal(m.radioPath(a,b,868).complete,false);
+  }finally{m.dispose();}
+});
+
+test('legacy height-only edit with an inactive orphaned underlay retains the primary GLB and collider',async()=>{
+  const source=structuredClone(bundle.sceneries[0]);
+  const item={...source,alignment:{...source.alignment,ellipsoidHeightM:110},heightAlignmentMode:'fixed',clipTerrain:false,replaceBuildings:false};
+  for(const key of ['heightCalibration','requireGroundCalibration','groundReferenceLocalUp','terrainCertificate','terrainCertificates','terrainRegions','buildingRegions'])delete item[key];
+  const normalized=M.validate(catalog(item))[0];
+  assert.equal(normalized.terrainUnderlay,null);assert.equal(normalized.assets[0].path,source.assets[0].path);assert.equal(normalized.collisionAsset,source.collisionAsset);
+  const unsafe=M.validate(catalog({...item,clipTerrain:true}))[0];
+  assert.equal(unsafe.clipTerrain,false);assert.equal(unsafe.underlayRejected,true);assert.deepEqual(unsafe.terrainRegions,[]);
+  const f=fixture({position:()=>({...item.alignment,height:150})}),m=f.manager;
+  try{
+    m.replaceCatalog(catalog(item));await flush();m.tick(true);await flush();
+    assert.equal(m.snapshot()[0].state,'ready');assert.equal(m.snapshot()[0].collisionReady,true);assert.equal(f.primitives.size,1);
+  }finally{m.dispose();}
+});
+
+
+test('cross-runtime footprint rounding preserves a certified DGM underlay and canonical masks',()=>{
+  const item=structuredClone(bundle.sceneries[0]);
+  item.clipTerrain=true;
+  for(const polygon of item.terrainRegions)for(const p of polygon){p[0]+=1e-12;p[1]-=1e-12;}
+  const normalized=M.validate(catalog(item))[0];
+  assert.equal(normalized.clipTerrain,true);assert.equal(normalized.underlayRejected,false);
+  assert.deepEqual(normalized.terrainRegions.at(-1),normalized.terrainUnderlay.certificate.polygon);
+  assert.deepEqual(normalized.terrainRegions[0],normalized.terrainCertificates[0].polygon);
+});
+
+test('a mismatched enabled DGM underlay cannot prevent the main model loading or reopen terrain through saved edits',async()=>{
+  const item=structuredClone(bundle.sceneries[0]);
+  item.clipTerrain=true;
+  // Move only the certified underlay region by about a metre.
+  for(const p of item.terrainRegions.at(-1))p[0]+=.00002;
+  item.heightAlignmentMode='fixed';delete item.heightCalibration;delete item.requireGroundCalibration;
+  const f=fixture({position:()=>({...item.alignment,height:150})}),m=f.manager;
+  try{
+    m.replaceCatalog(catalog(item));await flush();m.tick(true);await flush();
+    let status=m.snapshot()[0];assert.equal(status.state,'ready');assert.equal(status.collisionReady,true);
+    assert.equal(status.clipTerrain,false);assert.match(status.groundUnderlayError,/Mismatched DGM/);
+    assert.deepEqual(m.activeRegions('terrain'),[]);
+    m.setEdit(item.id,{alignment:item.alignment,clipTerrain:true,terrainRegions:item.terrainRegions});
+    status=m.snapshot()[0];assert.equal(status.clipTerrain,false);assert.deepEqual(m.activeRegions('terrain'),[]);
+    assert.equal(f.primitives.size,1);
+  }finally{m.dispose();}
+});
+
+test('committed local correction retains original provider footprints and updates replacement revision',async()=>{
+ const item=structuredClone(bundle.sceneries[0]);
+ const key={name:'BKG'};
+ const f=fixture({position:()=>({...item.alignment,height:150}),terrainKey:()=>key,regionalHeightMode:()=>true,sampleGround:async()=>79}),m=f.manager;
+ try{
+  m.replaceCatalog(catalog(item));await flush();m.tick(true);await flush();
+  const polygons=m.activeRegions('buildings',true);assert.ok(polygons.length>0);
+  const before=m.replacementRevision();
+  item.alignment.longitude+=.00004;item.heightAlignmentMode='fixed';item.clipTerrain=false;
+  for(const key of ['heightCalibration','requireGroundCalibration','groundReferenceLocalUp','terrainCertificate','terrainCertificates','terrainUnderlay','terrainRegions'])delete item[key];
+  m.replaceCatalog(catalog(item));await flush();m.tick(true);await flush();
+  assert.ok(m.replacementRevision()>before);
+  assert.deepEqual(m.activeRegions('buildings',true),polygons);
+  assert.equal(m.activeRegions('terrain',true).length,0);
+ }finally{m.dispose();}
 });

@@ -1,0 +1,509 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Approach (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 193.0482439988524,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 12
+            },
+            {
+              "height": {
+                "meters": 192.40062508409727,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 12
+            },
+            {
+              "height": {
+                "meters": 192.39739004361928,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 12
+            },
+            {
+              "height": {
+                "meters": 192.39610877682333,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 12
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.797083535380272,
+            52.50965893459657,
+            193.0482439988524
+          ],
+          [
+            13.790455885670637,
+            52.48624738916489,
+            192.40062508409727
+          ],
+          [
+            13.790174868257685,
+            52.48525416174749,
+            192.39739004361928
+          ],
+          [
+            13.789853720999991,
+            52.48411904367562,
+            192.39610877682333
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Exterior circuit (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 176.37609010455134,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 8
+            },
+            {
+              "height": {
+                "meters": 176.37610362877015,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 8
+            },
+            {
+              "height": {
+                "meters": 176.37610916360842,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 8
+            },
+            {
+              "height": {
+                "meters": 176.3760901832482,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 8
+            },
+            {
+              "height": {
+                "meters": 176.37609010455134,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 8
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.788123208795028,
+            52.485616606511435,
+            176.37609010455134
+          ],
+          [
+            13.787400761782765,
+            52.4830625705278,
+            176.37610362877015
+          ],
+          [
+            13.791584115676702,
+            52.48262145513394,
+            176.37610916360842
+          ],
+          [
+            13.79230679774548,
+            52.485175465761344,
+            176.3760901832482
+          ],
+          [
+            13.788123208795028,
+            52.485616606511435,
+            176.37609010455134
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - South entrance (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 83.59855428048797,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            },
+            {
+              "height": {
+                "meters": 83.59859302079066,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.790118133061402,
+            52.483471591183225,
+            83.59855428048797
+          ],
+          [
+            13.790109301537557,
+            52.48344037490448,
+            83.59859302079066
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Long hall interior (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 94.33418994778025,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            },
+            {
+              "height": {
+                "meters": 89.68744217598422,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            },
+            {
+              "height": {
+                "meters": 89.68748863094733,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.789668514067646,
+            52.484818053171615,
+            94.33418994778025
+          ],
+          [
+            13.789668513933,
+            52.48481805367869,
+            89.68744217598422
+          ],
+          [
+            13.789545532967386,
+            52.48483598923679,
+            89.68748863094733
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Fast above-roof pass (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 176.37484484208966,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 35
+            },
+            {
+              "height": {
+                "meters": 176.3748628999362,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 35
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.790255158661767,
+            52.48553794465252,
+            176.37484484208966
+          ],
+          [
+            13.789452309169747,
+            52.48270014097803,
+            176.3748628999362
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Four-silo opening (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 107.31289756497893,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            },
+            {
+              "height": {
+                "meters": 103.62754588597242,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 2
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.790696569936499,
+            52.483824129733605,
+            107.31289756497893
+          ],
+          [
+            13.790696570422465,
+            52.48382412956124,
+            103.62754588597242
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Platform opening (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 115.16444387701377,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 3
+            },
+            {
+              "height": {
+                "meters": 107.31304247051037,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 3
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.78986604882303,
+            52.48483097703466,
+            115.16444387701377
+          ],
+          [
+            13.789866048838176,
+            52.48483097790733,
+            107.31304247051037
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Wall shadow and recovery (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 83.59855428048797,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 1
+            },
+            {
+              "height": {
+                "meters": 83.59859302079066,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 1
+            },
+            {
+              "height": {
+                "meters": 83.59857414113299,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 1
+            },
+            {
+              "height": {
+                "meters": 83.59859302079066,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 1
+            },
+            {
+              "height": {
+                "meters": 83.59855428048797,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 1
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.790118133061402,
+            52.483471591183225,
+            83.59855428048797
+          ],
+          [
+            13.790109301537557,
+            52.48344037490448,
+            83.59859302079066
+          ],
+          [
+            13.790046549550057,
+            52.483446992041515,
+            83.59857414113299
+          ],
+          [
+            13.790109301537557,
+            52.48344037490448,
+            83.59859302079066
+          ],
+          [
+            13.790118133061402,
+            52.483471591183225,
+            83.59855428048797
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "R35 - Streaming lifecycle (simulation)",
+        "fpvmanager": {
+          "version": 1,
+          "waypoints": [
+            {
+              "height": {
+                "meters": 194.2077741738041,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 30
+            },
+            {
+              "height": {
+                "meters": 192.40062508409727,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 30
+            },
+            {
+              "height": {
+                "meters": 192.39610877682333,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 30
+            },
+            {
+              "height": {
+                "meters": 192.40062508409727,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 30
+            },
+            {
+              "height": {
+                "meters": 194.2077741738041,
+                "reference": "wgs84Ellipsoid"
+              },
+              "airspeedMetersPerSecond": 30
+            }
+          ]
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.80190806836086,
+            52.52668521618924,
+            194.2077741738041
+          ],
+          [
+            13.790455885670637,
+            52.48624738916489,
+            192.40062508409727
+          ],
+          [
+            13.789853720999991,
+            52.48411904367562,
+            192.39610877682333
+          ],
+          [
+            13.790455885670637,
+            52.48624738916489,
+            192.40062508409727
+          ],
+          [
+            13.80190806836086,
+            52.52668521618924,
+            194.2077741738041
+          ]
+        ]
+      }
+    }
+  ]
+}

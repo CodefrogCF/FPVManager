@@ -217,6 +217,34 @@ class GlobeController extends ChangeNotifier {
     _searchDestination = command;
   }
 
+  bool get developerMenusEnabled => _preferences.developerMenusEnabled;
+  bool get developerOverlayEnabled =>
+      developerMenusEnabled && _preferences.developerOverlayEnabled;
+
+  Future<void> setDeveloperMenusEnabled(bool enabled) async {
+    _checkPreferencesEditable();
+    await _savePreferences(
+      _preferences.copyWith(developerMenusEnabled: enabled),
+    );
+    if (_disposed) return;
+    if (!developerMenusEnabled) {
+      if (liveRadio.diagnosticsEnabled) liveRadio.setDiagnosticsEnabled(false);
+      if (_ready) {
+        // Visual debugging is independent of navigation and collisions.
+        await _request({'type': 'clear-scenery-collision-debug'});
+      }
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> setDeveloperOverlayEnabled(bool enabled) async {
+    _checkPreferencesEditable();
+    await _savePreferences(
+      _preferences.copyWith(developerOverlayEnabled: enabled),
+    );
+    if (!_disposed) notifyListeners();
+  }
+
   bool get touchControlsVisible => _preferences.touchControlsVisible;
   Future<void> setTouchControlsVisible(bool visible) async {
     _checkPreferencesEditable();
@@ -2418,8 +2446,36 @@ class GlobeController extends ChangeNotifier {
     return result;
   }
 
-  Future<Map<String, dynamic>> retryScenery(String id) =>
-      _request({'type': 'retry-scenery', 'id': id});
+  Future<Map<String, dynamic>> restoreBundledScenery(String id) {
+    final catalog = _sceneryCatalog;
+    if (catalog == null || navigationActive || !_ready || _disposed) {
+      throw StateError('Stop navigation before restoring scenery');
+    }
+    return catalog.restoreBundled(id);
+  }
+
+  Future<Map<String, dynamic>> retryScenery(String id) async {
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError('Stop navigation before retrying scenery');
+    }
+    // Invalid persisted entries are not in the renderer's active entry map.
+    // Retry synchronization before attempting an asset reload.
+    final catalog = _sceneryCatalog;
+    if (catalog != null) {
+      final response = await catalog.synchronize();
+      final items = response['sceneries'];
+      if (items is List &&
+          items.any(
+            (item) =>
+                item is Map &&
+                item['id'] == id &&
+                item['errorCategory'] == 'INVALID_CATALOG_ENTRY',
+          )) {
+        return response;
+      }
+    }
+    return _request({'type': 'retry-scenery', 'id': id});
+  }
 
   Future<void> resetCamera() {
     return _send({'type': 'reset-camera'});

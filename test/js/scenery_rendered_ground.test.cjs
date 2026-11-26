@@ -53,3 +53,14 @@ test('GCG2016 is used only for the certified DGM1 model-root reference, not as a
   const workbench=require('../../web/assets/scenery/reference_alignment.json');
   assert.equal(workbench.ellipsoidHeightM,34.25);
 });
+
+
+test('resident terrain mesh can calibrate a site outside the current globe pick list without provider I/O',()=>{
+  const point={longitude:.2,latitude:.3};let calls=0;
+  const globe={pick:()=>undefined,getHeight:p=>{assert.equal(p,point);calls++;return 42;}};
+  assert.deepEqual(M.pickRenderedGroundHeights(C,{scene:{globe}},[point]),[42]);assert.equal(calls,1);
+  globe.pick=()=>({height:45});
+  assert.deepEqual(M.pickRenderedGroundHeights(C,{scene:{globe}},[point]),[45]);assert.equal(calls,1);
+  globe.pick=()=>undefined;globe.getHeight=()=>undefined;
+  assert.ok(Number.isNaN(M.pickRenderedGroundHeights(C,{scene:{globe}},[point])[0]));
+});

@@ -7,4 +7,4 @@ FPVManager combines source-derived photogrammetry with bounded, approximate arch
 
 **Additional sources** (independent attribution and conditions): official BKG 3D-Beta LoD2 buildings and terrain for test-only runtime preview; Brandenburg/LGB orthophotos; official DGM1 height model (DHHN2016); BKG GCG2016 anomaly grid. Use the on-map **Sources** panel, the dataset's source credits and [third-party notices](../../../THIRD_PARTY_NOTICES.md). The BKG beta vertical datum is not independently verified for radio planning or collision safety.
 
-**Current implementation and limitations:** [Developer scenery reference](../../../docs/developer/scenery.md), [User scenery guide](../../../docs/user/scenery.md). **History:** [Changelog](../../../CHANGELOG.md) and `tool/scenery/r*/refinement_*_report.json`, not separate release-version README files.
+**Current implementation and limitations:** [Developer scenery reference](../../../docs/developer/scenery.md), [User scenery guide](../../../docs/user/scenery.md).

@@ -27,12 +27,9 @@ First Fresnel radius: `sqrt(λ*d1*d2/(d1+d2))`, with wavelength and distances in
 metres. The configurable clearance defaults to 60% of the radius. See
 [ITU-R P.526-15, Annex 1 §2.1](https://www.itu.int/dms_pubrec/itu-r/rec/p/R-REC-P.526-15-201910-S!!PDF-E.pdf).
 This is geometric screening, not a full ITU propagation implementation.
-Refraction, diffraction loss, multipath, interference, antenna patterns and
-received power are not modeled. It cannot guarantee reception or range.
+The terrain screening does not model refraction, multipath, interference or antenna patterns. Scenery attenuation is an estimate, not a measured link. It cannot guarantee reception or range.
 
-The radio-path analysis does not automatically sample the streamed 3D scene or
-the simulator's collision model. Optionally import local surface
-observations through **Import surface CSV**. Each record adds a constant AGL
+The analysis also checks relevant resident custom scenery collision meshes. Visual-only streamed buildings are not RF geometry; missing relevant custom meshes leave coverage incomplete. Optionally import local surface observations through **Import surface CSV**. Each record adds a constant AGL
 height inside a circular footprint; overlapping records use the greatest height.
 The source is retained. Up to 100 observations are stored with the route:
 

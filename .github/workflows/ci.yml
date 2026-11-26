@@ -47,6 +47,8 @@ jobs:
           python -m pip install --only-binary=:all: --requirement tool/data/offline_region_requirements.txt
       - name: Verify bundled Cesium resources
         run: python tool/build/vendor_cesium.py --check
+      - name: Verify application version
+        run: python tool/quality/check_version.py
       - name: Verify documentation links
         run: python tool/quality/check_docs.py
       - name: Verify repository tool layout

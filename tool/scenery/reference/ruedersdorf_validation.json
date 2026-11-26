@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "sceneryId": "de-bb-ruedersdorf-chemical-plant",
+  "revision": "R35",
+  "effectiveRootHeightM": 112.27976788595622,
+  "meshTriangles": 975919,
+  "scope": "CPU main-mesh checks only; RF assumes clear synthetic terrain; no device, rendering, playback or survey verification",
+  "checks": [
+    {
+      "id": "approach",
+      "segments": 3,
+      "meshClear": true
+    },
+    {
+      "id": "orbit",
+      "segments": 4,
+      "meshClear": true
+    },
+    {
+      "id": "entrance",
+      "segments": 1,
+      "meshClear": true
+    },
+    {
+      "id": "interior",
+      "segments": 2,
+      "meshClear": true
+    },
+    {
+      "id": "fast-pass",
+      "segments": 1,
+      "meshClear": true
+    },
+    {
+      "id": "silo-dive",
+      "segments": 1,
+      "meshClear": true
+    },
+    {
+      "id": "platform-dive",
+      "segments": 1,
+      "meshClear": true
+    },
+    {
+      "id": "rf-recovery",
+      "segments": 4,
+      "meshClear": true,
+      "rf": [
+        {
+          "control": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "video": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "controlQuality": 1,
+          "videoQuality": 1,
+          "trainingControlQuality": 1
+        },
+        {
+          "control": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "video": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "controlQuality": 1,
+          "videoQuality": 1,
+          "trainingControlQuality": 0.7855306814620391
+        },
+        {
+          "control": {
+            "lossDb": 24,
+            "complete": true,
+            "crossings": 2,
+            "fresnel": true
+          },
+          "video": {
+            "lossDb": 44,
+            "complete": true,
+            "crossings": 2,
+            "fresnel": true
+          },
+          "controlQuality": 1,
+          "videoQuality": 0.7680129179206328,
+          "trainingControlQuality": 0
+        },
+        {
+          "control": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "video": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "controlQuality": 1,
+          "videoQuality": 1,
+          "trainingControlQuality": 0.7855306814620391
+        },
+        {
+          "control": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "video": {
+            "lossDb": 0,
+            "complete": true,
+            "crossings": 0,
+            "fresnel": false
+          },
+          "controlQuality": 1,
+          "videoQuality": 1,
+          "trainingControlQuality": 1
+        }
+      ],
+      "station": [
+        13.790123753128535,
+        52.48349145608748,
+        83.59853064371993
+      ]
+    },
+    {
+      "id": "streaming-cycle",
+      "segments": 4,
+      "meshClear": true
+    }
+  ],
+  "blockedProbes": [
+    "south-wall",
+    "six-silo-roof",
+    "long-hall-gallery"
+  ]
+}

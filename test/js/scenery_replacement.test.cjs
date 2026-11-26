@@ -8,11 +8,11 @@ const config=()=>({schemaVersion:1,buildings:{enabled:true,regions:[structuredCl
 const data=fs.readFileSync('test/fixtures/scenery/collision_room.fpc'),mesh=Collision.parse(data.buffer.slice(data.byteOffset,data.byteOffset+data.length)),frame=Collision.transform(pose);
 const geo=(x,y,z)=>{const world=C.Matrix4.multiplyByPoint(A.modelMatrix(C,pose),new C.Cartesian3(x,y,z),new C.Cartesian3()),p=C.Cartographic.fromCartesian(world);return {longitude:C.Math.toDegrees(p.longitude),latitude:C.Math.toDegrees(p.latitude),height:p.height};};
 const flush=()=>new Promise(r=>setImmediate(r));
-function fixture(){
+function fixture(extra={}){
  class Collection{static isSupported(){return yes;}constructor({polygons}){this.polygons=polygons;this.enabled=true;}}
  let yes=true,build=[region.polygon],terrain=[region.polygon],features=config().buildings.features,ready=true,provider={};
  const tile={show:true,clippingPolygons:undefined,tileVisible:new C.Event(),tileUnload:new C.Event()},globe={clippingPolygons:undefined},viewer={scene:{globe,preUpdate:new C.Event(),requestRender(){}}};
- const manager=R.create({...C,ClippingPolygonCollection:Collection,ClippingPolygon:class{constructor(x){Object.assign(this,x);}}},viewer,{buildingTargets:()=>[{key:'swisstopo',tileset:tile}],buildingRegions:()=>build,buildingFeatures:()=>features,terrainRegions:()=>terrain,terrainReady:()=>ready,terrainKey:()=>provider});
+ const manager=R.create({...C,ClippingPolygonCollection:Collection,ClippingPolygon:class{constructor(x){Object.assign(this,x);}}},viewer,{buildingTargets:()=>[{key:'swisstopo',tileset:tile}],buildingRegions:()=>build,buildingFeatures:()=>features,terrainRegions:()=>terrain,terrainReady:()=>ready,terrainKey:()=>provider,...extra});
  return {manager,tile,globe,viewer,switchProvider(){provider={};},set(v){if(v.build)build=v.build;if(v.terrain)terrain=v.terrain;if(v.features)features=v.features;if(v.yes!==undefined)yes=v.yes;if(v.ready!==undefined)ready=v.ready;manager.sync();}};
 }
 test('replacement contract validates polygons, IDs and ground bands independently',()=>{
@@ -100,4 +100,27 @@ test('both physics modes can descend inside replaced terrain while physical floo
  for(const physicsModel of ['advanced','legacy']){const f=managed();await f.manager.initialize();await settle(f);const start=geo(2,0,2),s=createSimulator({sampleHeight:async()=>101,renderedHeight:p=>f.manager.replacementHeight(p,()=>true)??101,captureCamera:()=>({heading:0}),restoreCamera(){},applyPose(){},isTerrainReady:()=>true,onState(){},modeledCollision:(a,b)=>f.manager.collision(a,b)});
   try{await s.start({longitude:start.longitude,latitude:start.latitude,agl:2,flightMode:'acro',physicsModel},new AbortController().signal);s.flightInput({throttle:0});for(let i=0;i<180;i++)s.tick(1/60);assert.ok(s.status().height<101&&s.status().height>=100.24,physicsModel+': '+s.status().height);assert.equal(s.status().failsafe.active,false);}finally{s.stop();f.manager.dispose();}
  }
+});
+
+ test('revision-driven frame reconciliation skips unchanged work but notices providers and foreign clipping',()=>{
+ let revision=0,reads=0;const f=fixture({regionRevision:()=>revision,buildingRegions:()=>{reads++;return [region.polygon];}});
+ try{f.manager.sync();const first=f.tile.clippingPolygons;for(let i=0;i<1200;i++)f.viewer.scene.preUpdate.raiseEvent();
+ assert.equal(reads,1);assert.equal(f.manager.diagnostics().skippedSyncs,1200);assert.equal(f.tile.clippingPolygons,first);
+ revision++;f.manager.sync();assert.equal(reads,2);f.switchProvider();f.manager.sync();assert.equal(reads,3);
+ f.tile.show=false;f.manager.sync();assert.equal(f.tile.clippingPolygons,undefined);
+ f.tile.show=true;f.manager.sync();assert.ok(f.tile.clippingPolygons);
+ const foreign={enabled:true};f.tile.clippingPolygons=foreign;f.manager.sync();assert.equal(f.tile.clippingPolygons,foreign);
+ f.tile.clippingPolygons=undefined;f.manager.sync();assert.notEqual(f.tile.clippingPolygons,undefined);
+ }finally{f.manager.dispose();}
+ });
+
+test('mask plan revision tracks async readiness and immediately revokes cached physical exceptions',async()=>{
+ const f=managed();try{await f.manager.initialize();const start=f.manager.replacementRevision();await settle(f);const ready=f.manager.replacementRevision();assert.ok(ready>start);
+ const p=geo(2,0,2);assert.ok(Math.abs(f.manager.replacementHeight(p,()=>true)-100)<.01);
+ for(let i=0;i<1200;i++){assert.equal(f.manager.replacementRevision(),ready);assert.equal(f.manager.replacementHeight(p,()=>false),undefined);}
+ f.setProvider();assert.ok(f.manager.replacementRevision()>ready);assert.equal(f.manager.replacementHeight(p,()=>true),undefined);assert.equal(f.manager.replacementPassage(p,geo(18,0,2),()=>true),false);
+ await settle(f);assert.ok(Math.abs(f.manager.replacementHeight(p,()=>true)-100)<.01);
+ f.manager.beginAlignment('custom');assert.equal(f.manager.replacementHeight(p,()=>true),undefined);f.manager.endAlignment('custom');await settle(f);
+ f.manager.setEnabled('custom',false);assert.equal(f.manager.replacementHeight(p,()=>true),undefined);
+ }finally{f.manager.dispose();}
 });

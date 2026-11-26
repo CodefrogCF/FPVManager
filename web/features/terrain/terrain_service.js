@@ -57,21 +57,50 @@
     function createTerrainManager({ createProvider, createFallback, applyProvider,
         onStatus, onWarning = () => {}, offlineReason = () => null, probe = async () => {},
         initializationTimeoutMs = 8000, sampleTimeoutMs = 12000, tileTimeoutMs = 12000,
-        startupRetryDelaysMs = [750, 2000] }) {
+        startupRetryDelaysMs = [750, 2000], warningRetentionMs = 30000 }) {
         let provider = createFallback();
         let state = "loading", reason = null, disposed = false;
         let generation = new AbortController(), removeErrorListener = null, pending = null;
         let startupEpoch = 0, startupTimer = null;
-        const failedTiles = new Set(), retries = new Map();
-        let warning = false;
-        function warn(key) {
-            if (failedTiles.size < 128) failedTiles.add(key);
-            if (!warning) { warning = true; onWarning(true); }
+        // Renderer errors are local to the tiles requested at that moment.
+        // A camera move may abandon a failed tile forever; do not retain an
+        // eternal global outage or an exhausted retry counter for that tile.
+        const failures = new Map();
+        let warning = false, warningTimer = null;
+        // Only expose bounded, non-sensitive diagnostic fields. No request URLs
+        // or provider-supplied messages (which could contain credentials).
+        function warningDetails() {
+            return Array.from(failures, ([tile, value]) => ({tile, category: value.category ?? 'providerError', attempts: value.count + 1, warned: value.warned}))
+                .filter(value => value.warned).slice(-16).map(({warned, ...value}) => value);
+        }
+        function updateWarning() {
+            clearTimeout(warningTimer);
+            warningTimer = null;
+            const now = Date.now();
+            for (const [key, value] of failures) if (value.until <= now) failures.delete(key);
+            const next = Array.from(failures.values()).some(value => value.warned);
+            if (warning !== next) { warning = next; if (!disposed) onWarning(next, warningDetails()); }
+            if (failures.size && !disposed) {
+                const until = Math.min(...Array.from(failures.values(), value => value.until));
+                warningTimer = setTimeout(updateWarning, Math.max(1, until - now));
+            }
+        }
+        function failure(key) {
+            const previous = failures.get(key);
+            // Refresh in insertion order and keep the bounded recent history.
+            failures.delete(key);
+            if (failures.size >= 128) failures.delete(failures.keys().next().value);
+            const value = previous && previous.until > Date.now() ? previous : { count: 0, warned: false };
+            value.until = Date.now() + warningRetentionMs;
+            failures.set(key, value);
+            return value;
         }
         function recovered(key) {
-            failedTiles.delete(key); retries.delete(key);
-            if (warning && !failedTiles.size) { warning = false; onWarning(false); }
+            if (failures.delete(key)) updateWarning();
         }
+        // Cesium 1.145 RequestState.CANCELLED is 4; cancellation may be
+        // represented by state even after the scheduler clears its flag.
+        const cancelled = request => request?.cancelled === true || request?.state === 4;
 
         const status = () => ({ state, reason });
         function publish(nextState, nextReason = null) {
@@ -86,7 +115,7 @@
             removeErrorListener?.();
             removeErrorListener = null;
             pending = null;
-            failedTiles.clear(); retries.clear();
+            failures.clear(); clearTimeout(warningTimer); warningTimer = null;
             if (warning) { warning = false; if (!disposed) onWarning(false); }
         }
         function fallback(nextState, nextReason) {
@@ -143,13 +172,20 @@
                         }
                         return tile;
                     }).catch(error => {
-                        if (!args[3]?.cancelled && current()) warn(key);
+                        // sampleTerrain / RF queries call without a Request.
+                        // They propagate their own errors, not a global visual
+                        // warning. Rendered tile failures go through Cesium's
+                        // errorEvent; only a real transport stall warns here.
+                        if (args[3] && !cancelled(args[3]) && current() &&
+                            error.name === "TerrainTimeoutError") {
+                            const record = failure(key); record.warned = true; record.category = "timeout"; updateWarning();
+                        }
                         if (error.name === "TerrainTimeoutError") {
                             // Cesium 1.145 marks requests cancelled before its
                             // scheduler aborts their I/O. Preserve that cancellation
                             // path rather than turning a camera-move cancellation
                             // into a provider outage.
-                            if (args[3]?.cancelled) return response;
+                            if (cancelled(args[3])) return response;
                             cancel();
                         }
                         throw error;
@@ -164,10 +200,11 @@
                     if (!current()) { error.retry = false; return; }
                     const key = [error.x,error.y,error.level].every(Number.isInteger)
                         ? `${error.level}/${error.x}/${error.y}` : 'unknown';
-                    warn(key);
-                    const count = retries.get(key) ?? 0;
-                    error.retry = key !== 'unknown' && count < 2 && retries.size < 128;
-                    if (error.retry) retries.set(key,count+1);
+                    const record = failure(key);
+                    error.retry = key !== 'unknown' && record.count < 2;
+                    if (error.retry) record.count++;
+                    else { record.warned = true; record.category ??= "providerError"; }
+                    updateWarning();
                 });
                 applyProvider(next);
                 if (current()) publish("ready");
@@ -240,7 +277,7 @@
             stopStartupRecovery();
             invalidate();
         }
-        return { initialize, retry, switchProvider, networkChanged, sample, dispose, status,
+        return { initialize, retry, switchProvider, networkChanged, sample, dispose, status, warningDetails,
             get hasWarning() { return warning; },
             get provider() { return provider; } };
     }

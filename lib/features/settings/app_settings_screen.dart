@@ -193,6 +193,47 @@ class AppSettingsScreen extends StatelessWidget {
                                 ),
                               ),
                       ),
+                    SwitchListTile.adaptive(
+                      key: const ValueKey('developer-menus-toggle'),
+                      title: Text(
+                        Localizations.localeOf(context).languageCode == 'de'
+                            ? 'Entwickleroptionen'
+                            : 'Developer options',
+                      ),
+                      subtitle: Text(
+                        Localizations.localeOf(context).languageCode == 'de'
+                            ? 'Technische Einstellungen und Diagnosen anzeigen.'
+                            : 'Show technical settings and diagnostics.',
+                      ),
+                      value: globe.developerMenusEnabled,
+                      onChanged: globe.canEditPreferences
+                          ? (value) => _run(
+                              context,
+                              () => globe.setDeveloperMenusEnabled(value),
+                            )
+                          : null,
+                    ),
+                    if (globe.developerMenusEnabled)
+                      SwitchListTile.adaptive(
+                        key: const ValueKey('developer-overlay-toggle'),
+                        title: Text(
+                          Localizations.localeOf(context).languageCode == 'de'
+                              ? 'Performance-Overlay'
+                              : 'Performance overlay',
+                        ),
+                        subtitle: Text(
+                          Localizations.localeOf(context).languageCode == 'de'
+                              ? 'FPS, Framezeiten, Physik, Terrain und RF (lokal).'
+                              : 'FPS, frame times, physics, terrain and RF (local).',
+                        ),
+                        value: globe.developerOverlayEnabled,
+                        onChanged: globe.canEditPreferences
+                            ? (value) => _run(
+                                context,
+                                () => globe.setDeveloperOverlayEnabled(value),
+                              )
+                            : null,
+                      ),
                     const Divider(),
                     _link(
                       context,

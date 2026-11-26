@@ -125,6 +125,8 @@ final class DriftUserPreferencesRepository
   static const _visible = 'map.uas.visible';
   static const _opacity = 'map.uas.fillOpacity';
   static const _spotsVisible = 'map.spots.visible';
+  static const _developerMenus = 'developer.menus.enabled';
+  static const _developerOverlay = 'developer.overlay.enabled';
   static const _touchControls = 'simulation.touchControls.visible';
   static const _simulation = 'simulation.settings.v1';
   static const _signalHud = 'simulation.hud.signal.v1';
@@ -161,6 +163,8 @@ final class DriftUserPreferencesRepository
     _opacity,
     _spotsVisible,
     _touchControls,
+    _developerMenus,
+    _developerOverlay,
     _simulation,
     _signalHud,
     _failsafe,
@@ -299,6 +303,14 @@ final class DriftUserPreferencesRepository
           _touchControls,
           defaults.touchControlsVisible,
         ),
+        developerMenusEnabled: readBool(
+          _developerMenus,
+          defaults.developerMenusEnabled,
+        ),
+        developerOverlayEnabled: readBool(
+          _developerOverlay,
+          defaults.developerOverlayEnabled,
+        ),
         simulation: values[_simulation] == null
             ? defaults.simulation
             : SimulationSettings.fromJson(jsonDecode(values[_simulation]!)),
@@ -408,6 +420,8 @@ final class DriftUserPreferencesRepository
             _labelsVisible: snapshot.labelsVisible.toString(),
             _roadsOpacity: snapshot.roadsOpacity.toString(),
             _touchControls: snapshot.touchControlsVisible.toString(),
+            _developerMenus: snapshot.developerMenusEnabled.toString(),
+            _developerOverlay: snapshot.developerOverlayEnabled.toString(),
             // Existing keys remain the sole authority for HUD and failsafe.
             _simulation: jsonEncode(
               snapshot.simulation.toJson()

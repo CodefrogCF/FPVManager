@@ -18,20 +18,6 @@ walkthrough, see [Schnellstart](user/schnellstart.de.md).
 Simulator settings persist after restart and are included in newly created
 portable backups. Canceling the settings dialog discards unsubmitted changes.
 
-## Guides by task
+## Feature guides
 
-| Task | Guide |
-|---|---|
-| Spots, routes, terrain and preflight checks | [Preflight and analysis](user/preflight.md) |
-| Simulator controls, recording, live RF and GPS Rescue | [Flight simulation](user/flight_simulation.md) |
-| Aircraft/battery profiles and energy estimates | [Battery and power](user/battery_and_power.md) |
-| Heights and coordinate systems | [Coordinates and heights](user/coordinates_and_heights.md) |
-| Forecasts, radar and simulated wind | [Weather](user/weather.md) |
-| Ground navigation, POIs and information layers | [Mobility and OSINT](user/mobility_osint.md) |
-| Experimental Rüdersdorf scenery | [Scenery](user/scenery.md) |
-| Backups, local data, permissions and network requests | [Privacy and permissions](user/privacy_and_permissions.md) |
-| Official map providers and credits | [Map sources](user/map_sources_and_attribution.md) |
-
-Help is also available under **Settings → Help / Einstellungen → Hilfe**.
-[Documentation index](README.md) · [Changelog](../CHANGELOG.md) ·
-[Privacy policy](../PRIVACY.md)
+Use the [documentation index](README.md) for task-specific instructions, sources and limitations. Help is also available under **Settings → Help / Einstellungen → Hilfe**.

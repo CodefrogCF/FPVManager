@@ -147,10 +147,22 @@ final class SceneryCatalogController {
       return {};
     }
     if (!canSend()) throw StateError('Scenery is saved; renderer unavailable');
+    final repaired = <SceneryManifest>[];
+    for (final manifest in manifests) {
+      final next = recoverStrippedBundledBuildingFootprints(
+        manifest,
+        _defaults[manifest.id],
+      );
+      if (!identical(next, manifest)) {
+        await _database(() => repository.update(next));
+      }
+      repaired.add(next);
+    }
+    if (isCurrent != null && !isCurrent()) return {};
     return send({
       'type': 'replace-scenery-catalog',
       'alignmentToken': ?alignmentToken,
-      'catalog': providers.compile(manifests),
+      'catalog': providers.compile(repaired),
     });
   }
 
@@ -461,7 +473,9 @@ final class SceneryCatalogController {
     await _database(() async {
       try {
         for (final entry in package.files.entries) {
-          if (await storage.put(entry.key, entry.value)) created.add(entry.key);
+          if (await storage.put(entry.key, entry.value)) {
+            created.add(entry.key);
+          }
           _checkOpen();
         }
         if (!canSend()) {
@@ -474,7 +488,9 @@ final class SceneryCatalogController {
         }
       } catch (_) {
         for (final key in created) {
-          if (!referenced.contains(key)) await storage.remove(key);
+          if (!referenced.contains(key)) {
+            await storage.remove(key);
+          }
         }
         rethrow;
       }
@@ -511,6 +527,27 @@ final class SceneryCatalogController {
     }
     return _database(() => storage.read(key));
   }
+
+  /// Explicit recovery for a bundled definition whose saved provider metadata
+  /// no longer validates. Never resets other scenes or deletes managed assets.
+  Future<Map<String, dynamic>> restoreBundled(String id) => _serial(() async {
+    if (!canSend()) {
+      throw StateError('Renderer unavailable');
+    }
+    final base = _defaults[id];
+    if (base == null) {
+      throw StateError('No bundled scenery definition');
+    }
+    final current = (await _database(repository.list))
+        .firstWhere((m) => m.id == id);
+    if (current.assets.any((a) => a.provider != 'bundled')) {
+      throw StateError(
+        'Custom assets present; export or edit the scenery first',
+      );
+    }
+    await _database(() => repository.update(base.withEnabled(current.enabled)));
+    return _synchronize();
+  });
 
   Future<Map<String, dynamic>> setEnabled(String id, bool enabled) =>
       _serial(() async {

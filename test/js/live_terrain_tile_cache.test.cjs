@@ -285,3 +285,29 @@ test('provider reset rejects waiting consumers before old I/O completes and cann
     assert.equal(fallback,0);assert.equal(cache.cachedTiles,0);
     finish({interpolateHeight:()=>100});await flushMicrotasks();assert.equal(cache.cachedTiles,0);
 });
+
+test('station tiles survive moving-ray eviction within the existing cache budget',async()=>{
+    const width=.00001,station=point(0,0),calls=new Map();
+    const C={sampleTerrainMostDetailed:async()=>{throw Error('unexpected fallback');}};
+    const provider={availability:{computeMaximumLevelAtPosition:()=>17},tilingScheme:{positionToTileXY:p=>({x:Math.round(p.longitude/width),y:0}),tileXYToRectangle:x=>({x})},requestTileGeometry(x){calls.set(x,(calls.get(x)??0)+1);return Promise.resolve({interpolateHeight:()=>x+100});}};
+    const cache=create({C,capacity:8,clock:()=>0});cache.setStation(station);
+    const ray=[point(0,0),point(width,0),...Array.from({length:12},(_,i)=>point((i+10)*width,0))];
+    await cache.sample(provider,ray,controller().signal);
+    assert.equal(cache.cachedTiles,8);assert.equal(cache.diagnostics().stationCachedTiles,2);
+    const next=[point(.0000001,0),point(width+.0000001,0),...Array.from({length:12},(_,i)=>point((i+30)*width,0))];
+    await cache.sample(provider,next,controller().signal);assert.equal(calls.get(0),1);assert.equal(calls.get(1),1);assert.equal(cache.cachedTiles,8);
+    cache.setStation({longitude:1,latitude:0});assert.equal(cache.diagnostics().stationCachedTiles,0);
+    cache.reset();assert.equal(cache.cachedTiles,0);
+});
+
+test('long ray reuses only station tiles and rechecks finer availability after native bulk discovery',async()=>{
+    let calls=0,bulk=0,level=17,refine=false;
+    const C={sampleTerrainMostDetailed:async(_,points)=>{bulk++;if(refine)level=18;return points.map(p=>({...p,height:999}));}};
+    const provider={availability:{computeMaximumLevelAtPosition:()=>level},tilingScheme:{positionToTileXY:p=>({x:Math.floor(p.longitude*100000),y:0}),tileXYToRectangle:()=>({})},requestTileGeometry(){calls++;return Promise.resolve({interpolateHeight:()=>700});}};
+    const cache=create({C});cache.setStation({longitude:0,latitude:0});
+    const ray=[point(0,0),point(.02,0),point(.03,0)];
+    assert.deepEqual((await cache.sample(provider,ray,controller().signal)).map(p=>p.height),[700,999,999]);
+    assert.deepEqual((await cache.sample(provider,[point(.0000001,0),...ray.slice(1)],controller().signal)).map(p=>p.height),[700,999,999]);
+    assert.equal(calls,1);assert.equal(bulk,2);refine=true;
+    assert.deepEqual((await cache.sample(provider,ray,controller().signal)).map(p=>p.height),[999,999,999]);assert.equal(bulk,4);
+});

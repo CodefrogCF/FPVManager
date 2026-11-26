@@ -88,6 +88,14 @@ test('RF BVH sees walls and floors in both directions but not real openings',()=
  assert.equal(trace([-10,0,2],[10,0,2]).hits.length,0);
  const exhausted=Collision.rfTrace(mesh,[2,0,-2],[2,0,9],1,868,.6,{nodes:1,triangles:1});assert.equal(exhausted.complete,false);
 });
+test('distant root box is a verified miss even after a scheduler stall, relevant geometry stays uncertain',()=>{
+ const expired={nodes:8192,triangles:4096,deadline:performance.now()-1};
+ const clear=Collision.rfTrace(mesh,[10000,0,2],[10010,0,2],1,868,.6,expired);
+ assert.deepEqual(clear,{hits:[],fresnel:false,complete:true});
+ assert.equal(expired.nodes,8192);
+ const near=Collision.rfTrace(mesh,[2,0,-2],[2,0,9],1,868,.6,expired);
+ assert.equal(near.complete,false);
+});
 test('RF material defaults, frequency, explicit thickness and validation are independent of physics',()=>{
  const loss=(material,f=5800,extra={},cos=1)=>Collision.rfLoss(Collision.normalizeRf({material,...extra}),f,cos);
  assert.ok(loss('metal')>loss('reinforcedConcrete'));assert.ok(loss('reinforcedConcrete')>loss('glass'));

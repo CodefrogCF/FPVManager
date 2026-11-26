@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import '../../core/ui/developer_menu_visibility.dart';
 import '../../core/localization/app_localizations.dart';
 
 import 'package:flutter/material.dart';
@@ -194,7 +193,7 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 ? 'Not loaded'
                 : 'Loaded',
           ),
-          if (kDeveloperMenusEnabled)
+          if (controller.developerMenusEnabled)
             _InfoRow(
               label: 'Data status',
               value: controller.uasDisplayedStatus.dataState.label,
@@ -266,7 +265,7 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                 label: 'Downloaded',
                 value: _formatDownloadTime(controller.uasZonesDownloadedAt),
               ),
-              if (kDeveloperMenusEnabled)
+              if (controller.developerMenusEnabled)
                 _InfoRow(
                   label: 'Source checked',
                   value: displayed?.lastCheckedAtUtc == null
@@ -279,9 +278,10 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                     ? 'Not supplied by this dataset'
                     : _formatDownloadTime(displayed!.publishedAtUtc),
               ),
-              if (kDeveloperMenusEnabled && provider.cacheError != null)
+              if (controller.developerMenusEnabled &&
+                  provider.cacheError != null)
                 Text(provider.cacheError!),
-              if (kDeveloperMenusEnabled)
+              if (controller.developerMenusEnabled)
                 TextButton.icon(
                   onPressed: controller.isReady && controller.canClearUasCache
                       ? () => _execute(controller.clearUasCache)
@@ -301,7 +301,7 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
               ),
               const SizedBox(height: 8),
 
-              if (kDeveloperMenusEnabled && assessment != null) ...[
+              if (controller.developerMenusEnabled && assessment != null) ...[
                 _InfoRow(
                   label: 'Source features',
                   value: assessment.sourceFeatureCount.toString(),
@@ -338,7 +338,8 @@ class _UasMapLayersSectionState extends State<UasMapLayersSection> {
                   label: 'Licence terms',
                   value: source.licenseUri.toString(),
                 ),
-              if (kDeveloperMenusEnabled && displayed?.httpLastModified != null)
+              if (controller.developerMenusEnabled &&
+                  displayed?.httpLastModified != null)
                 _InfoRow(
                   label: 'HTTP modified',
                   value: displayed!.httpLastModified!,

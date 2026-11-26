@@ -49,5 +49,5 @@ SceneryManifest sceneryFixture({
     'loadRadiusM': 2500.0,
     'unloadRadiusM': 4000.0,
   },
-  'minimumAppVersion': '0.19.29',
+  'minimumAppVersion': '0.19.20',
 });

@@ -321,7 +321,7 @@ final class SceneryManifest {
         'loadRadiusM': item['loadRadiusM'] ?? 2500,
         'unloadRadiusM': radius,
       },
-      'minimumAppVersion': '0.19.29',
+      'minimumAppVersion': '0.19.20',
       'extensions': {'cesium': item, 'bundledAlignment': item['alignment']},
     });
   }

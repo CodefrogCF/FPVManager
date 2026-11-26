@@ -133,6 +133,10 @@
         const coefficient=fraction*Math.sqrt(299.792458/frequency*distance)/scale;
         const radius=t=>coefficient*Math.sqrt(Math.max(0,t*(1-t)));
         const maxRadius=(lo,hi)=>radius(Math.max(lo,Math.min(hi,.5)));
+        // An exact conservative root-box rejection is constant work and needs
+        // no traversal budget. A scheduler stall must not turn a distant scene
+        // into an incomplete RF result when neither ray nor Fresnel can reach it.
+        if(!rfBoxInterval(mesh.bounds,0,p,d,maxRadius(0,1)))return {hits,fresnel,complete:true};
         const exhausted=()=>budget.nodes<=0||budget.triangles<=0||hits.length>=128||
             (budget.deadline!==undefined&&performance.now()>=budget.deadline);
         // First traverse the exact line. A dense Fresnel fringe must not

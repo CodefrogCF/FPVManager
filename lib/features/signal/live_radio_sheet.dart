@@ -737,16 +737,18 @@ class _LiveRadioSheetState extends State<_LiveRadioSheet> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(c.status),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Live RF diagnostics'),
-                            subtitle: const Text(
-                              'Show the optional debug panel in the flight HUD',
+                          if (widget.globe.developerMenusEnabled)
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Live RF diagnostics'),
+                              subtitle: const Text(
+                                'Show the optional debug panel in the flight HUD',
+                              ),
+                              value: c.diagnosticsEnabled,
+                              onChanged: c.setDiagnosticsEnabled,
                             ),
-                            value: c.diagnosticsEnabled,
-                            onChanged: c.setDiagnosticsEnabled,
-                          ),
-                          if (c.diagnosticsEnabled)
+                          if (widget.globe.developerMenusEnabled &&
+                              c.diagnosticsEnabled)
                             SelectableText(_diagnosticsText(c.diagnostics)),
                           if (c.calculatedAt != null)
                             Text(

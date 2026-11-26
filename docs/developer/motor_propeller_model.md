@@ -14,9 +14,7 @@ per-motor current ratings. Existing database records require no migration.
 `web/features/flight/physics/motor_propeller.js` validates the profile and exposes deterministic
 `create()`, `tick()`, `reset()`, `hoverCommand()` and `output()` methods. The
 module is loaded in the embedded Cesium WebView, so it runs on Android as well
-as browser and Windows. Only **Advanced manual Acro/Angle flight** currently
-uses it. **Legacy, GPS and GPS Rescue** retain their previous kinematics;
-physics-based automated flight is a later issue.
+as browser and Windows. Advanced manual and autonomous modes (including GPS and GPS Rescue) share the hardware-aware physics model. Legacy retains its earlier kinematics.
 
 The current `web/features/flight/free_flight.js` shares its existing translation, collision,
 controller, battery and camera logic. The advanced manual model replaces the

@@ -121,6 +121,18 @@ void main() {
       expect(item['heightOffsetM'], 12);
     },
   );
+  test('previous development scenery remains compatible', () {
+    final previous = sceneryFixture(id: 'previous-version').toJson()
+      ..['minimumAppVersion'] = '0.19.29';
+    final future = sceneryFixture(id: 'future-version').toJson()
+      ..['minimumAppVersion'] = '0.19.30';
+    final result = SceneryAssetProviders().compile([
+      SceneryManifest.fromJson(previous),
+      SceneryManifest.fromJson(future),
+    ]);
+    expect((result['sceneries'] as List).length, 1);
+    expect((result['unavailable'] as List).length, 1);
+  });
   test('runtime application version matches the shipped pubspec', () {
     expect(
       File('pubspec.yaml').readAsStringSync(),

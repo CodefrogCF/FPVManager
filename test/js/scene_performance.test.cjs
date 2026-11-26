@@ -91,3 +91,15 @@ test('opt-in integration timing is bounded, stops recording, and resets across s
     f.profiler.stop();f.profiler.measurePhysicsStep(integrate,1/120);assert.equal(f.profiler.snapshot().physicsStep.count,40);
     f.profiler.start();assert.equal(f.profiler.snapshot().physicsStep.count,0);f.profiler.dispose();
 });
+
+
+test('FPS uses actual frame intervals and reports idle age rather than inventing a rate',()=>{
+    const f=fixture();f.profiler.start();
+    assert.equal(f.profiler.snapshot().renderFps,null);
+    f.frame(16,4);f.frame(16,4);f.frame(16,4);
+    assert.equal(f.profiler.snapshot().renderFps,50);
+    f.setTime(3000);
+    assert.ok(f.profiler.snapshot().frameAgeMs>1500);
+    f.profiler.stop();
+    assert.equal(f.preRender.listeners.size,0);assert.equal(f.postRender.listeners.size,0);
+});

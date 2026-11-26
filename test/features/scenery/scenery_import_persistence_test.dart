@@ -9,7 +9,6 @@ import 'package:fpvmanager/features/scenery/scenery_catalog_controller.dart';
 import 'package:fpvmanager/features/scenery/scenery_repository.dart';
 import 'package:fpvmanager/features/scenery/scenery_storage_native.dart';
 import 'package:fpvmanager/features/scenery/scenery_storage.dart';
-import 'package:fpvmanager/features/scenery/scenery_model_import.dart';
 
 import '../../support/scenery_model_fixture.dart';
 
@@ -48,11 +47,18 @@ void main() {
     );
     await expectLater(store.read('../outside.glb'), throwsFormatException);
     expect(await temp.list().length, 0);
+    final limited = NativeSceneryStorage(
+      directory: () async => temp,
+      fileBytes: 1024,
+    );
     final oversized = await File('${temp.path}/${model.key}')
         .open(mode: FileMode.write);
-    await oversized.truncate(SceneryImportLimits.bytes + 1);
-    await oversized.close();
-    await expectLater(store.read(model.key), throwsFormatException);
+    try {
+      await oversized.truncate(1025);
+    } finally {
+      await oversized.close();
+    }
+    await expectLater(limited.read(model.key), throwsFormatException);
   });
   test(
     'corrupted content is reported and can be repaired by reimport',
@@ -69,9 +75,25 @@ void main() {
     final model = await prepareTriangle();
     final reserved = await File('${temp.path}/${'0' * 64}.glb')
         .open(mode: FileMode.write);
-    await reserved.truncate(SceneryImportLimits.storageBytes);
-    await reserved.close();
-    await expectLater(store.put(model.key, model.bytes), throwsFormatException);
+    try {
+      await reserved.truncate(4096);
+    } finally {
+      await reserved.close();
+    }
+    final limited = NativeSceneryStorage(
+      directory: () async => temp,
+      storageBytes: 4096,
+    );
+    await expectLater(
+      limited.put(model.key, model.bytes),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('storage limit'),
+        ),
+      ),
+    );
     expect(await temp.list().length, 1);
   });
   test(

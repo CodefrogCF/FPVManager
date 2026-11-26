@@ -49,6 +49,7 @@ import 'home_navigation_drawer.dart';
 import 'map_action_menu.dart';
 import 'map_selection_panel.dart';
 import 'home_map_workspace.dart';
+import 'developer_performance_overlay.dart';
 import 'home_map_status.dart';
 import '../globe/map_floating_surface.dart';
 import '../simulation/simulation_settings.dart';
@@ -528,34 +529,94 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   bool _physicsValidationBusy = false;
   bool _physicsValidationRunning = false;
 
+  final _developerSample = ValueNotifier<Map<String, dynamic>?>(null);
+
+  bool get _wantsPerformanceSample =>
+      _globeController.developerOverlayEnabled ||
+      (_physicsValidationEnabled && _globeController.simulationActive);
+
+  void _syncPerformanceSampling() {
+    if (!mounted) return;
+    if (!_globeController.developerOverlayEnabled &&
+        _developerSample.value != null) {
+      _developerSample.value = null;
+    }
+    if (!_wantsPerformanceSample) {
+      _physicsValidationTimer?.cancel();
+      _physicsValidationTimer = null;
+      if (_physicsValidationRunning) unawaited(_samplePhysicsValidation());
+      return;
+    }
+    if (_physicsValidationTimer == null) {
+      _physicsValidationTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => unawaited(_samplePhysicsValidation()),
+      );
+      unawaited(_samplePhysicsValidation());
+    }
+  }
+
   Future<void> _samplePhysicsValidation() async {
-    if (!mounted || _physicsValidationBusy || !_globeController.isReady) {
+    if (!mounted || _physicsValidationBusy) return;
+    if (!_globeController.isReady) {
+      _physicsValidationRunning = false;
+      if (_developerSample.value != null) _developerSample.value = null;
       return;
     }
     _physicsValidationBusy = true;
     try {
-      if (!_globeController.simulationActive) {
+      if (!_wantsPerformanceSample) {
         if (_physicsValidationRunning) {
-          await _globeController.scenePerformance(action: 'stop');
           _physicsValidationRunning = false;
+          await _globeController.scenePerformance(action: 'stop');
         }
         return;
       }
-      final scene = await _globeController.scenePerformance(
-        action: _physicsValidationRunning ? 'snapshot' : 'start',
-      );
+      // Start is idempotent and also recovers a reloaded renderer. There is
+      // never a per-frame bridge message or a second concurrent poll.
+      // Remember the possible active profiler even if the reply times out.
       _physicsValidationRunning = true;
-      final physics = await _globeController.flightPhysicsDiagnostics();
+      final scene = await _globeController.scenePerformance(action: 'start');
       if (!mounted) return;
-      // The bridge endpoints return only aggregate diagnostics, no location.
-      debugPrint(
-        '[FPV physics validation] ${jsonEncode({'physics': physics, 'scene': scene})}',
-      );
+      if (_globeController.developerOverlayEnabled) {
+        final rf = _globeController.liveRadio.diagnostics;
+        _developerSample.value = {
+          ...scene,
+          'terrainState': _globeController.terrainState.name,
+          'terrainWarning': _globeController.terrainResourceWarning,
+          'rf': {
+            for (final key in [
+              'quality',
+              'provider',
+              'ageMs',
+              'durationMs',
+              'validSamples',
+              'samples',
+              'error',
+              'errorDetail',
+            ])
+              key: rf[key],
+          },
+        };
+      }
+      if (_physicsValidationEnabled && _globeController.simulationActive) {
+        final physics = await _globeController.flightPhysicsDiagnostics();
+        if (!mounted) return;
+        debugPrint(
+          '[FPV physics validation] ${jsonEncode({'physics': physics, 'scene': scene})}',
+        );
+      }
     } catch (_) {
       // Renderer reloads can interrupt a sample. Never interrupt a flight.
-      _physicsValidationRunning = false;
+      if (!_globeController.isReady) _physicsValidationRunning = false;
+      if (mounted && _developerSample.value != null) {
+        _developerSample.value = null;
+      }
     } finally {
       _physicsValidationBusy = false;
+      if (mounted && !_wantsPerformanceSample && _physicsValidationRunning) {
+        unawaited(_samplePhysicsValidation());
+      }
     }
   }
 
@@ -984,7 +1045,10 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       if (!mounted || !identical(point, _globeController.selectedPoint)) return;
       await showDialog<void>(
         context: context,
-        builder: (context) => TerrainInformationDialog(terrain: result),
+        builder: (context) => TerrainInformationDialog(
+          terrain: result,
+          developerMenusEnabled: _globeController.developerMenusEnabled,
+        ),
       );
     } catch (error) {
       if (!mounted || !identical(point, _globeController.selectedPoint)) return;
@@ -1002,7 +1066,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   @override
   void dispose() {
+    _globeController.removeListener(_onGlobeStateChanged);
     _physicsValidationTimer?.cancel();
+    _developerSample.dispose();
     if (_physicsValidationRunning && _globeController.isReady) {
       unawaited(
         _globeController
@@ -1024,7 +1090,6 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         _recordingReviewHandler) {
       _globeController.onRecordingReviewRequested = null;
     }
-    _globeController.removeListener(_onGlobeStateChanged);
 
     _routeLayers?.dispose();
     unawaited(_closeSpotResources(_spotsSubscription, _database));
@@ -1125,17 +1190,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   @override
   void initState() {
     super.initState();
-    if (_physicsValidationEnabled) {
-      _physicsValidationTimer = Timer.periodic(
-        const Duration(seconds: 2),
-        (_) => unawaited(_samplePhysicsValidation()),
-      );
-    }
     _cachedMapsLoad = _loadCachedMaps();
     if (widget.onLanguageChanged != null) {
       _languageOperation = _loadLanguage();
     }
     _globeController.addListener(_onGlobeStateChanged);
+    _syncPerformanceSampling();
     _globeController.onWindSettingsRequested = _windRequestHandler;
     _globeController.onRecordingReviewRequested = _recordingReviewHandler;
     _globeController.onLiveRadioSettingsRequested = _radioRequestHandler;
@@ -1181,6 +1241,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   void _onGlobeStateChanged() {
+    _syncPerformanceSampling();
     if (_captureMode && !_globeController.simulationActive) {
       // The flight ended (or Cesium reloaded): restore Flutter controls.
       setState(() => _captureMode = false);
@@ -1328,6 +1389,13 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           child: GlobeInputScope(
             enabled: !_drawerOpen || _useDesktopWindowsPanels,
             child: HomeMapWorkspace(
+              diagnosticOverlay: ListenableBuilder(
+                listenable: _globeController,
+                builder: (context, _) =>
+                    _globeController.developerOverlayEnabled
+                    ? DeveloperPerformanceOverlay(samples: _developerSample)
+                    : const SizedBox.shrink(),
+              ),
               captureMode: _captureMode && _globeController.simulationActive,
               onExitCapture: () => unawaited(_setCaptureMode(false)),
               sidePanel: _useDesktopWindowsPanels && _drawerOpen

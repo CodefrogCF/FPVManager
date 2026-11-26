@@ -64,6 +64,95 @@ void main() {
       expect(item['requireGroundCalibration'], true);
     },
   );
+  test('height-only edits retire obsolete underlay and retain main assets', () {
+    final raw =
+        (jsonDecode(
+              File('web/assets/scenery/catalog.json').readAsStringSync(),
+            ) as Map)['sceneries'].single
+            as Map<String, dynamic>;
+    final base = SceneryManifest.fromBundled(raw);
+    final pose = {
+      ...raw['alignment'] as Map<String, dynamic>,
+      'ellipsoidHeightM': 115.0,
+      'pitchDeg': 0.0,
+      'rollDeg': 0.0,
+    };
+    final value = edit()
+      ..['alignment'] = pose
+      ..['heightM'] = 115.0;
+    final next = applySceneryAlignment(base, value);
+    final doc = next.toJson();
+    expect(doc['extensions']['cesium']['terrainUnderlay'], isNull);
+    expect(doc['assets'], base.toJson()['assets']);
+    // Emulate a saved document produced by the earlier alignment editor.
+    doc['extensions']['cesium']['terrainUnderlay'] = raw['terrainUnderlay'];
+    final item =
+        (SceneryAssetProviders().compile([
+                      SceneryManifest.fromJson(doc),
+                    ])['sceneries']
+                    as List)
+                .single
+            as Map;
+    expect(item['terrainUnderlay'], isNull);
+    expect(item['clipTerrain'], isFalse);
+    expect(item['collisionAsset'], raw['collisionAsset']);
+  });
+  test('small bundled alignment correction preserves the original provider footprint, never terrain', () {
+    final raw =
+        (jsonDecode(
+              File('web/assets/scenery/catalog.json').readAsStringSync(),
+            ) as Map)['sceneries'].single
+            as Map<String, dynamic>;
+    final base = SceneryManifest.fromBundled(raw);
+    final original = raw['alignment'] as Map;
+    final value = edit()
+      ..['alignment'] = {
+        ...original,
+        'longitude': (original['longitude'] as num) + .00004,
+        'pitchDeg': 0.0,
+        'rollDeg': 0.0,
+      };
+    final next = applySceneryAlignment(base, value);
+    final item =
+        (SceneryAssetProviders().compile([next])['sceneries'] as List).single
+            as Map;
+    expect(item['replaceBuildings'], true);
+    expect(item['buildingRegions'], raw['buildingRegions']);
+    expect(item['clipTerrain'], false);
+    expect(item['terrainCertificate'], isNull);
+    // Large relocation must not hide unrelated original buildings.
+    (value['alignment'] as Map)['longitude'] =
+        (original['longitude'] as num) + .01;
+    final far = applySceneryAlignment(base, value);
+    final compiled =
+        (SceneryAssetProviders().compile([far])['sceneries'] as List).single
+            as Map;
+    expect(compiled['replaceBuildings'], false);
+    // Old editor output: missing fields, not an explicit disabled polygon set.
+    final stripped = next.toJson();
+    final cesium = stripped['extensions']['cesium'] as Map;
+    cesium.remove('buildingRegions');
+    cesium['replaceBuildings'] = false;
+    final recovered = recoverStrippedBundledBuildingFootprints(
+      SceneryManifest.fromJson(stripped),
+      base,
+    );
+    expect(recovered.toJson()['anchor'], next.toJson()['anchor']);
+    expect(
+      recovered.toJson()['extensions']['cesium']['buildingRegions'],
+      raw['buildingRegions'],
+    );
+    expect(recovered.toJson()['extensions']['cesium']['clipTerrain'], false);
+    cesium['buildingRegions'] = raw['buildingRegions'];
+    final disabled = SceneryManifest.fromJson(stripped);
+    expect(
+      identical(
+        recoverStrippedBundledBuildingFootprints(disabled, base),
+        disabled,
+      ),
+      true,
+    );
+  });
   test('opacity-only editing retains source calibration and placement', () {
     final base = sceneryFixture().toJson();
     base['extensions'] = {

@@ -11,13 +11,27 @@ SceneryStorage createSceneryStorage() => NativeSceneryStorage();
 
 /// Content-addressed private files, independent of personal-data backups.
 final class NativeSceneryStorage implements SceneryStorage {
-  NativeSceneryStorage({Future<Directory> Function()? directory})
-    : _directory =
-          directory ??
-          (() async => Directory(
-            '${(await getApplicationSupportDirectory()).path}/scenery/v1',
-          ));
+  NativeSceneryStorage({
+    Future<Directory> Function()? directory,
+    int storageBytes = SceneryImportLimits.storageBytes,
+    int fileBytes = SceneryImportLimits.bytes,
+  }) : _storageBytes = RangeError.checkValueInInterval(
+         storageBytes,
+         1,
+         SceneryImportLimits.storageBytes,
+       ),
+       _fileBytes = RangeError.checkValueInInterval(
+         fileBytes,
+         1,
+         SceneryImportLimits.bytes,
+       ),
+       _directory =
+           directory ??
+           (() async => Directory(
+             '${(await getApplicationSupportDirectory()).path}/scenery/v1',
+           ));
   final Future<Directory> Function() _directory;
+  final int _storageBytes, _fileBytes;
   @override
   Map<String, String> get rendererOptions => const {'backend': 'server'};
   Future<File> _file(String key) async {
@@ -37,13 +51,14 @@ final class NativeSceneryStorage implements SceneryStorage {
   @override
   Future<Uint8List?> read(String key) async {
     final path = (await _file(key)).path;
+    final limit = _fileBytes;
     return Isolate.run(() async {
       final f = File(path);
       if (!await f.exists()) return null;
-      if (await f.length() > SceneryImportLimits.bytes) {
-        throw const FormatException('Scenery file exceeds 64 MiB');
+      if (await f.length() > limit) {
+        throw const FormatException('Scenery file exceeds size limit');
       }
-      final bytes = await _readBounded(f);
+      final bytes = await _readBounded(f, limit: limit);
       await verifyManagedScenery(key, bytes);
       return bytes;
     });
@@ -51,8 +66,8 @@ final class NativeSceneryStorage implements SceneryStorage {
 
   @override
   Future<bool> put(String key, Uint8List bytes) async {
-    if (bytes.length > SceneryImportLimits.bytes) {
-      throw const FormatException('Scenery file exceeds 64 MiB');
+    if (bytes.length > _fileBytes) {
+      throw const FormatException('Scenery file exceeds size limit');
     }
     await Isolate.run(() => verifyManagedScenery(key, bytes));
     final file = await _file(key);
@@ -78,10 +93,8 @@ final class NativeSceneryStorage implements SceneryStorage {
         }
       }
     }
-    if (used + bytes.length > SceneryImportLimits.storageBytes) {
-      throw const FormatException(
-        'Local scenery storage limit (512 MiB) reached',
-      );
+    if (used + bytes.length > _storageBytes) {
+      throw const FormatException('Local scenery storage limit reached');
     }
     final stage = File(
       '${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
@@ -127,11 +140,14 @@ Future<Uint8List?> readAdjacentSceneryResource(
   return _readBounded(file);
 }
 
-Future<Uint8List> _readBounded(File file) async {
+Future<Uint8List> _readBounded(
+  File file, {
+  int limit = SceneryImportLimits.bytes,
+}) async {
   final builder = BytesBuilder(copy: false);
   await for (final chunk in file.openRead()) {
-    if (builder.length + chunk.length > SceneryImportLimits.bytes) {
-      throw const FormatException('Resource exceeds 64 MiB');
+    if (builder.length + chunk.length > limit) {
+      throw const FormatException('Resource exceeds size limit');
     }
     builder.add(chunk);
   }

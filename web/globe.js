@@ -725,6 +725,7 @@ function postToFlutter(message) {
                 if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before aligning scenery');
                 await sceneryCatalogReady;if(!sceneryEditor)throw Error('Scenery editor unavailable');resetBridgeHeightMatch();return sceneryEditor.begin(command);
             case 'scenery-alignment-result': sceneryEditor?.result(command.token,command.error);return {};
+            case 'clear-scenery-collision-debug': sceneryManager?.clearAllCollisionDebug();return {};
             case 'set-scenery-collision-debug': if(navigationActive())throw Error('Stop navigation before changing collision visualization');return {sceneries:sceneryManager.setCollisionDebug(command.id,command.enabled)};
             case 'cancel-scenery-alignment': sceneryEditor?.close();return {};
             case 'scenery-catalog': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {catalog:sceneryManager.bundledCatalog()};
@@ -1123,7 +1124,8 @@ function postToFlutter(message) {
                 if (activeViewer) activeViewer.terrainProvider = provider;
             },
             offlineReason,
-            onWarning: active => {
+            onWarning: (active, details) => {
+                if (active) console.warn('[terrain-resource-warning]', JSON.stringify({provider:regionalTerrain?'BKG':'swisstopo/custom',tiles:details}));
                 if (rendererReady) sendToFlutter('terrain-resource-warning',{active});
             },
             // Validate every global root, including the eastern root covering
@@ -1207,9 +1209,10 @@ function postToFlutter(message) {
             cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',bridgeSupports,
             getTunnelApertures:()=>tunnelVolumes?.apertureSpecs?.()||[],
             getTunnelApertureRevision:()=>tunnelVolumes?.apertureRevision?.()??0});
+        let pendingTerrainTiles=null;
         scenePerformance = FPVScenePerformance.create(viewer,{
-            isContinuous:()=>flyer?.active===true&&!flyer.status().paused,
-            resources:()=>({...sceneEnvironment?.resourceStats(),scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
+            isContinuous:()=>flyer?.active===true&&!flyer.paused,
+            resources:()=>({...sceneEnvironment?.resourceStats(),pendingTerrainTiles,scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{
@@ -1242,7 +1245,8 @@ function postToFlutter(message) {
         // Zooming back can finish before local terrain arrives. Re-evaluate
         // as tiles arrive even when the camera no longer moves. The publisher
         // coalesces identical regions; unrelated pending tiles need not finish.
-        viewer.scene.globe.tileLoadProgressEvent?.addEventListener(() => {
+        viewer.scene.globe.tileLoadProgressEvent?.addEventListener(pending => {
+            pendingTerrainTiles=Number.isFinite(pending)?pending:null;
             publishObstacleViewport();
         });
         modelCollisions = typeof FPVSceneModelCollision !== 'undefined'
@@ -1679,12 +1683,21 @@ function postToFlutter(message) {
                 if(!active&&bridgeHeightMatch.phase!=='idle')resetBridgeHeightMatch();
                 regionalTerrain=active;regionalTerrainChanging=true;
                 const revision=++regionalTerrainRevision;
-                void terrainManager.switchProvider().finally(()=>{if(regionalTerrainRevision===revision)regionalTerrainChanging=false;});
+                void terrainManager.switchProvider().finally(()=>{
+                    if(regionalTerrainRevision!==revision)return;
+                    regionalTerrainChanging=false;
+                    // onStatus('ready') runs while the transition flag is
+                    // still set. Reconcile scenery against the committed key
+                    // even if request-render mode has no further camera event.
+                    sceneryManager?.tick(true);
+                    viewer.scene.requestRender?.();
+                });
             }
         });
 
         if(typeof FPVSceneryReplacement!=='undefined')sceneryReplacement=FPVSceneryReplacement.create(Cesium,viewer,{
             buildingTargets:()=>[{key:'swisstopo',tileset:sceneEnvironment?.buildingsTileset?.()},{key:'bkg',tileset:regional3D?.buildingTileset?.()}],
+            regionRevision:()=>4*(sceneryManager?.replacementRevision()??0)+2*Number(!!navigationActive())+Number(!!regionalTerrain),
             buildingRegions:()=>sceneryManager?.activeRegions('buildings',navigationActive())??[],
             buildingFeatures:()=>sceneryManager?.buildingFeatures()??[],
             terrainRegions:()=>sceneryManager?.activeRegions('terrain',true,regionalTerrain)??[],

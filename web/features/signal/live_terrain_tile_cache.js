@@ -13,11 +13,23 @@
         if(!Number.isInteger(capacity)||capacity<1||capacity>128||!Number.isFinite(ttlMs)||ttlMs<1000)
             throw Error('Invalid live terrain tile cache limits');
         if(!Number.isFinite(tileTimeoutMs)||tileTimeoutMs<=0)throw Error('Invalid live terrain tile timeout');
-        const tiles=new Map();
+        const tiles=new Map(),stationTiles=new Map();
+        const stationCapacity=Math.min(32,Math.floor(capacity/4)),stationRadiusM=500;
+        let station=null,stationEpoch=0;
+        function setStation(point){
+            const next=point&&Number.isFinite(point.longitude)&&Number.isFinite(point.latitude)&&Math.abs(point.longitude)<=180&&Math.abs(point.latitude)<=90?{longitude:point.longitude*Math.PI/180,latitude:point.latitude*Math.PI/180}:null;
+            if(next?.longitude===station?.longitude&&next?.latitude===station?.latitude)return;
+            station=next;stationEpoch++;stationTiles.clear();
+        }
+        function nearStation(p){
+            if(!station||!stationCapacity)return false;
+            const dy=(p.latitude-station.latitude)*6371009,dx=(((p.longitude-station.longitude+3*Math.PI)%(2*Math.PI))-Math.PI)*6371009*Math.cos(station.latitude);
+            return dx*dx+dy*dy<=stationRadiusM*stationRadiusM;
+        }
         let generation=0,source=null,generationController=new AbortController();
         const counts={tileRequests:0,tileCacheHits:0,fallbackSamples:0,timeouts:0};
-        function reset(){++generation;generationController.abort(terrainError('SUPERSEDED','Live terrain provider changed'));generationController=new AbortController();tiles.clear();source=null;}
-        function usable(){return tiles.size;}
+        function reset(){++generation;generationController.abort(terrainError('SUPERSEDED','Live terrain provider changed'));generationController=new AbortController();tiles.clear();stationTiles.clear();source=null;}
+        function usable(){return tiles.size+stationTiles.size;}
         const delay=ms=>new Promise(resolve=>timers.setTimeout(resolve,ms));
         function terrainError(category,message){const error=Error(`${category}: ${message}`);error.category=category;return error;}
         // A caller can stop waiting without discarding useful shared tile I/O.
@@ -57,19 +69,24 @@
                 typeof provider?.tilingScheme?.positionToTileXY==='function'&&
                 typeof provider?.tilingScheme?.tileXYToRectangle==='function';
         }
-        function remember(key,entry){
-            tiles.delete(key);tiles.set(key,entry);
-            while(tiles.size>capacity)tiles.delete(tiles.keys().next().value);
+        function remember(key,entry,near){
+            // Promote only tiles actually requested near the explicit station.
+            // Both partitions share the original hard capacity; no extra RAM budget.
+            const pinned=near||stationTiles.has(key);
+            tiles.delete(key);stationTiles.delete(key);
+            const target=pinned?stationTiles:tiles;target.set(key,entry);
+            while(stationTiles.size>stationCapacity)stationTiles.delete(stationTiles.keys().next().value);
+            while(usable()>capacity)tiles.delete(tiles.keys().next().value);
         }
         async function getTile(provider,group,epoch,signal){
             check(signal,epoch);
             const now=clock();
-            const cached=tiles.get(group.key);
+            const cached=stationTiles.get(group.key)??tiles.get(group.key);
             if(cached&&now-cached.at<ttlMs){
-                counts.tileCacheHits++;remember(group.key,cached);
+                counts.tileCacheHits++;remember(group.key,cached,group.near&&group.stationEpoch===stationEpoch);
                 return wait(cached.work,[signal,generationController.signal]);
             }
-            tiles.delete(group.key);
+            tiles.delete(group.key);stationTiles.delete(group.key);
             const raw=(async()=>{
                 let tile;
                 for(let attempt=0;attempt<4;attempt++){
@@ -87,12 +104,12 @@
             })();
             const work=wait(raw,[generationController.signal],tileTimeoutMs);
             const entry={at:now,work};
-            remember(group.key,entry);
+            remember(group.key,entry,group.near&&group.stationEpoch===stationEpoch);
             // Evict failed work even if all consumers have already cancelled.
-            work.catch(()=>{if(tiles.get(group.key)===entry)tiles.delete(group.key);});
+            work.catch(()=>{if(tiles.get(group.key)===entry)tiles.delete(group.key);if(stationTiles.get(group.key)===entry)stationTiles.delete(group.key);});
             return wait(work,[signal,generationController.signal]);
         }
-        async function sample(provider,positions,signal){
+        async function sample(provider,positions,signal,stationOnly=false){
             if(!provider?.availability||typeof C?.sampleTerrainMostDetailed!=='function')
                 throw Error('Detailed live terrain unavailable');
             // Preserve Cesium's own availability discovery when the maximum
@@ -105,11 +122,28 @@
             // evict useful near-field meshes and add request-scheduling cost.
             // Cesium Cartographic coordinates are radians.
             const first=positions[0];
-            if(Math.abs(first.latitude)<=Math.PI/2&&Math.abs(first.longitude)<=Math.PI&&positions.some(p=>{
+            if(!stationOnly&&Math.abs(first.latitude)<=Math.PI/2&&Math.abs(first.longitude)<=Math.PI&&positions.some(p=>{
                 const dy=(p.latitude-first.latitude)*6371009;
                 const dx=(p.longitude-first.longitude)*6371009*Math.cos(first.latitude);
                 return dx*dx+dy*dy>7000*7000;
-            }))return nativeSample(provider,positions,signal,generation);
+            })){
+                // Keep the proven native bulk path for the moving long-range
+                // corridor. Only the bounded station neighbourhood uses tiles.
+                const near=[],far=[];positions.forEach((p,i)=>(nearStation(p)?near:far).push(i));
+                if(!near.length||!far.length)return nativeSample(provider,positions,signal,generation);
+                const epoch=generation,result=new Array(positions.length);
+                const local=await sample(provider,near.map(i=>positions[i]),signal,true);check(signal,epoch);
+                const levels=near.map(i=>provider.availability.computeMaximumLevelAtPosition(positions[i]));
+                const remote=await nativeSample(provider,far.map(i=>positions[i]),signal,epoch);check(signal,epoch);
+                if(!Array.isArray(remote)||remote.length!==far.length||remote.some(p=>!Number.isFinite(p?.height)||Math.abs(p.height)>100000))throw Error('Incomplete detailed terrain fallback');
+                near.forEach((i,n)=>result[i]=local[n]);far.forEach((i,n)=>result[i]=remote[n]);
+                // Bulk availability discovery may reveal finer local tiles.
+                const changed=near.filter((i,n)=>provider.availability.computeMaximumLevelAtPosition(positions[i])!==levels[n]);
+                if(changed.length){const finer=await nativeSample(provider,changed.map(i=>positions[i]),signal,epoch);check(signal,epoch);
+                    if(!Array.isArray(finer)||finer.length!==changed.length||finer.some(p=>!Number.isFinite(p?.height)||Math.abs(p.height)>100000))throw Error('Incomplete detailed terrain fallback');
+                    changed.forEach((i,n)=>result[i]=finer[n]);}
+                return result;
+            }
             const epoch=generation,groups=new Map();
             for(let i=0;i<positions.length;i++){
                 const point=positions[i];
@@ -121,8 +155,8 @@
                     return nativeSample(provider,positions,signal,generation);
                 const key=`${level}/${tile.x}/${tile.y}`;
                 let group=groups.get(key);
-                if(!group){group={key,level,x:tile.x,y:tile.y,indices:[]};groups.set(key,group);}
-                group.indices.push(i);
+                if(!group){group={key,level,x:tile.x,y:tile.y,indices:[],stationEpoch};groups.set(key,group);}
+                group.indices.push(i);group.near=group.near||nearStation(point);
             }
             const result=new Array(positions.length);
             // Long corridors can intersect more high-detail tiles than our RAM
@@ -130,7 +164,7 @@
             // station to the drone otherwise evicts cached tail tiles before
             // reaching them on every subsequent flight update (LRU scan thrash).
             const pending=[...groups.values()].sort((a,b)=>
-                Number(tiles.has(b.key))-Number(tiles.has(a.key)));
+                Number(tiles.has(b.key)||stationTiles.has(b.key))-Number(tiles.has(a.key)||stationTiles.has(a.key)));
             let cursor=0;
             const fallbackGroups=[];
             // Four workers cap request pressure. A batch of 256 positions on
@@ -187,7 +221,7 @@
                 throw Error('Incomplete detailed terrain profile');
             return result;
         }
-        return {sample,reset,diagnostics:()=>({...counts,cachedTiles:usable(),generation}),get cachedTiles(){return usable();}};
+        return {sample,reset,setStation,diagnostics:()=>({...counts,cachedTiles:usable(),stationCachedTiles:stationTiles.size,generation}),get cachedTiles(){return usable();}};
     }
     return {create};
 });

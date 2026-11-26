@@ -14,11 +14,12 @@ class HomeMapWorkspace extends StatelessWidget {
     required this.actions,
     required this.selection,
     this.sidePanel,
+    this.diagnosticOverlay,
     this.captureMode = false,
     this.onExitCapture,
   });
   final Widget globe, navigation, actions, selection;
-  final Widget? sidePanel;
+  final Widget? sidePanel, diagnosticOverlay;
   final bool captureMode;
   final VoidCallback? onExitCapture;
   @override
@@ -76,6 +77,23 @@ class HomeMapWorkspace extends StatelessWidget {
                     ),
                     child: selection,
                   ),
+                ),
+              ),
+            ),
+          if (!captureMode && diagnosticOverlay != null)
+            Positioned(
+              top: 120,
+              left: 8,
+              child: IgnorePointer(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: math.min(
+                      310.0,
+                      math.max(0.0, constraints.maxWidth - 16),
+                    ),
+                    maxHeight: math.max(0.0, constraints.maxHeight - 155),
+                  ),
+                  child: diagnosticOverlay!,
                 ),
               ),
             ),

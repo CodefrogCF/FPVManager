@@ -15,6 +15,24 @@ void main() {
   });
   tearDown(() => database.close());
 
+  test('developer settings persist and master switch preserves the overlay preference', () async {
+    await repository.savePreferences(
+      const UserPreferences(
+        developerMenusEnabled: true,
+        developerOverlayEnabled: true,
+      ),
+    );
+    var prefs = await repository.getPreferences();
+    expect(prefs.developerMenusEnabled, isTrue);
+    expect(prefs.developerOverlayEnabled, isTrue);
+    await repository.savePreferences(
+      prefs.copyWith(developerMenusEnabled: false),
+    );
+    prefs = await repository.getPreferences();
+    expect(prefs.developerMenusEnabled, isFalse);
+    expect(prefs.developerOverlayEnabled, isTrue);
+  });
+
   test('defaults are returned without creating settings', () async {
     final defaults = await repository.getPreferences();
     expect(defaults.mapStyle, GlobeMapStyle.satellite);
@@ -111,9 +129,9 @@ void main() {
       expect(queue.current.obstacleBufferMeters, 75);
       expect(queue.current.overlayOrder.first, GlobeOverlay.savedSpots);
       final rows = await database.select(database.appSettings).get();
-      // 34 FPVManager-owned keys, including the complete simulator settings,
+      // 36 FPVManager-owned keys, including the complete simulator settings,
       // failsafe, signal HUD and scene model collision, plus the unrelated key.
-      expect(rows, hasLength(35));
+      expect(rows, hasLength(37));
       final stored = {for (final row in rows) row.key: row.value};
       expect(stored['map.scene.structures'], 'true');
       expect(stored['map.scene.modelCollisions'], 'true');
@@ -143,7 +161,7 @@ void main() {
         (await repository.getPreferences()).mapStyle,
         GlobeMapStyle.topographic,
       );
-      expect(await database.select(database.appSettings).get(), hasLength(35));
+      expect(await database.select(database.appSettings).get(), hasLength(37));
       final resetToDefaults = await repository.getPreferences();
       expect(resetToDefaults.structures3dVisible, isFalse);
       expect(resetToDefaults.sceneModelCollisionsEnabled, isFalse);

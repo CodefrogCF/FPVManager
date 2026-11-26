@@ -38,6 +38,16 @@
         const explicit=asset.options.qualityScreenSpaceError?.[policy.preset];
         return {...asset.options,maximumScreenSpaceError:explicit??Math.max(1,Math.min(128,asset.options.maximumScreenSpaceError*policy.sseFactor)),cacheBytes:policy.remoteCacheBytes};
     }
+    // Projected footprints persisted by a different JS engine may differ by
+    // a few ULPs (e.g. Math.sin/cos). Never compare their serialized doubles.
+    // A 1e-9 degree tolerance is < 0.12 mm; topology/order are still exact.
+    function sameCertifiedPolygon(a,b){
+        return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((p,i)=>
+            Array.isArray(p)&&p.length===2&&p.every((v,j)=>Number.isFinite(v)&&Math.abs(v-b[i][j])<=1e-9));
+    }
+    function canonicalCertifiedRegions(regions,certificates){
+        return regions.map(p=>certificates.find(c=>c&&sameCertifiedPolygon(p,c.polygon))?.polygon??p);
+    }
     function validate(input){
         if(!input||input.schemaVersion!==1||!Array.isArray(input.sceneries)||input.sceneries.length>64)throw Error('Invalid scenery catalog');
         const ids=new Set();
@@ -141,18 +151,32 @@
             if(u&&(typeof u!=='object'||!/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.glb$/.test(u.asset)||
                 !/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.fpc$/.test(u.collisionAsset)||
                 !u.certificate))throw Error('Invalid optional DGM underlay');
-            const terrainUnderlay=u?{...u,certificate:{...normalizeTerrainCertificate(u.certificate,alignment),source:'underlay'}}:null;
-            if(terrainUnderlay&&(!terrainCertificate||terrainUnderlay.certificate.collisionSha256===terrainCertificate.collisionSha256||
-                !Array.isArray(item.terrainRegions)||!item.terrainRegions.some(p=>JSON.stringify(p)===JSON.stringify(terrainUnderlay.certificate.polygon))))
-                throw Error('Mismatched DGM underlay coverage or asset');
+            let terrainUnderlay=u?{...u,certificate:{...normalizeTerrainCertificate(u.certificate,alignment),source:'underlay'}}:null;
+            let underlayRejected=false;
+            if(terrainUnderlay){
+                const covered=terrainCertificate&&terrainUnderlay.certificate.collisionSha256!==terrainCertificate.collisionSha256&&Array.isArray(item.terrainRegions)&&
+                    item.terrainRegions.some(p=>sameCertifiedPolygon(p,terrainUnderlay.certificate.polygon));
+                if(!covered){
+                    // Older alignment edits removed the main certificates and
+                    // terrain regions but left the unused optional underlay.
+                    // It cannot participate in clipping or collision; do not
+                    // reject the primary visual and physical scenery for it.
+                    // Fail closed for the optional terrain replacement, not
+                    // for the independent primary visual/collision assets.
+                    underlayRejected=true;terrainUnderlay=null;
+                }
+            }
             if(terrainCertificates.some(c=>!c||!terrainCertificate||c.collisionSha256!==terrainCertificate.collisionSha256)||
                 (terrainCertificate&&JSON.stringify(terrainCertificates[0])!==JSON.stringify(terrainCertificate))||new Set(terrainCertificates.map(c=>JSON.stringify(c.polygon))).size!==terrainCertificates.length)throw Error('Mismatched terrain certificate list');
-            return {...item,replacement:Replacement.normalize(item.replacement,alignment),...A.normalizeEdit({...item,alignment,buildingRegions},alignment),heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,assets,rfMaterials,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
+            const edit=A.normalizeEdit({...item,alignment,buildingRegions},alignment);
+            edit.terrainRegions=canonicalCertifiedRegions(edit.terrainRegions,[...terrainCertificates,terrainUnderlay?.certificate]);
+            if(underlayRejected){edit.clipTerrain=false;edit.terrainRegions=[];}
+            return {...item,replacement:Replacement.normalize(item.replacement??undefined,alignment),...edit,heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,underlayRejected,assets,rfMaterials,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
         });
     }
     // Certified ground patch is an offline geometry coverage proof, not an altitude survey.
     function normalizeTerrainCertificate(c,alignment){
-        if(c===undefined)return null;
+        if(c==null)return null;
         if(!c||!Array.isArray(c.localBounds)||c.localBounds.length!==4||!c.localBounds.every(Number.isFinite)||
             !Array.isArray(c.localGroundRange)||c.localGroundRange.length!==2||!c.localGroundRange.every(Number.isFinite)||
             !/^[0-9a-f]{64}$/.test(c.collisionSha256)||!Number.isFinite(c.coverageMarginLocal)||c.coverageMarginLocal<.02)throw Error('Invalid terrain coverage certificate');
@@ -243,6 +267,13 @@
                         if(Number.isFinite(cart?.height))height=cart.height;
                     }
                 }catch(_){/* Missing resident terrain is not an elevation. */}
+            }
+            // Globe.pick only searches the current rendered tile selection.
+            // getHeight uses the resident renderedMesh at this coordinate in
+            // pinned Cesium, which can survive a camera/frustum change. It
+            // does not request a provider height or invent an ellipsoid hit.
+            if(!Number.isFinite(height)&&Number.isFinite(point?.longitude)&&Number.isFinite(point?.latitude)){
+                try{const resident=globe?.getHeight?.(point);if(Number.isFinite(resident))height=resident;}catch(_){/* no resident mesh */}
             }
             result.push(height);
         }
@@ -434,7 +465,19 @@
             const rev=e.revision,hrev=e.heightRevision;
             const current=()=>!disposed&&e.revision===rev&&e.heightRevision===hrev&&terrainKey()===key;
             e.heightPending=true;e.heightState='pending';
-            e.heightSampleTimer=setTimer(()=>{if(current()){remove(e);publish(e,'error','Terrain alignment timed out. Retry when local terrain is available.');}},timeoutMs);
+            // A height-query timeout is not a visual asset failure. Keep the
+            // loaded model hidden until calibrated, retire this attempt and
+            // allow the ordinary bounded retry path to recover automatically.
+            const heightFailed=error=>{
+                e.heightState='unavailable';e.heightRetryAt=now()+(regionalHeightMode()?2500:10000);
+                e.heightError=String(error?.message??error);
+                syncCalibrationVisibility(e);scheduleHeightRetry(e);
+            };
+            e.heightSampleTimer=setTimer(()=>{if(current()){
+                clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;
+                e.heightRevision++;e.heightPending=false;
+                heightFailed(Error('Terrain alignment timed out. Waiting for local terrain.'));
+            }},Math.min(timeoutMs,15000));
             Promise.resolve().then(()=>sampleGround(e.item.alignment,e.item)).then(height=>{
                 if(!current())return;
                 const cfg=aligned(e,height);
@@ -443,11 +486,7 @@
                 clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;
                 syncCalibrationVisibility(e);
                 viewer.scene.requestRender?.();
-            }).catch(error=>{if(current()){
-                e.heightState='unavailable';e.heightRetryAt=now()+(regionalHeightMode()?2500:10000);
-                e.heightError=String(error?.message??error);
-                syncCalibrationVisibility(e);scheduleHeightRetry(e);
-            }})
+            }).catch(error=>{if(current())heightFailed(error);})
               .finally(()=>{if(current()){clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;e.heightPending=false;}});
         }
         function heightReady(e){
@@ -686,9 +725,11 @@
                 loadSamples:history.map(s=>({...s})),caveat:'Cesium resource estimates and selected/submitted triangles, not full GPU memory or exact visible triangles; texture readiness is elapsed wall time, not decode time.'};
         }
         async function initialize(){
-            const rev=++catalogRevision;const catalog=validate(await fetchCatalog());
+            const rev=++catalogRevision;const raw=await fetchCatalog();const catalog=validate(raw);
             if(disposed||rev!==catalogRevision)return;
-            initialCatalog={schemaVersion:1,sceneries:catalog};rfCatalogReady=true;
+            // The native persistence layer must receive the source schema, not
+            // derived renderer fields (null defaults, projected certificates, etc.).
+            initialCatalog=JSON.parse(JSON.stringify(raw));rfCatalogReady=true;
             for(const e of entries.values())remove(e);
             entries=new Map(catalog.map(item=>[item.id,{item,base:item,enabled:Object.hasOwn(prefs,item.id)&&typeof prefs[item.id]==='boolean'?prefs[item.id]:item.enabled,models:[],revision:0,state:'idle',ready:false}]));tick(true);
         }
@@ -721,13 +762,21 @@
             }
             for(const item of input.sceneries){
                 try{catalog.push(validate({schemaVersion:1,sceneries:[item]})[0]);}
-                catch(error){failures.push({id:item.id,name:typeof item.name==='string'?item.name.slice(0,120):item.id,
-                    enabled:item.enabled===true,state:'error',message:String(error.message).slice(0,512),visualOnly:true});}
+                catch(error){
+                    // Flutter supplies the validated manifest coverage even if a
+                    // provider-specific extension cannot be parsed. Do not turn
+                    // a local broken scene into a globe-wide RF outage.
+                    const safetyRegion=validSafetyRegion(item.collisionRegion)?item.collisionRegion:null;
+                    failures.push({id:item.id,name:typeof item.name==='string'?item.name.slice(0,120):item.id,
+                        enabled:item.enabled!==false,state:'error',message:String(error.message).slice(0,512),visualOnly:true,
+                        errorCategory:'INVALID_CATALOG_ENTRY',rfRelevant:item.physicalCollisionsEnabled!==false,
+                        safetyRegion,alignment:item.alignment});
+                }
             }
             for(const item of input.unavailable){
                 if(typeof item.name!=='string'||item.name.length>120||typeof item.enabled!=='boolean'||typeof item.message!=='string'||item.message.length>512)
                     throw Error('Invalid unavailable scenery');
-                failures.push({...item,state:'unavailable',visualOnly:true});
+                failures.push({...item,safetyRegion:validSafetyRegion(item.safetyRegion)?item.safetyRegion:null,state:'unavailable',visualOnly:true});
             }
             const next=new Map();
             for(const item of catalog){
@@ -746,6 +795,8 @@
         function setEdit(id,value){
             const e=entries.get(id);if(!e)throw Error('Unknown scenery');
             const next=value===null?A.normalizeEdit(e.base,e.base.alignment):A.normalizeEdit(value,e.item.alignment);
+            next.terrainRegions=canonicalCertifiedRegions(next.terrainRegions,[...e.base.terrainCertificates,e.base.terrainUnderlay?.certificate]);
+            if(e.base.underlayRejected){next.clipTerrain=false;next.terrainRegions=[];}
             // Preserve verified readiness and avoid a second full GLB upload.
             const moved=next.alignment.longitude!==e.item.alignment.longitude||next.alignment.latitude!==e.item.alignment.latitude;
             catalogRevision++;clearSeams(e);e.item={...e.item,...next};
@@ -842,6 +893,34 @@
             const large=approved.find(c=>c.source==='underlay');return large?[large]:approved;
         }
         function frameFor(e){if(!e.collisionFrame||e.collisionAlignment!==e.effectiveAlignment){e.collisionAlignment=e.effectiveAlignment;e.collisionFrame=Collision.transform(e.effectiveAlignment??original(e));}return e.collisionFrame;}
+        // Cheap dependency token: asynchronous readiness and provider changes
+        // are observed immediately, not just when a catalog command is sent.
+        // No polygon serialization or BVH work on unchanged render frames.
+        let maskRevision=0,maskState=[],maskScratch=[],maskPlanRevision=-1,maskPlan=[];
+        function replacementRevision(){
+            const state=maskScratch;state.length=0;state.push(terrainKey(),terrainStable(),regionalHeightMode(),entries.size);
+            for(const e of entries.values()){
+                // An idle or disabled entry cannot own an active replacement.
+                state.push(e.item,e.enabled,e.ready,e.state,e.preview,e.effectiveAlignment,
+                    e.heightState,e.heightKey,e.collider,e.terrainAssetVerified,
+                    e.groundCollider,e.groundVerified,e.groundModel?.ready,
+                    e.replacementCheck,e.replacementCheck?.state,e.replacementCheck?.abort.signal.aborted,
+                    e.seamCheck,e.seamCheck?.state,e.seamCheck?.abort.signal.aborted);
+            }
+            if(state.length!==maskState.length||state.some((v,i)=>v!==maskState[i])){maskScratch=maskState;maskState=state;maskRevision++;}
+            return maskRevision;
+        }
+        function replacementPlan(){
+            const rev=replacementRevision();if(rev!==maskPlanRevision){
+                maskPlan=[];
+                for(const e of entries.values()){
+                    const generic=approvedReplacement(e),patches=verifiedPatches(e);
+                    if(generic.length||patches.length)maskPlan.push({e,generic,patches});
+                }
+                maskPlanRevision=rev;
+            }
+            return maskPlan;
+        }
         function activeRegions(kind,forFlight=false,includeLegacy=true){
             if(kind==='terrain')return Array.from(entries.values()).flatMap(e=>{
                 const generic=approvedReplacement(e).map(r=>r.polygon);
@@ -854,12 +933,13 @@
         }
         function replacementHeight(point,maskActive){
             const candidates=[];let masked=false;
-            for(const e of entries.values())for(const r of approvedReplacement(e))if(maskActive(r.polygon)&&Replacement.inside(point,r.polygon)){
+            const plan=replacementPlan();if(!plan.length)return undefined;
+            for(const {e,generic} of plan)for(const r of generic)if(maskActive(r.polygon)&&Replacement.inside(point,r.polygon)){
                 masked=true;const h=Replacement.ground(e.colliders??[e.collider],frameFor(e),r,point);if(Number.isFinite(h))candidates.push(h);
             }
 
-            for(const e of entries.values()){
-                const patches=verifiedPatches(e);if(!patches.length)continue;
+            for(const {e,patches} of plan){
+                if(!patches.length)continue;
                 const f=frameFor(e),p=f.local(point);
                 for(const c of patches){if(!maskActive(c.polygon)||!insideGroundPatch(p,c,f.scale))continue;
                     masked=true;const z=groundLocal(groundMesh(e,c),c,p);if(Number.isFinite(z))candidates.push(point.height+(z-p[2])*f.scale);}
@@ -867,10 +947,11 @@
             return masked?(candidates.length?Math.max(...candidates):NaN):undefined;
         }
         function replacementPassage(from,to,maskActive){
-            const polygons=Array.from(entries.values()).flatMap(e=>approvedReplacement(e).filter(r=>maskActive(r.polygon)).map(r=>r.polygon));
+            const plan=replacementPlan();if(!plan.length)return false;
+            const polygons=plan.flatMap(({generic})=>generic.filter(r=>maskActive(r.polygon)).map(r=>r.polygon));
             if(polygons.length&&!Replacement.outsideIntervals(from,to,polygons).length)return true;
-            for(const e of entries.values()){
-                const patches=verifiedPatches(e).filter(c=>maskActive(c.polygon));if(!patches.length)continue;
+            for(const {e,patches:approved} of plan){
+                const patches=approved.filter(c=>maskActive(c.polygon));if(!patches.length)continue;
                 const f=frameFor(e),a=f.local(from),b=f.local(to);
                 // Continuous segment coverage; endpoint membership alone fails for disconnected masks.
                 if(segmentCovered(a,b,patches,f.scale)&&[a,b].every(p=>patches.some(c=>insideGroundPatch(p,c,f.scale)&&Number.isFinite(groundLocal(groundMesh(e,c),c,p)))))return true;
@@ -886,7 +967,10 @@
                 else for(const model of e.collisionDebugModels)model.modelMatrix=matrix;
             }catch(error){clearCollisionDebug(e);e.collisionDebug=false;e.collisionDebugError=String(error.message);}
         }
+        function clearAllCollisionDebug(){for(const e of entries.values()){e.collisionDebug=false;clearCollisionDebug(e);}viewer.scene.requestRender?.();}
         function setCollisionDebug(id,enabled){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.collisionDebug=enabled===true;e.collisionDebugError=null;if(!e.collisionDebug)clearCollisionDebug(e);else syncCollisionDebug(e);viewer.scene.requestRender?.();return snapshot();}
+        function validSafetyRegion(b){return !!(b&&[b.west,b.east,b.south,b.north].every(Number.isFinite)&&
+            Math.abs(b.west)<=180&&Math.abs(b.east)<=180&&Math.abs(b.south)<=90&&Math.abs(b.north)<=90&&b.south<=b.north);}
         function crossesRegion(from,to,b){
             if(!b)return false;const wrap=x=>((x+540)%360)-180,a=[wrap(from.longitude-b.west),from.latitude],q=[a[0]+wrap(to.longitude-from.longitude),to.latitude],span=Math.abs(b.east-b.west)>=359.999?360:(b.east-b.west+360)%360;
             for(const shift of [-360,0,360]){let low=0,high=1;for(let j=0;j<2;j++){const min=j===0?shift:b.south,max=j===0?shift+span:b.north,d=q[j]-a[j];if(Math.abs(d)<1e-12){if(a[j]<min||a[j]>max){high=-1;break;}}else{const x=(min-a[j])/d,y=(max-a[j])/d;low=Math.max(low,Math.min(x,y));high=Math.min(high,Math.max(x,y));}}if(low<=high)return true;}return false;
@@ -911,6 +995,7 @@
             const valid=p=>p&&[p.latitude,p.longitude,p.height].every(Number.isFinite)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180&&Math.abs(p.height)<=100000;
             if(!valid(from)||!valid(to)||!Number.isFinite(frequency)||frequency<10||frequency>100000||!Number.isFinite(fraction)||fraction<0||fraction>1)throw Error('Invalid scenery radio path');
             const start=performance.now(),budget={nodes:8192,triangles:4096,deadline:start+6};let complete=rfCatalogReady,fresnel=false;
+            const reasons=new Set();if(!rfCatalogReady)reasons.add('Scenery catalog not ready');
             const crossings=[];const radius=fraction*Math.sqrt(299.792458/frequency*Math.hypot(distanceM(from,to),to.height-from.height)/4);
             // Geographic bounds are coverage hints only, padded for Fresnel and
             // local alignment changes. Missing geometry is not a clear path.
@@ -919,32 +1004,32 @@
                 if(Math.abs(region.east-region.west)>=359.9||lonPad>=180)return true;
                 return crossesRegion(from,to,{west:((region.west-lonPad+540)%360)-180,east:((region.east+lonPad+540)%360)-180,south:Math.max(-90,region.south-latPad),north:Math.min(90,region.north+latPad)});
             }
-            for(const e of unavailableEntries)if(e.enabled&&(!e.safetyRegion||nearRegion(e.safetyRegion)))complete=false;
+            for(const e of unavailableEntries)if(e.enabled&&e.rfRelevant!==false&&(!e.safetyRegion||nearRegion(e.safetyRegion))){complete=false;reasons.add('Scenery catalog entry unavailable');}
             for(const e of entries.values()){
                 if(!e.enabled||!e.item.physicalCollisionsEnabled)continue;
-                if(e.preview){complete=false;continue;}
+                if(e.preview){complete=false;reasons.add('Scenery alignment in progress');continue;}
                 const frame=frameFor(e),p=frame.local(from),q=frame.local(to),d=q.map((x,i)=>x-p[i]),distance=Math.hypot(...d)*frame.scale;
                 if(distance<1)continue;
                 if(!e.collider||!heightReady(e)||!terrainStable()){
                     const boxes=(e.item.collisionResources??[]).map(r=>r.metadata?.localBounds);
                     if(!boxes.length&&e.item.rfLocalBounds&&(e.item.collisionAssets??[e.item.collisionAsset]).length===1)boxes.push(e.item.rfLocalBounds);
                     if(boxes.length&&boxes.every(Boolean)&&heightReady(e)){
-                        if(boxes.some(box=>Collision.rfBoxInterval(box,0,p,d,radius/frame.scale)))complete=false;
+                        if(boxes.some(box=>Collision.rfBoxInterval(box,0,p,d,radius/frame.scale))){complete=false;reasons.add('Scenery collision geometry unavailable');}
                     }else{
                         // Bundled legacy assets have no explicit bounding box.
                         // Use their configured geographic coverage, or an anchor
                         // envelope; no forced loading outside the streaming budget.
                         const r=e.item.unloadRadiusM;
                         const near=nearRegion(e.item.collisionRegion)||Collision.rfBoxInterval([-r/frame.scale,-r/frame.scale,-1000000,r/frame.scale,r/frame.scale,1000000],0,p,d,radius/frame.scale);
-                        if(near)complete=false;
+                        if(near){complete=false;reasons.add('Scenery collision geometry or calibration unavailable');}
                     }
                     continue;
                 }
                 const paths=e.item.collisionAssets??[e.item.collisionAsset];
                 for(const [i,mesh] of (e.colliders??[e.collider]).entries()){
-                    if(crossings.length>=128){complete=false;break;}
+                    if(crossings.length>=128){complete=false;reasons.add('Scenery RF work limit');break;}
                     const trace=Collision.rfTrace(mesh,p,q,frame.scale,frequency,fraction,budget);
-                    complete=complete&&trace.complete;fresnel=fresnel||trace.fresnel;
+                    complete=complete&&trace.complete;if(!trace.complete)reasons.add('Scenery RF work limit');fresnel=fresnel||trace.fresnel;
                     const material=Collision.normalizeRf(e.item.rfMaterials?.[paths[i]]);
                     let previous=null;
                     for(const hit of trace.hits){
@@ -953,7 +1038,7 @@
                         // opposing faces; never infer solid volumes from scans.
                         const expected=material.thicknessM===undefined?0:material.thicknessM/Math.max(.2,previous?.cosine??1);
                         if(previous&&expected>0&&hit.normal.reduce((n,v,k)=>n+v*previous.normal[k],0)<-.95&&Math.abs(at-previous.at-expected)<=Math.max(.02,expected*.2)){previous=null;continue;}
-                        if(crossings.length>=128){complete=false;break;}
+                        if(crossings.length>=128){complete=false;reasons.add('Scenery RF work limit');break;}
                         crossings.push({id:e.item.id,material:material.material,at,lossDb});previous={...hit,at};
                     }
                 }
@@ -962,7 +1047,7 @@
             crossings.sort((a,b)=>a.at-b.at);const hits=[];
             for(const hit of crossings){const last=hits.at(-1);if(last&&Math.abs(hit.at-last.at)<=.01){if(hit.lossDb>last.lossDb)hits[hits.length-1]=hit;}else hits.push(hit);}
             const lossDb=Math.min(160,hits.reduce((n,h)=>n+h.lossDb,0)+(hits.length===0&&fresnel?4:0));
-            return {complete,obstructions:hits.length,fresnelIntrusion:fresnel,lossDb,materials:[...new Set(hits.map(h=>h.material))],
+            return {complete,reason:[...reasons].join('; ')||null,obstructions:hits.length,fresnelIntrusion:fresnel,lossDb,materials:[...new Set(hits.map(h=>h.material))],
                 nodes:8192-budget.nodes,triangles:4096-budget.triangles,durationMs:performance.now()-start};
         }
         async function radioPaths(command,signal){
@@ -991,7 +1076,7 @@
             }
             return first;
         }
-        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,...remoteStatus(e),alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.triangleCount,0):null,collisionIndependent:e.item.collisionIndependent===true,replacementState:e.replacementCheck?.state??(e.item.replacement?.terrain.enabled?'waiting':'disabled'),replacementChecks:e.replacementCheck?.results??[],replacementError:e.replacementCheck?.message??null,replacementApplied:approvedReplacement(e).filter(r=>terrainMaskActive(r.polygon)).length,collisionDebug:e.collisionDebug===true,collisionDebugError:e.collisionDebugError??null,collisionBytes:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.byteLength,0):null,lastHit:e.lastHit??null})).concat(unavailableEntries.map(e=>({...e})));}
+        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,...remoteStatus(e),alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.base.underlayRejected?'disabled':(e.groundState??'idle'),groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.base.underlayRejected?'Mismatched DGM underlay: terrain replacement disabled':(e.groundError??null),terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.triangleCount,0):null,collisionIndependent:e.item.collisionIndependent===true,replacementState:e.replacementCheck?.state??(e.item.replacement?.terrain.enabled?'waiting':'disabled'),replacementChecks:e.replacementCheck?.results??[],replacementError:e.replacementCheck?.message??null,replacementApplied:approvedReplacement(e).filter(r=>terrainMaskActive(r.polygon)).length,collisionDebug:e.collisionDebug===true,collisionDebugError:e.collisionDebugError??null,collisionBytes:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.byteLength,0):null,lastHit:e.lastHit??null})).concat(unavailableEntries.map(e=>({...e}))).map(e=>({...e,bundled:initialCatalog?.sceneries.some(item=>item.id===e.id)===true}));}
         const off=viewer.scene.preUpdate.addEventListener(()=>tick());
         // Terrain tiles may become resident *after* the first height sample has
         // failed. Retry as soon as Cesium drains its tile queue, without forcing
@@ -1011,7 +1096,7 @@
                 tick(true);
             },0);
         });
-        function dispose(){if(disposed)return;disposed=true;probeAbort?.abort();probeAbort=null;catalogRevision++;off?.();offTerrain?.();clearTimer(tileReadyRetryTimer);tileReadyRetryTimer=null;for(const e of entries.values())remove(e);entries.clear();unavailableEntries=[];}
+        function dispose(){if(disposed)return;disposed=true;probeAbort?.abort();probeAbort=null;catalogRevision++;off?.();offTerrain?.();clearTimer(tileReadyRetryTimer);tileReadyRetryTimer=null;for(const e of entries.values())remove(e);entries.clear();unavailableEntries=[];maskState=[];maskScratch=[];maskPlan=[];maskPlanRevision=-1;}
         function previewModels(id){const e=entries.get(id);return e?.enabled?[...e.models]:[];}
         function beginAlignment(id){
             const e=entries.get(id);if(!e||e.preview)throw Error('Scenery is unavailable or already being edited');
@@ -1034,7 +1119,7 @@
         }
         function selectedScenery(primitive){return Array.from(entries.values()).find(e=>e.models.includes(primitive))?.item.id??null;}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
-        return {initialize,performanceSnapshot,resetPerformance:()=>{history.length=0;},inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,radioPath,radioPaths,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
+        return {initialize,performanceSnapshot,resetPerformance:()=>{history.length=0;},inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementRevision,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,radioPath,radioPaths,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,clearAllCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
     }
     return {validate,presets,streamingOptions,predictPoint,qualityOptions,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

@@ -99,7 +99,7 @@ SceneryManifest importedTriangle(
     'sidedness': 'double',
   },
   'visibility': {'enabled': true, 'loadRadiusM': 2500, 'unloadRadiusM': 4000},
-  'minimumAppVersion': '0.19.29',
+  'minimumAppVersion': '0.19.20',
 });
 (Map<String, dynamic>, Uint8List) readTestGlb(Uint8List bytes) {
   final data = ByteData.sublistView(bytes),

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "sceneryId": "de-bb-ruedersdorf-chemical-plant",
+  "revision": "R35",
+  "assetSha256": {
+    "local_reference.glb": "2fbc59887ebc5fc2d4c493d56fd93dd45294824078cc358478578e2ab7ec0aaa",
+    "local_reference.fpc": "3b5a152f87a88eb32a6bcea83802782fe922721788b335e5a5224b2ea614dbe9",
+    "ruedersdorf_r11_ground.glb": "27e30ea0ff79c1fc70a8a2b35f82697943205cefced981cfddcc58b8185948f0",
+    "ruedersdorf_r11_ground.fpc": "b7e5e563659c903310b4ada5c5c3745ac5248c53f7b9c91916d3430b66db39d7"
+  },
+  "alignment": {"longitude": 13.789853720999993, "latitude": 52.48411904363446, "scale": 16.023268178233355, "rotationDeg": 99.7993823133657, "ellipsoidHeightM": 112.27976788595622},
+  "clearanceRadiusM": 0.25,
+  "rfProfile": {"material": "unknown"},
+  "routes": [
+    {"id":"approach", "name":"R35 - Approach (simulation)", "speedMps":12, "points":[[-180,0,5],[-15,0,5],[-8,0,5],[0,0,5]]},
+    {"id":"orbit", "name":"R35 - Exterior circuit (simulation)", "speedMps":8, "points":[[-9,-9,4],[9,-9,4],[9,9,4],[-9,9,4],[-9,-9,4]]},
+    {"id":"entrance", "name":"R35 - South entrance (simulation)", "speedMps":2, "points":[[4.24,1.87,-1.79],[4.46,1.87,-1.79]]},
+    {"id":"interior", "name":"R35 - Long hall interior (simulation)", "speedMps":2, "points":[[-4.65,-1.60,-1.12],[-4.65,-1.60,-1.41],[-4.684,-2.135,-1.41]]},
+    {"id":"fast-pass", "name":"R35 - Fast above-roof pass (simulation)", "speedMps":35, "points":[[-10,0,4],[10,0,4]]},
+    {"id":"silo-dive", "name":"R35 - Four-silo opening (simulation)", "speedMps":2, "points":[[1.41,3.87,-0.31],[1.41,3.87,-0.54]]},
+    {"id":"platform-dive", "name":"R35 - Platform opening (simulation)", "speedMps":3, "points":[[-4.881,-0.79,0.18],[-4.881,-0.79,-0.31]]},
+    {"id":"rf-recovery", "name":"R35 - Wall shadow and recovery (simulation)", "speedMps":1, "points":[[4.24,1.87,-1.79],[4.46,1.87,-1.79],[4.46,1.60,-1.79],[4.46,1.87,-1.79],[4.24,1.87,-1.79]], "station":[4.10,1.87,-1.79], "expectedDirectHits":[false,false,true,false,false]},
+    {"id":"streaming-cycle", "name":"R35 - Streaming lifecycle (simulation)", "speedMps":30, "points":[[-300,0,5],[-15,0,5],[0,0,5],[-15,0,5],[-300,0,5]]}
+  ],
+  "blockedProbes": [
+    {"id":"south-wall","points":[[4.24,1.60,-1.79],[4.46,1.60,-1.79]]},
+    {"id":"six-silo-roof","points":[[4.79,-2.202,-0.04],[4.79,-2.202,-0.34]]},
+    {"id":"long-hall-gallery","points":[[-4.78,-2.13,-1.12],[-4.78,-2.13,-1.41]]}
+  ]
+}

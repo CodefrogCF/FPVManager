@@ -177,11 +177,19 @@ Run from the repository root:
 node tool/benchmarks/benchmark_scenery_rf.cjs 200
 ```
 
-The reference `tool/benchmarks/reference/scenery_rf_node.json` records Node
-22/Linux CPU-only traversal of the bundled Rüdersdorf FPC (975,919 triangles,
-131,071 BVH nodes). All 1,600 measured rays completed. The dense transverse
-ray found 41 distinct crossings while visiting 819 nodes and 1,497 triangles;
-p95 was 1.049 ms at 868 MHz and 0.958 ms at 5800 MHz. These results exclude
-terrain sampling, bridge transfer, frame rendering and GPU work. Repeat on
-Windows and Android under real flight and route-planning load before claiming
-a device-level frame-time budget.
+CPU-only reference results are in `tool/benchmarks/reference/scenery_rf_node.json`; see [device measurement](performance.md) for full validation.
+
+### Station-local detailed terrain retention
+
+The decoded-tile cache retains up to 32 requested tiles within 500 m of the
+selected station (spawn or custom antenna) as a separate LRU partition within
+its existing 128-tile total cap. There is no eager network prefetch or persistent
+storage. Station moves discard the station partition; provider changes discard
+both partitions. The 120-second tile TTL, exact-coordinate interpolation,
+highest-available level checks, four tile workers and RF freshness/obstruction
+rules are unchanged. For long rays beyond 7 km, only the station-near subset is
+eligible for this cache; the moving remainder keeps native bulk sampling.
+If native availability discovery reveals finer station data, those positions
+are sampled again. The marker visibility setting does not affect retention.
+
+Station retention is covered by deterministic cache and interpolation tests. Compare actual cache hits and frame pacing on the same device and route.

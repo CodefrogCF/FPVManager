@@ -255,8 +255,18 @@ void main() {
             ),
           ),
         );
+        await tester.scrollUntilVisible(
+          find.text('Datenquellen'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(find.text('Datenquellen'));
         await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Verkehr & Zugänge'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(find.text('Verkehr & Zugänge'));
         await tester.pumpAndSettle();
         await tester.scrollUntilVisible(
@@ -294,12 +304,28 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(SwitchListTile), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SwitchListTile &&
+              widget.key != const ValueKey('developer-menus-toggle') &&
+              widget.key != const ValueKey('developer-overlay-toggle'),
+        ),
+        findsNothing,
+      );
       await tester.tap(find.text('Karte & Ansicht'));
       await tester.pumpAndSettle();
       expect(opened, 1);
       expect(find.byType(AppSettingsScreen), findsOneWidget);
-      expect(find.byType(SwitchListTile), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SwitchListTile &&
+              widget.key != const ValueKey('developer-menus-toggle') &&
+              widget.key != const ValueKey('developer-overlay-toggle'),
+        ),
+        findsNothing,
+      );
     },
   );
   testWidgets('open-source notices remain reachable from data sources', (
