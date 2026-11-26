@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./rf_estimation.js'):root.FPVRfEstimation,typeof module==='object'&&module.exports?require('./live_terrain_tile_cache.js'):root.FPVLiveTerrainTileCache);if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVLiveRadio=api;})(typeof globalThis!=='undefined'?globalThis:this,function(rfEstimation,terrainTiles){
     // Raw Window timers throw "Illegal invocation" when called as facade methods.
     function create({C,viewer,terrain,ready,emit,layer,doc,language,onAssessmentChange=()=>{},clock=()=>performance.now(),wallClock=()=>Date.now(),
-        sampleTimeoutMs=12000,timers={setTimeout:(fn,ms)=>setTimeout(fn,ms),clearTimeout:id=>clearTimeout(id)}}){
+        sceneryPath=null,sampleTimeoutMs=12000,timers={setTimeout:(fn,ms)=>setTimeout(fn,ms),clearTimeout:id=>clearTimeout(id)}}){
         const cache=new Map(),tileCache=terrainTiles.create({C,clock,tileTimeoutMs:sampleTimeoutMs,timers}),latencies=[];
         let sequence=0,completed=0,failures=0,lastError=null,lastSample=null,lastSampleId=0,sampledProvider=null;
         let lastValidAt=-Infinity,observationId=null,observationQuality='unknown',observationError=null,observationReason=null;
@@ -92,7 +92,7 @@
                 consecutiveFailures:failures,failures:remoteDiagnostics.failures??failures,
                 error:remoteDiagnostics.error??lastError,errorCategory:lastError,lastErrorCategory:lastError,
                 p50Ms:p50,p95Ms:p95,latencyP50Ms:p50,latencyP95Ms:p95,
-                latencyWindowSamples:latencies.length,cacheEntries:cache.size};
+                latencyWindowSamples:latencies.length,cacheEntries:cache.size,scenery:currentAssessment.scenery??null};
         }
         function setDiagnostics(c){
             if(typeof c.enabled!=='boolean')throw Error('Invalid live radio diagnostics setting');
@@ -214,7 +214,7 @@
             if(!Array.isArray(c.rays)||c.rays.length>1||!c.rays.length&&c.state!=='unknown'||c.rays.some(r=>r.state!==c.state))throw Error('Inconsistent live radio result');
             if(c.state!=='unknown'&&(!Number.isFinite(c.expiresAtMs)||c.expiresAtMs<=wallClock()||c.expiresAtMs>wallClock()+10000)){revision=c.revision;unknown('stale','STALE');return {};}
             const insufficientClear=c.state==='noSampledObstruction'&&c.assessment?.confidence==='limited';
-            const quality=c.observation?.quality??c.quality??(c.state==='unknown'||insufficientClear?'unknown':'valid');
+            let quality=c.observation?.quality??c.quality??(c.state==='unknown'||insufficientClear?'unknown':'valid');
             if(!['valid','pending','stale','unknown','error'].includes(quality))throw Error('Invalid live observation quality');
             const suppliedAge=c.observation?.ageMs??0;
             if(suppliedAge!==null&&(!Number.isFinite(suppliedAge)||suppliedAge<0))throw Error('Invalid live observation age');
@@ -237,11 +237,33 @@
             }else currentAssessment=unknownAssessment;
             // The radio approximation is explicitly separate from geometric LOS.
             // Preserve explicit link readings, including externally supplied profiles.
-            const estimated=rfEstimation.assess(currentAssessment,c.pilot,c.rays?.[0],rfSettings);
+            let scenery=null,displayState=c.state;
+            if(sceneryPath&&c.state!=='unknown'&&c.pilot&&c.rays?.[0]&&Number.isFinite(c.pilot.height)&&Number.isFinite(c.rays[0].height)){
+                try{scenery={control:sceneryPath(c.pilot,c.rays[0],rfSettings.control.frequencyMhz,c.fraction??.6),
+                    video:sceneryPath(c.pilot,c.rays[0],rfSettings.video.frequencyMhz,c.fraction??.6)};}
+                catch(_){scenery={control:{complete:false,lossDb:0,obstructions:0},video:{complete:false,lossDb:0,obstructions:0}};}
+            }
+            const explicitControl=currentAssessment.controlLink,explicitVideo=currentAssessment.videoLink;
+            const estimated=rfEstimation.assess(currentAssessment,c.pilot,c.rays?.[0],rfSettings,scenery);
             if(estimated.controlLink!=='unknown'||estimated.videoLink!=='unknown'){
                 currentAssessment=Object.freeze({...currentAssessment,
                     controlLink:currentAssessment.controlLink==='unknown'?estimated.controlLink:currentAssessment.controlLink,
                     videoLink:currentAssessment.videoLink==='unknown'?estimated.videoLink:currentAssessment.videoLink});
+            }
+            if(scenery){
+                const terrainVisibility=currentAssessment.visibility;
+                if(scenery.control.obstructions||scenery.video.obstructions)displayState='obstructed';
+                else if(displayState==='noSampledObstruction'&&(scenery.control.fresnelIntrusion||scenery.video.fresnelIntrusion))displayState='fresnelIntrusion';
+                // A partial scenery query can demonstrate loss, not recovery.
+                // Preserve independently provided modeled link readings, and
+                // preserve the existing confirmed terrain obstruction estimate.
+                const usable=(link,report,explicit)=>link==='unknown'||explicit!=='unknown'||report.complete||
+                    terrainVisibility==='obstructed'||link.quality===0?link:'unknown';
+                if(displayState==='noSampledObstruction'&&(!scenery.control.complete||!scenery.video.complete))displayState='unknown';
+                currentAssessment=Object.freeze({...currentAssessment,terrainVisibility,scenery,
+                    controlLink:usable(currentAssessment.controlLink,scenery.control,explicitControl),videoLink:usable(currentAssessment.videoLink,scenery.video,explicitVideo),
+                    visibility:displayState==='noSampledObstruction'?'clear':displayState});
+                if((!scenery.control.complete||!scenery.video.complete)&&currentAssessment.controlLink==='unknown'&&currentAssessment.videoLink==='unknown')quality='unknown';
             }
             observationQuality=quality;observationError=c.observation?.errorCategory??c.errorCategory??null;
             observationReason=typeof c.observation?.reason==='string'?c.observation.reason.slice(0,160):null;
@@ -251,11 +273,11 @@
             if(c.pilot&&Number.isFinite(c.pilot.latitude)&&Number.isFinite(c.pilot.longitude))
                 drawStation(showMarker?{latitude:c.pilot.latitude,longitude:c.pilot.longitude}:null);
             if(showPath&&!(currentAssessment.confidence==='limited'&&
-                c.state==='noSampledObstruction'))layer.set({...c,showPilot:false,showTargetMarkers:false});
+                c.state==='noSampledObstruction'&&displayState==='noSampledObstruction'))layer.set({...c,state:displayState,rays:c.rays.map(r=>({...r,state:displayState})),showPilot:false,showTargetMarkers:false});
             else layer.clear();
             revision=c.revision;
             badge.dataset.state=(currentAssessment.confidence==='limited'&&
-                c.state==='noSampledObstruction')?'unknown':c.state;
+                c.state==='noSampledObstruction'&&displayState==='noSampledObstruction')?'unknown':displayState;
             clearTimeout(expiry);resultAt=c.state==='unknown'?-Infinity:clock()-(inputAge??0);
             if(c.state!=='unknown'){const token=revision;expiry=setTimeout(()=>{if(!disposed&&revision===token)unknown('stale','STALE');},Math.min(5000-(inputAge??0),c.expiresAtMs-wallClock()));}
             detailMessage=String(c.message??'Unknown').slice(0,160);
@@ -277,6 +299,10 @@
                 if(preview)detailMessage+=` · SIM free-space ONLY Video ${preview.video.estimatedMarginDb.toFixed(1)} dB / RC ${preview.control.estimatedMarginDb.toFixed(1)} dB (no terrain loss included)`;
             }
 
+            if(scenery){
+                const v=scenery.video,r=scenery.control;
+                detailMessage+=` · SIM scenery: ${Math.max(v.obstructions,r.obstructions)} crossings; Video ${v.lossDb.toFixed(1)} dB / RC ${r.lossDb.toFixed(1)} dB${v.fresnelIntrusion||r.fresnelIntrusion?' · possible Fresnel intrusion':''}${!v.complete||!r.complete?' · incomplete scenery coverage':''} (estimated, not measured)`;
+            }
             if(currentAssessment.videoLink!=='unknown'||currentAssessment.controlLink!=='unknown'){
                 const brief=(name,link)=>!link||link==='unknown'||!Number.isFinite(link.linkMarginDb)||!Number.isFinite(link.estimatedMaxRangeM)
                     ?'':`${name}: ${link.linkMarginDb.toFixed(1)} dB reserve; free-space ≈${(link.estimatedMaxRangeM/1000).toFixed(1)} km`;

@@ -1,0 +1,106 @@
+{
+  "scope": "Node CPU-only; local FPC BVH, no renderer/terrain/bridge/GPU",
+  "runtime": "v22.16.0",
+  "platform": "linux",
+  "meshTriangles": 975919,
+  "meshNodes": 131071,
+  "scale": 16.023268178233355,
+  "samples": [
+    {
+      "scenario": "aboveRoof",
+      "frequencyMhz": 868,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.002,
+      "p95Ms": 0.002,
+      "p99Ms": 0.009,
+      "maxNodes": 2,
+      "maxTriangles": 0,
+      "maxCrossings": 0
+    },
+    {
+      "scenario": "aboveRoof",
+      "frequencyMhz": 5800,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.002,
+      "p95Ms": 0.002,
+      "p99Ms": 0.003,
+      "maxNodes": 2,
+      "maxTriangles": 0,
+      "maxCrossings": 0
+    },
+    {
+      "scenario": "acrossSite",
+      "frequencyMhz": 868,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.914,
+      "p95Ms": 1.049,
+      "p99Ms": 1.818,
+      "maxNodes": 819,
+      "maxTriangles": 1497,
+      "maxCrossings": 41
+    },
+    {
+      "scenario": "acrossSite",
+      "frequencyMhz": 5800,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.865,
+      "p95Ms": 0.958,
+      "p99Ms": 1.038,
+      "maxNodes": 819,
+      "maxTriangles": 1497,
+      "maxCrossings": 41
+    },
+    {
+      "scenario": "vertical",
+      "frequencyMhz": 868,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.056,
+      "p95Ms": 0.098,
+      "p99Ms": 0.29,
+      "maxNodes": 73,
+      "maxTriangles": 30,
+      "maxCrossings": 1
+    },
+    {
+      "scenario": "vertical",
+      "frequencyMhz": 5800,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.024,
+      "p95Ms": 0.058,
+      "p99Ms": 0.223,
+      "maxNodes": 73,
+      "maxTriangles": 30,
+      "maxCrossings": 1
+    },
+    {
+      "scenario": "longApproach",
+      "frequencyMhz": 868,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.002,
+      "p95Ms": 0.002,
+      "p99Ms": 0.003,
+      "maxNodes": 10,
+      "maxTriangles": 0,
+      "maxCrossings": 0
+    },
+    {
+      "scenario": "longApproach",
+      "frequencyMhz": 5800,
+      "iterations": 200,
+      "complete": 200,
+      "p50Ms": 0.002,
+      "p95Ms": 0.005,
+      "p99Ms": 0.063,
+      "maxNodes": 10,
+      "maxTriangles": 0,
+      "maxCrossings": 0
+    }
+  ]
+}

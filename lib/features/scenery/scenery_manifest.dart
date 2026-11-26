@@ -281,6 +281,8 @@ final class SceneryManifest {
           'provider': 'bundled',
           'format': 'fpc',
           'uri': item['collisionAsset'],
+          if ((item['rfMaterials'] as Map?)?[item['collisionAsset']] != null)
+            'rf': (item['rfMaterials'] as Map)[item['collisionAsset']],
         },
     ];
     return SceneryManifest.fromJson({
@@ -404,6 +406,37 @@ Map<String, double> sceneryCoverageBounds(
   };
 }
 
+/// Optional per-collider RF assumptions. These are not surveyed properties.
+const sceneryRfMaterials = [
+  'unknown',
+  'concrete',
+  'reinforcedConcrete',
+  'brick',
+  'metal',
+  'glass',
+  'wood',
+];
+
+Map<String, dynamic> validateSceneryRf(Object? value) {
+  final rf = _map(value);
+  if (rf.keys.any(
+        (key) => !const {
+          'material',
+          'thicknessM',
+          'surfaceLossDb',
+          'lossDbPerM',
+        }.contains(key),
+      ) ||
+      !sceneryRfMaterials.contains(rf['material'])) {
+    throw const FormatException('Invalid scenery RF material');
+  }
+  if (rf.containsKey('thicknessM')) _number(rf['thicknessM'], .01, 20);
+  for (final key in ['surfaceLossDb', 'lossDbPerM']) {
+    if (rf.containsKey(key)) _number(rf[key], 0, 100);
+  }
+  return Map.unmodifiable(rf);
+}
+
 final class SceneryAsset {
   SceneryAsset._(
     this.id,
@@ -413,10 +446,12 @@ final class SceneryAsset {
     this.uri,
     this.model,
     this.tileset,
+    this.rf,
   );
   final String id, role, provider, format, uri;
   final Map<String, dynamic>? model;
   final Map<String, dynamic>? tileset;
+  final Map<String, dynamic>? rf;
   factory SceneryAsset.fromJson(Object? value) {
     final a = _map(value);
     _identifier(a['id']);
@@ -481,6 +516,9 @@ final class SceneryAsset {
       }
       tileset = validateTilesetOptions(a['tileset']);
     }
+    if (a.containsKey('rf') && a['role'] != 'collision') {
+      throw const FormatException('RF material requires collision geometry');
+    }
     return SceneryAsset._(
       a['id'] as String,
       a['role'] as String,
@@ -489,6 +527,7 @@ final class SceneryAsset {
       a['uri'] as String,
       model == null ? null : Map.unmodifiable(model),
       tileset == null ? null : Map.unmodifiable(tileset),
+      a.containsKey('rf') ? validateSceneryRf(a['rf']) : null,
     );
   }
 }

@@ -443,11 +443,32 @@ class _RadioSheetState extends State<_RadioSheet> {
       ),
     ),
   );
+  Widget _sceneryReport(SceneryRadioReport report) {
+    final de = Localizations.localeOf(context).languageCode == 'de';
+    String t(String german, String english) => de ? german : english;
+    return Text(
+      [
+        'SIM Scenery: ${report.obstructions} ${t('Schnittpunkte', 'crossings')}',
+        '${report.lossDb.toStringAsFixed(1)} dB ${t('geschätzt', 'estimated')}',
+        if (report.fresnelIntrusion)
+          t('Mögliche Fresnel-Abschattung', 'Possible Fresnel intrusion'),
+        if (!report.complete)
+          t(
+            'Unvollständige Scenery-Abdeckung (in der Nähe erneut berechnen)',
+            'Incomplete scenery coverage (recalculate near scenery)',
+          ),
+        if (report.materials.isNotEmpty) report.materials.join(', '),
+        t('Keine Messwerte', 'Not measured'),
+      ].join(' · '),
+    );
+  }
+
   Widget _profile(RadioPathResult p) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const SizedBox(height: 12),
       Text(radioStateLabel(p.state)),
+      if (p.scenery case final report?) _sceneryReport(report),
       if (p.minimumClearance != null)
         Text(
           context.localizedWithArgs(

@@ -71,19 +71,23 @@
         return visibility==='obstructed'?(38+Math.min(55,blocking*.9)):
             visibility==='fresnelIntrusion'?(6+Math.min(20,intrusion*.45)):0;
     }
-    function one(profile,distance,visibility,minimumClearance,minimumFresnelMargin,limitedObstruction=false){
+    function one(profile,distance,visibility,minimumClearance,minimumFresnelMargin,limitedObstruction=false,scenery=null){
         const freeSpaceDb=freeSpaceLossDb(distance,profile.frequencyMhz);
         const terrainLossDb=excessTerrainLossDb(visibility,minimumClearance,minimumFresnelMargin);
-        const estimatedRxPowerDbm=profile.eirpDbm-freeSpaceDb-terrainLossDb;
+        const sceneryLossDb=Number.isFinite(scenery?.lossDb)?clamp(scenery.lossDb,0,160):0;
+        // Terrain profiles may already contain user-entered surface models or
+        // the same ground as a scan. Do not add two overlapping estimates.
+        const combinedLossDb=Math.max(terrainLossDb,sceneryLossDb);
+        const estimatedRxPowerDbm=profile.eirpDbm-freeSpaceDb-combinedLossDb;
         const linkMarginDb=estimatedRxPowerDbm-profile.receiverThresholdDbm-profile.fadeMarginDb;
         const theoreticalMaxRangeM=theoreticalRangeMeters(profile);
-        const terrainScenarioRangeM=theoreticalRangeMeters(profile,terrainLossDb);
+        const terrainScenarioRangeM=theoreticalRangeMeters(profile,combinedLossDb);
         // Smooth illustrative score. Not measured RSSI, SNR, LQ or probability.
         const quality=clamp((linkMarginDb+6)/30);
         return Object.freeze({quality,source:'rfModel',detail:limitedObstruction?'sampledObstructionOnly':'approximateLinkBudget',estimated:true,
-            confidence:limitedObstruction?'limitedTerrainAssumption':'assumptionBased',distanceMeters:round(distance),
+            confidence:scenery?.complete===false?'limitedSceneryAssumption':limitedObstruction?'limitedTerrainAssumption':'assumptionBased',distanceMeters:round(distance),
             freeSpaceLossDb:round(freeSpaceDb),estimatedTerrainLossDb:round(terrainLossDb),
-            estimatedRxPowerDbm:round(estimatedRxPowerDbm),
+            estimatedSceneryLossDb:round(sceneryLossDb),estimatedCombinedLossDb:round(combinedLossDb),estimatedRxPowerDbm:round(estimatedRxPowerDbm),
             linkMarginDb:round(linkMarginDb),marginDb:round(linkMarginDb),
             estimatedMaxRangeM:round(theoreticalMaxRangeM),
             estimatedTerrainScenarioRangeM:round(terrainScenarioRangeM),
@@ -104,7 +108,7 @@
         };
         return Object.freeze({video:make(cfg.video),control:make(cfg.control)});
     }
-    function assess(geometry,from,to,settings=defaults){
+    function assess(geometry,from,to,settings=defaults,scenery=null){
         const cfg=configuration(settings),dist=distanceMeters(from,to);
         // Unavailable geometry is NOT assumed clear. The separately exposed
         // theoreticalRangeMeters() remains available without a terrain sample.
@@ -122,8 +126,8 @@
             !(geometry.confidence==='approximate'||limitedObstruction)||
             !['clear','fresnelIntrusion','obstructed'].includes(geometry.visibility)||
             !Number.isFinite(dist)||dist<1||dist>250000)return {controlLink:'unknown',videoLink:'unknown'};
-        return {controlLink:one(cfg.control,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters,limitedObstruction),
-            videoLink:one(cfg.video,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters,limitedObstruction)};
+        return {controlLink:one(cfg.control,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters,limitedObstruction,scenery?.control),
+            videoLink:one(cfg.video,dist,geometry.visibility,geometry.minimumClearanceMeters,geometry.minimumFresnelMarginMeters,limitedObstruction,scenery?.video)};
     }
     return {defaults,presets,configuration,distanceMeters,freeSpaceLossDb,theoreticalRangeMeters,excessTerrainLossDb,freeSpacePreview,assess};
 });

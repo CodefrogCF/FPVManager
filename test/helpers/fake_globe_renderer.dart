@@ -63,7 +63,23 @@ class FakeGlobeRenderer {
     if (autoAcknowledge &&
         data['type'] != 'query-terrain-elevation' &&
         data['type'] != 'query-route-terrain') {
-      acknowledge(data);
+      acknowledge(
+        data,
+        result: data['type'] == 'query-scenery-radio'
+            ? {
+                'paths': List.generate(
+                  (data['rays'] as List).length,
+                  (_) => {
+                    'complete': true,
+                    'obstructions': 0,
+                    'fresnelIntrusion': false,
+                    'lossDb': 0,
+                    'materials': <String>[],
+                  },
+                ),
+              }
+            : const {},
+      );
     }
   }
 }

@@ -107,6 +107,14 @@ void main() {
     };
     await controller.calculate();
     expect(controller.result, isNotEmpty);
+    expect(
+      renderer.commands.where((c) => c['type'] == 'query-scenery-radio'),
+      isNotEmpty,
+    );
+    expect(
+      controller.result!.where((p) => p.scenery?.complete == true),
+      isNotEmpty,
+    );
     final overlay = renderer.commands.lastWhere(
       (c) => c['type'] == 'set-signal-analysis',
     );

@@ -142,3 +142,12 @@ test('11 km limited terrain: a sampled ridge may drive estimated video/RC loss, 
     assert.equal(preview.control.estimatedTerrainLossDb,undefined,
         'free-space preview never incorporates inferred terrain or drives failsafe');
 });
+
+test('scenery estimates affect separate band budgets without summing potentially overlapping terrain loss',()=>{
+ const scene={control:{lossDb:10},video:{lossDb:60}};
+ const clear=rf.assess(geometry('clear'),a,b,rf.defaults,scene);
+ assert.equal(clear.controlLink.estimatedSceneryLossDb,10);assert.equal(clear.videoLink.estimatedSceneryLossDb,60);
+ const both=rf.assess(geometry('obstructed'),a,b,rf.defaults,scene);
+ for(const [key,loss] of [['controlLink',10],['videoLink',60]])assert.equal(both[key].estimatedCombinedLossDb,Math.max(both[key].estimatedTerrainLossDb,loss));
+ assert.equal(rf.assess(geometry('unknown'),a,b,rf.defaults,scene).controlLink,'unknown');
+});

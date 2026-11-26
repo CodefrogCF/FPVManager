@@ -19,6 +19,7 @@ class RadioAnalysisController extends ChangeNotifier {
   late List<EditableWaypoint> _points;
   late RoutePlanningSettings _settings;
   late (int, int) _revision;
+  late int _sceneryRevision;
   int _operation = 0, completed = 0, total = 0, selected = 0;
   bool _disposed = false, loading = false;
   String? error;
@@ -34,13 +35,15 @@ class RadioAnalysisController extends ChangeNotifier {
     _points = editor.points;
     _settings = editor.planning;
     _revision = editor.globe.terrainRevision;
+    _sceneryRevision = editor.globe.sceneryRfRevision;
   }
 
   void _changed() {
     if (_disposed ||
         (identical(_points, editor.points) &&
             identical(_settings, editor.planning) &&
-            _revision == editor.globe.terrainRevision)) {
+            _revision == editor.globe.terrainRevision &&
+            _sceneryRevision == editor.globe.sceneryRfRevision)) {
       return;
     }
     _remember();
@@ -119,7 +122,37 @@ class RadioAnalysisController extends ChangeNotifier {
           false,
         ));
         if (!current()) return;
-        paths.addAll(calculated);
+        // Unknown terrain/out-of-range paths remain unknown. Work in small
+        // batches so the renderer can service frames and cancellation.
+        for (var offset = 0; offset < calculated.length; offset += 16) {
+          final page = calculated.sublist(
+            offset,
+            (offset + 16).clamp(0, calculated.length),
+          );
+          final known = page
+              .where((p) => p.state != RadioPathState.unknown)
+              .toList();
+          if (known.isEmpty) {
+            paths.addAll(page);
+            continue;
+          }
+          final reports = await editor.globe.querySceneryRadio(
+            pilot: settings.pilot,
+            pilotHeight: ground.first + settings.antennaHeight,
+            frequencyMhz: settings.frequencyMhz,
+            fraction: settings.clearanceFraction,
+            paths: known,
+          );
+          if (!current()) return;
+          var index = 0;
+          for (final p in page) {
+            paths.add(
+              p.state == RadioPathState.unknown
+                  ? p
+                  : p.withScenery(reports[index++]),
+            );
+          }
+        }
         completed = paths.length;
         notifyListeners();
       }
@@ -187,7 +220,12 @@ class RadioAnalysisController extends ChangeNotifier {
         heights,
         true,
       ));
-      if (current()) selectedProfile = detailed.single;
+      if (current()) {
+        final scenery = paths[target].scenery;
+        selectedProfile = scenery == null
+            ? detailed.single
+            : detailed.single.withScenery(scenery);
+      }
     } catch (_) {
       if (current()) error = 'Communication profile unavailable. Select the path again to retry.';
     } finally {

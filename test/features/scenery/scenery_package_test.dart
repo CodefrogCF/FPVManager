@@ -72,7 +72,12 @@ void main() {
       final base = importedTriangle(model);
       final doc = configureSceneryCollision(
         base,
-        [sceneryCollisionAsset(mesh)],
+        [
+          {
+            ...sceneryCollisionAsset(mesh),
+            'rf': {'material': 'reinforcedConcrete', 'thicknessM': .3},
+          },
+        ],
         enabled: true,
         sidedness: 'front',
       ).toJson();
@@ -116,6 +121,18 @@ void main() {
       final compiled = SceneryAssetProviders().compile([imported.manifest]);
       final item = (compiled['sceneries'] as List).single as Map;
       expect((item['assets'] as List).length, 1);
+      expect(item['rfMaterials']['managed/${mesh.key}'], {
+        'material': 'reinforcedConcrete',
+        'thicknessM': .3,
+      });
+      expect(
+        () => validateSceneryRf({'material': 'invalid'}),
+        throwsFormatException,
+      );
+      expect(
+        () => validateSceneryRf({'material': 'metal', 'thicknessM': -1}),
+        throwsFormatException,
+      );
       expect(
         item['visualLods']['managed/${model.key}']['low']['path'],
         'managed/${lod.key}',

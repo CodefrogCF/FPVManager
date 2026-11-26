@@ -171,3 +171,28 @@ streaming test covers managed preset selection and unchanged collision resources
 Physical Android/Windows cross-device roundtrip and offline operation require
 manual testing with a licensed scene and relevant terrain data. Browser eviction,
 platform save-dialog behavior, and Web CORS require separate integration tests.
+
+## Optional RF material assumptions
+
+Collision assets may carry an optional `rf` object directly in their scenery
+manifest asset entry. Existing packages and manifests without this property
+remain valid and use the `unknown` preset. No new archive entry or format
+version is required. The property is preserved through manifest, package and
+backup workflows; it does not change collision mesh bytes or visual LOD.
+
+```json
+{
+  "material": "reinforcedConcrete",
+  "thicknessM": 0.3,
+  "surfaceLossDb": 24,
+  "lossDbPerM": 35
+}
+```
+
+Only `material` is required if `rf` is present. Allowed values: `unknown`,
+`concrete`, `reinforcedConcrete`, `brick`, `metal`, `glass`, `wood`. Thickness
+must be finite and between 0.01 and 20 metres; optional loss overrides must be
+finite and in the inclusive 0–100 dB or dB/m range respectively. Unknown fields,
+invalid values and RF declarations on visual assets are rejected. A material
+classification applies to one complete collision mesh. These settings are
+simulation assumptions, not measured RF data. See [RF analysis](radio_and_rescue.md).

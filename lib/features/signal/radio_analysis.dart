@@ -25,6 +25,58 @@ class RadioPathSample {
   final double ground, surface, lineHeight, radius, clearance;
 }
 
+/// Bounded result of a renderer-side FPC ray query, not a measured link.
+class SceneryRadioReport {
+  const SceneryRadioReport({
+    required this.complete,
+    required this.obstructions,
+    required this.fresnelIntrusion,
+    required this.lossDb,
+    required this.materials,
+  });
+  final bool complete, fresnelIntrusion;
+  final int obstructions;
+  final double lossDb;
+  final List<String> materials;
+
+  factory SceneryRadioReport.fromJson(Object? value) {
+    if (value is! Map ||
+        value['complete'] is! bool ||
+        value['fresnelIntrusion'] is! bool ||
+        value['obstructions'] is! int ||
+        (value['obstructions'] as int) < 0 ||
+        (value['obstructions'] as int) > 128 ||
+        value['lossDb'] is! num ||
+        !(value['lossDb'] as num).isFinite ||
+        (value['lossDb'] as num) < 0 ||
+        (value['lossDb'] as num) > 160 ||
+        value['materials'] is! List ||
+        (value['materials'] as List).length > 7 ||
+        (value['materials'] as List).any(
+          (m) =>
+              m is! String ||
+              !const {
+                'unknown',
+                'concrete',
+                'reinforcedConcrete',
+                'brick',
+                'metal',
+                'glass',
+                'wood',
+              }.contains(m),
+        )) {
+      throw const FormatException('Invalid scenery radio report');
+    }
+    return SceneryRadioReport(
+      complete: value['complete'] as bool,
+      obstructions: value['obstructions'] as int,
+      fresnelIntrusion: value['fresnelIntrusion'] as bool,
+      lossDb: (value['lossDb'] as num).toDouble(),
+      materials: List<String>.unmodifiable(value['materials'] as List),
+    );
+  }
+}
+
 class RadioPathResult {
   const RadioPathResult({
     required this.target,
@@ -33,11 +85,31 @@ class RadioPathResult {
     this.minimumClearance,
     this.minimumFresnelClearance,
     this.profile = const [],
+    this.scenery,
   });
   final Wgs84Coordinate target;
   final RadioPathState state;
   final double? altitude, minimumClearance, minimumFresnelClearance;
   final List<RadioPathSample> profile;
+  final SceneryRadioReport? scenery;
+
+  RadioPathResult withScenery(SceneryRadioReport report) => RadioPathResult(
+    target: target,
+    altitude: altitude,
+    state: state == RadioPathState.unknown
+        ? state
+        : state == RadioPathState.obstructed || report.obstructions > 0
+        ? RadioPathState.obstructed
+        : !report.complete
+        ? RadioPathState.unknown
+        : state == RadioPathState.fresnelIntrusion || report.fresnelIntrusion
+        ? RadioPathState.fresnelIntrusion
+        : state,
+    minimumClearance: minimumClearance,
+    minimumFresnelClearance: minimumFresnelClearance,
+    profile: profile,
+    scenery: report,
+  );
 }
 
 const radioMapPageSize = 128;

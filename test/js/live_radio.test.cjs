@@ -528,3 +528,12 @@ test('bounded provider reason is an observation hint and cannot supply RF eviden
         assert.equal(p.api.assessment().observation.reason,null);
     }finally{p.api.dispose();}
 });
+
+test('scenery affects both modeled links and partial clear paths remain uncertain',()=>{
+ let mode='clear';const p=setup({sceneryPath:(_a,_b,f)=>({complete:mode!=='partial',obstructions:mode==='blocked'?3:0,fresnelIntrusion:false,lossDb:mode==='blocked'?(f>1000?150:120):0,materials:mode==='blocked'?['metal']:[],durationMs:.2})});
+ try{p.api.monitor({enabled:true,revision:1});p.api.observe({active:true,paused:false,flightId:1});
+ const send=revision=>p.api.set({revision,flightId:1,expiresAtMs:105000,state:'noSampledObstruction',distanceMeters:48,observation:{quality:'valid',ageMs:0},pilot:{latitude:47,longitude:8,height:502},rays:[{latitude:47,longitude:8,height:550,state:'noSampledObstruction'}],assessment:{visibility:'clear',source:'sampledTerrain',confidence:'approximate',controlLink:'unknown',videoLink:'unknown',sampleCount:2,minimumClearanceMeters:2,minimumFresnelMarginMeters:2}});
+ send(2);const clear=p.api.assessment();mode='blocked';send(3);const blocked=p.api.assessment();assert.equal(blocked.visibility,'obstructed');assert.ok(blocked.controlLink.quality<clear.controlLink.quality);assert.ok(blocked.videoLink.quality<clear.videoLink.quality);assert.equal(blocked.scenery.control.obstructions,3);
+ mode='partial';send(4);assert.equal(p.api.assessment().controlLink,'unknown');assert.equal(p.api.assessment().videoLink,'unknown');assert.equal(p.api.assessment().visibility,'unknown');
+ }finally{p.api.dispose();}
+});

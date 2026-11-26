@@ -554,6 +554,7 @@
         ]
       ],
       "collisionAsset": "local_reference.fpc",
+      "rfLocalBounds": [-8.60196304321289, -8.206687927246094, -2.7489359378814697, 8.60196304321289, 8.206687927246094, 2.7489359378814697],
       "terrainCertificate": {
         "localBounds": [
           -2.5,

@@ -50,6 +50,7 @@ import '../simulation/route_playback.dart';
 import '../../core/models/flight_route.dart';
 import '../signal/live_radio_controller.dart';
 import '../signal/live_sampling_policy.dart';
+import '../signal/radio_analysis.dart';
 import '../../core/models/scene_time.dart';
 import '../weather/wind_field.dart';
 import '../weather/wind_field_service.dart';
@@ -1850,6 +1851,8 @@ class GlobeController extends ChangeNotifier {
   bool get terrainAvailable => _terrainAvailable;
 
   /// Invalidates calculations when terrain or renderer state changes.
+  int _sceneryRfRevision = 0;
+  int get sceneryRfRevision => _sceneryRfRevision;
   (int, int) get terrainRevision => (_connectionGeneration, _terrainEpoch);
   OsintSource get uasSource =>
       _uasDisplayedDataset?.source ?? _uasProvider.source;
@@ -2127,6 +2130,49 @@ class GlobeController extends ChangeNotifier {
     );
   }
 
+  /// FPC geometry is renderer-resident. No download or physics tick is needed.
+  Future<List<SceneryRadioReport>> querySceneryRadio({
+    required Wgs84Coordinate pilot,
+    required double pilotHeight,
+    required double frequencyMhz,
+    required double fraction,
+    required List<RadioPathResult> paths,
+  }) async {
+    if (paths.isEmpty ||
+        paths.length > 16 ||
+        paths.any((p) => p.altitude == null)) {
+      throw ArgumentError('Invalid scenery radio batch');
+    }
+    final revision = terrainRevision;
+    final result = await _request({
+      'type': 'query-scenery-radio',
+      'pilot': {
+        'latitude': pilot.latitude,
+        'longitude': pilot.longitude,
+        'height': pilotHeight,
+      },
+      'frequencyMhz': frequencyMhz,
+      'fraction': fraction,
+      'rays': [
+        for (final path in paths)
+          {
+            'latitude': path.target.latitude,
+            'longitude': path.target.longitude,
+            'height': path.altitude,
+          },
+      ],
+    });
+    final reports = result['paths'];
+    if (!_ready ||
+        _disposed ||
+        revision != terrainRevision ||
+        reports is! List ||
+        reports.length != paths.length) {
+      throw const FormatException('Incomplete scenery radio batch');
+    }
+    return reports.map(SceneryRadioReport.fromJson).toList(growable: false);
+  }
+
   /// Ephemeral analysis: never replayed against a replaced terrain/renderer.
   Future<void> setSignalAnalysis(Map<String, Object?> state) async {
     final rays = state['rays'];
@@ -2197,7 +2243,24 @@ class GlobeController extends ChangeNotifier {
     if (!_ready || _disposed) {
       return Future.error(StateError('Globe is not ready'));
     }
-    return _bridge.send(command, timeout: timeout);
+    final result = _bridge.send(command, timeout: timeout);
+    if (const {
+      'replace-scenery-catalog',
+      'set-scenery-edit',
+      'set-scenery-enabled',
+      'restore-scenery-edits',
+      'restore-scenery-preferences',
+      'retry-scenery',
+    }.contains(command['type'])) {
+      return result.then((value) {
+        if (!_disposed) {
+          _sceneryRfRevision++;
+          notifyListeners();
+        }
+        return value;
+      });
+    }
+    return result;
   }
 
   Future<void> _send(Map<String, dynamic> command) async {

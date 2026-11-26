@@ -102,7 +102,12 @@ class _SceneryCollisionDialogState extends State<SceneryCollisionDialog> {
       if (mesh == null || !mounted) return;
       final next = [
         ..._assets.where((a) => a['uri'] != mesh.key),
-        sceneryCollisionAsset(mesh),
+        {
+          ...sceneryCollisionAsset(mesh),
+          for (final asset in _assets)
+            if (asset['uri'] == mesh.key && asset['rf'] != null)
+              'rf': asset['rf'],
+        },
       ];
       configureSceneryCollision(
         widget.existing,
@@ -147,6 +152,45 @@ class _SceneryCollisionDialogState extends State<SceneryCollisionDialog> {
       setState(() => _error = error.toString());
     }
   }
+
+  void _setRf(Map<String, dynamic> asset, String field, Object? value) {
+    final rf = <String, dynamic>{
+      'material': 'unknown',
+      ...?((asset['rf'] as Map?)?.cast<String, dynamic>()),
+    };
+    if (value == null) {
+      rf.remove(field);
+    } else {
+      rf[field] = value;
+    }
+    asset['rf'] = rf;
+  }
+
+  Widget _rfNumber(Map<String, dynamic> asset, String field, String title) =>
+      TextFormField(
+        key: ValueKey('${asset['id']}-$field'),
+        initialValue: (asset['rf'] as Map?)?[field]?.toString() ?? '',
+        decoration: InputDecoration(labelText: title),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        enabled: !_busy,
+        onChanged: (text) => _setRf(
+          asset,
+          field,
+          text.trim().isEmpty
+              ? null
+              : double.tryParse(text.replaceAll(',', '.')) ?? text,
+        ),
+      );
+
+  String _rfLabel(String material) => switch (material) {
+    'concrete' => t('Beton', 'Concrete'),
+    'reinforcedConcrete' => t('Stahlbeton', 'Reinforced concrete'),
+    'brick' => t('Ziegel', 'Brick'),
+    'metal' => t('Metall', 'Metal'),
+    'glass' => t('Glas', 'Glass'),
+    'wood' => t('Holz', 'Wood'),
+    _ => t('Unbekannt', 'Unknown'),
+  };
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -199,7 +243,14 @@ class _SceneryCollisionDialogState extends State<SceneryCollisionDialog> {
               ],
               onChanged: _busy ? null : (v) => setState(() => _side = v!),
             ),
-            for (final asset in _assets)
+            if (_assets.isNotEmpty)
+              Text(
+                t(
+                  'Funkmaterial je Mesh (SIM-Schätzung, keine Messwerte). Nur bekannte Wandstärken angeben. Leere Dämpfungswerte verwenden das Materialprofil.',
+                  'RF material per mesh (SIM estimates, not measured). Enter thickness only if known. Blank attenuation values use the material preset.',
+                ),
+              ),
+            for (final asset in _assets) ...[
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
@@ -218,6 +269,49 @@ class _SceneryCollisionDialogState extends State<SceneryCollisionDialog> {
                   icon: const Icon(Icons.delete_outline),
                 ),
               ),
+              DropdownButtonFormField<String>(
+                key: ValueKey('rf-${asset['id']}'),
+                initialValue:
+                    (asset['rf'] as Map?)?['material'] as String? ?? 'unknown',
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: t('Funkmaterial', 'RF material'),
+                ),
+                items: [
+                  for (final material in sceneryRfMaterials)
+                    DropdownMenuItem(
+                      value: material,
+                      child: Text(_rfLabel(material)),
+                    ),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (value) =>
+                          setState(() => _setRf(asset, 'material', value)),
+              ),
+              _rfNumber(
+                asset,
+                'thicknessM',
+                t('Wandstärke (m, optional)', 'Thickness (m, optional)'),
+              ),
+              _rfNumber(
+                asset,
+                'surfaceLossDb',
+                t(
+                  'Flächendämpfung (dB, optional)',
+                  'Surface loss (dB, optional)',
+                ),
+              ),
+              _rfNumber(
+                asset,
+                'lossDbPerM',
+                t(
+                  'Materialdämpfung (dB/m, optional)',
+                  'Material loss (dB/m, optional)',
+                ),
+              ),
+              const Divider(),
+            ],
             TextButton.icon(
               onPressed: _busy ? null : () => _prepare(false),
               icon: const Icon(Icons.file_open),

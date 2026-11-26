@@ -163,6 +163,17 @@ final class SceneryAssetProviders {
           } else
             'heightAlignmentMode': extension['heightAlignmentMode'] ?? 'fixed',
           'physicalCollisionsEnabled': collision['enabled'],
+          if (extension.containsKey('rfMaterials') ||
+              manifest.assets.any((a) => a.rf != null))
+            'rfMaterials': {
+              if (collision['enabled'] == true)
+                for (final a in manifest.assets.where(
+                  (a) =>
+                      a.rf != null &&
+                      (collision['assetIds'] as List).contains(a.id),
+                ))
+                  resolved[a.id]!: a.rf,
+            },
           if (collision['sidedness'] != 'double')
             'collisionSidedness': collision['sidedness'],
           if (collision['enabled'] == true &&

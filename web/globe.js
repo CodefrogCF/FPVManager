@@ -980,6 +980,7 @@ function postToFlutter(message) {
             case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
             case "set-route-editor": stopNavigation(); return routeEditor.set(command, signal);
+            case 'query-scenery-radio': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery RF unavailable');return sceneryManager.radioPaths(command,signal);
             case "set-signal-analysis": return signalAnalysis.set(command);
             case "set-visible-routes": return routeOverlays.set(command, signal);
             case "frame-visible-routes": stopNavigation(); await routeOverlays.frame(command.routeId, signal); return {};
@@ -1259,6 +1260,7 @@ function postToFlutter(message) {
             {diagnosticsEnabled:()=>liveRadio.diagnosticsEnabled,
                 diagnostics:()=>liveRadio.diagnostics()}),device=document.getElementById('navigation-device');
         liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,language:rendererLanguage,
+            sceneryPath:(...args)=>sceneryManager?.radioPath(...args)??{complete:false,obstructions:0,lossDb:0},
             onAssessmentChange:()=>{if(flyer?.active){flyer.linkAssessment(liveRadio.assessment());
                 flightHud.update(flyer.status(),viewer.camera.heading,liveRadio.assessment());}},
             layer:FPVSignalAnalysis.createLayer(Cesium,viewer,{name:'Simulated radio link'})});

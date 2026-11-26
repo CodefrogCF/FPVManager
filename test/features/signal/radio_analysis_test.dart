@@ -38,6 +38,37 @@ RadioAnalysisBatch batch(
 }
 
 void main() {
+  test('Scenery route geometry preserves terrain evidence and marks incomplete coverage', () {
+    const clear = RadioPathResult(
+      target: pilot,
+      state: RadioPathState.noSampledObstruction,
+    );
+    const blocked = RadioPathResult(
+      target: pilot,
+      state: RadioPathState.obstructed,
+    );
+    const partial = SceneryRadioReport(
+      complete: false,
+      obstructions: 0,
+      fresnelIntrusion: false,
+      lossDb: 0,
+      materials: [],
+    );
+    const wall = SceneryRadioReport(
+      complete: true,
+      obstructions: 2,
+      fresnelIntrusion: true,
+      lossDb: 40,
+      materials: ['brick'],
+    );
+    expect(clear.withScenery(wall).state, RadioPathState.obstructed);
+    expect(clear.withScenery(partial).state, RadioPathState.unknown);
+    expect(blocked.withScenery(partial).state, RadioPathState.obstructed);
+    expect(
+      () => SceneryRadioReport.fromJson({'complete': true, 'obstructions': -1}),
+      throwsFormatException,
+    );
+  });
   test('Fresnel SI formula and frequency scaling', () {
     expect(fresnelRadius(5800, 500, 500), closeTo(3.5947335, .0001));
     expect(

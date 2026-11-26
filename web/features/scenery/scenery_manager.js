@@ -56,6 +56,15 @@
                 !item.collisionAssets.length||item.collisionAssets.length>16||item.collisionAssets[0]!==item.collisionAsset||
                 new Set(item.collisionAssets).size!==item.collisionAssets.length||
                 item.collisionAssets.some(p=>typeof p!=='string'||!/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.fpc$/.test(p))))throw Error('Invalid collision assets');
+            if(item.rfLocalBounds!==undefined&&(!Array.isArray(item.rfLocalBounds)||item.rfLocalBounds.length!==6||item.rfLocalBounds.some(x=>!Number.isFinite(x)||Math.abs(x)>1e5)||item.rfLocalBounds.slice(0,3).some((x,i)=>x>item.rfLocalBounds[i+3])))throw Error('Invalid scenery RF bounds');
+            const rfMaterials={};
+            if(item.rfMaterials!==undefined){
+                if(!item.rfMaterials||typeof item.rfMaterials!=='object'||Array.isArray(item.rfMaterials)||Object.keys(item.rfMaterials).length>16)throw Error('Invalid scenery RF materials');
+                for(const [path,value] of Object.entries(item.rfMaterials)){
+                    if(!(item.collisionAssets??[item.collisionAsset]).includes(path))throw Error('Unknown RF collision asset');
+                    rfMaterials[path]=Collision.normalizeRf(value);
+                }
+            }
             if(!Array.isArray(item.assets)||!item.assets.length||item.assets.length>16)throw Error('Invalid scenery assets');
             const assets=item.assets.map(asset=>{
                 if(asset?.kind==='3d-tiles')return {kind:'3d-tiles',url:Tilesets.safeUrl(asset.url),options:Tilesets.normalizeOptions(asset.options)};
@@ -138,7 +147,7 @@
                 throw Error('Mismatched DGM underlay coverage or asset');
             if(terrainCertificates.some(c=>!c||!terrainCertificate||c.collisionSha256!==terrainCertificate.collisionSha256)||
                 (terrainCertificate&&JSON.stringify(terrainCertificates[0])!==JSON.stringify(terrainCertificate))||new Set(terrainCertificates.map(c=>JSON.stringify(c.polygon))).size!==terrainCertificates.length)throw Error('Mismatched terrain certificate list');
-            return {...item,replacement:Replacement.normalize(item.replacement,alignment),...A.normalizeEdit({...item,alignment,buildingRegions},alignment),heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,assets,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
+            return {...item,replacement:Replacement.normalize(item.replacement,alignment),...A.normalizeEdit({...item,alignment,buildingRegions},alignment),heightAlignmentMode,terrainCertificate,terrainCertificates,terrainUnderlay,assets,rfMaterials,loadRadiusM,unloadRadiusM,enabled:item.enabled!==false};
         });
     }
     // Certified ground patch is an offline geometry coverage proof, not an altitude survey.
@@ -311,7 +320,7 @@
         position=()=>{const x=viewer.camera.positionCartographic;return {latitude:C.Math.toDegrees(x.latitude),longitude:C.Math.toDegrees(x.longitude),height:x.height};},
         onStatus=()=>{},storage,now=()=>Date.now(),setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=60000,canLoad=()=>true,terrainKey=()=>null,terrainStable=()=>true,sampleGround=async()=>NaN,sampleSeamGround=null,terrainMaskActive=()=>false,regionalHeightMode=()=>false}={}){
         let unavailableEntries=[],initialCatalog=null;
-        let disposed=false,entries=new Map(),lastTick=-Infinity,catalogRevision=0,tileReadyRetryTimer=null,probeAbort=null;
+        let disposed=false,entries=new Map(),lastTick=-Infinity,catalogRevision=0,rfCatalogReady=false,tileReadyRetryTimer=null,probeAbort=null;
         const policy=streamingOptions(streaming);
         let lastMotion=null,localInFlight=0;
         const timings=new WeakMap(),history=[];
@@ -679,7 +688,7 @@
         async function initialize(){
             const rev=++catalogRevision;const catalog=validate(await fetchCatalog());
             if(disposed||rev!==catalogRevision)return;
-            initialCatalog={schemaVersion:1,sceneries:catalog};
+            initialCatalog={schemaVersion:1,sceneries:catalog};rfCatalogReady=true;
             for(const e of entries.values())remove(e);
             entries=new Map(catalog.map(item=>[item.id,{item,base:item,enabled:Object.hasOwn(prefs,item.id)&&typeof prefs[item.id]==='boolean'?prefs[item.id]:item.enabled,models:[],revision:0,state:'idle',ready:false}]));tick(true);
         }
@@ -729,9 +738,9 @@
             }
             catalogRevision++;
             for(const [id,e] of entries)if(next.get(id)!==e)remove(e);
-            entries=next;unavailableEntries=failures;tick(true);viewer.scene.requestRender?.();return snapshot();
+            entries=next;unavailableEntries=failures;rfCatalogReady=true;tick(true);viewer.scene.requestRender?.();return snapshot();
         }
-        function setEnabled(id,value){const e=entries.get(id);if(!e||typeof value!=='boolean')throw Error('Invalid scenery preference');e.enabled=value;prefs={...prefs,[id]:value};try{storage?.setItem(storageKey,JSON.stringify(prefs));}catch(_){}tick(true);return snapshot();}
+        function setEnabled(id,value){const e=entries.get(id);if(!e||typeof value!=='boolean')throw Error('Invalid scenery preference');if(e.enabled!==value)catalogRevision++;e.enabled=value;prefs={...prefs,[id]:value};try{storage?.setItem(storageKey,JSON.stringify(prefs));}catch(_){}tick(true);return snapshot();}
         function restorePreferences(values){if(!values||typeof values!=='object'||Array.isArray(values))throw Error('Invalid scenery preferences');for(const e of entries.values())if(Object.hasOwn(values,e.item.id)&&typeof values[e.item.id]==='boolean')setEnabled(e.item.id,values[e.item.id]);}
         function retry(id){const e=entries.get(id);if(!e)throw Error('Unknown scenery');remove(e);publish(e,'idle');tick(true);return snapshot();}
         function setEdit(id,value){
@@ -739,7 +748,7 @@
             const next=value===null?A.normalizeEdit(e.base,e.base.alignment):A.normalizeEdit(value,e.item.alignment);
             // Preserve verified readiness and avoid a second full GLB upload.
             const moved=next.alignment.longitude!==e.item.alignment.longitude||next.alignment.latitude!==e.item.alignment.latitude;
-            clearSeams(e);e.item={...e.item,...next};
+            catalogRevision++;clearSeams(e);e.item={...e.item,...next};
             if(moved){e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState='original';e.heightRetryAt=0;e.groundHeightM=null;}
             e.effectiveAlignment=e.item.heightAlignmentMode==='fixed'
                 ?original(e)
@@ -896,6 +905,74 @@
             }
             return {ready:true};
         }
+        // No network, no GPU picks, no physics tick dependency. The current
+        // committed collision snapshot is reused at the radio observation rate.
+        function radioPath(from,to,frequency,fraction=.6){
+            const valid=p=>p&&[p.latitude,p.longitude,p.height].every(Number.isFinite)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180&&Math.abs(p.height)<=100000;
+            if(!valid(from)||!valid(to)||!Number.isFinite(frequency)||frequency<10||frequency>100000||!Number.isFinite(fraction)||fraction<0||fraction>1)throw Error('Invalid scenery radio path');
+            const start=performance.now(),budget={nodes:8192,triangles:4096,deadline:start+6};let complete=rfCatalogReady,fresnel=false;
+            const crossings=[];const radius=fraction*Math.sqrt(299.792458/frequency*Math.hypot(distanceM(from,to),to.height-from.height)/4);
+            // Geographic bounds are coverage hints only, padded for Fresnel and
+            // local alignment changes. Missing geometry is not a clear path.
+            function nearRegion(region){
+                if(!region)return false;const latPad=radius/110000,lonPad=latPad/Math.max(.01,Math.cos(Math.max(Math.abs(from.latitude),Math.abs(to.latitude))*Math.PI/180));
+                if(Math.abs(region.east-region.west)>=359.9||lonPad>=180)return true;
+                return crossesRegion(from,to,{west:((region.west-lonPad+540)%360)-180,east:((region.east+lonPad+540)%360)-180,south:Math.max(-90,region.south-latPad),north:Math.min(90,region.north+latPad)});
+            }
+            for(const e of unavailableEntries)if(e.enabled&&(!e.safetyRegion||nearRegion(e.safetyRegion)))complete=false;
+            for(const e of entries.values()){
+                if(!e.enabled||!e.item.physicalCollisionsEnabled)continue;
+                if(e.preview){complete=false;continue;}
+                const frame=frameFor(e),p=frame.local(from),q=frame.local(to),d=q.map((x,i)=>x-p[i]),distance=Math.hypot(...d)*frame.scale;
+                if(distance<1)continue;
+                if(!e.collider||!heightReady(e)||!terrainStable()){
+                    const boxes=(e.item.collisionResources??[]).map(r=>r.metadata?.localBounds);
+                    if(!boxes.length&&e.item.rfLocalBounds&&(e.item.collisionAssets??[e.item.collisionAsset]).length===1)boxes.push(e.item.rfLocalBounds);
+                    if(boxes.length&&boxes.every(Boolean)&&heightReady(e)){
+                        if(boxes.some(box=>Collision.rfBoxInterval(box,0,p,d,radius/frame.scale)))complete=false;
+                    }else{
+                        // Bundled legacy assets have no explicit bounding box.
+                        // Use their configured geographic coverage, or an anchor
+                        // envelope; no forced loading outside the streaming budget.
+                        const r=e.item.unloadRadiusM;
+                        const near=nearRegion(e.item.collisionRegion)||Collision.rfBoxInterval([-r/frame.scale,-r/frame.scale,-1000000,r/frame.scale,r/frame.scale,1000000],0,p,d,radius/frame.scale);
+                        if(near)complete=false;
+                    }
+                    continue;
+                }
+                const paths=e.item.collisionAssets??[e.item.collisionAsset];
+                for(const [i,mesh] of (e.colliders??[e.collider]).entries()){
+                    if(crossings.length>=128){complete=false;break;}
+                    const trace=Collision.rfTrace(mesh,p,q,frame.scale,frequency,fraction,budget);
+                    complete=complete&&trace.complete;fresnel=fresnel||trace.fresnel;
+                    const material=Collision.normalizeRf(e.item.rfMaterials?.[paths[i]]);
+                    let previous=null;
+                    for(const hit of trace.hits){
+                        const at=hit.fraction*distance,lossDb=Collision.rfLoss(material,frequency,hit.cosine);
+                        // Only explicitly supplied slab thickness allows pairing
+                        // opposing faces; never infer solid volumes from scans.
+                        const expected=material.thicknessM===undefined?0:material.thicknessM/Math.max(.2,previous?.cosine??1);
+                        if(previous&&expected>0&&hit.normal.reduce((n,v,k)=>n+v*previous.normal[k],0)<-.95&&Math.abs(at-previous.at-expected)<=Math.max(.02,expected*.2)){previous=null;continue;}
+                        if(crossings.length>=128){complete=false;break;}
+                        crossings.push({id:e.item.id,material:material.material,at,lossDb});previous={...hit,at};
+                    }
+                }
+            }
+            // Coincident replacement/duplicate faces must not multiply loss.
+            crossings.sort((a,b)=>a.at-b.at);const hits=[];
+            for(const hit of crossings){const last=hits.at(-1);if(last&&Math.abs(hit.at-last.at)<=.01){if(hit.lossDb>last.lossDb)hits[hits.length-1]=hit;}else hits.push(hit);}
+            const lossDb=Math.min(160,hits.reduce((n,h)=>n+h.lossDb,0)+(hits.length===0&&fresnel?4:0));
+            return {complete,obstructions:hits.length,fresnelIntrusion:fresnel,lossDb,materials:[...new Set(hits.map(h=>h.material))],
+                nodes:8192-budget.nodes,triangles:4096-budget.triangles,durationMs:performance.now()-start};
+        }
+        async function radioPaths(command,signal){
+            if(!Array.isArray(command.rays)||command.rays.length>16)throw Error('Invalid scenery radio batch');
+            const revision=catalogRevision,paths=[];
+            for(const ray of command.rays){signal?.throwIfAborted?.();paths.push(radioPath(command.pilot,ray,command.frequencyMhz,command.fraction));
+                // Yield between rays rather than monopolizing the render loop.
+                if(paths.length<command.rays.length)await new Promise(resolve=>setTimeout(resolve,0));}
+            signal?.throwIfAborted?.();if(revision!==catalogRevision)throw Error('Scenery catalog changed during RF analysis');return {paths};
+        }
         function collision(from,to){
             let first=false;
             for(const e of entries.values())if(collisionReady(e)){
@@ -957,7 +1034,7 @@
         }
         function selectedScenery(primitive){return Array.from(entries.values()).find(e=>e.models.includes(primitive))?.item.id??null;}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
-        return {initialize,performanceSnapshot,resetPerformance:()=>{history.length=0;},inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
+        return {initialize,performanceSnapshot,resetPerformance:()=>{history.length=0;},inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,radioPath,radioPaths,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
     }
     return {validate,presets,streamingOptions,predictPoint,qualityOptions,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

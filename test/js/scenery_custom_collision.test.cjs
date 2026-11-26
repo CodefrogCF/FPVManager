@@ -79,3 +79,34 @@ test('malformed worker replies and transfer errors reject without leaking a requ
   await assert.rejects(sandbox.FPVSceneryCollision.parseAsync(buffer()),transferError?/transfer failure/:/worker result/);assert.equal(live,0);
  }
 });
+test('RF BVH sees walls and floors in both directions but not real openings',()=>{
+ const trace=(a,b,f=5800,r=0)=>Collision.rfTrace(mesh,a,b,1,f,r,{nodes:8192,triangles:4096});
+ for(const [a,b] of [[[-10,-5,2],[10,-5,2]],[[2,0,-2],[2,0,9]],[[10,-8,3.2],[10,-4,3.2]]]){
+  const forward=trace(a,b),reverse=trace(b,a);assert.ok(forward.complete&&forward.hits.length>0);assert.equal(forward.hits.length,reverse.hits.length);
+ }
+ assert.ok(trace([2,0,-2],[2,0,9]).hits.length>=2);
+ assert.equal(trace([-10,0,2],[10,0,2]).hits.length,0);
+ const exhausted=Collision.rfTrace(mesh,[2,0,-2],[2,0,9],1,868,.6,{nodes:1,triangles:1});assert.equal(exhausted.complete,false);
+});
+test('RF material defaults, frequency, explicit thickness and validation are independent of physics',()=>{
+ const loss=(material,f=5800,extra={},cos=1)=>Collision.rfLoss(Collision.normalizeRf({material,...extra}),f,cos);
+ assert.ok(loss('metal')>loss('reinforcedConcrete'));assert.ok(loss('reinforcedConcrete')>loss('glass'));
+ assert.ok(loss('concrete',5800)>loss('concrete',868));assert.ok(loss('brick',5800,{thicknessM:.3},.5)>loss('brick',5800,{thicknessM:.3}));
+ assert.equal(loss('wood',868,{surfaceLossDb:4,thicknessM:.2,lossDbPerM:10}),6);
+ assert.throws(()=>Collision.normalizeRf({material:'magic'}));assert.throws(()=>Collision.normalizeRf({thicknessM:-1}));
+});
+test('Fresnel envelope identifies a near miss with a wider low frequency zone',()=>{
+ const panel={bounds:[0,1,-5,0,5,5],children:[-1,2],vertices:[0,1,-5,0,5,-5,0,5,5,0,1,5],indices:[0,1,2,0,2,3]};
+ const trace=f=>Collision.rfTrace(panel,[-50,0,0],[50,0,0],1,f,.6,{nodes:8192,triangles:4096});
+ assert.equal(trace(868).hits.length,0);assert.equal(trace(868).fresnel,true);assert.equal(trace(5800).fresnel,false);
+});
+test('RF manager waits for independent geometry, deduplicates overlapping faces and clears disabled scenes',async()=>{
+ const a=item('a'),b=item('b');a.rfMaterials={['managed/'+key]:{material:'metal'}};b.rfMaterials={['managed/'+key]:{material:'glass'}};
+ const f=fixture({fetchCatalog:async()=>({schemaVersion:1,sceneries:[a,b]}),modelFactory:()=>new Promise(()=>{})});
+ try{await f.manager.initialize();await flush();f.manager.tick(true);await flush();f.manager.tick(true);await flush();
+ const p=geo([-10,-5,2]),q=geo([10,-5,2]);const both=f.manager.radioPath(p,q,5800,0);
+ assert.ok(both.complete);assert.ok(both.obstructions>0);assert.deepEqual(both.materials,['metal']);
+ f.manager.setEnabled('b',false);const one=f.manager.radioPath(p,q,5800,0);assert.equal(one.obstructions,both.obstructions);assert.equal(one.lossDb,both.lossDb);
+ f.manager.setEnabled('a',false);const clear=f.manager.radioPath(p,q,5800,0);assert.equal(clear.obstructions,0);assert.equal(clear.lossDb,0);
+ }finally{f.manager.dispose();}
+});

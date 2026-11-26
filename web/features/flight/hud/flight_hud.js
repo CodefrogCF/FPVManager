@@ -67,6 +67,7 @@
                     ?[`Detail: ${data.errorDetail.replace(/\s+/g,' ').trim().slice(0,160)}`]:[]),
                 `Path: ${metric(data.distanceMeters,' m')} | Samples: ${value('samples',value('sampleCount'))}`,
                 `Terrain: ${value('provider')} | Moved: ${metric(data.movementMeters,' m')}`,
+                ...(data.scenery ? ['control','video'].map(k=>{const r=data.scenery[k];return `SIM scenery ${k}: ${r.obstructions} hits | ${number(r.lossDb,1)} dB | ${r.complete?'complete':'partial'} | ${(r.materials??[]).join(', ')} | ${metric(r.durationMs,' ms')}`;}) : []),
                 `RC: ${number(fs.rcQuality,2)} | Failsafe: ${fs.phase??'normal'}`,
             ].join('\n');
             diagnosticPanel.hidden=false;

@@ -90,6 +90,89 @@
         }
         return best;
     }
+    // RF uses the same validated BVH but never the aircraft sphere or sidedness.
+    // Intersections are exact two-sided segment/triangle tests. Fresnel is a
+    // conservative capsule envelope over the portion of the ray near a leaf.
+    const rfMaterials=Object.freeze({
+        unknown:[12,22,12],concrete:[14,24,20],reinforcedConcrete:[22,36,35],
+        brick:[9,16,15],metal:[35,55,60],glass:[3,6,5],wood:[4,8,8]
+    }); // illustrative dB at 868/5800 MHz and nominal dB/m, not measurements
+    function normalizeRf(value={}){
+        if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['material','thicknessM','surfaceLossDb','lossDbPerM'].includes(k)))throw Error('Invalid scenery RF material');
+        const material=value.material??'unknown';if(!Object.hasOwn(rfMaterials,material))throw Error('Invalid scenery RF material');
+        for(const [key,min,max] of [['thicknessM',.01,20],['surfaceLossDb',0,100],['lossDbPerM',0,100]])if(value[key]!==undefined&&(!Number.isFinite(value[key])||value[key]<min||value[key]>max))throw Error('Invalid scenery RF '+key);
+        return {...value,material};
+    }
+    function rfLoss(profile,frequency,cosine){
+        const [lo,hi,perM]=rfMaterials[profile.material];
+        const mix=Math.max(0,Math.min(1,Math.log(frequency/868)/Math.log(5800/868)));
+        const surface=profile.surfaceLossDb??lo+(hi-lo)*mix;
+        const thickness=profile.thicknessM===undefined?0:profile.thicknessM/Math.max(.2,cosine);
+        return Math.min(100,surface+thickness*(profile.lossDbPerM??perM)*(profile.lossDbPerM===undefined?1+.5*mix:1));
+    }
+    function rfBoxInterval(bounds,offset,p,d,pad=0){
+        let lo=0,hi=1;
+        for(let j=0;j<3;j++){
+            const a=bounds[offset+j]-pad,b=bounds[offset+j+3]+pad;
+            if(Math.abs(d[j])<1e-12){if(p[j]<a||p[j]>b)return null;continue;}
+            const t=(a-p[j])/d[j],u=(b-p[j])/d[j];lo=Math.max(lo,Math.min(t,u));hi=Math.min(hi,Math.max(t,u));if(lo>hi)return null;
+        }
+        return [lo,hi];
+    }
+    function rfIntersection(p,d,tri,length){
+        const [a,b,c]=tri,u=sub(b,a),v=sub(c,a),h=cross(d,v),det=dot(u,h),n=cross(u,v),norm=Math.hypot(...n);
+        if(norm<1e-12||Math.abs(det)<norm*length*1e-10)return null;
+        const s=sub(p,a),i=dot(s,h)/det,j=dot(d,cross(s,u))/det,t=dot(v,cross(s,u))/det;
+        if(i< -1e-8||j< -1e-8||i+j>1+1e-8||t<=1e-9||t>=1-1e-9)return null;
+        return {fraction:t,cosine:Math.min(1,Math.abs(det)/(norm*length)),normal:n.map(x=>x/norm)};
+    }
+    function rfTrace(mesh,p,q,scale,frequency,fraction,budget){
+        const d=sub(q,p),length=Math.hypot(...d),distance=length*scale,hits=[];
+        let fresnel=false,complete=true;
+        if(length<1e-9||!mesh?.bounds||!mesh?.children)return {hits,fresnel,complete:false};
+        const coefficient=fraction*Math.sqrt(299.792458/frequency*distance)/scale;
+        const radius=t=>coefficient*Math.sqrt(Math.max(0,t*(1-t)));
+        const maxRadius=(lo,hi)=>radius(Math.max(lo,Math.min(hi,.5)));
+        const exhausted=()=>budget.nodes<=0||budget.triangles<=0||hits.length>=128||
+            (budget.deadline!==undefined&&performance.now()>=budget.deadline);
+        // First traverse the exact line. A dense Fresnel fringe must not
+        // consume the work budget before a real wall is checked.
+        const stack=[0];
+        while(stack.length){
+            if(exhausted()){complete=false;break;}
+            budget.nodes--;const node=stack.pop(),offset=node*6;
+            if(!rfBoxInterval(mesh.bounds,offset,p,d))continue;
+            const left=mesh.children[node*2],right=mesh.children[node*2+1];if(left>=0){stack.push(right,left);continue;}
+            for(let k=-left-1;k<-left-1+right;k++){
+                if(exhausted()){complete=false;break;}
+                budget.triangles--;const hit=rfIntersection(p,d,triangle(mesh,k),length);
+                if(hit)hits.push({...hit,triangle:k});
+            }
+            if(!complete)break;
+        }
+        if(hits.length&&fraction>0)fresnel=true;
+        if(complete&&!fresnel&&fraction>0){
+            stack.push(0);
+            while(stack.length&&!fresnel){
+                if(exhausted()){complete=false;break;}
+                budget.nodes--;const node=stack.pop(),offset=node*6;
+                const interval=rfBoxInterval(mesh.bounds,offset,p,d,maxRadius(0,1));if(!interval)continue;
+                const r=maxRadius(...interval),near=rfBoxInterval(mesh.bounds,offset,p,d,r);if(!near)continue;
+                const left=mesh.children[node*2],right=mesh.children[node*2+1];if(left>=0){stack.push(right,left);continue;}
+                const a=lerp(p,q,near[0]),b=lerp(p,q,near[1]);
+                for(let k=-left-1;k<-left-1+right;k++){
+                    if(exhausted()){complete=false;break;}
+                    budget.triangles--;
+                    if(r>0&&T.sweptSphereHitsTriangle(a,b,triangle(mesh,k),r*r)){fresnel=true;break;}
+                }
+                if(!complete)break;
+            }
+        }
+        // Coplanar face triangles and shared edges are one surface crossing.
+        hits.sort((a,b)=>a.fraction-b.fraction);const unique=[];
+        for(const hit of hits){const last=unique.at(-1);if(last&&(hit.fraction-last.fraction)*distance<=.01){if(hit.cosine>last.cosine)unique[unique.length-1]=hit;}else unique.push(hit);}
+        return {hits:unique,fresnel,complete};
+    }
     // Same WGS84 local ENU transform as scenery_alignment.modelMatrix,
     // including clockwise heading and the Cesium model's uniform scale.
     const rad=Math.PI/180;
@@ -109,5 +192,5 @@
         const primitive=new C.Primitive({geometryInstances:new C.GeometryInstance({geometry,attributes:{color:C.ColorGeometryInstanceAttribute.fromColor(C.Color.ORANGE.withAlpha(.8))}}),appearance:new C.PerInstanceColorAppearance({flat:true,translucent:true}),modelMatrix:matrix,asynchronous:false,allowPicking:false});
         viewer.scene.primitives.add(primitive);return primitive;
     }
-    return {parse,parseAsync,load,sweep,transform,contact,visualize,maxBytes};
+    return {parse,parseAsync,load,sweep,transform,contact,visualize,maxBytes,rfTrace,rfBoxInterval,normalizeRf,rfLoss};
 });
