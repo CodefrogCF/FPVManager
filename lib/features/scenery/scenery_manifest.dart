@@ -408,8 +408,12 @@ final class SceneryAsset {
     }
     if (a['provider'] == 'managed' &&
         (!isManagedSceneryKey(a['uri'] as String) ||
-            a['format'] != 'glb' ||
-            a['role'] != 'visual' ||
+            !(a['format'] == 'glb' &&
+                    a['role'] == 'visual' &&
+                    a['uri'].endsWith('.glb') ||
+                a['format'] == 'fpc' &&
+                    a['role'] == 'collision' &&
+                    a['uri'].endsWith('.fpc')) ||
             model == null)) {
       throw const FormatException('Invalid managed model definition');
     }

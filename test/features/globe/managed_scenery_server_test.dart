@@ -6,6 +6,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpvmanager/features/globe/globe_asset_server.dart';
 
 void main() {
+  test('managed FPC uses the same origin-restricted route and a binary content type', () async {
+    final key = '${'b' * 64}.fpc',
+        server = await GlobeAssetServer.start(
+          paths: {},
+          managedScenery: (value) async {
+            expect(value, key);
+            return Uint8List.fromList([1, 2, 3]);
+          },
+        ),
+        client = HttpClient();
+    try {
+      final response = await (await client.getUrl(
+        server.origin.resolve('/assets/scenery/managed/$key'),
+      )).close();
+      expect(response.statusCode, 200);
+      expect(
+        response.headers.contentType?.mimeType,
+        'application/octet-stream',
+      );
+      await response.drain<void>();
+    } finally {
+      client.close(force: true);
+      await server.close();
+    }
+  });
   test('managed asset route restricts key, method and origin', () async {
     var reads = 0;
     final key = '${'a' * 64}.glb';

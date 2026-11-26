@@ -200,8 +200,9 @@ String sceneryResourcePath(String raw) {
 }
 
 Future<(Uint8List, Map<String, dynamic>, String)> _validateModel(
-  (Uint8List, Map<String, Uint8List>) input,
-) async {
+  (Uint8List, Map<String, Uint8List>) input, {
+  bool captureGeometry = false,
+}) async {
   final (doc, glbBin) = _readDocument(input.$1);
   const extensions = {'KHR_materials_unlit', 'KHR_texture_transform'};
   final pending = <Object?>[doc];
@@ -626,9 +627,16 @@ Future<(Uint8List, Map<String, dynamic>, String)> _validateModel(
     }
   }
   final world = _emptyBounds();
+  final geometry = <(Float32List, Uint32List)>[];
+  var geometryVertices = 0, geometryIndices = 0;
   var drawnTriangles = 0;
   final visited = <int>{};
-  void walk(int id, List<double> parent, Set<int> path, {bool render = true}) {
+  Future<void> walk(
+    int id,
+    List<double> parent,
+    Set<int> path, {
+    bool render = true,
+  }) async {
     if (path.length > 64 || !path.add(id)) {
       _fail('Cyclic or excessively deep node hierarchy');
     }
@@ -653,10 +661,86 @@ Future<(Uint8List, Map<String, dynamic>, String)> _validateModel(
         if (drawnTriangles > SceneryImportLimits.elements) {
           _fail('Too many rendered triangles');
         }
+        if (captureGeometry) {
+          final determinant =
+              transform[0] *
+                  (transform[5] * transform[10] - transform[9] * transform[6]) -
+              transform[4] *
+                  (transform[1] * transform[10] - transform[9] * transform[2]) +
+              transform[8] *
+                  (transform[1] * transform[6] - transform[5] * transform[2]);
+          for (final raw in _list(_object(meshes[mesh]), 'primitives')) {
+            final primitive = _object(raw),
+                layout =
+                    layouts[(primitive['attributes'] as Map)['POSITION']
+                        as int];
+            final indicesLayout = primitive['indices'] == null
+                ? null
+                : layouts[primitive['indices'] as int];
+            final count = indicesLayout?.$3 ?? layout.$3,
+                mode = primitive['mode'] ?? 4;
+            final triangles = mode == 4 ? count ~/ 3 : count - 2;
+            if ((geometryVertices + layout.$3) * 12 +
+                    (geometryIndices + triangles * 3) * 4 +
+                    (geometryIndices ~/ 3 + triangles) * 8 +
+                    48 >
+                SceneryImportLimits.bytes) {
+              _fail('Collision geometry exceeds the 64 MiB resource limit');
+            }
+            final vertices = Float32List(layout.$3 * 3),
+                indices = Uint32List(triangles * 3);
+            for (var i = 0; i < layout.$3; i++) {
+              final p = transformSceneryPoint(transform, [
+                for (var j = 0; j < 3; j++)
+                  bd.getFloat32(
+                    layout.$1 + i * layout.$2 + j * 4,
+                    Endian.little,
+                  ),
+              ]);
+              vertices.setRange(i * 3, i * 3 + 3, [p[2], p[0], p[1]]);
+              if (i % 16384 == 0) await Future<void>.delayed(Duration.zero);
+            }
+            int vertex(int i) {
+              if (indicesLayout == null) return i;
+              final off = indicesLayout.$1 + i * indicesLayout.$2;
+              return indicesLayout.$4 == 5121
+                  ? bd.getUint8(off)
+                  : indicesLayout.$4 == 5123
+                  ? bd.getUint16(off, Endian.little)
+                  : bd.getUint32(off, Endian.little);
+            }
+
+            for (var i = 0; i < triangles; i++) {
+              final ids = mode == 4
+                  ? [vertex(i * 3), vertex(i * 3 + 1), vertex(i * 3 + 2)]
+                  : mode == 5
+                  ? [
+                      vertex(i + (i.isOdd ? 1 : 0)),
+                      vertex(i + (i.isOdd ? 0 : 1)),
+                      vertex(i + 2),
+                    ]
+                  : [vertex(0), vertex(i + 1), vertex(i + 2)];
+              if (determinant < 0) {
+                final swap = ids[1];
+                ids[1] = ids[2];
+                ids[2] = swap;
+              }
+              indices.setRange(
+                i * 3,
+                i * 3 + 3,
+                ids.map((id) => id + geometryVertices),
+              );
+              if (i % 8192 == 0) await Future<void>.delayed(Duration.zero);
+            }
+            geometry.add((vertices, indices));
+            geometryVertices += layout.$3;
+            geometryIndices += indices.length;
+          }
+        }
       }
     }
     for (final child in _list(n, 'children')) {
-      walk(_index(child, nodes.length), transform, path, render: render);
+      await walk(_index(child, nodes.length), transform, path, render: render);
     }
     path.remove(id);
   }
@@ -678,12 +762,12 @@ Future<(Uint8List, Map<String, dynamic>, String)> _validateModel(
   for (final root in rootIds) {
     final id = _index(root, nodes.length);
     if (!roots.add(id) || parents[id] != 0) _fail('Invalid scene root');
-    walk(id, sceneryIdentityMatrix(), <int>{});
+    await walk(id, sceneryIdentityMatrix(), <int>{});
   }
   // Validate unused nodes too; never leave a hidden cyclic graph in the GLB.
   for (var id = 0; id < nodes.length; id++) {
     if (!visited.contains(id)) {
-      walk(id, sceneryIdentityMatrix(), <int>{}, render: false);
+      await walk(id, sceneryIdentityMatrix(), <int>{}, render: false);
     }
   }
   if (drawnTriangles == 0 || world.any((v) => !v.isFinite)) {
@@ -703,9 +787,31 @@ Future<(Uint8List, Map<String, dynamic>, String)> _validateModel(
       'textures': images.length,
       'estimatedBytes': estimated,
       'byteLength': output.length,
+      if (captureGeometry) 'collisionGeometry': geometry,
     },
     '${await sceneryDigest(output)}.glb',
   );
+}
+
+/// Reuses the exact validated default scene, node transforms and Cesium axis
+/// conversion used for visible GLB import. Never reads a renderer visual LOD.
+Future<(Float32List, Uint32List)> extractSceneryCollisionGeometry(
+  Uint8List glb,
+) => compute(_collisionGeometry, glb);
+Future<(Float32List, Uint32List)> _collisionGeometry(Uint8List bytes) async {
+  final result = await _validateModel((bytes, {}), captureGeometry: true);
+  final chunks =
+      result.$2['collisionGeometry'] as List<(Float32List, Uint32List)>;
+  final vertices = Float32List(chunks.fold<int>(0, (n, c) => n + c.$1.length));
+  final indices = Uint32List(chunks.fold<int>(0, (n, c) => n + c.$2.length));
+  var v = 0, i = 0;
+  for (final chunk in chunks) {
+    vertices.setRange(v, v + chunk.$1.length, chunk.$1);
+    indices.setRange(i, i + chunk.$2.length, chunk.$2);
+    v += chunk.$1.length;
+    i += chunk.$2.length;
+  }
+  return (vertices, indices);
 }
 
 List<double> sceneryIdentityMatrix() => [

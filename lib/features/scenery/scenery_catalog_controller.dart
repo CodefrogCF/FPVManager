@@ -9,6 +9,7 @@ import 'scenery_storage.dart';
 import 'scenery_storage_platform.dart';
 import 'scenery_model_import.dart';
 import 'scenery_alignment_edit.dart';
+import 'scenery_collision_import.dart';
 
 typedef SceneryCommand = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> command,
@@ -187,6 +188,87 @@ final class SceneryCatalogController {
         'Alignment was saved; renderer synchronization failed: $error',
       );
     }
+  });
+
+  Future<Map<String, dynamic>> saveCollision(
+    SceneryManifest expected,
+    SceneryManifest draft,
+    List<PreparedSceneryCollision> pending,
+  ) => _serial(() async {
+    final definitions = await _database(repository.list);
+    final current = definitions.where((m) => m.id == expected.id).firstOrNull;
+    if (current == null ||
+        jsonEncode(current.toJson()) != jsonEncode(expected.toJson())) {
+      throw StateError('Scenery changed. Reopen collision settings.');
+    }
+    final config = draft.toJson()['collision'] as Map;
+    final next = configureSceneryCollision(
+      current,
+      (draft.toJson()['assets'] as List)
+          .where((a) => a['role'] == 'collision')
+          .cast<Map<String, dynamic>>()
+          .toList(),
+      enabled: config['enabled'] as bool,
+      sidedness: config['sidedness'] as String,
+    );
+    final referenced = definitions
+            .expand((m) => m.assets)
+            .map((a) => a.uri)
+            .toSet(),
+        created = <String>[];
+    await _database(() async {
+      try {
+        for (final mesh in pending) {
+          final asset = next.assets
+              .where(
+                (a) =>
+                    a.role == 'collision' &&
+                    a.provider == 'managed' &&
+                    a.uri == mesh.key,
+              )
+              .firstOrNull;
+          if (asset == null) continue;
+          if (jsonEncode(asset.model) != jsonEncode(mesh.metadata)) {
+            throw const FormatException('Collision metadata mismatch');
+          }
+          if (await storage.put(mesh.key, mesh.bytes)) created.add(mesh.key);
+          _checkOpen();
+        }
+        if (!canSend()) {
+          throw StateError(
+            'Stop navigation before committing collision geometry',
+          );
+        }
+        await repository.update(next);
+      } catch (_) {
+        for (final key in created) {
+          if (!referenced.contains(key)) await storage.remove(key);
+        }
+        rethrow;
+      }
+    });
+    final retained = (await _database(repository.list))
+        .expand((m) => m.assets)
+        .map((a) => a.uri)
+        .toSet();
+    for (final asset in current.assets.where(
+      (a) => a.role == 'collision' && a.provider == 'managed',
+    )) {
+      if (!retained.contains(asset.uri)) {
+        try {
+          await _database(() => storage.remove(asset.uri));
+        } catch (_) {
+          /* Shared definitions remain authoritative. */
+        }
+      }
+    }
+    final result = await _synchronize();
+    if (pending.isNotEmpty &&
+        jsonEncode(current.toJson()) == jsonEncode(next.toJson()) &&
+        canSend()) {
+      return send({'type': 'retry-scenery', 'id': current.id});
+    }
+    return result;
   });
 
   Future<Map<String, dynamic>> remove(String id) => _serial(() async {

@@ -725,6 +725,7 @@ function postToFlutter(message) {
                 if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before aligning scenery');
                 await sceneryCatalogReady;if(!sceneryEditor)throw Error('Scenery editor unavailable');resetBridgeHeightMatch();return sceneryEditor.begin(command);
             case 'scenery-alignment-result': sceneryEditor?.result(command.token,command.error);return {};
+            case 'set-scenery-collision-debug': if(navigationActive())throw Error('Stop navigation before changing collision visualization');return {sceneries:sceneryManager.setCollisionDebug(command.id,command.enabled)};
             case 'cancel-scenery-alignment': sceneryEditor?.close();return {};
             case 'scenery-catalog': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery unavailable');return {catalog:sceneryManager.bundledCatalog()};
             case 'replace-scenery-catalog':
@@ -1442,6 +1443,7 @@ function postToFlutter(message) {
         flyer=FPVFreeFlight.createSimulator({...cameraAdapter,
             renderedHeight:point=>tunnelVolumes?.floorAt(point)??sceneryManager?.replacementHeight(point,poly=>regional3D?.terrainMaskActive(poly)===true)??flightRenderer.renderedHeight(point),
             measurePhysicsStep:(integrate,dt)=>scenePerformance.measurePhysicsStep(integrate,dt),
+            collisionAvailability:(from,to)=>sceneryManager?.collisionAvailability(from,to)??{ready:true},
             modeledCollision:(from,to)=>tunnelVolumes?.intersects(from,to)===true ? 'tunnel' :
                 // A surface-height approximation must not fill the interior of
                 // an explicitly modeled synthetic tube. Its geometric walls,

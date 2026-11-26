@@ -20,7 +20,7 @@ This is the current technical reference; chronological changes belong in the
 | Workbench view and local data relay | `tool/scenery/cesium_georeference_workbench.html`, `tool/scenery/serve_workbench.py` |
 | Reproducible reconstructions, measurement reports and regressions | `tool/scenery/`, `test/js/scenery_*.test.cjs`, `tool/scenery/test_ruedersdorf_*.py` |
 
-The **main GLB and FPC are built together**: physical collisions must match the
+The **bundled reference GLB and FPC are built together**: physical collisions must match the
 rendered triangles exactly. `catalog.json` and every terrain certificate must
 contain the SHA-256 of the current FPC. When scan/replacement geometry changes,
 certificates must not continue pointing to a different FPC unchanged. An updated
@@ -77,8 +77,8 @@ provider supports self-contained GLB and FPC within the scenery asset root. The
 The `remote-tiles` provider resolves checked HTTPS 3D Tiles endpoints.
 Other providers/formats can be defined and stored; a scene remains
 **unavailable** without a matching loader or when its minimum app version is too
-high. Front-/back-only collision and newly tilted, previously terrain-calibrated
-scenes remain unavailable until implemented or recalibrated appropriately.
+high. Newly tilted, previously terrain-calibrated scenes remain unavailable until
+recalibrated appropriately.
 Unsupported formats are never presented as GLB or valid collision geometry.
 
 The bridge message `replace-scenery-catalog` transfers a complete resolved catalog.
@@ -149,8 +149,8 @@ terrain, then local ENU heading/pitch/roll and uniform scale. Generic relative
 placement samples the model anchor; it does not reuse reference-site ground
 controls. Missing terrain hides the model until alignment succeeds; a stalled
 height request reaches an explicit recoverable error. Newly imported visuals do
-not create collision geometry (#149), replacement regions (#150) or RF obstacles
-(#153). Existing collision-backed reference scenes retain their own behavior.
+not automatically create collision geometry, replacement regions (#150) or RF
+obstacles (#153). The collision workflow below attaches physical meshes explicitly. Existing collision-backed reference scenes retain their own behavior.
 
 Regression coverage includes synthetic imports, unsafe/missing resources,
 allocation limits, database/file restart, rollback and shutdown, UI cancellation,
@@ -245,8 +245,9 @@ credits, CORS/HTTP failures, timeout/cancellation, partial-tile recovery,
 activation/aircraft priority, bounds/transforms, resource release, persistence,
 backup, UI cancellation and bridge replay. The live check is integration evidence,
 not a hardware performance benchmark. Android/iOS and native UI smoke tests remain
-release checks. Remote scenery is visual only: collision meshes (#149), replacement
-regions (#150), packages (#152) and scenery RF obstruction (#153) remain separate.
+release checks. Remote tiles are visual by default; attach independent local
+collision meshes through the workflow below. Replacement regions (#150), packages
+(#152) and scenery RF obstruction (#153) remain separate.
 
 ## Interactive alignment editor (#148)
 
@@ -299,6 +300,75 @@ persistence/restart, real bridge replay and conflicts. Headless Chromium exercis
 the actual Cesium editor with numerical fields, mouse/touch PointerEvents,
 rotation, views, snapping, fitting and geometry picking. These synthetic gestures
 do not replace Android/iOS device interaction tests or hardware benchmarks.
+
+## Custom collision meshes (#149)
+
+`scenery_collision_import.dart` validates FPC1 or builds a deterministic median-split
+triangle BVH from the default scene validated by `SceneryModelImporter`. GLB node
+transforms, strips/fans and the existing glTF-to-ENU axis conversion are reused;
+mirrored nodes retain authored front winding. Generation removes only zero-area
+triangles, without simplification, capping or hole filling. Texture alpha does not
+remove physical triangles. Prepared bytes/metadata are immutable snapshots.
+
+FPC1 is little-endian: four uint32 header fields (`FPC1`, vertex count, triangle
+count, node count), float32 XYZ vertices, uint32 triangle indices, six float32 bounds
+per node and two int32 links per node. Nodes are depth-first; leaves encode
+`[-firstTriangle-1, count]`, with at most 16 triangles. Validators enforce finite
+local coordinates within 100 km, byte/index bounds, contiguous triangle coverage,
+parent containment and depth at most 48. Independent FPC imports reject degenerate
+faces. Geometry remains in model-local metres, separate from world placement.
+
+Managed `.fpc` keys reuse content-addressed storage, checksum verification,
+loopback/cache-only transport and shared-file cleanup. Collision settings preserve
+source/visual assets, compare the stored definition before commit, roll back new
+unreferenced files on DB failure and retain committed data on bridge failure.
+Legacy bundled collider bounds are validated before adding them to a managed
+collision configuration. Schema 13/manifest v1 remain unchanged. Backups contain
+definitions, not the physical files.
+
+Custom `collisionIndependent` entries start physical loading separately from visuals.
+One physical load progresses at a time alongside visual loading; queued entries,
+deadlines, cancellation and separate physical/visual generations prevent stuck
+slots or late attachment. Supported browsers validate in an owned worker and
+transfer the buffer back; the main thread makes typed views without another BVH
+walk. Malformed worker replies and transfer errors reject and release ownership.
+Targets are 64 MiB per file, 128 MiB active custom collision data and 512 MiB shared
+local storage, not a total CPU/GPU-memory or device performance guarantee.
+
+`collisionAvailability` is separate from triangle contact. A proposed sweep into
+requested but unready geometry pauses translation with an explicit simulator reason;
+it does not fabricate a surface, change the RC observation or trigger failsafe.
+Known local bounds use a swept AABB check; unresolved height/provider cases use
+conservative geographic coverage, including antimeridian crossings. Required
+unavailable definitions retain this protection. Retry or disable after stopping
+navigation. Loaded custom meshes remain active across texture errors, visual LOD
+and opacity changes; legacy reference calibration/replacement policy is preserved.
+
+Actual contact reuses the existing swept-sphere triangle narrow phase and BVH,
+with double/front/back winding selection and shared ENU transforms. Advanced
+physics retains its fixed-step collision response. Legacy keeps its existing
+integration/response; new custom-mesh contacts use time of impact and the existing
+1 cm backoff, checking terrain along the shortened movement. Terrain, bridge and
+tunnel collision paths remain in use. Physical wireframes are optional owned
+primitives, separate from the CPU geometry and disabled by default.
+
+Regression fixtures are synthetic CC0: a room with door/window gaps, floors,
+ceiling, columns, beams and an open cylindrical pipe, plus a 9,800-triangle grid.
+Dart-generated FPC fixtures are consumed by the JS parser/sweeps. Tests cover
+transforms/winding, storage/backup/rollback, worker cancellation, corrupt cache,
+missing-data recovery, both physics modes and 30/60/120 render FPS. Chromium
+renders the actual physical wireframe and reloads FPC from cache without HTTP
+fallback. Physical-device and hardware performance checks remain release work.
+
+```sh
+node tool/benchmarks/scenery_collision.cjs
+```
+
+This optional CPU microbenchmark compares the existing BVH against an
+unaccelerated traversal of identical triangles, reporting latency and candidate
+counts. It is not an application before/after or mobile/GPU benchmark. Update
+synthetic binary fixtures explicitly with `flutter test --update-goldens
+test/features/scenery/scenery_collision_import_test.dart`.
 
 ## Geometry and orientation
 

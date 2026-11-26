@@ -12,9 +12,10 @@ abstract interface class SceneryStorage {
 }
 
 bool isManagedSceneryKey(String key) =>
-    RegExp(r'^[a-f0-9]{64}\.glb$').hasMatch(key);
+    RegExp(r'^[a-f0-9]{64}\.(glb|fpc)$').hasMatch(key);
 Future<void> verifyManagedScenery(String key, Uint8List bytes) async {
-  if (!isManagedSceneryKey(key) || '${await sceneryDigest(bytes)}.glb' != key) {
+  if (!isManagedSceneryKey(key) ||
+      '${await sceneryDigest(bytes)}.${key.split('.').last}' != key) {
     throw const FormatException('Scenery file checksum mismatch');
   }
 }

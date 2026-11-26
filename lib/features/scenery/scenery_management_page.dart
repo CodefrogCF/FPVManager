@@ -8,6 +8,8 @@ import 'scenery_model_import.dart';
 import 'scenery_import_files.dart';
 import 'scenery_tileset_dialog.dart';
 import 'scenery_tileset_options.dart';
+import 'scenery_collision_dialog.dart';
+import 'scenery_collision_import.dart';
 
 /// Definition management; selecting/importing new asset bytes belongs to the
 /// asset provider/import workflow. Existing templates retain their provenance.
@@ -23,6 +25,8 @@ class SceneryManagementPage extends StatefulWidget {
     this.pickImport,
     this.probeTileset,
     this.align,
+    this.generateCollider,
+    this.saveCollision,
   });
   final Future<List<SceneryManifest>> Function() load, templates;
   final Future<void> Function(SceneryManifest manifest, bool create) save;
@@ -33,6 +37,13 @@ class SceneryManagementPage extends StatefulWidget {
   final Future<(String, PreparedSceneryModel)?> Function()? pickImport;
   final SceneryTilesetProbe? probeTileset;
   final Future<void> Function(String? id)? align;
+  final SceneryColliderGenerator? generateCollider;
+  final Future<void> Function(
+    SceneryManifest,
+    SceneryManifest,
+    List<PreparedSceneryCollision>,
+  )?
+  saveCollision;
   @override
   State<SceneryManagementPage> createState() => _SceneryManagementPageState();
 }
@@ -42,6 +53,32 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
   bool _busy = true;
   String? _error;
   String t(String de, String en) => widget.german ? de : en;
+  Future<void> _collision(SceneryManifest item) async {
+    final route = DialogRoute<SceneryCollisionSelection>(
+      context: context,
+      builder: (_) => SceneryCollisionDialog(
+        existing: item,
+        german: widget.german,
+        generate: widget.generateCollider!,
+      ),
+    );
+    final selection = await Navigator.of(context).push(route);
+    await route.completed;
+    if (selection == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.saveCollision!(item, selection.$1, selection.$2);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+    final error = _error;
+    await _load();
+    if (mounted && error != null) setState(() => _error = error);
+  }
+
   Future<void> _align(String? id) async {
     setState(() {
       _busy = true;
@@ -397,6 +434,13 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (widget.saveCollision != null &&
+                    widget.generateCollider != null)
+                  IconButton(
+                    tooltip: t('Kollisionsgeometrie', 'Collision geometry'),
+                    onPressed: _busy ? null : () => _collision(item),
+                    icon: const Icon(Icons.view_in_ar),
+                  ),
                 if (widget.align != null)
                   IconButton(
                     tooltip: t('Im Globus ausrichten', 'Align on globe'),

@@ -81,7 +81,7 @@
         const axis=(angle,x,y,z)=>({w:Math.cos(angle/2),x:x*Math.sin(angle/2),y:y*Math.sin(angle/2),z:z*Math.sin(angle/2)});
         return multiply(multiply(axis(yaw,0,0,1),axis(pitch,0,1,0)),axis(roll,1,0,0));
     }
-    function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,
+    function createSimulator({sampleHeight,renderedHeight,terrainCollision,modeledCollision=()=>false,collisionAvailability=()=>({ready:true}),
         onSurfaceDiscontinuity=()=>false,captureCamera,restoreCamera,applyPose,applyGraphics,prepareGraphics,
         isTerrainReady,onState,sampleWind=()=>null,measurePhysicsStep=null}){
         let active=false,pending=false,paused=false,playback=false,operation=0,abort=null,saved=null,spawn=null,position=null;
@@ -550,6 +550,9 @@
                !Number.isFinite(point.heading)||!Number.isFinite(point.pitch)||
                !Number.isFinite(point.speed))throw Error('Invalid replay pose');
             failsafe.reset();wasFailsafeControlled=false;
+            if(position&&collisionAvailability({...position,height},{latitude:point.latitude,longitude:point.longitude,height:point.height})?.ready===false){
+                clearKeys();brake();reason='Scenery collision geometry unavailable; replay paused';pose();return false;
+            }
             if(playback && position && modeledCollision({...position,height},
                 {latitude:point.latitude,longitude:point.longitude,height:point.height})) {
                 clearKeys();brake();reason='Simulated infrastructure model contact; replay paused';
@@ -815,15 +818,23 @@
                 advancedAssistedStep(dt,controlled?fs:null):
                 controlled?legacyAutomatedStep(dt,fs):config.flightMode==='gps'?gpsStep(dt):fpvStep(dt);
             if(config.physicsModel==='legacy'||!controlled&&config.flightMode!=='gps')flightControl=null;
+            const proposed=move(position,travel.north,travel.east),availability=collisionAvailability({...position,height},{...proposed,height:height+travel.up});
+            if(availability?.ready===false){brake();reason='Scenery collision geometry unavailable: movement paused'+(availability.message?' · '+availability.message:'');pose();return;}
             // Consume simulated energy only after collision/terrain checks below.
             if(config.physicsModel==='advanced'){
                 const outcome=advancedCollisionTravel(travel,dt,floor);
                 reason=outcome.message;
             }else{
-            const horizontal=Math.hypot(travel.north,travel.east);
-            const endpoint=horizontal===0?position:move(position,travel.north,travel.east);
+            let horizontal=Math.hypot(travel.north,travel.east);
+            let endpoint=horizontal===0?position:move(position,travel.north,travel.east);
             const modeledContact=modeledCollision({...position,height},{...endpoint,height:height+travel.up});
-            if(modeledContact){
+            const resolvedMesh=modeledContact?.kind==='scenery'&&modeledContact.independent===true&&Number.isFinite(modeledContact.fraction);
+            if(resolvedMesh){
+                const length=Math.hypot(travel.north,travel.east,travel.up),fraction=Math.max(0,Math.min(1,modeledContact.fraction)-.01/Math.max(.01,length));
+                travel.north*=fraction;travel.east*=fraction;travel.up*=fraction;
+                horizontal=Math.hypot(travel.north,travel.east);endpoint=horizontal===0?position:move(position,travel.north,travel.east);
+            }
+            if(modeledContact&&!resolvedMesh){
                 brake();reason=modeledContact==='bridge' ? 'Simulated bridge or support surface contact: movement stopped' :
                     modeledContact==='model' ? 'Approximate rendered 3D surface contact: movement stopped (not surveyed)' :
                     modeledContact?.kind==='scenery' ? 'Simulated scenery surface contact: movement stopped' :
@@ -867,6 +878,7 @@
             if(contact){brake();reason=waitingForTunnel ?
                 'Tunnel continuation loading: movement paused':
                 'Terrain contact: movement stopped';}
+            else if(resolvedMesh){brake();reason='Simulated scenery surface contact: movement stopped';}
             else reason=missingSamples?'Terrain collision unverified: tiles still loading':null;
             }
             if(battery){

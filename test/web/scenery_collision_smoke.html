@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><title>Custom collision regression</title>
+<script src="../../web/cesium/Cesium.js"></script>
+<script src="../../web/features/scenery/scenery_alignment.js"></script>
+<script src="../../web/features/scene/scene_environment.js"></script>
+<script src="../../web/features/scenery/scenery_collision.js"></script>
+<script src="../../web/features/scenery/scenery_tileset_provider.js"></script>
+<script src="../../web/features/scenery/scenery_manager.js"></script>
+<canvas id="canvas" width="500" height="500"></canvas><div id="credits"></div><pre id="result">pending</pre>
+<script>
+(async()=>{
+ const C=Cesium,K=FPVSceneryCollision,A=FPVSceneryAlignment,checks=[],check=(ok,message)=>{if(!ok)throw Error(message);checks.push(message);};
+ let scene,manager,workers=0,live=0,revoked=0;const NativeWorker=Worker;
+ window.Worker=class extends NativeWorker{constructor(...args){super(...args);workers++;live++;this.released=false;}terminate(){if(!this.released){this.released=true;live--;}return super.terminate();}};
+ const revoke=URL.revokeObjectURL.bind(URL);URL.revokeObjectURL=url=>{revoked++;revoke(url);};
+ try{
+  const root=new URL('../../scenery-local/v1/',location.href).href,cache=await caches.open('fpvmanager-scenery-v1:'+root),resumed=location.search.includes('resume=1');let key;
+  if(!resumed){const bytes=await(await fetch('../fixtures/scenery/collision_room.fpc')).arrayBuffer();key=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('')+'.fpc';await cache.put(root+key,new Response(bytes));sessionStorage.setItem('fpc-key',key);}else key=sessionStorage.getItem('fpc-key');
+  const original=await(await cache.match(root+key)).arrayBuffer();
+  scene=new C.Scene({canvas:document.getElementById('canvas'),creditContainer:document.getElementById('credits'),contextOptions:{webgl:{preserveDrawingBuffer:true}}});scene.backgroundColor=C.Color.BLACK;
+  const pose={longitude:13.8,latitude:52.4,ellipsoidHeightM:100,rotationDeg:15,pitchDeg:0,rollDeg:0,scale:1,opacity:.3},viewer={scene,camera:scene.camera,cesiumWidget:{creditDisplay:scene.frameState.creditDisplay}};
+  const asset={path:'managed/'+key,managed:true,backend:'cache',cacheRoot:root,metadata:{localBounds:[0,-15,0,20,15,6],byteLength:original.byteLength}};
+  const item={id:'custom',name:'Synthetic collision room',author:'Tests',license:'CC0',enabled:true,alignment:pose,heightDatum:'WGS84 ellipsoid',heightAlignmentMode:'fixed',physicalCollisionsEnabled:true,collisionIndependent:true,collisionAsset:asset.path,collisionAssets:[asset.path],collisionResources:[asset],assets:[{kind:'glb',path:'synthetic.glb'}]};
+  manager=FPVSceneryManager.create(C,viewer,{fetchCatalog:async()=>({schemaVersion:1,sceneries:[item]}),position:()=>({longitude:13.8,latitude:52.4,height:102}),modelFactory:async()=>{throw Error('Synthetic unavailable visual LOD');}});
+  await manager.initialize();for(let i=0;i<300&&!manager.snapshot()[0].collisionReady;i++){manager.tick(true);scene.initializeFrame();scene.render(C.JulianDate.now());await new Promise(requestAnimationFrame);}
+  check(manager.snapshot()[0].collisionReady,'managed FPC loads offline even when visual LOD is unavailable and transparent');check(workers>0&&live===0,'actual collision worker validates bytes and terminates after transfer');
+  const point=(x,y,z)=>{const v=C.Matrix4.multiplyByPoint(A.modelMatrix(C,pose),new C.Cartesian3(x,y,z),new C.Cartesian3()),p=C.Cartographic.fromCartesian(v);return {longitude:C.Math.toDegrees(p.longitude),latitude:C.Math.toDegrees(p.latitude),height:p.height};};
+  check(!!manager.collision(point(-10,-5,2),point(10,-5,2)),'CPU wall sweep uses the persisted geographic transform');check(!manager.collision(point(-10,0,2),point(10,0,2)),'window stays flyable with no visual mesh');
+  manager.setCollisionDebug('custom',true);check(manager.snapshot()[0].collisionDebug,'optional physical mesh visualization is enabled');
+  scene.camera.lookAt(C.Cartesian3.fromDegrees(13.8,52.4,103),new C.HeadingPitchRange(.7,-.6,70));
+  const gl=scene.context._gl,pixels=new Uint8Array(500*500*4);let colored=0;
+  for(let i=0;i<150&&colored<20;i++){scene.initializeFrame();scene.render(C.JulianDate.now());gl.readPixels(0,0,500,500,gl.RGBA,gl.UNSIGNED_BYTE,pixels);colored=0;for(let j=0;j<pixels.length;j+=4)if(pixels[j]>30&&pixels[j]>pixels[j+2]*1.5)colored++;await new Promise(requestAnimationFrame);}
+  check(colored>20,'exact FPC wireframe produces visible GPU pixels');manager.setCollisionDebug('custom',false);check(scene.primitives.length===0&&manager.snapshot()[0].collisionReady,'hiding physical debug geometry leaves CPU collisions active');
+  const abort=new AbortController(),cancelled=K.parseAsync(original.slice(0),abort.signal);abort.abort();let rejected=false;try{await cancelled;}catch(error){rejected=error.name==='AbortError';}check(rejected&&live===0,'cancellation terminates a real worker and releases its request slot');
+  let invalid=false;try{await K.parseAsync(new ArrayBuffer(16));}catch(error){invalid=/header|asset/i.test(error.message);}check(invalid&&live===0,'invalid worker data fails explicitly without leaking a worker');
+  manager.dispose();manager=null;await cache.put(root+key,new Response(new Uint8Array([1,2,3])));
+  manager=FPVSceneryManager.create(C,viewer,{fetchCatalog:async()=>({schemaVersion:1,sceneries:[item]}),position:()=>({longitude:13.8,latitude:52.4,height:102}),modelFactory:async()=>{throw Error('No visual');}});
+  await manager.initialize();for(let i=0;i<100&&manager.snapshot()[0].collisionState!=='error';i++){await new Promise(requestAnimationFrame);manager.tick(true);}
+  check(manager.snapshot()[0].collisionState==='error'&&!manager.collisionAvailability(point(-10,0,2),point(10,0,2)).ready,'corrupt cached FPC remains explicitly unavailable, never a clear path');
+  await cache.put(root+key,new Response(original));manager.retry('custom');for(let i=0;i<150&&!manager.snapshot()[0].collisionReady;i++){await new Promise(requestAnimationFrame);manager.tick(true);}check(manager.snapshot()[0].collisionReady,'repaired cached geometry recovers through the normal retry path');check(revoked>0,'temporary FPC Blob URLs are released');
+  const result={status:'pass',checks,reloaded:resumed,coloredPixels:colored,workers};manager.dispose();manager=null;scene.destroy();scene=null;
+  if(!resumed){location.replace(location.pathname+'?resume=1');return;}document.body.dataset.status='pass';document.getElementById('result').textContent=JSON.stringify(result);
+ }catch(error){document.body.dataset.status='fail';document.getElementById('result').textContent=JSON.stringify({status:'fail',message:String(error.stack||error),checks});}
+ finally{manager?.dispose();if(scene&&!scene.isDestroyed())scene.destroy();}
+})();
+</script>

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../scenery/scenery_manifest.dart';
 import '../scenery/scenery_model_import.dart';
@@ -9,6 +10,7 @@ import '../scenery/scenery_model_import.dart';
 import '../scenery/scenery_repository.dart';
 import '../scenery/scenery_catalog_controller.dart';
 import '../scenery/scenery_alignment_session.dart';
+import '../scenery/scenery_collision_import.dart';
 
 import '../../core/osint/osint_provider.dart';
 import '../../core/osint/osint_dataset.dart';
@@ -1493,6 +1495,91 @@ class GlobeController extends ChangeNotifier {
   UserPreferencesRepository? _preferencesRepository;
   SceneryCatalogController? _sceneryCatalog;
   SceneryAlignmentSession? _sceneryAlignment;
+  Future<PreparedSceneryCollision> generateSceneryCollider(
+    SceneryManifest expected,
+    String assetId,
+  ) async {
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError('Stop navigation before preparing collision geometry');
+    }
+    final current = (await sceneryDefinitions())
+        .where((m) => m.id == expected.id)
+        .firstOrNull;
+    if (current == null ||
+        jsonEncode(current.toJson()) != jsonEncode(expected.toJson())) {
+      throw StateError('Scenery changed');
+    }
+    final asset = current.assets.firstWhere(
+      (a) => a.id == assetId && a.role == 'visual' && a.format == 'glb',
+    );
+    final Uint8List? bytes;
+    if (asset.provider == 'managed') {
+      bytes = await _sceneryCatalog!.readManagedModel(asset.uri);
+    } else if (asset.provider == 'bundled') {
+      bytes = (await rootBundle.load('web/assets/scenery/${asset.uri}')).buffer
+          .asUint8List();
+    } else {
+      throw StateError(
+        'This visual provider cannot generate a static collider',
+      );
+    }
+    if (bytes == null) {
+      throw StateError('Local model is unavailable; reimport it');
+    }
+    final mesh = await generateSceneryCollision(bytes);
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError(
+        'Navigation or renderer changed while preparing geometry',
+      );
+    }
+    return mesh;
+  }
+
+  Future<void> saveSceneryCollision(
+    SceneryManifest expected,
+    SceneryManifest draft,
+    List<PreparedSceneryCollision> pending,
+  ) async {
+    if (navigationActive || !_ready || _disposed || _sceneryCatalog == null) {
+      throw StateError('Stop navigation before changing collision geometry');
+    }
+    final doc = draft.toJson();
+    for (final asset in (doc['assets'] as List).cast<Map<String, dynamic>>()) {
+      if (asset['role'] == 'collision' &&
+          asset['provider'] == 'bundled' &&
+          asset['model'] == null) {
+        final data = await rootBundle.load(
+          'web/assets/scenery/${asset['uri']}',
+        );
+        asset['model'] = await compute(
+          validateSceneryCollision,
+          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        );
+      }
+    }
+    if (navigationActive || !_ready || _disposed) {
+      throw StateError('Navigation changed while preparing geometry');
+    }
+    await _sceneryCatalog!.saveCollision(
+      expected,
+      SceneryManifest.fromJson(doc),
+      pending,
+    );
+  }
+
+  Future<void> previewSceneryCollision(String id, bool enabled) async {
+    if (navigationActive) {
+      throw StateError(
+        'Stop navigation before changing collision visualization',
+      );
+    }
+    await _request({
+      'type': 'set-scenery-collision-debug',
+      'id': id,
+      'enabled': enabled,
+    });
+  }
+
   Future<void> alignScenery({String? id, required bool german}) async {
     final catalog = _sceneryCatalog;
     if (catalog == null) throw StateError('Scenery storage unavailable');

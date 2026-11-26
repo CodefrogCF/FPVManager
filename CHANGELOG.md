@@ -7,6 +7,9 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Fixed
 
+- Scenery control-point picking hides editor gizmos/bounds and bypasses handle
+  dragging while picking surfaces, so handles cannot consume pointer releases or
+  contaminate target depth. Extend the real browser regression for the reported CI failure.
 - Nearby aviation obstacles (including the Säntis tower) remain loaded through
   camera rotations, horizon views and temporary terrain-tile eviction. A padded,
   camera-centered region follows existing model ranges; identical region events
@@ -45,6 +48,15 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Added
 
+- Import independent scenery collision meshes (FPC1 or compatible local GLB/glTF),
+  or generate a static triangle BVH from a visual GLB. Retain real geometric
+  openings, bake node transforms/winding and support front/back/double-sided sweeps.
+  Persist verified collision files separately from visuals with atomic commits,
+  shared-file cleanup and offline loading. Custom colliders load independently of
+  visual LOD/opacity, validate in an abortable worker and expose optional wireframe
+  visualization. Missing required geometry pauses affected movement with a clear
+  HUD reason without creating an RC failsafe. Add synthetic rooms, openings,
+  curved pipes, dense BVH, physics, persistence and real browser regressions.
 - Add interactive globe scenery alignment with direct model selection, ENU
   translation and rotation handles, numerical placement, top-down/perspective
   views, terrain snap and opacity controls. Fit local models to geographic 3D

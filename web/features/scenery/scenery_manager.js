@@ -41,6 +41,15 @@
                 if(asset.path.startsWith('managed/'))throw Error('Managed models require storage metadata');
                 return {kind:'glb',path:asset.path};
             });
+            if(item.collisionIndependent!==undefined&&typeof item.collisionIndependent!=='boolean')throw Error('Invalid collision loading policy');
+            if(item.collisionSidedness!==undefined&&!['double','front','back'].includes(item.collisionSidedness))throw Error('Invalid collision sidedness');
+            if(item.collisionIndependent){
+                if(!Array.isArray(item.collisionResources)||item.collisionResources.length>16||item.collisionResources.length!==(item.collisionAssets??[]).length)throw Error('Invalid collision resources');
+                for(const resource of item.collisionResources){
+                    if(!resource||!(item.collisionAssets??[]).includes(resource.path)||resource.managed&&!/^managed\/[a-f0-9]{64}\.fpc$/.test(resource.path))throw Error('Invalid managed collision path');
+                    if(resource.managed&&(!['cache','server'].includes(resource.backend)||!resource.metadata||!Number.isSafeInteger(resource.metadata.byteLength)||resource.metadata.byteLength<16||resource.metadata.byteLength>64*1024*1024||!Array.isArray(resource.metadata.localBounds)||resource.metadata.localBounds.length!==6||!resource.metadata.localBounds.every(Number.isFinite)))throw Error('Invalid collision metadata');
+                }
+            }
             const loadRadiusM=item.loadRadiusM??2500,unloadRadiusM=item.unloadRadiusM??4000;
             if(!Number.isFinite(loadRadiusM)||!Number.isFinite(unloadRadiusM)||loadRadiusM<100||unloadRadiusM<=loadRadiusM||unloadRadiusM>30000)throw Error('Invalid scenery activation radii');
             const heightAlignmentMode=item.heightAlignmentMode??'terrain';
@@ -229,7 +238,7 @@
         const base=new URL(baseUrl),root=new URL(asset.cacheRoot);
         if(root.origin!==base.origin||root.search||root.hash||!root.pathname.endsWith('/scenery-local/v1/'))throw Error('Invalid scenery cache origin');
         const key=asset.path.split('/').at(-1);
-        if(!/^[a-f0-9]{64}\.glb$/.test(key))throw Error('Invalid scenery cache key');
+        if(!/^[a-f0-9]{64}\.(glb|fpc)$/.test(key))throw Error('Invalid scenery cache key');
         if(!cacheStorage||!crypto?.subtle)throw Error('Local scenery requires secure browser storage');
         const cache=await cacheStorage.open('fpvmanager-scenery-v1:'+root.href);
         // Cache-only lookup: an evicted local model must never turn into a
@@ -243,8 +252,8 @@
         catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
         const bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
         const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');
-        if(hash+'.glb'!==key)throw Error('Local scenery checksum mismatch. Reimport the model.');
-        const url=urls.createObjectURL(new Blob([bytes],{type:'model/gltf-binary'}));let released=false;
+        if(hash+'.'+key.split('.').at(-1)!==key)throw Error('Local scenery checksum mismatch. Reimport the model.');
+        const url=urls.createObjectURL(new Blob([bytes],{type:key.endsWith('.fpc')?'application/octet-stream':'model/gltf-binary'}));let released=false;
         return {url,release(){if(!released){released=true;urls.revokeObjectURL(url);}}};
     }
     function create(C,viewer,{fetchCatalog=()=>fetch(catalogUrl,{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Scenery catalog HTTP '+r.status);return r.json();}),
@@ -309,7 +318,7 @@
             if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}
             e.groundCollider=null;e.groundVerified=false;e.groundState='idle';e.groundError=null;
         }
-        function remove(e){e.remoteAbort?.abort();e.remoteAbort=null;for(const release of e.pendingResources??[])release();e.pendingResources?.clear();clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.colliders=[];e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
+        function remove(e){clearCollisionDebug(e);e.collisionReservedBytes=0;e.remoteAbort?.abort();e.remoteAbort=null;for(const release of e.pendingResources??[])release();e.pendingResources?.clear();clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.colliders=[];e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
         function escape(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
         // An estimated DGM1 absolute fallback is not visual evidence that the
         // active BKG/other terrain is aligned. Hide scenery until actual
@@ -385,25 +394,32 @@
             if(e.item.requireGroundCalibration)return e.heightState==='adjusted'&&e.heightKey!=null&&e.heightKey===terrainKey();
             return e.item.heightAlignmentMode==='fixed'||terrainKey()==null||!Number.isFinite(e.item.groundReferenceLocalUp)||(e.heightState==='adjusted'&&e.heightKey===terrainKey());
         }
-        function collisionReady(e){return !!(e.ready&&e.enabled&&e.collider&&e.item.physicalCollisionsEnabled&&e.item.alignment.opacity>=.99&&terrainStable()&&heightReady(e));}
+        function collisionReady(e){return !!((e.item.collisionIndependent||e.ready)&&e.enabled&&e.collider&&e.item.physicalCollisionsEnabled&&(e.item.collisionIndependent||e.item.alignment.opacity>=.99)&&terrainStable()&&heightReady(e));}
         function loadCollider(e,rev){
-            if(!e.item.physicalCollisionsEnabled)return;
+            if(!e.item.physicalCollisionsEnabled||['loading','ready'].includes(e.collisionState))return;
+            if(Array.from(entries.values()).some(x=>x!==e&&x.collisionState==='loading')){e.collisionState='queued';return;}
+            const required=(e.item.collisionResources??[]).reduce((n,r)=>n+(r.metadata?.byteLength??64*1024*1024),0),occupied=Array.from(entries.values()).filter(x=>x!==e&&x.item.collisionIndependent).reduce((n,x)=>n+(x.collisionReservedBytes??0),0);
+            if(e.item.collisionIndependent&&required+occupied>128*1024*1024){e.collisionState='error';e.collisionError='Collision geometry exceeds the active 128 MiB budget';return;}
+            e.collisionReservedBytes=required;
             const abort=new AbortController();e.collisionAbort=abort;e.collisionState='loading';
-            e.collisionTimer=setTimer(()=>{if(e.revision===rev&&!abort.signal.aborted){abort.abort();e.collider=null;e.collisionState='error';e.collisionError='Collision asset load timed out';e.collisionTimer=null;}},timeoutMs);
-            const current=()=>!disposed&&e.revision===rev&&!abort.signal.aborted;
+            e.collisionTimer=setTimer(()=>{if(e.collisionRevision===collisionRev&&!abort.signal.aborted){abort.abort();e.collisionReservedBytes=0;e.collider=null;e.collisionState='error';e.collisionError='Collision asset load timed out';e.collisionTimer=null;}},timeoutMs);
+            const collisionRev=(e.collisionRevision??0)+1;e.collisionRevision=collisionRev;const current=()=>!disposed&&e.collisionRevision===collisionRev&&!abort.signal.aborted;
             Promise.resolve().then(async()=>{
                 const meshes=[];
                 for(const path of e.item.collisionAssets??[e.item.collisionAsset]){
                     if(!current())return null;
-                    meshes.push(await collisionFactory('./'+ROOT+path,abort.signal));
+                    const resource=e.item.collisionResources?.find(x=>x.path===path);
+                    const acquired=resource?.managed?await managedUrl(resource):{url:'./'+ROOT+path,release(){}};
+                    try{meshes.push(await collisionFactory(acquired.url,abort.signal));}finally{acquired.release();}
+                    if(e.item.collisionIndependent&&meshes.reduce((n,m)=>n+m.byteLength,0)>128*1024*1024)throw Error('Collision geometry exceeds the active budget');
                 }
                 return meshes;
             }).then(meshes=>{
                 if(!meshes||!current())return;
                 e.colliders=meshes;const mesh=meshes[0];
-                if(!current())return;clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=mesh;e.collisionState='ready';e.collisionError=null;viewer.scene.requestRender?.();
+                if(!current())return;clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=mesh;e.collisionState='ready';e.collisionReservedBytes=meshes.reduce((n,m)=>n+m.byteLength,0);e.collisionError=null;syncCollisionDebug(e);viewer.scene.requestRender?.();tick(true);
                 if(e.base.terrainCertificate)void verifyTerrainAsset(mesh,e.base.terrainCertificate).then(ok=>{if(current()&&e.collider===mesh){e.terrainAssetVerified=ok;viewer.scene.requestRender?.();}});
-            }).catch(error=>{if(current()){clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=null;e.collisionState='error';e.collisionError=String(error?.message||error);}});
+            }).catch(error=>{if(current()){clearTimer(e.collisionTimer);e.collisionTimer=null;e.collider=null;e.collisionReservedBytes=0;e.collisionState='error';e.collisionError=String(error?.message||error);tick(true);}});
         }
         function wantsUnderlay(e){
             return !!(terrainKey()!=null&&terrainStable()&&e.base.terrainUnderlay&&e.item.clipTerrain&&e.item.terrainRegions.some(p=>
@@ -444,11 +460,15 @@
             if(e.groundModel.show!==!!visible){e.groundModel.show=!!visible;viewer.scene.requestRender?.();}
         }
         function groundMesh(e,c){return c.source==='underlay'?e.groundCollider:e.collider;}
+        function failVisual(e,message){
+            e.visualRevision=(e.visualRevision??0)+1;e.remoteAbort?.abort();clearTimer(e.timer);e.timer=null;
+            for(const model of e.models)disposeModel(model,true);e.models=[];e.ready=false;publish(e,'error',message);
+        }
         async function load(e){
-            const rev=++e.revision;e.effectiveAlignment=original(e);publish(e,'loading');
+            const rev=++e.revision,visualRev=(e.visualRevision??0)+1;e.visualRevision=visualRev;e.effectiveAlignment=original(e);publish(e,'loading');if(e.item.collisionIndependent)loadCollider(e,rev);
             e.remoteAbort=new AbortController();e.tileFailures=0;e.tileError=null;e.tileErrorCategory=null;e.streamingState=hasRemote(e)?'loading':null;
-            const current=()=>!disposed&&e.revision===rev;
-            e.timer=setTimer(()=>{if(current()){remove(e);publish(e,'error','Scenery load timed out');}},timeoutMs);
+            const current=()=>!disposed&&e.revision===rev&&e.visualRevision===visualRev;
+            e.timer=setTimer(()=>{if(current()){if(e.item.collisionIndependent)failVisual(e,'Scenery visual load timed out');else{remove(e);publish(e,'error','Scenery load timed out');}}},timeoutMs);
             try{
                 const remoteCount=e.item.assets.filter(a=>a.kind==='3d-tiles').length;
                 const occupiedRemote=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.filter(a=>a.kind==='3d-tiles').length,0);
@@ -490,7 +510,7 @@
                     let offError;
                     modelReleases.set(model,()=>{offError?.();resource.release();});
                     offError=model.errorEvent?.addEventListener(error=>{
-                        if(current()){remove(e);publish(e,'error',String(error?.message||error));}
+                        if(current()){if(e.item.collisionIndependent)failVisual(e,String(error?.message||error));else{remove(e);publish(e,'error',String(error?.message||error));}}
                     });
                     if(!current()){disposeModel(model,false);return;}
                     try{
@@ -504,9 +524,9 @@
                         if(!e.credit){e.credit=credit;display?.addStaticCredit(credit);}
                     }catch(error){disposeModel(model,false);throw error;}
                 }
-                if(current())loadCollider(e,rev);
+                if(current()&&!e.item.collisionIndependent)loadCollider(e,rev);
                 viewer.scene.requestRender?.();
-            }catch(error){if(current()){remove(e);const detail=hasRemote(e)?Tilesets.describe(error):null;publish(e,'error',detail?.message??String(error?.message||error),detail?.category??null);}}
+            }catch(error){if(current()){if(e.item.collisionIndependent)failVisual(e,String(error?.message||error));else remove(e);const detail=hasRemote(e)?Tilesets.describe(error):null;publish(e,'error',detail?.message??String(error?.message||error),detail?.category??null);}}
         }
         function tick(force=false){
             if(disposed)return;
@@ -526,11 +546,12 @@
                     const count=Array.from(entries.values()).filter(x=>x!==e&&['loading','ready'].includes(x.state)).reduce((n,x)=>n+x.item.assets.filter(a=>a.kind==='3d-tiles').length,0);
                     if(count+e.item.assets.filter(a=>a.kind==='3d-tiles').length<=maxActiveTilesets)publish(e,'idle');
                 }
+                if(e.item.physicalCollisionsEnabled&&(e.collisionState==='queued'||e.item.collisionIndependent&&!['loading','ready','error'].includes(e.collisionState)))loadCollider(e,e.revision);
                 if(e.state==='idle'&&(e.preview||d<=e.item.loadRadiusM)&&!Array.from(entries.values()).some(x=>x.state==='loading'&&hasRemote(x)===hasRemote(e)))void load(e);
-                if(!e.preview&&(e.state==='loading'||e.state==='ready'))updateHeight(e);
+                if(!e.preview&&(e.state==='loading'||e.state==='ready'||e.item.collisionIndependent&&e.item.physicalCollisionsEnabled))updateHeight(e);
                 if(e.state==='ready'&&wantsUnderlay(e))loadUnderlay(e,e.revision);
                 else if(e.groundState&&e.groundState!=='idle'&&!wantsUnderlay(e))releaseUnderlay(e);
-                syncUnderlay(e);
+                syncUnderlay(e);syncCollisionDebug(e);
                 if(e.state==='loading'&&e.models.length===e.item.assets.length&&e.models.every(m=>remoteAssets.has(m)||m.ready===true)){
                     clearTimer(e.timer);e.timer=null;e.ready=true;publish(e,'ready');
                 }
@@ -667,7 +688,7 @@
             // R8 cutouts. If its live seam fails, certified small patches survive.
             const large=approved.find(c=>c.source==='underlay');return large?[large]:approved;
         }
-        function frameFor(e){if(e.collisionAlignment!==e.effectiveAlignment){e.collisionAlignment=e.effectiveAlignment;e.collisionFrame=Collision.transform(e.effectiveAlignment);}return e.collisionFrame;}
+        function frameFor(e){if(!e.collisionFrame||e.collisionAlignment!==e.effectiveAlignment){e.collisionAlignment=e.effectiveAlignment;e.collisionFrame=Collision.transform(e.effectiveAlignment??original(e));}return e.collisionFrame;}
         function activeRegions(kind,forFlight=false){
             if(kind==='terrain')return Array.from(entries.values()).flatMap(e=>{
                 if(e.base.terrainCertificate)return verifiedPatches(e).map(c=>c.polygon);
@@ -693,12 +714,40 @@
             }
             return false;
         }
+        function clearCollisionDebug(e){for(const model of e.collisionDebugModels??[])viewer.scene.primitives.remove(model);e.collisionDebugModels=[];e.debugMeshes=null;}
+        function syncCollisionDebug(e){
+            if(!e.collisionDebug||!e.collider)return;
+            try{
+                const matrix=C.Matrix4.multiplyByUniformScale(A.modelMatrix(C,e.effectiveAlignment??original(e)),(e.effectiveAlignment??original(e)).scale,new C.Matrix4());
+                if(e.debugMeshes!==e.colliders){clearCollisionDebug(e);e.debugMeshes=e.colliders;e.collisionDebugModels=e.colliders.map(mesh=>Collision.visualize(C,viewer,mesh,matrix));}
+                else for(const model of e.collisionDebugModels)model.modelMatrix=matrix;
+            }catch(error){clearCollisionDebug(e);e.collisionDebug=false;e.collisionDebugError=String(error.message);}
+        }
+        function setCollisionDebug(id,enabled){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.collisionDebug=enabled===true;e.collisionDebugError=null;if(!e.collisionDebug)clearCollisionDebug(e);else syncCollisionDebug(e);viewer.scene.requestRender?.();return snapshot();}
+        function crossesRegion(from,to,b){
+            if(!b)return false;const wrap=x=>((x+540)%360)-180,a=[wrap(from.longitude-b.west),from.latitude],q=[a[0]+wrap(to.longitude-from.longitude),to.latitude],span=Math.abs(b.east-b.west)>=359.999?360:(b.east-b.west+360)%360;
+            for(const shift of [-360,0,360]){let low=0,high=1;for(let j=0;j<2;j++){const min=j===0?shift:b.south,max=j===0?shift+span:b.north,d=q[j]-a[j];if(Math.abs(d)<1e-12){if(a[j]<min||a[j]>max){high=-1;break;}}else{const x=(min-a[j])/d,y=(max-a[j])/d;low=Math.max(low,Math.min(x,y));high=Math.min(high,Math.max(x,y));}}if(low<=high)return true;}return false;
+        }
+        function collisionAvailability(from,to){
+            for(const e of unavailableEntries)if(e.enabled&&crossesRegion(from,to,e.safetyRegion))return {ready:false,id:e.id,state:'unavailable',message:e.message};
+            for(const e of entries.values())if(e.enabled&&e.item.physicalCollisionsEnabled&&e.item.collisionIndependent&&!collisionReady(e)){
+                const resources=e.item.collisionResources??[],boxes=resources.map(r=>r.metadata?.localBounds).filter(Boolean);let intersects=false;
+                if(boxes.length===resources.length&&heightReady(e)){
+                    const frame=frameFor(e),p=frame.local(from),q=frame.local(to),radius=.25/frame.scale;
+                    for(const box of boxes){let low=0,high=1;for(let j=0;j<3;j++){const d=q[j]-p[j];if(Math.abs(d)<1e-12){if(p[j]<box[j]-radius||p[j]>box[j+3]+radius){high=-1;break;}}else{const a=(box[j]-radius-p[j])/d,b=(box[j+3]+radius-p[j])/d;low=Math.max(low,Math.min(a,b));high=Math.min(high,Math.max(a,b));}}if(low<=high){intersects=true;break;}}
+                }else{
+                    intersects=crossesRegion(from,to,e.item.collisionRegion);
+                }
+                if(intersects){if(!['loading','ready','error'].includes(e.collisionState))loadCollider(e,e.revision);return {ready:false,id:e.item.id,state:e.collisionState??'loading',message:e.collisionError??'Scenery collision geometry is loading'};}
+            }
+            return {ready:true};
+        }
         function collision(from,to){
             let first=false;
             for(const e of entries.values())if(collisionReady(e)){
                 for(const mesh of e.colliders??[e.collider]){
-                    const hit=Collision.contact(mesh,frameFor(e),from,to);
-                    if(hit&&(!first||hit.fraction<first.fraction)){first=hit;e.lastHit={triangle:hit.triangle,fraction:hit.fraction};}
+                    const hit=Collision.contact(mesh,frameFor(e),from,to,.25,e.item.collisionSidedness??'double');
+                    if(hit&&(!first||hit.fraction<first.fraction)){if(e.item.collisionIndependent)hit.independent=true;first=hit;e.lastHit={triangle:hit.triangle,fraction:hit.fraction};}
                 }
                 const large=verifiedPatches(e).find(c=>c.source==='underlay');
                 if(large&&terrainMaskActive(large.polygon)){
@@ -711,7 +760,7 @@
             }
             return first;
         }
-        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,...remoteStatus(e),alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.triangleCount,0):null,collisionBytes:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.byteLength,0):null,lastHit:e.lastHit??null})).concat(unavailableEntries.map(e=>({...e})));}
+        function snapshot(){return Array.from(entries.values(),e=>({id:e.item.id,name:e.item.name,enabled:e.enabled,state:e.state,message:e.message??null,...remoteStatus(e),alignment:e.item.alignment,effectiveAlignment:e.effectiveAlignment??e.item.alignment,groundHeightM:e.groundHeightM??null,heightState:e.heightState??'original',heightError:e.heightError??null,heightAlignmentMode:e.item.heightAlignmentMode,calibration:e.item.heightCalibration??null,baseAnchorHeightM:e.base.alignment.ellipsoidHeightM,appliedHeightOffsetM:(e.effectiveAlignment??original(e)).ellipsoidHeightM-e.item.alignment.ellipsoidHeightM,heightOffsetM:e.item.heightOffsetM,bkgHeightOffsetM:e.item.bkgHeightOffsetM??0,buildingRegions:e.item.buildingRegions,terrainRegions:e.item.terrainRegions,replaceBuildings:e.item.replaceBuildings,clipTerrain:e.item.clipTerrain,visualOnly:!collisionReady(e),collisionState:e.collisionState??'idle',collisionError:e.collisionError??null,collisionReady:collisionReady(e),terrainReplacementReady:verifiedPatches(e).length>0,terrainReplacementApproved:verifiedPatches(e).length,terrainReplacementCandidates:candidatePatches(e).length,terrainSeamState:e.seamCheck?.state??'idle',groundUnderlayState:e.groundState??'idle',groundUnderlayVisible:e.groundModel?.show===true,groundUnderlayError:e.groundError??null,terrainSeamChecks:Array.from(e.seamCheck?.results.values()??[]),collisionTriangles:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.triangleCount,0):null,collisionIndependent:e.item.collisionIndependent===true,collisionDebug:e.collisionDebug===true,collisionDebugError:e.collisionDebugError??null,collisionBytes:e.collider?(e.colliders??[e.collider]).reduce((n,m)=>n+m.byteLength,0):null,lastHit:e.lastHit??null})).concat(unavailableEntries.map(e=>({...e})));}
         const off=viewer.scene.preUpdate.addEventListener(()=>tick());
         // Terrain tiles may become resident *after* the first height sample has
         // failed. Retry as soon as Cesium drains its tile queue, without forcing
@@ -754,7 +803,7 @@
         }
         function selectedScenery(primitive){return Array.from(entries.values()).find(e=>e.models.includes(primitive))?.item.id??null;}
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
-        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.groundModel?.show?[e.groundModel]:[])])};
+        return {initialize,inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementHeight,replacementPassage,collision,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
     }
     return {validate,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

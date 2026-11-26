@@ -25,6 +25,7 @@ python tool/build/vendor_cesium.py --check
 python -m unittest discover -s test/tool -p 'test_*.py'
 node --test test/js/*.test.cjs
 node tool/benchmarks/performance_suite.cjs --check
+node tool/benchmarks/scenery_collision.cjs
 dart run tool/quality/check_format.dart
 flutter analyze
 flutter test

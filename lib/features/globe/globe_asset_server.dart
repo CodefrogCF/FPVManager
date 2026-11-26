@@ -69,7 +69,7 @@ class GlobeAssetServer {
       if (_managedScenery != null &&
           parts.length == 4 &&
           parts.take(3).join('/') == 'assets/scenery/managed' &&
-          RegExp(r'^[a-f0-9]{64}\.glb$').hasMatch(parts.last) &&
+          RegExp(r'^[a-f0-9]{64}\.(glb|fpc)$').hasMatch(parts.last) &&
           request.headers.host == '127.0.0.1' &&
           request.headers.port == _server.port &&
           !request.uri.hasAuthority &&
@@ -94,7 +94,12 @@ class GlobeAssetServer {
           request.response.statusCode = HttpStatus.notFound;
           return;
         }
-        request.response.headers.set('Content-Type', 'model/gltf-binary');
+        request.response.headers.set(
+          'Content-Type',
+          key.endsWith('.fpc')
+              ? 'application/octet-stream'
+              : 'model/gltf-binary',
+        );
         request.response.contentLength = bytes.length;
         if (request.method == 'GET') request.response.add(bytes);
         return;

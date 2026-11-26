@@ -68,9 +68,9 @@ backups transfer the **definitions only**, not the model files. Removing the las
 definition using a managed model removes its local file. Portable scenery
 packages remain a later feature.
 
-New imports are **visual only**. They do not yet add physical collisions, replace
-base terrain/buildings or obstruct simulated radio paths. The existing Rüdersdorf
-reference scene's separately prepared collision model is a different capability.
+New imports are **visual only by default**. Attach or generate physical geometry
+through **Collision geometry** below. Terrain/building replacement and scenery RF
+obstruction remain separate features.
 
 ### Add an external 3D Tiles provider
 
@@ -101,7 +101,8 @@ errors and degraded tile streaming; already loaded tiles remain available after
 individual tile errors. Check internet access, URL, service availability and CORS,
 then use the scene retry control. Credentials-based provider sign-in is not
 supported. At most four remote tilesets are active at once. Like new model imports,
-external tiles are **visual only**; they do not add collisions or RF obstructions.
+external tiles are **visual only by default**; independently prepared local
+collision geometry can be attached. RF obstruction remains a separate feature.
 
 ### Align scenery directly on the globe
 
@@ -132,13 +133,49 @@ models; other assets use their available coverage bounds. Source/target surface
 picking requires device support for depth picking and loaded geometry. History
 and control points belong to the current editing session. Definitions and
 confirmed placement survive restart and backup restore; model-byte backup limits
-remain unchanged. Existing collision-backed scenes should use full opacity for
-flight, as their existing collision/replacement policy excludes transparent scenes.
+remain unchanged. Legacy reference scenes should use full opacity for flight under
+their existing collision/replacement policy. Independently imported colliders remain
+active when visual geometry is transparent or its LOD is unavailable.
 
 Georeferenced 3D Tiles retain their source coordinate system. Their numeric and
 graphical corrections transform the provider in its source ENU frame. Control-point
 fitting is currently for local models; regional provider datasets use correction
 controls. Alignment is a simulator placement, not a surveyed accuracy guarantee.
+
+### Configure physical collision geometry
+
+1. Open **Manage scenery → Collision geometry** beside a scene. Enable physical
+   collisions and select double-sided, front-only or back-only thin surfaces.
+   Front/back follow the authored triangle normals, not the camera direction.
+2. **Import collision mesh** accepts FPC1, or static GLB/glTF through the existing
+   local resource selector. **Generate from visual model** uses a compatible local
+   GLB. Remote tile geometry is not scraped or used as a changing physics LOD.
+3. The physical mesh must share the visible model's local origin and metre units.
+   Node transforms are baked; scenery placement, rotation and scale are shared.
+   Keep real windows, doors and pipe bores in the mesh. No simplification or hole
+   filling is applied. Texture transparency alone does not create a physical gap.
+4. **Apply** saves definitions and local collision files. **Cancel** discards newly
+   prepared geometry. Imported files remain available after restart/offline on this
+   device; backups transfer definitions, not the model/collision bytes.
+
+The scene status displays physical loading errors and offers retry after stopping
+navigation. A sweep entering the bounds of requested but unavailable collision
+geometry pauses movement with a HUD reason until the geometry is ready. This is
+not an RC failsafe or a fabricated wall contact; unrelated areas remain usable.
+Physical meshes remain independent of visual texture errors, opacity and LOD.
+Advanced and Legacy modes use the same swept triangle checks.
+
+In the scenery layer menu, **Show collision mesh (debug)** displays the actual
+loaded physical wireframe. It is off by default and does not replace the collider.
+Use it to inspect alignment and openings before flying. Base terrain, standard
+buildings, bridges and tunnels still have their own collisions; attaching a mesh
+does not automatically remove overlapping world geometry.
+
+Limits: 64 MiB per collision file, 128 MiB active custom collision data and 512 MiB
+shared local scenery storage. These are allocation limits, not hardware performance
+guarantees. Larger reconstructions should use a separately prepared physical mesh
+that preserves important passages. Compressed/animated glTF import limits still
+apply; FPC geometry is static, local and texture-free.
 
 ### Height reference and ground alignment
 

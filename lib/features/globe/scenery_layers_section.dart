@@ -355,6 +355,8 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         templates: controller.sceneryTemplates,
                         importModel: controller.importSceneryModel,
                         probeTileset: controller.probeSceneryTileset,
+                        generateCollider: controller.generateSceneryCollider,
+                        saveCollision: controller.saveSceneryCollision,
                         align: (id) =>
                             controller.alignScenery(id: id, german: german),
                         save: (manifest, create) async {
@@ -421,6 +423,35 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
             ),
           if (item['remote'] == true && item['streamingState'] == 'loading')
             Text(german ? 'Kacheln werden nachgeladen…' : 'Streaming tiles…'),
+          if (item['collisionIndependent'] == true) ...[
+            Text(
+              german
+                  ? 'Kollision: ${item['collisionReady'] == true ? 'aktiv' : item['collisionState'] ?? 'wartend'}${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}'
+                  : 'Collision: ${item['collisionReady'] == true ? 'active' : item['collisionState'] ?? 'pending'}${item['collisionError'] == null ? '' : ' · ${item['collisionError']}'}',
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(
+                german
+                    ? 'Kollisionsmesh anzeigen (Debug)'
+                    : 'Show collision mesh (debug)',
+              ),
+              value: item['collisionDebug'] == true,
+              onChanged:
+                  enabled &&
+                      item['collisionReady'] == true &&
+                      !controller.navigationActive
+                  ? (value) => _load(() async {
+                      await controller.previewSceneryCollision(
+                        item['id'] as String,
+                        value!,
+                      );
+                      return controller.sceneryStatus();
+                    })
+                  : null,
+            ),
+          ],
           if (kDeveloperMenusEnabled && item['collisionState'] != null)
             Text(
               german

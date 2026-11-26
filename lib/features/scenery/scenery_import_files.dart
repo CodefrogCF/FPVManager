@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 
 import 'scenery_model_import.dart';
 import 'scenery_storage_platform.dart';
+import 'scenery_collision_import.dart';
 
 const _models = XTypeGroup(
   label: 'glTF 2.0 models',
@@ -44,10 +45,11 @@ Future<Uint8List> readScenerySelection(XFile file) async {
 /// Platforms without directory access select each requested URI explicitly.
 /// That avoids ambiguity from two nested textures sharing the same basename.
 Future<(String, PreparedSceneryModel)?> pickSceneryModel({
+  XFile? selected,
   required Future<bool> Function(String uri) requestResource,
   SceneryImportProgress? progress,
 }) async {
-  final model = await openFile(acceptedTypeGroups: [_models]);
+  final model = selected ?? await openFile(acceptedTypeGroups: [_models]);
   if (model == null) return null;
   final bytes = await readScenerySelection(model);
   final prepared = await const SceneryModelImporter().prepare(
@@ -67,4 +69,32 @@ Future<(String, PreparedSceneryModel)?> pickSceneryModel({
     },
   );
   return (model.name, prepared);
+}
+
+Future<PreparedSceneryCollision?> pickSceneryCollision({
+  required Future<bool> Function(String) requestResource,
+  SceneryImportProgress? progress,
+}) async {
+  final file = await openFile(
+    acceptedTypeGroups: [
+      _models,
+      const XTypeGroup(
+        label: 'FPC1 collision mesh',
+        extensions: ['fpc'],
+        uniformTypeIdentifiers: ['public.data'],
+      ),
+    ],
+  );
+  if (file == null) return null;
+  if (file.name.toLowerCase().endsWith('.fpc')) {
+    return prepareSceneryCollision(await readScenerySelection(file));
+  }
+  final model = await pickSceneryModel(
+    selected: file,
+    requestResource: requestResource,
+    progress: progress,
+  );
+  if (model == null) return null;
+  progress?.call('Building collision BVH');
+  return generateSceneryCollision(model.$2.bytes);
 }

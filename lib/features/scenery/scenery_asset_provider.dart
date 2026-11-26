@@ -81,9 +81,6 @@ final class SceneryAssetProviders {
         }
       }
       final collision = doc['collision'] as Map;
-      if (collision['sidedness'] != 'double') {
-        reason ??= 'Collision sidedness is unavailable';
-      }
       final pose = doc['rotation'] as Map;
       final options = ((doc['extensions'] as Map?)?['cesium'] as Map?) ?? {};
       if ((pose['pitchDeg'] != 0 || pose['rollDeg'] != 0) &&
@@ -97,6 +94,11 @@ final class SceneryAssetProviders {
           'name': manifest.name,
           'enabled': manifest.enabled,
           'message': reason,
+          if (collision['enabled'] == true &&
+              manifest.assets.any(
+                (a) => a.role == 'collision' && a.provider == 'managed',
+              ))
+            'safetyRegion': doc['bounds'],
         });
         continue;
       }
@@ -144,6 +146,28 @@ final class SceneryAssetProviders {
           } else
             'heightAlignmentMode': extension['heightAlignmentMode'] ?? 'fixed',
           'physicalCollisionsEnabled': collision['enabled'],
+          if (collision['sidedness'] != 'double')
+            'collisionSidedness': collision['sidedness'],
+          if (collision['enabled'] == true &&
+              manifest.assets.any(
+                (a) => a.role == 'collision' && a.provider == 'managed',
+              )) ...{
+            'collisionIndependent': true,
+            'collisionRegion': doc['bounds'],
+            'collisionResources': [
+              for (final id in collision['assetIds'] as List)
+                {
+                  'path': resolved[id],
+                  'managed':
+                      manifest.assets.firstWhere((a) => a.id == id).provider ==
+                      'managed',
+                  ...managedOptions,
+                  'metadata': manifest.assets
+                      .firstWhere((a) => a.id == id)
+                      .model,
+                },
+            ],
+          },
           if (collision['enabled'] == true) ...{
             'collisionAsset': collisionPaths.first,
             'collisionAssets': collisionPaths,
@@ -260,8 +284,8 @@ final class ManagedSceneryAssetProvider implements SceneryAssetProvider {
   String get id => 'managed';
   @override
   String? resolve(SceneryAsset asset) =>
-      asset.role == 'visual' &&
-          asset.format == 'glb' &&
+      (asset.role == 'visual' && asset.format == 'glb' ||
+              asset.role == 'collision' && asset.format == 'fpc') &&
           isManagedSceneryKey(asset.uri)
       ? 'managed/${asset.uri}'
       : null;

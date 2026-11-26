@@ -67,7 +67,8 @@ final class NativeSceneryStorage implements SceneryStorage {
     await for (final entity in file.parent.list(followLinks: false)) {
       if (entity is File && entity.path != file.path) {
         final name = entity.uri.pathSegments.last;
-        final staging = RegExp(r'^[a-f0-9]{64}\.glb\.\d+\.tmp$').hasMatch(name);
+        final staging = RegExp(r'^[a-f0-9]{64}\.(glb|fpc)\.\d+\.tmp$')
+            .hasMatch(name);
         if (staging &&
             DateTime.now().difference(await entity.lastModified()) >
                 const Duration(days: 1)) {

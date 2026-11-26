@@ -75,7 +75,10 @@ final class WebSceneryStorage implements SceneryStorage {
       );
     }
     final headers = web.Headers();
-    headers.set('content-type', 'model/gltf-binary');
+    headers.set(
+      'content-type',
+      key.endsWith('.fpc') ? 'application/octet-stream' : 'model/gltf-binary',
+    );
     headers.set('x-fpv-size', '${bytes.length}');
     await cache
         .put(
