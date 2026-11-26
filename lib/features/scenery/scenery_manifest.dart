@@ -116,6 +116,55 @@ final class SceneryManifest {
     }
     parseSceneryVersion(doc['minimumAppVersion']);
     if (doc['extensions'] != null) _map(doc['extensions']);
+    final extensions = doc['extensions'] as Map?;
+    final lods = extensions?['lods'];
+    if (lods != null) {
+      if (lods is! Map || lods.length > 16) {
+        throw const FormatException('Invalid scenery LOD map');
+      }
+      final variants = <String>{}, baseUris = <String>{};
+      for (final entry in lods.entries) {
+        final base = assets.where((a) => a.id == entry.key).firstOrNull;
+        final levels = entry.value;
+        if (base == null ||
+            base.role != 'visual' ||
+            base.provider != 'managed' ||
+            !baseUris.add(base.uri) ||
+            levels is! Map ||
+            levels.isEmpty ||
+            levels.length > 3) {
+          throw const FormatException('Invalid managed LOD base');
+        }
+        for (final level in levels.entries) {
+          final variant = assets.where((a) => a.id == level.value).firstOrNull;
+          if (!['low', 'balanced', 'high'].contains(level.key) ||
+              variant == null ||
+              variant.role != 'visual' ||
+              variant.provider != 'managed' ||
+              variant.id == base.id ||
+              lods.containsKey(variant.id)) {
+            throw const FormatException('Invalid managed LOD variant');
+          }
+          variants.add(variant.id);
+        }
+      }
+      if (variants.length >= assets.where((a) => a.role == 'visual').length) {
+        throw const FormatException('Scenery needs a base visual asset');
+      }
+    }
+    final package = extensions?['package'];
+    if (package != null &&
+        (package is! Map ||
+            package['revision'] is! int ||
+            (package['revision'] as int) < 1 ||
+            (package['revision'] as int) > 2147483647 ||
+            package['metadataOnly'] is! bool ||
+            package['redistributionAllowed'] is! bool ||
+            (package['previewPng'] != null &&
+                (package['previewPng'] is! String ||
+                    (package['previewPng'] as String).length > 43700)))) {
+      throw const FormatException('Invalid scenery package metadata');
+    }
     if (doc['replacement'] != null) {
       doc['replacement'] = validateSceneryReplacement(
         doc['replacement'],

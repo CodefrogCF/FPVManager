@@ -41,7 +41,7 @@ class MainActivity : FlutterActivity() {
         }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.codefrog.fpvmanager/route_files").setMethodCallHandler { call, result ->
-            if (call.method != "saveRoute" && call.method != "saveBackup" && call.method != "saveOfflinePlan" && call.method != "saveActivityProfile") {
+            if (call.method != "saveRoute" && call.method != "saveBackup" && call.method != "saveOfflinePlan" && call.method != "saveActivityProfile" && call.method != "saveSceneryPackage") {
                 result.notImplemented()
                 return@setMethodCallHandler
             }
@@ -55,11 +55,13 @@ class MainActivity : FlutterActivity() {
             val backup = call.method == "saveBackup"
             val offlinePlan = call.method == "saveOfflinePlan"
             val profile = call.method == "saveActivityProfile"
-            val allowedSize = if (profile) 128 * 1024 else if (backup) 64 * 1024 * 1024 else 4 * 1024 * 1024
+            val scenery = call.method == "saveSceneryPackage"
+            val allowedSize = if (profile) 128 * 1024 else if (backup || scenery) 64 * 1024 * 1024 else 4 * 1024 * 1024
             if (bytes == null || bytes.isEmpty() || bytes.size > allowedSize || name == null ||
                 name.length > 130 || name.contains('/') || name.contains('\\') ||
                 (if (profile) mime != "application/json" || !name.endsWith(".fpvprofile")
                  else if (offlinePlan) mime != "application/json" || !name.endsWith(".fpvofflineplan")
+                 else if (scenery) mime != "application/octet-stream" || !name.endsWith(".fpvscenery")
                  else if (backup) mime != "application/octet-stream" || !name.endsWith(".fpvbackup")
                  else mime !in listOf("application/geo+json", "application/gpx+xml"))) {
                 result.error("invalid", "Invalid export file", null)

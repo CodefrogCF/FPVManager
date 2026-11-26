@@ -57,6 +57,9 @@ bool backupSetting(String key) =>
     RegExp(r'^spot\.osm\.index\.(node|way|relation)\.[1-9][0-9]*\.v1$')
         .hasMatch(key);
 
+/// Scenery manifests (including package revision, content keys, attribution and
+/// reference-only status) travel with the database. Asset bytes/provider caches
+/// remain outside personal-data backups and must be restored from .fpvscenery.
 class BackupRepository {
   const BackupRepository(this.database);
   final FpvDatabase database;

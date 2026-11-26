@@ -70,14 +70,19 @@
                 if(asset.path.startsWith('managed/'))throw Error('Managed models require storage metadata');
                 return {kind:'glb',path:asset.path};
             });
-            // Alternative self-contained bundled GLBs must use the same local frame.
-            // Managed assets cannot reference unverified alternative files.
+            // Alternatives share the base coordinate frame and storage backend.
             const visualLods=item.visualLods;
             if(visualLods!==undefined){
                 if(!visualLods||typeof visualLods!=='object'||Array.isArray(visualLods))throw Error('Invalid visual LOD definitions');
                 for(const [path,levels] of Object.entries(visualLods)){
-                    if(!assets.some(a=>a.kind==='glb'&&!a.managed&&a.path===path)||!levels||typeof levels!=='object'||Array.isArray(levels))throw Error('Invalid visual LOD asset');
-                    for(const [level,variant] of Object.entries(levels))if(!Object.hasOwn(presets,level)||!variant||typeof variant.path!=='string'||!/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.glb$/.test(variant.path)||variant.path.startsWith('managed/')||!Number.isSafeInteger(variant.estimatedBytes)||variant.estimatedBytes<1||variant.estimatedBytes>1024*MiB)throw Error('Invalid visual LOD variant');
+                    const base=assets.find(a=>a.kind==='glb'&&a.path===path);
+                    if(!base||!levels||typeof levels!=='object'||Array.isArray(levels))throw Error('Invalid visual LOD asset');
+                    for(const [level,variant] of Object.entries(levels)){
+                        if(!Object.hasOwn(presets,level)||!variant||typeof variant.path!=='string'||
+                            !/^([a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.glb$/.test(variant.path)||
+                            (base.managed?!/^managed\/[a-f0-9]{64}\.glb$/.test(variant.path):variant.path.startsWith('managed/'))||
+                            !Number.isSafeInteger(variant.estimatedBytes)||variant.estimatedBytes<1||variant.estimatedBytes>(base.managed?128:1024)*MiB)throw Error('Invalid visual LOD variant');
+                    }
                 }
             }
             if(item.collisionIndependent!==undefined&&typeof item.collisionIndependent!=='boolean')throw Error('Invalid collision loading policy');
@@ -311,7 +316,7 @@
         let lastMotion=null,localInFlight=0;
         const timings=new WeakMap(),history=[];
         const remember=(sample)=>{if(history.length===128)history.shift();history.push(sample);};
-        function chosenAsset(e,asset){const variant=e.item.visualLods?.[asset.path]?.[policy.preset];return variant?{...asset,...variant}:asset;}
+        function chosenAsset(e,asset){const variant=e.item.visualLods?.[asset.path]?.[policy.preset];return variant?{...asset,path:variant.path,estimatedBytes:variant.estimatedBytes}:asset;}
         function localEstimate(e){return e.item.assets.filter(a=>a.kind==='glb').reduce((n,a)=>n+(chosenAsset(e,a).estimatedBytes??64*MiB),e.base.terrainUnderlay?16*MiB:0);}
         function localResident(e){return Math.max(localEstimate(e),[...e.models,...(e.groundModel?[e.groundModel]:[])].filter(m=>!remoteAssets.has(m)).reduce((n,m)=>n+(m.statistics?.geometryByteLength??0)+(m.statistics?.texturesByteLength??0),0));}
         const display=viewer.cesiumWidget?.creditDisplay;

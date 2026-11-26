@@ -59,6 +59,22 @@ final class SceneryAssetProviders {
     for (final manifest in manifests) {
       final doc = manifest.toJson();
       String? reason;
+      final extensions = doc['extensions'] as Map?;
+      if ((extensions?['package'] as Map?)?['metadataOnly'] == true) {
+        unavailable.add({
+          'id': manifest.id,
+          'name': manifest.name,
+          'enabled': false,
+          'message':
+              'Reference-only package: import a licensed complete package',
+        });
+        continue;
+      }
+      final lods = extensions?['lods'] as Map?;
+      final variantIds = <Object?>{
+        if (lods != null)
+          for (final levels in lods.values) ...(levels as Map).values,
+      };
       if (!_compatible(doc['minimumAppVersion'] as String)) {
         reason = 'A newer application version is required';
       }
@@ -173,8 +189,23 @@ final class SceneryAssetProviders {
             'collisionAsset': collisionPaths.first,
             'collisionAssets': collisionPaths,
           },
+          if (lods != null)
+            'visualLods': {
+              for (final entry in lods.entries)
+                resolved[entry.key]!: {
+                  for (final level in (entry.value as Map).entries)
+                    level.key: {
+                      'path': resolved[level.value]!,
+                      'estimatedBytes': manifest.assets
+                          .firstWhere((a) => a.id == level.value)
+                          .model!['estimatedBytes'],
+                    },
+                },
+            },
           'assets': [
-            for (final a in manifest.assets.where((a) => a.role == 'visual'))
+            for (final a in manifest.assets.where(
+              (a) => a.role == 'visual' && !variantIds.contains(a.id),
+            ))
               {
                 'kind': a.provider == remoteTilesetProvider
                     ? '3d-tiles'

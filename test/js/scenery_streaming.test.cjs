@@ -71,3 +71,15 @@ test('GPU timer never reads unready results, bounds queued queries and cleans up
  disjoint=true;timer.pre();assert.equal(live,0);assert.equal(active,null);timer.clear();assert.equal(live,0);
  assert.equal(gpuTimer(null,()=>{}).supported,false);
 });
+test('managed package LOD uses the verified storage backend and does not change collision resources',async()=>{
+ const key=c=>`managed/${c.repeat(64)}.glb`, item=scene('package');
+ item.assets=[{kind:'glb',path:key('a'),managed:true,backend:'server',estimatedBytes:4*MiB}];
+ item.visualLods={[key('a')]:{low:{path:key('b'),estimatedBytes:2*MiB,backend:'cache'},high:{path:key('c'),estimatedBytes:8*MiB}}};
+ Object.assign(item,{physicalCollisionsEnabled:true,collisionAsset:'mesh.fpc',collisionAssets:['mesh.fpc']});
+ for(const [preset,expected] of [['low','b'],['balanced','a'],['high','c']]){
+  const requests=[], collision=[];
+  const f=fixture([item],{streaming:{preset},managedUrl:async asset=>{requests.push(asset);return {url:asset.path,release(){}};},collisionFactory:async url=>{collision.push(url);return {triangleCount:10,byteLength:4096};}});
+  try{await f.manager.initialize();await f.settle();assert.equal(requests.length,1);assert.equal(requests[0].path,key(expected));assert.equal(requests[0].backend,'server');assert.deepEqual(collision,['./assets/scenery/mesh.fpc']);}finally{f.manager.dispose();}
+ }
+ const bad=structuredClone(item);bad.visualLods[key('a')].low.path='other.glb';assert.throws(()=>M.validate({schemaVersion:1,sceneries:[bad]}));
+});

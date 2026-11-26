@@ -11,6 +11,7 @@ import '../scenery/scenery_repository.dart';
 import '../scenery/scenery_catalog_controller.dart';
 import '../scenery/scenery_alignment_session.dart';
 import '../scenery/scenery_collision_import.dart';
+import '../scenery/scenery_package.dart';
 
 import '../../core/osint/osint_provider.dart';
 import '../../core/osint/osint_dataset.dart';
@@ -2247,6 +2248,34 @@ class GlobeController extends ChangeNotifier {
     final catalog = _sceneryCatalog;
     if (catalog == null) throw StateError('Scenery storage unavailable');
     return catalog.save(manifest, create: create);
+  }
+
+  Future<void> importSceneryPackage(
+    SceneryPackage package,
+    bool replace,
+  ) async {
+    if (navigationActive || !_ready || _disposed || _sceneryCatalog == null) {
+      throw StateError('Stop navigation before importing scenery');
+    }
+    await _sceneryCatalog!.importPackage(package, replace: replace);
+  }
+
+  Future<Uint8List> exportSceneryPackage(
+    String id,
+    bool metadataOnly,
+    bool redistributionAllowed,
+    int revision,
+  ) {
+    final catalog = _sceneryCatalog;
+    if (catalog == null || navigationActive || _disposed) {
+      throw StateError('Scenery storage unavailable');
+    }
+    return catalog.exportPackage(
+      id,
+      metadataOnly: metadataOnly,
+      redistributionAllowed: redistributionAllowed,
+      revision: revision,
+    );
   }
 
   Future<Map<String, dynamic>> removeSceneryDefinition(String id) {

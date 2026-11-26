@@ -358,6 +358,8 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                         load: controller.sceneryDefinitions,
                         templates: controller.sceneryTemplates,
                         importModel: controller.importSceneryModel,
+                        importPackage: controller.importSceneryPackage,
+                        exportPackage: controller.exportSceneryPackage,
                         probeTileset: controller.probeSceneryTileset,
                         generateCollider: controller.generateSceneryCollider,
                         saveCollision: controller.saveSceneryCollision,

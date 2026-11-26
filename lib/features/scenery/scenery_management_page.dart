@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -11,6 +13,8 @@ import 'scenery_tileset_options.dart';
 import 'scenery_collision_dialog.dart';
 import 'scenery_collision_import.dart';
 import 'scenery_replacement_dialog.dart';
+import 'scenery_package.dart';
+import 'scenery_package_files.dart';
 
 /// Definition management; selecting/importing new asset bytes belongs to the
 /// asset provider/import workflow. Existing templates retain their provenance.
@@ -29,11 +33,15 @@ class SceneryManagementPage extends StatefulWidget {
     this.generateCollider,
     this.saveCollision,
     this.saveReplacement,
+    this.importPackage,
+    this.exportPackage,
   });
   final Future<List<SceneryManifest>> Function() load, templates;
   final Future<void> Function(SceneryManifest manifest, bool create) save;
   final Future<void> Function(String id) remove;
   final bool german;
+  final Future<void> Function(SceneryPackage, bool)? importPackage;
+  final Future<Uint8List> Function(String, bool, bool, int)? exportPackage;
   final Future<void> Function(SceneryManifest, PreparedSceneryModel)?
   importModel;
   final Future<(String, PreparedSceneryModel)?> Function()? pickImport;
@@ -388,6 +396,244 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
     }
   }
 
+  Future<void> _packageImport({required bool remote}) async {
+    final files = const SceneryPackageFiles();
+    Uri? url;
+    if (remote) {
+      final field = TextEditingController();
+      final route = DialogRoute<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            t('Paket über HTTPS importieren', 'Import package via HTTPS'),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                t(
+                  'Die angegebene Adresse wird kontaktiert und bis zu 64 MiB geladen. Erst nach der Paketprüfung erfolgt eine zweite Bestätigung.',
+                  'The entered server will be contacted and up to 64 MiB downloaded. Installation requires a second confirmation after validation.',
+                ),
+              ),
+              TextField(
+                controller: field,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(labelText: 'HTTPS URL'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t('Abbrechen', 'Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, field.text.trim()),
+              child: Text(t('Herunterladen', 'Download')),
+            ),
+          ],
+        ),
+      );
+      final value = await Navigator.of(context).push(route);
+      await route.completed;
+      field.dispose();
+      if (value == null || !mounted) return;
+      try {
+        url = SceneryPackageFiles.validateRemoteUrl(value);
+      } catch (error) {
+        setState(() => _error = error.toString());
+        return;
+      }
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _progress = t('Paket prüfen', 'Validating package');
+    });
+    try {
+      final bytes = url == null
+          ? await files.pick()
+          : await files.download(url);
+      if (bytes == null || !mounted) return;
+      final package = await decodeSceneryPackage(bytes);
+      if (!mounted) return;
+      final item = package.manifest, source = item.toJson()['source'] as Map;
+      final exists = _items.any((m) => m.id == item.id);
+      final preview = packageInfo(item)?['previewPng'];
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            exists
+                ? t('Paket aktualisieren?', 'Update scenery package?')
+                : t('Paket importieren?', 'Import scenery package?'),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (preview is String)
+                  Image.memory(
+                    base64Decode(preview),
+                    height: 120,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                Text('${item.name} · ${item.id} · r${package.revision}'),
+                Text('${source['author']} · ${source['license']}'),
+                Text('${source['attribution']}'),
+                if (source['url'] != null) Text('${source['url']}'),
+                Text(
+                  package.metadataOnly
+                      ? t(
+                          'Nur Referenzen; keine Modelle enthalten.',
+                          'References only; no models included.',
+                        )
+                      : t(
+                          'Enthaltene Dateien wurden geprüft. Umgebung wird deaktiviert gespeichert.',
+                          'Included files were validated. Scenery is saved disabled.',
+                        ),
+                ),
+                Text(
+                  t(
+                    'Kollisionen und Ausrichtung vor einem Flug prüfen.',
+                    'Verify collision geometry and alignment before flight.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(t('Abbrechen', 'Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(t('Importieren', 'Import')),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      await widget.importPackage!(package, exists);
+      await _load();
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _packageExport(SceneryManifest item) async {
+    final info = packageInfo(item);
+    final canExport =
+        item.assets.every((a) => a.provider == 'managed') &&
+        info?['metadataOnly'] != true &&
+        info?['redistributionAllowed'] != false;
+    var metadata = !canExport, permitted = false;
+    final revision = TextEditingController(text: '${info?['revision'] ?? 1}');
+    final route = DialogRoute<(bool, bool, int)>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, update) => AlertDialog(
+          title: Text(t('Scenery-Paket exportieren', 'Export scenery package')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(item.name),
+                TextField(
+                  controller: revision,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: t('Paketrevision', 'Package revision'),
+                  ),
+                ),
+                SwitchListTile(
+                  value: metadata,
+                  onChanged: canExport
+                      ? (v) => update(() {
+                          metadata = v;
+                          permitted = false;
+                        })
+                      : null,
+                  title: Text(
+                    t(
+                      'Nur Metadaten und Referenzen',
+                      'Metadata and references only',
+                    ),
+                  ),
+                ),
+                if (!metadata)
+                  CheckboxListTile(
+                    value: permitted,
+                    onChanged: (v) => update(() => permitted = v == true),
+                    title: Text(
+                      t(
+                        'Ich habe die ausdrücklichen Weitergaberechte für alle Modelle, Texturen, Kollisionsdaten und Vorschauen.',
+                        'I have explicit redistribution rights for all models, textures, collision data and previews.',
+                      ),
+                    ),
+                  ),
+                if (!canExport)
+                  Text(
+                    t(
+                      'Anbieterdateien oder nicht freigegebene Inhalte werden nicht exportiert.',
+                      'Provider files or non-redistributable content are not exported.',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t('Abbrechen', 'Cancel')),
+            ),
+            FilledButton(
+              onPressed: metadata || permitted
+                  ? () {
+                      final n = int.tryParse(revision.text);
+                      if (n == null || n < 1 || n > 2147483647) return;
+                      Navigator.pop(ctx, (metadata, permitted, n));
+                    }
+                  : null,
+              child: Text(t('Exportieren', 'Export')),
+            ),
+          ],
+        ),
+      ),
+    );
+    final selection = await Navigator.of(context).push(route);
+    await route.completed;
+    revision.dispose();
+    if (selection == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final bytes = await widget.exportPackage!(
+        item.id,
+        selection.$1,
+        selection.$2,
+        selection.$3,
+      );
+      await const SceneryPackageFiles().save(item.id, bytes);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -398,8 +644,8 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
       children: [
         Text(
           t(
-            'Modelle und Ausrichtung werden auf diesem Gerät gespeichert. Lokale Modelle sind rein visuell; Kollisionen benötigen ein separates Modell. Backups enthalten derzeit nur die Definitionen.',
-            'Models and placement are saved on this device. Local models are visual only; collisions require separate geometry. Backups currently contain definitions only.',
+            'Modelle und Ausrichtung werden auf diesem Gerät gespeichert. Lokale Modelle sind rein visuell; Kollisionen benötigen ein separates Modell. Backups enthalten Definitionen und Paketverweise; Modelle separat als .fpvscenery sichern.',
+            'Models and placement are saved on this device. Local models are visual only; collisions require separate geometry. Backups contain definitions and package references; save model files separately as .fpvscenery.',
           ),
         ),
         if (_busy && !_placing) const LinearProgressIndicator(),
@@ -427,6 +673,22 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
               label: Text(t('GLB / glTF importieren', 'Import GLB / glTF')),
             ),
           ),
+        if (widget.importPackage != null) ...[
+          TextButton.icon(
+            onPressed: _busy ? null : () => _packageImport(remote: false),
+            icon: const Icon(Icons.archive_outlined),
+            label: Text(
+              t('Scenery-Paket importieren', 'Import scenery package'),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _busy ? null : () => _packageImport(remote: true),
+            icon: const Icon(Icons.cloud_download_outlined),
+            label: Text(
+              t('Paket über HTTPS importieren', 'Import package via HTTPS'),
+            ),
+          ),
+        ],
         if (widget.probeTileset != null)
           Align(
             alignment: Alignment.centerLeft,
@@ -454,13 +716,25 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
           ListTile(
             title: Text(item.name),
             subtitle: Text(
-              '${item.enabled ? t('Aktiviert', 'Enabled') : t('Deaktiviert', 'Disabled')} · ${(item.toJson()['source'] as Map)['attribution']}',
+              '${item.enabled ? t('Aktiviert', 'Enabled') : t('Deaktiviert', 'Disabled')} · ${(item.toJson()['source'] as Map)['attribution']}${packageInfo(item) == null ? '' : ' · r${packageInfo(item)?['revision']} · ${(item.toJson()['source'] as Map)['license']}'}',
             ),
-            onTap: _busy ? null : () => _edit(item),
+            onTap: _busy || packageInfo(item)?['metadataOnly'] == true
+                ? null
+                : () => _edit(item),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.saveReplacement != null)
+                if (widget.exportPackage != null)
+                  IconButton(
+                    tooltip: t(
+                      'Scenery-Paket exportieren',
+                      'Export scenery package',
+                    ),
+                    onPressed: _busy ? null : () => _packageExport(item),
+                    icon: const Icon(Icons.ios_share),
+                  ),
+                if (widget.saveReplacement != null &&
+                    packageInfo(item)?['metadataOnly'] != true)
                   IconButton(
                     tooltip: t(
                       'Gelände und Gebäude ersetzen',
@@ -470,13 +744,15 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
                     icon: const Icon(Icons.layers_clear),
                   ),
                 if (widget.saveCollision != null &&
-                    widget.generateCollider != null)
+                    widget.generateCollider != null &&
+                    packageInfo(item)?['metadataOnly'] != true)
                   IconButton(
                     tooltip: t('Kollisionsgeometrie', 'Collision geometry'),
                     onPressed: _busy ? null : () => _collision(item),
                     icon: const Icon(Icons.view_in_ar),
                   ),
-                if (widget.align != null)
+                if (widget.align != null &&
+                    packageInfo(item)?['metadataOnly'] != true)
                   IconButton(
                     tooltip: t('Im Globus ausrichten', 'Align on globe'),
                     onPressed: _busy ? null : () => _align(item.id),
@@ -571,7 +847,8 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
       doc['id'] = _fields['id']!.text.trim();
       doc['name'] = _fields['name']!.text.trim();
       doc['description'] = _fields['description']!.text;
-      if (_template.assets.any((a) => a.provider == 'managed')) {
+      if (_template.assets.any((a) => a.provider == 'managed') &&
+          packageInfo(_template) == null) {
         doc['source'] = {
           for (final key in ['author', 'license', 'attribution', 'url'])
             key: key == 'url' && _fields['source-$key']!.text.trim().isEmpty
@@ -673,7 +950,8 @@ class _SceneryDefinitionDialogState extends State<_SceneryDefinitionDialog> {
             for (final entry in <String, String>{
               'name': t('Name', 'Name'),
               'description': t('Beschreibung', 'Description'),
-              if (_template.assets.any((a) => a.provider == 'managed')) ...{
+              if (_template.assets.any((a) => a.provider == 'managed') &&
+                  packageInfo(_template) == null) ...{
                 'source-author': t('Autor / Quelle', 'Author / source'),
                 'source-url': t(
                   'Quellen-URL (optional, HTTPS)',

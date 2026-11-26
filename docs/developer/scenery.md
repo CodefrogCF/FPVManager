@@ -92,10 +92,10 @@ restore generations do not transmit a catalog. Changes during navigation are
 rejected. The current database state is replayed after renderer reconnection.
 
 Scene definitions and initialization state are included in the existing backup
-format; model bytes and provider caches are not exported as an exchangeable
-scenery package. Older backups remain readable. Portable `.fpvscenery` packages
-remain a separate follow-up feature. The reference-scene
-and BKG limitations below still apply.
+format; model bytes and provider caches are not included in personal-data backups.
+Older backups remain readable. Licensed managed assets can be exchanged using
+[portable `.fpvscenery` packages](scenery_package.md) (#152); keep these separately
+for cross-device restore. The reference-scene and BKG limitations below still apply.
 
 ## Local model import (#146)
 
@@ -142,7 +142,7 @@ failure rolls back new unreferenced bytes, while bridge failure retains committe
 definitions and files. Removing the last scene reference removes its file.
 Browser storage can be evicted or cleared; missing/corrupt files report a
 reimport error. Definitions in backups do **not** transfer model bytes to another
-device; portable packages belong to #152.
+device; use the separate [scenery package format](scenery_package.md) (#152).
 
 Placement uses a WGS84 ellipsoid height or a height relative to the displayed
 terrain, then local ENU heading/pitch/roll and uniform scale. Generic relative

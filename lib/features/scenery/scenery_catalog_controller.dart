@@ -11,6 +11,7 @@ import 'scenery_model_import.dart';
 import 'scenery_alignment_edit.dart';
 import 'scenery_collision_import.dart';
 import 'scenery_replacement.dart';
+import 'scenery_package.dart';
 
 typedef SceneryCommand = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> command,
@@ -129,7 +130,9 @@ final class SceneryCatalogController {
       {
         ..._defaults,
         for (final m in await _database(repository.list))
-          if (m.assets.any((a) => a.provider == 'managed')) m.id: m,
+          if (packageInfo(m) == null &&
+              m.assets.any((a) => a.provider == 'managed'))
+            m.id: m,
       }.values,
     ),
   );
@@ -240,6 +243,7 @@ final class SceneryCatalogController {
       sidedness: config['sidedness'] as String,
     );
     final referenced = definitions
+            .where((m) => packageInfo(m)?['metadataOnly'] != true)
             .expand((m) => m.assets)
             .map((a) => a.uri)
             .toSet(),
@@ -276,6 +280,7 @@ final class SceneryCatalogController {
       }
     });
     final retained = (await _database(repository.list))
+        .where((m) => packageInfo(m)?['metadataOnly'] != true)
         .expand((m) => m.assets)
         .map((a) => a.uri)
         .toSet();
@@ -303,6 +308,7 @@ final class SceneryCatalogController {
     final before = await _database(repository.list);
     await _database(() => repository.remove(id));
     final retained = (await _database(repository.list))
+        .where((m) => packageInfo(m)?['metadataOnly'] != true)
         .expand((m) => m.assets)
         .map((a) => a.uri)
         .toSet();
@@ -331,7 +337,9 @@ final class SceneryCatalogController {
       );
     }
     final referenced = (await _database(repository.list)).any(
-      (m) => m.assets.any((a) => a.provider == 'managed' && a.uri == model.key),
+      (m) =>
+          packageInfo(m)?['metadataOnly'] != true &&
+          m.assets.any((a) => a.provider == 'managed' && a.uri == model.key),
     );
     // Track the entire owned transaction, including rollback, through disposal.
     // No new database operation may start once the controller is disposed.
@@ -349,11 +357,155 @@ final class SceneryCatalogController {
     return _synchronize();
   });
 
+  Future<Uint8List> exportPackage(
+    String id, {
+    required bool metadataOnly,
+    required bool redistributionAllowed,
+    required int revision,
+  }) => _serial(() async {
+    final manifest = (await _database(repository.list))
+        .firstWhere((m) => m.id == id);
+    return _database(
+      () => encodeSceneryPackage(
+        manifest,
+        read: storage.read,
+        metadataOnly: metadataOnly,
+        redistributionAllowed: redistributionAllowed,
+        revision: revision,
+      ),
+    );
+  });
+
+  Future<Map<String, dynamic>> importPackage(
+    SceneryPackage package, {
+    required bool replace,
+  }) => _serial(() async {
+    if (!canSend()) {
+      throw StateError('Stop navigation before importing scenery');
+    }
+    var next = package.manifest;
+    final before = await _database(repository.list);
+    final old = before.where((m) => m.id == next.id).firstOrNull;
+    if (old != null) {
+      final oldInfo = packageInfo(old);
+      if (!replace || _defaults.containsKey(next.id)) {
+        throw StateError('Scenery ID already exists or is reserved');
+      }
+      final sameAssets =
+          jsonEncode(old.toJson()['assets']) ==
+          jsonEncode(next.toJson()['assets']);
+      if (oldInfo == null) {
+        // A backup made before/after exporting an original local definition
+        // may have no package revision. Restore matching assets only and keep
+        // the local definition, rather than replacing an unrelated scenery.
+        if (package.metadataOnly ||
+            !sameAssets ||
+            !old.assets.every((a) => a.provider == 'managed') ||
+            jsonEncode(old.toJson()['source']) !=
+                jsonEncode(next.toJson()['source'])) {
+          throw StateError(
+            'Existing non-package scenery cannot be overwritten',
+          );
+        }
+        final restored = old.withEnabled(false).toJson();
+        final extensions =
+            (restored['extensions'] as Map?) ?? <String, dynamic>{};
+        extensions['package'] = packageInfo(next);
+        restored['extensions'] = extensions;
+        next = SceneryManifest.fromJson(restored);
+      } else {
+        final oldRevision = oldInfo['revision'] as int;
+        final same =
+            jsonEncode(old.withEnabled(false).toJson()) ==
+            jsonEncode(next.toJson());
+        final upgradeReference =
+            oldInfo['metadataOnly'] == true &&
+            !package.metadataOnly &&
+            sameAssets;
+        // Restore missing bytes at the same revision without overwriting local alignment edits.
+        final repair =
+            !package.metadataOnly &&
+            oldInfo['metadataOnly'] != true &&
+            sameAssets &&
+            oldInfo['redistributionAllowed'] ==
+                packageInfo(next)?['redistributionAllowed'];
+        if (package.revision < oldRevision ||
+            (package.revision == oldRevision &&
+                !same &&
+                !upgradeReference &&
+                !repair)) {
+          throw StateError(
+            'Package revision must increase; conflicting or older package rejected',
+          );
+        }
+        if (oldInfo['metadataOnly'] != true && package.metadataOnly) {
+          throw StateError(
+            'A reference-only package cannot replace a complete scenery',
+          );
+        }
+        if (package.revision == oldRevision && repair) {
+          next = old.withEnabled(false);
+        }
+      }
+    }
+    if (_defaults.containsKey(next.id)) {
+      throw StateError('Reserved bundled scenery identifier');
+    }
+    final referenced = before
+        .where((m) => packageInfo(m)?['metadataOnly'] != true)
+        .expand((m) => m.assets)
+        .where((a) => a.provider == 'managed')
+        .map((a) => a.uri)
+        .toSet();
+    final created = <String>[];
+    await _database(() async {
+      try {
+        for (final entry in package.files.entries) {
+          if (await storage.put(entry.key, entry.value)) created.add(entry.key);
+          _checkOpen();
+        }
+        if (!canSend()) {
+          throw StateError('Stop navigation before importing scenery');
+        }
+        if (old == null) {
+          await repository.create(next);
+        } else {
+          await repository.update(next);
+        }
+      } catch (_) {
+        for (final key in created) {
+          if (!referenced.contains(key)) await storage.remove(key);
+        }
+        rethrow;
+      }
+    });
+    if (old != null) {
+      final retained = (await _database(repository.list))
+          .where((m) => packageInfo(m)?['metadataOnly'] != true)
+          .expand((m) => m.assets)
+          .where((a) => a.provider == 'managed')
+          .map((a) => a.uri)
+          .toSet();
+      for (final a in old.assets.where((a) => a.provider == 'managed')) {
+        if (!retained.contains(a.uri)) {
+          try {
+            await _database(() => storage.remove(a.uri));
+          } catch (_) {
+            // The new definition is authoritative, as in normal scenery removal.
+          }
+        }
+      }
+    }
+    return _synchronize();
+  });
+
   Future<Uint8List?> readManagedModel(String key) async {
     if (_disposed || !isManagedSceneryKey(key)) return null;
     final definitions = await _database(repository.list);
     if (!definitions.any(
-      (m) => m.assets.any((a) => a.provider == 'managed' && a.uri == key),
+      (m) =>
+          packageInfo(m)?['metadataOnly'] != true &&
+          m.assets.any((a) => a.provider == 'managed' && a.uri == key),
     )) {
       return null;
     }
@@ -364,6 +516,11 @@ final class SceneryCatalogController {
       _serial(() async {
         final manifest = (await _database(repository.list))
             .firstWhere((m) => m.id == id);
+        if (enabled && packageInfo(manifest)?['metadataOnly'] == true) {
+          throw StateError(
+            'Import a complete licensed scenery package before enabling it',
+          );
+        }
         await _database(() => repository.update(manifest.withEnabled(enabled)));
         return _synchronize();
       });
