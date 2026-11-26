@@ -1,0 +1,65 @@
+{
+  "id": "conversion-open-wall",
+  "name": "Synthetic wall with opening",
+  "description": "Synthetic geometry, not a real building.",
+  "anchor": [
+    9.0,
+    47.85334194670607,
+    100
+  ],
+  "revision": 1,
+  "source": {
+    "author": "FPVManager contributors",
+    "license": "CC0-1.0",
+    "attribution": "Synthetic conversion example"
+  },
+  "redistributionAllowed": true,
+  "visual": [
+    {
+      "type": "citygml",
+      "path": "open_wall.gml",
+      "crs": "EPSG:25832",
+      "vertical": "ellipsoidal",
+      "axisOrder": "xyz",
+      "author": "FPVManager contributors",
+      "license": "CC0-1.0",
+      "attribution": "Synthetic open wall fixture",
+      "redistributionAllowed": true
+    }
+  ],
+  "collision": [
+    [
+      {
+        "type": "citygml",
+        "path": "open_wall.gml",
+        "crs": "EPSG:25832",
+        "vertical": "ellipsoidal",
+        "axisOrder": "xyz",
+        "author": "FPVManager contributors",
+        "license": "CC0-1.0",
+        "attribution": "Synthetic open wall fixture",
+        "redistributionAllowed": true
+      }
+    ]
+  ],
+  "replacementEnu": [
+    [
+      [
+        -1,
+        -1
+      ],
+      [
+        11,
+        -1
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        -1,
+        1
+      ]
+    ]
+  ]
+}

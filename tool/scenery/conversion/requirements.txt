@@ -1,0 +1,10 @@
+# Developer-only; tested core versions below. Install in a dedicated venv.
+numpy==2.3.5
+pyproj==3.7.2
+rasterio==1.5.0
+Pillow==12.3.0
+shapely==2.1.2
+lxml>=5,<7
+scipy==1.17.0
+trimesh==4.11.1
+laspy[lazrs]>=2.6,<3

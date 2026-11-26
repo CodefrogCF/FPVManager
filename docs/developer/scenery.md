@@ -715,3 +715,9 @@ post-unload memory trend. Compare with the unchanged source commit using the
 same conditions. Hardware-specific FPS targets and memory plateaus remain
 pending until physical measurements exist; do not treat synthetic results as
 proof of device performance.
+
+## External geospatial conversion
+
+Use the [external conversion pipeline](scenery_conversion.md) to prepare local
+CityGML, DEM, classified point clouds and photogrammetry meshes as portable
+packages without reconstruction on mobile devices.

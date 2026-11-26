@@ -1,0 +1,39 @@
+name: Scenery conversion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tool/scenery/**'
+      - 'test/tool/**'
+      - 'test/fixtures/scenery/conversion_open_wall.fpvscenery'
+      - 'web/features/scenery/scenery_collision.js'
+      - '.github/workflows/scenery_conversion.yml'
+  pull_request:
+    paths:
+      - 'tool/scenery/**'
+      - 'test/tool/**'
+      - 'test/fixtures/scenery/conversion_open_wall.fpvscenery'
+      - 'web/features/scenery/scenery_collision.js'
+      - '.github/workflows/scenery_conversion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conversion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: tool/scenery/conversion/requirements.txt
+      - run: python -m pip install --only-binary=:all: --requirement tool/scenery/conversion/requirements.txt
+      - run: python -c "import laspy, lazrs, shapely, rasterio, trimesh, scipy, lxml"
+      - run: python -m unittest discover -s test/tool -p test_scenery_conversion.py -v

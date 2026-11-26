@@ -13,7 +13,7 @@ text for optional arguments. Python tooling dependencies are pinned in
 | `benchmarks/` | Synthetic performance runners, reports, comparison, physics scenarios and dated reference data |
 | `browser/` | Local globe/smoke server, offline preparation and live 3D Tiles checks |
 | `maintenance/` | Checksum-protected ZIP cleanup and legacy migration helpers |
-| `scenery/` | Source-dependent scenery processing, collision generation and local workbench |
+| `scenery/` | Source-dependent scenery processing, collision generation, [conversion pipeline](../docs/developer/scenery_conversion.md) and local workbench |
 
 ## Routine validation
 

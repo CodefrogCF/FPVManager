@@ -1,0 +1,46 @@
+{
+  "id": "brandenburg-lod2-example",
+  "name": "Brandenburg LoD2 example",
+  "description": "Template only. Supply a verified, locally cropped CityGML source and review its edition, rights and placement before conversion.",
+  "anchor": [
+    13.8,
+    52.4,
+    100
+  ],
+  "revision": 1,
+  "source": {
+    "author": "GeoBasis-DE/LGB",
+    "license": "dl-de/by-2-0",
+    "attribution": "© GeoBasis-DE/LGB, dl-de/by-2-0, Daten geändert",
+    "url": "https://geobasis-bb.de/lgb/de/geodaten/3d-produkte/3d-gebaeudemodelle/"
+  },
+  "redistributionAllowed": true,
+  "visual": [
+    {
+      "type": "citygml",
+      "path": "lod2.gml",
+      "crs": "EPSG:25833+7837",
+      "vertical": "compound",
+      "axisOrder": "xyz",
+      "author": "GeoBasis-DE/LGB",
+      "license": "dl-de/by-2-0",
+      "attribution": "© GeoBasis-DE/LGB, dl-de/by-2-0, Daten geändert",
+      "redistributionAllowed": true
+    }
+  ],
+  "collision": [
+    [
+      {
+        "type": "citygml",
+        "path": "lod2.gml",
+        "crs": "EPSG:25833+7837",
+        "vertical": "compound",
+        "axisOrder": "xyz",
+        "author": "GeoBasis-DE/LGB",
+        "license": "dl-de/by-2-0",
+        "attribution": "© GeoBasis-DE/LGB, dl-de/by-2-0, Daten geändert",
+        "redistributionAllowed": true
+      }
+    ]
+  ]
+}
