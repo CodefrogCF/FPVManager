@@ -42,9 +42,7 @@ closely aligned, deep obstruction evidence; it cannot establish a new clear ray.
 Vertical and near-vertical links above the station are supported. Fractions on an
 exactly vertical profile use the height interval; clearance is measured against
 the finite antenna segment. The RF minimum of 1 m applies to spatial antenna
-separation. Valid ground samples remain necessary. BKG 3D Beta's unverified height
-reference is explicitly unavailable to RF, with retry suspended until inputs or
-provider change.
+separation. Valid ground samples remain necessary. BKG 3D Beta RF requires a locally prepared GCG2016 grid and is limited to the experimental Rüdersdorf region. Other German coverage remains unavailable.
 
 ## Observation quality and flight state
 
@@ -196,8 +194,7 @@ Station retention is covered by deterministic cache and interpolation tests. Com
 
 ### German terrain height diagnostic
 
-The BKG terrain RF guard remains active until the delivered mesh's vertical
-reference is verified. The [basemap.de 3D product documentation](https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/basemap.de_3d.pdf)
+The BKG terrain RF guard remains active outside the explicitly prepared experimental region. The [basemap.de 3D product documentation](https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/basemap.de_3d.pdf)
 identifies the DGM5 mesh and its horizontal CRS but does not explicitly establish
 the height datum of delivered mesh values. DHHN2016 source heights and WGS84
 ellipsoid heights must not be interchanged.
@@ -224,3 +221,15 @@ Only export the diagnostic report, not provider tiles. Local agreement (2 m RMS,
 confirm provider metadata and representative regions, then validate live/route
 RF, coverage, provider transitions and real device performance. The diagnostic
 never changes application settings or authorizes RF automatically.
+
+### Local Rüdersdorf RF test
+
+The September 2026 [provider update](https://basemap.de/die-basemap-de-3d-bleibt-vorerst-im-beta-status/) retains beta status. Keep explicit test consent and runtime-only transport. The local probe matched DHHN2016 at eight controls; a ninth southern point differed by 14 m and is outside the test rectangle. This is a local experimental hypothesis, not nationwide validation.
+
+Generate the small local correction grid from the actual GCG2016 raster and exported probe report:
+
+```powershell
+python tool/scenery/reference/prepare_bkg_rf_grid.py --grid "$HOME/Downloads/de_bkg_gcg2016.tif" --report "$HOME/Downloads/bkg-rf-probe.json"
+```
+
+Rebuild the app after generation. The unprepared default asset is null and fails closed. The grid covers 13.775–13.800° E, 52.481–52.491° N; positions outside return unavailable. GCG2016 is credited to BKG, CC BY 4.0 (local interpolated derivative). Eight independent DGM control heights are checked once against the current terrain provider before RF sampling; a failed check is retried after a cooldown. The existing RF cache retains native heights; query responses and live poses are converted to ellipsoid heights, while rendered RF paths and scenery RF intersections use the native scene frame. No per-sample network request is added. General elevation queries, absolute route preview/playback and recording semantics are unchanged; do not use unverified recordings as absolute RF targets. Device and regional coverage validation remain required.

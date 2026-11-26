@@ -109,10 +109,10 @@ class SceneLayersSection extends StatelessWidget {
             german
                 ? 'Nur Online-Testbetrieb. Standardmäßig aus; keine Offline-Kacheln '
                       'oder dauerhafte Datenspeicherung. © GeoBasis-DE/BKG 2026. '
-                      'Testdaten können für Funkstrecken und Höhenprofile ungeeignet sein.'
+                      'Funkanalyse nur im lokal vorbereiteten Testgebiet möglich.'
                 : 'Online testing only. Off by default; no offline tiles or '
-                      'persistent storage. © GeoBasis-DE/BKG 2026. Data is not '
-                      'verified for radio propagation or elevation profiles.',
+                      'persistent storage. © GeoBasis-DE/BKG 2026. RF is available '
+                      'only in the locally prepared test area.',
           ),
           value: controller.bkg3dTestEnabled,
           onChanged: enabled

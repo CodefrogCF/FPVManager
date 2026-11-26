@@ -82,6 +82,45 @@ function postToFlutter(message) {
     let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
     let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryReplacement = null, sceneryManager = null, sceneryEditor = null, regional3D = null;
     let regionalTerrain = false, regionalTerrainChanging = false, regionalBuildingsRequested = false, regionalTerrainRevision = 0;
+    const bkgRfHeight=FPVBkgRfHeight.create(window.FPVBkgRfGrid);
+    const bkgRfVerifier=FPVBkgRfHeight.verifier(bkgRfHeight);
+    function rfOffsets(points){
+        if(regionalTerrainChanging)throw Error('TERRAIN_UNAVAILABLE: regional terrain changing');
+        if(regionalTerrain&&!bkgRfHeight.available)throw Error('TERRAIN_UNAVAILABLE: BKG height datum grid not prepared');
+        return regionalTerrain?bkgRfHeight.offsets(points):null;
+    }
+    async function verifyRegionalRf(signal){
+        if(!regionalTerrain)return;
+        const provider=terrainManager.provider,revision=regionalTerrainRevision;
+        await bkgRfVerifier.ensure(provider,points=>terrainManager.sample(async current=>{
+            if(current!==provider||!current.availability)throw Error('TERRAIN_UNAVAILABLE: detailed regional RF controls unavailable');
+            const positions=points.map(p=>Cesium.Cartographic.fromDegrees(p.longitude,p.latitude));
+            const result=await Cesium.sampleTerrainMostDetailed(current,positions,true);
+            return result.map(p=>p.height);
+        }));
+        signal?.throwIfAborted();
+        if(regionalTerrainChanging||revision!==regionalTerrainRevision||provider!==terrainManager.provider)
+            throw Error('TERRAIN_UNAVAILABLE: regional terrain changed');
+    }
+    function rfSceneCommand(command){return regionalTerrain&&command.rays?.length?bkgRfHeight.command(command,-1):command;}
+    async function queryLiveRadioTerrain(command,signal){
+        const revision=regionalTerrainRevision,offsets=rfOffsets(command.positions);
+        if(offsets)await verifyRegionalRf(signal);
+        const sampled=await liveRadio.sample(command,signal);
+        if(regionalTerrainChanging||revision!==regionalTerrainRevision)throw Error('TERRAIN_UNAVAILABLE: regional terrain changed');
+        if(!offsets)return sampled;
+        return {...sampled,heights:sampled.heights.map((h,i)=>h+offsets[i]),diagnostics:{...sampled.diagnostics,provider:'BKG DHHN2016 / GCG2016 (local test)'}};
+    }
+    function emitRadioPosition(type,data){
+        if(regionalTerrain&&type==='flight-radio-position'&&data.active&&!data.paused){
+            const offset=bkgRfHeight.available?bkgRfHeight.offset(data):null;
+            // Invalid/uncovered positions must invalidate the old result, never send native heights as ellipsoid.
+            data={...data,height:offset!==null&&Number.isFinite(data.height)?data.height+offset:null,
+                rfHeightUnavailable:offset===null};
+        }
+        sendToFlutter(type,data);
+    }
+
     let sceneryCatalogReady = Promise.resolve();
     let bridgeHeightMatch={phase:"idle"};
     let touchControlsVisible=true;
@@ -857,7 +896,7 @@ function postToFlutter(message) {
             case 'route-playback-control': return routePlayback.control(command);
             case 'flight-recording-control': return flightRecording.control(command);
             case 'set-flight-radio-monitor': return liveRadio.monitor(command);
-            case 'query-live-radio-terrain': if(regionalTerrain)throw Error('TERRAIN_UNAVAILABLE: BKG beta terrain height datum is not validated for RF planning');return liveRadio.sample(command,signal);
+            case 'query-live-radio-terrain': return queryLiveRadioTerrain(command,signal);
             case 'set-live-radio-result': return liveRadio.set(command);
             case 'set-live-radio-diagnostics': return liveRadio.setDiagnostics(command);
             case 'set-live-radio-ground-station': return liveRadio.station(command);
@@ -981,8 +1020,8 @@ function postToFlutter(message) {
             case 'set-scene-time': return sceneEnvironment.setTime(command);
             case "exit-ground-view": stopNavigation(); return {};
             case "set-route-editor": stopNavigation(); return routeEditor.set(command, signal);
-            case 'query-scenery-radio': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery RF unavailable');return sceneryManager.radioPaths(command,signal);
-            case "set-signal-analysis": return signalAnalysis.set(command);
+            case 'query-scenery-radio': await sceneryCatalogReady; if(!sceneryManager)throw Error('Scenery RF unavailable');return sceneryManager.radioPaths(rfSceneCommand(command),signal);
+            case "set-signal-analysis": return signalAnalysis.set(rfSceneCommand(command));
             case "set-visible-routes": return routeOverlays.set(command, signal);
             case "frame-visible-routes": stopNavigation(); await routeOverlays.frame(command.routeId, signal); return {};
             case "frame-route": stopNavigation(); await routeEditor.frame(signal); return {};
@@ -1010,7 +1049,8 @@ function postToFlutter(message) {
                 sendUasStatus({ visible: uasDataSource?.show === true });
                 return {};
             case "query-route-terrain": return FPVRouteEditor.sampleProfile(command, async points => {
-                if(regionalTerrain)throw Error("BKG beta terrain is not validated for route elevation profiles");
+                const revision=regionalTerrainRevision,offsets=rfOffsets(points);
+                if(offsets)await verifyRegionalRf(signal);
                 let detailed;
                 const positions = points.map(p => Cesium.Cartographic.fromDegrees(p.longitude, p.latitude));
                 const sampled = await terrainManager.sample(provider => {
@@ -1018,7 +1058,8 @@ function postToFlutter(message) {
                     return detailed ? Cesium.sampleTerrainMostDetailed(provider, positions, true)
                         : Cesium.sampleTerrain(provider, 12, positions, true);
                 }, signal);
-                return {heights: sampled.map(p => p.height), samplingMethod: detailed ? "most-detailed" : "level-12"};
+                if(regionalTerrainChanging||revision!==regionalTerrainRevision)throw Error("Terrain changed during profile");
+                return {heights: sampled.map((p,i) => p.height+(offsets?.[i]??0)), samplingMethod: detailed ? "most-detailed" : "level-12"};
             }, signal);
             case "query-terrain-elevation": return queryTerrainElevation(command, signal);
             case "set-spot-markers": await setSpotMarkers(command, signal); return layerState();
@@ -1103,7 +1144,7 @@ function postToFlutter(message) {
         mapProviders=FPVMapProviders.createAdapters(Cesium,window.FPVMapProviderConfig);
         const info = document.getElementById("info");
         let selectedPointInfo = null;
-        const pointLabel = () => regionalTerrain ? "BKG 3D-Beta · experimental terrain; vertical datum not verified" : selectedPointInfo[2] === undefined
+        const pointLabel = () => regionalTerrain ? "BKG 3D-Beta · experimental terrain; native heights" : selectedPointInfo[2] === undefined
             ? translate('Lat: {0} | Lon: {1} | Flat map — terrain height unavailable', ...selectedPointInfo)
             : translate('Lat: {0} | Lon: {1} | Height: {2} m (WGS84 ellipsoid, rendered terrain)', ...selectedPointInfo);
 
@@ -1112,7 +1153,7 @@ function postToFlutter(message) {
         function terrainInfo(status) {
             info.hidden = !!flyer?.active || (floatingChrome && status.state === 'ready' && !selectedPointInfo && !walker?.active);
             info.textContent = status.state === "ready"
-                ? regionalTerrain ? "BKG 3D-Beta · test only; vertical datum not verified" : selectedPointInfo ? pointLabel() : translate("FPVManager | 3D terrain loaded")
+                ? regionalTerrain ? `BKG 3D-Beta · test only; ${bkgRfHeight.available?"local RF test configured":"RF height grid unavailable"}` : selectedPointInfo ? pointLabel() : translate("FPVManager | 3D terrain loaded")
                 : status.state === "loading"
                     ? translate("Connecting to 3D terrain | Flat map shown")
                     : translate("3D terrain unavailable | Flat map shown — terrain heights disabled");
@@ -1263,11 +1304,12 @@ function postToFlutter(message) {
         const flightHud=FPVFlightHud.create(document,rendererLanguage,
             {diagnosticsEnabled:()=>liveRadio.diagnosticsEnabled,
                 diagnostics:()=>liveRadio.diagnostics()}),device=document.getElementById('navigation-device');
-        liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:sendToFlutter,doc:document,language:rendererLanguage,
-            sceneryPath:(...args)=>sceneryManager?.radioPath(...args)??{complete:false,obstructions:0,lossDb:0},
+        const radioLayer=FPVSignalAnalysis.createLayer(Cesium,viewer,{name:'Simulated radio link'});
+        liveRadio=FPVLiveRadio.create({C:Cesium,viewer,terrain:terrainManager,ready:terrainAvailable,emit:emitRadioPosition,doc:document,language:rendererLanguage,
+            sceneryPath:(from,to,...args)=>sceneryManager?.radioPath(regionalTerrain?bkgRfHeight.point(from,-1):from,regionalTerrain?bkgRfHeight.point(to,-1):to,...args)??{complete:false,obstructions:0,lossDb:0},
             onAssessmentChange:()=>{if(flyer?.active){flyer.linkAssessment(liveRadio.assessment());
                 flightHud.update(flyer.status(),viewer.camera.heading,liveRadio.assessment());}},
-            layer:FPVSignalAnalysis.createLayer(Cesium,viewer,{name:'Simulated radio link'})});
+            layer:{...radioLayer,set:command=>{try{return radioLayer.set(rfSceneCommand(command));}catch(error){radioLayer.clear();if(!regionalTerrain)throw error;return {};}}}});
         flightRecording=FPVFlightRecording.create({emit:sendToFlutter,getState:()=>flyer.status()});
         flightRecording.bind(document,rendererLanguage);
         const settingsButton=document.getElementById('settings-flight'),settingsPanel=document.getElementById('flight-options');

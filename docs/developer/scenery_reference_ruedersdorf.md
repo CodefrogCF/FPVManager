@@ -18,7 +18,7 @@ license with local inputs; mark missing values unknown.
 | [LGB airborne laser scans](https://data.geobasis-bb.de/geobasis/daten/als/laz/) | Index lists `als_33417-5815.zip` (108 MB, delivery listing 2022-12-23); actual acquisition pending | Anchor projects to E 417823.53 N 5815573.92 (ETRS89/UTM33); inspect tile and adjacent tiles for extent, classification and density; airborne points cannot establish indoor geometry | dl-de/by-2-0; candidate, not downloaded/processed |
 | [LGB imagery and acquisition overview](https://geobroker.geobasis-bb.de/gbss.php?MODE=GetProductPreview&PRODUCTID=b4c381ab-7e34-4ede-8e4f-7df6a776e909) | DOP20rgbi product overview 2022–2024; local image date pending | Validate horizontal alignment and external footprint only | Verify selected product terms; no new image copied |
 | [BKG GCG2016 PROJ grid](https://cdn.proj.org/de_bkg_gcg2016.tif) | GCG2016 reference model; local grid edition/checksum pending | Height conversion for the certified reference, no second runtime offset | Keep independent attribution |
-| BKG beta regional LoD2/terrain | Live test service, unverified vertical datum | Optional test display only, no verified RF/LoS terrain | Test-only, no caching/export; existing guard remains active |
+| BKG beta regional LoD2/terrain | Live test service, unverified vertical datum | Local experimental RF with prepared grid; other regions unavailable | Test-only, no caching/export; existing guard remains active |
 | User-supplied photographs and permitted panoramic visual references | User reports FPV photos from 2023; other exact acquisition dates not established | Visual comparison only; no new measurements in this validation | Keep permission records locally; no reference image embedded or redistributed |
 
 See the [asset attribution](../../web/assets/scenery/ATTRIBUTION.md) and
@@ -44,7 +44,7 @@ node tool/scenery/reference/validate.cjs tool/scenery/reference/ruedersdorf.json
 
 The new directory contains `routes.geojson`, `spawn-candidates.json`, and `validation.json`. Import the routes normally. Nine routes cover approach, exterior, entrance, indoor passage, high-speed pass, silo/platform dives, RF shadow/recovery and streaming lifecycle. They are checked with a 0.25 m sphere against the main mesh only; terrain, dynamic flight and other geometry need separate review. Recalibrate after provider/pose changes. Playback is not physical flight and bypasses failsafe.
 
-The [CPU report](../../tool/scenery/reference/ruedersdorf_validation.json) uses synthetic clear terrain and the actual collision mesh. A weak-link training profile demonstrates modeled loss/recovery; it is not measured reception. The BKG RF height guard remains active.
+The [CPU report](../../tool/scenery/reference/ruedersdorf_validation.json) uses synthetic clear terrain and the actual collision mesh. A weak-link training profile demonstrates modeled loss/recovery; it is not measured reception. The BKG RF height guard remains active outside the locally prepared test area.
 
 ## Device acceptance and rights
 

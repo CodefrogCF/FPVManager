@@ -462,7 +462,8 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
               '${german ? 'Kollision' : 'Collision'}: ${item['collisionError']}',
             ),
           if (item['bundled'] == true &&
-              (item['state'] == 'error' ||
+              (controller.developerMenusEnabled ||
+                  item['state'] == 'error' ||
                   item['state'] == 'unavailable' ||
                   item['heightError'] is String ||
                   item['collisionError'] is String))

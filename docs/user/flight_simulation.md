@@ -106,7 +106,7 @@ A profile expires within five seconds and can become unknown sooner after rapid
 movement, missing terrain or provider changes. `?` is a passive HUD notice; it
 never starts failsafe or GPS Rescue by itself. Fast flight can combine terrain
 sampling passes while retaining the existing precision/freshness requirements.
-Resident custom scenery collision meshes contribute material-dependent attenuation and estimated Fresnel obstruction. Missing relevant geometry can leave the link uncertain. BKG beta heights remain unsuitable for RF until their reference is verified.
+Resident custom scenery collision meshes contribute material-dependent attenuation and estimated Fresnel obstruction. Missing relevant geometry can leave the link uncertain. BKG beta RF is available only in a locally prepared experimental test area; other German coverage remains unavailable.
 Enable Developer options and the optional Performance overlay in Settings for sampling, result age, frame and resource diagnostics. A **SIM free-space
 only** preview cannot replace a terrain observation or establish RC recovery.
 

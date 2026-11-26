@@ -34,7 +34,7 @@ Import FPC1 or validated static GLB/glTF converted to a triangle BVH. Physical g
 
 ## Height references and regional test service
 
-Never mix orthometric heights (DHHN2016) and WGS84 ellipsoid heights. The official DGM/GCG2016 reference calibration applies once; active rendered terrain must independently confirm placement. Missing heights trigger retry, not a fabricated zero or arbitrary offset. The BKG 3D test provider has an unverified vertical reference for RF: preserve the explicit RF guard and use its data only under the applicable test terms.
+Never mix orthometric heights (DHHN2016) and WGS84 ellipsoid heights. The official DGM/GCG2016 reference calibration applies once; active rendered terrain must independently confirm placement. Missing heights trigger retry, not a fabricated zero or arbitrary offset. The BKG 3D test provider uses a local experimental RF height adapter; outside its prepared coverage the RF guard remains active. Use service data only under applicable test terms.
 
 Use `flutter build apk --release --dart-define=FPV_REGIONAL_3D_TEST=true` for an opt-in test build. The [local workbench](../../tool/scenery/cesium_georeference_workbench.html) and [server](../../tool/scenery/serve_workbench.py) allow authorized reference alignment; a flat-preview height is not the active terrain anchor.
 

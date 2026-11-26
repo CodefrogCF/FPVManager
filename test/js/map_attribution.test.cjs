@@ -30,6 +30,7 @@ async function renderer({ offline = false, terrainFails = false, configuration, 
     window.parent = window;
     const context = vm.createContext({
         window, navigator: { onLine: true }, URLSearchParams, AbortController, FPVTerrain, FPVMapProviders, FPVObstacles,
+        FPVBkgRfHeight: require('../../web/features/terrain/bkg_rf_height.js'),
         document: {
             getElementById: () => info, documentElement: {classList: new Set()},
             createTreeWalker: () => ({nextNode: () => false}), querySelectorAll: () => []

@@ -119,6 +119,8 @@ flutter:
     - web/features/scenery/scenery_editor.js
     - web/features/scenery/scenery_bridge_calibration.js
     - web/features/terrain/regional_3d.js
+    - web/features/terrain/bkg_rf_grid.generated.js
+    - web/features/terrain/bkg_rf_height.js
     - web/assets/scenery/
     - web/features/scenery/scenery_reference_preview.js
     - web/features/navigation/ground_navigation.js

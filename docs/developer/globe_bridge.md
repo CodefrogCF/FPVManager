@@ -101,9 +101,7 @@ logical request (typically 511 points around 5–6 km). This consumes the existi
 profile budget; cached terrain tile I/O still has four workers. A partial
 refinement wave retains measured relief/Fresnel priority rather than station-first
 ordering. Observation quality/reason is independent of RC quality; uncertainty
-alone is a passive HUD hint and never initiates autonomous control. BKG beta
-terrain's unverified height datum reports `TERRAIN_UNAVAILABLE` until provider
-changes. Optional `set-live-radio-diagnostics` is disabled by default and its
+alone is a passive HUD hint and never initiates autonomous control. BKG beta terrain reports `TERRAIN_UNAVAILABLE` outside its prepared experimental RF height coverage. Optional `set-live-radio-diagnostics` is disabled by default and its
 HUD updates at most once per second.
 `navigation-focus` gates device input. Android sends
 coalesced `navigation-input` frames (forward/right/yaw/pitch/vertical in −1…1,

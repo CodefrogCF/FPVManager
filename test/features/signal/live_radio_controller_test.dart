@@ -979,6 +979,41 @@ void main() {
     expect(observation['quality'], 'error');
     expect(observation['errorCategory'], 'INVALID_RESULT');
   });
+  test(
+    'regional RF coverage loss invalidates and reentry resumes sampling',
+    () async {
+      var tick = Duration.zero, calls = 0;
+      final c = LiveRadioController(
+        elapsed: () => tick,
+        send: (_) async {},
+        sample: (positions) async {
+          calls++;
+          return List.filled(positions.length, 500.0);
+        },
+      );
+      addTearDown(c.dispose);
+      c.renderer(true);
+      await c.configure(const LiveRadioSettings());
+      c.telemetry(pose());
+      await c.settled;
+      expect(c.current, true);
+      final sampled = calls;
+      for (var i = 0; i < 3; i++) {
+        tick += const Duration(seconds: 1);
+        c.telemetry({...pose(), 'height': null, 'rfHeightUnavailable': true});
+        await c.settled;
+      }
+      expect(c.current, false);
+      expect(calls, sampled);
+      expect(c.status, contains('regional RF height coverage unavailable'));
+      tick += const Duration(seconds: 1);
+      c.telemetry(pose());
+      await c.settled;
+      expect(calls, greaterThan(sampled));
+      expect(c.current, true);
+    },
+  );
+
   test('BKG beta unverified datum is an explicit notice and is not retried until provider change', () async {
     var tick = Duration.zero, calls = 0;
     final events = <Map<String, dynamic>>[];

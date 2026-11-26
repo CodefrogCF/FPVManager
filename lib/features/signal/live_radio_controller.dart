@@ -382,6 +382,18 @@ class LiveRadioController extends ChangeNotifier {
         _notify();
         return;
       }
+      if (data['rfHeightUnavailable'] == true) {
+        const reason = 'Unknown: regional RF height coverage unavailable';
+        if (_pose != null || status != reason) {
+          _pose = null;
+          status = reason;
+          _invalidate(clear: true, error: 'TERRAIN_UNAVAILABLE');
+          _diagnostics.errorDetail = reason;
+          unawaited(_mapUnknown());
+          _notify();
+        }
+        return;
+      }
       final speed = data['speed'];
       _speedMetersPerSecond =
           speed is num && speed.isFinite && speed >= 0 && speed <= 200

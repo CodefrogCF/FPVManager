@@ -62,6 +62,8 @@
   "scenery_editor.js",
   "scenery_bridge_calibration.js",
   "regional_3d.js",
+  "bkg_rf_grid.generated.js",
+  "bkg_rf_height.js",
   "scenery_reference_preview.js",
   "globe.js"
 ]

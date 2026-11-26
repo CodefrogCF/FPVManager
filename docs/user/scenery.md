@@ -14,7 +14,7 @@ Use the alignment editor to translate/rotate/scale the scene, switch views, pick
 
 ## Rüdersdorf
 
-The experimental chemical plant scene is based on Andrea Spognetta's RAWscan (CC BY-NC 4.0), with approximate reconstructed structures and separate collision geometry. It is not surveyed. The optional BKG 3D test service is available in separately enabled builds; its height reference is not validated for RF. Source credits are in [Map sources](map_sources_and_attribution.md) and [asset attribution](../../web/assets/scenery/ATTRIBUTION.md).
+The experimental chemical plant scene is based on Andrea Spognetta's RAWscan (CC BY-NC 4.0), with approximate reconstructed structures and separate collision geometry. It is not surveyed. The optional BKG 3D test service is available in separately enabled builds; RF requires a locally prepared experimental height-reference grid; other German coverage remains unavailable. Source credits are in [Map sources](map_sources_and_attribution.md) and [asset attribution](../../web/assets/scenery/ATTRIBUTION.md).
 
 ## Troubleshooting
 
