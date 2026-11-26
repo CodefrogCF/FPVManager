@@ -7,6 +7,10 @@ working state; they do not announce a published v0.20.0 release.
 
 ### Fixed
 
+- Prioritize scenery editor endpoint handles over overlapping bounds/footprint
+  graphics for mouse and touch. Synchronize browser drags with rendered frames and
+  verify acquired handles and real coordinate changes, including cancelled drags.
+
 - Restore loaded base-building geometry when scenery masks change or are removed:
   disable and empty owned Cesium clipping collections before detaching them.
   Invalidate approximate collision observations when exclusion rules change.

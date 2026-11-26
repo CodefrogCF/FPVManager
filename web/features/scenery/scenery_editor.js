@@ -1,6 +1,20 @@
 // Transient globe editor. Only Flutter commits confirmed, validated placement.
 (function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./scenery_editor_math.js'):root.FPVSceneryEditorMath);if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVSceneryEditor=api;})(typeof globalThis!=='undefined'?globalThis:this,function(M){
     'use strict';
+    // Endpoint markers are intentionally drawn through geometry. Pick their
+    // projected centres before the GPU's frontmost fragment: bounds/footprint
+    // lines can otherwise hide a handle from picking, especially on mobile.
+    function pickHandle(C,viewer,entities,p,pointerType){
+        const handles=entities.filter(e=>/^fpv-edit-(east|north|up|heading)$/.test(e.id)&&e.show!==false&&e.isShowing!==false);
+        let selected=null,distance=pointerType==='touch'?14:9;
+        for(const e of handles){
+            const world=e.position?.getValue(viewer.clock.currentTime),screen=world&&C.SceneTransforms.worldToWindowCoordinates(viewer.scene,world);
+            if(!screen||![screen.x,screen.y].every(Number.isFinite)||screen.x<0||screen.y<0||screen.x>viewer.scene.canvas.clientWidth||screen.y>viewer.scene.canvas.clientHeight)continue;
+            const d=Math.hypot(screen.x-p.x,screen.y-p.y);if(d<=distance){distance=d;selected=e;}
+        }
+        if(selected)return selected.id.slice(9);
+        const hit=viewer.scene.pick(p)?.id;return handles.includes(hit)?hit.id.slice(9):null;
+    }
     function create(C,viewer,{manager,onSubmit=()=>{},onCancel=()=>{},sampleGround,terrainKey=()=>viewer.terrainProvider,host=document.body,setTimer=setTimeout,clearTimer=clearTimeout}={}){
         let session=null,sequence=0;const canvas=viewer.scene.canvas;
         function close(silent=false){const s=session;if(!s)return;session=null;++sequence;clearTimer(s.submitTimer);s.restoreInputs();if(s.drag){try{canvas.releasePointerCapture(s.drag.pointerId);}catch(_){}}
@@ -78,7 +92,7 @@
                 else{const g=M.geographic(C,world),data=readPairs();if(data.length>=64)throw Error('At most 64 pairs');data.push({source:s.pendingSource,target:{longitude:g.longitude,latitude:g.latitude,heightM:g.ellipsoidHeightM}});s.pendingSource=null;s.pick=null;manager.setPreviewHidden(s.id,false);restore({...s.value,pairs:data},true);message(`${data.length} ${t('Punktpaare','point pairs')}`);}
             }
             function intercept(e){e.stopImmediatePropagation();e.preventDefault();}
-            listen(canvas,'pointerdown',e=>{if(session!==s||s.busy)return;if(s.drag){intercept(e);return;}if(!e.isPrimary||e.pointerType==='mouse'&&e.button!==0)return;const p=pixel(e),hit=viewer.scene.pick(p),axis=hit?.id?.id?.replace?.('fpv-edit-','');s.down=p;
+            listen(canvas,'pointerdown',e=>{if(session!==s||s.busy)return;if(s.drag){intercept(e);return;}if(!e.isPrimary||e.pointerType==='mouse'&&e.button!==0)return;const p=pixel(e),axis=s.id&&!s.pick?pickHandle(C,viewer,s.entities,p,e.pointerType):null;s.down=p;
                 if(s.id&&!s.pick&&['east','north','up','heading'].includes(axis)){intercept(e);++s.revision;s.inputBefore=viewer.scene.screenSpaceCameraController.enableInputs;viewer.scene.screenSpaceCameraController.enableInputs=false;s.drag={axis,pointerId:e.pointerId,start:p,before:JSON.parse(JSON.stringify(s.value))};try{canvas.setPointerCapture(e.pointerId);}catch(_){/* Synthetic pointer events may have no capture target. */}}
             },true);
             listen(canvas,'pointermove',e=>{const d=s.drag;if(!d||e.pointerId!==d.pointerId)return;intercept(e);const p=pixel(e),a=d.before.alignment,o=M.xyz(C,a),origin=C.SceneTransforms.worldToWindowCoordinates(viewer.scene,o);if(!origin)return;let next;
@@ -97,5 +111,5 @@
         function result(token,error){const s=session;if(!s||s.token!==token)return;clearTimer(s.submitTimer);if(error){s.busy=false;s.message(error);s.refresh();}else close(true);}
         return {begin,close,result,catalogChanged(token){close(session?.busy===true&&session.token===token);},get active(){return !!session;},dispose(){close(true);}};
     }
-    return {create};
+    return {create,pickHandle};
 });
