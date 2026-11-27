@@ -253,8 +253,9 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                 for (final layer in variant.layers.entries) {
                   final layerSample = layerStats[layer.key];
                   if (layerSample is! Map) continue;
-                  if (layerSample['visible'] == true)
+                  if (layerSample['visible'] == true) {
                     visibleLayers.add(layer.key);
+                  }
                   if ([
                     'failed',
                     'partial',

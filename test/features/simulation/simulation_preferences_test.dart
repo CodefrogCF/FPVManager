@@ -223,6 +223,11 @@ void main() {
         {'droneId': -1},
         {'showCoordinates': null},
         {'rotation': []},
+        {'rotation': null},
+        <Object?, Object?>{1: 'invalid key'},
+        {
+          'rotation': <Object?, Object?>{1: 'invalid key'},
+        },
         {
           'rotation': {'superRate': 2},
         },

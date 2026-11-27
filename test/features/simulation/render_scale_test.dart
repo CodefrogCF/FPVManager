@@ -4,6 +4,13 @@ import 'package:fpvmanager/features/simulation/simulation_settings.dart';
 void main() {
   test('render scale is optional and persists independently of profile', () {
     expect(SimulationSettings.fromJson({}).renderScale, isNull);
+    expect(
+      SimulationSettings.fromJson(<Object?, Object?>{
+        'renderScale': .55,
+        'rotation': <Object?, Object?>{'superRate': .4},
+      }).renderScale,
+      .55,
+    );
     const settings = SimulationSettings(renderScale: .55);
     final restored = SimulationSettings.fromJson(settings.toJson());
     expect(restored.renderScale, .55);

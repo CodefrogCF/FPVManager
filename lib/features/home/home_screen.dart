@@ -654,7 +654,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                                     try {
                                       await _benchmark.recording.save(csv: csv);
                                     } catch (_) {
-                                      if (context.mounted)
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                               SnackBar(
@@ -665,6 +665,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                                                 ),
                                               ),
                                             );
+                                      }
                                     }
                                   },
                             child: Text(csv ? 'CSV' : 'JSON'),

@@ -3,13 +3,17 @@ part of 'simulation_settings.dart';
 // The v1 preferences key is additive: older backups need no schema migration.
 
 class _SettingsJson {
-  _SettingsJson(Object? source) {
-    if (source is! Map<String, dynamic>) {
-      throw const FormatException('Invalid simulator settings object');
+  _SettingsJson(Object? source)
+    : data = _readObject(source, 'Invalid simulator settings object');
+
+  final Map<String, dynamic> data;
+
+  static Map<String, dynamic> _readObject(Object? source, String message) {
+    if (source is! Map || source.keys.any((key) => key is! String)) {
+      throw FormatException(message);
     }
-    data = source;
+    return Map<String, dynamic>.from(source);
   }
-  late final Map<String, dynamic> data;
   T value<T>(String key, T fallback) {
     if (!data.containsKey(key)) return fallback;
     final raw = data[key];
@@ -30,8 +34,9 @@ class _SettingsJson {
   int? optionalInt(String key) => data[key] == null ? null : value<int>(key, 0);
   String? optionalText(String key) =>
       data[key] == null ? null : value<String>(key, '');
-  Map<String, dynamic> object(String key) =>
-      value<Map<String, dynamic>>(key, {});
+  Map<String, dynamic> object(String key) => data.containsKey(key)
+      ? _readObject(data[key], 'Invalid simulator setting: $key')
+      : <String, dynamic>{};
   T choice<T extends Enum>(String key, List<T> choices, T fallback) {
     final name = value<String>(key, fallback.name);
     return choices.where((v) => v.name == name).firstOrNull ??
