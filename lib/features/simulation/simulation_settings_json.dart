@@ -14,6 +14,7 @@ class _SettingsJson {
     }
     return Map<String, dynamic>.from(source);
   }
+
   T value<T>(String key, T fallback) {
     if (!data.containsKey(key)) return fallback;
     final raw = data[key];
