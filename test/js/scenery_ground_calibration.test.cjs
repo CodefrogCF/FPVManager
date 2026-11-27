@@ -26,7 +26,7 @@ test('reject invalid depth, inappropriate separation and implausible offsets',()
 });
 test('BKG-specific edit is validated, persists separately from ordinary offset',()=>{
   const item=M.validate(catalog)[0];
-  assert.equal(item.bkgHeightOffsetM,-16.90);
+  assert.equal(item.bkgHeightOffsetM,0);
   const edit=A.normalizeEdit({...item,bkgHeightOffsetM:-27.5,heightOffsetM:.25},item.alignment);
   assert.equal(edit.bkgHeightOffsetM,-27.5);
   assert.equal(edit.heightOffsetM,.25);
@@ -51,7 +51,15 @@ test('BKG-only height nudge follows a provider switch, preview hiding is reversi
     await manager.initialize();await flush();manager.tick(true);await flush();
     const normal=manager.snapshot()[0];
     assert.equal(normal.heightState,'adjusted');
-    assert.equal(normal.bkgHeightOffsetM,-16.90);
+    assert.equal(normal.bkgHeightOffsetM,0);
+    assert.ok(Math.abs(normal.groundResidualM)<1e-8);
+    regional=true;provider={id:'bkg-zero'};manager.tick(true);await flush();
+    const corrected=manager.snapshot()[0];
+    assert.equal(corrected.bkgHeightOffsetM,0);
+    assert.ok(Math.abs(corrected.modelGroundReferenceM-78)<1e-8);
+    assert.ok(Math.abs(corrected.groundResidualM)<1e-8);
+    assert.equal(manager.performanceSnapshot().groundAlignment.bkgHeightOffsetM,0);
+    regional=false;provider={id:'normal-again'};manager.tick(true);await flush();
     const edit={...normal,bkgHeightOffsetM:-24};
     manager.setEdit(normal.id,edit);
     assert.equal(manager.snapshot()[0].bkgHeightOffsetM,-24);
@@ -59,6 +67,7 @@ test('BKG-only height nudge follows a provider switch, preview hiding is reversi
     regional=true;provider={id:'bkg'};manager.tick(true);await flush();
     assert.equal(manager.snapshot()[0].heightState,'adjusted');
     assert.ok(Math.abs(manager.snapshot()[0].effectiveAlignment.ellipsoidHeightM-(normal.effectiveAlignment.ellipsoidHeightM-24))<1e-8);
+    assert.ok(Math.abs(manager.snapshot()[0].groundResidualM+24)<1e-8);
     manager.setPreviewHidden(normal.id,true);
     assert.equal(model.show,false);
     manager.setPreviewHidden(normal.id,false);

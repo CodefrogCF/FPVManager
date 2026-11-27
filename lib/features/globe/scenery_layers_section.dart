@@ -8,6 +8,19 @@ import '../../core/localization/app_localizations.dart';
 import 'globe_controller.dart';
 import '../scenery/scenery_management_page.dart';
 
+Widget _terrainSeamDiagnostics(List checks, bool german) {
+  final results = checks.whereType<Map>().toList();
+  final rejected = results.where((r) => r['approved'] != true).toList();
+  final unavailable = rejected.where((r) => r['maxErrorM'] is! num).length;
+  final errors = rejected.map((r) => r['maxErrorM']).whereType<num>();
+  final maxError = errors.fold<num>(0, (a, b) => a > b ? a : b);
+  return Text(
+    german
+        ? 'Randprüfung: ${results.length} geprüft, ${rejected.length} nicht freigegeben ($unavailable ohne vollständige Daten), max. Abweichung ${errors.isEmpty ? '—' : maxError.toStringAsFixed(2)} m.'
+        : 'Seams: ${results.length} checked, ${rejected.length} rejected ($unavailable incomplete), max residual ${errors.isEmpty ? '—' : maxError.toStringAsFixed(2)} m.',
+  );
+}
+
 /// Optional scenery assets with experimental, non-surveyed collision geometry.
 class SceneryLayersSection extends StatefulWidget {
   const SceneryLayersSection({super.key, required this.controller});
@@ -580,6 +593,14 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                   ? 'Gelände: ${(item['groundHeightM'] as num).toStringAsFixed(1)} m · Modellanker: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(1)} m (experimentell)'
                   : 'Terrain: ${(item['groundHeightM'] as num).toStringAsFixed(1)} m · Model anchor: ${((item['effectiveAlignment'] as Map)['ellipsoidHeightM'] as num).toStringAsFixed(1)} m (experimental)',
             ),
+          if (controller.developerMenusEnabled &&
+              item['modelGroundReferenceM'] is num &&
+              item['groundResidualM'] is num)
+            Text(
+              german
+                  ? 'Modell-Bodenreferenz: ${(item['modelGroundReferenceM'] as num).toStringAsFixed(2)} m · Abweichung: ${(item['groundResidualM'] as num).toStringAsFixed(2)} m'
+                  : 'Model ground reference: ${(item['modelGroundReferenceM'] as num).toStringAsFixed(2)} m · Residual: ${(item['groundResidualM'] as num).toStringAsFixed(2)} m',
+            ),
           if (item['heightState'] == 'pending' ||
               item['heightState'] == 'unavailable' ||
               (item['heightState'] == 'original' &&
@@ -755,6 +776,10 @@ class _SceneryLayersSectionState extends State<SceneryLayersSection> {
                     )
                   : null,
             ),
+          if (controller.developerMenusEnabled &&
+              item['terrainSeamChecks'] is List &&
+              (item['terrainSeamChecks'] as List).isNotEmpty)
+            _terrainSeamDiagnostics(item['terrainSeamChecks'] as List, german),
           Wrap(
             spacing: 8,
             children: [

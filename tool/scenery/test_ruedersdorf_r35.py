@@ -57,8 +57,8 @@ def main():
  assert scene['terrainCertificate']['collisionSha256']==sha
  assert len(scene['terrainCertificates'])==15
  assert all(c['collisionSha256']==sha for c in scene['terrainCertificates'])
- assert scene['bkgHeightOffsetM']==-16.9
+ assert scene['bkgHeightOffsetM']==0
  print(json.dumps({'revision':'R35','removed_gantry_triangles':190,'north_original_scan_triangles':scanned,
-   'south_reconstruction_triangles':3696,'collision_triangles':nt,'bkg_offset_m':-16.9},indent=2))
+   'south_reconstruction_triangles':3696,'collision_triangles':nt,'bkg_offset_m':scene['bkgHeightOffsetM']},indent=2))
 
 if __name__=='__main__':main()

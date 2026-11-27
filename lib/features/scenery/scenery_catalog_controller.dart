@@ -149,8 +149,11 @@ final class SceneryCatalogController {
     if (!canSend()) throw StateError('Scenery is saved; renderer unavailable');
     final repaired = <SceneryManifest>[];
     for (final manifest in manifests) {
-      final next = recoverStrippedBundledBuildingFootprints(
-        manifest,
+      final next = migrateBundledBkgHeightOffset(
+        recoverStrippedBundledBuildingFootprints(
+          manifest,
+          _defaults[manifest.id],
+        ),
         _defaults[manifest.id],
       );
       if (!identical(next, manifest)) {

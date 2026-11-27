@@ -228,3 +228,42 @@ SceneryManifest recoverStrippedBundledBuildingFootprints(
   extensions!['bundledAlignment'] = original['bundledAlignment'];
   return SceneryManifest.fromJson(doc);
 }
+
+/// Upgrade the obsolete bundled BKG nudge once, retaining user placement,
+/// masks, material settings and other offsets. A subsequent explicit edit
+/// (including -16.9 m) is not migrated again.
+SceneryManifest migrateBundledBkgHeightOffset(
+  SceneryManifest current,
+  SceneryManifest? bundled,
+) {
+  if (bundled == null || current.id != bundled.id) return current;
+  final doc = current.toJson();
+  final cesium = (doc['extensions'] as Map?)?['cesium'];
+  final base = (bundled.toJson()['extensions'] as Map?)?['cesium'];
+  if (cesium is! Map ||
+      base is! Map ||
+      base['bkgHeightOffsetDefaultRevision'] != 1 ||
+      base['bkgHeightOffsetM'] != 0 ||
+      cesium.containsKey('bkgHeightOffsetDefaultRevision') ||
+      cesium['heightAlignmentMode'] != 'terrain' ||
+      cesium['requireGroundCalibration'] != true ||
+      current.assets.length != bundled.assets.length ||
+      !current.assets.every(
+        (a) => bundled.assets.any(
+          (b) =>
+              a.id == b.id &&
+              a.role == b.role &&
+              a.provider == 'bundled' &&
+              b.provider == 'bundled' &&
+              a.format == b.format &&
+              a.uri == b.uri,
+        ),
+      )) {
+    return current;
+  }
+  if (cesium['bkgHeightOffsetM'] == -16.9) {
+    cesium['bkgHeightOffsetM'] = 0.0;
+  }
+  cesium['bkgHeightOffsetDefaultRevision'] = 1;
+  return SceneryManifest.fromJson(doc);
+}

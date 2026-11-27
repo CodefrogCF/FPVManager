@@ -48,7 +48,7 @@ def test():
     sha=hashlib.sha256(f).hexdigest()
     assert sha==json.loads(Path('tool/scenery/r35/refinement_R35_report.json').read_text())['fpc_sha256']
     catalog=json.loads(CAT.read_text())['sceneries'][0]
-    assert catalog['bkgHeightOffsetM']==-16.9
+    assert catalog['bkgHeightOffsetM']==0
     assert len(catalog['terrainCertificates'])==15
     assert all(c['collisionSha256']==sha for c in catalog['terrainCertificates'])
     assert catalog['terrainCertificate']['collisionSha256']==sha

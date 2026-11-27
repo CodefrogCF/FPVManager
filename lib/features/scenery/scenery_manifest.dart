@@ -369,6 +369,15 @@ final class SceneryManifest {
     );
     final extensions = (doc['extensions'] ??= <String, dynamic>{}) as Map;
     extensions['cesium'] = {...?_mapOrNull(extensions['cesium']), ...edit};
+    if (migrateLegacyBase &&
+        edit['bkgHeightOffsetM'] == -16.9 &&
+        base != null &&
+        base['bkgHeightOffsetDefaultRevision'] == 1 &&
+        base['bkgHeightOffsetM'] == 0 &&
+        base['heightAlignmentMode'] == 'terrain' &&
+        base['requireGroundCalibration'] == true) {
+      (extensions['cesium'] as Map)['bkgHeightOffsetM'] = 0.0;
+    }
     return SceneryManifest.fromJson(doc);
   }
 }

@@ -1253,7 +1253,7 @@ function postToFlutter(message) {
         let pendingTerrainTiles=null;
         scenePerformance = FPVScenePerformance.create(viewer,{
             isContinuous:()=>flyer?.active===true&&!flyer.paused,
-            resources:()=>({...sceneEnvironment?.resourceStats(),pendingTerrainTiles,scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
+            resources:()=>({...sceneEnvironment?.resourceStats(),pendingTerrainTiles,terrainProvider:regionalTerrainChanging?'switching':terrainManager.status().state!=='ready'?'not ready':regionalTerrain?'BKG DGM5':window.FPVMapProviderConfig?.prepared?'prepared':window.FPVMapProviderConfig?.terrain?'custom':'swisstopo',scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{
@@ -1288,6 +1288,7 @@ function postToFlutter(message) {
         // coalesces identical regions; unrelated pending tiles need not finish.
         viewer.scene.globe.tileLoadProgressEvent?.addEventListener(pending => {
             pendingTerrainTiles=Number.isFinite(pending)?pending:null;
+            scenePerformance?.recordTerrainProgress?.(pendingTerrainTiles);
             publishObstacleViewport();
         });
         modelCollisions = typeof FPVSceneModelCollision !== 'undefined'

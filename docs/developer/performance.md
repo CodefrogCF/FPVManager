@@ -44,6 +44,15 @@ Opt-in scene/physics counters and the live RF panel are diagnostics, not measure
 RF reception. RF diagnostics are disabled by default, bounded and throttled.
 Unknown data must remain distinguishable from a valid clear or blocked profile.
 
+Enable developer options and the performance overlay for a platform comparison.
+Record WebGL renderer/vendor (masked if unavailable), Chromium UA engine version,
+canvas/CSS/drawing-buffer dimensions, DPR and resolution scale. Observed rAF
+cadence is not the physical monitor refresh or Flutter presentation rate. Update
+and scene P95 cover the observed Cesium event spans, not the entire native frame.
+Terrain busy time is elapsed time with pending tiles, not CPU processing time.
+Compare the same viewport, display refresh, provider, route and graphics profile
+with recording disabled; compare the browser build to the Windows WebView build.
+
 Use the [device template](../../tool/benchmarks/reference/advanced_physics_device_template.json)
 and [scenario definitions](../../tool/benchmarks/reference/scenarios.json).
 Save deliberate exports under `.local-performance/` (ignored by Git). Tools do not

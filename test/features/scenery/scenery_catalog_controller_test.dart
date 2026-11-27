@@ -135,6 +135,57 @@ void main() {
     );
     controller.dispose();
   });
+  test(
+    'bundled BKG default migrates once without changing placement or masks',
+    () async {
+      Map<String, dynamic>? sent;
+      final controller = SceneryCatalogController(
+        repository: repo,
+        loadBundled: () async => bundled,
+        canSend: () => true,
+        send: (command) async {
+          sent = command;
+          return {};
+        },
+      );
+      final base = (await controller.definitions()).single;
+      final doc = base.toJson();
+      final cesium = doc['extensions']['cesium'] as Map;
+      cesium.remove('bkgHeightOffsetDefaultRevision');
+      cesium['bkgHeightOffsetM'] = -16.9;
+      await repo.update(SceneryManifest.fromJson(doc));
+      await controller.synchronize();
+      final migrated = (await repo.list()).single.toJson();
+      final result = migrated['extensions']['cesium'] as Map;
+      expect(result['bkgHeightOffsetM'], 0);
+      expect(result['bkgHeightOffsetDefaultRevision'], 1);
+      expect(migrated['anchor'], doc['anchor']);
+      expect(result['terrainRegions'], cesium['terrainRegions']);
+      expect(result['terrainCertificate'], cesium['terrainCertificate']);
+      expect(
+        (sent!['catalog']['sceneries'] as List).single['bkgHeightOffsetM'],
+        0,
+      );
+      // A new deliberate edit, even equal to the old default, is respected.
+      result['bkgHeightOffsetM'] = -16.9;
+      await repo.update(SceneryManifest.fromJson(migrated));
+      await controller.synchronize();
+      expect(
+        (sent!['catalog']['sceneries'] as List).single['bkgHeightOffsetM'],
+        -16.9,
+      );
+      // A previously customized offset is never overwritten.
+      result.remove('bkgHeightOffsetDefaultRevision');
+      result['bkgHeightOffsetM'] = 3.5;
+      await repo.update(SceneryManifest.fromJson(migrated));
+      await controller.synchronize();
+      expect(
+        (sent!['catalog']['sceneries'] as List).single['bkgHeightOffsetM'],
+        3.5,
+      );
+      controller.dispose();
+    },
+  );
   test('legacy catalog-declared base heights upgrade without overwriting deliberate custom anchors', () {
     final raw =
         ((jsonDecode(bundled) as Map)['sceneries'] as List).single

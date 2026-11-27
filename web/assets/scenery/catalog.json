@@ -861,7 +861,8 @@
         "revision": "R32"
       },
       "requireGroundCalibration": true,
-      "bkgHeightOffsetM": -16.9
+      "bkgHeightOffsetM": 0.0,
+      "bkgHeightOffsetDefaultRevision": 1
     }
   ]
 }

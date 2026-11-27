@@ -72,7 +72,7 @@ void main() {
       expect(
         ((manifest.toJson()['extensions'] as Map)['cesium']
             as Map)['bkgHeightOffsetM'],
-        -16.9,
+        0.0,
       );
       await repository.remove(id);
       await repository.initializeBundled([

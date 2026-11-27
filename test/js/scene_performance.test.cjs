@@ -103,3 +103,29 @@ test('FPS uses actual frame intervals and reports idle age rather than inventing
     f.profiler.stop();
     assert.equal(f.preRender.listeners.size,0);assert.equal(f.postRender.listeners.size,0);
 });
+
+
+test('extended diagnostics separate observed update, render and animation cadence, then release observers',()=>{
+    let time=0,id=0,foreground=true;
+    const callbacks=new Map(),preUpdate=new Event(),postUpdate=new Event(),preRender=new Event(),postRender=new Event();
+    const gl={getExtension:n=>n==='WEBGL_debug_renderer_info'?{UNMASKED_VENDOR_WEBGL:1,UNMASKED_RENDERER_WEBGL:2}:null,
+        getParameter:n=>({1:'Test GPU vendor',2:'Test GPU renderer',3:'WebGL 2.0'})[n],VERSION:3,drawingBufferWidth:1920,drawingBufferHeight:1080};
+    const scene={preUpdate,postUpdate,preRender,postRender,canvas:{width:1920,height:1080,clientWidth:960,clientHeight:540}};
+    const viewer={scene,resolutionScale:1};
+    const p=create(viewer,{capacity:16,now:()=>time,gpuContext:()=>gl,isForeground:()=>foreground,
+        requestFrame:cb=>{callbacks.set(++id,cb);return id;},cancelFrame:key=>callbacks.delete(key),
+        resources:()=>({terrainProvider:'BKG DGM5'})});
+    const frame=stamp=>{const [key,cb]=callbacks.entries().next().value;callbacks.delete(key);cb(stamp);};
+    p.start();p.recordTerrainProgress(3);time=5;p.recordTerrainProgress(7);
+    preUpdate.fire();time+=6;postUpdate.fire();time+=2;preRender.fire();time+=4;postRender.fire();
+    time=30;p.recordTerrainProgress(0);
+    for(let i=0;i<20;i++)frame(i*16.6667);
+    const s=p.snapshot();
+    assert.equal(s.cpuUpdateMs.p95,6);assert.equal(s.cpuRenderMs.p95,4);assert.equal(s.cpuSceneMs.p95,12);
+    assert.equal(s.canvas.bufferWidth,1920);assert.equal(s.canvas.cssWidth,960);assert.equal(s.renderer.renderer,'Test GPU renderer');assert.equal(s.renderer.unmasked,true);
+    assert.ok(Math.abs(s.animationCadence.medianHz-60)<.1);assert.equal(s.animationCadence.samples,16);
+    assert.equal(s.terrainProvider,'BKG DGM5');assert.deepEqual(s.terrainStreaming,{pending:0,peak:7,activeMs:null,lastBatchMs:30,batches:1});
+    foreground=false;frame(10000);foreground=true;frame(11000);assert.ok(Math.abs(p.snapshot().animationCadence.medianHz-60)<.1);
+    p.stop();assert.equal(callbacks.size,0);assert.equal(preUpdate.listeners.size,0);assert.equal(postUpdate.listeners.size,0);
+    p.start();assert.equal(p.snapshot().cpuSceneMs.samples,0);assert.equal(p.snapshot().terrainStreaming.batches,0);p.dispose();assert.equal(callbacks.size,0);
+});

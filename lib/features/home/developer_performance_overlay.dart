@@ -28,6 +28,13 @@ class DeveloperPerformanceOverlay extends StatelessWidget {
         final tiles = _map(s['tilesets']);
         final scenery = _map(s['scenery']);
         final rf = _map(s['rf']);
+        final renderer = _map(s['renderer']);
+        final canvas = _map(s['canvas']);
+        final cadence = _map(s['animationCadence']);
+        final update = _map(s['cpuUpdateMs']);
+        final scene = _map(s['cpuSceneMs']);
+        final streaming = _map(s['terrainStreaming']);
+        final ground = _map(scenery['groundAlignment']);
         final age = s['frameAgeMs'];
         final fps = age is num && age <= 1500
             ? _number(s['renderFps'], 1)
@@ -39,15 +46,27 @@ class DeveloperPerformanceOverlay extends StatelessWidget {
             'FPS $fps · P95 ${_number(pacing['p95'], 1)} ms',
             'CPU ${_number(cpu['p50'], 1)}/${_number(cpu['p95'], 1)} ms',
             'GPU ${_number(gpu['p50'], 1)}/${_number(gpu['p95'], 1)} ms',
+            'Update / scene P95 ${_number(update['p95'], 1)}/${_number(scene['p95'], 1)} ms',
+            'rAF ${_number(cadence['medianHz'], 1)} Hz · fast ${_number(cadence['fastHz'], 1)} Hz',
+            'Canvas ${_number(canvas['width'])}×${_number(canvas['height'])} · CSS ${_number(canvas['cssWidth'])}×${_number(canvas['cssHeight'])}',
+            'Buffer ${_number(canvas['bufferWidth'])}×${_number(canvas['bufferHeight'])} · DPR ${_number(canvas['devicePixelRatio'], 2)} · scale ${_number(canvas['resolutionScale'], 2)}',
+            'GL ${renderer['unmasked'] == true ? '' : '(masked) '}${renderer['renderer'] ?? '—'}',
+            'Vendor ${renderer['vendor'] ?? '—'} · Chromium ${renderer['chromiumVersion'] ?? '—'}',
             'Frames >33/100 ms: ${_number(s['over33Ms'])}/${_number(s['over100Ms'])}',
             'Physics ${flight['model'] ?? '—'} ${_number(flight['stepHz'])} Hz',
             'Step P95 ${_number(step['p95Ms'], 2)} ms · sub ${_number(flight['lastSubsteps'])}',
             'Queue ${_number(flight['queuedSeconds'], 3)} s · drop ${_number(flight['droppedSeconds'], 3)} s',
             'Terrain ${s['terrainState'] ?? '—'}${s['terrainWarning'] == true ? ' · !' : ''} · pending ${_number(s['pendingTerrainTiles'])}',
+            'Provider ${s['terrainProvider'] ?? '—'} · peak ${_number(streaming['peak'])}',
+            'Tile busy / last ${_number(streaming['activeMs'])}/${_number(streaming['lastBatchMs'])} ms',
             '3D tiles ${_number(tiles['resident'])}/${_number(tiles['visible'])} · pending ${_number(tiles['pending'])}',
             '3D est. ${_mib(tiles['estimatedBytes'])} MiB',
             'Scenery ${_number(scenery['residentModels'])} · loading ${_number(scenery['loading'])}',
             'Scenery FPC ${_mib(scenery['collisionBytes'])} MiB · Δ ${_number(scenery['activeCollisionTriangles'])}',
+            if (ground.isNotEmpty) ...[
+              'Ground ${ground['state'] ?? '—'} ${_number(ground['groundHeightM'], 1)} · model ${_number(ground['modelGroundReferenceM'], 1)} m',
+              'Δ ${_number(ground['groundResidualM'], 2)} m · BKG ${_number(ground['bkgHeightOffsetM'], 2)} · seams ${_number(ground['approved'])}/${_number(ground['candidates'])}',
+            ],
             'RF ${rf['quality'] ?? '—'} · ${rf['provider'] ?? '—'}',
             'RF ${_number(rf['durationMs'])} ms · age ${_number(rf['ageMs'])} ms',
             'RF samples ${_number(rf['validSamples'])}/${_number(rf['samples'])}',
@@ -70,7 +89,7 @@ class DeveloperPerformanceOverlay extends StatelessWidget {
               ),
               child: Text(
                 '${german ? 'ENTWICKLER' : 'DEVELOPER'}\n${rows.join('\n')}',
-                maxLines: 18,
+                maxLines: 32,
                 overflow: TextOverflow.ellipsis,
               ),
             ),

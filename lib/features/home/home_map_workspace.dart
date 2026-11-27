@@ -88,7 +88,7 @@ class HomeMapWorkspace extends StatelessWidget {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: math.min(
-                      310.0,
+                      constraints.maxWidth >= 900 ? 460.0 : 310.0,
                       math.max(0.0, constraints.maxWidth - 16),
                     ),
                     maxHeight: math.max(0.0, constraints.maxHeight - 155),
