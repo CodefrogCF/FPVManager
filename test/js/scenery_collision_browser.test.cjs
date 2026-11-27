@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {browser,runPage}=require('./support/scenery_browser.cjs'),repo=path.resolve(__dirname,'../..');
 test('real browser validates offline FPC in workers, renders physics geometry and recovers from cache errors',
- {skip:browser?false:'Install Chromium or set FPV_CHROME',timeout:60000},async()=>{
+ {skip:browser?false:'Install Chromium or set FPV_CHROME',timeout:120000},async()=>{
  let fixtureReads=0,cacheHttp=0;const server=http.createServer((req,res)=>{const name=new URL(req.url,'http://localhost').pathname,file=path.resolve(repo,'.'+decodeURIComponent(name));
   if(name.endsWith('collision_room.fpc'))fixtureReads++;if(name.includes('/scenery-local/'))cacheHttp++;
   if(!file.startsWith(repo+path.sep)){res.writeHead(403).end();return;}

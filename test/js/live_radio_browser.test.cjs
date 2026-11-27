@@ -6,7 +6,7 @@ const { browser, runPage } = require('./support/scenery_browser.cjs');
 const repo = path.resolve(__dirname, '../..');
 
 test('real Chromium host timers sample terrain through the JSON bridge',
-    { skip: browser ? false : 'Chromium is not installed; use FPV_CHROME to run this integration test', timeout: 45000 }, async () => {
+    { skip: browser ? false : 'Chromium is not installed; use FPV_CHROME to run this integration test', timeout: 90000 }, async () => {
     const sourceRoot = process.env.FPV_RF_RUNTIME_SOURCE_ROOT
         ? path.resolve(process.env.FPV_RF_RUNTIME_SOURCE_ROOT) : repo;
     const overridable = new Set(['/web/features/signal/live_radio.js',

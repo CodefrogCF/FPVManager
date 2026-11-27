@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {browser,runPage}=require('./support/scenery_browser.cjs'),C=require('../../web/cesium/index.cjs');
 const repo=path.resolve(__dirname,'../..');
 test('real Cesium streams OGC 1.0/1.1 providers with source transforms, flight unloads and CORS errors',
- {skip:browser?false:'Install Chromium or set FPV_CHROME',timeout:60000},async()=>{
+ {skip:browser?false:'Install Chromium or set FPV_CHROME',timeout:120000},async()=>{
  const requests=[],glb=fs.readFileSync(path.join(repo,'test/fixtures/scenery/imported_triangle.glb'));
  const feature=Buffer.from('{"BATCH_LENGTH":0}'),featureLength=Math.ceil((28+feature.length)/8)*8-28,header=Buffer.alloc(28);header.write('b3dm');header.writeUInt32LE(1,4);header.writeUInt32LE(28+featureLength+glb.length,8);header.writeUInt32LE(featureLength,12);
  const padded=Buffer.alloc(featureLength,32);feature.copy(padded);const b3dm=Buffer.concat([header,padded,glb]);

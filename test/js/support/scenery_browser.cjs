@@ -21,15 +21,17 @@ async function pollPage(evaluate,url,timeoutMs,{now=Date.now,pause=ms=>new Promi
   // No extra CDP request after the deadline: a stalled renderer cannot extend the test.
   throw Error('Runtime timed out: '+JSON.stringify({lastSnapshot,pollTimeouts}));
 }
+// Keep startup separate from the actual renderer runtime budget.
+const STARTUP_TIMEOUT_MS=45000;
 async function runPage(url,{timeoutMs=45000,windowSize,disableGpu=false}={}){
  if(!browser)throw Error('Install Chromium or set FPV_CHROME');
  const profile=fs.mkdtempSync(path.join(os.tmpdir(),'fpv-provider-browser-'));let child,socket;
  try{
   const endpoint=await new Promise((resolve,reject)=>{
    child=spawn(browser,['--headless','--no-first-run','--no-default-browser-check','--disable-extensions','--no-proxy-server',...(disableGpu?['--disable-gpu']:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']),...(windowSize?['--window-size='+windowSize.width+','+windowSize.height]:[]),'--user-data-dir='+profile,'--remote-debugging-port=0',url],{windowsHide:true,stdio:['ignore','ignore','pipe']});
-   let stderr='';const timer=setTimeout(()=>reject(Error('Chromium startup timed out: '+stderr)),15000);
-   child.stderr.on('data',x=>{stderr=(stderr+x).slice(-3000);const match=stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(match){clearTimeout(timer);resolve(match[1]);}});
-   child.once('error',e=>{clearTimeout(timer);reject(e);});child.once('exit',code=>{clearTimeout(timer);reject(Error('Chromium exited '+code+': '+stderr));});
+   let stderr='';const timer=setTimeout(()=>reject(Error('Chromium startup timed out after '+STARTUP_TIMEOUT_MS+'ms ('+browser+'): '+stderr)),STARTUP_TIMEOUT_MS);
+   child.stderr.on('data',x=>{stderr=(stderr+x).slice(-8000);const match=stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(match){clearTimeout(timer);resolve(match[1]);}});
+   child.once('error',e=>{clearTimeout(timer);reject(e);});child.once('exit',(code,signal)=>{clearTimeout(timer);reject(Error('Chromium exited '+(signal||code)+': '+stderr));});
   });
   const origin='http://127.0.0.1:'+new URL(endpoint).port;let target;
   for(let i=0;i<100&&!target;i++){target=(await(await fetch(origin+'/json/list')).json()).find(x=>x.type==='page'&&x.url.startsWith(new URL(url).origin));if(!target)await new Promise(r=>setTimeout(r,50));}
@@ -45,7 +47,16 @@ async function runPage(url,{timeoutMs=45000,windowSize,disableGpu=false}={}){
   if(windowSize)await command('Emulation.setDeviceMetricsOverride',{...windowSize,deviceScaleFactor:1,mobile:true});
   return await pollPage(evaluate,url,timeoutMs);
  }finally{
-  socket?.close();child?.kill();const target=path.resolve(profile);
+  socket?.close();
+  // Wait for Chromium to exit before the next serial browser test starts.
+  if(child?.pid&&child.exitCode===null&&child.signalCode===null){
+   await new Promise(resolve=>{
+    const done=()=>{clearTimeout(timer);child.removeListener('exit',done);resolve();};
+    const timer=setTimeout(()=>{child.kill('SIGKILL');done();},5000);
+    child.once('exit',done);if(!child.kill())done();
+   });
+  }
+  const target=path.resolve(profile);
   assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep)&&path.basename(target).startsWith('fpv-provider-browser-'));
   try{fs.rmSync(target,{recursive:true,force:true});}catch(_){/* Chromium shutdown may retain a temporary lock. */}
  }

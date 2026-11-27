@@ -10,7 +10,7 @@ function buildings(){
  const metadata=Buffer.from('{"uuid":["building-1","building-2"]}'),meta=Buffer.alloc(Math.ceil(metadata.length/8)*8,32);metadata.copy(meta);const b=Buffer.alloc(28);b.write('b3dm');b.writeUInt32LE(1,4);b.writeUInt32LE(28+featureLength+meta.length+glb.length,8);b.writeUInt32LE(featureLength,12);b.writeUInt32LE(meta.length,20);return Buffer.concat([b,featurePadded,meta,glb]);
 }
 test('actual Cesium clips base buildings/terrain, keeps surrounding geometry and restores masks and stable features',
- {skip:browser?false:'Install Chromium or set FPV_CHROME',timeout:90000},async()=>{
+ {skip:browser?false:'Install Chromium or set FPV_CHROME',timeout:150000},async()=>{
  const data=buildings(),transform=C.Matrix4.pack(C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(13.8,52.4)),[]);
  const doc={asset:{version:'1.0',gltfUpAxis:'Z'},geometricError:100,root:{transform,boundingVolume:{box:[0,0,5,25,0,0,0,15,0,0,0,15]},geometricError:0,content:{uri:'buildings.b3dm'}}};
  const server=http.createServer((req,res)=>{const name=new URL(req.url,'http://localhost').pathname;

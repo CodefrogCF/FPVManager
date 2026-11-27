@@ -56,7 +56,24 @@ jobs:
       - name: Test Python tooling
         run: python -m unittest discover -s test/tool -p 'test_*.py'
       - name: Test renderer protocol, terrain and map interactions
-        run: node --test test/js/*.test.cjs
+        shell: bash
+        run: |
+          tests=()
+          for file in test/js/*.test.cjs; do
+            [[ "$file" == *_browser.test.cjs ]] || tests+=("$file")
+          done
+          node --test "${tests[@]}"
+      - name: Test real Chromium integrations (serial)
+        shell: bash
+        run: |
+          # Do not silently skip integration tests if Chromium is unavailable.
+          export FPV_CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -x "$FPV_CHROME"
+          "$FPV_CHROME" --version
+          # Reuse a writable font/cache directory across sequential launches.
+          export XDG_CACHE_HOME="$RUNNER_TEMP/fpv-browser-cache"
+          mkdir -p "$XDG_CACHE_HOME/fontconfig"
+          node --test --test-concurrency=1 test/js/*_browser.test.cjs
       - name: Enforce synthetic performance protocol invariants
         run: node tool/benchmarks/performance_suite.cjs --check
       - name: Analyze
