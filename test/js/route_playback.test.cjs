@@ -168,3 +168,33 @@ test('scenery lookahead is bounded, rate-aware and inactive during pause/stop',a
  m.playback.control({action:'pause'});assert.deepEqual(m.playback.sceneryLookahead(),[]);
  m.playback.control({action:'stop'});assert.deepEqual(m.playback.sceneryLookahead(),[]);
 });
+
+test('benchmark freezes AGL, truncates to a fixed prefix and reuses poses across warmup and measured passes',async()=>{
+    let ground=1000,calls=0;const poses=[],events=[];
+    const sim={active:false,async start(){this.active=true;},stop(){this.active=false;},
+        playbackPose(p){poses.push(p);return true;},playbackEnd(){}};
+    const replay=create({simulator:sim,sampleGround:async p=>{calls++;return p.map(()=>ground);},
+        renderedGround:()=>{throw Error('Benchmark must not depend on rendered LOD heights');},emit:(_,s)=>events.push(s)});
+    const route=base([a,{...b,latitude:46.705},{...b,latitude:46.71,longitude:8.42}],{benchmarkLimitSeconds:35});
+    const prepared=await replay.prepareBenchmark(route,signal());
+    assert.equal(prepared.duration,35);assert.ok(prepared.sourceDuration>35);
+    const initialCalls=calls;ground=1050;
+    await replay.start({...route,benchmark:true},signal());
+    assert.throws(()=>replay.control({action:'speed',speed:2}),/Invalid replay speed/);
+    const fly=()=>{const start=poses.length;for(let i=0;i<400&&replay.active;i++)replay.tick(.1);assert.equal(replay.status().phase,'finished');return poses.slice(start);};
+    const first=fly();replay.control({action:'restart'});const second=fly();
+    assert.deepEqual(second,first);assert.equal(calls,initialCalls);
+    assert.equal(first.at(-1).seconds,35);assert.ok(first.at(-1).latitude<46.71);
+    assert.equal(first.at(-1).aglTarget,null);
+    replay.interrupt();replay.clearBenchmark();
+    await assert.rejects(()=>replay.start({...route,benchmark:true},signal()),/not prepared/);
+});
+
+test('benchmark preparation is abortable and cannot publish a late trajectory',async()=>{
+    let release;const replay=create({simulator:{stop(){}},sampleGround:()=>new Promise(resolve=>{release=resolve;})});
+    const route=base([a,{...b,latitude:46.705}],{benchmarkLimitSeconds:60});
+    const pending=replay.prepareBenchmark(route,signal());
+    replay.control({action:'stop'});release([1000,1000]);
+    await assert.rejects(pending,/abort/i);
+    await assert.rejects(()=>replay.start({...route,benchmark:true},signal()),/not prepared/);
+});

@@ -48,7 +48,7 @@ test('image layer replaces and disposes with at most two cached frames',async()=
     getContext:()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){}})}),
     getElementById:()=>null};
   const added=[],deleted=[];
-  const C={SingleTileImageryProvider:{fromUrl:async(src,opts)=>({src,opts})},Rectangle:{fromDegrees:(...a)=>a}};
+  const C={Credit:class{constructor(html,showOnScreen){Object.assign(this,{html,showOnScreen});}},SingleTileImageryProvider:{fromUrl:async(src,opts)=>({src,opts})},Rectangle:{fromDegrees:(...a)=>a}};
   const viewer={imageryLayers:{addImageryProvider:p=>{added.push(p);return p},remove:(p,d)=>{deleted.push(p)}},scene:{requestRender(){}}};
   const fetcher=async()=>({ok:true,headers:{get:()=>null},body:null,arrayBuffer:async()=>new Uint8Array(32).buffer});
   const decoder=async()=>radar.parseOdim(fixture(),'RZC');
@@ -57,6 +57,7 @@ test('image layer replaces and disposes with at most two cached frames',async()=
     await overlay.replace(command);await overlay.replace({...command,assetUrl:'https://data.geo.admin.ch/other/RZC263081230VL.x01.h5'});
     await overlay.replace({...command,timestampUtc:'2026-11-03T12:35:00Z'});
     assert.equal(overlay.cachedCount,2);assert.equal(added.length,3);assert.equal(deleted.length,2);
+    assert.match(added[0].opts.credit.html,/Source: MeteoSwiss/);assert.equal(added[0].opts.credit.showOnScreen,false);
     overlay.dispose();assert.equal(overlay.cachedCount,0);assert.equal(deleted.length,3);
   }finally{global.document=old;}
 });

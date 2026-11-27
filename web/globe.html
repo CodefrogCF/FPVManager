@@ -119,8 +119,11 @@
        native accessible lightbox rather than covering the mobile map. */
     #globe .cesium-widget-credits {
         box-sizing: border-box;
+        display: inline-block;
         max-width: 100%;
-        padding: 0 6px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        padding: 2px 6px;
         background: var(--map-surface);
         color: var(--map-text);
         border-radius: 8px 8px 0 0;
@@ -129,7 +132,7 @@
         z-index: 30;
     }
     #globe .cesium-widget-credits a { color: var(--map-accent); }
-    #globe .cesium-credit-expand-link { line-height: 32px; padding: 0 8px;
+    #globe .cesium-credit-expand-link { display: inline-block; line-height: 24px; padding: 0 8px;
         font-size: 12px; font-weight: 600; cursor: pointer; }
     #globe .cesium-credit-logoContainer img { max-height: 20px; max-width: 100px; width: auto; }
     body .cesium-credit-lightbox-overlay { position: fixed; inset: 0; z-index: 100; }

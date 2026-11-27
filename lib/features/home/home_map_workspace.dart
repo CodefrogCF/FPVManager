@@ -15,11 +15,12 @@ class HomeMapWorkspace extends StatelessWidget {
     required this.selection,
     this.sidePanel,
     this.diagnosticOverlay,
+    this.benchmarkControls,
     this.captureMode = false,
     this.onExitCapture,
   });
   final Widget globe, navigation, actions, selection;
-  final Widget? sidePanel, diagnosticOverlay;
+  final Widget? sidePanel, diagnosticOverlay, benchmarkControls;
   final bool captureMode;
   final VoidCallback? onExitCapture;
   @override
@@ -131,6 +132,8 @@ class HomeMapWorkspace extends StatelessWidget {
                 child: sidePanel!,
               ),
             ),
+          if (benchmarkControls != null)
+            Positioned.fill(child: benchmarkControls!),
         ],
       );
     },

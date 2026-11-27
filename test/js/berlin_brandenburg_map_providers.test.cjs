@@ -24,7 +24,9 @@ test('country-wide CC BY basemap.de WMS plus detailed Brandenburg sources',()=>{
         assert.equal(national.rectangle.north,C.Math.toRadians(P.germanyBounds[3]));
         assert.match(national.credit.html,/CC BY 4\.0/);
         assert.match(national.credit.html,/bkg\.bund\.de/);
-        assert.match(national.credit.html,/mit anderen Kartendiensten kombiniert/);
+        assert.match(national.credit.html,/verändert/);
+        assert.equal(national.credit.showOnScreen,true);
+        assert.match(national.credit.html,/creativecommons.org\/licenses\/by\/4.0/);
         assert.equal(adapter.describeRegionalImagery(style).licenseName,'CC BY 4.0');
         if(style==='topographic')assert.equal(providers.length,1);
         else{
@@ -35,6 +37,8 @@ test('country-wide CC BY basemap.de WMS plus detailed Brandenburg sources',()=>{
             assert.equal(local.rectangle.north,C.Math.toRadians(bounds[3]));
             assert.match(local.credit.html,/GeoBasis-DE\/LGB/);
             assert.match(local.credit.html,/Geoportal Berlin/);
+            assert.equal(local.credit.showOnScreen,false);
+            assert.match(local.credit.html,/govdata.de\/dl-de\/by-2-0/);
             assert.match(adapter.describeLocalRegionalImagery(style).licenseUri,/dl-de\/by-2-0/);
         }
     }

@@ -233,3 +233,16 @@ test('flight restores the finer topographic detail budget on exit',()=>{
   assert.equal(p.viewer.scene.globe.maximumScreenSpaceError,2);
   p.adapter.restoreGraphics(saved);assert.equal(p.viewer.scene.globe.maximumScreenSpaceError,1);
 });
+
+test('explicit resolution override preserves profile MSAA, terrain and map restoration',()=>{
+    const p=fixture(),saved=p.adapter.captureGraphics();
+    for(const name of Object.keys(profiles)){
+        p.adapter.applyGraphics(name,.5);
+        assert.equal(p.viewer.resolutionScale,.5);
+        assert.equal(p.viewer.scene.msaaSamples,profiles[name].msaaSamples);
+        assert.equal(p.viewer.scene.globe.maximumScreenSpaceError,2);
+    }
+    for(const bad of [0,.39,1.01,NaN,Infinity,'0.5'])assert.throws(()=>p.adapter.applyGraphics('balanced',bad));
+    p.adapter.applyGraphics('balanced',null);assert.equal(p.viewer.resolutionScale,.85);
+    p.adapter.restoreGraphics(saved);assert.equal(p.viewer.resolutionScale,.95);
+});

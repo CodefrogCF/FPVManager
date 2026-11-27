@@ -42,14 +42,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(files.exports, 0);
-      await tester.tap(find.byTooltip('Import routes'));
+      expect(find.text('Import routes'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('import-flight-routes')));
       await tester.pumpAndSettle();
       expect(find.text('Unknown flight heights'), findsOneWidget);
       expect(await repo.getAllFlightPlans(), isEmpty);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(await repo.getAllFlightPlans(), isEmpty);
-      await tester.tap(find.byTooltip('Import routes'));
+      await tester.tap(find.byKey(const ValueKey('import-flight-routes')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Import locally'));
       await tester.pumpAndSettle();

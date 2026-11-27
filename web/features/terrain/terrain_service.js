@@ -58,6 +58,15 @@
         onStatus, onWarning = () => {}, offlineReason = () => null, probe = async () => {},
         initializationTimeoutMs = 8000, sampleTimeoutMs = 12000, tileTimeoutMs = 12000,
         startupRetryDelaysMs = [750, 2000], warningRetentionMs = 30000 }) {
+        let requestDiagnostics = null;
+        function setDiagnosticsEnabled(enabled) {
+            if (enabled) requestDiagnostics ??= {render: {count:0,failed:0,active:0,totalMs:0,maxMs:0},sample:{count:0,failed:0,active:0,totalMs:0,maxMs:0}};
+            else requestDiagnostics = null;
+        }
+        function requestStats() {
+            if (!requestDiagnostics) return null;
+            return Object.fromEntries(Object.entries(requestDiagnostics).map(([key,d])=>[key,{...d,meanMs:d.count?d.totalMs/d.count:null}]));
+        }
         let provider = createFallback();
         let state = "loading", reason = null, disposed = false;
         let generation = new AbortController(), removeErrorListener = null, pending = null;
@@ -160,6 +169,11 @@
                     if (rootTiles.has(key)) return Promise.resolve(rootTiles.get(key));
                     const response = requestTile(...args);
                     if (response === undefined) return undefined;
+                    const diagnosticSession = requestDiagnostics;
+                    const metric = diagnosticSession?.[args[3] ? 'render' : 'sample'];
+                    const started = metric ? performance.now() : 0;
+                    let failed = false;
+                    if (metric) metric.active++;
                     const cancel = () => {
                         try { args[3]?.cancelFunction?.(); } catch (_) { /* Already settled. */ }
                     };
@@ -172,6 +186,7 @@
                         }
                         return tile;
                     }).catch(error => {
+                        failed = true;
                         // sampleTerrain / RF queries call without a Request.
                         // They propagate their own errors, not a global visual
                         // warning. Rendered tile failures go through Cesium's
@@ -189,7 +204,12 @@
                             cancel();
                         }
                         throw error;
-                    }).finally(() => attemptGeneration.signal.removeEventListener("abort", cancel));
+                    }).finally(() => {
+                        attemptGeneration.signal.removeEventListener("abort", cancel);
+                        if(metric && diagnosticSession===requestDiagnostics){
+                            const elapsed=performance.now()-started;metric.active--;metric.count++;metric.failed+=Number(failed);metric.totalMs+=elapsed;metric.maxMs=Math.max(metric.maxMs,elapsed);
+                        }
+                    });
                 };
                 await probe(next, attemptGeneration.signal);
                 return next;
@@ -272,12 +292,13 @@
             }
         }
         function dispose() {
+            requestDiagnostics = null;
             if (disposed) return;
             disposed = true;
             stopStartupRecovery();
             invalidate();
         }
-        return { initialize, retry, switchProvider, networkChanged, sample, dispose, status, warningDetails,
+        return { initialize, retry, switchProvider, networkChanged, sample, dispose, status, warningDetails, setDiagnosticsEnabled, requestStats,
             get hasWarning() { return warning; },
             get provider() { return provider; } };
     }

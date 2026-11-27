@@ -338,3 +338,36 @@ test('a changed tunnel aperture reaches native model walls on the next frame rat
     assert.equal(p.primitives[0].customShader,undefined);
     p.manager.dispose();
 });
+
+test('per-layer diagnostics are opt-in and keep building and vegetation progress separate',async()=>{
+    const p=fixture();p.set({buildings:true,vegetation:true});await flush();
+    assert.equal(p.manager.resourceStats().layerStats,null);
+    p.manager.setDiagnosticsEnabled(true);
+    const b=p.manager.buildingsTileset(),v=p.primitives.find(t=>t!==b);
+    b.loadProgress.fire(4,2);v.loadProgress.fire(1,0);b.loadProgress.fire(0,0);
+    let stats=p.manager.resourceStats().layerStats;
+    assert.equal(stats.buildings.peak,6);assert.equal(stats.buildings.pending,0);
+    assert.ok(stats.buildings.lastBusyMs>=0);assert.equal(stats.vegetation.pending,1);
+    p.manager.setDiagnosticsEnabled(false);assert.equal(p.manager.resourceStats().layerStats,null);
+    p.manager.setDiagnosticsEnabled(true);assert.equal(p.manager.resourceStats().layerStats.buildings.progressEvents,0);
+    p.manager.dispose();
+});
+
+test('benchmark layer overrides take precedence over map/navigation and restore original preferences',async()=>{
+    const f=fixture();f.set({buildings:true,vegetation:false,structures:true});await flush();
+    f.manager.navigation({active:true,buildings:false,vegetation:true});await flush();
+    assert.equal(f.manager.buildingsTileset().show,false);
+    f.manager.benchmark({buildings:true,vegetation:false,structures:false});await flush();
+    assert.equal(f.manager.buildingsTileset().show,true);
+    assert.equal(f.manager.structuresTileset(),null);
+    f.manager.setDiagnosticsEnabled(true);
+    assert.equal(f.manager.resourceStats().layerStats.vegetation.visible,false);
+    assert.throws(()=>f.manager.benchmark({buildings:true}),/Invalid benchmark layers/);
+    f.manager.benchmark(null);await flush();
+    assert.equal(f.manager.buildingsTileset().show,false);
+    assert.equal(f.manager.resourceStats().layerStats.vegetation.visible,true);
+    assert.equal(f.manager.structuresTileset().show,true);
+    f.manager.navigationActive(false);assert.equal(f.manager.buildingsTileset().show,true);
+    assert.equal(f.manager.resourceStats().layerStats.vegetation.visible,false);
+    f.manager.dispose();
+});

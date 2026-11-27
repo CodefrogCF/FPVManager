@@ -37,6 +37,7 @@ class SimulationSettings {
     this.cameraTiltDegrees = 0,
     this.cameraFovDegrees = 90,
     this.graphicsProfile = SimulationGraphicsProfile.balanced,
+    this.renderScale,
     this.hudStyle = SimulationHudStyle.goggles,
     this.showCoordinates = false,
     this.signalHud = const SignalHudSettings(),
@@ -74,6 +75,9 @@ class SimulationSettings {
   /// Horizontal FPV camera field of view in degrees (not a focal length).
   final double cameraFovDegrees;
   final SimulationGraphicsProfile graphicsProfile;
+
+  /// Null retains the selected graphics profile’s default resolution.
+  final double? renderScale;
   final SimulationHudStyle hudStyle;
   final bool showCoordinates;
   final SignalHudSettings signalHud;
@@ -127,6 +131,7 @@ class SimulationSettings {
     cameraTiltDegrees: degrees,
     cameraFovDegrees: cameraFovDegrees ?? this.cameraFovDegrees,
     graphicsProfile: graphicsProfile ?? this.graphicsProfile,
+    renderScale: renderScale,
     hudStyle: hudStyle ?? this.hudStyle,
     showCoordinates: showCoordinates ?? this.showCoordinates,
     signalHud: signalHud ?? this.signalHud,
@@ -186,6 +191,10 @@ class SimulationSettings {
   }
 
   void validate() {
+    final scale = renderScale;
+    if (scale != null && (!scale.isFinite || scale < .4 || scale > 1)) {
+      throw ArgumentError('Invalid render scale');
+    }
     if (![60, 120, 240].contains(physicsStepHz)) {
       throw ArgumentError('Unsupported simulation physics rate');
     }
@@ -255,6 +264,7 @@ class SimulationSettings {
       'cameraTiltDegrees': cameraTiltDegrees,
       'cameraFovDegrees': cameraFovDegrees,
       'graphicsProfile': graphicsProfile.name,
+      'renderScale': renderScale,
       'hudStyle': hudStyle.name,
       'showCoordinates': showCoordinates,
       'signalHud': signalHud.toJson(),

@@ -78,6 +78,7 @@ function postToFlutter(message) {
     let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null, obstacleViewportTracker = null, obstacleViewportKey = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
+    let benchmarkSession = false;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
     let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
     let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryReplacement = null, sceneryManager = null, sceneryEditor = null, regional3D = null;
@@ -751,7 +752,7 @@ function postToFlutter(message) {
 
     async function executeCommand(command, signal) {
         signal.throwIfAborted();
-        if(sceneryEditor?.active&&(['enter-simulation','enter-ground-view','start-route-playback','enter-tunnel-flight','explore-tunnel-route','set-scenery-enabled','set-scenery-edit','retry-scenery'].includes(command.type)))throw Error('Close the scenery alignment editor before navigation or changing scenery.');
+        if(sceneryEditor?.active&&(['enter-simulation','enter-ground-view','start-route-playback','benchmark-prepare','enter-tunnel-flight','explore-tunnel-route','set-scenery-enabled','set-scenery-edit','retry-scenery'].includes(command.type)))throw Error('Close the scenery alignment editor before navigation or changing scenery.');
         if(command.type==='probe-scenery-tileset'){
             if(navigationActive()||flyer?.pending||walker?.status().pending||routePlayback?.loaded)throw Error('Stop navigation before checking a provider.');
             await sceneryCatalogReady;
@@ -817,8 +818,8 @@ function postToFlutter(message) {
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
-                if(command.action==='start'){if(!scenePerformance.running)sceneryManager?.resetPerformance();scenePerformance.start();}
-                else if(command.action==='stop')scenePerformance.stop();
+                if(command.action==='start'){if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);}scenePerformance.start();}
+                else if(command.action==='stop'){scenePerformance.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);return {running:false};}
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
             }
@@ -881,7 +882,23 @@ function postToFlutter(message) {
             case "exit-simulation": stopNavigation(); return {};
             case "reset-simulation": return routePlayback?.loaded
                 ? routePlayback.control({action:'restart'}) : flyer.reset(signal);
+            case 'benchmark-prepare': {
+                if(benchmarkSession||regionalTerrain||regionalTerrainChanging||!terrainAvailable()||window.FPVMapProviderConfig?.terrain||window.FPVMapProviderConfig?.prepared)throw Error('Benchmark requires the standard Swiss terrain provider');
+                if(navigationActive()||flyer?.pending||walker?.status().pending)throw Error('Stop navigation before benchmark');
+                routePlayback.interrupt();
+                const prepared=await routePlayback.prepareBenchmark(command,signal);
+                benchmarkSession=true;return prepared;
+            }
+            case 'benchmark-layers': {
+                if(command.layers!==null&&(!benchmarkSession||regionalTerrain||regionalTerrainChanging))throw Error('Benchmark requires prepared Swiss terrain');
+                return sceneEnvironment.benchmark(command.layers);
+            }
+            case 'benchmark-clear': {
+                benchmarkSession=false;routePlayback.clearBenchmark();
+                return sceneEnvironment.benchmark(null);
+            }
             case 'start-route-playback': {
+                if(Boolean(command.benchmark)!==benchmarkSession)throw Error('Replay does not match benchmark session');
                 if(regionalTerrainChanging)throw Error('Regional terrain is changing; retry after loading');
                 if(infrastructureClearance?.hasUnverifiedTunnel() || (tunnelVolumes?.model && tunnelVolumes.model.clearanceVerified!==true))
                     throw Error('Remove the unverified simulation tunnel before route playback; no safe tunnel clearance is established.');
@@ -992,7 +1009,7 @@ function postToFlutter(message) {
                         acceleration:3,deceleration:4,
                         cameraFovDegrees:flightPreferences.cameraFovDegrees,
                         cameraTiltDegrees:flightPreferences.cameraTiltDegrees,
-                        hudStyle:flightPreferences.hudStyle,graphicsProfile:flightPreferences.graphicsProfile,
+                        hudStyle:flightPreferences.hudStyle,graphicsProfile:flightPreferences.graphicsProfile,renderScale:flightPreferences.renderScale,
                         physicsModel:flightPreferences.physicsModel,physicsStepHz:flightPreferences.physicsStepHz,
                         showCoordinates:flightPreferences.showCoordinates},signal);
                     signal.throwIfAborted();
@@ -1121,6 +1138,10 @@ function postToFlutter(message) {
         receive: bridge.receive,
         hello: () => {
             stopNavigation();
+            if(benchmarkSession){
+                benchmarkSession=false;routePlayback?.clearBenchmark();sceneEnvironment?.benchmark(null);
+                scenePerformance?.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);
+            }
             if (rendererReady) {
                 terrainManager.networkChanged();
                 sendToFlutter("globe-ready", { terrainAvailable: terrainAvailable(),
@@ -1253,7 +1274,7 @@ function postToFlutter(message) {
         let pendingTerrainTiles=null;
         scenePerformance = FPVScenePerformance.create(viewer,{
             isContinuous:()=>flyer?.active===true&&!flyer.paused,
-            resources:()=>({...sceneEnvironment?.resourceStats(),pendingTerrainTiles,terrainProvider:regionalTerrainChanging?'switching':terrainManager.status().state!=='ready'?'not ready':regionalTerrain?'BKG DGM5':window.FPVMapProviderConfig?.prepared?'prepared':window.FPVMapProviderConfig?.terrain?'custom':'swisstopo',scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
+            resources:()=>({...sceneEnvironment?.resourceStats(),terrainRequests:terrainManager?.requestStats(),pendingTerrainTiles,terrainProvider:regionalTerrainChanging?'switching':terrainManager.status().state!=='ready'?'not ready':regionalTerrain?'BKG DGM5':window.FPVMapProviderConfig?.prepared?'prepared':window.FPVMapProviderConfig?.terrain?'custom':'swisstopo',scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{
@@ -1374,7 +1395,7 @@ function postToFlutter(message) {
         let flightTimeSettings={enabled:false,timeUtc:null};
         const timeControls=FPVSceneEnvironment.bindTimeControls(document,value=>applyFlightTime(value));
         applyFlightTime=(value=flightTimeSettings)=>{
-            sceneEnvironment.setTime({scope:'flight',...value});flightTimeSettings=value;timeControls.update(value);
+            sceneEnvironment.setTime({scope:'flight',...value});if(!benchmarkSession)flightTimeSettings=value;timeControls.update(value);
             sendToFlutter('scene-time-state',value);
         };
         let deviceMessage='', lastHud=0,lastReason=null;
@@ -1473,7 +1494,7 @@ function postToFlutter(message) {
             disposeGroundControls?.sync();
             sendToFlutter(mode==='flight'?'simulation-state':'ground-view-state',{
                 active:state.active,pending:state.pending,reason:state.active?null:state.reason??null,
-                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,cameraFovDegrees:state.cameraFovDegrees,graphicsProfile:state.graphicsProfile,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,
+                ...(mode==='flight'?{cameraTiltDegrees:state.cameraTiltDegrees,cameraFovDegrees:state.cameraFovDegrees,graphicsProfile:state.graphicsProfile,renderScale:state.renderScale,hudStyle:state.hudStyle,showCoordinates:state.showCoordinates,
                 showBatteryVoltage:state.showBatteryVoltage,showBatteryCellVoltage:state.showBatteryCellVoltage,
                 physicsModel:state.physicsModel,physicsStepHz:state.physicsStepHz,physicsDiagnostics:state.physicsDiagnostics,
                 lowBatteryCellVoltage:state.lowBatteryCellVoltage,criticalBatteryCellVoltage:state.criticalBatteryCellVoltage,
@@ -1521,7 +1542,7 @@ function postToFlutter(message) {
         const playbackProgress=document.getElementById('route-playback-progress');
         const formatTime=value=>`${Math.floor(value/60)}:${String(Math.floor(value%60)).padStart(2,'0')}`;
         const playbackDisplay=state=>{
-            playbackPanel.hidden=!state.loading&&!state.active&&state.phase!=='finished'&&state.phase!=='stopped';
+            playbackPanel.hidden=benchmarkSession||(!state.loading&&!state.active&&state.phase!=='finished'&&state.phase!=='stopped');
             playbackPause.disabled=!state.active;
             playbackPause.textContent=translate(state.phase==='paused'?'Resume':'Pause');
             playbackProgress.value=state.progress;
@@ -1534,7 +1555,7 @@ function postToFlutter(message) {
             sampleGround:(points,signal)=>sampleRouteHeights(points,signal),
             renderedGround:flightRenderer.renderedHeight,
             emit:sendToFlutter,display:playbackDisplay});
-        const replayCommand=command=>{try{routePlayback.control(command);}catch(error){playbackInfo.textContent=error.message;}};
+        const replayCommand=command=>{if(benchmarkSession)return;try{routePlayback.control(command);}catch(error){playbackInfo.textContent=error.message;}};
         playbackPause.addEventListener('click',()=>replayCommand({action:routePlayback.status().phase==='paused'?'resume':'pause'}));
         document.getElementById('route-playback-stop').addEventListener('click',()=>replayCommand({action:'stop'}));
         document.getElementById('route-playback-restart').addEventListener('click',()=>replayCommand({action:'restart'}));

@@ -373,3 +373,19 @@ test('startup and rendering warning diagnostics identify tile and failure catego
   assert.equal(manager.hasWarning,false);assert.deepEqual(manager.warningDetails(),[]);
  }finally{manager.dispose();}
 });
+
+test('terrain request timings are opt-in, separated and discarded when disabled',async()=>{
+    const next=provider();const {manager}=peer({createProvider:async()=>next});
+    try{
+        await manager.initialize();await next.requestTileGeometry(0,0,1);
+        assert.equal(manager.requestStats(),null);
+        manager.setDiagnosticsEnabled(true);
+        await next.requestTileGeometry(0,0,1,{});await next.requestTileGeometry(0,0,1);
+        let s=manager.requestStats();assert.equal(s.render.count,1);assert.equal(s.sample.count,1);
+        assert.equal(s.render.active,0);assert.ok(s.render.meanMs>=0);
+        manager.setDiagnosticsEnabled(true);assert.equal(manager.requestStats().sample.count,1);
+        manager.setDiagnosticsEnabled(false);await next.requestTileGeometry(1,1,1);
+        assert.equal(manager.requestStats(),null);
+        manager.setDiagnosticsEnabled(true);assert.equal(manager.requestStats().sample.count,0);
+    }finally{manager.dispose();}
+});

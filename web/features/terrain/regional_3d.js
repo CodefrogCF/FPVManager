@@ -19,7 +19,7 @@
     // Near a national border this small-scale outline is approximate.
     const boundary=Object.freeze([[14.11969,53.75703],[14.35332,53.24817],[14.07452,52.98126],[14.4376,52.62485],[14.68503,52.08995],[14.6071,51.74519],[15.017,51.10667],[14.57072,51.00234],[14.30701,51.11727],[14.05623,50.92692],[13.33813,50.73323],[12.96684,50.48408],[12.24011,50.26634],[12.41519,49.96912],[12.52102,49.54742],[13.03133,49.30707],[13.59595,48.87717],[13.24336,48.41611],[12.8841,48.28915],[13.02585,47.63758],[12.93263,47.46765],[12.62076,47.67239],[12.14136,47.70308],[11.42641,47.52377],[10.5445,47.5664],[10.40208,47.30249],[9.89607,47.5802],[9.59423,47.52506],[8.52261,47.83083],[8.3173,47.61358],[7.46676,47.62058],[7.59368,48.33302],[8.09928,49.01778],[6.65823,49.20196],[6.18632,49.4638],[6.24275,49.90223],[6.04307,50.12805],[6.15666,50.80372],[5.98866,51.85162],[6.5894,51.85203],[6.84287,52.22844],[7.09205,53.14404],[6.90514,53.48216],[7.10042,53.69393],[7.93624,53.7483],[8.12171,53.52779],[8.80073,54.02079],[8.57212,54.39565],[8.52623,54.96274],[9.28205,54.83087],[9.92191,54.9831],[9.93958,54.59664],[10.95011,54.36361],[10.93947,54.00869],[11.95625,54.19649],[12.51844,54.47037],[13.64747,54.07551]]);
     const bounds=Object.freeze([5.98865,47.30248,15.01700,54.98311]);
-    const creditHtml=`<a href="${licenseUrl}" target="_blank" rel="noopener">© GeoBasis-DE/BKG 2026 · basemap.de 3D · Testbetrieb · mit weiteren Diensten kombiniert (verändert)</a>`;
+    const creditHtml=()=>`<a href="${licenseUrl}" target="_blank" rel="noopener">© GeoBasis-DE/BKG 2026 · 3D-Testbetrieb · verändert</a>`;
     function inCountry(longitude,latitude){
         let inside=false;
         for(let j=boundary.length-1,i=0;i<boundary.length;j=i++){
@@ -82,7 +82,7 @@
     }
     function terrain(C){
         if(!installRuntimeOnlyTransport(C)) throw Error('BKG terrain requires cache:no-store transport');
-        return C.CesiumTerrainProvider.fromUrl(terrainUrl,{ellipsoid:C.Ellipsoid.WGS84,credit:new C.Credit(creditHtml,true)});
+        return C.CesiumTerrainProvider.fromUrl(terrainUrl,{ellipsoid:C.Ellipsoid.WGS84,credit:new C.Credit(creditHtml(),true)});
     }
     function create(C,viewer,{enabled=false,online=()=>true,position=()=>{const p=viewer.camera.positionCartographic;return {longitude:C.Math.toDegrees(p.longitude),latitude:C.Math.toDegrees(p.latitude),height:p.height};},
         navigationBusy=()=>false,onRegionChange=()=>{},onStatus=()=>{},buildingsRequested=()=>false,now=()=>Date.now(),
@@ -127,7 +127,7 @@
         function destroy(x){if(!x.isDestroyed?.())x.destroy?.();}
         function load(){pending=true;const rev=++revision;onStatus('loading');timer=setTimer(()=>{if(rev===revision){remove();failed=true;onStatus('error');}},timeoutMs);
             Promise.resolve().then(loadTiles).then(x=>{if(disposed||rev!==revision){destroy(x);return;}clearTimer(timer);timer=null;pending=false;
-                try{x.enableCollision=false;viewer.scene.primitives.add(x);tiles=x;credit=new C.Credit(creditHtml,true);display?.addStaticCredit(credit);onStatus('ready');syncCuts();viewer.scene.requestRender?.();}
+                try{x.enableCollision=false;viewer.scene.primitives.add(x);tiles=x;credit=new C.Credit(creditHtml(),true);display?.addStaticCredit(credit);onStatus('ready');syncCuts();viewer.scene.requestRender?.();}
                 catch(e){if(tiles===x)remove();else destroy(x);failed=true;onStatus('error');}
             }).catch(()=>{if(!disposed&&rev===revision){clearTimer(timer);timer=null;pending=false;failed=true;onStatus('error');}});
         }

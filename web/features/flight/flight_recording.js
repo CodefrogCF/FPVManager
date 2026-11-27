@@ -209,7 +209,7 @@
         const speed=a.speedKnown&&b.speedKnown?a.speed+(b.speed-a.speed)*f:
             Math.hypot(distance(a,b),b.height-a.height)/(b.seconds-a.seconds);
         // Look slightly ahead/behind to soften changes of heading at corners.
-        function pointAt(time){if(time<=arr[0].seconds)return arr[0];if(time>=trajectory.duration)return arr.at(-1);
+        function pointAt(time){if(time<=arr[0].seconds)return arr[0];if(time>=arr.at(-1).seconds)return arr.at(-1);
             let i=0,j=arr.length-1;while(j-i>1){const mid=(i+j)>>1;if(arr[mid].seconds<=time)i=mid;else j=mid;}
             return interpolate(arr[i],arr[j],(time-arr[i].seconds)/(arr[j].seconds-arr[i].seconds));}
         const behind=pointAt(Math.max(0,t-.25)),ahead=pointAt(Math.min(trajectory.duration,t+.25));
@@ -222,13 +222,36 @@
     }
     function create({simulator,sampleGround,renderedGround=()=>null,emit=()=>{},display=()=>{}}){
         let flight=null,phase='idle',time=0,rate=1,operation=0,loading=false,lastEmit=-1,reason=null;
-        let loadingAbort=null;
+        let loadingAbort=null,benchmarkFlight=null,benchmarkAbort=null,benchmarkReplay=false;
+        async function prepareBenchmark(command,signal){
+            if(loading||flight||benchmarkAbort)throw Error('Stop replay before preparing benchmark');
+            const limit=command.benchmarkLimitSeconds;
+            if(![35,60].includes(limit))throw Error('Invalid benchmark duration limit');
+            benchmarkFlight=null;
+            const pending=new AbortController();benchmarkAbort=pending;
+            const cancel=()=>pending.abort();
+            signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();
+            try{
+                const next=await prepare(command,sampleGround,pending.signal);
+                const sourceDuration=next.duration;
+                if(sourceDuration<10)throw Error('Benchmark route must last at least 10 seconds');
+                const first=next.points[0];
+                first.ground=(await sampleGround([first],pending.signal))[0];
+                pending.signal.throwIfAborted();
+                if(!finite(first.ground)||first.height-first.ground<1||first.height-first.ground>1000)throw Error('Invalid benchmark spawn height');
+                // Freeze terrain-relative waypoint heights and use the same prefix
+                // of the trajectory for every warmup and measured pass.
+                next.points=next.points.map(p=>({...p,agl:null}));
+                next.duration=Math.min(limit,sourceDuration);
+                benchmarkFlight=next;return {duration:next.duration,sourceDuration,recorded:next.recorded};
+            }finally{signal?.removeEventListener('abort',cancel);if(benchmarkAbort===pending)benchmarkAbort=null;}
+        }
         const status=()=>({phase,active:phase==='playing'||phase==='paused',loading,
             duration:flight?.duration??0,seconds:time,progress:flight?time/flight.duration:0,
             speed:rate,recorded:flight?.recorded??false,reason,
             assumedSpeed:flight?.assumedSpeed??false,assumedHeight:flight?.assumedHeight??false});
         function publish(force=false){const s=status();display(s);if(force||Math.abs(time-lastEmit)>=.5||!s.active){lastEmit=time;emit('route-playback-state',s);} }
-        function interrupt(message){++operation;loadingAbort?.abort();loadingAbort=null;flight=null;phase='idle';loading=false;time=0;reason=message??null;publish(true);}
+        function interrupt(message){++operation;loadingAbort?.abort();loadingAbort=null;benchmarkAbort?.abort();benchmarkAbort=null;benchmarkReplay=false;flight=null;phase='idle';loading=false;time=0;reason=message??null;publish(true);}
         async function start(command,signal){
             interrupt();const token=operation;loading=true;phase='loading';publish(true);
             const pending=new AbortController();loadingAbort=pending;
@@ -236,7 +259,8 @@
             signal?.addEventListener('abort',cancel,{once:true});
             if(signal?.aborted)cancel();
             try{
-                const next=await prepare(command,sampleGround,pending.signal);
+                const next=command.benchmark===true?benchmarkFlight:await prepare(command,sampleGround,pending.signal);
+                if(!next)throw Error('Benchmark route is not prepared');
                 pending.signal.throwIfAborted();if(token!==operation)throw Error('Replay cancelled');
                 const first=next.points[0],terrain=first.ground??(await sampleGround([first],pending.signal))[0];
                 if(!finite(terrain))throw Error('Terrain unavailable at replay start');
@@ -244,8 +268,9 @@
                 if(agl<1||agl>1000)throw Error('Replay start altitude must be 1–1000 m AGL');
                 await simulator.start({...command.settings,latitude:first.latitude,longitude:first.longitude,agl,flightMode:'gps'},pending.signal);
                 pending.signal.throwIfAborted();if(token!==operation)throw Error('Replay cancelled');
-                flight=next;time=0;rate=1;phase='playing';loading=false;reason=null;
-                simulator.playbackPose(evaluate(flight,0));publish(true);return status();
+                flight=next;benchmarkReplay=command.benchmark===true;time=0;rate=1;phase='playing';loading=false;reason=null;
+                if(simulator.playbackPose(evaluate(flight,0))===false&&benchmarkReplay)throw Error('Benchmark spawn collision');
+                publish(true);return status();
             }catch(error){
                 const cancelled=token!==operation||pending.signal.aborted;
                 if(token===operation){interrupt(cancelled?'Replay cancelled':error.message||'Replay unavailable');simulator.stop();}
@@ -254,10 +279,11 @@
         }
         function control(command){
             if(command.action==='speed'){
-                if(![.25,.5,1,2,4].includes(command.speed)||!flight)throw Error('Invalid replay speed');
+                if(benchmarkReplay||![.25,.5,1,2,4].includes(command.speed)||!flight)throw Error('Invalid replay speed');
                 rate=command.speed;
             }else if(command.action==='stop'){if(!flight){interrupt('Replay cancelled');return status();}phase='stopped';simulator.playbackEnd();}
-            else if(command.action==='restart'){if(!flight)throw Error('No route available');time=0;phase='playing';simulator.playbackPose(evaluate(flight,0));}
+            else if(command.action==='restart'){if(!flight)throw Error('No route available');time=0;phase='playing';if(benchmarkReplay){rate=1;simulator.playbackEnd();}
+                if(simulator.playbackPose(evaluate(flight,0))===false&&benchmarkReplay){phase='paused';reason='Benchmark restart collision';}}
             else if(command.action==='pause'){if(phase!=='playing')throw Error('Replay is not running');phase='paused';}
             else if(command.action==='resume'){if(phase!=='paused')throw Error('Replay is not paused');phase='playing';}
             else throw Error('Unknown replay action');
@@ -281,14 +307,14 @@
                 phase='paused';reason='Simulated infrastructure collision detected; replay paused.';
                 simulator.playbackEnd();publish(true);return;
             }
-            if(time>=flight.duration){phase='finished';simulator.playbackEnd();}
+            if(time>=flight.duration){phase='finished';if(!benchmarkReplay)simulator.playbackEnd();}
             publish(time>=flight.duration);
         }
         function sceneryLookahead(){
             if(!flight||phase!=='playing')return [];
             return [1,3,5].map(seconds=>{const p=evaluate(flight,time+seconds*rate);return {latitude:p.latitude,longitude:p.longitude,height:p.height};});
         }
-        return {start,control,tick,interrupt,status,sceneryLookahead,get active(){return phase==='playing'||phase==='paused';},
+        return {start,control,tick,interrupt,status,sceneryLookahead,prepareBenchmark,clearBenchmark(){benchmarkAbort?.abort();benchmarkAbort=null;benchmarkFlight=null;},get active(){return phase==='playing'||phase==='paused';},
             get loaded(){return Boolean(flight);}};
     }
     return {MAX_SAMPLES,prepare,evaluate,create,distance,bearing};

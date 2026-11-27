@@ -249,7 +249,7 @@
         let sourceQuery=null,drawSignature=null;
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
         const sourceCredits=C.Credit?{
-            osm:new C.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true),
+            osm:new C.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL 1.0</a>',true),
             aviation:new C.Credit('<a href="https://www.bazl.admin.ch/de/luftfahrthindernisdaten-schweiz" target="_blank" rel="noopener">BAZL / Skyguide · Luftfahrthindernisse</a>',false),
             native:new C.Credit('© swisstopo',false)
         }:{};

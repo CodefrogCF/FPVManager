@@ -67,7 +67,7 @@ The [street directory](https://www.swisstopo.admin.ch/de/amtliches-verzeichnis-d
 primarily covers named streets with building addresses, not every path or motorway.
 Normalized names stay in a bounded session cache; no bulk download or persistent
 offline-label package is provided. Cached-only/offline mode makes no remote
-label fallback. Source attribution remains visible with the layer.
+label fallback. Source attribution remains available while the layer is shown.
 
 Optional 3D buildings and vegetation use the official GeoAdmin 3D Tiles services:
 `https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json` and
@@ -128,6 +128,35 @@ the dialog. Keep the sources control and remaining notices readable in all
 styles, including narrow layouts and fallback states. Published
 map screenshots must retain the applicable credits or show them beside the image.
 UAS attribution comes from the displayed dataset's source descriptor.
+
+### Compact attribution and capture
+
+Provider attribution is not developer diagnostics and remains enabled in normal
+operation and clean capture. The native Cesium credit display is retained:
+mandatory tile/model credits are not intercepted, hidden or truncated. The
+flight readout reserves the measured height of the credit bar (resize event,
+not a per-frame measurement). Identical OSM attribution for tunnels, bridge
+supports, POIs and routing is shared until the last owner is removed. FOSSGIS
+routing keeps the linked provider and map-correction link visible. Radar's source
+is in its legend and its CC BY notice is in Sources; no persistent radar credit
+remains after the imagery is removed.
+
+| Source | On-map / Sources policy |
+|---|---|
+| swisstopo OGD, SWISSIMAGE third-party notices | Complete wording in Sources, as permitted for dynamic maps; retain the full applicable wording alongside published images/videos. See [official attribution guidance](https://www.swisstopo.admin.ch/en/source-reference-ogd-swisstopo) and [SWISSIMAGE product](https://www.swisstopo.admin.ch/en/orthoimage-swissimage-10). |
+| basemap.de Web Raster | Visible BKG name, year, linked CC BY 4.0 and modification notice; [raster terms](https://sgx.geodatenzentrum.de/web_public/gdz/lizenz/deu/nutzungsbedingungen_basemapde.pdf). |
+| basemap.de 3D | Separate visible BKG name, year, test status and modification notice linked to [test terms](https://sgx.geodatenzentrum.de/web_public/gdz/lizenz/deu/lizenz_basemapde_3d-testbetrieb.pdf). No CC BY claim for 3D beta; no change to runtime-only restrictions. |
+| Berlin/Brandenburg WMS | Product metadata, publisher names, linked DL-DE BY/Zero terms and modification notice in Sources. [DL-DE BY](https://docs.fitko.de/govdata/docs/terms/dl-de-by-20/). |
+| Rüdersdorf bundled scan | Short linked author/title/license and modification notice for capture; full original title, author, source, CC BY-NC and reconstruction notice in Sources. The catalog credit is registered once per scene, not once per GLB plus static display. [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). |
+| DGM1 ground underlay | Native embedded GLB copyright stays visible; linked DGM1/GCG2016 details in Sources. |
+| OpenStreetMap / Open-Meteo | Compact linked source remains visible. See [OSMF guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines), [FOSSGIS terms](https://routing.openstreetmap.de/about.html), [Open-Meteo licence](https://open-meteo.com/en/licence). |
+| Unknown/custom providers and other overlays | Preserve existing visible requirements and embedded provider notices unless product-specific terms are verified. |
+
+A visible source notice is not permission to publish restricted data. In
+particular, the BKG 3D test terms do not expressly authorize general public
+video redistribution, and CC BY-NC does not permit commercial reuse of the
+Rüdersdorf scan without separate permission. Check the terms before publishing
+recordings; add full source/license details to the video description or credits.
 
 The swissEO overlay appends the acquisition year to the provider's
 Copernicus notice. The dated Blatten overlays credit BAFU/FOEN and

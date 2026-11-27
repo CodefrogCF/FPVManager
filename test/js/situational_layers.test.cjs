@@ -156,3 +156,12 @@ test('cantonal prevention WMS is independent of fire danger and cleans up on dis
   assert.equal(p.intervals.size,0);
   assert.throws(()=>validate({id:'wildfire-prevention',visible:true,opacity:5}));
 });
+
+test('OSM POI and routing share one attribution and keep it until both layers are removed',async()=>{
+ const p=fixture();await p.manager.set({id:'osm-poi',visible:true,features:[feature('node/123')]});
+ await p.manager.set({id:'road',visible:true,features:[]});
+ assert.equal([...p.credits].filter(c=>c.html.includes('OpenStreetMap contributors')).length,1);
+ assert.ok([...p.credits].some(c=>c.html.includes('fixthemap')));
+ await p.manager.set({id:'osm-poi',visible:false});assert.equal([...p.credits].filter(c=>c.html.includes('OpenStreetMap contributors')).length,1);
+ p.manager.dispose();assert.equal(p.credits.size,0);
+});

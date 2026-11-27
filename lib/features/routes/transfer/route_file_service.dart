@@ -13,25 +13,43 @@ abstract interface class RouteFileService {
   Future<bool> exportRoute(ImportedRoute route, RouteFileFormat format);
 }
 
+// Android's document picker filters by provider-reported MIME type rather
+// than filename. GeoJSON and GPX may be reported as application/octet-stream
+// or another generic type. Let the existing bounded content decoder decide
+// whether a selected document is actually a supported route.
+@visibleForTesting
+List<XTypeGroup> routeImportTypeGroups({
+  required TargetPlatform platform,
+  required bool isWeb,
+}) {
+  if (!isWeb && platform == TargetPlatform.android) {
+    return const [];
+  }
+  return const [
+    XTypeGroup(
+      label: 'Flight routes',
+      extensions: ['geojson', 'json', 'gpx'],
+      mimeTypes: [
+        'application/geo+json',
+        'application/json',
+        'application/gpx+xml',
+        'application/xml',
+        'text/xml',
+      ],
+      uniformTypeIdentifiers: ['public.json', 'public.xml'],
+    ),
+  ];
+}
+
 final class LocalRouteFileService implements RouteFileService {
   const LocalRouteFileService();
   @override
   Future<RouteImportPreview?> pickRoutes() async {
     final file = await openFile(
-      acceptedTypeGroups: [
-        const XTypeGroup(
-          label: 'Flight routes',
-          extensions: ['geojson', 'json', 'gpx'],
-          mimeTypes: [
-            'application/geo+json',
-            'application/json',
-            'application/gpx+xml',
-            'application/xml',
-            'text/xml',
-          ],
-          uniformTypeIdentifiers: ['public.json', 'public.xml'],
-        ),
-      ],
+      acceptedTypeGroups: routeImportTypeGroups(
+        platform: defaultTargetPlatform,
+        isWeb: kIsWeb,
+      ),
     );
     if (file == null) return null;
     final length = await file.length();

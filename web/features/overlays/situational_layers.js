@@ -80,7 +80,8 @@
     function create(C,viewer,emit,wmsFactory,{yieldBatch=()=>new Promise(r=>setTimeout(r,0)),now=()=>Date.now(),timers=globalThis}={}){
         const layers=new Map(),wms=new Map(),wmts=new Map(),wmsTimeSteps=new Map(),generations=new Map(),staged=new Set();let disposed=false;
         const escape=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        function remove(record){if(!record)return;viewer.dataSources.remove(record.source,true);viewer.cesiumWidget?.creditDisplay?.removeStaticCredit(record.credit);}
+        const creditApi=(typeof module==='object'&&module.exports?require('../map/map_providers.js'):globalThis.FPVMapProviders)??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
+        function remove(record){if(!record)return;viewer.dataSources.remove(record.source,true);for(const credit of record.credits)creditApi.releaseStaticCredit(viewer.cesiumWidget?.creditDisplay,credit);}
         function visibility(){
             const rectangle=viewer.camera.computeViewRectangle?.(viewer.scene.globe.ellipsoid),time=now();
             for(const [id,record] of layers)for(const {entity,feature} of record.entries){
@@ -183,7 +184,10 @@
             if(!command.visible){clear(command.id);return {};}
             const generation=(generations.get(command.id)||0)+1;generations.set(command.id,generation);
             const source=new C.CustomDataSource(`FPVManager ${command.id}`),entries=[];staged.add(source);
-            const credit=new C.Credit(credits[command.id],true);
+            const layerCredits=['road','ground-route'].includes(command.id)?[
+                new C.Credit(credits['osm-poi'],true),
+                new C.Credit('<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">OSRM / FOSSGIS</a> · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Fix the map</a>',true)
+            ]:[new C.Credit(credits[command.id],true)];
             const current=()=>!disposed&&generation===generations.get(command.id);
             try{
                 for(let i=0;i<command.features.length;i++){
@@ -214,8 +218,8 @@
                 }
                 await viewer.dataSources.add(source);
                 if(!current())return {superseded:true};
-                remove(layers.get(command.id));layers.set(command.id,{source,entries,credit});staged.delete(source);
-                viewer.cesiumWidget?.creditDisplay?.addStaticCredit(credit);visibility();return {count:entries.length};
+                remove(layers.get(command.id));layers.set(command.id,{source,entries,credits:layerCredits});staged.delete(source);
+                for(const credit of layerCredits)creditApi.retainStaticCredit(viewer.cesiumWidget?.creditDisplay,credit);visibility();return {count:entries.length};
             }finally{if(!current()||staged.has(source)){staged.delete(source);viewer.dataSources.remove(source,true);}}
         }
         function pick(entity){

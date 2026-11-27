@@ -35,6 +35,8 @@ class DeveloperPerformanceOverlay extends StatelessWidget {
         final scene = _map(s['cpuSceneMs']);
         final streaming = _map(s['terrainStreaming']);
         final ground = _map(scenery['groundAlignment']);
+        final requests = _map(s['terrainRequests']);
+        final layers = _map(s['layerStats']);
         final age = s['frameAgeMs'];
         final fps = age is num && age <= 1500
             ? _number(s['renderFps'], 1)
@@ -61,6 +63,12 @@ class DeveloperPerformanceOverlay extends StatelessWidget {
             'Tile busy / last ${_number(streaming['activeMs'])}/${_number(streaming['lastBatchMs'])} ms',
             '3D tiles ${_number(tiles['resident'])}/${_number(tiles['visible'])} · pending ${_number(tiles['pending'])}',
             '3D est. ${_mib(tiles['estimatedBytes'])} MiB',
+            for (final kind in ['render', 'sample'])
+              if (requests[kind] is Map)
+                'Terrain $kind: ${_number(_map(requests[kind])['count'])} · active ${_number(_map(requests[kind])['active'])} · mean ${_number(_map(requests[kind])['meanMs'], 1)} ms',
+            for (final kind in ['buildings', 'vegetation', 'structures'])
+              if (layers[kind] is Map)
+                '$kind: ${_number(_map(layers[kind])['pending'])}/${_number(_map(layers[kind])['processing'])} · ${_mib(_map(layers[kind])['estimatedBytes'])} MiB',
             'Scenery ${_number(scenery['residentModels'])} · loading ${_number(scenery['loading'])}',
             'Scenery FPC ${_mib(scenery['collisionBytes'])} MiB · Δ ${_number(scenery['activeCollisionTriangles'])}',
             if (ground.isNotEmpty) ...[
@@ -89,7 +97,7 @@ class DeveloperPerformanceOverlay extends StatelessWidget {
               ),
               child: Text(
                 '${german ? 'ENTWICKLER' : 'DEVELOPER'}\n${rows.join('\n')}',
-                maxLines: 32,
+                maxLines: 40,
                 overflow: TextOverflow.ellipsis,
               ),
             ),

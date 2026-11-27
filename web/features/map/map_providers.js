@@ -41,6 +41,19 @@
         return [new C.Credit('<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>',true),
             new C.Credit('<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · Für die Kartendarstellung aufbereitet; Wind räumlich interpoliert.',false)];
     }
+    // Resize only when the native credit bar actually changes size. The HUD
+    // must not cover required notices even on a narrow screen or in capture mode.
+    function observeCreditHeight(container, Observer=globalThis.ResizeObserver) {
+        const root=container?.ownerDocument?.documentElement;
+        if(!root?.style || !container?.getBoundingClientRect) return ()=>{};
+        let previous=-1;
+        const update=()=>{const height=Math.ceil(container.getBoundingClientRect().height);
+            if(height!==previous){previous=height;root.style.setProperty('--fpv-credit-height',`${height}px`);}};
+        update();
+        const observer=typeof Observer==='function'?new Observer(update):null;
+        observer?.observe(container);
+        return ()=>{observer?.disconnect();root.style.removeProperty('--fpv-credit-height');};
+    }
     function configureCredits(C, viewer) {
         const display = viewer?.cesiumWidget?.creditDisplay ?? viewer?.creditDisplay;
         if (!display) return {open(){},dispose(){}};
@@ -61,9 +74,11 @@
         }
         const renderer = C?.Credit ? new C.Credit('<a href="https://cesium.com/platform/cesiumjs/" target="_blank" rel="noopener">CesiumJS</a> · <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache-2.0</a>',false) : null;
         if (renderer) retainStaticCredit(display,renderer);
+        const stopHeight=observeCreditHeight(container);
         let disposed = false;
         const controls = {open(){ if (!disposed) display.showLightbox?.(); },dispose(){
             if (disposed) return; disposed = true;
+            stopHeight();
             if (renderer) releaseStaticCredit(display,renderer);
             configuredDisplays.delete(display);
         }};
@@ -145,7 +160,7 @@
     // by FPVManager; offline is deliberately handled by the Swiss package path.
     const germanyBounds = Object.freeze([5.98865,47.30248,15.01700,54.98311]);
     const germanyLicense = 'https://sgx.geodatenzentrum.de/web_public/gdz/lizenz/deu/nutzungsbedingungen_basemapde.pdf';
-    const germanyCredit = '<a href="https://www.bkg.bund.de" target="_blank" rel="noopener">© GeoBasis-DE / BKG</a> (2026) · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · mit anderen Kartendiensten kombiniert (verändert)';
+    const germanyCredit = () => `© GeoBasis-DE / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> (2026) · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · verändert`;
     const germanyImagery = Object.freeze({
         // No nationwide aerial-photo WMS has been licensed/configured. Show the
         // official topographic map outside the detailed BB ortho-photo region
@@ -156,7 +171,7 @@
     });
     const germanImagerySource = Object.freeze({
         id:'de.basemapde.web.raster',name:'basemap.de Web Raster (Deutschland)',
-        publisher:'GeoBasis-DE / BKG',attribution:'© GeoBasis-DE / BKG (2026), CC BY 4.0; mit anderen Diensten kombiniert (verändert)',
+        publisher:'GeoBasis-DE / BKG',attribution:`© GeoBasis-DE / BKG (2026), CC BY 4.0; verändert`,
         licenseName:'CC BY 4.0',licenseUri:'https://creativecommons.org/licenses/by/4.0/',
         metadataUri:'https://basemap.de/produkte-und-dienste/web-raster/',validity:null
     });
@@ -233,13 +248,13 @@
                 });
                 const base=germanyImagery[style];
                 const providers=[wms(base,Cesium.Rectangle.fromDegrees(...germanyBounds),
-                    new Cesium.Credit(germanyCredit,true))];
+                    new Cesium.Credit(germanyCredit(),true))];
                 // LGB DOP20c is licensed for Brandenburg/Berlin only, not for
                 // Germany as a whole. Keep it as the actual satellite source.
                 if(style==='satellite'||style==='relief'){
                     const local=regionalImagery[style];
                     providers.push(wms(local,Cesium.Rectangle.fromDegrees(...regionalBounds),
-                        credit(Cesium,local.source,true)));
+                        new Cesium.Credit(`<a href="${local.source.metadataUri}" target="_blank" rel="noopener">${escapeCredit(local.source.name)}</a> · © GeoBasis-DE/LGB, <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noopener">dl-de/by-2-0</a> (verändert); © Geoportal Berlin, <a href="https://www.govdata.de/dl-de/zero-2-0" target="_blank" rel="noopener">dl-de/zero-2-0</a>`,false)));
                 }
                 return providers;
             },
@@ -280,5 +295,5 @@
     }
     return { createAdapters, escapeCredit, defaultImagery: imagery, defaultTerrain: terrain,
         defaultRegionalImagery:regionalImagery, regionalBounds,germanyBounds,germanyImagery,
-        prepareCredits,configureCredits,retainStaticCredit,releaseStaticCredit,weatherCredits };
+        prepareCredits,configureCredits,observeCreditHeight,retainStaticCredit,releaseStaticCredit,weatherCredits };
 });

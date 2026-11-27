@@ -65,10 +65,11 @@
         const credit=new C.Credit('© swisstopo',false);
         const forestCredit=new C.Credit('BAFU / WSL · Waldmischungsgrad LFI 2023',false);
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
+        let diagnostics=null;
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
             phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null,appliedOpacity:null,detailShader:null}]));
         let disposed=false,lighting=false,profile='balanced',credited=false,forestCredited=false,appliedTime=null,structuresOpacity=1;
-        let navigating=false;
+        let navigating=false,benchmarkLayers=null;
         let portalApertures=[],portalSignature='',lastPortalCheck=-Infinity,lastPortalView=null,lastPortalRevision=null;
         const mapLayers={buildings:false,vegetation:false,structures:false},navigationLayers={buildings:null,vegetation:null};
         function publish(key){
@@ -265,7 +266,9 @@
                 l.phase=isOnline()?'ready':'offline';publish(key);
                 l.removers.push(tileset.tileFailed.addEventListener(()=>{if(!current())return;l.failed=true;l.phase=isOnline()?'partial':'offline';publish(key);}));
                 l.removers.push(tileset.loadProgress.addEventListener((pending,processing)=>{
-                    if(!current()||l.failed)return;l.phase=isOnline()?(pending+processing>0?'loading':'ready'):'offline';publish(key);
+                    if(!current()||l.failed)return;
+                    if(diagnostics){const d=diagnostics[key]??={peak:0,events:0};d.pending=pending;d.processing=processing;d.peak=Math.max(d.peak,pending+processing);d.events++;const t=performance.now();if(pending+processing>0)d.since??=t;else if(d.since!=null){d.lastBusyMs=t-d.since;delete d.since;}}
+                    l.phase=isOnline()?(pending+processing>0?'loading':'ready'):'offline';publish(key);
                     if(key==='structures'&&pending+processing===0)bridgeSupports?.refresh?.();
                 }));
                 if(key==='structures')bridgeSupports?.refresh?.();
@@ -302,7 +305,7 @@
             let changed=false;
             for(const key of Object.keys(layers)){
                 const l=layers[key];
-                const requested=navigating?(navigationLayers[key]??mapLayers[key]):mapLayers[key];
+                const requested=benchmarkLayers?.[key]??(navigating?(navigationLayers[key]??mapLayers[key]):mapLayers[key]);
                 if(l.requested!==requested){l.requested=requested;changed=true;}
                 if(retry===key || (key==='structures'&&!l.requested&&(l.tileset||l.pending))){
                     release(l);l.pending=null;changed=true;if(!l.requested)l.phase='hidden';
@@ -350,6 +353,12 @@
                 lighting=command.lighting;applyTime();
                 for(const key of Object.keys(layers))mapLayers[key]=key==='structures'?(command.structures??mapLayers.structures):command[key];
                 applyLayers(command.retry);return {};
+            },
+            benchmark(command){
+                if(disposed)return {};
+                if(command!==null&&Object.keys(layers).some(key=>typeof command[key]!=='boolean'))throw Error('Invalid benchmark layers');
+                benchmarkLayers=command===null?null:{...command};
+                applyLayers();return {};
             },
             navigation(command){
                 if(disposed)return {};
@@ -412,6 +421,7 @@
                 }
                 if(changed)scene.requestRender();
             },
+            setDiagnosticsEnabled(enabled){if(enabled){diagnostics??={};}else diagnostics=null;},
             resourceStats(){
                 let resident=0,visible=0,pending=0,estimatedTilesetBytes=0;
                 for(const l of Object.values(layers)){
@@ -424,13 +434,21 @@
                 }
                 // Cesium's tileset estimate excludes terrain, imagery, weather,
                 // application geometry and other GPU allocations.
-                return {resident,visible,pending,estimatedTilesetBytes};
+                const layerStats=diagnostics?Object.fromEntries(Object.entries(layers).map(([key,l])=>{
+                    const d=diagnostics[key]??{},t=l.tileset,s=t?.statistics;
+                    return [key,{state:l.phase,visible:t?.show===true,rootLoading:!!l.pending,
+                        pending:d.pending??null,processing:d.processing??null,peak:d.peak??0,progressEvents:d.events??0,
+                        activeMs:d.since==null?null:performance.now()-d.since,lastBusyMs:d.lastBusyMs??null,
+                        estimatedBytes:t?.totalMemoryUsageInBytes??null,
+                        selectedTiles:s?.numberOfTilesSelected??null,selectedTriangles:s?.numberOfTrianglesSelected??null}];
+                })):null;
+                return {resident,visible,pending,estimatedTilesetBytes,layerStats};
             },
             buildingsTileset(){return layers.buildings.tileset;},
             structuresTileset(){return layers.structures.tileset;},
             loadingDiagnostics(){return tileLoader.status?.()??{supported:false};},
             dispose(){
-                if(disposed)return;disposed=true;removeUpdate();
+                if(disposed)return;disposed=true;diagnostics=null;removeUpdate();
                 bridgeSupports?.dispose?.();
                 for(const l of Object.values(layers))release(l);
                 vegetationSeed?.dispose();
@@ -2773,7 +2791,7 @@
             retainStaticCredit:(display,credit)=>display?.addStaticCredit?.(credit),
             releaseStaticCredit:(display,credit)=>display?.removeStaticCredit?.(credit)};
         const creditDisplay=viewer.cesiumWidget?.creditDisplay;
-        const osmCredit=C.Credit?new C.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true):null;
+        const osmCredit=C.Credit?new C.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL 1.0</a>',true):null;
         let osmCredited=false;
         function syncTunnelCredits(){
             const usesOsm=value=>/OpenStreetMap|\bOSM\b/i.test(String(value?.source||''));

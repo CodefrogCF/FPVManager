@@ -105,6 +105,7 @@ SimulationSettings _simulationSettingsFromJson(Object? source) {
         SimulationGraphicsProfile.values,
         d.graphicsProfile,
       ),
+      renderScale: j.optionalNumber('renderScale'),
       hudStyle: j.choice('hudStyle', SimulationHudStyle.values, d.hudStyle),
       droneId: j.optionalInt('droneId'),
       physicsStepHz: j.value<int>('physicsStepHz', d.physicsStepHz),

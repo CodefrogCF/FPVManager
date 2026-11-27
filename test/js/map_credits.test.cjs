@@ -49,3 +49,27 @@ test('weather credits keep source visible and license plus processing notice in 
     assert.equal(details.showOnScreen,false);assert.match(details.html,/creativecommons.org\/licenses\/by\/4.0/);
     assert.match(details.html,/interpoliert/);
 });
+
+test('credit height updates only on real resize and is removed on dispose',()=>{
+    const values=new Map();let writes=0,h=24,callback,disconnected=false;
+    const container={ownerDocument:{documentElement:{style:{setProperty(k,v){writes++;values.set(k,v);},removeProperty:k=>values.delete(k)}}},getBoundingClientRect:()=>({height:h})};
+    class Observer{constructor(cb){callback=cb;}observe(node){assert.equal(node,container);}disconnect(){disconnected=true;}}
+    const stop=P.observeCreditHeight(container,Observer);
+    assert.equal(values.get('--fpv-credit-height'),'24px');callback();assert.equal(writes,1);
+    h=51.5;callback();assert.equal(values.get('--fpv-credit-height'),'52px');
+    stop();assert.equal(disconnected,true);assert.equal(values.size,0);
+});
+test('bundled scan has short capture attribution and full linked non-commercial provenance',()=>{
+    const M=require('../../web/features/scenery/scenery_manager.js');
+    const item=require('../../web/assets/scenery/catalog.json').sceneries[0];
+    const [inline,details]=M.sceneryCredits(C,{...item,attribution:`${item.author} · ${item.license}`});
+    assert.equal(inline.showOnScreen,true);assert.equal(details.showOnScreen,false);
+    assert.match(inline.html,/Spognetta/);assert.match(inline.html,/verändert/);
+    assert.match(details.html,/Andrea Spognetta/);assert.match(details.html,/RAWscan/);
+    assert.match(details.html,/creativecommons.org\/licenses\/by-nc\/4.0/);assert.match(details.html,/non-commercial/);
+    assert.ok(inline.html.length<details.html.length);
+    const custom=M.sceneryCredits(C,{...item,attribution:'Mandatory third-party notice <fixture>'});
+    assert.equal(custom.length,1);assert.equal(custom[0].showOnScreen,true);assert.match(custom[0].html,/Mandatory third-party notice &lt;fixture&gt;/);
+    const generic=M.sceneryCredits(C,{...item,id:'custom',attribution:`${item.author} · ${item.license}`})[0];
+    assert.equal(generic.showOnScreen,true);assert.equal(generic.html.match(/Andrea Spognetta/g).length,1);
+});

@@ -3,10 +3,12 @@
     const api=factory(typeof module==='object'&&module.exports?require('./scenery_alignment.js'):root.FPVSceneryAlignment,
         typeof module==='object'&&module.exports?require('./scenery_collision.js'):root.FPVSceneryCollision,
         typeof module==='object'&&module.exports?require('./scenery_tileset_provider.js'):root.FPVSceneryTilesets,
-        typeof module==='object'&&module.exports?require('./scenery_replacement.js'):root.FPVSceneryReplacement);
+        typeof module==='object'&&module.exports?require('./scenery_replacement.js'):root.FPVSceneryReplacement,
+        typeof module==='object'&&module.exports?require('../map/map_providers.js'):root.FPVMapProviders);
     if(typeof module==='object'&&module.exports)module.exports=api;else root.FPVSceneryManager=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(A,Collision,Tilesets,Replacement){
+})(typeof globalThis!=='undefined'?globalThis:this,function(A,Collision,Tilesets,Replacement,MapProviders){
     'use strict';
+    const creditApi=MapProviders??{retainStaticCredit:(d,c)=>d?.addStaticCredit(c),releaseStaticCredit:(d,c)=>d?.removeStaticCredit(c)};
     const ROOT='assets/scenery/';
     const catalogUrl='./'+ROOT+'catalog.json';
     const storageKey='fpvmanager.scenery.enabled.v1';
@@ -17,6 +19,21 @@
         balanced:Object.freeze({remoteCacheBytes:128*MiB,localBudgetBytes:128*MiB,collisionBudgetBytes:128*MiB,maxVisualLoads:2,sseFactor:1}),
         high:Object.freeze({remoteCacheBytes:256*MiB,localBudgetBytes:256*MiB,collisionBudgetBytes:128*MiB,maxVisualLoads:2,sseFactor:.5})
     });
+    function sceneryCredits(C,item){
+        const escape=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+        const link=(url,label)=>`<a href="${escape(url)}" target="_blank" rel="noopener">${escape(label)}</a>`;
+        const title=item.sourceUrl?link(item.sourceUrl,item.name):escape(item.name);
+        const defaultAttribution=`${item.author} · ${item.license}`;
+        const attribution=item.attribution?.trim();
+        const extra=attribution&&attribution!==defaultAttribution?` · ${escape(attribution)}`:'';
+        const known=item.id==='de-bb-ruedersdorf-chemical-plant'&&item.sourceUrl==='https://sketchfab.com/3d-models/abandoned-chemical-plant-rudersdorf-rawscan-d2464ec36fb644f28e904e5517f1da64'&&item.author==='Andrea Spognetta (spogna)'&&item.license==='CC BY-NC 4.0 (original GLB metadata)'&&item.name==='Abandoned Chemical plant Rüdersdorf – RAWscan'&&!extra;
+        if(!known)return [new C.Credit(`${escape(item.author)} · ${title} · ${escape(item.license)}${extra} · georeferenced placement; experimental simulation only`,true)];
+        const license=link('https://creativecommons.org/licenses/by-nc/4.0/','CC BY-NC 4.0');
+        // Keep a short source on captures; complete title, author, modification
+        // and source/license links are also in Cesium's Sources dialog.
+        return [new C.Credit(`${link(item.sourceUrl,'Rüdersdorf: Andrea Spognetta')} · ${license} · verändert`,true),
+            new C.Credit(`${escape(item.author)} · ${title} · ${license} · georeferenced, reconstructed geometry and textures, experimental simulation only; non-commercial · ${link('https://zenodo.org/records/10288797','Zenodo record')}`,false)];
+    }
     function streamingOptions(value={}){
         const preset=value.preset??'balanced';if(!Object.hasOwn(presets,preset))throw Error('Invalid scenery quality preset');
         const options={...presets[preset],...value,preset};
@@ -346,7 +363,7 @@
         tilesetFactory=(url,options,signal)=>Tilesets.load(C,url,options,{signal}),
         probeTileset=(url,options)=>Tilesets.probe(C,url,options),
         canStreamRemote=()=>globalThis.navigator?.onLine!==false,flightPosition=()=>null,routeLookahead=()=>[],maxActiveTilesets=4,streaming={},diagnosticsEnabled=()=>false,
-        modelFactory=(url,config,credit)=>C.Model.fromGltfAsync({url,modelMatrix:A.modelMatrix(C,config),scale:config.scale,allowPicking:true,enableCollision:false,enableDebugWireframe:debugWireframe,debugWireframe,credit,showCreditsOnScreen:true}),
+        modelFactory=(url,config,credit)=>C.Model.fromGltfAsync({url,modelMatrix:A.modelMatrix(C,config),scale:config.scale,allowPicking:true,enableCollision:false,enableDebugWireframe:debugWireframe,debugWireframe,showCreditsOnScreen:true}),
         collisionFactory=(url,signal)=>Collision.load(url,signal),
         position=()=>{const x=viewer.camera.positionCartographic;return {latitude:C.Math.toDegrees(x.latitude),longitude:C.Math.toDegrees(x.longitude),height:x.height};},
         onStatus=()=>{},storage,now=()=>Date.now(),setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=60000,canLoad=()=>true,terrainKey=()=>null,terrainStable=()=>true,sampleGround=async()=>NaN,sampleSeamGround=null,terrainMaskActive=()=>false,regionalHeightMode=()=>false}={}){
@@ -407,9 +424,12 @@
         function releaseUnderlay(e){
             clearSeams(e);e.groundRevision=(e.groundRevision??0)+1;e.groundAbort?.abort();e.groundAbort=null;
             if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}
+            if(e.groundCredit){creditApi.releaseStaticCredit(display,e.groundCredit);e.groundCredit=null;}
             e.groundCollider=null;e.groundVerified=false;e.groundState='idle';e.groundError=null;
         }
-        function remove(e){clearCollisionDebug(e);e.collisionReservedBytes=0;e.remoteAbort?.abort();e.remoteAbort=null;for(const release of e.pendingResources??[])release();e.pendingResources?.clear();clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.colliders=[];e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();e.ready=false;if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}}
+        function removeCredits(e){for(const c of e.credits??[])creditApi.releaseStaticCredit(display,c);e.credits=null;}
+        function addCredits(e,credits){if(!e.credits){e.credits=credits;for(const c of credits)creditApi.retainStaticCredit(display,c);}}
+        function remove(e){clearCollisionDebug(e);e.collisionReservedBytes=0;e.remoteAbort?.abort();e.remoteAbort=null;for(const release of e.pendingResources??[])release();e.pendingResources?.clear();clearTimer(e.heightSampleTimer);e.heightSampleTimer=null;clearTimer(e.heightRetryTimer);e.heightRetryTimer=null;releaseUnderlay(e);e.revision++;e.collisionAbort?.abort();clearTimer(e.collisionTimer);e.collisionTimer=null;e.collisionAbort=null;e.collider=null;e.colliders=[];e.terrainAssetVerified=false;e.collisionFrame=null;e.collisionAlignment=null;e.collisionState='idle';e.collisionError=null;e.lastHit=null;e.previewHidden=false;e.heightRevision=(e.heightRevision??0)+1;e.heightKey=null;e.heightPending=false;e.heightState=null;e.heightError=null;e.heightRetryAt=0;e.effectiveAlignment=original(e);e.groundHeightM=null;clearTimer(e.timer);e.timer=null;for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();e.ready=false;removeCredits(e);}
         function escape(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
         // An estimated DGM1 absolute fallback is not visual evidence that the
         // active BKG/other terrain is aligned. Hide scenery until actual
@@ -532,7 +552,9 @@
             const underlay=e.base.terrainUnderlay,abort=new AbortController(),groundRev=(e.groundRevision??0)+1;
             e.groundRevision=groundRev;e.groundAbort=abort;e.groundState='loading';
             const current=()=>!disposed&&!abort.signal.aborted&&e.revision===rev&&e.groundRevision===groundRev&&wantsUnderlay(e);
-            const credit=new C.Credit('© GeoBasis-DE/LGB (dl-de/by-2-0) · GCG2016 © BKG (CC BY 4.0) · DGM1 experimental underlay',true);
+            // The bundled ground GLB already carries the visible copyright.
+            // Supply its linked provenance separately, not as a second inline credit.
+            const credit=new C.Credit('DGM1 Brandenburg · © GeoBasis-DE/LGB · <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noopener">dl-de/by-2-0</a> · GCG2016 © BKG · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · <a href="https://cdn.proj.org/de_bkg_gcg2016.tif" target="_blank" rel="noopener">GCG2016 source</a> · modified experimental ground',false);
             localInFlight++;
             (async()=>{
                 let model=null;
@@ -549,10 +571,11 @@
                     e.groundCollider=mesh;
                     const verified=await verifyTerrainAsset(mesh,underlay.certificate);
                     if(!current())return;
+                    if(verified){e.groundCredit=credit;creditApi.retainStaticCredit(display,credit);}
                     e.groundVerified=verified;e.groundState=verified?'ready':'error';
                     if(!verified){e.groundError='DGM1 collider hash mismatch or unavailable crypto';disposeModel(e.groundModel,true);e.groundModel=null;e.groundCollider=null;}
                     clearSeams(e);viewer.scene.requestRender?.();
-                }catch(error){if(model)disposeModel(model,false);if(current()){if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}e.groundCollider=null;e.groundState='error';e.groundError=String(error?.message??error);}}finally{localInFlight--;}
+                }catch(error){if(model)disposeModel(model,false);if(current()){if(e.groundModel){disposeModel(e.groundModel,true);e.groundModel=null;}if(e.groundCredit){creditApi.releaseStaticCredit(display,e.groundCredit);e.groundCredit=null;}e.groundCollider=null;e.groundState='error';e.groundError=String(error?.message??error);}}finally{localInFlight--;}
             })();
         }
         // A terrain model is never drawn before a *real* Cesium terrain clipping
@@ -567,7 +590,7 @@
         function groundMesh(e,c){return c.source==='underlay'?e.groundCollider:e.collider;}
         function failVisual(e,message){
             releaseUnderlay(e);e.visualRevision=(e.visualRevision??0)+1;e.remoteAbort?.abort();clearTimer(e.timer);e.timer=null;
-            for(const release of e.pendingResources??[])release();e.pendingResources?.clear();for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();if(e.credit){display?.removeStaticCredit(e.credit);e.credit=null;}e.ready=false;publish(e,'error',message);
+            for(const release of e.pendingResources??[])release();e.pendingResources?.clear();for(const model of e.models)disposeModel(model,true);e.models=[];rebalanceRemoteCache();removeCredits(e);e.ready=false;publish(e,'error',message);
         }
         async function load(e){
             const measure=diagnosticsEnabled(),hasLocal=e.item.assets.some(a=>a.kind==='glb');
@@ -590,8 +613,7 @@
                 // Sequential loads cap concurrent GPU uploads; cancelled models cannot be attached later.
                 for(const [assetIndex,sourceAsset] of e.item.assets.entries()){
                     const asset=chosenAsset(e,sourceAsset),assetStarted=now();
-                    const title=e.item.sourceUrl?`<a href="${escape(e.item.sourceUrl)}" target="_blank" rel="noopener">${escape(e.item.name)}</a>`:escape(e.item.name);
-                    const credit=new C.Credit(`${escape(e.item.author)} · ${title} · ${escape(e.item.license)} · ${escape(e.item.attribution??'')} · georeferenced placement; experimental simulation only`,true);
+                    const credits=sceneryCredits(C,e.item),credit=credits[0];
                     if(asset.kind==='3d-tiles'){
                         const model=await tilesetFactory(asset.url,qualityOptions(asset,policy),e.remoteAbort.signal);
                         const timing=measure&&current()?{kind:'tileset-root',loadMs:now()-assetStarted,firstTileMs:null,allTilesReadyMs:null,textureReadyMs:null}:null;
@@ -609,7 +631,7 @@
                             stops.push(model.tileLoad?.addEventListener(()=>{if(current()){if(timing&&timing.firstTileMs===null)timing.firstTileMs=now()-assetStarted;e.streamingState='streaming';e.tileError=null;e.tileErrorCategory=null;}}));
                             stops.push(model.allTilesLoaded?.addEventListener(()=>{if(current()&&e.streamingState!=='degraded'){e.streamingState='ready';if(timing&&timing.allTilesReadyMs===null)timing.allTilesReadyMs=now()-assetStarted;}}));
                             viewer.scene.primitives.add(model);e.models.push(model);rebalanceRemoteCache();
-                            if(!e.credit){e.credit=credit;display?.addStaticCredit(credit);}
+                            addCredits(e,credits);
                         }catch(error){disposeModel(model,false);throw error;}
                         continue;
                     }
@@ -638,7 +660,7 @@
                         if(debugWireframe)model.debugWireframe=true;
                         viewer.scene.primitives.add(model);e.models.push(model);
                         syncCalibrationVisibility(e);
-                        if(!e.credit){e.credit=credit;display?.addStaticCredit(credit);}
+                        addCredits(e,credits);
                     }catch(error){disposeModel(model,false);throw error;}
                 }
                 if(current()&&!e.item.collisionIndependent&&!['loading','ready','error'].includes(e.collisionState))loadCollider(e,rev);
@@ -1130,5 +1152,5 @@
         function setPreviewHidden(id,hidden){const e=entries.get(id);if(!e)throw Error('Unknown scenery');e.previewHidden=Boolean(hidden);syncCalibrationVisibility(e);viewer.scene.requestRender?.();}
         return {initialize,performanceSnapshot,resetPerformance:()=>{history.length=0;},inspectTileset,bundledCatalog,replaceCatalog,tick,setEnabled,restorePreferences,setEdit,restoreEdits,activeRegions,replacementRevision,buildingFeatures:()=>Array.from(entries.values()).filter(e=>replacementReady(e)&&e.item.replacement?.buildings.enabled).flatMap(e=>e.item.replacement.buildings.features),replacementHeight,replacementPassage,collision,radioPath,radioPaths,retry,snapshot,dispose,previewModels,setPreviewHidden,beginAlignment,previewAlignment,endAlignment,selectedScenery,collisionAvailability,setCollisionDebug,clearAllCollisionDebug,visualOnlyModels:()=>Array.from(entries.values()).flatMap(e=>[...e.models,...(e.collisionDebugModels??[]),...(e.groundModel?.show?[e.groundModel]:[])])};
     }
-    return {validate,presets,streamingOptions,predictPoint,qualityOptions,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
+    return {sceneryCredits,validate,presets,streamingOptions,predictPoint,qualityOptions,distanceM,terrainAligned,fitGroundReference,pickRenderedGroundHeights,sampleAnchorGround,create,catalogUrl,managedModelUrl,insideGroundPatch,groundLocal,normalizeTerrainCertificate,verifyTerrainAsset,segmentCovered,seamPoints,evaluateSeam};
 });

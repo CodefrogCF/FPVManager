@@ -36,7 +36,7 @@
     }
     function parameters(c){
         const p={agl:c.agl??20,maxSpeed:c.maxSpeed??15,climbSpeed:c.climbSpeed??5,
-            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',hudStyle:c.hudStyle??'goggles',physicsModel:c.physicsModel??'advanced',physicsStepHz:c.physicsStepHz??120,showCoordinates:c.showCoordinates??false,
+            acceleration:c.acceleration??6,deceleration:c.deceleration??4,flightMode:c.flightMode??'angle',cameraTiltDegrees:c.cameraTiltDegrees??0,cameraFovDegrees:c.cameraFovDegrees??90,graphicsProfile:c.graphicsProfile??'balanced',renderScale:c.renderScale??null,hudStyle:c.hudStyle??'goggles',physicsModel:c.physicsModel??'advanced',physicsStepHz:c.physicsStepHz??120,showCoordinates:c.showCoordinates??false,
             showBatteryVoltage:c.showBatteryVoltage??false,showBatteryCellVoltage:c.showBatteryCellVoltage??false,
             signalHud:signalHud.settings(c.signalHud??{}),failsafe:failsafeModule.configuration(c.failsafe??{}),
             lowBatteryCellVoltage:c.lowBatteryCellVoltage??3.5,criticalBatteryCellVoltage:c.criticalBatteryCellVoltage??3.3,
@@ -59,6 +59,7 @@
         if(!['gps','angle','acro'].includes(p.flightMode))throw new Error('Unknown flight mode');
         flightPhysics.configuration({mode:p.physicsModel,hz:p.physicsStepHz});
         if(!['quality','balanced','performance','compatibility'].includes(p.graphicsProfile))throw new Error('Unknown flight graphics profile');
+        if(p.renderScale!==null&&(!Number.isFinite(p.renderScale)||p.renderScale<.4||p.renderScale>1))throw Error('Invalid render scale');
         if(!['goggles','betaflight'].includes(p.hudStyle))throw new Error('Unknown flight HUD style');
         if(typeof p.showCoordinates!=='boolean')throw new Error('Invalid HUD coordinate visibility');
         if(typeof p.showBatteryVoltage!=='boolean'||typeof p.showBatteryCellVoltage!=='boolean')throw new Error('Invalid battery HUD visibility');
@@ -107,7 +108,7 @@
             const f=rotate(attitude,{x:c,y:0,z:-s}),u=rotate(attitude,{x:-s,y:0,z:-c});
             return {direction:{north:f.x,east:f.y,up:-f.z},up:{north:u.x,east:u.y,up:-u.z}};
         }
-        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,rotation:config.rotation,
+        function status(){return {active,pending,paused,playback,flightId:operation,mode:config.flightMode,cameraTiltDegrees:config.cameraTiltDegrees,cameraFovDegrees:config.cameraFovDegrees,graphicsProfile:config.graphicsProfile,renderScale:config.renderScale,hudStyle:config.hudStyle,physicsModel:config.physicsModel,physicsStepHz:config.physicsStepHz,aerodynamics:config.aerodynamics,rotation:config.rotation,
             descentAerodynamics:config.descentAerodynamics,descentEffects,
             collisionResponse:config.collisionResponse,lastCollision,physicsDiagnostics:runtime?.diagnostics()??null,showCoordinates:config.showCoordinates,showBatteryVoltage:config.showBatteryVoltage,
             showBatteryCellVoltage:config.showBatteryCellVoltage,signalHud:{...config.signalHud},
@@ -166,7 +167,7 @@
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
                 config=next;runtime=buildRuntime();failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
-                    {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile);spawn={latitude:command.latitude,longitude:command.longitude};
+                    {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile,config.renderScale);spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;gpsHeadingTarget=heading;pitch=roll=0;q=euler(heading,0,0);
                 // Hardware is optional and independent of battery-HUD enablement.
                 // A battery profile can supply the voltage if the drone has none.
@@ -942,7 +943,7 @@
             },
             graphicsProfile(profile){
                 if(!['quality','balanced','performance','compatibility'].includes(profile))throw new Error('Unknown flight graphics profile');
-                if(active)applyGraphics?.(profile);
+                if(active)applyGraphics?.(profile,config.renderScale);
                 config={...config,graphicsProfile:profile};if(active)publish();
             },
             cameraFov(degrees){

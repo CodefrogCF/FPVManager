@@ -24,7 +24,7 @@ test('scenery loads only nearby, waits for readiness, unloads, retains credits a
  const f=fixture(),stored=new Map(),storage={getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)};
  let loads=0;const model={ready:false,destroy(){this.destroyed=true;}};
  const m=M.create(f.C,f.viewer,{...f,storage,fetchCatalog:async()=>catalog,modelFactory:async(url,cfg)=>{loads++;assert.equal(url,'./assets/scenery/local_reference.glb');assert.equal(cfg.scale,16.023268178233355);return model;}});
- try{await m.initialize();await flush();assert.equal(m.snapshot()[0].state,'loading');assert.equal(f.models.length,1);assert.equal(f.credits.length,1);assert.deepEqual(m.visualOnlyModels(),[model]);model.ready=true;m.tick(true);assert.equal(m.snapshot()[0].state,'ready');
+ try{await m.initialize();await flush();assert.equal(m.snapshot()[0].state,'loading');assert.equal(f.models.length,1);assert.equal(f.credits.length,2);assert.deepEqual(m.visualOnlyModels(),[model]);model.ready=true;m.tick(true);assert.equal(m.snapshot()[0].state,'ready');
  f.advance({...f.position(),latitude:53});assert.equal(f.models.length,0);assert.equal(f.credits.length,0);assert.equal(model.destroyed,true);assert.equal(m.snapshot()[0].state,'idle');m.setEnabled(catalog.sceneries[0].id,false);f.advance({...catalog.sceneries[0].alignment,height:100});assert.equal(loads,1);assert.equal(JSON.parse([...stored.values()][0])[catalog.sceneries[0].id],false);
  }finally{m.dispose();}
 });

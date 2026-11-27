@@ -240,6 +240,7 @@ class _SettingsState extends State<_Settings> {
   late bool _propellerDragEnabled =
       widget.initial.aerodynamics.propellerDragEnabled;
   late SimulationGraphicsProfile _graphics = widget.initial.graphicsProfile;
+  late double? _renderScale = widget.initial.renderScale;
   late SimulationHudStyle _hud = widget.initial.hudStyle;
   late bool _showCoordinates = widget.initial.showCoordinates;
   late ControllerSettings _controller = widget.initial.controller;
@@ -579,6 +580,7 @@ class _SettingsState extends State<_Settings> {
           descentAerodynamics: _descentSettings,
           collisionResponse: _collisionSettings,
           graphicsProfile: _graphics,
+          renderScale: _renderScale,
           hudStyle: _hud,
           showCoordinates: _showCoordinates,
           signalHud: _signalHud,
@@ -1702,6 +1704,49 @@ class _SettingsState extends State<_Settings> {
                             onChanged: (value) {
                               if (value != null) {
                                 setState(() => _graphics = value);
+                              }
+                            },
+                          ),
+                          DropdownButtonFormField<double>(
+                            key: const ValueKey('simulation-render-scale'),
+                            initialValue: _renderScale ?? 0.0,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText:
+                                  Localizations.localeOf(context)
+                                          .languageCode ==
+                                      'de'
+                                  ? 'Renderauflösung'
+                                  : 'Render resolution',
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: 0.0,
+                                child: Text(
+                                  Localizations.localeOf(context)
+                                              .languageCode ==
+                                          'de'
+                                      ? 'Grafikprofil (Standard)'
+                                      : 'Graphics profile (default)',
+                                ),
+                              ),
+                              for (final scale in <double>{
+                                for (var i = 40; i <= 100; i += 5) i / 100,
+                                ?_renderScale,
+                              })
+                                DropdownMenuItem(
+                                  value: scale,
+                                  child: Text(
+                                    '${(scale * 100).toStringAsFixed(0)} %',
+                                  ),
+                                ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(
+                                  () =>
+                                      _renderScale = value == 0 ? null : value,
+                                );
                               }
                             },
                           ),

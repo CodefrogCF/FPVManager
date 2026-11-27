@@ -24,7 +24,7 @@ function fixture(options={}){
 
 test('automatic OSM tunnel attribution stays visible and shares ownership with bridge supports',async()=>{
     const P=require('../../web/features/map/map_providers.js'),f=fixture(),display=f.viewer.cesiumWidget.creditDisplay;
-    const bridgeCredit=new Actual.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>',true);
+    const bridgeCredit=new Actual.Credit('<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL 1.0</a>',true);
     const osm={...routes[0],source:'OpenStreetMap / Geofabrik'};
     try{
         await f.service.setAutomaticRoutes([osm],pose(20));

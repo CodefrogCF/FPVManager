@@ -231,16 +231,6 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
           (l10n) => l10n.routesFlightRoutescf03df8f,
         ),
       ),
-      actions: [
-        IconButton(
-          tooltip: context.localized(
-            "Import routes",
-            (l10n) => l10n.routesImportRoutesbbcd66ff,
-          ),
-          onPressed: _transferring ? null : _import,
-          icon: const Icon(Icons.file_upload_outlined),
-        ),
-      ],
       bottom: _working
           ? const PreferredSize(
               preferredSize: Size.fromHeight(3),
@@ -248,134 +238,162 @@ class _FlightRoutesScreenState extends State<FlightRoutesScreen> {
             )
           : null,
     ),
-    body: StreamBuilder<List<FlightPlanSummary>>(
-      stream: _routes,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  context.localized(
-                    "Unable to load saved routes.",
-                    (l10n) => l10n.routesUnableToLoadSavedda813904,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => setState(
-                    () =>
-                        _routes = widget.repository.watchFlightPlanSummaries(),
-                  ),
-                  child: Text(
-                    context.localized(
-                      "Retry",
-                      (l10n) => l10n.commonRetry9f5cd8a2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.data!.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
+    body: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('import-flight-routes'),
+              onPressed: _transferring ? null : _import,
+              icon: const Icon(Icons.file_upload_outlined),
+              label: Text(
                 context.localized(
-                  "No saved flight routes yet. Create a route and place waypoints on the map.",
-                  (l10n) => l10n.routesNoSavedFlightRoutesa271a04f,
+                  "Import routes",
+                  (l10n) => l10n.routesImportRoutesbbcd66ff,
                 ),
               ),
             ),
-          );
-        }
-        // Invalidate lazy details only when the database publishes a new list;
-        // ordinary widget rebuilds do not trigger repeated JSON decoding.
-        if (!identical(snapshot.data, _previousRows)) {
-          _previousRows = snapshot.data;
-          _recordingSummaries.clear();
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.only(bottom: 100),
-          itemCount: snapshot.data!.length,
-          itemBuilder: (context, index) {
-            final route = snapshot.data![index];
-            return ListTile(
-              leading: const Icon(Icons.route_outlined),
-              title: Text(route.name),
-              subtitle: FutureBuilder<String?>(
-                future: _recordingSummaries.putIfAbsent(
-                  route.id,
-                  () => _recordingFor(route.id),
-                ),
-                builder: (context, details) => Text(
-                  details.hasError
-                      ? context.localized(
-                          "Recording details unavailable",
-                          (l10n) =>
-                              l10n.routesRecordingDetailsUnavailable028143fa,
-                        )
-                      : details.data ??
-                            context.localized(
-                              "Stored on this device",
-                              (l10n) => l10n.routesStoredOnThisDevicece3661a2,
-                            ),
-                ),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: context.localizedWithArgs(
-                      "Simulate flight: {0}",
-                      [route.name],
-                      (l10n, value) =>
-                          l10n.routesSimulateFlight6c31fd20(value(0)),
-                    ),
-                    icon: const Icon(Icons.play_circle_outline),
-                    onPressed: _transferring
-                        ? null
-                        : () => Navigator.of(context).pop(route.id),
-                  ),
-                  PopupMenuButton<RouteFileFormat>(
-                    tooltip: context.localizedWithArgs("Export {0}", [
-                      route.name,
-                    ], (l10n, value) => l10n.routesExport98e40159(value(0))),
-                    enabled: !_transferring,
-                    onSelected: (format) => _export(route.id, format),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: RouteFileFormat.geoJson,
-                        child: Text(
-                          context.localized(
-                            "Export GeoJSON",
-                            (l10n) => l10n.routesExportGeojsonbdc0686f,
-                          ),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<FlightPlanSummary>>(
+            stream: _routes,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        context.localized(
+                          "Unable to load saved routes.",
+                          (l10n) => l10n.routesUnableToLoadSavedda813904,
                         ),
                       ),
-                      PopupMenuItem(
-                        value: RouteFileFormat.gpx,
+                      TextButton(
+                        onPressed: () => setState(
+                          () => _routes = widget.repository
+                              .watchFlightPlanSummaries(),
+                        ),
                         child: Text(
                           context.localized(
-                            "Export GPX",
-                            (l10n) => l10n.routesExportGpxed2fd89b,
+                            "Retry",
+                            (l10n) => l10n.commonRetry9f5cd8a2,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-              onTap: () => _open(route.id),
-            );
-          },
-        );
-      },
+                );
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.data!.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      context.localized(
+                        "No saved flight routes yet. Create a route and place waypoints on the map.",
+                        (l10n) => l10n.routesNoSavedFlightRoutesa271a04f,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              // Invalidate lazy details only when the database publishes a new list;
+              // ordinary widget rebuilds do not trigger repeated JSON decoding.
+              if (!identical(snapshot.data, _previousRows)) {
+                _previousRows = snapshot.data;
+                _recordingSummaries.clear();
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.only(bottom: 100),
+                itemCount: snapshot.data!.length,
+                itemBuilder: (context, index) {
+                  final route = snapshot.data![index];
+                  return ListTile(
+                    leading: const Icon(Icons.route_outlined),
+                    title: Text(route.name),
+                    subtitle: FutureBuilder<String?>(
+                      future: _recordingSummaries.putIfAbsent(
+                        route.id,
+                        () => _recordingFor(route.id),
+                      ),
+                      builder: (context, details) => Text(
+                        details.hasError
+                            ? context.localized(
+                                "Recording details unavailable",
+                                (l10n) => l10n
+                                    .routesRecordingDetailsUnavailable028143fa,
+                              )
+                            : details.data ??
+                                  context.localized(
+                                    "Stored on this device",
+                                    (l10n) =>
+                                        l10n.routesStoredOnThisDevicece3661a2,
+                                  ),
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: context.localizedWithArgs(
+                            "Simulate flight: {0}",
+                            [route.name],
+                            (l10n, value) =>
+                                l10n.routesSimulateFlight6c31fd20(value(0)),
+                          ),
+                          icon: const Icon(Icons.play_circle_outline),
+                          onPressed: _transferring
+                              ? null
+                              : () => Navigator.of(context).pop(route.id),
+                        ),
+                        PopupMenuButton<RouteFileFormat>(
+                          tooltip: context.localizedWithArgs(
+                            "Export {0}",
+                            [route.name],
+                            (l10n, value) =>
+                                l10n.routesExport98e40159(value(0)),
+                          ),
+                          enabled: !_transferring,
+                          onSelected: (format) => _export(route.id, format),
+                          itemBuilder: (_) => [
+                            PopupMenuItem(
+                              value: RouteFileFormat.geoJson,
+                              child: Text(
+                                context.localized(
+                                  "Export GeoJSON",
+                                  (l10n) => l10n.routesExportGeojsonbdc0686f,
+                                ),
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: RouteFileFormat.gpx,
+                              child: Text(
+                                context.localized(
+                                  "Export GPX",
+                                  (l10n) => l10n.routesExportGpxed2fd89b,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    onTap: () => _open(route.id),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     ),
     floatingActionButton: FloatingActionButton.extended(
       onPressed: _open,

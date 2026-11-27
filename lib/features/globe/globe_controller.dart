@@ -412,6 +412,7 @@ class GlobeController extends ChangeNotifier {
       _ready &&
       canEditPreferences &&
       !_renderingPaused &&
+      !_benchmarkActive &&
       !navigationActive &&
       !_simulationPending &&
       !_groundViewPending &&
@@ -1287,6 +1288,79 @@ class GlobeController extends ChangeNotifier {
       request.command,
       timeout: _bridge.options.terrainTimeout,
     );
+  }
+
+  // Temporary developer-only state. Never write benchmark overrides to user preferences.
+  bool _benchmarkActive = false;
+  bool get benchmarkActive => _benchmarkActive;
+
+  void beginBenchmark() {
+    if (!developerMenusEnabled ||
+        !_ready ||
+        !_terrainAvailable ||
+        navigationActive ||
+        simulationPending ||
+        groundViewPending ||
+        recording.running ||
+        recording.busy ||
+        _benchmarkActive) {
+      throw StateError(
+        'Benchmark requires an idle, ready globe and developer mode',
+      );
+    }
+    _benchmarkActive = true;
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> prepareBenchmark(
+    FlightRoute route,
+    SimulationSettings settings, {
+    required int limitSeconds,
+  }) {
+    if (!_benchmarkActive || !developerMenusEnabled) {
+      throw StateError('Benchmark inactive');
+    }
+    return _request({
+      ...RoutePlaybackRequest(route, settings).command,
+      'type': 'benchmark-prepare',
+      'benchmarkLimitSeconds': limitSeconds,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> setBenchmarkLayers(Map<String, bool> layers) async {
+    if (!_benchmarkActive || !developerMenusEnabled) {
+      throw StateError('Benchmark inactive');
+    }
+    await _request({'type': 'benchmark-layers', 'layers': layers});
+  }
+
+  Future<void> startBenchmarkPlayback(
+    FlightRoute route,
+    SimulationSettings settings,
+  ) async {
+    if (!_benchmarkActive || !developerMenusEnabled) {
+      throw StateError('Benchmark inactive');
+    }
+    await _request({
+      ...RoutePlaybackRequest(route, settings).command,
+      'benchmark': true,
+    }, timeout: _bridge.options.terrainTimeout);
+  }
+
+  Future<void> endBenchmark() async {
+    try {
+      if (_ready && !_disposed) {
+        try {
+          await exitSimulation();
+        } finally {
+          await _request({'type': 'benchmark-clear'});
+        }
+      }
+    } finally {
+      _benchmarkActive = false;
+      _simulationSceneTime = _preferences.simulation.sceneTime;
+      if (!_disposed) notifyListeners();
+    }
   }
 
   String _playbackPhase = 'idle';
@@ -2854,9 +2928,9 @@ class GlobeController extends ChangeNotifier {
       case 'flight-radio-position':
         liveRadio.telemetry(data);
       case 'flight-radio-settings-request':
-        onLiveRadioSettingsRequested?.call();
+        if (!_benchmarkActive) onLiveRadioSettingsRequested?.call();
       case 'flight-radio-toggle':
-        if (data['enabled'] is bool) {
+        if (!_benchmarkActive && data['enabled'] is bool) {
           final s = liveRadio.settings;
           unawaited(
             liveRadio
@@ -2874,6 +2948,7 @@ class GlobeController extends ChangeNotifier {
           );
         }
       case 'flight-recording-action':
+        if (_benchmarkActive) return;
         final action = data['action'];
         if (action is String &&
             {'start', 'pause', 'resume', 'stop', 'review'}.contains(action)) {
@@ -2936,7 +3011,9 @@ class GlobeController extends ChangeNotifier {
       case 'location-follow-changed':
         if (data['following'] == false) unawaited(location.setFollowing(false));
       case 'touch-controls-changed':
-        if (data['visible'] is bool && canEditPreferences) {
+        if (!_benchmarkActive &&
+            data['visible'] is bool &&
+            canEditPreferences) {
           unawaited(
             setTouchControlsVisible(data['visible'] as bool)
                 .catchError((Object _) {}),
@@ -2967,7 +3044,8 @@ class GlobeController extends ChangeNotifier {
         if (rawFailsafe is Map<String, dynamic>) {
           try {
             final next = FailsafeSettings.fromJson(rawFailsafe);
-            if (_simulationActive &&
+            if (!_benchmarkActive &&
+                _simulationActive &&
                 jsonEncode(next.toJson()) !=
                     jsonEncode(_preferences.failsafe.toJson())) {
               unawaited(setSimulationFailsafe(next).catchError((Object _) {}));
@@ -2980,7 +3058,8 @@ class GlobeController extends ChangeNotifier {
         if (rawSignalHud is Map<String, dynamic>) {
           try {
             final next = SignalHudSettings.fromJson(rawSignalHud);
-            if (_simulationActive &&
+            if (!_benchmarkActive &&
+                _simulationActive &&
                 jsonEncode(next.toJson()) !=
                     jsonEncode(_preferences.signalHud.toJson())) {
               unawaited(setSimulationSignalHud(next).catchError((Object _) {}));
@@ -3059,7 +3138,8 @@ class GlobeController extends ChangeNotifier {
             controller: controller,
           );
           next.validate();
-          if (_simulationActive &&
+          if (!_benchmarkActive &&
+              _simulationActive &&
               jsonEncode(next.toJson()) != jsonEncode(current.toJson())) {
             unawaited(setSimulationSettings(next).catchError((Object _) {}));
           }
@@ -3377,7 +3457,8 @@ class GlobeController extends ChangeNotifier {
         try {
           final time = SceneTime.fromJson(data);
           _simulationSceneTime = time;
-          if (_simulationActive &&
+          if (!_benchmarkActive &&
+              _simulationActive &&
               jsonEncode(time.toJson()) !=
                   jsonEncode(simulationSettings.sceneTime.toJson())) {
             unawaited(

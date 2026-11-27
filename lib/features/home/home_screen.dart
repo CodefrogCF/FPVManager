@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../../core/localization/app_localizations.dart';
 
@@ -50,6 +51,9 @@ import 'map_action_menu.dart';
 import 'map_selection_panel.dart';
 import 'home_map_workspace.dart';
 import 'developer_performance_overlay.dart';
+import 'developer_performance_recording.dart';
+import 'developer_benchmark.dart';
+import '../scenery/scenery_asset_provider.dart' show sceneryApplicationVersion;
 import 'home_map_status.dart';
 import '../globe/map_floating_surface.dart';
 import '../simulation/simulation_settings.dart';
@@ -531,12 +535,368 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
 
   final _developerSample = ValueNotifier<Map<String, dynamic>?>(null);
 
+  final _performanceRecording = DeveloperPerformanceRecording();
+  late final _benchmark = DeveloperBenchmark(_globeController);
+
+  Future<void> _quiesceBenchmarkProfiler() async {
+    _physicsValidationTimer?.cancel();
+    _physicsValidationTimer = null;
+    final deadline = Stopwatch()..start();
+    while (_physicsValidationBusy) {
+      if (deadline.elapsed > const Duration(seconds: 20)) {
+        throw StateError('Profiler is busy');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    await _globeController.scenePerformance(action: 'stop');
+    _physicsValidationRunning = false;
+    _developerSample.value = null;
+  }
+
+  Future<void> _openBenchmark() async {
+    if (!_globeController.developerMenusEnabled ||
+        !mounted ||
+        _benchmark.active) {
+      return;
+    }
+    final german = Localizations.localeOf(context).languageCode == 'de';
+    final navigator = Navigator.of(context);
+    final home = ModalRoute.of(context);
+    final platform = Theme.of(context).platform.name;
+    final repository = _flightPlanRepository ??=
+        widget.flightPlanRepository ?? FlightPlanRepository(_planningDatabase);
+    final routes = await repository.watchFlightPlanSummaries().first;
+    if (!mounted || !_globeController.developerMenusEnabled) return;
+    int? selected = routes.firstOrNull?.id;
+    var repetitions = 1;
+    final choice = await showDialog<(int, int)>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) => AlertDialog(
+          title: Text(
+            german ? 'Automatisierte Benchmarks' : 'Automated benchmarks',
+          ),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    german
+                        ? 'Wähle eine gespeicherte Route im Schweizer Gelände (mindestens 10 s). Gemessen werden die ersten 60 s, bei 2 Wiederholungen die ersten 35 s. Alle Varianten verwenden dasselbe Grafikprofil, dieselbe Auflösung und den gleichen Kamerapfad.'
+                        : 'Select a saved route in Swiss terrain (at least 10 s). Measure the first 60 s, or 35 s for 2 repetitions. All variants use the same graphics profile, resolution and camera path.',
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${_simulationSettings.graphicsProfile.name} · ${_simulationSettings.renderScale == null ? (german ? 'Profilauflösung' : 'profile resolution') : '${(_simulationSettings.renderScale! * 100).round()} %'} · ${_simulationSettings.physicsStepHz} Hz',
+                  ),
+                  if (routes.isEmpty)
+                    Text(
+                      german
+                          ? 'Erstelle oder importiere zuerst eine Flugroute.'
+                          : 'Create or import a flight route first.',
+                    )
+                  else
+                    DropdownButton<int>(
+                      key: const ValueKey('benchmark-route'),
+                      value: selected,
+                      isExpanded: true,
+                      items: [
+                        for (final route in routes)
+                          DropdownMenuItem(
+                            value: route.id,
+                            child: Text(
+                              route.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) => refresh(() => selected = value),
+                    ),
+                  Text(
+                    german
+                        ? 'Wiederholungen pro Variante'
+                        : 'Repetitions per case',
+                  ),
+                  DropdownButton<int>(
+                    value: repetitions,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1')),
+                      DropdownMenuItem(value: 2, child: Text('2')),
+                    ],
+                    onChanged: (value) =>
+                        refresh(() => repetitions = value ?? 1),
+                  ),
+                  Text(
+                    german
+                        ? '6 Varianten, je eine Aufwärmrunde und ein Messflug. Cache bleibt erhalten. Messdaten werden lokal im Speicher gesammelt; JSON/CSV danach exportieren.'
+                        : '6 cases, one warmup and one measured pass each. Caches are retained. Measurements stay in memory; export JSON/CSV afterwards.',
+                  ),
+                  if (_benchmark.status != 'idle') ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '${_benchmark.status} · ${_benchmark.recording.count} ${german ? 'Messungen' : 'samples'}',
+                    ),
+                    if (_benchmark.error != null) Text(_benchmark.error!),
+                    for (final run in _benchmark.runs)
+                      Text(
+                        '${run['case']} #${run['repetition']}: ${run['status']} (${run['sampleCount'] ?? 0}) · ${(run['medianFps'] as num?)?.toStringAsFixed(1) ?? '—'} FPS',
+                      ),
+                    Wrap(
+                      children: [
+                        for (final csv in [false, true])
+                          TextButton(
+                            onPressed: _benchmark.recording.count == 0
+                                ? null
+                                : () async {
+                                    try {
+                                      await _benchmark.recording.save(csv: csv);
+                                    } catch (_) {
+                                      if (context.mounted)
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  german
+                                                      ? 'Export fehlgeschlagen'
+                                                      : 'Export failed',
+                                                ),
+                                              ),
+                                            );
+                                    }
+                                  },
+                            child: Text(csv ? 'CSV' : 'JSON'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(german ? 'Schließen' : 'Close'),
+            ),
+            FilledButton(
+              key: const ValueKey('benchmark-start'),
+              onPressed: selected == null || home == null
+                  ? null
+                  : () =>
+                        Navigator.pop(dialogContext, (selected!, repetitions)),
+              child: Text(german ? 'Benchmark starten' : 'Start benchmark'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null || !_globeController.developerMenusEnabled) {
+      return;
+    }
+    if (_performanceRecording.active ||
+        _globeController.navigationActive ||
+        _globeController.simulationPending ||
+        _globeController.groundViewPending) {
+      throw StateError(
+        'Stop the current flight or performance recording first',
+      );
+    }
+    final route = await repository.getRoute(choice.$1);
+    if (!mounted || route == null || !_globeController.developerMenusEnabled) {
+      return;
+    }
+    navigator.popUntil((r) => r == home);
+    if (_drawerOpen) {
+      if (!_useDesktopWindowsPanels) {
+        _scaffoldKey.currentState?.closeDrawer();
+      }
+      setState(() {
+        _drawerOpen = false;
+        _allToolsExpanded = false;
+      });
+    }
+    // Do not measure an obscured WebView while the settings route animates out.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted || !_globeController.developerMenusEnabled) return;
+    try {
+      final operation = _benchmark.run(
+        route,
+        _simulationSettings,
+        repetitions: choice.$2,
+        platform: platform,
+        quiesceProfiler: _quiesceBenchmarkProfiler,
+      );
+      setState(() {});
+      await operation;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              german
+                  ? 'Benchmark konnte nicht gestartet werden.'
+                  : 'Unable to start benchmark.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        _syncPerformanceSampling();
+        setState(() {});
+        if (_globeController.developerMenusEnabled) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                german
+                    ? 'Benchmark: ${_benchmark.status}. Export in den Entwickleroptionen.'
+                    : 'Benchmark: ${_benchmark.status}. Export in developer options.',
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _benchmarkControls() => ListenableBuilder(
+    listenable: _benchmark,
+    builder: (context, _) {
+      if (!_benchmark.active) return const SizedBox.shrink();
+      final german = Localizations.localeOf(context).languageCode == 'de';
+      return PointerInterceptor(
+        child: Stack(
+          children: [
+            const Positioned.fill(child: ModalBarrier(dismissible: false)),
+            Align(
+              alignment: Alignment.topCenter,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Benchmark ${_benchmark.runIndex}/${_benchmark.runCount} · ${_benchmark.status}',
+                      ),
+                      SizedBox(
+                        width: 220,
+                        child: LinearProgressIndicator(
+                          value: _benchmark.progress,
+                        ),
+                      ),
+                      Text(
+                        '${_benchmark.recording.count} / ${DeveloperPerformanceRecording.maxSamples} ${german ? 'Messungen' : 'samples'}',
+                      ),
+                      TextButton(
+                        onPressed: _benchmark.cancel,
+                        child: Text(german ? 'Abbrechen' : 'Cancel'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+
   bool get _wantsPerformanceSample =>
-      _globeController.developerOverlayEnabled ||
-      (_physicsValidationEnabled && _globeController.simulationActive);
+      _globeController.developerMenusEnabled &&
+      !_globeController.benchmarkActive &&
+      !_benchmark.active &&
+      (_globeController.developerOverlayEnabled ||
+          _performanceRecording.active ||
+          (_physicsValidationEnabled && _globeController.simulationActive));
+
+  Future<void> _openPerformanceRecording() async {
+    if (!_globeController.developerMenusEnabled ||
+        !mounted ||
+        _benchmark.active) {
+      return;
+    }
+    final german = Localizations.localeOf(context).languageCode == 'de';
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          german ? 'Performance-Aufzeichnung' : 'Performance recording',
+        ),
+        content: Text(
+          german
+              ? '${_performanceRecording.count}/600 Messungen · lokal, 1/s. Start ersetzt die vorige Aufzeichnung.'
+              : '${_performanceRecording.count}/600 samples · local, 1/s. Start replaces the previous recording.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (_performanceRecording.active) {
+                _performanceRecording.stop();
+              } else {
+                _performanceRecording.start();
+              }
+              _syncPerformanceSampling();
+              Navigator.pop(context);
+            },
+            child: Text(_performanceRecording.active ? 'Stop' : 'Start'),
+          ),
+          for (final csv in [false, true])
+            TextButton(
+              onPressed:
+                  !_performanceRecording.active &&
+                      _performanceRecording.count > 0
+                  ? () async {
+                      try {
+                        await _performanceRecording.save(csv: csv);
+                      } catch (_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                german
+                                    ? 'Export fehlgeschlagen'
+                                    : 'Export failed',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  : null,
+              child: Text(csv ? 'CSV' : 'JSON'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(german ? 'Schließen' : 'Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _syncPerformanceSampling() {
     if (!mounted) return;
+    if (!_globeController.developerMenusEnabled) {
+      _performanceRecording.clear();
+      if (_benchmark.active) {
+        _benchmark.cancel();
+      } else if (_benchmark.status != 'idle') {
+        _benchmark.recording.clear();
+        _benchmark.runs.clear();
+        _benchmark.status = 'idle';
+        _benchmark.error = null;
+      }
+    }
+    if (_globeController.benchmarkActive || _benchmark.active) {
+      _physicsValidationTimer?.cancel();
+      _physicsValidationTimer = null;
+      return;
+    }
     if (!_globeController.developerOverlayEnabled &&
         _developerSample.value != null) {
       _developerSample.value = null;
@@ -557,18 +917,24 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   }
 
   Future<void> _samplePhysicsValidation() async {
-    if (!mounted || _physicsValidationBusy) return;
+    if (!mounted ||
+        _physicsValidationBusy ||
+        _globeController.benchmarkActive ||
+        _benchmark.active) {
+      return;
+    }
     if (!_globeController.isReady) {
       _physicsValidationRunning = false;
       if (_developerSample.value != null) _developerSample.value = null;
       return;
     }
     _physicsValidationBusy = true;
+    var stopFailed = false;
     try {
       if (!_wantsPerformanceSample) {
         if (_physicsValidationRunning) {
-          _physicsValidationRunning = false;
           await _globeController.scenePerformance(action: 'stop');
+          _physicsValidationRunning = false;
         }
         return;
       }
@@ -577,10 +943,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       // Remember the possible active profiler even if the reply times out.
       _physicsValidationRunning = true;
       final scene = await _globeController.scenePerformance(action: 'start');
-      if (!mounted) return;
-      if (_globeController.developerOverlayEnabled) {
+      if (!mounted || !_wantsPerformanceSample) return;
+      if (_globeController.developerOverlayEnabled ||
+          _performanceRecording.active) {
         final rf = _globeController.liveRadio.diagnostics;
-        _developerSample.value = {
+        final sample = <String, dynamic>{
           ...scene,
           'terrainState': _globeController.terrainState.name,
           'terrainWarning': _globeController.terrainResourceWarning,
@@ -598,8 +965,27 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               key: rf[key],
           },
         };
+        if (_globeController.developerOverlayEnabled) {
+          _developerSample.value = sample;
+        }
+        if (_performanceRecording.active) {
+          _performanceRecording.add(sample, {
+            'platform': Theme.of(context).platform.name,
+            'graphicsProfile':
+                (_globeController.simulationActive
+                        ? _globeController.simulationGraphicsProfile ??
+                              _simulationSettings.graphicsProfile
+                        : _simulationSettings.graphicsProfile)
+                    .name,
+            'physicsHz': _simulationSettings.physicsStepHz,
+            'applicationVersion': sceneryApplicationVersion,
+          });
+          if (!_performanceRecording.active) _syncPerformanceSampling();
+        }
       }
-      if (_physicsValidationEnabled && _globeController.simulationActive) {
+      if (_physicsValidationEnabled &&
+          _globeController.developerMenusEnabled &&
+          _globeController.simulationActive) {
         final physics = await _globeController.flightPhysicsDiagnostics();
         if (!mounted) return;
         debugPrint(
@@ -607,6 +993,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         );
       }
     } catch (_) {
+      stopFailed = !_wantsPerformanceSample;
       // Renderer reloads can interrupt a sample. Never interrupt a flight.
       if (!_globeController.isReady) _physicsValidationRunning = false;
       if (mounted && _developerSample.value != null) {
@@ -614,7 +1001,12 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
       }
     } finally {
       _physicsValidationBusy = false;
-      if (mounted && !_wantsPerformanceSample && _physicsValidationRunning) {
+      if (mounted &&
+          !stopFailed &&
+          !_wantsPerformanceSample &&
+          _physicsValidationRunning &&
+          !_globeController.benchmarkActive &&
+          !_benchmark.active) {
         unawaited(_samplePhysicsValidation());
       }
     }
@@ -714,6 +1106,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
           globe: _globeController,
           section: section,
           onFlightSettings: () => _openSimulation(configureOnly: true),
+          onPerformanceRecording: _openPerformanceRecording,
+          onBenchmark: _openBenchmark,
           onWeather: _openWeather,
           onTraffic: () => _openMobility(initialTab: 2),
           onAirspace: () => _openMapLayers(initialTab: MapLayerTab.airspace),
@@ -1068,6 +1462,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
   void dispose() {
     _globeController.removeListener(_onGlobeStateChanged);
     _physicsValidationTimer?.cancel();
+    _benchmark.dispose();
     _developerSample.dispose();
     if (_physicsValidationRunning && _globeController.isReady) {
       unawaited(
@@ -1381,18 +1776,21 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               onData: _openData,
             ),
       body: PopScope(
-        canPop: !_captureMode,
+        canPop: !_captureMode && !_globeController.benchmarkActive,
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop && _captureMode) unawaited(_setCaptureMode(false));
+          if (!didPop && _benchmark.active) _benchmark.cancel();
         },
         child: SafeArea(
           child: GlobeInputScope(
             enabled: !_drawerOpen || _useDesktopWindowsPanels,
             child: HomeMapWorkspace(
+              benchmarkControls: _benchmarkControls(),
               diagnosticOverlay: ListenableBuilder(
                 listenable: _globeController,
                 builder: (context, _) =>
-                    _globeController.developerOverlayEnabled
+                    _globeController.developerOverlayEnabled &&
+                        !_globeController.benchmarkActive
                     ? DeveloperPerformanceOverlay(samples: _developerSample)
                     : const SizedBox.shrink(),
               ),

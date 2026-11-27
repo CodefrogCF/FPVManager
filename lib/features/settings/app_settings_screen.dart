@@ -26,6 +26,8 @@ class AppSettingsScreen extends StatelessWidget {
     this.onProfiles,
     this.onMapLayers,
     this.onLanguageSelected,
+    this.onPerformanceRecording,
+    this.onBenchmark,
   });
   final GlobeController globe;
   final Future<void> Function() onFlightSettings,
@@ -34,7 +36,10 @@ class AppSettingsScreen extends StatelessWidget {
       onAirspace,
       onData;
   final AppSettingsSection? section;
-  final Future<void> Function()? onProfiles, onMapLayers;
+  final Future<void> Function()? onProfiles,
+      onMapLayers,
+      onPerformanceRecording,
+      onBenchmark;
   final Future<void> Function(AppLanguage)? onLanguageSelected;
 
   Future<void> _run(
@@ -71,6 +76,8 @@ class AppSettingsScreen extends StatelessWidget {
     onProfiles: onProfiles,
     onMapLayers: onMapLayers,
     onLanguageSelected: onLanguageSelected,
+    onPerformanceRecording: onPerformanceRecording,
+    onBenchmark: onBenchmark,
   );
   Widget _link(
     BuildContext context,
@@ -233,6 +240,25 @@ class AppSettingsScreen extends StatelessWidget {
                                 () => globe.setDeveloperOverlayEnabled(value),
                               )
                             : null,
+                      ),
+                    if (globe.developerMenusEnabled &&
+                        onPerformanceRecording != null)
+                      _link(
+                        context,
+                        Icons.analytics_outlined,
+                        Localizations.localeOf(context).languageCode == 'de'
+                            ? 'Performance-Aufzeichnung'
+                            : 'Performance recording',
+                        onPerformanceRecording!,
+                      ),
+                    if (globe.developerMenusEnabled && onBenchmark != null)
+                      _link(
+                        context,
+                        Icons.speed,
+                        Localizations.localeOf(context).languageCode == 'de'
+                            ? 'Automatisierte Benchmarks'
+                            : 'Automated benchmarks',
+                        onBenchmark!,
                       ),
                     const Divider(),
                     _link(

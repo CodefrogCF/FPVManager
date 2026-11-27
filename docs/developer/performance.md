@@ -87,3 +87,46 @@ stability is useful observation, not a complete benchmark. Independent real-flig
 calibration, repeatable platform profiling and thermal/memory endurance remain
 separate follow-up validation. Report failed/not-run checks and measurement limits
 alongside successful automated results; do not call a source ZIP release-ready.
+
+The flight graphics settings allow an independent 40–100% render scale, or the
+profile default. Compare at a fixed scale and record the actual drawing buffer.
+In Settings → Developer options → Performance recording, start a local session,
+return to the flight, then stop and export JSON or CSV. A session retains at most
+600 one-second snapshots (rolling profiler windows, not individual frames); no
+files are written until explicitly exported. Disabling Developer options stops
+profiling and clears the unexported session. Terrain request timings measure
+settlement wall time, grouped by whether Cesium supplied a rendering request;
+layer progress distinguishes pending downloads and processing, not exact CPU time.
+
+## Automated route benchmark
+
+In Settings → Developer options → Automated benchmarks, select a saved route
+and one or two repetitions. Create or import a route in Swiss terrain first.
+Use the same graphics profile, render scale, viewport and route for subsequent
+comparisons. The route must last at least 10 seconds; the runner uses its first
+60 seconds (35 seconds for two repetitions). Planned AGL is resolved once to a
+fixed absolute camera trajectory; recorded timing is retained. The route hash
+identifies the input, not a surveyed height reference. Lighting time is fixed
+when realistic lighting is enabled. Playback follows the route at 1× and is
+not a benchmark of manual flight dynamics or failsafe behavior.
+
+Each case has a complete warmup pass followed by a measured pass. The six
+cases are all three standard tilesets plus RF, no buildings, no infrastructure,
+no vegetation, no three standard tilesets, and no RF. The infrastructure case
+includes tileset-derived bridge supports, not independently enabled tunnels or
+custom scenery. RF uses the selected radio profiles and the route spawn as
+station. The second repetition reverses case order. Warmup does not flush the
+browser/network caches or guarantee every tile is resident; compare results
+with the recorded visibility and loading state.
+
+The runner resets profiler windows between measured passes, samples roughly
+once per second and labels every row by run, variant, repetition and progress.
+The JSON also contains run summaries, input fingerprints, completion status and
+visibility/RF observations. These are snapshot percentiles, not raw per-frame
+quantiles. Runs lacking observed layer visibility or valid RF are identified.
+The recording is bounded to 600 snapshots; timeout, collision, terrain changes,
+backgrounding, cancellation or exhaustion terminate the suite. Partial data
+can be exported via the same menu, except when developer mode is disabled.
+The runner restores original scene and RF settings; if restoration cannot be
+confirmed, reload the renderer. Export JSON/CSV locally before starting another
+suite. No route coordinates or raw provider error strings are included.

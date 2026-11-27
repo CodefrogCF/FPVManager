@@ -78,7 +78,7 @@
 #hud-warning { position:absolute;bottom:126px;left:50%;transform:translateX(-50%);width:max-content;
     max-width:calc(100% - 32px);box-sizing:border-box;padding:6px 10px;background:#38280ce0;
     border-radius:6px;color:#ffe1a0;font-size:12px;text-align:center; }
-#flight-readout { position:absolute;bottom:max(38px,calc(env(safe-area-inset-bottom) + 30px));left:50%;transform:translateX(-50%);
+#flight-readout { position:absolute;bottom:max(38px,calc(env(safe-area-inset-bottom) + 30px),calc(var(--fpv-credit-height, 0px) + 6px));left:50%;transform:translateX(-50%);
     width:min(620px,calc(100% - 24px));box-sizing:border-box; }
 .hud-secondary { display:flex;justify-content:center;gap:20px;font-size:12px;margin-bottom:8px;color:#e2e5e8; }
 .hud-secondary { flex-wrap:wrap;row-gap:4px; }

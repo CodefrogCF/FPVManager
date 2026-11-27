@@ -167,7 +167,7 @@
                 renderer:info,canvas:{width:finite(canvas?.width),height:finite(canvas?.height),cssWidth:finite(canvas?.clientWidth),cssHeight:finite(canvas?.clientHeight),bufferWidth:finite(gl?.drawingBufferWidth),bufferHeight:finite(gl?.drawingBufferHeight),devicePixelRatio:finite(globalThis.devicePixelRatio),resolutionScale:finite(viewer.resolutionScale)},
                 animationCadence:{samples:rafMs.length,fastHz:rafFast>0?1000/rafFast:null,medianHz:rafMedian>0?1000/rafMedian:null,p95Ms:percentile(rafMs,.95)},
                 cpuUpdateMs:stats(updateMs),cpuSceneMs:stats(sceneMs),
-                terrainProvider:resource.terrainProvider??null,terrainStreaming:{pending:pendingTerrain,peak:terrainPeak,activeMs:terrainSince===null?null:Math.max(0,now()-terrainSince),lastBatchMs:terrainLastMs,batches:terrainBatches},
+                terrainProvider:resource.terrainProvider??null,terrainRequests:resource.terrainRequests??null,layerStats:resource.layerStats??null,terrainStreaming:{pending:pendingTerrain,peak:terrainPeak,activeMs:terrainSince===null?null:Math.max(0,now()-terrainSince),lastBatchMs:terrainLastMs,batches:terrainBatches},
                 physicsStep:{count:physicsCount,samples:physicsMs.length,totalMs:physicsTotalMs,
                     p50Ms:percentile(physicsMs,.5),p95Ms:percentile(physicsMs,.95),maxMs:physicsMaxMs},
                 cpuRenderMs:{p50:percentile(renderMs,.5),p95:percentile(renderMs,.95),max:percentile(renderMs,1)},

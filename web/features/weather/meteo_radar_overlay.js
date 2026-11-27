@@ -83,7 +83,7 @@ async function nativeDecoder(bytes,product,load=()=>import(WASM_URL).then(m=>m.d
   finally{try{f?.close();}finally{module.FS.unlink(filename);}}
 }
 function create(C,getViewer,{fetcher=(...args)=>fetch(...args),decoder=nativeDecoder}={}){
-  let revision=0,active=null,controller=null,layer=null,disposed=false,credit=null,creditViewer=null;
+  let revision=0,active=null,controller=null,layer=null,disposed=false;
   const cache=new Map();
   function clear(){revision++;controller?.abort();controller=null;cache.clear();
     const viewer=getViewer();if(layer&&viewer)viewer.imageryLayers.remove(layer,true);layer=null;active=null;
@@ -106,17 +106,15 @@ function create(C,getViewer,{fetcher=(...args)=>fetch(...args),decoder=nativeDec
     const image=ctx.createImageData(frame.width,frame.height);image.data.set(frame.pixels);ctx.putImageData(image,0,0);
     const b=frame.bounds;
     const provider=await C.SingleTileImageryProvider.fromUrl(canvas.toDataURL('image/png'),
-      {rectangle:C.Rectangle.fromDegrees(b.west,b.south,b.east,b.north),credit:'Source: MeteoSwiss'});
+      {rectangle:C.Rectangle.fromDegrees(b.west,b.south,b.east,b.north),credit:C.Credit?new C.Credit('Source: MeteoSwiss · <a href="https://opendatadocs.meteoswiss.ch/general/terms-of-use" target="_blank" rel="noopener">CC BY 4.0</a> · reprojected radar data',false):'Source: MeteoSwiss' });
     if(request.signal.aborted||generation!==revision||disposed)return {superseded:true};
     const next=viewer.imageryLayers.addImageryProvider(provider);if(layer)viewer.imageryLayers.remove(layer,true);
     layer=next;active={...command,missingPixels:frame.missing,validPixels:frame.valid};
-    if(C.Credit&&creditViewer!==viewer){if(credit)creditViewer?.cesiumWidget?.creditDisplay?.removeStaticCredit(credit);
-      creditViewer=viewer;credit=new C.Credit('Source: MeteoSwiss',true);viewer.cesiumWidget?.creditDisplay?.addStaticCredit(credit);}
     const legend=document.getElementById('radar-legend');if(legend){legend.hidden=false;
       legend.textContent=`Source: MeteoSwiss · ${command.product==='RZC'?'Radar estimate':'CombiPrecip 60-minute total'} · ${command.units} · ${command.timestampUtc} · ${frame.missing} missing/uncovered pixels (grey) · Dry = transparent · Not a forecast`;}
     viewer.scene.requestRender();return {validPixels:frame.valid,missingPixels:frame.missing};
   }
-  function dispose(){clear();disposed=true;cache.clear();if(credit)creditViewer?.cesiumWidget?.creditDisplay?.removeStaticCredit(credit);credit=null;creditViewer=null;}
+  function dispose(){clear();disposed=true;cache.clear();}
   return {replace,clear,dispose,get active(){return active;},get cachedCount(){return cache.size;}};
 }
 root.FPVMeteoRadar={validate,attr,wgsToLv95,lv95ToWgs,parseOdim,warp,color,limitedDownload,create};

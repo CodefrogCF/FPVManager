@@ -435,13 +435,14 @@
                 viewer.scene.globe.maximumScreenSpaceError=saved.maximumScreenSpaceError;
                 onProfile('balanced');
             },
-            applyGraphics(profile){
+            applyGraphics(profile,renderScale=null){
                 if(!Object.hasOwn(profiles,profile))throw new Error('Unknown flight graphics profile');
+                if(renderScale!==null&&(!Number.isFinite(renderScale)||renderScale<.4||renderScale>1))throw Error('Invalid render scale');
                 const settings=profiles[profile];
                 viewer.scene.globe.maximumScreenSpaceError=2;
                 streaming.start();
                 meshPicker.start();
-                viewer.resolutionScale=settings.resolutionScale;viewer.scene.msaaSamples=settings.msaaSamples;
+                viewer.resolutionScale=renderScale??settings.resolutionScale;viewer.scene.msaaSamples=settings.msaaSamples;
                 viewer.scene.globe.tileCacheSize=Math.max(viewer.scene.globe.tileCacheSize,flightTileCacheSize);
                 onProfile(profile);
                 viewer.scene.requestRender();
