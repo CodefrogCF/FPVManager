@@ -60,6 +60,7 @@
     }
     function create(viewer,{now=()=>performance.now(),capacity=240,resources=()=>({}),
         isContinuous=()=>false,isForeground=()=>globalThis.document?.visibilityState!=='hidden',gpuContext=()=>viewer.scene.context?._gl,
+        Observer=globalThis.PerformanceObserver,
         requestFrame=globalThis.requestAnimationFrame?.bind(globalThis),cancelFrame=globalThis.cancelAnimationFrame?.bind(globalThis)}={}){
         if(!Number.isSafeInteger(capacity)||capacity<16||capacity>MAX_SAMPLES)throw Error('Invalid frame sample limit');
         const scene=viewer.scene;
@@ -67,6 +68,7 @@
         const update=new Float64Array(capacity),sceneCpu=new Float64Array(capacity),raf=new Float64Array(capacity);
         let running=false,disposed=false,removePre=null,removePost=null,removeUpdate=null,removeUpdated=null,gpuSampler=null,gpuCount=0;
         let updateCount=0,sceneCount=0,rafCount=0,updateStart=null,sceneStart=null,lastRaf=null,rafHandle=null,rafGeneration=0,info=null;
+        let longObserver=null,longSupported=false,longCount=0,longTotal=0,longMax=0,longStarted=0;
         let pendingTerrain=null,terrainSince=null,terrainLastMs=null,terrainPeak=0,terrainBatches=0;
         let physicsCount=0,physicsTotalMs=0,physicsMaxMs=0;
         let renderCount=0,intervalCount=0,allFrames=0,lastFrame=null,frameStart=null;
@@ -77,6 +79,7 @@
             physicsCount=0;physicsTotalMs=0;physicsMaxMs=0;gpuCount=0;
             updateCount=sceneCount=rafCount=0;updateStart=sceneStart=lastRaf=null;
             pendingTerrain=terrainSince=terrainLastMs=null;terrainPeak=terrainBatches=0;
+            longSupported=false;longCount=longTotal=longMax=0;
         }
         function beforeUpdate(){sceneStart=updateStart=now();}
         function afterUpdate(){
@@ -126,16 +129,26 @@
                 sceneStart=null;
             }
         }
+        function recordLongTasks(entries){
+            for(const entry of entries){
+                if(!Number.isFinite(entry.startTime)||entry.startTime<longStarted||!Number.isFinite(entry.duration)||entry.duration<50)continue;
+                longCount++;longTotal+=entry.duration;longMax=Math.max(longMax,entry.duration);
+            }
+        }
         function stop(){
             if(!running)return;
-            running=false;removePre?.();removePost?.();removeUpdate?.();removeUpdated?.();
+            running=false;if(longObserver){recordLongTasks(longObserver.takeRecords?.()??[]);longObserver.disconnect();longObserver=null;}removePre?.();removePost?.();removeUpdate?.();removeUpdated?.();
             removePre=removePost=removeUpdate=removeUpdated=null;frameStart=updateStart=sceneStart=null;gpuSampler?.clear();
             rafGeneration++;if(rafHandle!==null)cancelFrame?.(rafHandle);rafHandle=null;lastRaf=null;
         }
         function start(){
             if(disposed)throw Error('Scene timing is disposed');
             if(running)return;
-            reset();running=true;
+            reset();running=true;longStarted=now();
+            if(Observer?.supportedEntryTypes?.includes('longtask'))try{
+                const observer=new Observer(list=>{if(running&&longObserver===observer)recordLongTasks(list.getEntries());});
+                observer.observe({type:'longtask',buffered:false});longObserver=observer;longSupported=true;
+            }catch(_){longObserver=null;}
             const gl=gpuContext();info=rendererInfo(gl);
             gpuSampler=gpuTimer(gl,ms=>record(gpu,gpuCount++,ms));
             removeUpdate=scene.preUpdate?.addEventListener(beforeUpdate);
@@ -153,6 +166,7 @@
             }
         }
         function snapshot(){
+            if(longObserver)recordLongTasks(longObserver.takeRecords?.()??[]);
             const renderMs=samples(render,renderCount),intervalMs=samples(interval,intervalCount);
             const resource=resources(),physicsMs=samples(physics,physicsCount),gpuMs=samples(gpu,gpuCount);
             const totalIntervalMs=intervalMs.reduce((sum,ms)=>sum+ms,0);
@@ -167,6 +181,10 @@
                 renderer:info,canvas:{width:finite(canvas?.width),height:finite(canvas?.height),cssWidth:finite(canvas?.clientWidth),cssHeight:finite(canvas?.clientHeight),bufferWidth:finite(gl?.drawingBufferWidth),bufferHeight:finite(gl?.drawingBufferHeight),devicePixelRatio:finite(globalThis.devicePixelRatio),resolutionScale:finite(viewer.resolutionScale)},
                 animationCadence:{samples:rafMs.length,fastHz:rafFast>0?1000/rafFast:null,medianHz:rafMedian>0?1000/rafMedian:null,p95Ms:percentile(rafMs,.95)},
                 cpuUpdateMs:stats(updateMs),cpuSceneMs:stats(sceneMs),
+                mainThreadLongTasks:{supported:longSupported,count:longCount,totalMs:longTotal,maxMs:longMax},
+                sceneTileLoading:resource.sceneTileLoading??null,bridgeSupports:resource.bridgeSupports??null,bridgeCommands:resource.bridgeCommands??null,
+                // Command list is an observed Cesium list, not actual GPU draw calls.
+                sceneCommands:{count:finite(scene.frameState?.commandList?.length)},
                 terrainProvider:resource.terrainProvider??null,terrainRequests:resource.terrainRequests??null,layerStats:resource.layerStats??null,terrainStreaming:{pending:pendingTerrain,peak:terrainPeak,activeMs:terrainSince===null?null:Math.max(0,now()-terrainSince),lastBatchMs:terrainLastMs,batches:terrainBatches},
                 physicsStep:{count:physicsCount,samples:physicsMs.length,totalMs:physicsTotalMs,
                     p50Ms:percentile(physicsMs,.5),p95Ms:percentile(physicsMs,.95),maxMs:physicsMaxMs},

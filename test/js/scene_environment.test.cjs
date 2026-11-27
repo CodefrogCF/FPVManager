@@ -161,7 +161,7 @@ test('official swisstopo infrastructure tileset loads independently, is selectab
     assert.equal(p.requests.length,1);
     assert.match(p.requests[0].url,/ch\.swisstopo\.swisstlm3d\.3d\/v1\/tileset\.json/);
     const tile=p.primitives[0];assert.equal(tile.show,true);
-    assert.ok(tile.cacheBytes<=16*1024*1024);
+    assert.equal(tile.cacheBytes,32*1024*1024);
     assert.equal(p.credits.size,1);
     const selected=[];
     // The tile selection preserves only metadata actually published by the service.
@@ -357,17 +357,40 @@ test('benchmark layer overrides take precedence over map/navigation and restore 
     const f=fixture();f.set({buildings:true,vegetation:false,structures:true});await flush();
     f.manager.navigation({active:true,buildings:false,vegetation:true});await flush();
     assert.equal(f.manager.buildingsTileset().show,false);
+    const structures=f.manager.structuresTileset();
     f.manager.benchmark({buildings:true,vegetation:false,structures:false});await flush();
     assert.equal(f.manager.buildingsTileset().show,true);
     assert.equal(f.manager.structuresTileset(),null);
+    assert.equal(structures.show,false);assert.equal(structures.isDestroyed(),false);
     f.manager.setDiagnosticsEnabled(true);
     assert.equal(f.manager.resourceStats().layerStats.vegetation.visible,false);
     assert.throws(()=>f.manager.benchmark({buildings:true}),/Invalid benchmark layers/);
     f.manager.benchmark(null);await flush();
     assert.equal(f.manager.buildingsTileset().show,false);
     assert.equal(f.manager.resourceStats().layerStats.vegetation.visible,true);
-    assert.equal(f.manager.structuresTileset().show,true);
+    assert.equal(f.manager.structuresTileset(),structures);assert.equal(structures.show,true);
     f.manager.navigationActive(false);assert.equal(f.manager.buildingsTileset().show,true);
     assert.equal(f.manager.resourceStats().layerStats.vegetation.visible,false);
     f.manager.dispose();
+});
+
+test('structures use independent distance-aware LOD and bounded profile budgets',async()=>{
+    const f=fixture();f.set({buildings:true,structures:true,vegetation:true});await flush();
+    const structures=f.manager.structuresTileset(),building=f.manager.buildingsTileset();
+    assert.equal(structures.maximumScreenSpaceError,24);
+    assert.equal(structures.dynamicScreenSpaceErrorFactor,48);
+    assert.equal(structures.cacheBytes,32*1024*1024);
+    assert.equal(building.dynamicScreenSpaceErrorFactor,undefined);
+    f.manager.performance('quality');assert.equal(structures.maximumScreenSpaceError,24);
+    assert.equal(structures.dynamicScreenSpaceErrorFactor,24);
+    f.manager.performance('compatibility');assert.equal(structures.cacheBytes,16*1024*1024);
+    assert.equal(structures.maximumScreenSpaceError,52);
+    structures.statistics={selected:12,numberOfTrianglesSelected:123,visited:25,numberOfCommands:15,numberOfTilesWithContentReady:40};
+    f.manager.setDiagnosticsEnabled(true);
+    const stats=f.manager.resourceStats().layerStats.structures;
+    assert.equal(stats.selectedTiles,12);assert.equal(stats.commands,15);assert.equal(stats.visitedTiles,25);
+    f.manager.benchmark({buildings:true,structures:false,vegetation:true});
+    assert.equal(f.manager.resourceStats().layerStats.structures.selectedTriangles,0);
+    f.set({buildings:true,structures:false,vegetation:true});f.manager.benchmark(null);
+    assert.equal(structures.isDestroyed(),true);f.manager.dispose();
 });

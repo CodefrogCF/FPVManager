@@ -389,3 +389,15 @@ test('terrain request timings are opt-in, separated and discarded when disabled'
         manager.setDiagnosticsEnabled(true);assert.equal(manager.requestStats().sample.count,0);
     }finally{manager.dispose();}
 });
+
+test('terrain diagnostics distinguish validated root cache hits and scheduler deferrals',async()=>{
+    const next=globalProvider((x,y,level)=>level===0?Promise.resolve({}):undefined);
+    const {manager}=peer({createProvider:async()=>next,probe:probeRootTiles});
+    try{
+        await manager.initialize();manager.setDiagnosticsEnabled(true);
+        await next.requestTileGeometry(0,0,0,{});
+        assert.equal(next.requestTileGeometry(1,0,1,{}),undefined);
+        const stats=manager.requestStats();assert.equal(stats.render.rootCacheHits,1);
+        assert.equal(stats.render.deferred,1);assert.equal(stats.render.count,0);
+    }finally{manager.dispose();}
+});

@@ -240,10 +240,45 @@
     function create(C,viewer,{sampleTerrain=async()=>[],ready=()=>true,cachedOnly=false,
         isOnline=()=>globalThis.navigator?.onLine!==false,isNavigationActive=()=>false,
         getDeckTileset=null,discoverBridges=null,disposeDiscovery=()=>{},
-        fetcher=(...args)=>fetch(...args),now=()=>Date.now(),yieldBatch=afterFrame}={}){
+        fetcher=(...args)=>fetch(...args),now=()=>Date.now(),yieldBatch=afterFrame,terrainIdentity=()=>null}={}){
         const scene=viewer.scene;
         let enabled=false,structuresEnabled=false,disposed=false,profile='balanced',opacity=1,revision=0,controller=null;
         const sourceSets=new Map();
+        // Exact coordinates only: no quantization/interpolation and no reuse
+        // across terrain providers. In-memory, bounded, successful samples only.
+        const groundCache=new Map(),GROUND_LIMIT=2048,GROUND_TTL=120000;
+        let groundIdentity=terrainIdentity(),metrics=null;
+        function syncGroundIdentity(){
+            const identity=terrainIdentity();if(identity!==groundIdentity){groundIdentity=identity;groundCache.clear();}
+            return identity;
+        }
+        async function sampleGround(candidates,signal){
+            const identity=syncGroundIdentity(),instant=now(),missing=new Map(),result=[];
+            for(const [i,p] of candidates.entries()){
+                const key=`${p.longitude},${p.latitude}`,hit=groundCache.get(key);
+                if(hit&&instant-hit.at<GROUND_TTL){
+                    result[i]=hit.height;groundCache.delete(key);groundCache.set(key,hit);
+                    if(metrics)metrics.groundHits++;
+                }else{
+                    groundCache.delete(key);if(metrics)metrics.groundMisses++;
+                    if(!missing.has(key))missing.set(key,{point:{longitude:p.longitude,latitude:p.latitude},indices:[]});
+                    missing.get(key).indices.push(i);
+                }
+            }
+            if(missing.size){
+                const started=now(),d=metrics;if(d){d.groundBatches++;d.groundPoints+=missing.size;}
+                let values;try{values=await sampleTerrain([...missing.values()].map(x=>x.point),signal);}
+                finally{if(d)d.groundWallMs+=Math.max(0,now()-started);}
+                signal.throwIfAborted?.();
+                if(syncGroundIdentity()!==identity||!ready())throw Error('Bridge terrain changed during sampling');
+                let j=0;for(const [key,entry] of missing){
+                    const height=values?.[j++];for(const index of entry.indices)result[index]=height;
+                    if(finite(height)&&height>=-500&&height<=9000)groundCache.set(key,{height,at:now()});
+                }
+                while(groundCache.size>GROUND_LIMIT)groundCache.delete(groundCache.keys().next().value);
+            }
+            return result;
+        }
         let primitive=null,supports=[],cache=null,pending=null,pendingCenter=null,lastCenter=null,lastRefreshAt=-Infinity;
         let lastFrameAt=-Infinity,error=null,retryAt=-Infinity,credited=false;
         let sourceQuery=null,drawSignature=null;
@@ -383,8 +418,10 @@
                     if(!scene.sampleHeight){groups[i].push(null);continue;}
                     await yieldBatch(signal);signal.throwIfAborted?.();
                     if(disposed||!enabled||!ready())return groups;
+                    const started=now(),d=metrics;if(d)d.deckPicks++;
                     try{groups[i].push(scene.sampleHeight(C.Cartographic.fromDegrees(q.longitude,q.latitude),excluded,.7));}
                     catch(_){groups[i].push(null);}
+                    finally{if(d)d.deckPickMs+=Math.max(0,now()-started);}
                 }
             }
             const missing=[];
@@ -424,7 +461,7 @@
         }
         function refresh(center=focus()){
             if(disposed||!enabled)return Promise.resolve(status());
-            if(!ready()){++revision;controller?.abort();pending=null;pendingCenter=null;clear();return Promise.resolve(status());}
+            if(!ready()){groundCache.clear();++revision;controller?.abort();pending=null;pendingCenter=null;clear();return Promise.resolve(status());}
             if(!valid(center))return Promise.resolve(status());
             if(pending&&pendingCenter&&distance(center,pendingCenter)<120)return pending;
             if(supports.length&&lastCenter&&distance(center,lastCenter)<80&&now()-lastRefreshAt<1500)
@@ -458,7 +495,7 @@
                     const candidates=stations([...native.bridges,...local.bridges,...remote.bridges],center,BUDGETS[profile],
                         [...native.piers,...local.piers,...remote.piers]);
                     if(!candidates.length){clear();return status();}
-                    const ground=await sampleTerrain(candidates.map(p=>({longitude:p.longitude,latitude:p.latitude})),signal);
+                    const ground=await sampleGround(candidates,signal);
                     signal.throwIfAborted?.();
                     if(token!==revision||disposed||!enabled)return status();
                     if(!ready()){clear();return status();}
@@ -503,7 +540,7 @@
         }
         const removeFrame=scene.preUpdate?.addEventListener?.(()=>{
             if(disposed||!enabled)return;
-            if(!ready()){if(supports.length||pending){++revision;controller?.abort();pending=null;clear();}return;}
+            if(!ready()){groundCache.clear();if(supports.length||pending){++revision;controller?.abort();pending=null;clear();}return;}
             if(now()-lastFrameAt<2000)return;lastFrameAt=now();
             const center=focus();
             if(center&&(!lastCenter||distance(center,lastCenter)>120||!supports.length||now()-lastRefreshAt>15000))void refresh(center);
@@ -540,8 +577,10 @@
             if(opacity===value||disposed)return;opacity=value;if(supports.length)draw(supports);
         }
         return {setEnabled,setSourceFeatures,refresh,performance,setOpacity,status,
+            setDiagnosticsEnabled(value){if(value)metrics??={groundHits:0,groundMisses:0,groundBatches:0,groundPoints:0,groundWallMs:0,deckPicks:0,deckPickMs:0};else metrics=null;},
+            diagnostics(){return metrics?{...metrics,groundCacheEntries:groundCache.size}:null;},
             dispose(){if(disposed)return;disposed=true;enabled=false;++revision;controller?.abort();pending=null;
-                removeFrame?.();clear();cache=null;sourceSets.clear();disposeDiscovery();}};
+                removeFrame?.();clear();cache=null;groundCache.clear();metrics=null;sourceSets.clear();disposeDiscovery();}};
     }
     return {create,parseBridges,parseBridgeData,parseSourceFeatures,stations,BUDGETS};
 });

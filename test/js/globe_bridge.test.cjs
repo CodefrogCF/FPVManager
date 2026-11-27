@@ -310,3 +310,14 @@ test('negotiated transfer credits enforce an eight-chunk sender window', async (
         assert.equal(events.at(-1).ok,true);
     } finally {bridge.dispose();}
 });
+
+test('opt-in renderer command timing excludes profiler polling and resets per session',async()=>{
+    const p=peer(async command=>{if(command.type==='failed')throw Error('test');return {};});
+    try{
+        assert.equal(p.bridge.diagnostics(),null);p.bridge.setDiagnosticsEnabled(true);
+        p.send(1,'scene-performance');p.send(2,'work');p.send(3,'failed');await tick();
+        const d=p.bridge.diagnostics();assert.equal(d.completed,2);assert.equal(d.failed,1);assert.equal(d.active,0);
+        assert.ok(d.totalMs>=d.maxMs);p.bridge.setDiagnosticsEnabled(false);assert.equal(p.bridge.diagnostics(),null);
+        p.bridge.setDiagnosticsEnabled(true);assert.equal(p.bridge.diagnostics().completed,0);
+    }finally{p.bridge.dispose();}
+});

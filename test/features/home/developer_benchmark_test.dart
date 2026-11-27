@@ -35,6 +35,23 @@ void main() {
     expect(benchmarkPercentile([10, 20, 30], .1), 12);
   });
 
+  test('benchmark start diagnostics retain only known safe stages', () {
+    expect(
+      benchmarkStartFailureStage(
+        StateError('Benchmark flight start failed: graphics'),
+      ),
+      'graphics',
+    );
+    expect(
+      benchmarkStartFailureStage(
+        StateError('Benchmark flight start failed: graphics private URL'),
+      ),
+      isNull,
+    );
+    expect(benchmarkStartFailureStage(StateError('network URL')), isNull);
+    expect(benchmarkStartFailureStage(Exception('graphics')), isNull);
+  });
+
   test('developer mode is required before any benchmark command', () async {
     final globe = GlobeController();
     addTearDown(globe.dispose);

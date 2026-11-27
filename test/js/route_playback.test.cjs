@@ -198,3 +198,80 @@ test('benchmark preparation is abortable and cannot publish a late trajectory',a
     await assert.rejects(pending,/abort/i);
     await assert.rejects(()=>replay.start({...route,benchmark:true},signal()),/not prepared/);
 });
+
+test('real simulator benchmark reuses verified spawn across variants without another terrain request',async()=>{
+    let singleReads=0,routeReads=0;
+    const states=[];
+    const sim=createSimulator({sampleHeight:async()=>{singleReads++;throw Error('Terrain request timed out');},
+        renderedHeight:()=>1000,terrainCollision:()=>false,captureCamera:()=>({heading:0}),restoreCamera:()=>{},
+        applyPose:()=>{},isTerrainReady:()=>true,onState:s=>states.push(s)});
+    const replay=create({simulator:sim,sampleGround:async points=>{routeReads++;return points.map(()=>1000);}});
+    const route=base([a,{...b,latitude:46.705}],{benchmarkLimitSeconds:35});
+    await replay.prepareBenchmark(route,signal());
+    const initialReads=routeReads;
+    for(let variant=0;variant<6;variant++){
+        await replay.start({...route,benchmark:true},signal());
+        assert.equal(sim.active,true);
+        assert.equal(sim.status().height,1030);
+        assert.equal(sim.status().heightAboveHome,30);
+        assert.equal(replay.status().phase,'playing');
+        replay.interrupt();sim.stop();
+    }
+    assert.equal(singleReads,0);assert.equal(routeReads,initialReads);
+    // Ordinary replay and a bridge-supplied field cannot bypass terrain sampling.
+    replay.clearBenchmark();
+    await assert.rejects(replay.start({...route,settings:{...route.settings,benchmarkGround:1000}},signal()),/Terrain request timed out/);
+    assert.equal(singleReads,1);assert.equal(sim.active,false);
+    assert.equal(states.at(-1).reason,'Unable to start simulated flight');
+});
+
+test('real simulator benchmark reports a safe start stage and restores the camera after graphics failure',async()=>{
+    const states=[],restored=[];
+    const sim=createSimulator({sampleHeight:async()=>{throw Error('Unexpected terrain read');},
+        renderedHeight:()=>1000,terrainCollision:()=>false,captureCamera:()=>({heading:0}),restoreCamera:s=>restored.push(s),
+        applyPose:()=>{},isTerrainReady:()=>true,onState:s=>states.push(s),
+        prepareGraphics:async()=>{throw Error('private-provider-url');}});
+    const replay=create({simulator:sim,sampleGround:async points=>points.map(()=>1000)});
+    const route=base([a,{...b,latitude:46.705}],{benchmarkLimitSeconds:35});
+    await replay.prepareBenchmark(route,signal());
+    await assert.rejects(replay.start({...route,benchmark:true},signal()),e=>{
+        assert.equal(e.message,'Benchmark flight start failed: graphics');
+        assert.equal(e.cause.message,'private-provider-url');return true;
+    });
+    assert.equal(sim.active,false);assert.equal(sim.status().pending,false);
+    assert.equal(restored.length,1);
+    assert.equal(states.at(-1).reason,'Benchmark flight start failed: graphics');
+    assert.equal(replay.status().reason,'Benchmark flight start failed: graphics');
+});
+
+test('benchmark cannot reuse a verified sample after the simulator loses terrain readiness',async()=>{
+    let ready=true;
+    const sim=createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,
+        terrainCollision:()=>false,captureCamera:()=>({heading:0}),restoreCamera:()=>{},
+        applyPose:()=>{},isTerrainReady:()=>ready,onState:()=>{}});
+    const replay=create({simulator:sim,sampleGround:async points=>points.map(()=>1000)});
+    const route=base([a,{...b,latitude:46.705}],{benchmarkLimitSeconds:35});
+    await replay.prepareBenchmark(route,signal());ready=false;
+    await assert.rejects(replay.start({...route,benchmark:true},signal()),/Detailed terrain is required/);
+    assert.equal(sim.active,false);
+});
+
+test('benchmark distinguishes camera capture from graphics profile application failures',async()=>{
+    for(const failureStage of ['camera','graphics']){
+        let restored=0;
+        const fail=()=>{throw Error('private-provider-url');};
+        const sim=createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,
+            terrainCollision:()=>false,captureCamera:failureStage==='camera'?fail:()=>({heading:0}),
+            restoreCamera:()=>restored++,applyGraphics:failureStage==='graphics'?fail:()=>{},
+            applyPose:()=>{},isTerrainReady:()=>true,onState:()=>{}});
+        const replay=create({simulator:sim,sampleGround:async points=>points.map(()=>1000)});
+        const route=base([a,{...b,latitude:46.705}],{benchmarkLimitSeconds:35});
+        await replay.prepareBenchmark(route,signal());
+        await assert.rejects(replay.start({...route,benchmark:true},signal()),error=>{
+            assert.equal(error.message,`Benchmark flight start failed: ${failureStage}`);
+            assert.equal(error.cause.message,'private-provider-url');return true;
+        });
+        assert.equal(sim.active,false);assert.equal(sim.status().pending,false);
+        assert.equal(restored,failureStage==='graphics'?1:0);
+    }
+});

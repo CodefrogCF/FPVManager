@@ -154,20 +154,31 @@
             if(saved)restoreCamera(saved);saved=null;
             if(running)publish();
         }
-        async function start(command,signal){
+        // Only the in-process replay controller may pass a previously verified
+        // terrain sample. Never read it from the externally supplied command.
+        async function start(command,signal,{benchmarkGround}={}){
             if(!valid(command))throw new Error('Invalid simulation spawn position');
             const next=parameters(command);
             if(!isTerrainReady())throw new Error('Detailed terrain is required for simulated flight');
             stop();const token=++operation;abort=new AbortController();const request=abort;
             const cancel=()=>{if(token===operation)stop();};
             signal.addEventListener('abort',cancel,{once:true});pending=true;reason=null;publish();
+            let stage='terrain';
             try{
-                signal.throwIfAborted();const sampled=await sampleHeight(command,request.signal);
+                signal.throwIfAborted();
+                const sampled=benchmarkGround===undefined?await sampleHeight(command,request.signal):benchmarkGround;
                 signal.throwIfAborted();request.signal.throwIfAborted();
                 if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 if(!Number.isFinite(sampled))throw new Error('No terrain height at spawn');
+                stage='initialization';
                 config=next;runtime=buildRuntime();failsafe.setConfiguration(next.failsafe);lastReplaySeconds=null;battery=batterySimulation.create(config.batteryProfile,
-                    {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});saved=captureCamera();applyGraphics?.(config.graphicsProfile,config.renderScale);spawn={latitude:command.latitude,longitude:command.longitude};
+                    {resistanceOhmsPerCell:config.batterySagResistanceOhmsPerCell});
+                stage='camera';
+                saved=captureCamera();
+                stage='graphics';
+                applyGraphics?.(config.graphicsProfile,config.renderScale);
+                stage='initialization';
+                spawn={latitude:command.latitude,longitude:command.longitude};
                 position={...spawn};height=sampled+config.agl;ground=homeHeight=sampled;heading=saved.heading||0;gpsHeadingTarget=heading;pitch=roll=0;q=euler(heading,0,0);
                 // Hardware is optional and independent of battery-HUD enablement.
                 // A battery profile can supply the voltage if the drone has none.
@@ -186,12 +197,22 @@
                 motorThrust=propulsionState?propulsionState.totalThrustNewtons/propulsion.configuration.massKg:
                     acroThrust(motorCommand());flightControl=null;descentEffects=null;aeroFloor=null;lastCollision=null;groundContact=false;
                 if(prepareGraphics){
+                    stage='graphics';
                     pose();await prepareGraphics(request.signal);
                     signal.throwIfAborted();request.signal.throwIfAborted();
                     if(token!==operation||!isTerrainReady())throw new Error('Simulation cancelled');
                 }
+                stage='activation';
                 active=true;pending=false;pose();publish();return {};
-            }catch(error){if(token!==operation)return {cancelled:true};stop('Unable to start simulated flight');throw error;}
+            }catch(error){
+                if(token!==operation)return {cancelled:true};
+                // A fixed stage, not raw provider messages/URLs, is safe to
+                // display and retain with a developer benchmark report.
+                const message=benchmarkGround===undefined?'Unable to start simulated flight':`Benchmark flight start failed: ${stage}`;
+                stop(message);
+                if(benchmarkGround!==undefined)throw new Error(message,{cause:error});
+                throw error;
+            }
             finally{signal.removeEventListener('abort',cancel);}
         }
         function gpsStep(seconds){

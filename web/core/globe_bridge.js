@@ -60,6 +60,11 @@
         let sequence = 0;
         let disposed = false;
         let highestRequest = 0;
+        let diagnostics = null;
+        function setDiagnosticsEnabled(enabled) {
+            if(enabled) diagnostics ??= {completed:0,failed:0,cancelled:0,active:0,totalMs:0,maxMs:0};
+            else diagnostics=null;
+        }
         function emit(type, payload = {}) {
             if (disposed) return;
             send(JSON.stringify({ ...payload, source: "fpvmanager-globe",
@@ -114,12 +119,23 @@
                 cancel(id);
                 result(id, command.type, false, "Renderer command timed out");
             }, limits.commandMs);
+            // Renderer-side execution wall time only (not Flutter roundtrip).
+            // Exclude profiler polling from its own measurements.
+            const d=command.type==='scene-performance'?null:diagnostics;
+            const started=d?performance.now():0;let failed=false;
+            if(d)d.active++;
             try {
                 const value = await execute(command, controller.signal);
                 if (!controller.signal.aborted) result(id, command.type, true, value);
             } catch (error) {
+                failed=true;
                 if (!controller.signal.aborted) result(id, command.type, false, error.message || error);
             } finally {
+                if(d&&d===diagnostics){
+                    const elapsed=Math.max(0,performance.now()-started);d.active--;
+                    if(controller.signal.aborted)d.cancelled++;
+                    else{d.completed++;d.failed+=Number(failed);d.totalMs+=elapsed;d.maxMs=Math.max(d.maxMs,elapsed);}
+                }
                 clearTimeout(request.timer);
                 active.delete(id);
                 remember(id);
@@ -249,10 +265,11 @@
             }
         }
         function dispose() {
-            disposed = true;
+            disposed = true;diagnostics=null;
             for (const id of [...transfers.keys(), ...active.keys()]) cancel(id);
         }
-        return { receive, emit, dispose };
+        return { receive, emit, dispose, setDiagnosticsEnabled,
+            diagnostics:()=>diagnostics?{...diagnostics}:null };
     }
     root.FPVGlobeBridge = { createBridge, supportsGzipBase64, VERSION, LIMITS };
     if (typeof module !== "undefined") module.exports = root.FPVGlobeBridge;

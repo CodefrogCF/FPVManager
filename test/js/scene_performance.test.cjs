@@ -129,3 +129,22 @@ test('extended diagnostics separate observed update, render and animation cadenc
     p.stop();assert.equal(callbacks.size,0);assert.equal(preUpdate.listeners.size,0);assert.equal(postUpdate.listeners.size,0);
     p.start();assert.equal(p.snapshot().cpuSceneMs.samples,0);assert.equal(p.snapshot().terrainStreaming.batches,0);p.dispose();assert.equal(callbacks.size,0);
 });
+
+test('long-task metrics are opt-in, session bounded and distinguish unsupported engines',()=>{
+    const scene={preRender:new Event(),postRender:new Event(),frameState:{commandList:[1,2,3]}};
+    let observer;
+    class Observer{
+        static supportedEntryTypes=['longtask'];
+        constructor(cb){this.cb=cb;observer=this;this.records=[];}
+        observe(options){assert.deepEqual(options,{type:'longtask',buffered:false});}
+        takeRecords(){return this.records.splice(0);}
+        disconnect(){this.disconnected=true;}
+    }
+    const profiler=create({scene},{now:()=>100,Observer});
+    assert.equal(profiler.snapshot().mainThreadLongTasks.supported,false);
+    profiler.start();observer.records.push({startTime:90,duration:80},{startTime:110,duration:55},{startTime:180,duration:75});
+    assert.deepEqual(profiler.snapshot().mainThreadLongTasks,{supported:true,count:2,totalMs:130,maxMs:75});
+    assert.equal(profiler.snapshot().sceneCommands.count,3);
+    profiler.stop();assert.equal(observer.disconnected,true);
+    profiler.start();assert.equal(profiler.snapshot().mainThreadLongTasks.count,0);profiler.dispose();
+});

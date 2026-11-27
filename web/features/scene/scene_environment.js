@@ -14,6 +14,14 @@
         structures:'https://3d.geo.admin.ch/ch.swisstopo.swisstlm3d.3d/v1/tileset.json'
     });
     const budgets=Object.freeze({quality:[12,24,48,24,8],balanced:[24,40,32,16,4],performance:[40,64,24,12,2],compatibility:[52,72,16,8,2],navigation:[32,56,24,12,2]});
+    // Keep central/near geometry at the established SSE. Give the much
+    // larger infrastructure tileset a bounded working set and relax distant
+    // screen-space error via Cesium's own distance-aware traversal.
+    const structureBudgets=Object.freeze({
+        quality:[24,48,12,24,.30,0],balanced:[24,32,8,48,.30,0],
+        performance:[40,24,6,64,.25,0],compatibility:[52,16,4,64,.25,0],
+        navigation:[32,24,6,48,.30,0]
+    });
     function time(value){
         if(value==null)return null;
         if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?Z$/.test(value))throw Error('Expected UTC scene time');
@@ -87,9 +95,12 @@
                 if(forestNeeded)creditApi.retainStaticCredit(creditDisplay,forestCredit);else creditApi.releaseStaticCredit(creditDisplay,forestCredit);}
         }
         function options(key){
-            const b=budgets[navigating?'navigation':profile],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
-            return {show:false,maximumScreenSpaceError:structures?Math.max(24,b[0]):b[trees?1:0],cacheBytes:(structures?Math.min(16,b[2]):b[trees?3:2])*mb,
-                maximumCacheOverflowBytes:b[4]*mb,shadows:C.ShadowMode.DISABLED,
+            const mode=navigating?'navigation':profile,b=budgets[mode],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
+            const [sse,cache,overflow,dynamicFactor,cone,relaxation]=structureBudgets[mode];
+            return {show:false,maximumScreenSpaceError:structures?sse:b[trees?1:0],cacheBytes:(structures?cache:b[trees?3:2])*mb,
+                maximumCacheOverflowBytes:(structures?overflow:b[4])*mb,shadows:C.ShadowMode.DISABLED,
+                ...(structures?{dynamicScreenSpaceError:true,dynamicScreenSpaceErrorFactor:dynamicFactor,
+                    foveatedConeSize:cone,foveatedMinimumScreenSpaceErrorRelaxation:relaxation}:{}),
                 preloadWhenHidden:false,preloadFlightDestinations:false,loadSiblings:false,
                 cullRequestsWhileMoving:true,foveatedScreenSpaceError:true,
                 ...(urls[key]===sources[key]?{}:{showCreditsOnScreen:true})};
@@ -307,7 +318,7 @@
                 const l=layers[key];
                 const requested=benchmarkLayers?.[key]??(navigating?(navigationLayers[key]??mapLayers[key]):mapLayers[key]);
                 if(l.requested!==requested){l.requested=requested;changed=true;}
-                if(retry===key || (key==='structures'&&!l.requested&&(l.tileset||l.pending))){
+                if(retry===key || (key==='structures'&&!l.requested&&benchmarkLayers===null&&(l.tileset||l.pending))){
                     release(l);l.pending=null;changed=true;if(!l.requested)l.phase='hidden';
                 }
                 if(applyBudget(key))changed=true;
@@ -421,7 +432,7 @@
                 }
                 if(changed)scene.requestRender();
             },
-            setDiagnosticsEnabled(enabled){if(enabled){diagnostics??={};}else diagnostics=null;},
+            setDiagnosticsEnabled(enabled){if(enabled){diagnostics??={};}else diagnostics=null;bridgeSupports?.setDiagnosticsEnabled?.(enabled);},
             resourceStats(){
                 let resident=0,visible=0,pending=0,estimatedTilesetBytes=0;
                 for(const l of Object.values(layers)){
@@ -435,17 +446,24 @@
                 // Cesium's tileset estimate excludes terrain, imagery, weather,
                 // application geometry and other GPU allocations.
                 const layerStats=diagnostics?Object.fromEntries(Object.entries(layers).map(([key,l])=>{
-                    const d=diagnostics[key]??{},t=l.tileset,s=t?.statistics;
+                    const d=diagnostics[key]??{},t=l.tileset,s=t?.statistics??t?._statistics;
                     return [key,{state:l.phase,visible:t?.show===true,rootLoading:!!l.pending,
                         pending:d.pending??null,processing:d.processing??null,peak:d.peak??0,progressEvents:d.events??0,
                         activeMs:d.since==null?null:performance.now()-d.since,lastBusyMs:d.lastBusyMs??null,
                         estimatedBytes:t?.totalMemoryUsageInBytes??null,
-                        selectedTiles:s?.numberOfTilesSelected??null,selectedTriangles:s?.numberOfTrianglesSelected??null}];
+                        selectedTiles:t?.show===false?0:s?.selected??s?.numberOfTilesSelected??null,
+                        selectedTriangles:t?.show===false?0:s?.numberOfTrianglesSelected??null,
+                        commands:t?.show===false?0:s?.numberOfCommands??null,visitedTiles:t?.show===false?0:s?.visited??null,
+                        readyTiles:s?.numberOfTilesWithContentReady??null,cacheBytes:t?.cacheBytes??null,
+                        maximumScreenSpaceError:t?.maximumScreenSpaceError??null,
+                        dynamicScreenSpaceErrorFactor:t?.dynamicScreenSpaceErrorFactor??null}];
                 })):null;
-                return {resident,visible,pending,estimatedTilesetBytes,layerStats};
+                return {resident,visible,pending,estimatedTilesetBytes,layerStats,
+                    sceneTileLoading:diagnostics?tileLoader.status?.()??null:null,
+                    bridgeSupports:diagnostics?bridgeSupports?.diagnostics?.()??null:null};
             },
             buildingsTileset(){return layers.buildings.tileset;},
-            structuresTileset(){return layers.structures.tileset;},
+            structuresTileset(){return layers.structures.requested?layers.structures.tileset:null;},
             loadingDiagnostics(){return tileLoader.status?.()??{supported:false};},
             dispose(){
                 if(disposed)return;disposed=true;diagnostics=null;removeUpdate();

@@ -298,3 +298,28 @@ test('hiding structures discards a late native discovery result',async()=>{
     await pending;
     assert.equal(p.primitives.length,0);assert.equal(p.fetches.length,0);p.manager.dispose();
 });
+
+test('exact ground samples are reused, expire and invalidate on terrain change without caching deck picks',async()=>{
+    let provider={};const p=fixture({terrainIdentity:()=>provider});
+    p.manager.setDiagnosticsEnabled(true);p.manager.setEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);const initial=p.samples.length,picks=p.excluded.length;
+        assert.equal(initial,1);assert.ok(picks>0);
+        p.setClock(13000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.samples.length,initial);assert.ok(p.excluded.length>picks);
+        assert.equal(p.manager.diagnostics().groundHits,5);
+        provider={};p.setClock(16000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.samples.length,initial+1);
+        p.setClock(137000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.samples.length,initial+2);
+        p.manager.setDiagnosticsEnabled(false);assert.equal(p.manager.diagnostics(),null);
+    }finally{p.manager.dispose();}
+});
+
+test('invalid ground values are not cached',async()=>{
+    let batches=0;const q=fixture({sampleTerrain:async points=>{batches++;return points.map(()=>batches===1?NaN:500);}});
+    q.manager.setEnabled(true);
+    try{await q.manager.refresh(ORIGIN);assert.equal(q.manager.status().count,0);
+        q.setClock(13000);await q.manager.refresh(ORIGIN);assert.equal(batches,2);assert.equal(q.manager.status().count,5);
+    }finally{q.manager.dispose();}
+});

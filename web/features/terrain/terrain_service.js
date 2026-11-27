@@ -60,7 +60,7 @@
         startupRetryDelaysMs = [750, 2000], warningRetentionMs = 30000 }) {
         let requestDiagnostics = null;
         function setDiagnosticsEnabled(enabled) {
-            if (enabled) requestDiagnostics ??= {render: {count:0,failed:0,active:0,totalMs:0,maxMs:0},sample:{count:0,failed:0,active:0,totalMs:0,maxMs:0}};
+            if (enabled) requestDiagnostics ??= {render: {count:0,failed:0,active:0,totalMs:0,maxMs:0,rootCacheHits:0,deferred:0},sample:{count:0,failed:0,active:0,totalMs:0,maxMs:0,rootCacheHits:0,deferred:0}};
             else requestDiagnostics = null;
         }
         function requestStats() {
@@ -166,11 +166,11 @@
                 const rootTiles = new Map();
                 next.requestTileGeometry = (...args) => {
                     const key = `${args[2]}/${args[0]}/${args[1]}`;
-                    if (rootTiles.has(key)) return Promise.resolve(rootTiles.get(key));
-                    const response = requestTile(...args);
-                    if (response === undefined) return undefined;
                     const diagnosticSession = requestDiagnostics;
                     const metric = diagnosticSession?.[args[3] ? 'render' : 'sample'];
+                    if (rootTiles.has(key)) {if(metric)metric.rootCacheHits++;return Promise.resolve(rootTiles.get(key));}
+                    const response = requestTile(...args);
+                    if (response === undefined) {if(metric)metric.deferred++;return undefined;}
                     const started = metric ? performance.now() : 0;
                     let failed = false;
                     if (metric) metric.active++;

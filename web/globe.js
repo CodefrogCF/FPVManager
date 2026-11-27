@@ -818,8 +818,8 @@ function postToFlutter(message) {
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
-                if(command.action==='start'){if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);}scenePerformance.start();}
-                else if(command.action==='stop'){scenePerformance.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);return {running:false};}
+                if(command.action==='start'){if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);bridge.setDiagnosticsEnabled(true);}scenePerformance.start();}
+                else if(command.action==='stop'){scenePerformance.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);bridge.setDiagnosticsEnabled(false);return {running:false};}
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
             }
@@ -1140,7 +1140,7 @@ function postToFlutter(message) {
             stopNavigation();
             if(benchmarkSession){
                 benchmarkSession=false;routePlayback?.clearBenchmark();sceneEnvironment?.benchmark(null);
-                scenePerformance?.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);
+                scenePerformance?.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);bridge.setDiagnosticsEnabled(false);
             }
             if (rendererReady) {
                 terrainManager.networkChanged();
@@ -1262,7 +1262,7 @@ function postToFlutter(message) {
         bridgeSupports=typeof FPVBridgeSupports!=='undefined'
             ?FPVBridgeSupports.create(Cesium,viewer,{sampleTerrain:sampleSceneTerrain,
                 ready:terrainAvailable,cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',
-                isNavigationActive:navigationActive,
+                isNavigationActive:navigationActive,terrainIdentity:()=>terrainManager.provider,
                 getDeckTileset:()=>sceneEnvironment?.structuresTileset?.(),
                 discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose()})
             :null;
@@ -1274,7 +1274,7 @@ function postToFlutter(message) {
         let pendingTerrainTiles=null;
         scenePerformance = FPVScenePerformance.create(viewer,{
             isContinuous:()=>flyer?.active===true&&!flyer.paused,
-            resources:()=>({...sceneEnvironment?.resourceStats(),terrainRequests:terrainManager?.requestStats(),pendingTerrainTiles,terrainProvider:regionalTerrainChanging?'switching':terrainManager.status().state!=='ready'?'not ready':regionalTerrain?'BKG DGM5':window.FPVMapProviderConfig?.prepared?'prepared':window.FPVMapProviderConfig?.terrain?'custom':'swisstopo',scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
+            resources:()=>({...sceneEnvironment?.resourceStats(),terrainRequests:terrainManager?.requestStats(),bridgeCommands:bridge.diagnostics(),pendingTerrainTiles,terrainProvider:regionalTerrainChanging?'switching':terrainManager.status().state!=='ready'?'not ready':regionalTerrain?'BKG DGM5':window.FPVMapProviderConfig?.prepared?'prepared':window.FPVMapProviderConfig?.terrain?'custom':'swisstopo',scenery:sceneryManager?.performanceSnapshot()??null,flightPhysics:flyer?.status().physicsDiagnostics??null})
         });
         tunnels = typeof FPVTunnelInfrastructure !== 'undefined'
             ? FPVTunnelInfrastructure.create(Cesium,viewer,sendToFlutter,{

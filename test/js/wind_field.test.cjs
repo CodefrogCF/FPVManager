@@ -120,3 +120,46 @@ test('renderer accepts configurable fallback wind after weather expiry without p
         environment:{gustSpeedMs:-1}}));
     p.layer.dispose();
 });
+
+test('all flight graphics profiles support bounded wind glyphs without changing physical wind',()=>{
+    const {profiles}=require('../../web/features/flight/flight_rendering.js');
+    const p=renderer();
+    const point={latitude:46.7,longitude:8.4,agl:80,timeSeconds:0};
+    p.layer.set({visible:true,affectFlight:true,field:snapshot()});
+    const expected=p.layer.sample(point);
+    const counts={quality:392,balanced:150,performance:36,compatibility:16};
+    for(const profile of Object.keys(profiles)){
+        p.layer.performance(profile);p.frame();
+        assert.equal(p.lines().lines.length,counts[profile],profile);
+        assert.deepEqual(p.layer.sample(point),expected);
+    }
+    p.layer.performance('balanced');p.frame();assert.equal(p.lines().lines.length,150);
+    assert.throws(()=>p.layer.performance('unknown'),/Invalid wind graphics profile/);
+    p.layer.dispose();
+});
+
+test('saved routes and prepared benchmarks start with every graphics profile and wind overlay state',async()=>{
+    const {profiles}=require('../../web/features/flight/flight_rendering.js');
+    const {createSimulator}=require('../../web/features/flight/free_flight.js');
+    const {create:replayController}=require('../../web/features/flight/flight_recording.js').routePlayback;
+    const p=renderer(),signal=()=>new AbortController().signal;
+    const sim=createSimulator({sampleHeight:async()=>1000,renderedHeight:()=>1000,
+        terrainCollision:()=>false,captureCamera:()=>({heading:0}),restoreCamera:()=>p.layer.performance('balanced'),
+        applyGraphics:profile=>p.layer.performance(profile),applyPose:()=>{},isTerrainReady:()=>true,onState:()=>{}});
+    const replay=replayController({simulator:sim,sampleGround:async points=>points.map(()=>1000)});
+    try{
+        for(const visible of [false,true]){
+            p.layer.set({visible,affectFlight:true,field:snapshot()});
+            for(const graphicsProfile of Object.keys(profiles)){
+                const route={points:[{latitude:46.7,longitude:8.4,heightMode:'agl',heightMeters:30},
+                    {latitude:46.705,longitude:8.4,heightMode:'agl',heightMeters:40}],
+                    defaultSpeedMetersPerSecond:10,defaultAglMeters:20,settings:{graphicsProfile},benchmarkLimitSeconds:35};
+                await replay.start(route,signal());assert.equal(replay.status().phase,'playing');
+                replay.tick(.1);p.frame();replay.interrupt();sim.stop();
+                await replay.prepareBenchmark(route,signal());
+                await replay.start({...route,benchmark:true},signal());assert.equal(replay.status().phase,'playing');
+                replay.tick(.1);p.frame();replay.interrupt();sim.stop();replay.clearBenchmark();
+            }
+        }
+    }finally{replay.interrupt();sim.stop();p.layer.dispose();}
+});

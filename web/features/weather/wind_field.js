@@ -53,7 +53,8 @@
         }
         return {north,east,up:0,speedMs:Math.hypot(north,east),extrapolated};
     }
-    const density={quality:7,balanced:5,performance:3};
+    // Compatibility retains a minimal 2 × 2 grid; physical wind sampling is independent.
+    const density=Object.freeze({quality:7,balanced:5,performance:3,compatibility:2});
     function create(C,viewer,send=()=>{},{now=()=>Date.now(),elapsed=()=>performance.now(),doc=typeof document==='undefined'?null:document,isTerrainReady=()=>true,language}={}){
         const translate=source=>language?.translate(source)??source;
         const collection=new C.PolylineCollection();viewer.scene.primitives.add(collection);collection.show=false;
@@ -109,8 +110,9 @@
             windowBounds={south:Math.max(data.south,center.latitude-latStep),north:Math.min(data.north,center.latitude+latStep),
                 west:Math.max(data.west,center.longitude-lonStep),east:Math.min(data.east,center.longitude+lonStep)};
             if(windowBounds.south>=windowBounds.north||windowBounds.west>=windowBounds.east){for(const e of entries)remove(e);entries=[];groundGrid=null;return;}
-            const heights=navigation?(profile==='performance'?[Math.max(5,navigation.agl-20),navigation.agl+20]:[Math.max(5,navigation.agl-25),navigation.agl,navigation.agl+25]):
-                profile==='quality'?[10,80,120,180]:profile==='performance'?[10,80]:[10,80,180];
+            const lowDensity=profile==='performance'||profile==='compatibility';
+            const heights=navigation?(lowDensity?[Math.max(5,navigation.agl-20),navigation.agl+20]:[Math.max(5,navigation.agl-25),navigation.agl,navigation.agl+25]):
+                profile==='quality'?[10,80,120,180]:lowDensity?[10,80]:[10,80,180];
             groundGrid={count,bounds:windowBounds,values:[]};
             for(let y=0;y<count;y++)for(let x=0;x<count;x++){
                 const latitude=windowBounds.south+(windowBounds.north-windowBounds.south)*y/(count-1);

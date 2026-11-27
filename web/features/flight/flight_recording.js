@@ -266,8 +266,12 @@
                 if(!finite(terrain))throw Error('Terrain unavailable at replay start');
                 const agl=first.height-terrain;
                 if(agl<1||agl>1000)throw Error('Replay start altitude must be 1–1000 m AGL');
-                await simulator.start({...command.settings,latitude:first.latitude,longitude:first.longitude,agl,flightMode:'gps'},pending.signal);
-                pending.signal.throwIfAborted();if(token!==operation)throw Error('Replay cancelled');
+                // Benchmark preparation already verified this spawn against the
+                // terrain provider. Do not fetch it again for every variant;
+                // each pass must start from exactly the same terrain/altitude.
+                const started=await simulator.start({...command.settings,latitude:first.latitude,longitude:first.longitude,agl,flightMode:'gps'},pending.signal,
+                    command.benchmark===true?{benchmarkGround:terrain}:undefined);
+                pending.signal.throwIfAborted();if(token!==operation||started?.cancelled||!simulator.active)throw Error('Replay cancelled');
                 flight=next;benchmarkReplay=command.benchmark===true;time=0;rate=1;phase='playing';loading=false;reason=null;
                 if(simulator.playbackPose(evaluate(flight,0))===false&&benchmarkReplay)throw Error('Benchmark spawn collision');
                 publish(true);return status();

@@ -336,12 +336,19 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       status = 'completed';
     } on _BenchmarkCancelled {
       status = 'cancelled';
-    } catch (_) {
+    } catch (failure) {
       metadata['failureStage'] = status;
       status = _cancelled ? 'cancelled' : 'failed';
-      // Raw provider/bridge errors may contain source URLs; never export them.
+      // Only retain exact, predefined messages. Raw provider/bridge errors
+      // may contain source URLs; never display or export them here.
+      final startStage = benchmarkStartFailureStage(failure);
+      if (!_cancelled && startStage != null) {
+        metadata['flightStartFailureStage'] = startStage;
+      }
       error = _cancelled
           ? null
+          : startStage != null
+          ? 'Benchmark flight start failed: $startStage.'
           : 'Benchmark interrupted (${metadata['failureStage']}). Check route, terrain, replay and sample limits.';
     } finally {
       final cleanupErrors = <String>[];
@@ -445,6 +452,22 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     recording.clear();
     super.dispose();
   }
+}
+
+String? benchmarkStartFailureStage(Object failure) {
+  if (failure is! StateError) return null;
+  for (final stage in [
+    'terrain',
+    'initialization',
+    'camera',
+    'graphics',
+    'activation',
+  ]) {
+    if (failure.message == 'Benchmark flight start failed: $stage') {
+      return stage;
+    }
+  }
+  return null;
 }
 
 double? benchmarkPercentile(List<double> values, double fraction) {

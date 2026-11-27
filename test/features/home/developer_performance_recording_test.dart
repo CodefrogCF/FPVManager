@@ -12,6 +12,14 @@ void main() {
       'layerStats': {
         'buildings': {'pending': 4},
       },
+      'mainThreadLongTasks': {'supported': true, 'count': 2},
+      'sceneCommands': {'count': 15},
+      'bridgeSupports': {'groundHits': 5, 'groundMisses': 1},
+      'bridgeCommands': {'completed': 3},
+      'sceneTileLoading': {'queued': 4},
+      'terrainRequests': {
+        'render': {'rootCacheHits': 2},
+      },
       'latitude': 52,
       'renderer': {'renderer': '=formula'},
     };
@@ -25,6 +33,12 @@ void main() {
     expect(recording.count, DeveloperPerformanceRecording.maxSamples);
     final json = utf8.decode(recording.encode(csv: false));
     expect(json, contains('layerStats.buildings.pending'));
+    expect(json, contains('mainThreadLongTasks.count'));
+    expect(json, contains('bridgeSupports.groundHits'));
+    expect(json, contains('bridgeCommands.completed'));
+    expect(json, contains('sceneCommands.count'));
+    expect(json, contains('sceneTileLoading.queued'));
+    expect(json, contains('terrainRequests.render.rootCacheHits'));
     expect(json, isNot(contains('private URL')));
     expect(json, isNot(contains('latitude')));
     expect(utf8.decode(recording.encode(csv: true)), contains("'=formula"));
