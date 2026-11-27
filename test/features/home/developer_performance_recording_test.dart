@@ -45,4 +45,34 @@ void main() {
     recording.clear();
     expect(recording.count, 0);
   });
+
+  test('benchmark limit is independent of manual recording', () {
+    final recording = DeveloperPerformanceRecording(sampleLimit: 1200);
+    recording.start();
+    for (var i = 0; i < 1201; i++) {
+      recording.add(
+        {
+          'bridgeSupports': {'deckHits': 4, 'benchmarkSuppressed': false},
+          'gpuRenderMs': {'enabled': false},
+          'layerStats': {
+            'structures': {
+              'memoryAdjustedScreenSpaceError': 40,
+              'headerBytes': 8,
+            },
+          },
+        },
+        {'benchmarkStructuresSse': 24},
+      );
+    }
+    expect(recording.count, 1200);
+    expect(recording.active, isFalse);
+    expect(DeveloperPerformanceRecording().sampleLimit, 600);
+    final csv = utf8.decode(recording.encode(csv: true));
+    expect(csv, contains('bridgeSupports.deckHits'));
+    expect(csv, contains('gpuRenderMs.enabled'));
+    expect(
+      csv,
+      contains('layerStats.structures.memoryAdjustedScreenSpaceError'),
+    );
+  });
 }

@@ -25,9 +25,17 @@ class BenchmarkCase {
     this.structures = true,
     this.vegetation = true,
     this.rf = true,
-  });
+    this.sse,
+    this.cacheMiB,
+    this.bridgeSupports = true,
+    this.gpuTiming = true,
+  }) : assert((sse == null) == (cacheMiB == null));
   final String id;
-  final bool buildings, structures, vegetation, rf;
+  final bool buildings, structures, vegetation, rf, bridgeSupports, gpuTiming;
+  final int? sse, cacheMiB;
+  Map<String, Object>? get structureTuning => sse == null
+      ? null
+      : {'sse': sse!, 'cacheMiB': cacheMiB!, 'bridgeSupports': bridgeSupports};
   Map<String, bool> get layers => {
     'buildings': buildings,
     'structures': structures,
@@ -46,14 +54,44 @@ class BenchmarkCase {
     ),
     BenchmarkCase('no-rf', rf: false),
   ];
-  static Iterable<BenchmarkCase> order(int repetition) =>
-      repetition.isOdd ? matrix : matrix.reversed;
+  // One factor at a time, all layers and RF active. Bridge supports are a
+  // separate visual-only A/B case at the reference settings.
+  static const structureMatrix = [
+    BenchmarkCase('structures-reference', sse: 24, cacheMiB: 16),
+    BenchmarkCase('structures-sse-32', sse: 32, cacheMiB: 16),
+    BenchmarkCase('structures-sse-40', sse: 40, cacheMiB: 16),
+    BenchmarkCase('structures-sse-48', sse: 48, cacheMiB: 16),
+    BenchmarkCase('structures-sse-64', sse: 64, cacheMiB: 16),
+    BenchmarkCase('structures-cache-24', sse: 24, cacheMiB: 24),
+    BenchmarkCase('structures-cache-32', sse: 24, cacheMiB: 32),
+    BenchmarkCase('structures-cache-48', sse: 24, cacheMiB: 48),
+    BenchmarkCase(
+      'structures-no-supports',
+      sse: 24,
+      cacheMiB: 16,
+      bridgeSupports: false,
+    ),
+    BenchmarkCase(
+      'structures-no-gpu-timer',
+      sse: 24,
+      cacheMiB: 16,
+      gpuTiming: false,
+    ),
+  ];
+  static Iterable<BenchmarkCase> order(int repetition, {bool tuning = false}) {
+    final cases = tuning ? structureMatrix : matrix;
+    if (repetition == 3) {
+      final offset = cases.length ~/ 2;
+      return [...cases.skip(offset), ...cases.take(offset)];
+    }
+    return repetition.isOdd ? cases : cases.reversed;
+  }
 }
 
 class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
   DeveloperBenchmark(this.globe);
   final GlobeController globe;
-  final recording = DeveloperPerformanceRecording();
+  final recording = DeveloperPerformanceRecording(sampleLimit: 1200);
   bool active = false, _cancelled = false, _disposed = false;
   String status = 'idle';
   String? error;
@@ -98,10 +136,11 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     FlightRoute route,
     SimulationSettings settings, {
     required int repetitions,
+    bool structureTuning = false,
     required String platform,
     required Future<void> Function() quiesceProfiler,
   }) async {
-    if (active || repetitions < 1 || repetitions > 2) {
+    if (active || repetitions < 1 || repetitions > 3) {
       throw StateError('Invalid benchmark request');
     }
     final originalRadio = globe.liveRadio.settings;
@@ -134,7 +173,12 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     _terrainRevision = globe.terrainRevision;
     error = null;
     runIndex = 0;
-    runCount = BenchmarkCase.matrix.length * repetitions;
+    runCount =
+        (structureTuning
+            ? BenchmarkCase.structureMatrix.length
+            : BenchmarkCase.matrix.length) *
+        repetitions;
+    final limitSeconds = repetitions == 1 ? 60 : 35;
     progress = 0;
     runs.clear();
     recording.clear();
@@ -143,7 +187,10 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     final metadata = <String, Object?>{
       'kind': 'route-playback-benchmark',
       'routeSha256': routeHash,
-      'cachePolicy': 'resident-warmup-pass-per-case-no-cache-flush',
+      'cachePolicy': structureTuning
+          ? 'fresh-structures-tileset-per-case-warmup-no-http-cache-flush'
+          : 'resident-warmup-pass-per-case-no-cache-flush',
+      'matrix': structureTuning ? 'structures-tuning-v1' : 'layers-v1',
       'repetitions': repetitions,
       'runs': runs,
       'platform': platform,
@@ -165,24 +212,23 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       final prepared = await globe.prepareBenchmark(
         route,
         fixed,
-        limitSeconds: repetitions == 2 ? 35 : 60,
+        limitSeconds: limitSeconds,
       );
       check();
       final duration = (prepared['duration'] as num).toDouble();
       // Leave headroom for slower-than-real-time playback and the bounded export.
-      if (!duration.isFinite ||
-          duration < 10 ||
-          duration > (repetitions == 2 ? 35 : 60)) {
-        throw StateError(
-          'Route must last 10–${repetitions == 2 ? 35 : 60} seconds',
-        );
+      if (!duration.isFinite || duration < 10 || duration > limitSeconds) {
+        throw StateError('Route must last 10–$limitSeconds seconds');
       }
       metadata['routeDurationSeconds'] = duration;
       metadata['sourceRouteDurationSeconds'] = prepared['sourceDuration'];
       metadata['recordedRoute'] = prepared['recorded'] == true;
       recording.start(metadata: metadata);
       for (var repeat = 1; repeat <= repetitions; repeat++) {
-        for (final variant in BenchmarkCase.order(repeat)) {
+        for (final variant in BenchmarkCase.order(
+          repeat,
+          tuning: structureTuning,
+        )) {
           check();
           runIndex++;
           progress = 0;
@@ -193,11 +239,17 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
             'firstSample': recording.count,
             'layers': variant.layers,
             'rfEnabled': variant.rf,
+            'gpuTiming': variant.gpuTiming,
+            if (variant.structureTuning != null)
+              'structureTuning': variant.structureTuning,
           };
           runs.add(result);
           status = '${variant.id}: warmup';
           _notify();
-          await globe.setBenchmarkLayers(variant.layers);
+          await globe.setBenchmarkLayers(
+            variant.layers,
+            structureTuning: variant.structureTuning,
+          );
           check();
           await globe.liveRadio.configure(
             LiveRadioSettings(
@@ -218,7 +270,10 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
           // the actual resource caches. This isolates each measured pass.
           await globe.scenePerformance(action: 'stop');
           check();
-          await globe.scenePerformance(action: 'start');
+          await globe.scenePerformance(
+            action: 'start',
+            gpuTiming: variant.gpuTiming,
+          );
           check();
           result['status'] = 'measuring';
           status = '${variant.id}: measuring';
@@ -232,6 +287,17 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
           final p95 = <double>[];
           final visibleLayers = <String>{};
           final incompleteLayers = <String>{};
+          var tuningVerified = true;
+          var structureReady = 0, structureLoading = 0;
+          final structureTriangles = <double>[];
+          final structureCommands = <double>[];
+          final effectiveSse = <double>[];
+          void addNumber(List<double> destination, Object? value) {
+            if (value is num && value.isFinite) {
+              destination.add(value.toDouble());
+            }
+          }
+
           await _waitPass(
             duration,
             sample: () async {
@@ -249,6 +315,36 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                 p95.add(frameP95.toDouble());
               }
               final layerStats = scene['layerStats'];
+              final structures = layerStats is Map
+                  ? layerStats['structures']
+                  : null;
+              if (variant.structures && structures is Map) {
+                if (structures['state'] == 'ready') structureReady++;
+                if (structures['state'] == 'loading') structureLoading++;
+                addNumber(structureTriangles, structures['selectedTriangles']);
+                addNumber(structureCommands, structures['commands']);
+                addNumber(
+                  effectiveSse,
+                  structures['memoryAdjustedScreenSpaceError'],
+                );
+              }
+              if (variant.sse != null) {
+                tuningVerified =
+                    tuningVerified &&
+                    structures is Map &&
+                    structures['maximumScreenSpaceError'] == variant.sse &&
+                    structures['cacheBytes'] ==
+                        variant.cacheMiB! * 1024 * 1024 &&
+                    structures['maximumCacheOverflowBytes'] ==
+                        4 * 1024 * 1024 &&
+                    structures['dynamicScreenSpaceErrorFactor'] == 24 &&
+                    scene['bridgeSupports'] is Map &&
+                    (scene['bridgeSupports'] as Map)['benchmarkSuppressed'] ==
+                        !variant.bridgeSupports &&
+                    scene['gpuRenderMs'] is Map &&
+                    (scene['gpuRenderMs'] as Map)['enabled'] ==
+                        variant.gpuTiming;
+              }
               if (layerStats is Map) {
                 for (final layer in variant.layers.entries) {
                   final layerSample = layerStats[layer.key];
@@ -265,7 +361,7 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                   }
                 }
               }
-              if (recording.count >= DeveloperPerformanceRecording.maxSamples) {
+              if (recording.count >= recording.sampleLimit) {
                 throw StateError(
                   'Benchmark sample limit reached; export partial results',
                 );
@@ -304,6 +400,12 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                   'benchmarkStructures': variant.structures,
                   'benchmarkVegetation': variant.vegetation,
                   'benchmarkRfEnabled': variant.rf,
+                  'benchmarkGpuTiming': variant.gpuTiming,
+                  if (variant.sse != null) ...{
+                    'benchmarkStructuresSse': variant.sse,
+                    'benchmarkStructuresCacheMiB': variant.cacheMiB,
+                    'benchmarkBridgeSupports': variant.bridgeSupports,
+                  },
                 },
               );
             },
@@ -315,6 +417,22 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
           result['medianFps'] = benchmarkPercentile(fps, .5);
           result['fpsP10'] = benchmarkPercentile(fps, .1);
           result['medianFrameP95Ms'] = benchmarkPercentile(p95, .5);
+          if (variant.structures) {
+            result['structureReadySnapshots'] = structureReady;
+            result['structureLoadingSnapshots'] = structureLoading;
+            result['structureMedianTriangles'] = benchmarkPercentile(
+              structureTriangles,
+              .5,
+            );
+            result['structureMedianCommands'] = benchmarkPercentile(
+              structureCommands,
+              .5,
+            );
+            result['structureMedianEffectiveSse'] = benchmarkPercentile(
+              effectiveSse,
+              .5,
+            );
+          }
           result['visibleLayers'] = visibleLayers.toList();
           result['incompleteLayers'] = incompleteLayers.toList();
           result['layerVisibilityVerified'] = variant.layers.entries.every(
@@ -323,7 +441,13 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                 !incompleteLayers.contains(layer.key),
           );
           // A run with no valid RF cannot establish an RF-on/off comparison.
-          result['status'] = result['layerVisibilityVerified'] != true
+          if (variant.sse != null) {
+            result['structureTuningVerified'] =
+                tuningVerified && fps.isNotEmpty;
+          }
+          result['status'] = result['structureTuningVerified'] == false
+              ? 'completed-tuning-unverified'
+              : result['layerVisibilityVerified'] != true
               ? 'completed-layers-unverified'
               : variant.rf && rfValid == 0
               ? 'completed-rf-unverified'

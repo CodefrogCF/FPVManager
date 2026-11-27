@@ -569,7 +569,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     if (!mounted || !_globeController.developerMenusEnabled) return;
     int? selected = routes.firstOrNull?.id;
     var repetitions = 1;
-    final choice = await showDialog<(int, int)>(
+    var structureTuning = false;
+    final choice = await showDialog<(int, int, bool)>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, refresh) => AlertDialog(
@@ -585,8 +586,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                 children: [
                   Text(
                     german
-                        ? 'Wähle eine gespeicherte Route im Schweizer Gelände (mindestens 10 s). Gemessen werden die ersten 60 s, bei 2 Wiederholungen die ersten 35 s. Alle Varianten verwenden dasselbe Grafikprofil, dieselbe Auflösung und den gleichen Kamerapfad.'
-                        : 'Select a saved route in Swiss terrain (at least 10 s). Measure the first 60 s, or 35 s for 2 repetitions. All variants use the same graphics profile, resolution and camera path.',
+                        ? 'Wähle eine gespeicherte Route im Schweizer Gelände (mindestens 10 s). Gemessen werden die ersten 60 s, bei mehreren Wiederholungen die ersten 35 s. Alle Varianten verwenden dasselbe Grafikprofil, dieselbe Auflösung und den gleichen Kamerapfad.'
+                        : 'Select a saved route in Swiss terrain (at least 10 s). Measure the first 60 s, or 35 s for multiple repetitions. All variants use the same graphics profile, resolution and camera path.',
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -615,6 +616,30 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                       ],
                       onChanged: (value) => refresh(() => selected = value),
                     ),
+                  DropdownButton<bool>(
+                    key: const ValueKey('benchmark-matrix'),
+                    value: structureTuning,
+                    isExpanded: true,
+                    items: [
+                      DropdownMenuItem(
+                        value: false,
+                        child: Text(
+                          german ? 'Layer / Funkanalyse' : 'Layers / radio',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: true,
+                        child: Text(
+                          german
+                              ? 'Structures: LOD / Cache / Pfeiler'
+                              : 'Structures: LOD / cache / supports',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        refresh(() => structureTuning = value ?? false),
+                  ),
                   Text(
                     german
                         ? 'Wiederholungen pro Variante'
@@ -625,14 +650,19 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                     items: const [
                       DropdownMenuItem(value: 1, child: Text('1')),
                       DropdownMenuItem(value: 2, child: Text('2')),
+                      DropdownMenuItem(value: 3, child: Text('3')),
                     ],
                     onChanged: (value) =>
                         refresh(() => repetitions = value ?? 1),
                   ),
                   Text(
-                    german
-                        ? '6 Varianten, je eine Aufwärmrunde und ein Messflug. Cache bleibt erhalten. Messdaten werden lokal im Speicher gesammelt; JSON/CSV danach exportieren.'
-                        : '6 cases, one warmup and one measured pass each. Caches are retained. Measurements stay in memory; export JSON/CSV afterwards.',
+                    structureTuning
+                        ? (german
+                              ? '10 Varianten. Structures wird je Variante neu initialisiert und aufgewärmt; HTTP-Cache bleibt erhalten. SSE, Cache, Pfeiler und GPU-Zeitmessung werden einzeln variiert.'
+                              : '10 cases. Recreate and warm Structures per case; retain the HTTP cache. Vary SSE, cache, supports and GPU timing separately.')
+                        : (german
+                              ? '6 Varianten, je eine Aufwärmrunde und ein Messflug. Cache bleibt erhalten. Messdaten lokal; JSON/CSV danach exportieren.'
+                              : '6 cases, one warmup and one measured pass each. Caches retained. Local measurements; export JSON/CSV afterwards.'),
                   ),
                   if (_benchmark.status != 'idle') ...[
                     const SizedBox(height: 12),
@@ -686,8 +716,11 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
               key: const ValueKey('benchmark-start'),
               onPressed: selected == null || home == null
                   ? null
-                  : () =>
-                        Navigator.pop(dialogContext, (selected!, repetitions)),
+                  : () => Navigator.pop(dialogContext, (
+                      selected!,
+                      repetitions,
+                      structureTuning,
+                    )),
               child: Text(german ? 'Benchmark starten' : 'Start benchmark'),
             ),
           ],
@@ -727,6 +760,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         route,
         _simulationSettings,
         repetitions: choice.$2,
+        structureTuning: choice.$3,
         platform: platform,
         quiesceProfiler: _quiesceBenchmarkProfiler,
       );
@@ -790,7 +824,7 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                         ),
                       ),
                       Text(
-                        '${_benchmark.recording.count} / ${DeveloperPerformanceRecording.maxSamples} ${german ? 'Messungen' : 'samples'}',
+                        '${_benchmark.recording.count} / ${_benchmark.recording.sampleLimit} ${german ? 'Messungen' : 'samples'}',
                       ),
                       TextButton(
                         onPressed: _benchmark.cancel,

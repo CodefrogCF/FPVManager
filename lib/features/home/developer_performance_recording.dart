@@ -8,6 +8,9 @@ import 'package:flutter/services.dart';
 /// source URLs, raw provider errors or credentials are retained.
 class DeveloperPerformanceRecording {
   static const maxSamples = 600;
+  DeveloperPerformanceRecording({this.sampleLimit = maxSamples})
+    : assert(sampleLimit > 0 && sampleLimit <= 1200);
+  final int sampleLimit;
   final _samples = <Map<String, Object?>>[];
   bool active = false;
   int get count => _samples.length;
@@ -104,7 +107,7 @@ class DeveloperPerformanceRecording {
       flatten(key, snapshot[key]);
     }
     _samples.add(row);
-    if (count >= maxSamples) stop();
+    if (count >= sampleLimit) stop();
   }
 
   Uint8List encode({required bool csv}) {

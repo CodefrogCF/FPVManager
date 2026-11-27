@@ -818,7 +818,7 @@ function postToFlutter(message) {
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
-                if(command.action==='start'){if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);bridge.setDiagnosticsEnabled(true);}scenePerformance.start();}
+                if(command.action==='start'){if(command.gpuTiming!==undefined&&typeof command.gpuTiming!=='boolean')throw Error('Invalid GPU timing option');if(command.gpuTiming===false&&!benchmarkSession)throw Error('GPU timing override requires benchmark');if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);bridge.setDiagnosticsEnabled(true);}scenePerformance.start({gpuTiming:command.gpuTiming??true});}
                 else if(command.action==='stop'){scenePerformance.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);bridge.setDiagnosticsEnabled(false);return {running:false};}
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
@@ -891,7 +891,7 @@ function postToFlutter(message) {
             }
             case 'benchmark-layers': {
                 if(command.layers!==null&&(!benchmarkSession||regionalTerrain||regionalTerrainChanging))throw Error('Benchmark requires prepared Swiss terrain');
-                return sceneEnvironment.benchmark(command.layers);
+                return sceneEnvironment.benchmark(command.layers,command.structureTuning??null);
             }
             case 'benchmark-clear': {
                 benchmarkSession=false;routePlayback.clearBenchmark();

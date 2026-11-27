@@ -1327,11 +1327,18 @@ class GlobeController extends ChangeNotifier {
     }, timeout: _bridge.options.terrainTimeout);
   }
 
-  Future<void> setBenchmarkLayers(Map<String, bool> layers) async {
+  Future<void> setBenchmarkLayers(
+    Map<String, bool> layers, {
+    Map<String, Object>? structureTuning,
+  }) async {
     if (!_benchmarkActive || !developerMenusEnabled) {
       throw StateError('Benchmark inactive');
     }
-    await _request({'type': 'benchmark-layers', 'layers': layers});
+    await _request({
+      'type': 'benchmark-layers',
+      'layers': layers,
+      'structureTuning': ?structureTuning,
+    });
   }
 
   Future<void> startBenchmarkPlayback(
@@ -2558,11 +2565,18 @@ class GlobeController extends ChangeNotifier {
   /// On-demand frame pacing measurements. Off until `start`; no per-frame
   /// Flutter messages or location collection. `stop` detaches JS listeners.
   /// CPU callback timings are not actual GPU execution times.
-  Future<Map<String, dynamic>> scenePerformance({String action = 'snapshot'}) {
+  Future<Map<String, dynamic>> scenePerformance({
+    String action = 'snapshot',
+    bool gpuTiming = true,
+  }) {
     if (!{'start', 'stop', 'snapshot'}.contains(action)) {
       throw ArgumentError.value(action, 'action');
     }
-    return _request({'type': 'scene-performance', 'action': action});
+    return _request({
+      'type': 'scene-performance',
+      'action': action,
+      if (action == 'start' && !gpuTiming) 'gpuTiming': false,
+    });
   }
 
   /// On-demand, local-only simulator timing metrics; never broadcast every

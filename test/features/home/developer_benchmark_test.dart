@@ -29,6 +29,36 @@ void main() {
     },
   );
 
+  test('structure matrix changes one factor at a time and rotates repeats', () {
+    final cases = BenchmarkCase.structureMatrix;
+    expect(cases.length, 10);
+    final reference = cases.first;
+    expect(reference.structureTuning, {
+      'sse': 24,
+      'cacheMiB': 16,
+      'bridgeSupports': true,
+    });
+    for (final variant in cases.skip(1)) {
+      expect(variant.layers, reference.layers);
+      expect(variant.rf, isTrue);
+      expect(
+        [
+          variant.sse != reference.sse,
+          variant.cacheMiB != reference.cacheMiB,
+          variant.bridgeSupports != reference.bridgeSupports,
+          variant.gpuTiming != reference.gpuTiming,
+        ].where((changed) => changed).length,
+        1,
+      );
+    }
+    expect(
+      BenchmarkCase.order(2, tuning: true).toList(),
+      cases.reversed.toList(),
+    );
+    expect(BenchmarkCase.order(3, tuning: true).toSet(), cases.toSet());
+    expect(BenchmarkCase.order(3, tuning: true).first, cases[5]);
+  });
+
   test('benchmark summary uses quantiles of snapshots, not raw frames', () {
     expect(benchmarkPercentile([], .5), isNull);
     expect(benchmarkPercentile([40, 10, 30, 20], .5), 25);

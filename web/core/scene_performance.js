@@ -66,6 +66,7 @@
         const scene=viewer.scene;
         const render=new Float64Array(capacity),interval=new Float64Array(capacity),physics=new Float64Array(capacity),gpu=new Float64Array(capacity);
         const update=new Float64Array(capacity),sceneCpu=new Float64Array(capacity),raf=new Float64Array(capacity);
+        let gpuTimingEnabled=true;
         let running=false,disposed=false,removePre=null,removePost=null,removeUpdate=null,removeUpdated=null,gpuSampler=null,gpuCount=0;
         let updateCount=0,sceneCount=0,rafCount=0,updateStart=null,sceneStart=null,lastRaf=null,rafHandle=null,rafGeneration=0,info=null;
         let longObserver=null,longSupported=false,longCount=0,longTotal=0,longMax=0,longStarted=0;
@@ -141,16 +142,17 @@
             removePre=removePost=removeUpdate=removeUpdated=null;frameStart=updateStart=sceneStart=null;gpuSampler?.clear();
             rafGeneration++;if(rafHandle!==null)cancelFrame?.(rafHandle);rafHandle=null;lastRaf=null;
         }
-        function start(){
+        function start({gpuTiming=true}={}){
             if(disposed)throw Error('Scene timing is disposed');
             if(running)return;
-            reset();running=true;longStarted=now();
+            if(typeof gpuTiming!=='boolean')throw Error('Invalid GPU timing option');
+            gpuTimingEnabled=gpuTiming;reset();running=true;longStarted=now();
             if(Observer?.supportedEntryTypes?.includes('longtask'))try{
                 const observer=new Observer(list=>{if(running&&longObserver===observer)recordLongTasks(list.getEntries());});
                 observer.observe({type:'longtask',buffered:false});longObserver=observer;longSupported=true;
             }catch(_){longObserver=null;}
             const gl=gpuContext();info=rendererInfo(gl);
-            gpuSampler=gpuTimer(gl,ms=>record(gpu,gpuCount++,ms));
+            gpuSampler=gpuTimingEnabled?gpuTimer(gl,ms=>record(gpu,gpuCount++,ms)):null;
             removeUpdate=scene.preUpdate?.addEventListener(beforeUpdate);
             removeUpdated=scene.postUpdate?.addEventListener(afterUpdate);
             removePre=scene.preRender.addEventListener(pre);
@@ -189,7 +191,7 @@
                 physicsStep:{count:physicsCount,samples:physicsMs.length,totalMs:physicsTotalMs,
                     p50Ms:percentile(physicsMs,.5),p95Ms:percentile(physicsMs,.95),maxMs:physicsMaxMs},
                 cpuRenderMs:{p50:percentile(renderMs,.5),p95:percentile(renderMs,.95),max:percentile(renderMs,1)},
-                gpuRenderMs:{supported:gpuSampler?.supported??false,samples:gpuMs.length,p50:percentile(gpuMs,.5),p95:percentile(gpuMs,.95),max:percentile(gpuMs,1)},
+                gpuRenderMs:{enabled:gpuTimingEnabled,supported:gpuSampler?.supported??false,samples:gpuMs.length,p50:percentile(gpuMs,.5),p95:percentile(gpuMs,.95),max:percentile(gpuMs,1)},
                 pendingTerrainTiles:resource.pendingTerrainTiles??null,scenery:resource.scenery??null,flightPhysics:resource.flightPhysics??null,
                 framePacingMs:{p50:percentile(intervalMs,.5),p95:percentile(intervalMs,.95),max:percentile(intervalMs,1)},
                 over33Ms:intervalMs.filter(ms=>ms>33.34).length,

@@ -101,21 +101,22 @@ layer progress distinguishes pending downloads and processing, not exact CPU tim
 ## Automated route benchmark
 
 In Settings → Developer options → Automated benchmarks, select a saved route
-and one or two repetitions. Create or import a route in Swiss terrain first.
+and one to three repetitions. Create or import a route in Swiss terrain first.
 Use the same graphics profile, render scale, viewport and route for subsequent
 comparisons. The route must last at least 10 seconds; the runner uses its first
-60 seconds (35 seconds for two repetitions). Planned AGL is resolved once to a
+60 seconds (35 seconds for multiple repetitions). Planned AGL is resolved once to a
 fixed absolute camera trajectory; recorded timing is retained. The route hash
 identifies the input, not a surveyed height reference. Lighting time is fixed
 when realistic lighting is enabled. Playback follows the route at 1× and is
 not a benchmark of manual flight dynamics or failsafe behavior.
 
 Each case has a complete warmup pass followed by a measured pass. The six
-cases are all three standard tilesets plus RF, no buildings, no infrastructure,
+layer/radio cases are all three standard tilesets plus RF, no buildings, no infrastructure,
 no vegetation, no three standard tilesets, and no RF. The infrastructure case
 includes tileset-derived bridge supports, not independently enabled tunnels or
 custom scenery. RF uses the selected radio profiles and the route spawn as
-station. The second repetition reverses case order. Warmup does not flush the
+station. The second repetition reverses case order, the third rotates it by half the
+case count. Warmup does not flush the
 browser/network caches or guarantee every tile is resident; compare results
 with the recorded visibility and loading state.
 
@@ -124,9 +125,41 @@ once per second and labels every row by run, variant, repetition and progress.
 The JSON also contains run summaries, input fingerprints, completion status and
 visibility/RF observations. These are snapshot percentiles, not raw per-frame
 quantiles. Runs lacking observed layer visibility or valid RF are identified.
-The recording is bounded to 600 snapshots; timeout, collision, terrain changes,
+The benchmark recording is bounded to 1,200 snapshots (manual recording stays
+at 600); timeout, collision, terrain changes,
 backgrounding, cancellation or exhaustion terminate the suite. Partial data
 can be exported via the same menu, except when developer mode is disabled.
 The runner restores original scene and RF settings; if restoration cannot be
 confirmed, reload the renderer. Export JSON/CSV locally before starting another
 suite. No route coordinates or raw provider error strings are included.
+
+### Structures tuning matrix
+
+Select **Structures: LOD / cache / supports** instead of the layer/radio
+matrix. All standard layers and RF remain enabled. The reference fixes
+Structures at maximum screen-space error 24, cache 16 MiB, overflow 4 MiB,
+dynamic SSE factor 24 and foveated cone 0.1. Other cases change just one
+factor: SSE 32/40/48/64, cache 24/32/48 MiB, synthetic bridge supports off,
+or GPU timer queries off (CPU timing and the other diagnostics remain on).
+The renderer recreates the Structures tileset for each tuning case, with
+one warmup pass; other tilesets, HTTP caches and ground-height cache are not
+explicitly flushed. This is not a cold-network benchmark. The regular layer
+matrix retains its original resident-tileset policy.
+
+The JSON identifies the matrix and cache policy, requested parameters, actual
+parameter verification, Structures loading/ready snapshot counts, median
+triangles, commands and memory-adjusted SSE. CSV rows include the requested
+settings alongside actual layer counters. Compare matching route hashes and
+settings; do not interpret a run with unverified tuning or incomplete layers
+as a successful A/B comparison. A ready root does not guarantee all visible
+geometry is loaded. Inspect video/detail quality as well as FPS before adopting
+a higher SSE. Per-layer local header fragment counts/bytes are diagnostic only.
+
+Bridge support ground and deck caches are bounded, in-memory and independent
+of RF/collision sampling. Resident deck samples are cached only when all three
+heights are coherent, plausible and the selected native content covering the
+probe positions is identifiable and unchanged. The cache expires after 30 s,
+invalidates on terrain/tileset changes and does not cache most-detailed fallback
+results. Unsupported Cesium selection internals bypass the deck cache. A slow
+resident navigation pick gets an additional yielded frame; nearby candidates are
+processed first and existing geometry stays visible until replacement is ready.

@@ -110,13 +110,15 @@ test('only owned scene layers use local headers; versioned fragments and cleanup
     try{
         const source=tree(),content=await f.factory.externalTileset(tile,{},new C.Resource(base),source);
         assert.ok(nodes(content.json.root)<=64);assert.ok(loader.status().prepared>0);
+        const owner=loader.ownerStats(tile);assert.ok(owner.headerFragments>0);assert.ok(owner.headerBytes>0);
+        assert.equal(owner.headerBytes,loader.status().liveBytes);assert.equal(loader.ownerStats({}),null);
         let proxy=content.json.root;while(!proxy.content?.uri?.startsWith('fpv-scene-fragment:'))proxy=proxy.children[0];
         const resource=new C.Resource(base).getDerivedResource({url:proxy.content.uri});
         assert.equal(resource.url,proxy.content.uri,'Provider query parameters do not corrupt local fragment URLs');
         const fragment=JSON.parse(new TextDecoder().decode(await resource.clone().fetchArrayBuffer()));
         assert.ok(fragment.root);
         assert.equal((await f.factory.externalTileset(tile,{},resource,fragment)).json,fragment);
-        tile.destroy();
+        tile.destroy();assert.equal(loader.ownerStats(tile),null);
         await assert.rejects(resource.fetchArrayBuffer(),/released/);
         const plain={asset:{version:'1.0'},root:{boundingVolume:{sphere:[0,0,0,1]},geometricError:0}};
         const unowned=await f.factory.externalTileset({}, {},new C.Resource(base),plain);

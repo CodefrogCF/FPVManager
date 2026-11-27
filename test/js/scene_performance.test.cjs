@@ -148,3 +148,15 @@ test('long-task metrics are opt-in, session bounded and distinguish unsupported 
     profiler.stop();assert.equal(observer.disconnected,true);
     profiler.start();assert.equal(profiler.snapshot().mainThreadLongTasks.count,0);profiler.dispose();
 });
+
+
+test('benchmark can omit GPU queries while retaining CPU frame timing; next normal session restores GPU timing',()=>{
+    const preRender=new Event(),postRender=new Event();let time=0,queries=0;
+    const gl={getExtension(name){if(name==='EXT_disjoint_timer_query_webgl2')queries++;return null;}};
+    const p=create({scene:{preRender,postRender}},{now:()=>time,gpuContext:()=>gl});
+    assert.throws(()=>p.start({gpuTiming:'false'}),/Invalid GPU timing/);assert.equal(p.running,false);
+    p.start({gpuTiming:false});for(let i=0;i<3;i++){time+=16;preRender.fire();time+=4;postRender.fire();}
+    const snapshot=p.snapshot();assert.equal(queries,0);assert.equal(snapshot.gpuRenderMs.enabled,false);assert.equal(snapshot.gpuRenderMs.samples,0);
+    assert.equal(snapshot.cpuRenderMs.p50,4);assert.equal(snapshot.renderFps,50);
+    p.stop();p.start();assert.equal(queries,1);assert.equal(p.snapshot().gpuRenderMs.enabled,true);p.dispose();
+});

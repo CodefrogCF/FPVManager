@@ -242,14 +242,59 @@
         getDeckTileset=null,discoverBridges=null,disposeDiscovery=()=>{},
         fetcher=(...args)=>fetch(...args),now=()=>Date.now(),yieldBatch=afterFrame,terrainIdentity=()=>null}={}){
         const scene=viewer.scene;
-        let enabled=false,structuresEnabled=false,disposed=false,profile='balanced',opacity=1,revision=0,controller=null;
+        let enabled=false,structuresEnabled=false,benchmarkSuppressed=false,disposed=false,profile='balanced',opacity=1,revision=0,controller=null;
         const sourceSets=new Map();
         // Exact coordinates only: no quantization/interpolation and no reuse
         // across terrain providers. In-memory, bounded, successful samples only.
         const groundCache=new Map(),GROUND_LIMIT=2048,GROUND_TTL=120000;
         let groundIdentity=terrainIdentity(),metrics=null;
+        // Cache only coherent three-probe groups against the actual selected
+        // native geometry. Never reuse a provisional/missing height or a
+        // most-detailed result that may differ from the visible LOD.
+        const deckCache=new Map(),DECK_LIMIT=512,DECK_TTL=30000;
+        const geometryIds=new WeakMap();let nextGeometryId=0,deckEpoch=0,deckTileset=null;
+        function geometryId(object){
+            if(!object||typeof object!=='object')return null;
+            if(!geometryIds.has(object))geometryIds.set(object,++nextGeometryId);
+            return geometryIds.get(object);
+        }
+        function invalidateDeckCache(){deckCache.clear();deckEpoch++;}
+        function deckSignature(candidate,base){
+            const tileset=getDeckTileset?.();
+            if(tileset!==deckTileset){deckTileset=tileset;invalidateDeckCache();}
+            // Cesium 3D Tiles does not expose the selected tile array publicly.
+            // Fail closed on unsupported versions, incomplete bounds or empty
+            // selections. No general scene/terrain picks are ever cached.
+            if(!tileset||tileset.show!==true||!Array.isArray(tileset._selectedTiles)||!finite(base))return null;
+            const rays=candidate.probes.map(q=>{
+                const a=C.Cartesian3.fromDegrees(q.longitude,q.latitude,base),b=C.Cartesian3.fromDegrees(q.longitude,q.latitude,base+1);
+                const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z,length=Math.hypot(dx,dy,dz);
+                return {a,dx:dx/length,dy:dy/length,dz:dz/length,length};
+            });
+            if(rays.some(r=>!finite(r.length)||r.length<.5))return null;
+            const relevant=[];
+            for(const tile of tileset._selectedTiles){
+                const sphere=tile?.boundingSphere,c=sphere?.center,r=sphere?.radius;
+                if(!c||![c.x,c.y,c.z,r].every(finite)||r<0)return null;
+                // A vertical pick can hit any height. Test perpendicular
+                // distance to the entire vertical ray, not a height band.
+                const near=rays.some(({a,dx,dy,dz})=>{
+                    const x=c.x-a.x,y=c.y-a.y,z=c.z-a.z,t=x*dx+y*dy+z*dz;
+                    return Math.hypot(x-t*dx,y-t*dy,z-t*dz)<=r+5;
+                });
+                if(!near)continue;
+                const tileId=geometryId(tile),contentId=geometryId(tile.content);
+                if(tile.contentReady!==true||!tileId||!contentId)return null;
+                relevant.push(`${tileId}:${contentId}`);
+            }
+            return relevant.length?`${deckEpoch}/${relevant.sort().join(',')}`:null;
+        }
+        const deckKey=(p,base)=>JSON.stringify([p.id,base,p.probes.map(q=>[q.longitude,q.latitude])]);
+        function coherentDeck(heights,base){return finite(base)&&base>=-500&&base<=9000&&heights.length===3&&
+            heights.every(finite)&&Math.max(...heights)-Math.min(...heights)<=2.8&&heights[1]-base>=2.5&&heights[1]-base<=150;}
+
         function syncGroundIdentity(){
-            const identity=terrainIdentity();if(identity!==groundIdentity){groundIdentity=identity;groundCache.clear();}
+            const identity=terrainIdentity();if(identity!==groundIdentity){groundIdentity=identity;groundCache.clear();invalidateDeckCache();}
             return identity;
         }
         async function sampleGround(candidates,signal){
@@ -389,7 +434,7 @@
         }
         function draw(next){
             if(!next.length){clear();return;}
-            const signature=JSON.stringify([opacity,next.map(p=>[p.id,p.longitude,p.latitude,p.bottom,p.top,p.radius])]);
+            const signature=JSON.stringify([opacity,next.map(p=>[p.id,p.longitude,p.latitude,p.bottom,p.top,p.radius]).sort((a,b)=>a[0].localeCompare(b[0]))]);
             if(primitive&&signature===drawSignature){supports=next;credits(true);return;}
             if(!C.CylinderGeometry||!C.GeometryInstance||!C.Primitive||!C.Transforms?.eastNorthUpToFixedFrame||
                 !C.PerInstanceColorAppearance||!C.ColorGeometryInstanceAttribute)return;
@@ -406,22 +451,42 @@
             if(primitive)scene.primitives.remove(primitive);
             primitive=nextPrimitive;supports=next;drawSignature=signature;credits(true);scene.requestRender?.();
         }
-        async function deckSamples(candidates,excluded,signal){
-            const groups=candidates.map(()=>[]);
+        async function deckSamples(candidates,ground,excluded,signal){
+            const groups=candidates.map(()=>[]),reused=new Map(),selected=getDeckTileset?.();
             for(let i=0;i<candidates.length;i++){
                 const p=candidates[i];
                 // Discovery has already classified and sampled these heights
                 // against the selected native tileset. Re-picking every pier's
                 // three neighbours would repeat up to 384 GPU passes in quality.
                 if(p.profileMethod==='loaded-native-road'&&finite(p.deckMetersWgs84))continue;
+                const signature=deckSignature(p,ground[i]),key=deckKey(p,ground[i]),hit=deckCache.get(key);
+                if(signature&&hit?.signature===signature&&now()-hit.at<DECK_TTL){
+                    groups[i]=hit.heights.slice();deckCache.delete(key);deckCache.set(key,hit);
+                    if(metrics)metrics.deckHits++;reused.set(i,signature);continue;
+                }
+                deckCache.delete(key);if(metrics)metrics.deckMisses++;
+                let stable=!!signature;
                 for(const q of p.probes){
                     if(!scene.sampleHeight){groups[i].push(null);continue;}
                     await yieldBatch(signal);signal.throwIfAborted?.();
                     if(disposed||!enabled||!ready())return groups;
+                    if(getDeckTileset&&getDeckTileset()!==selected)throw Error('Bridge deck changed during sampling');
+                    if(stable&&deckSignature(p,ground[i])!==signature)stable=false;
                     const started=now(),d=metrics;if(d)d.deckPicks++;
-                    try{groups[i].push(scene.sampleHeight(C.Cartographic.fromDegrees(q.longitude,q.latitude),excluded,.7));}
+                    try{groups[i].push(scene.sampleHeight(C.Cartographic.fromDegrees(q.longitude,q.latitude),getDeckTileset?exclusions():excluded,.7));}
                     catch(_){groups[i].push(null);}
-                    finally{if(d)d.deckPickMs+=Math.max(0,now()-started);}
+                    const cost=Math.max(0,now()-started);if(d)d.deckPickMs+=cost;
+                    // At most one synchronous pick per frame (already the
+                    // existing limit). Expensive picks get an extra frame of
+                    // recovery rather than saturating every animation frame.
+                    if(cost>=8&&isNavigationActive()){
+                        if(d)d.deckCooldownFrames++;
+                        await yieldBatch(signal);signal.throwIfAborted?.();
+                    }
+                }
+                if(stable&&deckSignature(p,ground[i])===signature&&coherentDeck(groups[i],ground[i])){
+                    deckCache.set(key,{signature,heights:groups[i].slice(),at:now()});
+                    while(deckCache.size>DECK_LIMIT)deckCache.delete(deckCache.keys().next().value);
                 }
             }
             const missing=[];
@@ -434,11 +499,12 @@
                 for(const i of missing){
                     await yieldBatch(signal);signal.throwIfAborted?.();
                     if(disposed||!enabled||!ready()||Date.now()>=deadline)break;
+                    if(getDeckTileset&&getDeckTileset()!==selected)throw Error('Bridge deck changed during sampling');
                     let timer,abort;
                     try{
                         const positions=candidates[i].probes.map(q=>C.Cartographic.fromDegrees(q.longitude,q.latitude));
                         const sampled=await Promise.race([
-                            scene.sampleHeightMostDetailed(positions,excluded,.7),
+                            scene.sampleHeightMostDetailed(positions,getDeckTileset?exclusions():excluded,.7),
                             new Promise((_,reject)=>{
                                 timer=setTimeout(()=>reject(Error('Bridge deck sampling timed out')),Math.max(1,deadline-Date.now()));
                                 abort=()=>reject(Error('Bridge deck sampling cancelled'));
@@ -449,6 +515,12 @@
                     }catch(_){/* explicit source profiles still remain usable */}
                     finally{clearTimeout(timer);if(abort)signal.removeEventListener('abort',abort);}
                 }
+            }
+            if(getDeckTileset&&getDeckTileset()!==selected)throw Error('Bridge deck changed during sampling');
+            // Other candidates can take several frames to resolve. Never
+            // publish a cache hit whose selected geometry changed meanwhile.
+            for(const [i,signature] of reused){
+                if(deckSignature(candidates[i],ground[i])!==signature){groups[i]=[];if(metrics)metrics.deckStaleHits++;}
             }
             return groups;
         }
@@ -461,7 +533,7 @@
         }
         function refresh(center=focus()){
             if(disposed||!enabled)return Promise.resolve(status());
-            if(!ready()){groundCache.clear();++revision;controller?.abort();pending=null;pendingCenter=null;clear();return Promise.resolve(status());}
+            if(!ready()){groundCache.clear();invalidateDeckCache();++revision;controller?.abort();pending=null;pendingCenter=null;clear();return Promise.resolve(status());}
             if(!valid(center))return Promise.resolve(status());
             if(pending&&pendingCenter&&distance(center,pendingCenter)<120)return pending;
             if(supports.length&&lastCenter&&distance(center,lastCenter)<80&&now()-lastRefreshAt<1500)
@@ -494,6 +566,9 @@
                     if(token!==revision||disposed||!enabled)return status();
                     const candidates=stations([...native.bridges,...local.bridges,...remote.bridges],center,BUDGETS[profile],
                         [...native.piers,...local.piers,...remote.piers]);
+                    // Keep the existing admission budget but resolve nearby
+                    // supports first; retain the previous primitive until done.
+                    candidates.sort((a,b)=>distance(a,center)-distance(b,center));
                     if(!candidates.length){clear();return status();}
                     const ground=await sampleGround(candidates,signal);
                     signal.throwIfAborted?.();
@@ -503,7 +578,7 @@
                     // A missing production tileset cannot justify sampling
                     // arbitrary building roofs for an OSINT source profile.
                     const canProbe=!getDeckTileset||!!getDeckTileset();
-                    const sampled=canProbe?await deckSamples(candidates,excluded,signal):candidates.map(()=>[]);
+                    const sampled=canProbe?await deckSamples(candidates,ground,excluded,signal):candidates.map(()=>[]);
                     const next=[];
                     for(let i=0;i<candidates.length;i++){
                         const p=candidates[i],base=ground?.[i],heights=sampled[i];
@@ -540,19 +615,26 @@
         }
         const removeFrame=scene.preUpdate?.addEventListener?.(()=>{
             if(disposed||!enabled)return;
-            if(!ready()){groundCache.clear();if(supports.length||pending){++revision;controller?.abort();pending=null;clear();}return;}
+            if(!ready()){groundCache.clear();invalidateDeckCache();if(supports.length||pending){++revision;controller?.abort();pending=null;clear();}return;}
             if(now()-lastFrameAt<2000)return;lastFrameAt=now();
             const center=focus();
             if(center&&(!lastCenter||distance(center,lastCenter)>120||!supports.length||now()-lastRefreshAt>15000))void refresh(center);
         });
         function updateEnabled(){
-            enabled=structuresEnabled||sourceSets.size>0;
+            enabled=!benchmarkSuppressed&&(structuresEnabled||sourceSets.size>0);
             if(!enabled){++revision;controller?.abort();pending=null;pendingCenter=null;clear();}
         }
         function setEnabled(value){
             if(typeof value!=='boolean')throw Error('Invalid bridge support preference');
             if(disposed||structuresEnabled===value)return {enabled:enabled&&!disposed,count:supports.length,pending:!!pending};
-            structuresEnabled=value;updateEnabled();return status();
+            structuresEnabled=value;invalidateDeckCache();if(!value)deckTileset=null;updateEnabled();return status();
+        }
+        function setBenchmarkSuppressed(value){
+            if(typeof value!=='boolean')throw Error('Invalid benchmark support preference');
+            if(disposed||benchmarkSuppressed===value)return;
+            benchmarkSuppressed=value;invalidateDeckCache();updateEnabled();
+            lastRefreshAt=-Infinity;
+            if(enabled)void refresh();
         }
         function setSourceFeatures(features,{sourceId='osint',visible=true,...options}={}){
             if(disposed)return status();
@@ -562,7 +644,7 @@
             if(data.bridges.length||data.piers.length)sourceSets.set(sourceId,data);
             else sourceSets.delete(sourceId);
             ++revision;controller?.abort();pending=null;pendingCenter=null;retryAt=-Infinity;lastRefreshAt=-Infinity;
-            clear();updateEnabled();
+            invalidateDeckCache();clear();updateEnabled();
             if(enabled)void refresh();
             return status();
         }
@@ -574,13 +656,13 @@
         }
         function setOpacity(value){
             if(!finite(value)||value<.2||value>1)throw Error('Invalid bridge support opacity');
-            if(opacity===value||disposed)return;opacity=value;if(supports.length)draw(supports);
+            if(opacity===value||disposed)return;opacity=value;invalidateDeckCache();if(supports.length)draw(supports);
         }
-        return {setEnabled,setSourceFeatures,refresh,performance,setOpacity,status,
-            setDiagnosticsEnabled(value){if(value)metrics??={groundHits:0,groundMisses:0,groundBatches:0,groundPoints:0,groundWallMs:0,deckPicks:0,deckPickMs:0};else metrics=null;},
-            diagnostics(){return metrics?{...metrics,groundCacheEntries:groundCache.size}:null;},
+        return {setEnabled,setBenchmarkSuppressed,invalidateDeckCache,setSourceFeatures,refresh,performance,setOpacity,status,
+            setDiagnosticsEnabled(value){if(value)metrics??={groundHits:0,groundMisses:0,groundBatches:0,groundPoints:0,groundWallMs:0,deckPicks:0,deckPickMs:0,deckHits:0,deckMisses:0,deckStaleHits:0,deckCooldownFrames:0};else metrics=null;},
+            diagnostics(){return metrics?{...metrics,groundCacheEntries:groundCache.size,deckCacheEntries:deckCache.size,benchmarkSuppressed}:null;},
             dispose(){if(disposed)return;disposed=true;enabled=false;++revision;controller?.abort();pending=null;
-                removeFrame?.();clear();cache=null;groundCache.clear();metrics=null;sourceSets.clear();disposeDiscovery();}};
+                removeFrame?.();clear();cache=null;groundCache.clear();invalidateDeckCache();deckTileset=null;metrics=null;sourceSets.clear();disposeDiscovery();}};
     }
     return {create,parseBridges,parseBridgeData,parseSourceFeatures,stations,BUDGETS};
 });

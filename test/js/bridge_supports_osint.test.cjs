@@ -134,7 +134,8 @@ test('mapped heights can render a standalone pier without guessing an absolute h
     }finally{f.manager.dispose();}
 });
 test('OSM query requests canonical mapped supports and refines cached source deck samples',async()=>{
-    const f=fixture({cachedOnly:false,getDeckTileset:()=>({}),fetcher:async url=>{
+    const tileset={}; // Real sceneEnvironment returns the same resident tileset until replacement.
+    const f=fixture({cachedOnly:false,getDeckTileset:()=>tileset,fetcher:async url=>{
         f.requests.push(String(url));return {ok:true,json:async()=>({elements:[
             {type:'way',id:1,tags:{bridge:'yes',highway:'primary'},geometry:[at(-72),at(72)].map(a=>({lon:a[0],lat:a[1]}))},
             {type:'node',id:2,tags:{'bridge:support':'pier'},lon:at(17)[0],lat:center.latitude}]})};}});
@@ -146,7 +147,8 @@ test('OSM query requests canonical mapped supports and refines cached source dec
     }finally{f.manager.dispose();}
 });
 test('missing resident bridge tiles can be resolved by bounded most-detailed sampling',async()=>{
-    const f=fixture({cachedOnly:false,getDeckTileset:()=>({}),fetcher:async()=>({ok:true,json:async()=>({elements:[
+    const tileset={}; // Real sceneEnvironment returns the same resident tileset until replacement.
+    const f=fixture({cachedOnly:false,getDeckTileset:()=>tileset,fetcher:async()=>({ok:true,json:async()=>({elements:[
         {type:'way',id:1,tags:{bridge:'yes',highway:'primary'},geometry:[at(-72),at(72)].map(a=>({lon:a[0],lat:a[1]}))}]})})});
     f.viewer.scene.sampleHeight=()=>undefined;let calls=0;
     f.viewer.scene.sampleHeightMostDetailed=async positions=>{calls++;assert.equal(positions.length,3);

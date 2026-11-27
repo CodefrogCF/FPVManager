@@ -254,11 +254,15 @@
                     if(disposed){tileset.destroy();throw Error('Scene loader disposed');}
                     registry.owners.set(tileset,owner);
                     const destroy=tileset.destroy;
-                    tileset.destroy=function(...args){registry.releaseOwner(owner);active.delete(owner);return destroy.apply(this,args);};
+                    tileset.destroy=function(...args){registry.releaseOwner(owner);registry.owners.delete(tileset);active.delete(owner);return destroy.apply(this,args);};
                     return tileset;
                 }catch(error){registry.releaseOwner(owner);active.delete(owner);throw error;}
             },
             status:registry.status,
+            ownerStats(tileset){
+                const owner=tileset&&registry.owners.get(tileset);
+                return owner?{headerFragments:owner.urls.size,headerBytes:owner.bytes}:null;
+            },
             dispose(){if(disposed)return;disposed=true;for(const owner of active)registry.releaseOwner(owner);active.clear();registry.release();}
         };
     }

@@ -323,3 +323,58 @@ test('invalid ground values are not cached',async()=>{
         q.setClock(13000);await q.manager.refresh(ORIGIN);assert.equal(batches,2);assert.equal(q.manager.status().count,5);
     }finally{q.manager.dispose();}
 });
+
+
+function deckFixture(options={}){
+    const tile={contentReady:true,content:{},boundingSphere:{center:{x:ORIGIN.longitude*100000,y:ORIGIN.latitude*100000,z:530},radius:1000}};
+    const tileset={show:true,_selectedTiles:[tile]};
+    const p=fixture({getDeckTileset:()=>tileset,...options});
+    p.C.Cartesian3.fromDegrees=(longitude,latitude,height)=>({longitude,latitude,height,x:longitude*100000,y:latitude*100000,z:height});
+    p.manager.setDiagnosticsEnabled(true);p.manager.setEnabled(true);
+    return {...p,tile,tileset};
+}
+test('deck cache uses coherent groups and the identity of locally selected tile content',async()=>{
+    let terrain={};const p=deckFixture({terrainIdentity:()=>terrain});
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.diagnostics().deckCacheEntries,5);const initial=p.excluded.length;assert.equal(initial,15);
+        p.tileset._selectedTiles.push({contentReady:true,content:{},boundingSphere:{center:{x:0,y:0,z:0},radius:1}});
+        p.setClock(13000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,initial);assert.equal(p.manager.diagnostics().deckHits,5);
+        // Same tile, different content: re-sample, do not keep previous height.
+        p.tile.content={};p.setDeck(534);p.setClock(16000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,initial*2);assert.ok(p.manager.status().supports.every(s=>s.top===533.9));
+        terrain={};p.setClock(19000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,initial*3);
+        p.manager.invalidateDeckCache();p.setClock(22000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,initial*4);
+        p.setClock(53000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,initial*5);
+        p.tileset._selectedTiles=[];p.setClock(56000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,initial*6);assert.equal(p.manager.diagnostics().deckCacheEntries,0);
+    }finally{p.manager.dispose();}
+});
+test('missing, incoherent or implausible deck data is never cached',async()=>{
+    for(const height of [undefined,501,700,p=>p.longitude>ORIGIN.longitude?540:500]){
+        const p=deckFixture();p.setDeck(height);
+        try{await p.manager.refresh(ORIGIN);
+            if(typeof height!=='function')assert.equal(p.manager.diagnostics().deckCacheEntries,0);
+            else assert.ok(p.manager.diagnostics().deckCacheEntries<5);
+        }finally{p.manager.dispose();}
+    }
+});
+test('benchmark suppresses synthetic supports and restores preference; expensive navigation picks yield an extra frame',async()=>{
+    let frame=0,clock=10000;const p=deckFixture({now:()=>clock,isNavigationActive:()=>true,yieldBatch:async()=>{frame++;}});
+    const frames=[];p.viewer.scene.sampleHeight=()=>{frames.push(frame);clock+=10;return 532.6;};
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);assert.equal(frames.length,15);
+        assert.ok(frames.slice(1).every((v,i)=>v-frames[i]>=2));assert.equal(p.manager.diagnostics().deckCooldownFrames,15);
+        p.manager.setBenchmarkSuppressed(true);assert.equal(p.manager.status().count,0);assert.equal(p.manager.diagnostics().benchmarkSuppressed,true);
+        await p.manager.refresh(ORIGIN);assert.equal(frames.length,15);
+        p.manager.setBenchmarkSuppressed(false);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        assert.equal(p.manager.diagnostics().benchmarkSuppressed,false);
+    }finally{p.manager.dispose();}
+});
+
+
+test('replacing the source tileset during asynchronous deck sampling cannot publish stale heights',async()=>{
+    let selected={show:true},frames=0;
+    const p=fixture({getDeckTileset:()=>selected,yieldBatch:async()=>{if(++frames===2)selected={show:true};}});
+    p.manager.setEnabled(true);
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);assert.equal(p.excluded.length,1);}
+    finally{p.manager.dispose();}
+});

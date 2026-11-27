@@ -14,14 +14,20 @@
         structures:'https://3d.geo.admin.ch/ch.swisstopo.swisstlm3d.3d/v1/tileset.json'
     });
     const budgets=Object.freeze({quality:[12,24,48,24,8],balanced:[24,40,32,16,4],performance:[40,64,24,12,2],compatibility:[52,72,16,8,2],navigation:[32,56,24,12,2]});
-    // Keep central/near geometry at the established SSE. Give the much
-    // larger infrastructure tileset a bounded working set and relax distant
-    // screen-space error via Cesium's own distance-aware traversal.
+    // Conservative pre-optimization budgets. The larger cache admitted more
+    // fine geometry and regressed the controlled route benchmark.
     const structureBudgets=Object.freeze({
-        quality:[24,48,12,24,.30,0],balanced:[24,32,8,48,.30,0],
-        performance:[40,24,6,64,.25,0],compatibility:[52,16,4,64,.25,0],
-        navigation:[32,24,6,48,.30,0]
+        quality:[24,16,8],balanced:[24,16,4],performance:[40,16,2],
+        compatibility:[52,16,2],navigation:[32,16,2]
     });
+    const benchmarkSse=new Set([24,32,40,48,64]),benchmarkCache=new Set([16,24,32,48]);
+    function validateStructureTuning(value){
+        if(value==null)return null;
+        if(typeof value!=='object'||Array.isArray(value)||!benchmarkSse.has(value.sse)||
+            !benchmarkCache.has(value.cacheMiB)||typeof value.bridgeSupports!=='boolean'||
+            Object.keys(value).some(key=>!['sse','cacheMiB','bridgeSupports'].includes(key)))throw Error('Invalid benchmark structure tuning');
+        return {sse:value.sse,cacheMiB:value.cacheMiB,bridgeSupports:value.bridgeSupports};
+    }
     function time(value){
         if(value==null)return null;
         if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?Z$/.test(value))throw Error('Expected UTC scene time');
@@ -77,7 +83,7 @@
         const layers=Object.fromEntries(Object.keys(sources).map(key=>[key,{requested:false,tileset:null,pending:null,revision:0,
             phase:'hidden',failed:false,removers:[],lastStatus:null,timer:null,appliedOpacity:null,detailShader:null}]));
         let disposed=false,lighting=false,profile='balanced',credited=false,forestCredited=false,appliedTime=null,structuresOpacity=1;
-        let navigating=false,benchmarkLayers=null;
+        let navigating=false,benchmarkLayers=null,benchmarkStructureTuning=null;
         let portalApertures=[],portalSignature='',lastPortalCheck=-Infinity,lastPortalView=null,lastPortalRevision=null;
         const mapLayers={buildings:false,vegetation:false,structures:false},navigationLayers={buildings:null,vegetation:null};
         function publish(key){
@@ -96,11 +102,13 @@
         }
         function options(key){
             const mode=navigating?'navigation':profile,b=budgets[mode],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
-            const [sse,cache,overflow,dynamicFactor,cone,relaxation]=structureBudgets[mode];
+            const [defaultSse,defaultCache,defaultOverflow]=structureBudgets[mode];
+            const tuning=benchmarkStructureTuning;
+            const sse=tuning?.sse??defaultSse,cache=tuning?.cacheMiB??defaultCache,overflow=tuning?4:defaultOverflow;
             return {show:false,maximumScreenSpaceError:structures?sse:b[trees?1:0],cacheBytes:(structures?cache:b[trees?3:2])*mb,
                 maximumCacheOverflowBytes:(structures?overflow:b[4])*mb,shadows:C.ShadowMode.DISABLED,
-                ...(structures?{dynamicScreenSpaceError:true,dynamicScreenSpaceErrorFactor:dynamicFactor,
-                    foveatedConeSize:cone,foveatedMinimumScreenSpaceErrorRelaxation:relaxation}:{}),
+                ...(structures?{dynamicScreenSpaceError:true,dynamicScreenSpaceErrorFactor:24,
+                    foveatedConeSize:.1,foveatedMinimumScreenSpaceErrorRelaxation:0}:{}),
                 preloadWhenHidden:false,preloadFlightDestinations:false,loadSiblings:false,
                 cullRequestsWhileMoving:true,foveatedScreenSpaceError:true,
                 ...(urls[key]===sources[key]?{}:{showCreditsOnScreen:true})};
@@ -193,7 +201,7 @@
             const specs=getTunnelApertures();
             const next=Array.isArray(specs)?specs.slice(0,8):[],signature=JSON.stringify(next);
             if(signature===portalSignature)return;
-            portalApertures=next;portalSignature=signature;
+            portalApertures=next;portalSignature=signature;bridgeSupports?.invalidateDeckCache?.();
             lastPortalView=null;
             applyModelShader('structures');applyBuildingDetail();
         }
@@ -227,6 +235,7 @@
                 if(name==='show'||l.tileset[name]===value)continue;
                 l.tileset[name]=value;changed=true;
             }
+            if(changed&&key==='structures')bridgeSupports?.invalidateDeckCache?.();
             return changed;
         }
         function visibility(key){
@@ -365,10 +374,20 @@
                 for(const key of Object.keys(layers))mapLayers[key]=key==='structures'?(command.structures??mapLayers.structures):command[key];
                 applyLayers(command.retry);return {};
             },
-            benchmark(command){
+            benchmark(command,tuning=null){
                 if(disposed)return {};
                 if(command!==null&&Object.keys(layers).some(key=>typeof command[key]!=='boolean'))throw Error('Invalid benchmark layers');
+                const next=validateStructureTuning(tuning);
+                if(next&&(!command||!Object.keys(layers).every(key=>command[key]===true)))throw Error('Structure tuning requires all layers');
+                // Each tuning case starts with its own tileset working set. The
+                // normal layer A/B benchmark still retains its resident cache.
+                // HTTP/browser caches are not flushed. Warmup follows this call.
+                if(next||benchmarkStructureTuning){
+                    release(layers.structures);layers.structures.phase='hidden';layers.structures.failed=false;
+                }
                 benchmarkLayers=command===null?null:{...command};
+                benchmarkStructureTuning=next;
+                bridgeSupports?.setBenchmarkSuppressed?.(next?.bridgeSupports===false);
                 applyLayers();return {};
             },
             navigation(command){
@@ -456,7 +475,11 @@
                         commands:t?.show===false?0:s?.numberOfCommands??null,visitedTiles:t?.show===false?0:s?.visited??null,
                         readyTiles:s?.numberOfTilesWithContentReady??null,cacheBytes:t?.cacheBytes??null,
                         maximumScreenSpaceError:t?.maximumScreenSpaceError??null,
-                        dynamicScreenSpaceErrorFactor:t?.dynamicScreenSpaceErrorFactor??null}];
+                        dynamicScreenSpaceErrorFactor:t?.dynamicScreenSpaceErrorFactor??null,
+                        maximumCacheOverflowBytes:t?.maximumCacheOverflowBytes??null,
+                        memoryAdjustedScreenSpaceError:t?.memoryAdjustedScreenSpaceError??null,
+                        foveatedConeSize:t?.foveatedConeSize??null,
+                        ...tileLoader.ownerStats?.(t)}];
                 })):null;
                 return {resident,visible,pending,estimatedTilesetBytes,layerStats,
                     sceneTileLoading:diagnostics?tileLoader.status?.()??null:null,

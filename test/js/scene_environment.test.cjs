@@ -161,7 +161,7 @@ test('official swisstopo infrastructure tileset loads independently, is selectab
     assert.equal(p.requests.length,1);
     assert.match(p.requests[0].url,/ch\.swisstopo\.swisstlm3d\.3d\/v1\/tileset\.json/);
     const tile=p.primitives[0];assert.equal(tile.show,true);
-    assert.equal(tile.cacheBytes,32*1024*1024);
+    assert.equal(tile.cacheBytes,16*1024*1024);
     assert.equal(p.credits.size,1);
     const selected=[];
     // The tile selection preserves only metadata actually published by the service.
@@ -378,8 +378,8 @@ test('structures use independent distance-aware LOD and bounded profile budgets'
     const f=fixture();f.set({buildings:true,structures:true,vegetation:true});await flush();
     const structures=f.manager.structuresTileset(),building=f.manager.buildingsTileset();
     assert.equal(structures.maximumScreenSpaceError,24);
-    assert.equal(structures.dynamicScreenSpaceErrorFactor,48);
-    assert.equal(structures.cacheBytes,32*1024*1024);
+    assert.equal(structures.dynamicScreenSpaceErrorFactor,24);
+    assert.equal(structures.cacheBytes,16*1024*1024);
     assert.equal(building.dynamicScreenSpaceErrorFactor,undefined);
     f.manager.performance('quality');assert.equal(structures.maximumScreenSpaceError,24);
     assert.equal(structures.dynamicScreenSpaceErrorFactor,24);
@@ -393,4 +393,31 @@ test('structures use independent distance-aware LOD and bounded profile budgets'
     assert.equal(f.manager.resourceStats().layerStats.structures.selectedTriangles,0);
     f.set({buildings:true,structures:false,vegetation:true});f.manager.benchmark(null);
     assert.equal(structures.isDestroyed(),true);f.manager.dispose();
+});
+
+
+test('structure tuning overrides only structures, recreates working set per case and restores settings',async()=>{
+    const suppressed=[];const f=fixture(null,{bridgeSupports:{setBenchmarkSuppressed:v=>suppressed.push(v)}});
+    f.set({buildings:true,vegetation:true,structures:true});await flush();
+    const layers={buildings:true,vegetation:true,structures:true},building=f.manager.buildingsTileset(),original=f.manager.structuresTileset();
+    const tuning={sse:40,cacheMiB:16,bridgeSupports:true};
+    f.manager.benchmark(layers,tuning);await flush();
+    const tuned=f.manager.structuresTileset();assert.notEqual(tuned,original);assert.equal(original.isDestroyed(),true);
+    assert.equal(tuned.maximumScreenSpaceError,40);assert.equal(tuned.cacheBytes,16*1024*1024);assert.equal(tuned.maximumCacheOverflowBytes,4*1024*1024);
+    assert.equal(tuned.dynamicScreenSpaceErrorFactor,24);assert.equal(tuned.foveatedConeSize,.1);
+    assert.equal(f.manager.buildingsTileset(),building);
+    for(const invalid of [{...tuning,sse:1},{...tuning,cacheMiB:999},{...tuning,bridgeSupports:'false'},{...tuning,extra:true}]){
+        assert.throws(()=>f.manager.benchmark(layers,invalid),/Invalid benchmark structure tuning/);
+        assert.equal(f.manager.structuresTileset(),tuned);
+    }
+    assert.throws(()=>f.manager.benchmark({...layers,structures:false},tuning),/requires all layers/);
+    f.manager.performance('quality');f.manager.navigationActive(true);assert.equal(tuned.maximumScreenSpaceError,40);
+    f.manager.benchmark(layers,{sse:24,cacheMiB:48,bridgeSupports:false});await flush();
+    const second=f.manager.structuresTileset();assert.equal(tuned.isDestroyed(),true);assert.equal(second.cacheBytes,48*1024*1024);assert.equal(second.maximumScreenSpaceError,24);
+    assert.equal(suppressed.at(-1),true);f.manager.setDiagnosticsEnabled(true);
+    second.memoryAdjustedScreenSpaceError=42;const stats=f.manager.resourceStats().layerStats.structures;
+    assert.equal(stats.memoryAdjustedScreenSpaceError,42);assert.equal(stats.maximumCacheOverflowBytes,4*1024*1024);
+    f.manager.benchmark(null);await flush();assert.equal(second.isDestroyed(),true);assert.equal(suppressed.at(-1),false);
+    assert.equal(f.manager.structuresTileset().cacheBytes,16*1024*1024);assert.equal(f.manager.structuresTileset().maximumScreenSpaceError,32);
+    f.manager.navigationActive(false);assert.equal(f.manager.structuresTileset().maximumScreenSpaceError,24);f.manager.dispose();
 });
