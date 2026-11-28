@@ -572,7 +572,7 @@ class GlobeController extends ChangeNotifier {
   Map<String, dynamic> get _tunnelCommand => {
     'type': 'set-tunnel-infrastructure',
     'routesVisible': tunnelRoutesVisible,
-    'autoModels': schematicTunnel3dEnabled,
+    'autoModels': _effectiveSchematicTunnel3dEnabled,
     'explorationAllowed': tunnelExplorationEnabled,
     'opacity': tunnelRoutesOpacity,
   };
@@ -1293,6 +1293,67 @@ class GlobeController extends ChangeNotifier {
   // Temporary developer-only state. Never write benchmark overrides to user preferences.
   bool _benchmarkActive = false;
   bool get benchmarkActive => _benchmarkActive;
+  bool? _benchmarkExtrasOverride;
+  bool get _effectiveSchematicTunnel3dEnabled =>
+      _benchmarkExtrasOverride ?? schematicTunnel3dEnabled;
+
+  Map<String, Object?> get benchmarkMapSettings => {
+    'mapStyle': mapStyle.name,
+    'tunnelRoutes': tunnelRoutesVisible,
+    'schematicTunnels': _effectiveSchematicTunnel3dEnabled,
+    'obstacleWms': obstacles.wmsVisible,
+    'obstacleVectors': obstacles.vectorsVisible,
+    'obstacleModels': obstacles.modelsVisible,
+    'hazardAreas': obstacles.hazardsVisible,
+    'obstacleCategories':
+        (obstacles.categories.map((c) => c.name).toList()..sort()).join(','),
+    'obstacleBufferMeters': obstacles.bufferMeters,
+    'obstacleWmsOpacity': obstacles.wmsOpacity,
+    'structuresOpacity': structuresOpacity,
+    'preferredBuildings': buildings3dVisible,
+    'preferredStructures': structures3dVisible,
+    'preferredVegetation': vegetation3dVisible,
+    'tunnelOpacity': tunnelRoutesOpacity,
+    'modelCollisions': sceneModelCollisionsEnabled,
+    'roads': roadsVisible,
+    'labels': labelsVisible,
+    'uasZones': uasZonesVisible,
+    'savedSpots': savedSpotsVisible,
+    'weatherOverlay': weatherOverlayVisible,
+    'datedImagery': datedImageryVisible,
+    'outdoorLayers': {
+      for (final layer in OutdoorLayer.values)
+        layer.name: outdoorPreference(layer).toJson(),
+    },
+    'navigationBuildings': navigationBuildings.name,
+    'navigationVegetation': navigationVegetation.name,
+  };
+
+  Future<void> setBenchmarkExtras(bool enabled) async {
+    if (!_benchmarkActive || !developerMenusEnabled) {
+      throw StateError('Benchmark inactive');
+    }
+    if (tunnelModelReady || _tunnelModelPending) {
+      throw StateError('Remove custom tunnel before standardizing layers');
+    }
+    _benchmarkExtrasOverride = enabled;
+    await _request({..._tunnelCommand, 'routesVisible': false});
+    await obstacles.setBenchmarkExtras(enabled);
+  }
+
+  Future<Map<String, dynamic>> benchmarkRotationPose(
+    double heading,
+    double pitch,
+  ) {
+    if (!_benchmarkActive || !developerMenusEnabled) {
+      throw StateError('Benchmark inactive');
+    }
+    return _request({
+      'type': 'benchmark-rotation-pose',
+      'heading': heading,
+      'pitch': pitch,
+    });
+  }
 
   void beginBenchmark() {
     if (!developerMenusEnabled ||
@@ -1364,9 +1425,20 @@ class GlobeController extends ChangeNotifier {
         }
       }
     } finally {
-      _benchmarkActive = false;
-      _simulationSceneTime = _preferences.simulation.sceneTime;
-      if (!_disposed) notifyListeners();
+      try {
+        if (_benchmarkExtrasOverride != null) {
+          _benchmarkExtrasOverride = null;
+          try {
+            if (_ready && !_disposed) await _request(_tunnelCommand);
+          } finally {
+            await obstacles.setBenchmarkExtras(null);
+          }
+        }
+      } finally {
+        _benchmarkActive = false;
+        _simulationSceneTime = _preferences.simulation.sceneTime;
+        if (!_disposed) notifyListeners();
+      }
     }
   }
 
@@ -2568,6 +2640,7 @@ class GlobeController extends ChangeNotifier {
   Future<Map<String, dynamic>> scenePerformance({
     String action = 'snapshot',
     bool gpuTiming = true,
+    bool benchmarkWarmup = false,
   }) {
     if (!{'start', 'stop', 'snapshot'}.contains(action)) {
       throw ArgumentError.value(action, 'action');
@@ -2576,6 +2649,7 @@ class GlobeController extends ChangeNotifier {
       'type': 'scene-performance',
       'action': action,
       if (action == 'start' && !gpuTiming) 'gpuTiming': false,
+      if (action == 'start' && benchmarkWarmup) 'benchmarkWarmup': true,
     });
   }
 
@@ -3322,7 +3396,7 @@ class GlobeController extends ChangeNotifier {
         if (routes is List &&
             routes.length <= 160 &&
             data['incomplete'] is bool &&
-            (tunnelRoutesVisible || schematicTunnel3dEnabled)) {
+            (tunnelRoutesVisible || _effectiveSchematicTunnel3dEnabled)) {
           final checked = <Map<String, dynamic>>[];
           for (final entry in routes) {
             if (entry is! Map ||
@@ -3796,7 +3870,7 @@ class GlobeController extends ChangeNotifier {
       if (!current()) return;
       if (forceSettings ||
           tunnelRoutesVisible ||
-          schematicTunnel3dEnabled ||
+          _effectiveSchematicTunnel3dEnabled ||
           tunnelExplorationEnabled) {
         await _send(_tunnelCommand);
       }

@@ -570,7 +570,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
     int? selected = routes.firstOrNull?.id;
     var repetitions = 1;
     var structureTuning = false;
-    final choice = await showDialog<(int, int, bool)>(
+    var extrasProfile = 0;
+    var rotationTest = false;
+    final choice = await showDialog<(int, int, bool, int, bool)>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, refresh) => AlertDialog(
@@ -658,11 +660,57 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                   Text(
                     structureTuning
                         ? (german
-                              ? '10 Varianten. Structures wird je Variante neu initialisiert und aufgewärmt; HTTP-Cache bleibt erhalten. SSE, Cache, Pfeiler und GPU-Zeitmessung werden einzeln variiert.'
-                              : '10 cases. Recreate and warm Structures per case; retain the HTTP cache. Vary SSE, cache, supports and GPU timing separately.')
+                              ? '12 Varianten. Structures wird je Variante neu initialisiert. Aufwärmrunde und Messflug werden getrennt ausgewertet; HTTP-Cache bleibt erhalten. SSE, Cache, Pfeiler (aus, eingefroren, nur Berechnung) und GPU-Zeitmessung werden einzeln variiert.'
+                              : '12 cases. Recreate Structures per case; report warmup and measured pass separately; retain the HTTP cache. Vary SSE, cache, supports (off, frozen, compute only) and GPU timing separately.')
                         : (german
                               ? '6 Varianten, je eine Aufwärmrunde und ein Messflug. Cache bleibt erhalten. Messdaten lokal; JSON/CSV danach exportieren.'
                               : '6 cases, one warmup and one measured pass each. Caches retained. Local measurements; export JSON/CSV afterwards.'),
+                  ),
+                  Text(
+                    german
+                        ? 'Vergleichsprofil (FOV 100°, Neigung 0°)'
+                        : 'Comparison profile (100° FOV, 0° tilt)',
+                  ),
+                  DropdownButton<int>(
+                    isExpanded: true,
+                    value: extrasProfile,
+                    items: [
+                      DropdownMenuItem(
+                        value: 0,
+                        child: Text(
+                          german ? 'Eigene Einstellungen' : 'Current settings',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 1,
+                        child: Text(
+                          german
+                              ? 'Tunnel / Hindernisse aus'
+                              : 'Tunnels / obstacles off',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 2,
+                        child: Text(
+                          german
+                              ? '3D-Tunnel / Hindernismodelle an'
+                              : '3D tunnels / obstacle models on',
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        refresh(() => extrasProfile = value ?? 0),
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: rotationTest,
+                    title: Text(
+                      german
+                          ? 'Stationären Kamerarotationstest ergänzen'
+                          : 'Include stationary camera rotation test',
+                    ),
+                    onChanged: (value) =>
+                        refresh(() => rotationTest = value ?? false),
                   ),
                   if (_benchmark.status != 'idle') ...[
                     const SizedBox(height: 12),
@@ -720,6 +768,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                       selected!,
                       repetitions,
                       structureTuning,
+                      extrasProfile,
+                      rotationTest,
                     )),
               child: Text(german ? 'Benchmark starten' : 'Start benchmark'),
             ),
@@ -761,6 +811,9 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         _simulationSettings,
         repetitions: choice.$2,
         structureTuning: choice.$3,
+        standardizeExtras: choice.$4 != 0,
+        enableBenchmarkExtras: choice.$4 == 2,
+        rotationTest: choice.$5,
         platform: platform,
         quiesceProfiler: _quiesceBenchmarkProfiler,
       );

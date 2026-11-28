@@ -275,3 +275,31 @@ test('benchmark distinguishes camera capture from graphics profile application f
         assert.equal(restored,failureStage==='graphics'?1:0);
     }
 });
+
+test('optional bounded bridge-route preparation neither blocks replay start nor survives interruption',async()=>{
+    const m=mock();let called=0,prepSignal,release;
+    const replay=create({simulator:m.simulator,sampleGround:async points=>points.map(()=>1000),
+        prepareInfrastructure:(points,s)=>{called++;prepSignal=s;assert.ok(points.length<=13);return new Promise(r=>release=r);}});
+    await replay.start(base(),signal());assert.equal(replay.active,true);assert.equal(called,1);
+    assert.equal(prepSignal.aborted,false);replay.interrupt('stop');assert.equal(prepSignal.aborted,true);release();
+});
+
+test('benchmark rotation changes heading and pitch only while paused, never position or route time',async()=>{
+    const m=mock(),route=base([a,{...b,latitude:a.latitude+.01}],{benchmarkLimitSeconds:35});
+    await m.playback.prepareBenchmark(route,signal());await m.playback.start({...route,benchmark:true},signal());
+    assert.throws(()=>m.playback.rotationPose(90,20),/paused/);m.playback.control({action:'pause'});
+    const before=m.poses.at(-1);for(let h=0;h<360;h+=30){m.playback.rotationPose(h,20);m.playback.tick(.1);
+        const p=m.poses.at(-1);assert.equal(p.latitude,before.latitude);assert.equal(p.longitude,before.longitude);assert.equal(p.height,before.height);assert.equal(p.seconds,before.seconds);assert.equal(p.speed,0);}
+    assert.throws(()=>m.playback.rotationPose(360,0),/Invalid/);m.playback.control({action:'restart'});assert.deepEqual(m.poses.at(-1),before);
+});
+
+
+test('completed benchmark route can pause for rotation without rewinding the measured flight',async()=>{
+    const m=mock(),route=base([a,{...b,latitude:a.latitude+.01}],{benchmarkLimitSeconds:35});
+    await m.playback.prepareBenchmark(route,signal());await m.playback.start({...route,benchmark:true},signal());
+    for(let i=0;i<360;i++)m.playback.tick(.1);
+    assert.equal(m.playback.status().phase,'finished');const before=m.poses.at(-1);
+    m.playback.control({action:'pause'});m.playback.rotationPose(90,20);
+    const after=m.poses.at(-1);assert.equal(after.latitude,before.latitude);assert.equal(after.longitude,before.longitude);
+    assert.equal(after.height,before.height);assert.equal(after.seconds,before.seconds);
+});

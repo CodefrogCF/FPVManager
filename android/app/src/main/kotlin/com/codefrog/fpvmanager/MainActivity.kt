@@ -57,7 +57,13 @@ class MainActivity : FlutterActivity() {
             val profile = call.method == "saveActivityProfile"
             val scenery = call.method == "saveSceneryPackage"
             val performance = call.method == "savePerformance"
-            val allowedSize = if (profile) 128 * 1024 else if (backup || scenery) 64 * 1024 * 1024 else 4 * 1024 * 1024
+            // Keep the performance limit in sync with DeveloperPerformanceRecording.maxExportBytes.
+            val allowedSize = when {
+                profile -> 128 * 1024
+                backup || scenery -> 64 * 1024 * 1024
+                performance -> 16 * 1024 * 1024
+                else -> 4 * 1024 * 1024
+            }
             if (bytes == null || bytes.isEmpty() || bytes.size > allowedSize || name == null ||
                 name.length > 130 || name.contains('/') || name.contains('\\') ||
                 (if (profile) mime != "application/json" || !name.endsWith(".fpvprofile")

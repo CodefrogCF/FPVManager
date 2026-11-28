@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create,time}=require('../../web/features/scene/scene_environment.js');
+const {create,time,deviceStructureCache}=require('../../web/features/scene/scene_environment.js');
 class Event{
     constructor(){this.listeners=new Set();}
     addEventListener(f){this.listeners.add(f);return ()=>this.listeners.delete(f);}
@@ -314,13 +314,14 @@ test('loaded structures and building walls follow shared tunnel apertures and re
 });
 
 test('a changed tunnel aperture reaches native model walls on the next frame rather than one throttle period late',async()=>{
-    const actual=require('../../web/cesium/index.cjs');let specs=[],revision=0,reads=0;
-    const p=fixture(null,{getTunnelApertures:()=>{reads++;return specs;},getTunnelApertureRevision:()=>revision,
+    const actual=require('../../web/cesium/index.cjs');let specs=[],revision=0,reads=0,visualInvalidations=0,fullInvalidations=0;
+    const p=fixture(null,{bridgeSupports:{invalidateVisualPicking:()=>visualInvalidations++,invalidateDeckCache:()=>fullInvalidations++},getTunnelApertures:()=>{reads++;return specs;},getTunnelApertureRevision:()=>revision,
         now:()=>1000});
     for(const name of ['CustomShader','UniformType','VaryingType','Cartesian3','Cartesian4','Matrix4','EncodedCartesian3',
         'ClippingPlane','ClippingPlaneCollection','Transforms'])p.C[name]=actual[name];
     p.viewer.camera.viewMatrix=actual.Matrix4.clone(actual.Matrix4.IDENTITY);
     p.set({structures:true});await flush();p.viewer.scene.preUpdate.fire();
+    const visualBaseline=visualInvalidations;
     specs=[{longitude:8.6,latitude:46.7,floor:500,forward:{east:0,north:1},halfWidth:3.5,
         before:8,after:26,below:1,above:6,shape:'rectangular',grade:0}];
     revision++;p.viewer.scene.preUpdate.fire();
@@ -329,6 +330,7 @@ test('a changed tunnel aperture reaches native model walls on the next frame rat
     const count=reads;
     for(let i=0;i<120;i++)p.viewer.scene.preUpdate.fire();
     assert.equal(reads,count,'unchanged apertures do not clone or stringify specifications per frame');
+    assert.equal(visualInvalidations,visualBaseline+1);assert.equal(fullInvalidations,0);
     specs=[{...specs[0],floor:501}];revision++;p.viewer.scene.preUpdate.fire();
     assert.equal(p.primitives[0].customShader,shader,'movement keeps the existing GPU shader');
     const position=actual.Cartesian3.fromDegrees(8.6,46.7,501);
@@ -420,4 +422,30 @@ test('structure tuning overrides only structures, recreates working set per case
     f.manager.benchmark(null);await flush();assert.equal(second.isDestroyed(),true);assert.equal(suppressed.at(-1),false);
     assert.equal(f.manager.structuresTileset().cacheBytes,16*1024*1024);assert.equal(f.manager.structuresTileset().maximumScreenSpaceError,32);
     f.manager.navigationActive(false);assert.equal(f.manager.structuresTileset().maximumScreenSpaceError,24);f.manager.dispose();
+});
+
+test('bridge benchmark modes are scoped to tuning and freeze only at measurement; cleanup restores normal mode',async()=>{
+    const modes=[];let frozen=0;
+    const f=fixture(null,{bridgeSupports:{setBenchmarkMode:v=>modes.push(v),beginBenchmarkMeasurement:()=>frozen++}});
+    f.set({buildings:true,vegetation:true,structures:true});await flush();
+    const layers={buildings:true,structures:true,vegetation:true},tuning={sse:24,cacheMiB:16,bridgeSupports:true};
+    f.manager.benchmark(layers,{...tuning,bridgeMode:1});await flush();
+    assert.equal(modes.at(-1),1);assert.equal(frozen,0);
+    f.manager.beginBenchmarkMeasurement();assert.equal(frozen,1);
+    assert.throws(()=>f.manager.benchmark(layers,{...tuning,bridgeMode:3}),/Invalid benchmark/);
+    assert.throws(()=>f.manager.benchmark(layers,{...tuning,bridgeMode:2,bridgeSupports:false}),/Invalid benchmark/);
+    f.manager.benchmark(layers,{...tuning,bridgeMode:2});await flush();
+    f.manager.beginBenchmarkMeasurement();assert.equal(frozen,1);assert.equal(modes.at(-1),2);
+    f.manager.benchmark(null);await flush();assert.equal(modes.at(-1),0);f.manager.dispose();
+});
+
+
+test('larger Structures cache is restricted to Xclipse 920 normal profiles and masked renderers fall back',()=>{
+    const gl=name=>({getExtension:()=>({UNMASKED_RENDERER_WEBGL:1}),getParameter:()=>name});
+    assert.equal(deviceStructureCache(gl('ANGLE ((Samsung Xclipse 920) on Vulkan)'), 'balanced'),48);
+    assert.equal(deviceStructureCache(gl('Samsung Xclipse 920'),'navigation'),48);
+    for(const mode of ['performance','compatibility','quality'])assert.equal(deviceStructureCache(gl('Xclipse 920'),mode),16);
+    for(const name of ['Adreno (TM) 830','ANGLE Radeon RX 6900 XT','Xclipse 940'])assert.equal(deviceStructureCache(gl(name),'balanced'),16);
+    assert.equal(deviceStructureCache(null,'balanced'),16);
+    assert.equal(deviceStructureCache({getExtension:()=>null},'balanced'),16);
 });

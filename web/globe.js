@@ -75,7 +75,7 @@ function postToFlutter(message) {
         if (!event.persisted) mapCredits?.dispose();
     });
     let rendererReady = false;
-    let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null, obstacleViewportTracker = null, obstacleViewportKey = null;
+    let obstacleWms = null, obstacleVectors = null, hazardAreas = null, bridgeSupports = null, bridgeSource = null, obstacleViewportTracker = null, obstacleViewportKey = null;
     let situationalLayers = null, roadNavigation = null, mapCompass = null;
     let terrainManager = null;
     let benchmarkSession = false;
@@ -818,7 +818,14 @@ function postToFlutter(message) {
             case 'scene-performance': {
                 // Explicit developer diagnostics only; does not update UI or
                 // send per-frame events over the Flutter bridge.
-                if(command.action==='start'){if(command.gpuTiming!==undefined&&typeof command.gpuTiming!=='boolean')throw Error('Invalid GPU timing option');if(command.gpuTiming===false&&!benchmarkSession)throw Error('GPU timing override requires benchmark');if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);bridge.setDiagnosticsEnabled(true);}scenePerformance.start({gpuTiming:command.gpuTiming??true});}
+                if(command.action==='start'){
+                    if(command.gpuTiming!==undefined&&typeof command.gpuTiming!=='boolean')throw Error('Invalid GPU timing option');
+                    if(command.gpuTiming===false&&!benchmarkSession)throw Error('GPU timing override requires benchmark');
+                    if(command.benchmarkWarmup!==undefined&&(command.benchmarkWarmup!==true||!benchmarkSession))throw Error('Invalid benchmark warmup');
+                    if(!scenePerformance.running){sceneryManager?.resetPerformance();terrainManager?.setDiagnosticsEnabled(true);sceneEnvironment?.setDiagnosticsEnabled(true);bridge.setDiagnosticsEnabled(true);}
+                    if(benchmarkSession&&!command.benchmarkWarmup)sceneEnvironment?.beginBenchmarkMeasurement?.();
+                    scenePerformance.start({gpuTiming:command.gpuTiming??true});
+                }
                 else if(command.action==='stop'){scenePerformance.stop();terrainManager?.setDiagnosticsEnabled(false);sceneEnvironment?.setDiagnosticsEnabled(false);bridge.setDiagnosticsEnabled(false);return {running:false};}
                 else if(command.action!=='snapshot')throw Error('Invalid scene diagnostics action');
                 return scenePerformance.snapshot();
@@ -892,6 +899,10 @@ function postToFlutter(message) {
             case 'benchmark-layers': {
                 if(command.layers!==null&&(!benchmarkSession||regionalTerrain||regionalTerrainChanging))throw Error('Benchmark requires prepared Swiss terrain');
                 return sceneEnvironment.benchmark(command.layers,command.structureTuning??null);
+            }
+            case 'benchmark-rotation-pose': {
+                if(!benchmarkSession)throw Error('Benchmark inactive');
+                return routePlayback.rotationPose(command.heading,command.pitch);
             }
             case 'benchmark-clear': {
                 benchmarkSession=false;routePlayback.clearBenchmark();
@@ -1256,15 +1267,32 @@ function postToFlutter(message) {
                 :Cesium.sampleTerrain(provider,12,positions,true),signal);
             return heights.map(p=>p.height);
         };
-        const bridgeSource=typeof FPVBridgeSource!=='undefined'?FPVBridgeSource.create(Cesium,viewer,{
+        const bridgeFlightActive=()=>Boolean(navigationActive()||flyer?.pending||routePlayback?.active);
+        const mobileBridgeBudget=/Android|iPhone|iPad|iPod/i.test(globalThis.navigator?.userAgent??'')||
+            (globalThis.navigator?.platform==='MacIntel'&&(globalThis.navigator?.maxTouchPoints??0)>1);
+        let bridgeFrameMs=16.7,bridgeLastFrame=null;
+        viewer.scene.postRender?.addEventListener?.(()=>{
+            const current=performance.now();
+            if(bridgeFlightActive()&&bridgeLastFrame!==null){const elapsed=current-bridgeLastFrame;
+                if(elapsed>0&&elapsed<250)bridgeFrameMs=bridgeFrameMs*.85+elapsed*.15;
+            }else bridgeFrameMs=16.7;
+            bridgeLastFrame=current;
+        });
+        const bridgePickBudget=globalThis.FPVBridgeSource?.createPickBudget({mobile:mobileBridgeBudget,
+            active:bridgeFlightActive,hasGeometry:()=>bridgeSupports?.hasGeometry?.()===true,frameMs:()=>bridgeFrameMs});
+        bridgeSource=typeof FPVBridgeSource!=='undefined'?FPVBridgeSource.create(Cesium,viewer,{
             cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',
-            getDeckTileset:()=>sceneEnvironment?.structuresTileset?.()}):null;
+            getDeckTileset:()=>sceneEnvironment?.structuresTileset?.(),isNavigationActive:bridgeFlightActive,mobile:mobileBridgeBudget,incremental:false,prefetchRoads:true,sessionReuse:true,pickBudget:bridgePickBudget,
+            lookahead:()=>routePlayback?.sceneryLookahead()??[]}):null;
         bridgeSupports=typeof FPVBridgeSupports!=='undefined'
             ?FPVBridgeSupports.create(Cesium,viewer,{sampleTerrain:sampleSceneTerrain,
                 ready:terrainAvailable,cachedOnly:offline||new URLSearchParams(window.location.search).get('cachedMaps')==='1',
-                isNavigationActive:navigationActive,terrainIdentity:()=>terrainManager.provider,
+                isNavigationActive:bridgeFlightActive,terrainIdentity:()=>terrainManager.provider,
                 getDeckTileset:()=>sceneEnvironment?.structuresTileset?.(),
-                discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose()})
+                discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose(),
+                invalidateDiscovery:()=>bridgeSource?.invalidate(),discoveryDiagnostics:()=>bridgeSource?.diagnostics(),
+                setDiscoveryDiagnostics:value=>bridgeSource?.setDiagnosticsEnabled(value),
+                reuseFlightDeck:true,sessionReuse:true,pickBudget:bridgePickBudget,commitNative:bridgeSource?.commitValidated,mobile:mobileBridgeBudget,lookahead:()=>routePlayback?.sceneryLookahead()??[]})
             :null;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
             forestComposition:globalThis.FPVForestComposition?.create(),
@@ -1417,6 +1445,10 @@ function postToFlutter(message) {
                 applyFlightTime(requestedFlightTime??undefined);
                 signal.throwIfAborted();
                 sceneEnvironment.prepareGraphics();
+                // The spawn pose is installed before graphics preparation.
+                // Start bridge preparation concurrently with shader warmup;
+                // never delay flight controls awaiting optional bridge data.
+                void bridgeSupports?.refresh();
                 await flightRenderer.prepareGraphics(signal,({completed,total})=>{
                     if(signal.aborted||!flyer.status().pending)return;
                     info.hidden=false;
@@ -1554,6 +1586,7 @@ function postToFlutter(message) {
         routePlayback=FPVRoutePlayback.create({simulator:flyer,
             sampleGround:(points,signal)=>sampleRouteHeights(points,signal),
             renderedGround:flightRenderer.renderedHeight,
+            prepareInfrastructure:(points,signal)=>bridgeSource?.prepareRoute(points,signal),
             emit:sendToFlutter,display:playbackDisplay});
         const replayCommand=command=>{if(benchmarkSession)return;try{routePlayback.control(command);}catch(error){playbackInfo.textContent=error.message;}};
         playbackPause.addEventListener('click',()=>replayCommand({action:routePlayback.status().phase==='paused'?'resume':'pause'}));

@@ -378,3 +378,390 @@ test('replacing the source tileset during asynchronous deck sampling cannot publ
     try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);assert.equal(p.excluded.length,1);}
     finally{p.manager.dispose();}
 });
+
+test('visual flight cache survives LOD churn only for coherent source-scoped samples; terrain and explicit changes invalidate',async()=>{
+    let terrain={};const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true,terrainIdentity:()=>terrain});
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,15);
+        p.tileset._selectedTiles=[];p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,15);assert.equal(p.manager.diagnostics().deckPersistentHits,5);
+        p.manager.invalidateDeckCache();p.setClock(30000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,30);assert.equal(p.manager.diagnostics().deckCacheEntries,0);
+        p.setClock(40000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,45);assert.equal(p.manager.diagnostics().deckCacheEntries,5);
+        p.setClock(50000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,45);
+        terrain={};p.setClock(60000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,60);
+        assert.equal(p.manager.diagnostics().deckCacheEntries,0);
+    }finally{p.manager.dispose();}
+});
+
+test('mobile flight throttles rapid refreshes but retries failed resident probes after tiles load',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,mobile:true,isNavigationActive:()=>true});
+    p.tileset._selectedTiles=[];p.setDeck(undefined);
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,15);assert.equal(p.manager.status().count,0);
+        p.setClock(11000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,15);
+        p.setDeck(532.6);p.setClock(12200);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,30);assert.equal(p.manager.status().count,5);
+        assert.equal(p.manager.diagnostics().deckRetryDeferred,0);
+    }finally{p.manager.dispose();}
+});
+
+test('frozen measurement retains warmed geometry without new picks; compute-only creates no primitive and normal mode restores',async()=>{
+    const p=deckFixture();try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        p.manager.setBenchmarkMode(1);await p.manager.refresh(ORIGIN);
+        const original=p.primitives[0],count=p.excluded.length;
+        p.manager.beginBenchmarkMeasurement();p.manager.setDiagnosticsEnabled(false);p.manager.setDiagnosticsEnabled(true);
+        p.setClock(30000);await p.manager.refresh(ORIGIN);p.preUpdate.fire();
+        assert.equal(p.primitives[0],original);assert.equal(p.excluded.length,count);
+        assert.equal(p.manager.diagnostics().frozen,true);assert.equal(p.manager.diagnostics().visibleSupports,5);
+        p.manager.setBenchmarkMode(2);await p.manager.refresh(ORIGIN);
+        assert.equal(p.primitives.length,0);assert.equal(p.manager.diagnostics().computedSupports,5);
+        assert.equal(p.manager.diagnostics().geometryBuilds,0);
+        p.manager.setBenchmarkMode(0);await p.manager.refresh(ORIGIN);
+        assert.equal(p.primitives.length,1);assert.equal(p.manager.diagnostics().visibleSupports,5);
+    }finally{p.manager.dispose();}
+});
+
+test('mobile most-detailed fallback can finish every nearby pier within its deadline',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,mobile:true,isNavigationActive:()=>true});
+    p.tileset._selectedTiles=[];p.setDeck(undefined);const attempts=[];
+    p.viewer.scene.sampleHeightMostDetailed=async points=>{attempts.push(points[1].longitude);return points;};
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(attempts.length,5);
+        assert.equal(p.manager.diagnostics().detailedDeferred,0);
+        assert.equal(new Set(attempts).size,5);assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+test('slow flight refresh publishes validated piers before completing the batch and survives movement within the search area',async()=>{
+    let frames=0,release,block=false;
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true,
+        yieldBatch:async()=>{if(++frames===4&&block)await new Promise(resolve=>release=resolve);}});
+    try{
+        block=true;
+        const first=p.manager.refresh(ORIGIN);
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.ok(release,'sampling has reached a later candidate');
+        assert.ok(p.manager.status().count>0,'first validated group already visible');
+        assert.ok(p.manager.status().pending);
+        const moved={...ORIGIN,latitude:ORIGIN.latitude+400/111320};
+        p.setClock(21000);
+        assert.equal(p.manager.refresh(moved),first,'motion within the source area must not starve pending work');
+        release();await first;
+        assert.equal(p.manager.status().count,5);
+        assert.ok(p.manager.diagnostics().progressPublishes>0);
+    }finally{release?.();p.manager.dispose();}
+});
+
+test('invalidated deck sampling stops before spending the rest of the GPU budget',async()=>{
+    let frames=0,release;
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true,
+        yieldBatch:async()=>{if(++frames===2)await new Promise(resolve=>release=resolve);}});
+    try{
+        const operation=p.manager.refresh(ORIGIN);
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.ok(release);p.manager.invalidateDeckCache();release();await operation;
+        assert.equal(p.manager.status().count,0);
+        assert.equal(p.excluded.length,1);
+        assert.equal(p.manager.diagnostics().refreshInvalidated,1);
+        p.setClock(11000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.status().count,5);
+    }finally{release?.();p.manager.dispose();}
+});
+
+
+test('previously validated visual piers survive missing resident deck observations without renewing their age',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true});
+    p.tileset._selectedTiles=[];
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);const primitive=p.primitives[0];
+        p.setDeck(undefined);p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.status().count,5);assert.equal(p.primitives[0],primitive);
+        assert.equal(p.manager.diagnostics().retainedSupports,5);
+        p.setClock(140001);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+test('contradictory finite deck data and source invalidation cannot retain old piers',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true});
+    p.tileset._selectedTiles=[];
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        p.setDeck(700);p.setClock(20000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+        p.setDeck(532.6);p.setClock(23000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        p.manager.invalidateDeckCache();p.setDeck(undefined);p.setClock(24000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+test('a transient empty native discovery keeps validated piers in range but not after a source replacement',async()=>{
+    let selected={show:true},available=true;
+    const coordinates=way().geometry.map(p=>({longitude:p.lon,latitude:p.lat,height:532.6}));
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>({bridges:available?[{id:'native:1',sourceId:'native:1',source:'swisstopo',coordinates,profileMethod:'loaded-native-road'}]:[],piers:[]})});
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        available=false;p.setClock(20000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        selected={show:true};p.setClock(21000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+
+test('ground-only resident samples use a complete detailed observation instead of losing bridge piers',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true,mobile:true});
+    p.tileset._selectedTiles=[];p.setDeck(500);
+    p.viewer.scene.sampleHeightMostDetailed=async points=>points.map(q=>({...q,height:532.6}));
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);
+        assert.ok(p.manager.status().supports.every(s=>s.top===532.5));
+        assert.equal(p.manager.diagnostics().deckGroundOnly,5);
+        assert.equal(p.manager.diagnostics().detailedResolved,5);
+        // Ground-only hits after LOD eviction don't erase validated geometry.
+        delete p.viewer.scene.sampleHeightMostDetailed;p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.status().count,5);
+        assert.equal(p.manager.diagnostics().retainedSupports,5);
+    }finally{p.manager.dispose();}
+});
+
+test('an incomplete detailed sample cannot be mixed with a separate resident observation',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true});
+    p.tileset._selectedTiles=[];let index=0;p.setDeck(()=>++index%3===2?undefined:532.6);
+    p.viewer.scene.sampleHeightMostDetailed=async points=>points.map((q,i)=>({...q,height:i===1?532.6:undefined}));
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+        assert.equal(p.manager.diagnostics().detailedResolved,0);
+    }finally{p.manager.dispose();}
+});
+
+test('portal-only invalidation does not abort native source discovery',async()=>{
+    let invalidations=0;const p=deckFixture({invalidateDiscovery:()=>invalidations++});
+    try{await p.manager.refresh(ORIGIN);const previous=invalidations;
+        p.manager.invalidateDeckCache(false);assert.equal(invalidations,previous);
+        p.manager.invalidateDeckCache();assert.equal(invalidations,previous+1);
+    }finally{p.manager.dispose();}
+});
+
+test('partial native discovery retains a different validated bridge, but not outside the search area',async()=>{
+    const selected={show:true};let includeBoth=true;
+    const profile=(id,dy)=>({id,sourceId:id,source:'swisstopo',profileMethod:'loaded-native-road',
+        coordinates:way().geometry.map(p=>({longitude:p.lon,latitude:p.lat+dy/111320,height:532.6}))});
+    const one=profile('native:1',0),two=profile('native:2',150);
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>({bridges:includeBoth?[one,two]:[one],piers:[]})});
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,10);
+        includeBoth=false;p.setClock(20000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,10);
+        assert.equal(p.manager.diagnostics().retainedSupports,5);
+        p.setClock(30000);await p.manager.refresh({...ORIGIN,latitude:ORIGIN.latitude-900/111320});
+        assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+test('two independent detailed deck observations enable mobile reuse despite resident ground-only hits',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,mobile:true,isNavigationActive:()=>true});
+    p.tileset._selectedTiles=[];p.setDeck(500);let detailed=0;
+    p.viewer.scene.sampleHeightMostDetailed=async points=>{detailed++;return points.map(q=>({...q,height:532.6}));};
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,5);assert.equal(detailed,5);
+        p.setClock(20000);await p.manager.refresh(ORIGIN);assert.equal(detailed,10);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,5);
+        p.setClock(30000);await p.manager.refresh(ORIGIN);assert.equal(detailed,10);
+        assert.equal(p.manager.diagnostics().deckStableHits,5);
+    }finally{p.manager.dispose();}
+});
+
+test('a source profile cannot be overwritten by a coherent but much higher sampled surface',async()=>{
+    const selected={show:true};const p=fixture({cachedOnly:true,getDeckTileset:()=>selected});
+    p.setDeck(545);p.manager.setSourceFeatures([{type:'Feature',id:'ref',geometry:{type:'LineString',coordinates:way().geometry.map(q=>[q.lon,q.lat,532.6])},properties:{bridge:'yes',highway:'primary',elevationReference:'EPSG:4979'}}]);
+    try{await p.manager.refresh(ORIGIN);assert.ok(p.manager.status().count>0);
+        assert.ok(p.manager.status().supports.every(s=>Math.abs(s.top-532.5)<1e-6));}
+    finally{p.manager.dispose();}
+});
+
+test('invalidated native section removes old supports even if all new observations temporarily disappear',async()=>{
+    const selected={show:true};let invalid=false;
+    const profile={id:'native-section',sourceId:'uuid',source:'swisstopo',profileMethod:'loaded-native-road',
+        coordinates:[point(-12.1),point(12.1)].map(q=>({longitude:q.lon,latitude:q.lat,height:532.6})),stableSection:true};
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>invalid?{bridges:[],piers:[],invalidatedSections:['native-section:1']}:{bridges:[profile],piers:[]}});
+    p.manager.setEnabled(true);
+    try{await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,1);invalid=true;p.setClock(20000);
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);}
+    finally{p.manager.dispose();}
+});
+
+test('LOD-only budget changes preserve independently confirmed deck heights but source changes do not',async()=>{
+    let invalidations=0;const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true,invalidateDiscovery:()=>invalidations++});
+    p.tileset._selectedTiles=[];
+    try{
+        await p.manager.refresh(ORIGIN);p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,5);const before=p.excluded.length,prior=invalidations;
+        p.manager.invalidateLod();p.setClock(30000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,before);assert.equal(invalidations,prior);
+        assert.equal(p.manager.diagnostics().deckStableHits,5);
+        p.manager.invalidateDeckCache();p.setClock(40000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,before+15);assert.equal(invalidations,prior+1);
+    }finally{p.manager.dispose();}
+});
+
+test('expired confirmed flight heights cannot jump upward on a single coherent observation',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,isNavigationActive:()=>true});p.tileset._selectedTiles=[];
+    try{
+        await p.manager.refresh(ORIGIN);p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,5);
+        p.setDeck(550);p.setClock(330000);await p.manager.refresh(ORIGIN);
+        assert.ok(p.manager.status().supports.every(x=>x.top<540));
+        assert.equal(p.manager.diagnostics().deckHeightRejected,5);
+        p.setDeck(532.6);p.setClock(340000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.status().count,5);assert.ok(p.manager.status().supports.every(x=>Math.abs(x.top-532.5)<1e-6));
+    }finally{p.manager.dispose();}
+});
+
+test('partially rediscovered sections of the SAME native bridge do not delete validated neighbouring piers',async()=>{
+    const selected={show:true};let mode=0;
+    const span=(id,x)=>({id,sourceId:'same-uuid',source:'swisstopo',profileMethod:'loaded-native-road',stableSection:true,
+        coordinates:[point(x-12.1),point(x+12.1)].map(q=>({longitude:q.lon,latitude:q.lat,height:532.6}))});
+    const a=span('a',-48),b=span('b',48),c=span('c',100);
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>mode===0?{bridges:[a,b],piers:[]}:mode===1?{bridges:[a,c],piers:[]}:
+            {bridges:[a,c],piers:[],invalidatedSections:['b:1']}});
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,2);
+        mode=1;p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.deepEqual(p.manager.status().supports.map(p=>p.id).sort(),['a:1','b:1','c:1']);
+        assert.equal(p.manager.diagnostics().supportRetainedSameSource,1);
+        assert.equal(p.manager.diagnostics().supportRemovedDuringDraw,0);
+        mode=2;p.setClock(30000);await p.manager.refresh(ORIGIN);
+        assert.deepEqual(p.manager.status().supports.map(p=>p.id).sort(),['a:1','c:1']);
+        assert.equal(p.manager.diagnostics().supportRemovedDuringDraw,1);
+    }finally{p.manager.dispose();}
+});
+
+test('legacy native station identifiers do not alias disjoint chunks when scan bounds shift',()=>{
+    const span=(x)=>({id:'same-route:0',sourceId:'uuid',nativeStationKey:'road-1',source:'swisstopo',profileMethod:'loaded-native-road',
+        coordinates:[point(x-36),point(x+36)].map(q=>({longitude:q.lon,latitude:q.lat,height:532.6}))});
+    const a=B.stations([span(-100)],ORIGIN),b=B.stations([span(100)],ORIGIN);
+    assert.ok(a.length&&b.length);assert.ok(a.every(p=>!b.some(q=>q.id===p.id)));
+    assert.deepEqual(B.stations([span(-100)],ORIGIN).map(p=>p.id),a.map(p=>p.id));
+});
+
+test('rotating the map camera at a fixed position does not change the ground search anchor',async()=>{
+    const centers=[];const p=fixture({cachedOnly:true,reuseFlightDeck:true,
+        discoverBridges:async center=>{centers.push({...center});return {bridges:[],piers:[]};}});
+    let target=ORIGIN,rays=0;
+    p.C.Cartesian2=class{};p.viewer.scene.canvas={width:800,height:600};
+    p.viewer.camera.getPickRay=()=>{rays++;return {};};p.viewer.scene.globe.pick=()=>({});
+    p.C.Cartographic.fromCartesian=()=>({longitude:target.longitude*Math.PI/180,latitude:target.latitude*Math.PI/180});
+    p.manager.setEnabled(true);
+    try{
+        await p.manager.refresh();target={longitude:8.45,latitude:46.85};p.setClock(30000);await p.manager.refresh();
+        assert.equal(rays,1);assert.equal(centers.length,2);assert.deepEqual(centers[0],centers[1]);
+        p.viewer.camera.positionCartographic.longitude=8.45*Math.PI/180;p.setClock(50000);await p.manager.refresh();
+        assert.equal(rays,2);assert.ok(Math.abs(centers.at(-1).longitude-8.45)<1e-9);
+    }finally{p.manager.dispose();}
+});
+
+test('portal visibility changes and empty auxiliary viewport updates preserve native world-space geometry',async()=>{
+    const selected={show:true};let available=true,invalidations=0;
+    const profile={id:'native',sourceId:'uuid',source:'swisstopo',profileMethod:'loaded-native-road',
+        coordinates:way().geometry.map(q=>({longitude:q.lon,latitude:q.lat,height:532.6}))};
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        invalidateDiscovery:()=>invalidations++,discoverBridges:async()=>({bridges:available?[profile]:[],piers:[]})});
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);const first=p.primitives[0],before=p.manager.status().supports,prior=invalidations;
+        assert.equal(before.length,5);available=false;
+        for(let i=0;i<25;i++){
+            p.manager.invalidateVisualPicking();p.manager.setSourceFeatures([],{sourceId:'aviation-obstacles'});
+        }
+        p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(invalidations,prior);assert.equal(p.primitives[0],first);assert.deepEqual(p.manager.status().supports,before);
+        assert.equal(p.manager.diagnostics().deckVisualInvalidations,25);
+        const feature={type:'Feature',id:'other',geometry:{type:'LineString',coordinates:way().geometry.map(q=>[q.lon,q.lat+.002,540])},
+            properties:{bridge:'yes',highway:'primary',elevationReference:'EPSG:4979'}};
+        p.manager.setSourceFeatures([feature],{sourceId:'aviation-obstacles'});await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.status().count,10);
+        p.manager.setSourceFeatures([],{sourceId:'aviation-obstacles'});await p.manager.refresh(ORIGIN);
+        assert.deepEqual(p.manager.status().supports,before);assert.equal(invalidations,prior);
+    }finally{p.manager.dispose();}
+});
+
+test('native station transform remains fixed until a genuinely new observation corroborates a height change',async()=>{
+    const selected={show:true};let height=532.6,observedAt=10000;
+    const profile=()=>{const q={...ORIGIN,height,observedAt,station:4};return {id:'chunk',sourceId:'uuid',source:'swisstopo',nativeStationKey:'road',
+        profileMethod:'loaded-native-road',coordinates:way().geometry.map(p=>({longitude:p.lon,latitude:p.lat,height})),
+        nativeStations:[{...q,probes:[q,q,q]}]};};
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>({bridges:[profile()],piers:[]})});
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);const first=p.primitives[0],before=p.manager.status().supports;
+        assert.equal(before.length,1);height=539;observedAt=20000;p.setClock(20000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.primitives[0],first);assert.deepEqual(p.manager.status().supports,before);
+        p.setClock(30000);await p.manager.refresh(ORIGIN);assert.equal(p.primitives[0],first,'same cached observation cannot confirm a correction');
+        observedAt=40000;p.setClock(40000);await p.manager.refresh(ORIGIN);
+        assert.notEqual(p.primitives[0],first);assert.ok(Math.abs(p.manager.status().supports[0].top-538.9)<1e-9);
+        height=539.1;observedAt=50000;p.setClock(50000);const corrected=p.primitives[0];await p.manager.refresh(ORIGIN);
+        assert.equal(p.primitives[0],corrected,'sub-decimetre LOD drift must not rebuild the geometry');
+    }finally{p.manager.dispose();}
+});
+
+test('V7 retains identified native stations beyond old TTL and re-admits them after leaving the area',async()=>{
+    const selected={show:true};let present=true,commits=0;const q={...ORIGIN,height:532.6,observedAt:10000,station:4};
+    const profile={id:'chunk',sourceId:'uuid',source:'swisstopo',nativeStationKey:'road',nativeIdentified:true,
+        profileMethod:'loaded-native-road',coordinates:way().geometry.map(p=>({longitude:p.lon,latitude:p.lat,height:q.height})),
+        nativeStations:[{...q,probes:[q,q,q]}]};
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,sessionReuse:true,commitNative:()=>commits++,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>({bridges:present?[profile]:[],piers:[]})});
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    try{
+        await p.manager.refresh(ORIGIN);const initial=p.manager.status().supports,hash=p.manager.diagnostics().supportTransformHash;
+        assert.equal(initial.length,1);assert.ok(commits>0);present=false;p.setClock(900000);await p.manager.refresh(ORIGIN);
+        assert.deepEqual(p.manager.status().supports,initial);assert.equal(p.manager.diagnostics().supportTransformHash,hash);
+        p.setClock(920000);await p.manager.refresh({...ORIGIN,longitude:ORIGIN.longitude+.03});assert.equal(p.manager.status().count,0);
+        p.setClock(940000);await p.manager.refresh(ORIGIN);assert.deepEqual(p.manager.status().supports,initial);
+        p.manager.invalidateDeckCache();p.setClock(960000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+
+test('session retention uses a bounded hysteresis and a frustum-aware outer limit for existing piers',async()=>{
+    const selected={show:true};let present=true,visible=true;
+    const q={...ORIGIN,height:532.6,observedAt:10000,station:4};
+    const profile={id:'chunk',sourceId:'uuid',source:'swisstopo',nativeStationKey:'road',nativeIdentified:true,
+        profileMethod:'loaded-native-road',coordinates:way().geometry.map(p=>({longitude:p.lon,latitude:p.lat,height:q.height})),
+        nativeStations:[{...q,probes:[q,q,q]}]};
+    const p=fixture({cachedOnly:true,reuseFlightDeck:true,sessionReuse:true,isNavigationActive:()=>true,getDeckTileset:()=>selected,
+        discoverBridges:async()=>({bridges:present?[profile]:[],piers:[]})});
+    p.C.BoundingSphere=class {constructor(center,radius){Object.assign(this,{center,radius});}};
+    p.C.Intersect={OUTSIDE:-1};p.viewer.camera.frustum={computeCullingVolume:()=>({computeVisibility:()=>visible?1:-1})};
+    p.manager.setEnabled(true);p.manager.setDiagnosticsEnabled(true);
+    const center=meters=>({...ORIGIN,longitude:point(meters).lon});
+    try{
+        await p.manager.refresh(ORIGIN);const initial=p.manager.status().supports;assert.equal(initial.length,1);
+        present=false;visible=false;p.setClock(20000);await p.manager.refresh(center(800));
+        assert.deepEqual(p.manager.status().supports,initial,'hysteresis prevents flickering at the discovery boundary');
+        visible=true;p.setClock(30000);await p.manager.refresh(center(1000));
+        assert.deepEqual(p.manager.status().supports,initial,'in-frustum support retained outside the hysteresis radius');
+        p.setClock(40000);await p.manager.refresh(center(1300));assert.equal(p.manager.status().count,0);
+        p.setClock(50000);await p.manager.refresh(center(1000));assert.equal(p.manager.status().count,0,'outer ring never admits inactive geometry');
+        p.setClock(60000);await p.manager.refresh(ORIGIN);assert.deepEqual(p.manager.status().supports,initial);
+        visible=false;p.setClock(70000);await p.manager.refresh(center(1000));assert.equal(p.manager.status().count,0);
+    }finally{p.manager.dispose();}
+});
+
+test('short signature hits receive a bounded independent deck recheck and can become session confirmations',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,sessionReuse:true,isNavigationActive:()=>true});
+    try{
+        await p.manager.refresh(ORIGIN);const initial=p.excluded.length;assert.equal(initial,15);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,0);
+        p.setClock(30000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckIndependentRechecks,2);
+        assert.equal(p.excluded.length,initial+6);assert.equal(p.manager.diagnostics().deckConfirmedEntries,2);
+        p.setClock(40000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,4);
+        p.setClock(50000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.diagnostics().deckConfirmedEntries,5);
+        const before=p.excluded.length;p.setClock(900000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,before,'independent confirmations survive the old TTL');
+        p.manager.invalidateDeckCache();p.setClock(920000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,0);assert.equal(p.excluded.length,before+15);
+    }finally{p.manager.dispose();}
+});

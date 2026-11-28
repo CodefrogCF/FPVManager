@@ -8,8 +8,11 @@ import 'package:flutter/services.dart';
 /// source URLs, raw provider errors or credentials are retained.
 class DeveloperPerformanceRecording {
   static const maxSamples = 600;
+  static const maxBenchmarkSamples = 1500;
+  // Keep in sync with the Android savePerformance channel limit.
+  static const maxExportBytes = 16 * 1024 * 1024;
   DeveloperPerformanceRecording({this.sampleLimit = maxSamples})
-    : assert(sampleLimit > 0 && sampleLimit <= 1200);
+    : assert(sampleLimit > 0 && sampleLimit <= maxBenchmarkSamples);
   final int sampleLimit;
   final _samples = <Map<String, Object?>>[];
   bool active = false;
@@ -58,6 +61,9 @@ class DeveloperPerformanceRecording {
             'terrainProvider',
             'terrainState',
             'flightPhysics.model',
+            'bridgeSupports.supportTransformHash',
+            'bridgeSupports.lastRemovalReason',
+            'bridgeSupports.supportAudit',
             'rf.quality',
             'rf.provider',
             'rf.error',
@@ -143,11 +149,16 @@ class DeveloperPerformanceRecording {
     );
   }
 
-  Future<bool> save({required bool csv}) async {
+  Uint8List encodeForExport({required bool csv}) {
     final bytes = encode(csv: csv);
-    if (bytes.length > 4 * 1024 * 1024) {
-      throw StateError('Diagnostic export exceeds 4 MiB');
+    if (bytes.length > maxExportBytes) {
+      throw StateError('Diagnostic export exceeds 16 MiB');
     }
+    return bytes;
+  }
+
+  Future<bool> save({required bool csv}) async {
+    final bytes = encodeForExport(csv: csv);
     final name =
         'fpv-performance-${_started!.millisecondsSinceEpoch}.${csv ? 'csv' : 'json'}';
     final mime = csv ? 'text/csv' : 'application/json';

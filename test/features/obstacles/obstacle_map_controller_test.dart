@@ -78,6 +78,48 @@ void main() {
     await cache.close();
     await database.close();
   });
+  test('benchmark obstacle suppression restores preferences without saving overrides', () async {
+    await globe.obstacles.setWmsVisible(true);
+    expect(globe.benchmarkMapSettings['obstacleWms'], isTrue);
+    await globe.obstacles.setBenchmarkSuppressed(true);
+    expect(globe.obstacles.wmsVisible, isFalse);
+    expect(globe.benchmarkMapSettings['obstacleWms'], isFalse);
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-wms',
+      )['visible'],
+      isFalse,
+    );
+    await globe.obstacles.setBenchmarkSuppressed(false);
+    expect(globe.obstacles.wmsVisible, isTrue);
+    expect(
+      renderer.commands.lastWhere(
+        (c) => c['type'] == 'set-obstacle-wms',
+      )['visible'],
+      isTrue,
+    );
+  });
+  test(
+    'benchmark models-on profile restores original obstacle settings',
+    () async {
+      await globe.obstacles.setWmsVisible(true);
+      final before = globe.benchmarkMapSettings;
+      await globe.obstacles.setBenchmarkExtras(true);
+      expect(globe.obstacles.wmsVisible, isFalse);
+      expect(globe.obstacles.vectorsVisible, isTrue);
+      expect(globe.obstacles.modelsVisible, isTrue);
+      expect(globe.obstacles.hazardsVisible, isFalse);
+      await globe.obstacles.setBenchmarkExtras(null);
+      for (final key in [
+        'obstacleWms',
+        'obstacleVectors',
+        'obstacleModels',
+        'hazardAreas',
+      ]) {
+        expect(globe.benchmarkMapSettings[key], before[key]);
+      }
+    },
+  );
   test('identical camera-region events cannot supersede an in-flight obstacle query', () async {
     final viewport = {
       'type': 'obstacle-viewport',

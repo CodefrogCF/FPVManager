@@ -29,13 +29,21 @@ class BenchmarkCase {
     this.cacheMiB,
     this.bridgeSupports = true,
     this.gpuTiming = true,
+    this.bridgeMode = 0,
   }) : assert((sse == null) == (cacheMiB == null));
   final String id;
   final bool buildings, structures, vegetation, rf, bridgeSupports, gpuTiming;
   final int? sse, cacheMiB;
+  // 0 normal, 1 freeze warmed visual supports, 2 compute without geometry.
+  final int bridgeMode;
   Map<String, Object>? get structureTuning => sse == null
       ? null
-      : {'sse': sse!, 'cacheMiB': cacheMiB!, 'bridgeSupports': bridgeSupports};
+      : {
+          'sse': sse!,
+          'cacheMiB': cacheMiB!,
+          'bridgeSupports': bridgeSupports,
+          'bridgeMode': bridgeMode,
+        };
   Map<String, bool> get layers => {
     'buildings': buildings,
     'structures': structures,
@@ -72,6 +80,18 @@ class BenchmarkCase {
       bridgeSupports: false,
     ),
     BenchmarkCase(
+      'structures-supports-frozen',
+      sse: 24,
+      cacheMiB: 16,
+      bridgeMode: 1,
+    ),
+    BenchmarkCase(
+      'structures-supports-compute-only',
+      sse: 24,
+      cacheMiB: 16,
+      bridgeMode: 2,
+    ),
+    BenchmarkCase(
       'structures-no-gpu-timer',
       sse: 24,
       cacheMiB: 16,
@@ -91,7 +111,9 @@ class BenchmarkCase {
 class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
   DeveloperBenchmark(this.globe);
   final GlobeController globe;
-  final recording = DeveloperPerformanceRecording(sampleLimit: 1200);
+  final recording = DeveloperPerformanceRecording(
+    sampleLimit: DeveloperPerformanceRecording.maxBenchmarkSamples,
+  );
   bool active = false, _cancelled = false, _disposed = false;
   String status = 'idle';
   String? error;
@@ -137,6 +159,9 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     SimulationSettings settings, {
     required int repetitions,
     bool structureTuning = false,
+    bool standardizeExtras = false,
+    bool enableBenchmarkExtras = false,
+    bool rotationTest = false,
     required String platform,
     required Future<void> Function() quiesceProfiler,
   }) async {
@@ -147,7 +172,8 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     // Preserve the current graphics, FOV, physics and lighting mode. Fix the
     // lighting clock when enabled. Use the same captured settings for all runs.
     final fixed = settings.withCameraTilt(
-      settings.cameraTiltDegrees,
+      standardizeExtras ? 0.0 : settings.cameraTiltDegrees,
+      cameraFovDegrees: standardizeExtras ? 100.0 : settings.cameraFovDegrees,
       sceneTime: SceneTime(
         enabled: settings.sceneTime.enabled || globe.realisticLighting,
         fixedUtc: settings.sceneTime.fixedUtc ?? DateTime.utc(2026, 6, 21, 12),
@@ -190,7 +216,7 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       'cachePolicy': structureTuning
           ? 'fresh-structures-tileset-per-case-warmup-no-http-cache-flush'
           : 'resident-warmup-pass-per-case-no-cache-flush',
-      'matrix': structureTuning ? 'structures-tuning-v1' : 'layers-v1',
+      'matrix': structureTuning ? 'structures-tuning-v8' : 'layers-v1',
       'repetitions': repetitions,
       'runs': runs,
       'platform': platform,
@@ -199,6 +225,14 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       'physicsHz': fixed.physicsStepHz,
       'renderScale': fixed.renderScale,
       'cameraFovDegrees': fixed.cameraFovDegrees,
+      'cameraTiltDegrees': fixed.cameraTiltDegrees,
+      'standardizeExtras': standardizeExtras,
+      'extrasProfile': standardizeExtras
+          ? (enableBenchmarkExtras ? 'models-on' : 'off')
+          : 'original',
+      'rotationTestRequested': rotationTest,
+      'warmupDiagnostics': 'separate-summary-no-http-cache-flush',
+      'originalMapSettings': globe.benchmarkMapSettings,
       'sceneTime': fixed.sceneTime.toJson(),
       'rfPolicy': 'same-profile-spawn-station',
       'rfProfileSha256': sha256
@@ -209,6 +243,12 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await quiesceProfiler();
       check();
+      if (standardizeExtras) {
+        await globe.setBenchmarkExtras(enableBenchmarkExtras);
+      }
+      check();
+      final mapSettings = globe.benchmarkMapSettings;
+      metadata['mapSettings'] = mapSettings;
       final prepared = await globe.prepareBenchmark(
         route,
         fixed,
@@ -262,9 +302,60 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
             ),
           );
           check();
+          // Profile the first pass independently. It is a fresh Structures
+          // working set, not a cold HTTP/browser session. Do not freeze during
+          // warmup; the frozen A/B variant must finish discovering geometry.
+          await globe.scenePerformance(
+            action: 'start',
+            gpuTiming: variant.gpuTiming,
+            benchmarkWarmup: true,
+          );
           await globe.startBenchmarkPlayback(route, fixed);
           check();
-          await _waitPass(duration);
+          final warmClock = Stopwatch()..start();
+          final warmFps = <double>[];
+          var warmSamples = 0, warmSupports = 0;
+          int? firstSupportMs;
+          Map<String, Object?> warmCounters = {};
+          await _waitPass(
+            duration,
+            sample: () async {
+              final scene = await globe.scenePerformance();
+              check();
+              warmSamples++;
+              final fps = scene['renderFps'];
+              if (fps is num && fps.isFinite) warmFps.add(fps.toDouble());
+              final supports = scene['bridgeSupports'];
+              if (supports is Map) {
+                if (benchmarkSupportGeometryObserved(
+                  variant.bridgeMode,
+                  computed: supports['computedSupports'],
+                  visible: supports['visibleSupports'],
+                )) {
+                  warmSupports++;
+                  firstSupportMs ??= warmClock.elapsedMilliseconds;
+                }
+                warmCounters = {
+                  for (final key in [
+                    'nativePicks',
+                    'nativePickMs',
+                    'deckPicks',
+                    'deckPickMs',
+                    'nativeSessionHits',
+                    'geometryBuilds',
+                  ])
+                    key: supports[key],
+                };
+              }
+            },
+          );
+          result['warmup'] = {
+            'sampleCount': warmSamples,
+            'medianFps': benchmarkPercentile(warmFps, .5),
+            'bridgeGeometrySnapshots': warmSupports,
+            'firstSupportMs': firstSupportMs,
+            'lastSampleCounters': warmCounters,
+          };
           check();
           // Reset the rolling window and counters after warmup without flushing
           // the actual resource caches. This isolates each measured pass.
@@ -288,6 +379,8 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
           final visibleLayers = <String>{};
           final incompleteLayers = <String>{};
           var tuningVerified = true;
+          var supportGeometrySnapshots = 0;
+          var maxComputedSupports = 0, maxVisibleSupports = 0;
           var structureReady = 0, structureLoading = 0;
           final structureTriangles = <double>[];
           final structureCommands = <double>[];
@@ -329,6 +422,45 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                 );
               }
               if (variant.sse != null) {
+                final supports = scene['bridgeSupports'];
+                if (supports is Map) {
+                  final computed = supports['computedSupports'];
+                  final visible = supports['visibleSupports'];
+                  if (computed is int && computed > maxComputedSupports) {
+                    maxComputedSupports = computed;
+                  }
+                  if (visible is int && visible > maxVisibleSupports) {
+                    maxVisibleSupports = visible;
+                  }
+                  if (variant.bridgeSupports &&
+                      benchmarkSupportGeometryObserved(
+                        variant.bridgeMode,
+                        computed: computed,
+                        visible: visible,
+                      )) {
+                    supportGeometrySnapshots++;
+                  }
+                  if (!variant.bridgeSupports) {
+                    tuningVerified =
+                        tuningVerified && computed == 0 && visible == 0;
+                  }
+                  if (variant.bridgeMode == 1) {
+                    tuningVerified =
+                        tuningVerified &&
+                        supports['frozen'] == true &&
+                        supports['deckPicks'] == 0 &&
+                        supports['nativePicks'] == 0 &&
+                        supports['detailedRequests'] == 0 &&
+                        supports['detailedActive'] == 0 &&
+                        supports['freezeContaminated'] == false &&
+                        supports['geometryBuilds'] == 0;
+                  } else if (variant.bridgeMode == 2) {
+                    tuningVerified =
+                        tuningVerified &&
+                        visible == 0 &&
+                        supports['geometryBuilds'] == 0;
+                  }
+                }
                 tuningVerified =
                     tuningVerified &&
                     structures is Map &&
@@ -341,6 +473,8 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                     scene['bridgeSupports'] is Map &&
                     (scene['bridgeSupports'] as Map)['benchmarkSuppressed'] ==
                         !variant.bridgeSupports &&
+                    (scene['bridgeSupports'] as Map)['benchmarkMode'] ==
+                        variant.bridgeMode &&
                     scene['gpuRenderMs'] is Map &&
                     (scene['gpuRenderMs'] as Map)['enabled'] ==
                         variant.gpuTiming;
@@ -400,11 +534,21 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                   'benchmarkStructures': variant.structures,
                   'benchmarkVegetation': variant.vegetation,
                   'benchmarkRfEnabled': variant.rf,
+                  'benchmarkFovDegrees': fixed.cameraFovDegrees,
+                  'benchmarkStandardizedExtras': standardizeExtras,
+                  'benchmarkExtrasProfile': metadata['extrasProfile'],
+                  'benchmarkModelCollisions': mapSettings['modelCollisions'],
+                  'benchmarkSchematicTunnels': mapSettings['schematicTunnels'],
+                  'benchmarkObstacleWms': mapSettings['obstacleWms'],
+                  'benchmarkObstacleVectors': mapSettings['obstacleVectors'],
+                  'benchmarkObstacleModels': mapSettings['obstacleModels'],
+                  'benchmarkHazardAreas': mapSettings['hazardAreas'],
                   'benchmarkGpuTiming': variant.gpuTiming,
                   if (variant.sse != null) ...{
                     'benchmarkStructuresSse': variant.sse,
                     'benchmarkStructuresCacheMiB': variant.cacheMiB,
                     'benchmarkBridgeSupports': variant.bridgeSupports,
+                    'benchmarkBridgeMode': variant.bridgeMode,
                   },
                 },
               );
@@ -442,8 +586,16 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
           );
           // A run with no valid RF cannot establish an RF-on/off comparison.
           if (variant.sse != null) {
+            if (variant.bridgeSupports) {
+              result['bridgeGeometryObserved'] = supportGeometrySnapshots > 0;
+            }
+            result['bridgeGeometrySnapshots'] = supportGeometrySnapshots;
+            result['maxComputedSupports'] = maxComputedSupports;
+            result['maxVisibleSupports'] = maxVisibleSupports;
             result['structureTuningVerified'] =
-                tuningVerified && fps.isNotEmpty;
+                tuningVerified &&
+                fps.isNotEmpty &&
+                (!variant.bridgeSupports || supportGeometrySnapshots > 0);
           }
           result['status'] = result['structureTuningVerified'] == false
               ? 'completed-tuning-unverified'
@@ -452,6 +604,29 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
               : variant.rf && rfValid == 0
               ? 'completed-rf-unverified'
               : 'completed';
+          // Rotation is a separate diagnostic AFTER the measured reference
+          // pass. Use the endpoint where geometry has had time to arrive;
+          // retry on subsequent reference runs if no baseline was available.
+          final rotation = metadata['stationaryRotation'];
+          if (rotationTest &&
+              variant ==
+                  (structureTuning
+                      ? BenchmarkCase.structureMatrix.first
+                      : BenchmarkCase.matrix.first) &&
+              (rotation is! Map ||
+                  rotation['status'] == 'unverified-no-baseline')) {
+            status = 'stationary rotation';
+            _notify();
+            try {
+              metadata['stationaryRotation'] = await _stationaryRotation();
+            } catch (_) {
+              check();
+              metadata['stationaryRotation'] = {
+                'status': 'unverified-interrupted',
+              };
+            }
+            check();
+          }
           await globe.exitSimulation();
           await globe.scenePerformance(action: 'stop');
           check();
@@ -526,6 +701,83 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       active = false;
       progress = 0;
       _notify();
+    }
+  }
+
+  /// Separate stationary diagnostic; its samples never enter the FPS matrix.
+  Future<Map<String, Object?>> _stationaryRotation() async {
+    await globe.controlRoutePlayback('pause');
+    await globe.benchmarkRotationPose(0, 0);
+    await globe.scenePerformance(action: 'stop');
+    await globe.scenePerformance(action: 'start');
+    final samples = <Map<String, Object?>>[];
+    Map<dynamic, dynamic> supportData(Map<String, dynamic> scene) =>
+        scene['bridgeSupports'] is Map
+        ? scene['bridgeSupports'] as Map
+        : const {};
+    Map<dynamic, dynamic> baseline = const {};
+    try {
+      // Allow the first source-backed supports to arrive, but do not spin forever.
+      for (var i = 0; i < 20; i++) {
+        check();
+        baseline = supportData(await globe.scenePerformance());
+        if ((baseline['visibleSupports'] as num? ?? 0) > 0) break;
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+      if ((baseline['visibleSupports'] as num? ?? 0) == 0) {
+        return {
+          'status': 'unverified-no-baseline',
+          'baselineCount': 0,
+          'samples': samples,
+        };
+      }
+      for (var i = 0; i <= 12; i++) {
+        check();
+        final heading = (i % 12) * 30.0;
+        final pitch = i == 12 ? 0.0 : [0.0, 20.0, -20.0][i % 3];
+        await globe.benchmarkRotationPose(heading, pitch);
+        await Future<void>.delayed(const Duration(milliseconds: 650));
+        check();
+        final support = supportData(await globe.scenePerformance());
+        samples.add({
+          'heading': heading,
+          'pitch': pitch,
+          for (final key in [
+            'visibleSupports',
+            'supportTransformHash',
+            'supportRemovedDuringDraw',
+            'supportCleared',
+            'supportPositionChanged',
+            'supportHeightChanged',
+            'supportRadiusChanged',
+            'supportAdded',
+            'lastRemovalReason',
+            'supportAudit',
+          ])
+            key: support[key],
+        });
+      }
+      bool unchanged(String key) =>
+          baseline[key] is num && samples.every((s) => s[key] == baseline[key]);
+      final hasGeometry = (baseline['visibleSupports'] as num? ?? 0) > 0;
+      return {
+        'status': !hasGeometry
+            ? 'unverified-no-baseline'
+            : [
+                'supportRemovedDuringDraw',
+                'supportCleared',
+                'supportPositionChanged',
+                'supportHeightChanged',
+                'supportRadiusChanged',
+              ].every(unchanged)
+            ? 'stable'
+            : 'changed',
+        'baselineCount': baseline['visibleSupports'],
+        'baselineHash': baseline['supportTransformHash'],
+        'samples': samples,
+      };
+    } finally {
+      await globe.scenePerformance(action: 'stop');
     }
   }
 
@@ -605,4 +857,15 @@ double? benchmarkPercentile(List<double> values, double fraction) {
 
 class _BenchmarkCancelled implements Exception {
   const _BenchmarkCancelled();
+}
+
+/// Requested visibility alone does not demonstrate that a bridge was built.
+/// Empty routes are intentionally unverified for bridge performance comparisons.
+bool benchmarkSupportGeometryObserved(
+  int mode, {
+  required Object? computed,
+  required Object? visible,
+}) {
+  final count = mode == 2 ? computed : visible;
+  return count is num && count.isFinite && count > 0;
 }

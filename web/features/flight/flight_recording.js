@@ -220,9 +220,9 @@
             a.ground+(b.ground-a.ground)*f:null,speed,seconds:t,progress:t/trajectory.duration,
             aglTarget:a.agl!=null&&b.agl!=null?a.agl+(b.agl-a.agl)*f:null};
     }
-    function create({simulator,sampleGround,renderedGround=()=>null,emit=()=>{},display=()=>{}}){
+    function create({simulator,sampleGround,renderedGround=()=>null,emit=()=>{},display=()=>{},prepareInfrastructure=()=>{}}){
         let flight=null,phase='idle',time=0,rate=1,operation=0,loading=false,lastEmit=-1,reason=null;
-        let loadingAbort=null,benchmarkFlight=null,benchmarkAbort=null,benchmarkReplay=false;
+        let loadingAbort=null,infrastructureAbort=null,benchmarkFlight=null,benchmarkAbort=null,benchmarkReplay=false;
         async function prepareBenchmark(command,signal){
             if(loading||flight||benchmarkAbort)throw Error('Stop replay before preparing benchmark');
             const limit=command.benchmarkLimitSeconds;
@@ -251,7 +251,7 @@
             speed:rate,recorded:flight?.recorded??false,reason,
             assumedSpeed:flight?.assumedSpeed??false,assumedHeight:flight?.assumedHeight??false});
         function publish(force=false){const s=status();display(s);if(force||Math.abs(time-lastEmit)>=.5||!s.active){lastEmit=time;emit('route-playback-state',s);} }
-        function interrupt(message){++operation;loadingAbort?.abort();loadingAbort=null;benchmarkAbort?.abort();benchmarkAbort=null;benchmarkReplay=false;flight=null;phase='idle';loading=false;time=0;reason=message??null;publish(true);}
+        function interrupt(message){++operation;infrastructureAbort?.abort();infrastructureAbort=null;loadingAbort?.abort();loadingAbort=null;benchmarkAbort?.abort();benchmarkAbort=null;benchmarkReplay=false;flight=null;phase='idle';loading=false;time=0;reason=message??null;publish(true);}
         async function start(command,signal){
             interrupt();const token=operation;loading=true;phase='loading';publish(true);
             const pending=new AbortController();loadingAbort=pending;
@@ -262,6 +262,16 @@
                 const next=command.benchmark===true?benchmarkFlight:await prepare(command,sampleGround,pending.signal);
                 if(!next)throw Error('Benchmark route is not prepared');
                 pending.signal.throwIfAborted();if(token!==operation)throw Error('Replay cancelled');
+                // Optional visual prefetch of a bounded route prefix. Never wait for
+                // infrastructure network or GPU work to start playback.
+                if(command.benchmark!==true){
+                    const centers=[evaluate(next,0),...Array.from({length:12},(_,i)=>evaluate(next,Math.min(next.duration,(i+1)*5)))];
+                    const prep=new AbortController();infrastructureAbort=prep;
+                    const abortPrep=()=>prep.abort();pending.signal.addEventListener('abort',abortPrep,{once:true});
+                    try{void Promise.resolve(prepareInfrastructure(centers,prep.signal)).catch(()=>{}).finally(()=>{
+                        pending.signal.removeEventListener('abort',abortPrep);if(infrastructureAbort===prep)infrastructureAbort=null;
+                    });}catch(_){pending.signal.removeEventListener('abort',abortPrep);if(infrastructureAbort===prep)infrastructureAbort=null;}
+                }
                 const first=next.points[0],terrain=first.ground??(await sampleGround([first],pending.signal))[0];
                 if(!finite(terrain))throw Error('Terrain unavailable at replay start');
                 const agl=first.height-terrain;
@@ -285,10 +295,10 @@
             if(command.action==='speed'){
                 if(benchmarkReplay||![.25,.5,1,2,4].includes(command.speed)||!flight)throw Error('Invalid replay speed');
                 rate=command.speed;
-            }else if(command.action==='stop'){if(!flight){interrupt('Replay cancelled');return status();}phase='stopped';simulator.playbackEnd();}
+            }else if(command.action==='stop'){infrastructureAbort?.abort();infrastructureAbort=null;if(!flight){interrupt('Replay cancelled');return status();}phase='stopped';simulator.playbackEnd();}
             else if(command.action==='restart'){if(!flight)throw Error('No route available');time=0;phase='playing';if(benchmarkReplay){rate=1;simulator.playbackEnd();}
                 if(simulator.playbackPose(evaluate(flight,0))===false&&benchmarkReplay){phase='paused';reason='Benchmark restart collision';}}
-            else if(command.action==='pause'){if(phase!=='playing')throw Error('Replay is not running');phase='paused';}
+            else if(command.action==='pause'){if(phase!=='playing'&&!(benchmarkReplay&&phase==='finished'&&simulator.active))throw Error('Replay is not running');phase='paused';}
             else if(command.action==='resume'){if(phase!=='paused')throw Error('Replay is not paused');phase='playing';}
             else throw Error('Unknown replay action');
             publish(true);return status();
@@ -314,11 +324,19 @@
             if(time>=flight.duration){phase='finished';if(!benchmarkReplay)simulator.playbackEnd();}
             publish(time>=flight.duration);
         }
+        function rotationPose(heading,pitch){
+            if(!benchmarkReplay||phase!=='paused'||!flight||!simulator.active)throw Error('Rotation requires paused benchmark playback');
+            if(!finite(heading)||heading<0||heading>=360||!finite(pitch)||Math.abs(pitch)>45)throw Error('Invalid benchmark rotation');
+            const pose=evaluate(flight,time);
+            if(simulator.playbackPose({...pose,heading:pose.heading+heading*Math.PI/180,pitch:pitch*Math.PI/180,speed:0})===false)
+                throw Error('Benchmark rotation collision');
+            return status();
+        }
         function sceneryLookahead(){
             if(!flight||phase!=='playing')return [];
             return [1,3,5].map(seconds=>{const p=evaluate(flight,time+seconds*rate);return {latitude:p.latitude,longitude:p.longitude,height:p.height};});
         }
-        return {start,control,tick,interrupt,status,sceneryLookahead,prepareBenchmark,clearBenchmark(){benchmarkAbort?.abort();benchmarkAbort=null;benchmarkFlight=null;},get active(){return phase==='playing'||phase==='paused';},
+        return {start,control,tick,interrupt,status,sceneryLookahead,rotationPose,prepareBenchmark,clearBenchmark(){benchmarkAbort?.abort();benchmarkAbort=null;benchmarkFlight=null;},get active(){return phase==='playing'||phase==='paused';},
             get loaded(){return Boolean(flight);}};
     }
     return {MAX_SAMPLES,prepare,evaluate,create,distance,bearing};

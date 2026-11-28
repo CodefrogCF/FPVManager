@@ -59,11 +59,16 @@ class ObstacleMapController extends ChangeNotifier {
         (area.east + x).clamp(-180, 180).toDouble(),
         (area.north + y).clamp(-90, 90).toDouble(),
       );
-  bool get wmsVisible => preferences().obstacleWmsVisible;
+  bool? _benchmarkExtrasOverride;
+  bool get wmsVisible =>
+      _benchmarkExtrasOverride == null && preferences().obstacleWmsVisible;
   double get wmsOpacity => preferences().obstacleWmsOpacity;
-  bool get vectorsVisible => preferences().obstacleVectorsVisible;
-  bool get modelsVisible => preferences().obstacleModelsVisible;
-  bool get hazardsVisible => preferences().hazardAreasVisible;
+  bool get vectorsVisible =>
+      _benchmarkExtrasOverride ?? preferences().obstacleVectorsVisible;
+  bool get modelsVisible =>
+      _benchmarkExtrasOverride ?? preferences().obstacleModelsVisible;
+  bool get hazardsVisible =>
+      _benchmarkExtrasOverride == null && preferences().hazardAreasVisible;
   double get bufferMeters => preferences().obstacleBufferMeters;
   bool get _needsData => vectorsVisible || hazardsVisible;
   Set<ObstacleCategory> get categories => preferences().obstacleCategories;
@@ -203,6 +208,43 @@ class ObstacleMapController extends ChangeNotifier {
     }
     _notify();
   }
+
+  /// Temporary benchmark-only override. True enables vectors/models;
+  /// false suppresses all obstacle layers; null restores preferences.
+  /// WMS and hazard overlays stay off in both standardized profiles.
+  Future<void> setBenchmarkExtras(bool? value) async {
+    if (_benchmarkExtrasOverride == value) return;
+    _benchmarkExtrasOverride = value;
+    _query++;
+    _debounce?.cancel();
+    _sentVectors = _sentHazards = null;
+    if (!_ready || _disposed) return;
+    // Clear old admission before restoring or switching to another profile.
+    // Otherwise a hazard-only preference could leave benchmark vectors visible.
+    await send({
+      'type': 'set-obstacle-wms',
+      'visible': false,
+      'opacity': wmsOpacity,
+    });
+    await send({
+      'type': 'set-obstacle-vectors',
+      'revision': ++_revision,
+      'features': <Object>[],
+    });
+    await send({
+      'type': 'set-hazard-areas',
+      'revision': ++_hazardRevision,
+      'bufferMeters': bufferMeters,
+      'features': <Object>[],
+    });
+    _rendered = {};
+    _hazardsRendered = {};
+    _sentVectors = _sentHazards = null;
+    if (value != false) await rendererReady(force: true);
+  }
+
+  Future<void> setBenchmarkSuppressed(bool value) =>
+      setBenchmarkExtras(value ? false : null);
 
   void rendererLost() {
     _ready = false;

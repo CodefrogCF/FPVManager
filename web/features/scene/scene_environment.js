@@ -20,13 +20,26 @@
         quality:[24,16,8],balanced:[24,16,4],performance:[40,16,2],
         compatibility:[52,16,2],navigation:[32,16,2]
     });
+    // The measured Xclipse 920 configuration benefited from a larger resident
+    // cache. Restrict the exception to that known renderer and normal detail
+    // profiles; unknown/masked renderers retain conservative defaults.
+    function deviceStructureCache(gl,mode){
+        if(!['balanced','navigation'].includes(mode))return 16;
+        try{
+            const debug=gl?.getExtension?.('WEBGL_debug_renderer_info');
+            const renderer=debug&&gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
+            if(typeof renderer==='string'&&/\bXclipse\s+920\b/i.test(renderer))return 48;
+        }catch(_){}
+        return 16;
+    }
     const benchmarkSse=new Set([24,32,40,48,64]),benchmarkCache=new Set([16,24,32,48]);
     function validateStructureTuning(value){
         if(value==null)return null;
         if(typeof value!=='object'||Array.isArray(value)||!benchmarkSse.has(value.sse)||
             !benchmarkCache.has(value.cacheMiB)||typeof value.bridgeSupports!=='boolean'||
-            Object.keys(value).some(key=>!['sse','cacheMiB','bridgeSupports'].includes(key)))throw Error('Invalid benchmark structure tuning');
-        return {sse:value.sse,cacheMiB:value.cacheMiB,bridgeSupports:value.bridgeSupports};
+            (value.bridgeMode!==undefined&&(![0,1,2].includes(value.bridgeMode)||(!value.bridgeSupports&&value.bridgeMode!==0)))||
+            Object.keys(value).some(key=>!['sse','cacheMiB','bridgeSupports','bridgeMode'].includes(key)))throw Error('Invalid benchmark structure tuning');
+        return {sse:value.sse,cacheMiB:value.cacheMiB,bridgeSupports:value.bridgeSupports,bridgeMode:value.bridgeMode??0};
     }
     function time(value){
         if(value==null)return null;
@@ -69,6 +82,7 @@
         cachedOnly=false,isOnline=()=>globalThis.navigator?.onLine!==false,bridgeSupports=null,
         getTunnelApertures=()=>[],getTunnelApertureRevision=null,forestComposition,now=()=>Date.now()}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
+        const balancedStructureCache=deviceStructureCache(scene.context?._gl,'balanced');
         const tileLoader=SceneTileLoading?.create(C)??{load:(url,options)=>C.Cesium3DTileset.fromUrl(url,options),dispose(){}};
         const vegetationSeed=VegetationShaderSeed?.create(C,viewer);
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
@@ -104,7 +118,7 @@
             const mode=navigating?'navigation':profile,b=budgets[mode],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
             const [defaultSse,defaultCache,defaultOverflow]=structureBudgets[mode];
             const tuning=benchmarkStructureTuning;
-            const sse=tuning?.sse??defaultSse,cache=tuning?.cacheMiB??defaultCache,overflow=tuning?4:defaultOverflow;
+            const sse=tuning?.sse??defaultSse,cache=tuning?.cacheMiB??(['balanced','navigation'].includes(mode)?balancedStructureCache:defaultCache),overflow=tuning?4:defaultOverflow;
             return {show:false,maximumScreenSpaceError:structures?sse:b[trees?1:0],cacheBytes:(structures?cache:b[trees?3:2])*mb,
                 maximumCacheOverflowBytes:(structures?overflow:b[4])*mb,shadows:C.ShadowMode.DISABLED,
                 ...(structures?{dynamicScreenSpaceError:true,dynamicScreenSpaceErrorFactor:24,
@@ -201,7 +215,10 @@
             const specs=getTunnelApertures();
             const next=Array.isArray(specs)?specs.slice(0,8):[],signature=JSON.stringify(next);
             if(signature===portalSignature)return;
-            portalApertures=next;portalSignature=signature;bridgeSupports?.invalidateDeckCache?.();
+            // Aperture shaders change resident visual picking, not the
+            // source-identified native bridge profiles. Do not cancel a road
+            // discovery scan each time a tunnel enters/leaves the view.
+            portalApertures=next;portalSignature=signature;bridgeSupports?.invalidateVisualPicking?.();
             lastPortalView=null;
             applyModelShader('structures');applyBuildingDetail();
         }
@@ -235,7 +252,7 @@
                 if(name==='show'||l.tileset[name]===value)continue;
                 l.tileset[name]=value;changed=true;
             }
-            if(changed&&key==='structures')bridgeSupports?.invalidateDeckCache?.();
+            if(changed&&key==='structures')bridgeSupports?.invalidateLod?.();
             return changed;
         }
         function visibility(key){
@@ -387,9 +404,11 @@
                 }
                 benchmarkLayers=command===null?null:{...command};
                 benchmarkStructureTuning=next;
+                bridgeSupports?.setBenchmarkMode?.(next?.bridgeMode??0);
                 bridgeSupports?.setBenchmarkSuppressed?.(next?.bridgeSupports===false);
                 applyLayers();return {};
             },
+            beginBenchmarkMeasurement(){if(benchmarkStructureTuning?.bridgeMode===1)bridgeSupports?.beginBenchmarkMeasurement?.();},
             navigation(command){
                 if(disposed)return {};
                 for(const key of ['buildings','vegetation'])if(command[key]!==undefined&&command[key]!==null&&typeof command[key]!=='boolean')throw Error('Invalid navigation scene preference');
@@ -520,7 +539,7 @@
         mode.addEventListener('change',change);value.addEventListener('change',change);
         update({enabled:false});return {update};
     }
-    return {sources,budgets,time,create,bindTimeControls,modelPortalShaderOptions};
+    return {sources,budgets,time,create,bindTimeControls,modelPortalShaderOptions,deviceStructureCache};
 });
 
 

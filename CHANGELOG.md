@@ -1,6 +1,15 @@
 # Changelog
 
-## [0.20.0] - 2026-11-26
+## [0.20.0] - 2026-11-28
+
+### Performance and scene reliability
+
+- Add local route playback benchmarks with layer/RF and Structures LOD/cache/support matrices, separate warmup statistics, JSON/CSV exports and stationary rotation checks. Standardized comparison profiles can enable or disable schematic tunnels and obstacle models without saving overrides.
+- Stabilize synthetic bridge supports with source-anchored stations, validated session caches, bounded initial discovery, adaptive GPU-pick pacing and distance/frustum retention. Reuse independently confirmed heights; preserve geometry across visual-only portal updates.
+- Tune Structures independently of buildings/vegetation, retaining conservative cache defaults and a targeted 48 MiB Balanced/navigation budget for Xclipse 920. Benchmark overrides remain explicit.
+- Improve renderer timing, bridge-cache and geometry diagnostics; distinguish requested layers, admitted geometry, incomplete data and verified comparisons. Preserve RF and collision precision.
+- Fix benchmark flight initialization, render-scale/wind profile handling, export capacity and Chromium regression-test isolation.
+- Consolidate current procedures, measured evidence and limits in the [performance guide](docs/developer/performance.md).
 
 ### Added
 
@@ -25,355 +34,33 @@
 - Fix editor picking, geometry restoration, obstacle retention, suspension-bridge supports and compact settings layout.
 - Make browser and storage regression tests more robust without weakening integrity or collision checks.
 
-## [v0.19.0] - 2026-11-21
+## [0.19.0] - 2026-11-21
 
 ### Advanced Flight Physics & Hardware-Aware Simulation
 
-Introduce a selectable, physically consistent and hardware-aware flight
-simulation model for realistic FPV flight behavior, including freestyle,
-long-range flights, mountain surfing, high-speed dives and autonomous
-recovery.
+- Selectable Advanced (default) and unchanged Legacy fallback; unified manual/autonomous physics, fixed 60/120/240 Hz steps, bounded catch-up and interpolated camera rendering independent of render FPS.
+- Hardware-aware propulsion with motor KV/count, propeller geometry, mass, optional manufacturer curves, spin dynamics, coupled voltage/current/thrust and chemistry-aware battery sag; independent battery/ESC/motor limits and auxiliary load accounting. Preserve ballistic free fall and distinguish DC from motor/ESC electrical estimates.
+- Directional body-frame drag, air-relative velocity, propeller drag, inertia, bounded torque/rate control, quaternion integration, Betaflight-inspired/Classic Expo/Linear rates and optional Air Mode. Brake rotation on stick release without artificial torque from depleted batteries.
+- GPS flight/Rescue uses the same thrust, attitude and power constraints, wind compensation and braking-distance-aware navigation. Preserve recovery phases, deliberate takeover, terrain/model collision and RF behavior.
+- Interpolated local/regional wind, altitude/shear, deterministic gusts and turbulence, optional ridge lift/lee downdrafts, bounded terrain sampling and explicit missing-data fallbacks.
+- Optional ground effect, propwash and vortex-ring-like descent effects with bounded forces, reliable terrain clearance, individual intensity controls and defaults off. Fix the Flutter descent-settings PageStorage collision.
+- Momentum-aware swept collision resolution: Hard Stop, Sliding and Rebound, friction/restitution, supported terrain normals and hard-stop fallback. Stable low-speed landing (2.5 m/s vertical, 1.5 m/s tangential), sustained contact friction and takeoff; optional Assisted Landing up to 75° is a simulation aid.
+- Refine live RF terrain verification with bounded adaptive midpoint refinement and the most detailed available terrain; keep missing or under-resolved paths unknown.
+- Deterministic regression/CPU benchmarks for physics, environmental effects, collision and rescue; two reference aircraft, 13 scenarios each, 30/60/120 FPS, Legacy and injected stalls. Optional local normalized CSV telemetry alignment, bias/MAE/RMSE and quaternion error; synthetic timing, heap/RSS, electrical consistency and endurance estimates; local device diagnostics.
+- Preserve existing aircraft/battery profiles, routes, settings and backups without migrations. Document calibration and validation limits: simplified propulsion, airflow, rotor/landing/contact and Air Mode models, no full Betaflight controller or guaranteed GPS recovery. See [simulation and collision](docs/developer/simulation_and_collision.md) and [performance](docs/developer/performance.md).
 
-The existing Legacy physics model remains available and unchanged.
+## [0.18.0] - 2026-11-20
 
-### Flight Physics Architecture
+- Add live radio ground-station marker, independent sightline and map-selection/takeoff-reset workflow. Extend terrain LoS from 6 km to 50 km with bounded coarse-to-fine ridge/Fresnel refinement, adaptive motion scheduling and caching; limited-confidence or missing data stays unknown, with explicit free-space-only preview.
+- Add approximate independent DJI O4 Pro video and TBS Crossfire RC link budgets, EU/CE and FCC simulation scenarios and custom profiles; expose derived range, path loss, receive power and margins. Reference assumptions are not measured sensitivities or real transmitter configuration.
+- Add opt-in DJI/Betaflight warnings and separate RC/video bars, analog interference and terrain-only demonstration. Brief missing video updates (<1.1 s) retain visual interference without inventing reception or triggering failsafe. Exclude RF/marker/Fresnel visuals from physical collision queries.
+- Add simulated RC failsafe with hold, descend and GPS Rescue (hold, climb ~100 m above loss altitude, turn, return, land), loss/recovery hysteresis and configurable timing, propulsion/navigation safeguards and bounded collision sweeps. Stable reconnection enables deliberate yaw/pitch/roll takeover; revoke after renewed loss or five seconds without modeled RC data. Include session-only RC test source.
+- Continue long-range simulation across missing rendered terrain without invented clearance; keep known collisions and unverified-distance diagnostics. Add deterministic 49.9 km CPU terrain-gap benchmark; device/GPU validation remains separate.
+- Chemistry-aware shared Dart/JS battery profiles (LiPo, LiHV, Li-ion, LiFePO₄, NiMH, NiCd), charge guidance, live voltage/sag, energy accounting, warnings and route-load analysis. Schema v11 adds C-ratings, burst duration and per-cell resistance; zero resistance override means unspecified. Preserve unknown legacy chemistry and records.
+- Schema v12 adds optional ESC per-channel and motor per-motor current ratings with equal-share DC proxy warnings, not measured phase current. Preserve nullable records/backups. Correct zero-throttle Acro/Angle power and remove arbitrary 10% uplift; GPS/replay estimates remain separate.
+- Correct German labels/branding and strengthen Flutter/browser tests for localized iframe input, renderer setup and HUD defaults; cover rescue takeover and requalification.
 
-- Introduce selectable Advanced (default) and Legacy (fallback) flight
-  physics modes, reusing existing aircraft configurations, battery
-  profiles, collision detection and RF simulation.
-- Establish a unified physics-state architecture shared across manual and
-  autonomous flight modes.
-- Decouple simulation physics from Cesium rendering using a configurable
-  60/120/240 Hz fixed timestep.
-- Add bounded catch-up, queued/dropped-time diagnostics and interpolated
-  camera rendering.
-- Preserve deterministic simulation behavior across different rendering frame
-  rates.
-- Maintain independent battery-time integration and backward compatibility
-  with existing profiles.
-
-### Hardware-Aware Propulsion and Battery Simulation
-
-- Introduce a motor and propeller model using configured motor KV, motor
-  count, propeller geometry, aircraft mass and battery characteristics.
-- Estimate motor RPM, available thrust, electrical demand and physically
-  bounded acceleration.
-- Support generic propulsion coefficients and optional manufacturer-provided
-  performance curves.
-- Model motor spin-up and spin-down dynamics.
-- Couple battery terminal voltage, current demand, available motor RPM and
-  thrust through a bounded iterative electrical model.
-- Respect battery internal resistance, chemistry, charge state, continuous/
-  burst discharge ratings and independent ESC, motor and power limits.
-- Include estimated auxiliary electronics and video-system power consumption
-  without double-counting electrical loads.
-- Distinguish battery DC current from estimated motor and ESC electrical
-  quantities.
-- Preserve zero-throttle ballistic free fall without artificial motor thrust
-  when no active rotational correction is required.
-- Provide conservative fallback behavior when detailed hardware specifications
-  are unavailable.
-
-### Directional Aerodynamics and Rotational Dynamics
-
-- Replace uniform Advanced-mode drag with orientation-dependent aerodynamic
-  forces calculated in aircraft body coordinates.
-- Introduce independently configurable forward, backward, lateral and
-  vertical drag characteristics.
-- Account for aircraft orientation, air-relative velocity and optional low-
-  throttle propeller drag.
-- Improve momentum preservation and aerodynamic behavior during high-speed
-  dives, sideways drift and vertical descents.
-- Introduce configurable roll, pitch and yaw moments of inertia.
-- Implement a simplified rate controller translating stick inputs into angular
-  acceleration through bounded control torque.
-- Add configurable torque limits, angular acceleration limits and motor-
-  response dynamics.
-- Support Betaflight-inspired, Classic Expo and Linear rate profiles.
-- Prevent unrealistic instantaneous rotational reversals while preserving
-  independent axis control.
-- Improve quaternion orientation integration for numerically stable flips,
-  rolls and yaw rotations.
-- Introduce an optional Air Mode for Advanced Acro flight, maintaining limited
-  rotational control authority at low or zero throttle.
-- Prevent uncontrolled continuous rotation after stick release by allowing the
-  rate controller to actively brake angular motion without requiring
-  additional pilot throttle input.
-- Maintain responsive roll, pitch and yaw control during low-throttle
-  maneuvers, including rapid stick reversals and corrective inputs.
-- Integrate Air Mode torque authority with existing motor, ESC and battery
-  limitations, avoiding artificial control torque when propulsion power is
-  unavailable.
-- Preserve zero-throttle ballistic free fall when no active rotational
-  correction is required.
-- Keep Air Mode independently configurable without changing Legacy Acro
-  behavior.
-
-### Unified GPS Flight and GPS Rescue
-
-- Integrate GPS-assisted flight and GPS Rescue with the same Advanced physical
-  aircraft model used for manual flight.
-- Replace direct velocity manipulation with physically constrained attitude,
-  thrust and rotational commands.
-- Translate target horizontal velocity, altitude and heading into achievable
-  acceleration and aircraft orientation.
-- Respect available motor thrust, battery performance, maximum tilt and
-  rotational limits.
-- Introduce braking-distance-aware deceleration when approaching the home
-  position.
-- Support wind compensation within available propulsion limits.
-- Preserve GPS Rescue Hold, Climb, Turn, Return and Landing phases.
-- Preserve manual takeover following stable RC reconnection and deliberate
-  pilot input.
-- Maintain existing terrain, 3D-model collision and RF-link behavior.
-- Preserve existing GPS Rescue settings and Legacy-mode functionality.
-
-### Regional Wind and Terrain-Dependent Environmental Effects
-
-- Introduce a unified environmental wind provider supporting local weather
-  fields and regional fallback conditions.
-- Extend wind simulation beyond local Open-Meteo sampling boundaries without
-  abrupt transitions to calm air.
-- Apply smooth interpolation across horizontal positions, altitude and
-  regional wind boundaries.
-- Model approximate altitude-dependent wind speed, wind direction and wind
-  shear.
-- Add configurable, deterministic gust and turbulence intensity.
-- Introduce optional terrain-dependent ridge lift, lee-side downdrafts and
-  turbulence approximations.
-- Add bounded terrain sampling and caching to control computational overhead.
-- Handle missing or outdated weather and terrain information through explicitly
-  defined fallback assumptions.
-- Maintain air-relative aerodynamic calculations across long-distance flights.
-
-### Ground Effect and Descent Aerodynamics
-
-- Introduce optional ground-effect modeling based on rotor diameter, aircraft
-  clearance, orientation and available propulsion.
-- Apply ground effect only when reliable terrain elevation information is
-  available.
-- Model simplified propwash disturbances during powered descent.
-- Introduce an optional vortex-ring-like thrust-loss approximation for relevant
-  descent conditions.
-- Preserve physically distinct low-throttle and zero-throttle ballistic flight
-  behavior.
-- Limit aerodynamic corrections to prevent excessive thrust amplification or
-  unstable acceleration.
-- Add independently configurable effect switches and intensity settings.
-- Preserve existing simulation behavior by keeping the new descent effects
-  disabled by default.
-- Fix a Flutter PageStorage key collision that could render a grey error panel
-  when enabling Ground Effect, Propwash, or Vortex-Ring options in Advanced
-  settings.
-
-### Collision Response and Surface Interaction
-
-- Introduce momentum-aware collision resolution for the Advanced physics model.
-- Reuse existing swept collision detection for terrain and 3D geometry.
-- Separate impact velocity into normal and tangential components.
-- Preserve tangential movement during suitable glancing collisions.
-- Add configurable Hard Stop, Sliding and Rebound collision modes.
-- Support adjustable surface friction, restitution and severe-impact thresholds.
-- Approximate terrain contact normals using reliable neighboring elevation
-  samples.
-- Prevent continued penetration through additional collision checks and bounded
-  contact resolution.
-- Preserve hard-stop fallback behavior when reliable surface normals are
-  unavailable.
-- Exclude visual-only radio, Fresnel and marker entities from physical collision
-  responses.
-- Maintain explicit uncertainty when terrain tiles or collision geometry are
-  missing.
-- Improve Advanced collision response with stable ground contact handling for
-  controlled landings, preventing unrealistic sliding on terrain.
-- Introduce low-speed landing detection with contact thresholds of 2.5 m/s
-  vertical and 1.5 m/s tangential velocity.
-- Maintain stationary ground contact on verified terrain until sufficient motor
-  thrust is available for takeoff.
-- Apply sustained ground-contact friction instead of relying exclusively on the
-  initial collision impulse.
-- Preserve sliding behavior during high-speed glancing impacts while keeping
-  severe-impact handling and Legacy collision behavior unchanged.
-- Add optional Assisted Landing on verified steep terrain (up to 75°) for slow,
-  nearly vertical touchdowns; this is explicitly a simulation aid, not realistic
-  rock-face friction.
-
-### Testing, Performance and Compatibility
-
-- Extend deterministic regression coverage for propulsion, battery discharge,
-  aerodynamic forces, rotational dynamics and autonomous flight.
-- Add tests for flips, rolls, yaw spins, rapid stick reversals, free fall,
-  high-speed dives and controlled landings.
-- Validate GPS Rescue recovery phases, RC reconnection, low-power behavior and
-  automatic landing.
-- Cover regional wind transitions, missing environmental data, ground effect,
-  propwash and repeated collision contacts.
-- Improve live radio terrain verification with bounded adaptive midpoint
-  refinement and the most detailed available terrain data rather than fixed
-  Cesium level 12; keep under-resolved or missing terrain explicitly unknown.
-- Add widget regression coverage for toggling all three Advanced descent effects
-  without invalid PageStorage scroll-offset restoration.
-- Add regression tests for stable ground contact, controlled landing thresholds,
-  stationary behavior and transitions from landing to takeoff.
-- Validate low-throttle rotational braking, stick release, corrective stick
-  inputs and Air Mode behavior with hardware-aware propulsion limits.
-- Verify that depleted batteries cannot provide artificial rotational control
-  torque.
-- Verify deterministic physics behavior at 30, 60 and 120 FPS rendering rates.
-- Introduce CPU-only benchmarks for propulsion, environmental wind sampling,
-  descent aerodynamics and collision processing.
-- Preserve existing aircraft and battery profiles, simulation settings, Legacy
-  physics and route-planning functionality.
-- Maintain compatibility without requiring database or backup migrations.
-- Document model assumptions, approximations, configurable parameters and
-  calibration limitations.
-- Add a combined Advanced physics validation runner with two documented benchmark
-  aircraft profiles, 13 controlled scenarios per profile, 30/60/120 FPS
-  comparisons, Legacy reference runs and injected-stall diagnostics.
-- Support optional local, normalized telemetry CSV comparison with explicit units,
-  time alignment, missing-channel handling, bias/MAE/RMSE and quaternion
-  orientation error; no binary Blackbox decoder or automatic calibration.
-- Record synthetic CPU time, integration-step latency, frame timing, sampled
-  heap/RSS, electrical consistency and steady-load endurance estimates, with
-  representative reproducible results.
-- Add opt-in local Android/Windows profile-build diagnostics and a device
-  measurement template for repeatable Cesium and physics performance comparisons.
-- Consolidate user and developer guidance for physics modes, benchmark procedures,
-  provenance and remaining calibration limitations; select Advanced as the new
-  default while preserving Legacy as an explicit fallback.
-
-### Known Limitations
-
-- Motor thrust, propulsion efficiency, aerodynamic coefficients and moments of
-  inertia remain approximate unless calibrated with manufacturer data or real
-  flight telemetry.
-- Regional wind extrapolation and terrain-dependent airflow effects are simplified
-  approximations, not computational fluid dynamics or verified local weather
-  predictions.
-- Ground effect, propwash and vortex-ring-like behavior do not reproduce detailed
-  rotor aerodynamics.
-- Sliding and rebound require reliable collision normals; unsupported geometry
-  retains conservative hard-stop behavior.
-- Ground contact stabilization uses simplified landing thresholds and friction
-  assumptions rather than a detailed landing gear or structural deformation model.
-  Assisted steep-slope landing deliberately exceeds realistic static friction and
-  must not be treated as a real-world landing prediction.
-- Air Mode provides simplified low-throttle rotational control and does not
-  emulate the complete Betaflight motor mixing and PID control system.
-- GPS Rescue cannot guarantee recovery when available propulsion, battery energy
-  or environmental conditions are insufficient.
-
-### [0.18.0] - 2026-11-20
-
-- Allow simulated long-range flight to continue when individual rendered
-  Cesium terrain heights are unavailable, without inventing ground clearance;
-  keep loaded terrain/model collisions and expose unverified-distance diagnostics.
-- Maintain visual-only analog video interference across brief (<1.1 s) missing
-  video RF updates, with occasional extra flicker; keep RC/video signal state
-  unknown and never reuse these visuals for failsafe decisions.
-- Add a deterministic CPU-only 49.9 km long-range terrain-gap benchmark and
-  regression tests; document that device/GPU and real terrain performance
-  still require measurement.
-- Correct live battery consumption during zero-throttle free fall: Acro/Angle
-  power estimates now account for simulated motor thrust rather than treating
-  vertical falling airspeed as powered forward flight. Remove the arbitrary 10%
-  live power uplift and preserve separate GPS/replay speed-based estimates.
-- Treat a battery internal-resistance override of `0 mΩ` as unspecified,
-  selecting the chemistry-based approximation rather than a physically ideal
-  zero-resistance pack. Preserve positive manufacturer-specific values.
-- Explicitly exclude visual-only radio LoS/Fresnel and ground-station Cesium
-  entities from model-collision height sampling. They remain visible but cannot
-  be interpreted as 3D model surfaces.
-- Make the Chrome simulation/dropdown iframe-input regression independent of
-  responsive close-button visibility and translated option labels.
-- Keep a confirmed simulated RC reconnection available for deliberate GPS
-  Rescue pilot takeover throughout the return flight, including short terrain
-  sampling gaps and link values within the RF hysteresis band. Revoke takeover
-  after sustained renewed RC loss or five seconds without modeled RC data;
-  require a fresh stable reconnection before re-enabling takeover. Add rescue
-  regression tests for mid-return control, lost-link requalification, and
-  throttle-only inputs. No change to real RC equipment or radio legality.
-- Extend terrain-based live radio LoS from 6 km up to
-  50 km using bounded coarse-to-fine sampling and targeted ridge/Fresnel
-  refinement. Keep shared route radio geometry, adaptive speed/distance update
-  intervals and terrain height caching.
-- Identify under-resolved long-range profiles as limited-confidence, never
-  inferred clear visibility or confirmed RC loss. Display terrain query/sample
-  counts and a clearly labelled free-space-only RF preview when LOS is unknown.
-- Correct the browser iframe simulation dialog test host to register the
-  generated German localization delegate (Chrome web regression).
-- Refine simulation-only GPS Rescue to hold, climb approximately 100 m above
-  current loss altitude, turn toward home, return at controlled cruise altitude
-  and speed, then land automatically near the home-point ground surface.
-  Recovered RC alone does not cancel rescue: a deliberate yaw/pitch/roll stick
-  input is required; retain bounded terrain and model collision sweeps.
-- Make modeled terrain obstruction more influential in RC/video link budgets;
-  shorten default simulated failsafe activation/recovery delays while retaining
-  user controls, hysteresis and unavailable-terrain safeguards.
-- Introduce independent EU/CE and FCC reference scenarios for DJI O4 Pro video
-  and TBS Crossfire RC, plus custom numeric profiles. Preset EIRP/frequencies
-  reflect documented bands or explicitly labeled simulation assumptions;
-  derived receiver thresholds are NOT measured hardware sensitivities.
-  Selecting an RF scenario never configures an actual transmitter or grants
-  radio-operation permission.
-- Add chemistry-dependent charge references: lithium CC/CV per-cell maximums and
-  explicit nickel delta-peak/temperature cutoff guidance (no invented fixed
-  nickel charge voltage). Both languages show the appropriate battery-editor hint.
-- Persist independent optional ESC continuous per-channel and motor continuous
-  per-motor current ratings in drone profile schema v12. Show distinct estimated
-  limit warnings in route analysis and live battery estimates using a clearly
-  labeled equal-share DC current proxy; motor phase currents are not measured.
-- Retain existing battery, drone, and backup records across the nullable schema
-  migration. Unknown electrical limits remain unknown, not assumed adequate.
-- Replace free-text battery chemistry with localized LiPo, LiHV, Li-ion, LiFePO₄,
-  NiMH, and NiCd selections; preserve unsupported legacy chemistry strings.
-- Persist individual continuous/burst C-ratings, burst duration, and per-cell
-  internal resistance (mΩ) in database schema v11; copy values from type templates.
-- Pass specifications into the existing chemistry-aware live-voltage simulation and
-  route energy/load analysis. Chemistry defaults remain explicitly approximate.
-- Correct known German localization defects including Betaflight branding and
-  simulator spawn labels.
-- Centralize estimated RC battery chemistry behavior with generated, shared Dart/JavaScript
-  reference presets (LiPo, LiHV, Li-ion, LiFePO4, NiMH and NiCd). The flight HUD now uses
-  chemistry-specific discharge voltage and load sag, charge/energy accounting and automatic
-  low-voltage warnings; route energy assessments flag estimated current requirements above
-  generic chemistry reference limits without overwriting recorded Wh. Custom warning
-  thresholds remain available, and existing battery records/backups are unchanged.
-- Extend simulated DJI O4 Pro and Crossfire RF estimation with derived free-space
-  maximum ranges, receive power, path loss and remaining link margins for each
-  band, retaining conservative terrain uncertainty and custom parameters.
-  Expose estimates in radio details/HUD tooltips, not as measured reception.
-- Stabilize Flutter tests affected by additional renderer radio setup commands:
-  verify feature-specific commands rather than absolute command-list positions,
-  and compare preference resets against the current HUD defaults.
-- Add default, explicitly approximate DJI O4 Air Unit Pro video and TBS Crossfire
-  RC link-budget profiles with optional custom radio parameters. Expose independent
-  video/RC signal estimates when fresh terrain profiles exist, retain unknown
-  reception on unavailable data, and feed the existing optional failsafe.
-- Improve adaptive live sightline sampling at higher flight speeds, keep rays
-  strictly visualization-only and non-collidable, increase optional analog
-  video interference at poor simulated reception and speed up GPS Rescue
-  target-speed tracking with bounded acceleration and braking.
-- Add an opt-in, deterministic simulated RC failsafe with hold, descend and
-  illustrative GPS Rescue to the takeoff point. Sustain loss and recovery
-  thresholds with hysteresis, handle unknown/insufficient navigation and battery
-  information, keep manual/video/RC channels separate, and reuse existing
-  flight collision sweeps. Provide simulation-only HUD status, persisted settings
-  and a session-only manual RC test source; no terrain-only RF-loss assertions.
-- Add opt-in simulated video-link warnings to the goggles HUD and separate
-  video/RC strength bars in the Betaflight OSD, with optional analog interference.
-  Smooth the visuals and persist thresholds/intensity locally. An explicit
-  terrain-only demonstration can illustrate possible video degradation without
-  asserting measured RF quality or RC failure; unknown conditions show no
-  invented reception. All effects are presentation-only and cannot trigger
-  failsafe.
-- Extend the existing live geometric radio preview with a separately visible
-  ground station marker, independently controlled sightline, and an explicit
-  takeoff reset/map-selection workflow. Share an immutable assessment model
-  for future HUD/failsafe work while keeping RC and video reception unknown
-  without a dedicated RF model. Existing route radio analysis is reused.
-
-### [0.17.2] - 2026-11-18
+## [0.17.2] - 2026-11-18
 
 - Simplify generated 3D road and railway tunnel portals to the existing
   yellow/orange outline. Remove the oversized, visual-only front facades while

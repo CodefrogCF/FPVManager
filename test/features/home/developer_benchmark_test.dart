@@ -6,6 +6,28 @@ import 'package:fpvmanager/features/home/developer_benchmark.dart';
 import 'package:fpvmanager/features/home/developer_performance_recording.dart';
 
 void main() {
+  test('support-on runs require actual geometry in their intended mode', () {
+    expect(
+      benchmarkSupportGeometryObserved(0, computed: 0, visible: 0),
+      isFalse,
+    );
+    expect(
+      benchmarkSupportGeometryObserved(0, computed: 5, visible: 0),
+      isFalse,
+    );
+    expect(
+      benchmarkSupportGeometryObserved(0, computed: 5, visible: 5),
+      isTrue,
+    );
+    expect(
+      benchmarkSupportGeometryObserved(1, computed: 5, visible: 0),
+      isFalse,
+    );
+    expect(
+      benchmarkSupportGeometryObserved(2, computed: 5, visible: 0),
+      isTrue,
+    );
+  });
   test(
     'benchmark matrix isolates layers and radio; second pass reverses order',
     () {
@@ -31,12 +53,13 @@ void main() {
 
   test('structure matrix changes one factor at a time and rotates repeats', () {
     final cases = BenchmarkCase.structureMatrix;
-    expect(cases.length, 10);
+    expect(cases.length, 12);
     final reference = cases.first;
     expect(reference.structureTuning, {
       'sse': 24,
       'cacheMiB': 16,
       'bridgeSupports': true,
+      'bridgeMode': 0,
     });
     for (final variant in cases.skip(1)) {
       expect(variant.layers, reference.layers);
@@ -47,6 +70,7 @@ void main() {
           variant.cacheMiB != reference.cacheMiB,
           variant.bridgeSupports != reference.bridgeSupports,
           variant.gpuTiming != reference.gpuTiming,
+          variant.bridgeMode != reference.bridgeMode,
         ].where((changed) => changed).length,
         1,
       );
@@ -56,7 +80,7 @@ void main() {
       cases.reversed.toList(),
     );
     expect(BenchmarkCase.order(3, tuning: true).toSet(), cases.toSet());
-    expect(BenchmarkCase.order(3, tuning: true).first, cases[5]);
+    expect(BenchmarkCase.order(3, tuning: true).first, cases[6]);
   });
 
   test('benchmark summary uses quantiles of snapshots, not raw frames', () {
@@ -101,7 +125,16 @@ void main() {
       final metadata = <String, Object?>{'kind': 'route-playback-benchmark'};
       recording.start(metadata: metadata);
       recording.add(
-        {'renderFps': 30, 'latitude': 46.7},
+        {
+          'renderFps': 30,
+          'latitude': 46.7,
+          'bridgeSupports': {
+            'supportTransformHash': 'abc12345',
+            'lastRemovalReason': 'outside-area',
+            'supportAudit': 'abc12345:outside-area',
+            'supportPositionChanged': 0,
+          },
+        },
         {
           'benchmarkCase': 'no-structures',
           'benchmarkRepetition': 1,
@@ -115,6 +148,18 @@ void main() {
       expect(document['benchmark']['status'], 'completed');
       expect(document['samples'][0]['benchmarkCase'], 'no-structures');
       expect(document['samples'][0]['latitude'], isNull);
+      expect(
+        document['samples'][0]['bridgeSupports.supportTransformHash'],
+        'abc12345',
+      );
+      expect(
+        document['samples'][0]['bridgeSupports.lastRemovalReason'],
+        'outside-area',
+      );
+      expect(
+        document['samples'][0]['bridgeSupports.supportAudit'],
+        'abc12345:outside-area',
+      );
       expect(
         utf8.decode(recording.encode(csv: true)),
         contains('no-structures'),
