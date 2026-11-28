@@ -26,6 +26,8 @@ network.set_network_enabled(False)
 MIB = 1024**2
 MAX = 64*MIB
 ELEMENTS = 2_000_000
+# Compatibility floor for schema-v1 outputs, not the current app release.
+MINIMUM_APP_VERSION = '0.20.0'
 
 
 def require(ok, message):
@@ -415,7 +417,7 @@ def convert(recipe, base, output):
         b=a['model']['localBounds']; corners.extend([[b[x],b[1+y],b[2+z]] for x in (0,3) for y in (0,3) for z in (0,3)])
     geo=frame.to_geographic(corners); lon,lat,height=map(float,frame.anchor); unwrapped=(geo[:,0]-lon+180)%360-180+lon
     wrap=lambda x: float((x+180)%360-180)
-    scenery=dict(schemaVersion=1,id=ident,name=name,description=desc,source=source,anchor=dict(longitude=lon,latitude=lat,heightM=height,reference='WGS84_ELLIPSOID'),bounds=dict(west=wrap(unwrapped.min()),south=float(geo[:,1].min()),east=wrap(unwrapped.max()),north=float(geo[:,1].max())),rotation=dict(headingDeg=0,pitchDeg=0,rollDeg=0),scale=1,assets=assets,collision=dict(enabled=bool(cs),assetIds=cs,sidedness='double'),visibility=dict(enabled=False,loadRadiusM=2500,unloadRadiusM=4000),minimumAppVersion='0.20.0')
+    scenery=dict(schemaVersion=1,id=ident,name=name,description=desc,source=source,anchor=dict(longitude=lon,latitude=lat,heightM=height,reference='WGS84_ELLIPSOID'),bounds=dict(west=wrap(unwrapped.min()),south=float(geo[:,1].min()),east=wrap(unwrapped.max()),north=float(geo[:,1].max())),rotation=dict(headingDeg=0,pitchDeg=0,rollDeg=0),scale=1,assets=assets,collision=dict(enabled=bool(cs),assetIds=cs,sidedness='double'),visibility=dict(enabled=False,loadRadiusM=2500,unloadRadiusM=4000),minimumAppVersion=MINIMUM_APP_VERSION)
     if lods: scenery['extensions']={'lods':lods}
     # Replacement is intentionally opt-in: exact user-reviewed local footprint, not a bounding rectangle.
     if 'replacementEnu' in recipe:

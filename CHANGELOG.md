@@ -1,12 +1,22 @@
 # Changelog
 
+## [0.20.1] - unreleased
+
+### Performance and scene reliability
+
+- Decouple automatic 3D tunnel discovery and rendering from the Structures layer, allowing bridges and schematic tunnels to be controlled independently. Preserve manual tunnel discovery.
+- Reduce redundant native bridge and deck-height GPU picks through prioritized road-axis discovery, deduplicated queries, bounded optional height confirmations and deferred follow-up scans.
+- Preserve validated bridge geometry, session caches and distance/frustum retention without reducing height validation, RF precision or collision accuracy.
+- Restore the conservative 16 MiB Structures cache budget for Xclipse 920 after the previously measured performance benefit could not be reproduced.
+- Extend automated benchmarks with independent tunnel-only and obstacle-only comparison profiles.
+- Update performance documentation with measured cross-device results, current cache defaults and remaining limitations.
+
 ## [0.20.0] - 2026-11-28
 
 ### Performance and scene reliability
 
-- Add local route playback benchmarks with layer/RF and Structures LOD/cache/support matrices, separate warmup statistics, JSON/CSV exports and stationary rotation checks. Standardized comparison profiles can enable or disable schematic tunnels and obstacle models without saving overrides.
-- Stabilize synthetic bridge supports with source-anchored stations, validated session caches, bounded initial discovery, adaptive GPU-pick pacing and distance/frustum retention. Reuse independently confirmed heights; preserve geometry across visual-only portal updates.
-- Tune Structures independently of buildings/vegetation, retaining conservative cache defaults and a targeted 48 MiB Balanced/navigation budget for Xclipse 920. Benchmark overrides remain explicit.
+- Add local route playback benchmarks with layer/RF and Structures LOD/cache/support matrices, separate warmup statistics, JSON/CSV exports and stationary rotation checks. Standardized comparison profiles isolate schematic tunnels and obstacle models individually or together without saving overrides.
+- Stabilize synthetic bridge supports with source-anchored stations, validated session caches, bounded initial discovery, adaptive GPU-pick pacing and distance/frustum retention. Reuse independently confirmed heights, pace optional confirmations across refreshes, prioritize initial axis discovery and preserve geometry across visual-only portal updates.
 - Improve renderer timing, bridge-cache and geometry diagnostics; distinguish requested layers, admitted geometry, incomplete data and verified comparisons. Preserve RF and collision precision.
 - Fix benchmark flight initialization, render-scale/wind profile handling, export capacity and Chromium regression-test isolation.
 - Consolidate current procedures, measured evidence and limits in the [performance guide](docs/developer/performance.md).

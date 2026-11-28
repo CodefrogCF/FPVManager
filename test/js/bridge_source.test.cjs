@@ -277,3 +277,22 @@ test('adaptive pick recovery is bypassed until geometry exists and cancellation 
     geometry=true;budget.record(40);const abort=new AbortController();const waiting=budget.wait(abort.signal);abort.abort();
     await assert.rejects(waiting,{name:'AbortError'});
 });
+
+
+test('initial discovery samples distinct nearby axes before exhausting its budget on misses',async()=>{
+    const lines=Array.from({length:25},(_,i)=>({featureId:`road-${i}`,geometry:{type:'LineString',coordinates:[
+        [center.longitude-.004,center.latitude+i*.00008],[center.longitude+.004,center.latitude+i*.00008]]}}));
+    const f=setup({sessionReuse:true,isNavigationActive:()=>true,fetcher:async()=>({ok:true,json:async()=>({results:lines})})});
+    f.manager.setDiagnosticsEnabled(true);
+    const picked=[];
+    f.viewer.scene.pickFromRay=ray=>{
+        picked.push(ray.origin.latitude);
+        if(Math.abs(ray.origin.latitude-(center.latitude+24*.00008))>1e-7)return undefined;
+        return {object:{tileset:f.selected,getProperty:key=>({KUNSTBAUTE:200,UUID:'last-road'})[key]},position:{height:1450}};
+    };
+    try{
+        const result=await f.manager.discover(center);
+        assert.ok(result.bridges.some(b=>b.sourceId==='last-road'&&b.nativeStations.length>0));
+        assert.equal(new Set(picked.slice(0,25)).size,25);assert.ok(picked.length<=96);
+    }finally{f.manager.dispose();}
+});

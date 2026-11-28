@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {create,time,deviceStructureCache}=require('../../web/features/scene/scene_environment.js');
+const {create,time}=require('../../web/features/scene/scene_environment.js');
 class Event{
     constructor(){this.listeners=new Set();}
     addEventListener(f){this.listeners.add(f);return ()=>this.listeners.delete(f);}
@@ -440,12 +440,11 @@ test('bridge benchmark modes are scoped to tuning and freeze only at measurement
 });
 
 
-test('larger Structures cache is restricted to Xclipse 920 normal profiles and masked renderers fall back',()=>{
-    const gl=name=>({getExtension:()=>({UNMASKED_RENDERER_WEBGL:1}),getParameter:()=>name});
-    assert.equal(deviceStructureCache(gl('ANGLE ((Samsung Xclipse 920) on Vulkan)'), 'balanced'),48);
-    assert.equal(deviceStructureCache(gl('Samsung Xclipse 920'),'navigation'),48);
-    for(const mode of ['performance','compatibility','quality'])assert.equal(deviceStructureCache(gl('Xclipse 920'),mode),16);
-    for(const name of ['Adreno (TM) 830','ANGLE Radeon RX 6900 XT','Xclipse 940'])assert.equal(deviceStructureCache(gl(name),'balanced'),16);
-    assert.equal(deviceStructureCache(null,'balanced'),16);
-    assert.equal(deviceStructureCache({getExtension:()=>null},'balanced'),16);
+
+test('Structures defaults remain 16 MiB across navigation and graphics profiles',async()=>{
+    const f=fixture();f.set({structures:true});await flush();
+    for(const mode of ['quality','balanced','performance','compatibility']){
+        f.manager.performance(mode);assert.equal(f.manager.structuresTileset().cacheBytes,16*1024*1024);
+    }
+    f.manager.navigationActive(true);assert.equal(f.manager.structuresTileset().cacheBytes,16*1024*1024);f.manager.dispose();
 });

@@ -20,18 +20,6 @@
         quality:[24,16,8],balanced:[24,16,4],performance:[40,16,2],
         compatibility:[52,16,2],navigation:[32,16,2]
     });
-    // The measured Xclipse 920 configuration benefited from a larger resident
-    // cache. Restrict the exception to that known renderer and normal detail
-    // profiles; unknown/masked renderers retain conservative defaults.
-    function deviceStructureCache(gl,mode){
-        if(!['balanced','navigation'].includes(mode))return 16;
-        try{
-            const debug=gl?.getExtension?.('WEBGL_debug_renderer_info');
-            const renderer=debug&&gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
-            if(typeof renderer==='string'&&/\bXclipse\s+920\b/i.test(renderer))return 48;
-        }catch(_){}
-        return 16;
-    }
     const benchmarkSse=new Set([24,32,40,48,64]),benchmarkCache=new Set([16,24,32,48]);
     function validateStructureTuning(value){
         if(value==null)return null;
@@ -82,7 +70,6 @@
         cachedOnly=false,isOnline=()=>globalThis.navigator?.onLine!==false,bridgeSupports=null,
         getTunnelApertures=()=>[],getTunnelApertureRevision=null,forestComposition,now=()=>Date.now()}={}){
         const scene=viewer.scene,clock=viewer.clock,overrides=new Map();
-        const balancedStructureCache=deviceStructureCache(scene.context?._gl,'balanced');
         const tileLoader=SceneTileLoading?.create(C)??{load:(url,options)=>C.Cesium3DTileset.fromUrl(url,options),dispose(){}};
         const vegetationSeed=VegetationShaderSeed?.create(C,viewer);
         const original={time:C.JulianDate.clone(clock.currentTime),step:clock.clockStep,animate:clock.shouldAnimate,
@@ -118,7 +105,7 @@
             const mode=navigating?'navigation':profile,b=budgets[mode],trees=key==='vegetation',structures=key==='structures',mb=1024*1024;
             const [defaultSse,defaultCache,defaultOverflow]=structureBudgets[mode];
             const tuning=benchmarkStructureTuning;
-            const sse=tuning?.sse??defaultSse,cache=tuning?.cacheMiB??(['balanced','navigation'].includes(mode)?balancedStructureCache:defaultCache),overflow=tuning?4:defaultOverflow;
+            const sse=tuning?.sse??defaultSse,cache=tuning?.cacheMiB??defaultCache,overflow=tuning?4:defaultOverflow;
             return {show:false,maximumScreenSpaceError:structures?sse:b[trees?1:0],cacheBytes:(structures?cache:b[trees?3:2])*mb,
                 maximumCacheOverflowBytes:(structures?overflow:b[4])*mb,shadows:C.ShadowMode.DISABLED,
                 ...(structures?{dynamicScreenSpaceError:true,dynamicScreenSpaceErrorFactor:24,
@@ -539,7 +526,7 @@
         mode.addEventListener('change',change);value.addEventListener('change',change);
         update({enabled:false});return {update};
     }
-    return {sources,budgets,time,create,bindTimeControls,modelPortalShaderOptions,deviceStructureCache};
+    return {sources,budgets,time,create,bindTimeControls,modelPortalShaderOptions};
 });
 
 
@@ -721,6 +708,7 @@
         osmFallback = true, requestTimeoutMs = 7000,
         offlineIndex = globalThis.FPVTunnelOfflineIndex?.create?.() ?? null} = {}) {
         let disposed = false, visible = false, manualVisible = false, automatic = false, allowed = false, items = [], active = null, opacity = .85;
+        let catalogueAvailable=false,itemsCenter=null;
         let requestController = null, revision = 0, lastRequestAt = -Infinity, lastOsmAt = -Infinity;
         let dataSource = null, removeFrame = null, pending = false;
         let autoTimer = null, lastAutoAt = -Infinity, lastAutoCenter = null;
@@ -794,7 +782,7 @@
             emit('infrastructure-exploration-status', {active:false, message});
             scene.requestRender?.();
         }
-        function clear() { revision++;requestController?.abort();requestController = null;pending = false;rescanAfterPending=false;stop();items = [];onRoutes([],null);clearData(); }
+        function clear() { revision++;requestController?.abort();requestController = null;pending = false;rescanAfterPending=false;stop();items = [];catalogueAvailable=false;itemsCenter=null;onRoutes([],null);clearData(); }
         // The official service publishes axes, NOT surveyed tubes or portals.
         // Discover nearby schematic routes only when the 3D structures layer is enabled.
         // A viewport scan is bounded, deferred until camera idle, and rate-limited.
@@ -904,7 +892,7 @@
             }
             automatic = enabled; if (!automatic) {cancelAutoTimer();publishAutomatic('hidden',0,true);}
             updateVisibility();
-            if (automatic) {publishAutomatic('waiting',0,true);scheduleAutomaticScan();}
+            if (automatic) {lastAutoCenter=null;lastAutoAt=-Infinity;publishAutomatic('waiting',0,true);scheduleAutomaticScan();}
             return {automatic, visible};
         }
         function set({routesVisible, explorationAllowed, opacity:nextOpacity = opacity} = {}) {
@@ -917,8 +905,8 @@
             updateVisibility();
             draw();return {visible, automatic, explorationAllowed:allowed, count:items.length};
         }
-        async function scan({longitude,latitude,radiusMeters = 600,preferTagged = false,viewportBox = null} = {},signal) {
-            if (disposed || !visible) throw Error('Enable tunnel routes first.');
+        async function scan({longitude,latitude,radiusMeters = 600,preferTagged = false,viewportBox = null,catalogueOnly=false} = {},signal) {
+            if (disposed || (!visible&&!catalogueOnly)) throw Error('Enable tunnel routes first.');
             if (!isOnline() && !offlineIndex) throw Error('No bundled tunnel index and no online tunnel source.');
             const area = bounds(longitude, latitude, radiusMeters);
             const box = Array.isArray(viewportBox)&&viewportBox.length===4&&
@@ -933,7 +921,7 @@
             const previous=cachedRoutes(cacheKey);
             if(previous){
                 const cached=previous.data;
-                items=cached.items;draw();onRoutes(items,{longitude,latitude});
+                items=cached.items;catalogueAvailable=catalogueOnly;itemsCenter={longitude,latitude};draw();onRoutes(items,{longitude,latitude});
                 emit('infrastructure-scan-status',{count:items.length,incomplete:cached.incomplete});
                 emit('tunnel-routes-loaded',{routes:cached.routes,incomplete:cached.incomplete});
                 return {...cached.data,bbox:box,fromCache:true};
@@ -1036,7 +1024,7 @@
                 // render two meshes for the same way / axis segment.
                 const ids=new Set();
                 items=routes.filter(route=>{if(ids.has(route.id))return false;ids.add(route.id);return true;})
-                    .slice(0,MAX_FEATURES);draw();
+                    .slice(0,MAX_FEATURES);catalogueAvailable=catalogueOnly;itemsCenter={longitude,latitude};draw();
                 onRoutes(items,{longitude,latitude});
                 const data = {count:items.length, incomplete, queriedAtUtc:new Date().toISOString(),
                     sourceLayers:sources, failedLayers:localIndexReady?[]:failed, bbox:box,
@@ -1059,7 +1047,7 @@
         function routeById(routeId) {
             if (typeof routeId !== 'string' || routeId.length > 150) throw Error('Invalid route selection');
             const found = items.find(r => r.id === routeId);
-            if (!found || !visible) throw Error('Selected tunnel route is not available in the current area.');
+            if (!found || (!visible&&!catalogueAvailable)) throw Error('Selected tunnel route is not available in the current area.');
             return found;
         }
         function groundAt(lon,lat) {
@@ -1120,7 +1108,7 @@
         }
         return {set,setAutomatic,prefetchFlight,scan,focus,explore,stop,pick,
             snapshot(){return {routes:items.map(r=>({...r,coordinates:r.coordinates.map(p=>[...p])})),
-                center:lastAutoCenter && {...lastAutoCenter}};},
+                center:itemsCenter && {...itemsCenter}};},
             geometry(routeId){const r=routeById(routeId);return {id:r.id,source:r.source,sourceId:r.sourceId,
                 coordinates:r.coordinates.map(pair=>[...pair])};},
             dispose(){if(disposed)return;cancelAutoTimer();removeMoveEnd?.();clear();disposed=true;},

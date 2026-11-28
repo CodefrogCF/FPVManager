@@ -1329,7 +1329,10 @@ class GlobeController extends ChangeNotifier {
     'navigationVegetation': navigationVegetation.name,
   };
 
-  Future<void> setBenchmarkExtras(bool enabled) async {
+  Future<void> setBenchmarkExtras(
+    bool enabled, {
+    bool? obstaclesEnabled,
+  }) async {
     if (!_benchmarkActive || !developerMenusEnabled) {
       throw StateError('Benchmark inactive');
     }
@@ -1338,7 +1341,7 @@ class GlobeController extends ChangeNotifier {
     }
     _benchmarkExtrasOverride = enabled;
     await _request({..._tunnelCommand, 'routesVisible': false});
-    await obstacles.setBenchmarkExtras(enabled);
+    await obstacles.setBenchmarkExtras(obstaclesEnabled ?? enabled);
   }
 
   Future<Map<String, dynamic>> benchmarkRotationPose(

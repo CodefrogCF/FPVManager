@@ -96,10 +96,7 @@ void main() {
       );
       await tester.tap(find.text('3D & Licht'));
       await tester.pumpAndSettle();
-      final structures = find.widgetWithText(
-        SwitchListTile,
-        'Brücken und Bauwerke',
-      );
+      final structures = find.byKey(const ValueKey('scene-layer-structures'));
       await tester.ensureVisible(structures);
       await tester.tap(structures);
       await tester.pumpAndSettle();
@@ -114,6 +111,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(globe.schematicTunnel3dEnabled, true);
       expect(peer.commands.last['autoModels'], true);
+      await tester.ensureVisible(structures);
+      await tester.tap(structures);
+      await tester.pumpAndSettle();
+      expect(globe.structures3dVisible, false);
+      expect(globe.schematicTunnel3dEnabled, true);
+      await tester.ensureVisible(structures);
+      await tester.tap(structures);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(schematic);
+      await tester.tap(schematic);
+      await tester.pumpAndSettle();
+      expect(globe.schematicTunnel3dEnabled, false);
+      expect(globe.structures3dVisible, true);
+      await tester.tap(schematic);
+      await tester.pumpAndSettle();
       peer.emit({
         'type': 'tunnel-routes-loaded',
         'routes': [

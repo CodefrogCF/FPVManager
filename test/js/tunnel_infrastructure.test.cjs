@@ -382,3 +382,23 @@ test('camera movement while a tunnel request is pending schedules the next viewp
     assert.equal(f.requested.length,2,'fetches follow the latest camera location');
     f.module.dispose();
 });
+
+
+test('explicit catalogue search works without automatic discovery or axis overlays',async()=>{
+    const f=fixture({automaticFixture:true,respond:layer=>({results:layer.includes('strassen')?[road(1)]:[]})});
+    try{
+        const result=await f.module.scan({longitude:8.3,latitude:46.9,catalogueOnly:true});
+        assert.equal(result.count,1);assert.equal(f.module.status().automatic,false);
+        assert.equal(f.module.status().visible,false);assert.equal(f.drawn.length,0);assert.equal(f.autoTimers.size,0);
+        assert.equal(f.module.geometry(result.routes[0].id).coordinates.length,2);
+        assert.deepEqual(f.module.snapshot().center,{longitude:8.3,latitude:46.9});
+    }finally{f.module.dispose();}
+});
+
+test('Structures commands cannot enable tunnel discovery in the production bridge',()=>{
+    const globe=require('node:fs').readFileSync(require.resolve('../../web/globe.js'),'utf8');
+    const structureHandler=globe.split("case 'set-scene-environment':")[1].split("case 'set-tunnel-infrastructure':")[0];
+    const tunnelHandler=globe.split("case 'set-tunnel-infrastructure':")[1].split("case 'scan-tunnel-infrastructure':")[0];
+    assert.doesNotMatch(structureHandler,/tunnels\?\.setAutomatic/);
+    assert.match(tunnelHandler,/tunnels\?\.setAutomatic\(schematicTunnelsEnabled,/);
+});

@@ -54,7 +54,7 @@ flutter test --no-pub
 flutter test --no-pub --platform chrome test/web/globe_input_test.dart test/web/offline_storage_test.dart
 ```
 
-On resource-constrained Windows hosts, run JS tests with `--test-concurrency=1`; CI runs its default concurrency on Linux. Check free disk space and pagefile before browser/build tests. For version changes, keep the runtime scenery version, new manifest defaults, converter and its fixture consistent with `pubspec.yaml`; do not rewrite third-party packages. The previous development build used a higher numeric patch version; its exact scenery compatibility label is accepted because the capabilities are retained. Do not reuse build numbers or decrease published semantic versions in future releases.
+On resource-constrained Windows hosts, run JS tests with `--test-concurrency=1`; CI runs its default concurrency on Linux. Check free disk space and pagefile before browser/build tests.
 
 Verify the CI builds:
 
@@ -73,6 +73,26 @@ Serve the complete `build/web/` over HTTPS (or localhost). Offline Web startup
 requires the generated integrity manifest and a completed online installation.
 Close all app tabs and reopen to activate an updated snapshot. `flutter run`
 without the manifest supports map caching, but not a verified offline app shell.
+
+### Version updates
+
+`pubspec.yaml` is the source of truth for the application version and build
+number. Run `python tool/maintenance/bump_version.py 0.20.1` (replace the
+example version with the next release). This increments the build number,
+generates the runtime Dart constants, updates the README and prepares the
+changelog heading. Add the actual release notes before publishing. Use
+`--dry-run` for a preview, `--build` for an explicit increasing build number,
+and `--date` to date a newly created changelog heading. If the pubspec has
+already been edited, run `python tool/maintenance/bump_version.py --sync`.
+Use the pubspec version for builds; do not override it with Flutter build-name
+or build-number flags. Commit the generated file with the other version changes.
+CI detects stale
+metadata; it does not rewrite it. Do not reuse build numbers or decrease
+published semantic versions.
+
+Scenery `minimumAppVersion` describes compatibility, not the application
+release. Schema-v1 defaults and fixed regression fixtures retain their original
+compatibility floor until a required capability changes.
 
 ### Release packaging
 

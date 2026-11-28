@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'scenery_manifest.dart';
-import 'scenery_asset_provider.dart';
 import 'scenery_model_import.dart';
 import 'scenery_import_files.dart';
 import 'scenery_tileset_dialog.dart';
@@ -357,7 +356,7 @@ class _SceneryManagementPageState extends State<SceneryManagementPage> {
           'loadRadiusM': 2500,
           'unloadRadiusM': 4000,
         },
-        'minimumAppVersion': sceneryApplicationVersion,
+        'minimumAppVersion': SceneryManifest.minimumSupportedAppVersion,
       });
       final route = DialogRoute<SceneryManifest>(
         context: context,

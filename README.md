@@ -2,7 +2,7 @@
 
 **FPVManager** is an open-source, local-first application for FPV flight preparation, Swiss map exploration and flight simulation. It combines a CesiumJS 3D globe with offline personal records, terrain and airspace information, route tools, and configurable simulation physics.
 
-**Current source version:** `0.20.0+57` (published downloads may differ).
+**Current source version:** `0.20.1+58` (published downloads may differ).
 
 [Project showcase](https://youtu.be/S1XSDf-Mf1A) · [Latest releases](https://github.com/CodefrogCF/FPVManager/releases/latest)
 

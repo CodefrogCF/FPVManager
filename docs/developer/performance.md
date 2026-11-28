@@ -114,8 +114,8 @@ when enabled, and does not test manual flight physics or actual reception.
 
 | Matrix | Variants |
 |---|---|
-| `layers-v1` | Reference, no buildings, no Structures, no vegetation, terrain, no RF |
-| `structures-tuning-v8` | Reference SSE 24/cache 16 MiB; SSE 32/40/48/64; cache 24/32/48 MiB; supports off; frozen warmed supports; compute-only supports; GPU timer off |
+| `layers-v2` | Reference, no buildings, no Structures, no vegetation, terrain, no RF |
+| `structures-tuning-v9` | Reference SSE 24/cache 16 MiB; SSE 32/40/48/64; cache 24/32/48 MiB; supports off; frozen warmed supports; compute-only supports; GPU timer off |
 
 Structures tuning fixes overflow to 4 MiB, dynamic SSE factor 24 and foveated
 cone 0.1. Each variant changes one factor; all three standard tilesets and RF
@@ -123,12 +123,15 @@ remain requested. Compute-only does not create support primitives. Frozen
 mode holds the last warmup geometry (not a full-route bake) and performs no
 new discovery/picks during measurement. The layer matrix's infrastructure
 case toggles Structures and its synthetic supports, not independent tunnels
-or custom scenery. Repeat 2 reverses order; repeat 3 rotates by half the matrix.
+or custom scenery. The Structures switch also gates auxiliary synthetic bridge
+supports. Automatic tunnel discovery, meshes and masks are controlled only by
+the separate schematic tunnel switch. Native portals remain part of the mixed
+official Structures tileset; manual one-shot tunnel catalogue searches remain available. Repeat 2 reverses order; repeat 3 rotates by half the matrix.
 
-Choose the original settings, **Tunnel / obstacles off**, or **3D tunnels /
-obstacle models on**. Both standardized profiles fix FOV to 100° and tilt to
-0°, disable obstacle WMS/hazard overlays and set schematic tunnels, obstacle
-vectors and models consistently. They do not overwrite saved preferences or
+Choose original settings, **Tunnel / obstacles off**, **3D tunnels only**,
+**Obstacle models only**, or **3D tunnels / obstacle models on**. Standardized
+profiles fix FOV to 100° and tilt to 0°, disable obstacle WMS/hazard overlays,
+and independently set schematic tunnels and obstacle vectors/models. They do not overwrite saved preferences or
 change collision settings, other overlays, route, RF, render scale or actual
 buffer resolution. Remove prepared custom tunnels before using these profiles.
 The export includes original and effective requested map settings; flags are
@@ -186,7 +189,10 @@ suspension/arch inference is avoided. No missing height is fabricated.
   (8 areas, 5 min), initial local preview around a classified anchor (±144 m,
   stop each direction after two misses), then full bounded scans. At most 96
   new native picks initially, 48 mobile/64 desktop with a prior profile, and
-  192 visits per refresh. Partial profiles have a short retry window. Optional
+  192 visits per refresh. Initial discovery probes nearest stations across axes
+  before spending the remaining budget on offsets; unknown duplicate picks are
+  skipped only within that batch. Partial previews retry after at least 2.1 s
+  in the same area. Optional
   ordinary replay prefetch streams axes only; it never blocks flight start.
 - **Session reuse:** exact source-axis native observations (4,096 entries) are
   committed after a corresponding station passes terrain/deck clearance
@@ -198,8 +204,12 @@ suspension/arch inference is avoided. No missing height is fabricated.
   picks. Other candidates require coherent three-probe measurements (2.5–150 m
   clearance, local consistency) or an explicit source height. Selected-content
   signatures permit short reuse; two independent agreeing groups within 25 cm
-  permit session reuse (512 records). At most two short-cache hits per refresh
-  receive an independent confirmation attempt after 15 s. Detailed fallback
+  permit session reuse (512 records). Optional promotion of a still-reusable
+  short-cache hit waits for an observation at least 30 s old and is limited to
+  one attempt per 30 s across refreshes. A missing/ground-only optional result
+  does not erase or renew the valid short-cache observation. Necessary new
+  measurements and independent corroboration without a reusable hit remain
+  eligible. Detailed fallback
   uses a whole coherent group, never mixed passes; requests are serial with an
   8 s refresh deadline. An outstanding Cesium request prevents a new one.
 - **Continuity:** retain validated native station records (512) until eviction
@@ -216,15 +226,15 @@ suspension/arch inference is avoided. No missing height is fabricated.
   batch; other incremental updates coalesce to 250 ms. Identical geometry
   reuses its primitive. No data is persisted to disk.
 
-The default Structures cache remains 16 MiB. For the tested Xclipse 920 renderer,
-Balanced and navigation use 48 MiB; masked/unknown renderers and other profiles
-keep the conservative defaults. Explicit benchmark tuning overrides the device
-choice. This is a targeted experimental budget, not evidence that all low-end
-phones benefit from larger caches. SSE and RF/physics precision are unchanged.
+The default Structures cache is 16 MiB on every renderer and profile. The
+Xclipse 920 48 MiB exception was removed after V8 failed to reproduce the V7
+benefit. Explicit benchmark tuning can still select 24/32/48 MiB. Structures
+SSE remains 24 (Quality/Balanced), 40 (Performance), 52 (Compatibility), and
+32 (Navigation); RF/physics precision is unchanged.
 
 Diagnostics: `nativeEarlyProfiles`, `nativeEdgeDeferred`, `nativeSessionHits`,
 `nativeSessionCommitted`, `nativeClassifiedRoadHits`, `deckIndependentRechecks`,
-`deckStableHits`, pick counts/times and adaptive wait times track work and reuse.
+`deckStableHits`, `deckPromotionDeferred`, `deckPromotionMisses`, `nativeBatchMissHits`, pick counts/times and adaptive wait times track work and reuse.
 `supportTransformHash` fingerprints sorted identity/position/height/radius;
 `supportAudit` retains only recent hashed IDs and reasons. Addition, removal,
 position, height, radius and clear counters are separate (clear and draw
@@ -233,19 +243,22 @@ initial consistently incorrect heights may survive until eviction or explicit
 invalidation. Frustum retention does not guarantee on-screen visibility or
 unlimited geometry beyond the search radius.
 
-### Latest device evidence (V7, 2026-11-28)
+### Latest device evidence (V8, 2026-11-28)
 
-| Device | Reference FPS | Frozen FPS | Without supports FPS |
+| Device | Reference FPS, extras off | Reference FPS, extras on | Without supports, extras on |
 |---|---:|---:|---:|
-| Windows RX 6900 XT | 58.66 | 59.94 | 59.93 |
-| S25 Ultra / Adreno 830 | 118.02 | 119.85 | 119.90 |
-| S22 / Xclipse 920 | 58.69 | 90.51 | 97.09 |
+| Windows RX 6900 XT | 54.28 | 38.07 | 50.48 |
+| S25 Ultra / Adreno 830 | 105.29 | 80.69 | 113.56 |
+| S22 / Xclipse 920 | 48.45 | 21.19 | 34.82 |
 
-Mean of verified run medians, Balanced, render scale 50%, FOV 100°, extras off;
-108 completed runs, 106 tuning-verified. S22 had a different route hash and
-model-collision preference. Its frozen figure uses one verified run. The S22
-48 MiB case averaged 92.20 FPS with support geometry present in all 78 samples;
-this is one short scene, not a thermal/memory endurance result. The S25 Ultra
-rotation preserved 19 support transforms; Windows/S22 had no starting
-baseline. No V8 device results are available yet. Retest with identical route
-hashes, both extras profiles and sustained flights at intended render scales.
+Mean of the three run medians, Balanced, 50% render scale, 100° FOV, SSE 24,
+16 MiB cache, model collisions enabled. 216 completed runs, 211 tuning-verified;
+all six stationary rotations preserved their baseline transforms. S22 used a
+different route hash. V7 reference results with extras off were 58.66/118.02/58.69
+FPS; S22 model collisions were disabled in that series. V7's S22 48 MiB result
+(92.20 FPS) did not reproduce in V8 (46.97 off, 17.07 on). These are short-scene
+measurements, not sustained thermal or memory guarantees. V8's extra deck
+picks cannot be attributed solely to optional promotions (72/23/42 attempts in
+extras-off measured runs, at most three picks each). The new pacing and separate
+tunnel/obstacle profiles require device validation; do not infer V9 FPS from
+V8. Keep real visual checks, identical route/settings and long-flight tests.

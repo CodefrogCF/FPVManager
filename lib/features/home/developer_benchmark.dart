@@ -161,6 +161,8 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     bool structureTuning = false,
     bool standardizeExtras = false,
     bool enableBenchmarkExtras = false,
+    bool? benchmarkTunnels,
+    bool? benchmarkObstacles,
     bool rotationTest = false,
     required String platform,
     required Future<void> Function() quiesceProfiler,
@@ -168,6 +170,13 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
     if (active || repetitions < 1 || repetitions > 3) {
       throw StateError('Invalid benchmark request');
     }
+    final tunnelsEnabled = benchmarkTunnels ?? enableBenchmarkExtras;
+    final obstaclesEnabled = benchmarkObstacles ?? enableBenchmarkExtras;
+    final extrasProfile = !standardizeExtras
+        ? 'original'
+        : tunnelsEnabled
+        ? (obstaclesEnabled ? 'models-on' : 'tunnels-only')
+        : (obstaclesEnabled ? 'obstacles-only' : 'off');
     final originalRadio = globe.liveRadio.settings;
     // Preserve the current graphics, FOV, physics and lighting mode. Fix the
     // lighting clock when enabled. Use the same captured settings for all runs.
@@ -216,7 +225,7 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       'cachePolicy': structureTuning
           ? 'fresh-structures-tileset-per-case-warmup-no-http-cache-flush'
           : 'resident-warmup-pass-per-case-no-cache-flush',
-      'matrix': structureTuning ? 'structures-tuning-v8' : 'layers-v1',
+      'matrix': structureTuning ? 'structures-tuning-v9' : 'layers-v2',
       'repetitions': repetitions,
       'runs': runs,
       'platform': platform,
@@ -227,9 +236,7 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       'cameraFovDegrees': fixed.cameraFovDegrees,
       'cameraTiltDegrees': fixed.cameraTiltDegrees,
       'standardizeExtras': standardizeExtras,
-      'extrasProfile': standardizeExtras
-          ? (enableBenchmarkExtras ? 'models-on' : 'off')
-          : 'original',
+      'extrasProfile': extrasProfile,
       'rotationTestRequested': rotationTest,
       'warmupDiagnostics': 'separate-summary-no-http-cache-flush',
       'originalMapSettings': globe.benchmarkMapSettings,
@@ -244,7 +251,10 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
       await quiesceProfiler();
       check();
       if (standardizeExtras) {
-        await globe.setBenchmarkExtras(enableBenchmarkExtras);
+        await globe.setBenchmarkExtras(
+          tunnelsEnabled,
+          obstaclesEnabled: obstaclesEnabled,
+        );
       }
       check();
       final mapSettings = globe.benchmarkMapSettings;
@@ -343,6 +353,11 @@ class DeveloperBenchmark extends ChangeNotifier with WidgetsBindingObserver {
                     'deckPickMs',
                     'nativeSessionHits',
                     'geometryBuilds',
+                    'deckIndependentRechecks',
+                    'deckPromotionDeferred',
+                    'deckPromotionMisses',
+                    'nativeBatchMissHits',
+                    'nativeEarlyProfiles',
                   ])
                     key: supports[key],
                 };

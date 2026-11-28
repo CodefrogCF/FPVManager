@@ -155,7 +155,7 @@
             }
         }
         function invalidate(){probeCache.clear();negativeCache.clear();nativeCache=null;probeSource=null;firstProfilePublished=false;resetIndex();epoch++;controller?.abort();pending=null;}
-        function setDiagnosticsEnabled(value){if(value)metrics??={nativePicks:0,nativePickMs:0,nativeHits:0,nativeMisses:0,nativeDeferred:0,nativeCooldownFrames:0,nativeProfileHits:0,nativeIndexedHits:0,nativeNegativeHits:0,nativeUnknownHits:0,nativeIndexedMisses:0,nativeIndexedDeferred:0,nativeHeightRejected:0,nativeRechecks:0,nativeSections:0,nativeSessionHits:0,nativeSessionCommitted:0,nativeClassifiedRoadHits:0,nativeAdaptiveWaitMs:0,nativeEarlyProfiles:0,nativeEdgeDeferred:0};else metrics=null;}
+        function setDiagnosticsEnabled(value){if(value)metrics??={nativePicks:0,nativePickMs:0,nativeHits:0,nativeMisses:0,nativeDeferred:0,nativeCooldownFrames:0,nativeProfileHits:0,nativeIndexedHits:0,nativeNegativeHits:0,nativeUnknownHits:0,nativeIndexedMisses:0,nativeIndexedDeferred:0,nativeHeightRejected:0,nativeRechecks:0,nativeSections:0,nativeSessionHits:0,nativeSessionCommitted:0,nativeClassifiedRoadHits:0,nativeAdaptiveWaitMs:0,nativeEarlyProfiles:0,nativeEdgeDeferred:0,nativeBatchMissHits:0};else metrics=null;}
         function diagnostics(){return metrics?{...metrics,nativeCacheEntries:probeCache.size,nativeRoadCacheEntries:negativeCache.size,nativeIndexedAxes:axes.size,nativeIndexedPoints:[...axes.values()].reduce((n,a)=>n+a.points.size,0)}:null;}
         function exclusions(selected){
             const result=[],collection=scene.primitives;
@@ -350,6 +350,7 @@
                 .filter(p=>p.near.gap<=RADIUS+100&&p.tools.total>=24&&p.tools.total<=20000)
                 .sort((a,b)=>a.priority-b.priority).slice(0,32);
             let probes=0,visits=0;
+            const batchMisses=new Set();
             const budget=sessionReuse&&flight&&nativeCache?.result.bridges.length?(mobile?48:64):96;
             const exhausted=()=>probes>=budget||visits>=192;
             const probe=async (point,routeId)=>{
@@ -362,6 +363,7 @@
                     if(metrics){metrics.nativeHits++;if(hit.committed)metrics.nativeSessionHits++;}
                     return hit.value;
                 }
+                if(sessionReuse&&batchMisses.has(key)){if(metrics)metrics.nativeBatchMissHits++;return null;}
                 const negative=negativeCache.get(key);
                 if(sessionReuse&&negative!==undefined&&now()-negative<15000){if(metrics)metrics.nativeClassifiedRoadHits++;return null;}
                 if(sessionReuse)probes++;
@@ -375,6 +377,7 @@
                     while(negativeCache.size>PROBE_LIMIT)negativeCache.delete(negativeCache.keys().next().value);}
                 const measured=observation?.nonBridge?null:observation;
                 const result=measured?{...measured,observedAt:now()}:null;
+                if(sessionReuse&&!result)batchMisses.add(key);
                 const cost=Math.max(0,now()-start);if(d)d.nativePickMs+=cost;pickBudget?.record(cost);
                 // Missing geometry may become resident on the very next frame.
                 // Only source-identified positive observations are reusable.
@@ -387,13 +390,31 @@
                 // Additional fixed waits starve classification on a moving camera.
                 signal?.throwIfAborted?.();return result;
             };
-            for(const {route,tools,near} of candidates){
+            // First discovery: don't spend five misses on every ordinary road
+            // before reaching a nearby bridge further down the candidate list.
+            // Probe each nearest station once, then expand the first actual
+            // bridge hit. If none qualifies, the existing offset search remains.
+            let firstAnchor=null;
+            if(initial){
+                for(const candidate of candidates){
+                    if(exhausted())break;
+                    const {route,tools,near}=candidate;
+                    const along=Math.max(0,Math.min(tools.total,Math.round(near.along/24)*24));
+                    const point=tools.at(along);if(distance(point,center)>RADIUS+100)continue;
+                    const hit=await probe(point,route.id);
+                    if(hit){firstAnchor={candidate,along,hit};break;}
+                }
+            }
+            const ordered=firstAnchor?[firstAnchor.candidate,...candidates.filter(c=>c!==firstAnchor.candidate)]:candidates;
+            for(const candidate of ordered){
                 if(disposed||getDeckTileset?.()!==selected||exhausted())break;
-                let anchor=null,anchorAlong=null;const anchorPositions=new Set();
+                const {route,tools,near}=candidate;
+                let anchor=firstAnchor?.candidate===candidate?firstAnchor.hit:null;
+                let anchorAlong=anchor?firstAnchor.along:null;const anchorPositions=new Set();
                 // Prefer a committed anchor close to the aircraft before issuing
                 // additional GPU queries. Distant cached bridges must not hide
                 // unexamined nearby roads.
-                if(sessionReuse)for(const offset of [0,-24,24,-48,48]){
+                if(sessionReuse&&!anchor)for(const offset of [0,-24,24,-48,48]){
                     const along=Math.round(near.along/24)*24+offset;
                     if(along<0||along>tools.total)continue;
                     const p=tools.at(along),entry=probeCache.get(JSON.stringify([route.id,p.longitude,p.latitude]));

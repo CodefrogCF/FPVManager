@@ -748,20 +748,66 @@ test('session retention uses a bounded hysteresis and a frustum-aware outer limi
     }finally{p.manager.dispose();}
 });
 
-test('short signature hits receive a bounded independent deck recheck and can become session confirmations',async()=>{
+test('optional independent deck promotion is paced across refreshes and confirmed heights survive TTL',async()=>{
     const p=deckFixture({reuseFlightDeck:true,sessionReuse:true,isNavigationActive:()=>true});
     try{
         await p.manager.refresh(ORIGIN);const initial=p.excluded.length;assert.equal(initial,15);
-        assert.equal(p.manager.diagnostics().deckConfirmedEntries,0);
-        p.setClock(30000);await p.manager.refresh(ORIGIN);
-        assert.equal(p.manager.diagnostics().deckIndependentRechecks,2);
-        assert.equal(p.excluded.length,initial+6);assert.equal(p.manager.diagnostics().deckConfirmedEntries,2);
+        p.setClock(30000);await p.manager.refresh(ORIGIN);assert.equal(p.excluded.length,initial);
         p.setClock(40000);await p.manager.refresh(ORIGIN);
-        assert.equal(p.manager.diagnostics().deckConfirmedEntries,4);
-        p.setClock(50000);await p.manager.refresh(ORIGIN);assert.equal(p.manager.diagnostics().deckConfirmedEntries,5);
+        assert.equal(p.manager.diagnostics().deckIndependentRechecks,1);
+        assert.equal(p.excluded.length,initial+3);assert.equal(p.manager.diagnostics().deckConfirmedEntries,1);
+        p.setClock(50000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.excluded.length,initial+3);assert.ok(p.manager.diagnostics().deckPromotionDeferred>0);
+        p.setClock(70000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,2);
+        p.setClock(100000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,3);
         const before=p.excluded.length;p.setClock(900000);await p.manager.refresh(ORIGIN);
-        assert.equal(p.excluded.length,before,'independent confirmations survive the old TTL');
+        assert.equal(p.excluded.length,before+6,'confirmed heights survive the short-cache TTL');
         p.manager.invalidateDeckCache();p.setClock(920000);await p.manager.refresh(ORIGIN);
-        assert.equal(p.manager.diagnostics().deckConfirmedEntries,0);assert.equal(p.excluded.length,before+15);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,0);assert.equal(p.excluded.length,before+6+15);
+    }finally{p.manager.dispose();}
+});
+
+test('an optional promotion miss retains valid short-cache geometry without confirming or renewing it',async()=>{
+    const p=deckFixture({reuseFlightDeck:true,sessionReuse:true,isNavigationActive:()=>true});
+    try{
+        await p.manager.refresh(ORIGIN);const initial=p.manager.status().supports;
+        p.setDeck(500);p.setClock(40000);await p.manager.refresh(ORIGIN);
+        assert.deepEqual(p.manager.status().supports,initial);
+        assert.equal(p.manager.diagnostics().deckPromotionMisses,1);
+        assert.equal(p.manager.diagnostics().deckConfirmedEntries,0);
+        p.setDeck(undefined);p.setClock(140000);await p.manager.refresh(ORIGIN);
+        assert.equal(p.manager.status().count,0,'the failed promotion did not renew the observation');
+    }finally{p.manager.dispose();}
+});
+
+
+test('production structure switch also hides auxiliary bridge supports without dropping source data',async()=>{
+    const p=fixture({allowStandaloneSources:false,cachedOnly:true});
+    const features=[{id:'bridge',sourceType:'BRIDGE',parts:[{kind:'LineString',elevated:true,
+        coordinates:[[point(-72).lon,ORIGIN.latitude,532.6],[point(72).lon,ORIGIN.latitude,532.6]]}]}];
+    try{
+        p.manager.setSourceFeatures(features,{sourceId:'aviation',source:'BAZL',elevationReference:'WGS84_ELLIPSOID'});
+        await p.manager.refresh(ORIGIN);assert.equal(p.manager.status().count,0);
+        p.manager.setEnabled(true);await p.manager.refresh(ORIGIN);assert.ok(p.manager.status().count>0);
+        p.manager.setEnabled(false);assert.equal(p.manager.status().count,0);assert.equal(p.primitives.length,0);
+        p.manager.setEnabled(true);await p.manager.refresh(ORIGIN);assert.ok(p.manager.status().count>0);
+    }finally{p.manager.dispose();}
+});
+
+
+test('a partial native preview expands only after its discovery-cache retry window',async()=>{
+    let discoveries=0;
+    const coordinates=way().geometry.map(p=>({longitude:p.lon,latitude:p.lat,height:532.6}));
+    const p=fixture({sessionReuse:true,reuseFlightDeck:true,isNavigationActive:()=>true,cachedOnly:true,
+        discoverBridges:async()=>({bridges:[{id:'native',sourceId:'native',source:'swisstopo 3D',coordinates,
+            profileMethod:'loaded-native-road'}],piers:[],partial:++discoveries===1})});
+    try{
+        p.manager.setEnabled(true);await p.manager.refresh(ORIGIN);assert.ok(p.manager.status().count>0);
+        assert.equal(discoveries,1);
+        p.setClock(10500);await p.manager.refresh(ORIGIN);assert.equal(discoveries,1);
+        p.setClock(12000);await p.manager.refresh(ORIGIN);assert.equal(discoveries,1);
+        p.setClock(12101);await p.manager.refresh(ORIGIN);assert.equal(discoveries,2);
     }finally{p.manager.dispose();}
 });

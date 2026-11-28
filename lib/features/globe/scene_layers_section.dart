@@ -50,8 +50,20 @@ class SceneLayersSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SwitchListTile.adaptive(
+            key: ValueKey('scene-layer-$key'),
             contentPadding: EdgeInsets.zero,
-            title: Text(context.translate(label)),
+            title: Text(
+              key == 'structures'
+                  ? (german ? 'Brücken und Bauwerke' : 'Bridges and structures')
+                  : context.translate(label),
+            ),
+            subtitle: key == 'structures'
+                ? Text(
+                    german
+                        ? 'swisstopo-Bauwerke inklusive Brückenpfeiler; native Portale bleiben Teil des Datensatzes.'
+                        : 'swisstopo structures including bridge supports; native portals remain part of the dataset.',
+                  )
+                : null,
             value: visible,
             onChanged: enabled ? (value) => change(() => toggle(value)) : null,
           ),
@@ -174,10 +186,9 @@ class SceneLayersSection extends StatelessWidget {
             ),
           ),
           subtitle: Text(
-            context.localized(
-              "Simulation · Online-Ersatzsuche sendet Kartenausschnitt.",
-              (l10n) => l10n.globeSimulationOnlineErsatzsucheSendet67c4c630,
-            ),
+            german
+                ? 'Unabhängig von Bauwerken. Simulation; Online-Ersatzsuche sendet Kartenausschnitt.'
+                : 'Independent of structures. Simulation; online fallback search sends the map area.',
           ),
           value: controller.schematicTunnel3dEnabled,
           onChanged: enabled

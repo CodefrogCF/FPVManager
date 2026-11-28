@@ -253,7 +253,7 @@
         isOnline=()=>globalThis.navigator?.onLine!==false,isNavigationActive=()=>false,
         getDeckTileset=null,discoverBridges=null,disposeDiscovery=()=>{},
         fetcher=(...args)=>fetch(...args),now=()=>Date.now(),yieldBatch=afterFrame,terrainIdentity=()=>null,
-        mobile=false,reuseFlightDeck=false,sessionReuse=false,pickBudget=null,commitNative=()=>{},lookahead=()=>[],invalidateDiscovery=()=>{},discoveryDiagnostics=()=>null,setDiscoveryDiagnostics=()=>{}}={}){
+        mobile=false,reuseFlightDeck=false,sessionReuse=false,allowStandaloneSources=true,pickBudget=null,commitNative=()=>{},lookahead=()=>[],invalidateDiscovery=()=>{},discoveryDiagnostics=()=>null,setDiscoveryDiagnostics=()=>{}}={}){
         const scene=viewer.scene;
         let enabled=false,structuresEnabled=false,benchmarkSuppressed=false,disposed=false,profile='balanced',opacity=1,revision=0,controller=null;
         const sourceSets=new Map();
@@ -266,12 +266,16 @@
         // most-detailed result that may differ from the visible LOD.
         const deckCache=new Map(),observations=new Map(),detailedAttempts=new Map(),validatedSupports=new Map(),DECK_LIMIT=512,DECK_TTL=30000,FLIGHT_DECK_TTL=120000;
         const geometryIds=new WeakMap();let nextGeometryId=0,deckEpoch=0,visualEpoch=0,deckTileset=null;
+        let partialRetryAt=null;
+        // Optional promotion of a still-valid short cache hit is background work.
+        // Movement, tile progress and partial scans must not multiply that budget.
+        const DECK_PROMOTION_INTERVAL=30000;let nextDeckPromotionAt=-Infinity;
         function geometryId(object){
             if(!object||typeof object!=='object')return null;
             if(!geometryIds.has(object))geometryIds.set(object,++nextGeometryId);
             return geometryIds.get(object);
         }
-        function invalidateDeckCache(notify=true){confirmedDecks.clear();deckCache.clear();observations.clear();detailedAttempts.clear();validatedSupports.clear();deckEpoch++;lastRefreshAt=-Infinity;if(notify)invalidateDiscovery();}
+        function invalidateDeckCache(notify=true){partialRetryAt=null;nextDeckPromotionAt=-Infinity;confirmedDecks.clear();deckCache.clear();observations.clear();detailedAttempts.clear();validatedSupports.clear();deckEpoch++;lastRefreshAt=-Infinity;if(notify)invalidateDiscovery();}
         // Portal uniforms/masks alter the visual pick pass, not the real
         // bridge source. Invalidate only LOD-bound observations, not confirmed
         // heights, world-space instances or in-progress native discovery.
@@ -554,7 +558,6 @@
         }
         async function deckSamples(candidates,ground,excluded,signal,onProgress=()=>{}){
             const groups=candidates.map(()=>[]),reused=new Map(),suspectIndices=new Set(),selected=getDeckTileset?.();
-            let verificationBudget=2;
             const flight=reuseFlightDeck&&isNavigationActive()&&!!selected;
             // Sync the identity before consulting the long-lived visual cache.
             if(selected!==deckTileset){deckTileset=selected;invalidateDeckCache(false);}
@@ -579,11 +582,14 @@
                 }
                 if(flight&&confirmed&&metrics){if(Math.abs(confirmed.base-ground[i])>.25)metrics.deckBaseChanged++;else metrics.deckExpired++;}
                 const previousObservation=observations.get(stableKey);
-                const verifyAgain=sessionReuse&&flight&&!confirmed&&verificationBudget>0&&hit?.confirmed&&
-                    previousObservation&&previousObservation.revision!==revision&&now()-previousObservation.at>=15000&&
+                const shortReusable=flight&&hit?.confirmed&&now()-hit.at<FLIGHT_DECK_TTL&&plausibleDeck(p,hit.heights,ground[i]);
+                const promotionEligible=sessionReuse&&shortReusable&&!confirmed&&previousObservation&&
+                    previousObservation.revision!==revision&&now()-previousObservation.at>=DECK_PROMOTION_INTERVAL&&
                     now()-previousObservation.at<FLIGHT_DECK_TTL&&Math.abs(previousObservation.base-ground[i])<=.25;
-                if(verifyAgain){verificationBudget--;if(metrics)metrics.deckIndependentRechecks++;}
-                if(!verifyAgain&&flight&&hit?.confirmed&&now()-hit.at<FLIGHT_DECK_TTL&&plausibleDeck(p,hit.heights,ground[i])){
+                const verifyAgain=promotionEligible&&now()>=nextDeckPromotionAt;
+                if(verifyAgain){nextDeckPromotionAt=now()+DECK_PROMOTION_INTERVAL;if(metrics)metrics.deckIndependentRechecks++;}
+                else if(promotionEligible&&metrics)metrics.deckPromotionDeferred++;
+                if(!verifyAgain&&shortReusable){
                     groups[i]=hit.heights.slice();deckCache.delete(key);deckCache.set(key,hit);
                     if(metrics){metrics.deckHits++;metrics.deckPersistentHits++;}publish(i);continue;
                 }
@@ -617,6 +623,12 @@
                     }
                 }
                 let coherent=plausibleDeck(p,groups[i],ground[i]);
+                if(verifyAgain&&!coherent&&groups[i].every(h=>!finite(h)||Math.abs(h-ground[i])<2.5)){
+                    // Missing resident geometry is not a contradictory measurement.
+                    // Do not renew the old TTL or count this as independent evidence.
+                    groups[i]=hit.heights.slice();deckCache.set(key,hit);
+                    if(metrics)metrics.deckPromotionMisses++;publish(i);continue;
+                }
                 // On revalidation, a sudden upward jump must be corroborated
                 // by a separate pass. A coherent but wrong upper surface is
                 // not enough to replace previously known deck geometry.
@@ -752,10 +764,12 @@
             // the aircraft moves through the same discovery area. Abort only
             // when the old search area is genuinely behind the aircraft.
             if(pending&&pendingCenter&&distance(center,pendingCenter)<(flight?700:120))return pending;
-            if(lastCenter&&moved<(flight?350:80)&&elapsed<(flight&&supports.length?8000:1500)&&
-                (flight||supports.length)){
+            const previewDue=partialRetryAt!==null&&now()>=partialRetryAt;
+            if(lastCenter&&moved<(flight?350:80)&&
+                ((partialRetryAt!==null&&!previewDue)||(!previewDue&&elapsed<(flight&&supports.length?8000:1500)&&(flight||supports.length)))){
                 if(metrics)metrics.refreshDeferred++;return Promise.resolve(status());
             }
+            partialRetryAt=null;
             if(metrics)metrics.refreshes++;
             const previousCenter=lastCenter;
             // Aim the candidate ordering a short distance along recent
@@ -956,7 +970,7 @@
                     draw(combined,'refresh-admission');error=null;if(metrics)metrics.refreshCompleted++;
                     // A first local preview is not a complete scan. Permit a
                     // prompt follow-up once that geometry has been admitted.
-                    if(native.partial&&combined.length)lastRefreshAt=now()-30000;
+                    if(native.partial&&combined.length)partialRetryAt=now()+2100;
                     if(native.bridges.length||local.bridges.length||local.piers.length)refineMappedPositions(center,signal);
                     return status();
                 }catch(err){
@@ -978,11 +992,11 @@
             const center=focus();
             if(frozen)return;
             const flight=isNavigationActive()&&reuseFlightDeck,elapsed=now()-lastRefreshAt;
-            if(center&&(!lastCenter||distance(center,lastCenter)>(flight?250:120)||
+            if(center&&(!lastCenter||(partialRetryAt!==null&&now()>=partialRetryAt)||distance(center,lastCenter)>(flight?250:120)||
                 (!supports.length&&elapsed>2000)||elapsed>(flight?30000:15000)))void refresh(center);
         });
         function updateEnabled(){
-            enabled=!benchmarkSuppressed&&(structuresEnabled||sourceSets.size>0);
+            enabled=!benchmarkSuppressed&&(structuresEnabled||(allowStandaloneSources&&sourceSets.size>0));
             if(!enabled){++revision;controller?.abort();pending=null;pendingCenter=null;clear(false,'disabled');}
         }
         function setEnabled(value){
@@ -1039,7 +1053,7 @@
             freezeContaminated=detailedActive>0;frozen=true;++revision;controller?.abort();pending=null;pendingCenter=null;
         }
         return {hasGeometry:()=>supports.length>0,setEnabled,setBenchmarkSuppressed,setBenchmarkMode,beginBenchmarkMeasurement,invalidateDeckCache,invalidateVisualPicking,invalidateLod,setSourceFeatures,refresh,performance,setOpacity,status,
-            setDiagnosticsEnabled(value){if(value)metrics??={groundHits:0,groundMisses:0,groundBatches:0,groundPoints:0,groundWallMs:0,deckPicks:0,deckPickMs:0,deckHits:0,deckMisses:0,deckStaleHits:0,deckCooldownFrames:0,deckPersistentHits:0,deckStableHits:0,deckLodInvalidations:0,deckVisualInvalidations:0,supportHeightHeld:0,deckDetailedConfirmed:0,deckBaseChanged:0,deckExpired:0,deckHeightRejected:0,deckUnidentified:0,deckIncoherent:0,deckInvalidGround:0,deckGroundOnly:0,deckRetryDeferred:0,detailedRequests:0,detailedResolved:0,detailedWallMs:0,detailedDeferred:0,geometryBuilds:0,geometryBuildMs:0,refreshes:0,refreshDeferred:0,refreshCompleted:0,refreshInvalidated:0,progressPublishes:0,retainedSupports:0,supportRemovedDuringDraw:0,supportRetainedSameSource:0,supportAdded:0,supportCleared:0,supportPositionChanged:0,supportHeightChanged:0,supportRadiusChanged:0,lastRemovalReason:null,deckAdaptiveWaitMs:0,deckIndependentRechecks:0};else {metrics=null;audit.length=0;}setDiscoveryDiagnostics(value);},
+            setDiagnosticsEnabled(value){if(value)metrics??={groundHits:0,groundMisses:0,groundBatches:0,groundPoints:0,groundWallMs:0,deckPicks:0,deckPickMs:0,deckHits:0,deckMisses:0,deckStaleHits:0,deckCooldownFrames:0,deckPersistentHits:0,deckStableHits:0,deckLodInvalidations:0,deckVisualInvalidations:0,supportHeightHeld:0,deckDetailedConfirmed:0,deckBaseChanged:0,deckExpired:0,deckHeightRejected:0,deckUnidentified:0,deckIncoherent:0,deckInvalidGround:0,deckGroundOnly:0,deckRetryDeferred:0,detailedRequests:0,detailedResolved:0,detailedWallMs:0,detailedDeferred:0,geometryBuilds:0,geometryBuildMs:0,refreshes:0,refreshDeferred:0,refreshCompleted:0,refreshInvalidated:0,progressPublishes:0,retainedSupports:0,supportRemovedDuringDraw:0,supportRetainedSameSource:0,supportAdded:0,supportCleared:0,supportPositionChanged:0,supportHeightChanged:0,supportRadiusChanged:0,lastRemovalReason:null,deckAdaptiveWaitMs:0,deckIndependentRechecks:0,deckPromotionDeferred:0,deckPromotionMisses:0};else {metrics=null;audit.length=0;}setDiscoveryDiagnostics(value);},
             diagnostics(){let fingerprint=2166136261;if(metrics)for(const p of [...supports].sort((a,b)=>a.id.localeCompare(b.id))){
                 const value=JSON.stringify([p.id,p.longitude,p.latitude,p.top,p.bottom,p.radius]);
                 for(let i=0;i<value.length;i++)fingerprint=Math.imul(fingerprint^value.charCodeAt(i),16777619);

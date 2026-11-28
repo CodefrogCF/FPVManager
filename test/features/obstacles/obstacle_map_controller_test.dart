@@ -120,6 +120,36 @@ void main() {
       }
     },
   );
+  test(
+    'benchmark can isolate tunnels and obstacles and restore preferences',
+    () async {
+      await globe.setDeveloperMenusEnabled(true);
+      await globe.setTunnelInfrastructure(autoModels: false);
+      await globe.obstacles.setWmsVisible(true);
+      final before = globe.benchmarkMapSettings;
+      globe.beginBenchmark();
+      try {
+        await globe.setBenchmarkExtras(true, obstaclesEnabled: false);
+        expect(globe.benchmarkMapSettings['schematicTunnels'], isTrue);
+        expect(globe.obstacles.modelsVisible, isFalse);
+        await globe.setBenchmarkExtras(false, obstaclesEnabled: true);
+        expect(globe.benchmarkMapSettings['schematicTunnels'], isFalse);
+        expect(globe.obstacles.modelsVisible, isTrue);
+        expect(globe.schematicTunnel3dEnabled, isFalse);
+      } finally {
+        await globe.endBenchmark();
+      }
+      for (final key in [
+        'schematicTunnels',
+        'obstacleWms',
+        'obstacleModels',
+        'obstacleVectors',
+        'hazardAreas',
+      ]) {
+        expect(globe.benchmarkMapSettings[key], before[key]);
+      }
+    },
+  );
   test('identical camera-region events cannot supersede an in-flight obstacle query', () async {
     final viewport = {
       'type': 'obstacle-viewport',

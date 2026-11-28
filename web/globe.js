@@ -80,7 +80,7 @@ function postToFlutter(message) {
     let terrainManager = null;
     let benchmarkSession = false;
     let flyer = null, routePlayback = null, flightRecording = null, liveRadio = null, scenePerformance = null, sceneEnvironment = null, tunnels = null, tunnelVolumes = null, infrastructureClearance = null, modelCollisions = null, windLayer = null, globePositions = null, applyFlightTime = null, requestedFlightTime = null;
-    let schematicTunnelsEnabled = false, structuresForTunnelScan = false;
+    let schematicTunnelsEnabled = false;
     let mapLabels = null, mapCredits = null, localSceneryPreview = null, sceneryReplacement = null, sceneryManager = null, sceneryEditor = null, regional3D = null;
     let regionalTerrain = false, regionalTerrainChanging = false, regionalBuildingsRequested = false, regionalTerrainRevision = 0;
     const bkgRfHeight=FPVBkgRfHeight.create(window.FPVBkgRfGrid);
@@ -943,10 +943,8 @@ function postToFlutter(message) {
             case 'set-scene-environment': {
                 const result=sceneEnvironment.set(command);
                 regionalBuildingsRequested=command.buildings;regional3D?.tick(true);
-                // The fully enabled 3D infrastructure layer also discovers
-                // schematic tunnel centerlines near the viewed terrain.
-                structuresForTunnelScan = command.structures===true;
-                tunnels?.setAutomatic(structuresForTunnelScan || schematicTunnelsEnabled);
+                // Native Structures (including bridges) must not activate
+                // automatic schematic tunnel discovery or its mesh workload.
                 if(command.modelCollisions!==undefined){
                     modelCollisions?.setEnabled(command.modelCollisions);
                     tunnelVolumes?.setCollisionEnabled(command.modelCollisions);
@@ -960,11 +958,9 @@ function postToFlutter(message) {
                 schematicTunnelsEnabled=command.autoModels;
                 tunnelVolumes?.setAutomaticEnabled(schematicTunnelsEnabled);
                 const cached=(!previouslyEnabled&&schematicTunnelsEnabled) ? tunnels?.snapshot?.() : null;
-                // Reuse existing official/OSM axes when the 3D switch is turned
-                // on after the structure layer has already scanned the area.
-                if(cached?.routes?.length)void tunnelVolumes?.setAutomaticRoutes(cached.routes,cached.center).catch(()=>{});
-                tunnels?.setAutomatic(structuresForTunnelScan || schematicTunnelsEnabled,
-                    !!(cached && !cached.routes.length));
+                // Reuse an explicitly discovered local area when available.
+                if(cached?.routes?.length&&cached.center)void tunnelVolumes?.setAutomaticRoutes(cached.routes,cached.center).catch(()=>{});
+                tunnels?.setAutomatic(schematicTunnelsEnabled,!!(cached && !cached.routes.length));
                 if(command.routesVisible===false&&!schematicTunnelsEnabled){
                     tunnelVolumes?.stop();infrastructureClearance?.forgetTunnel();
                 }
@@ -981,7 +977,7 @@ function postToFlutter(message) {
                 const center = Cesium.Cartographic.fromCartesian(hit);
                 return tunnels.scan({longitude: Cesium.Math.toDegrees(center.longitude),
                     latitude: Cesium.Math.toDegrees(center.latitude),
-                    radiusMeters: command.radiusMeters ?? 600}, signal);
+                    radiusMeters: command.radiusMeters ?? 600,catalogueOnly:true}, signal);
             }
             case 'focus-tunnel-route': stopNavigation(); return tunnels.focus(command);
             case 'explore-tunnel-route': stopNavigation(); return tunnels.explore(command);
@@ -1292,7 +1288,7 @@ function postToFlutter(message) {
                 discoverBridges:bridgeSource?.discover,disposeDiscovery:()=>bridgeSource?.dispose(),
                 invalidateDiscovery:()=>bridgeSource?.invalidate(),discoveryDiagnostics:()=>bridgeSource?.diagnostics(),
                 setDiscoveryDiagnostics:value=>bridgeSource?.setDiagnosticsEnabled(value),
-                reuseFlightDeck:true,sessionReuse:true,pickBudget:bridgePickBudget,commitNative:bridgeSource?.commitValidated,mobile:mobileBridgeBudget,lookahead:()=>routePlayback?.sceneryLookahead()??[]})
+                reuseFlightDeck:true,sessionReuse:true,allowStandaloneSources:false,pickBudget:bridgePickBudget,commitNative:bridgeSource?.commitValidated,mobile:mobileBridgeBudget,lookahead:()=>routePlayback?.sceneryLookahead()??[]})
             :null;
         sceneEnvironment = FPVSceneEnvironment.create(Cesium,viewer,sendToFlutter,{urls:window.FPVSceneSources,
             forestComposition:globalThis.FPVForestComposition?.create(),

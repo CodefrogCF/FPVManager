@@ -12,6 +12,10 @@ import 'scenery_tileset_options.dart';
 final class SceneryManifest {
   SceneryManifest._(this._json);
   static const schemaVersion = 1;
+
+  /// Compatibility floor for newly created schema-v1 scenery definitions.
+  /// Increase only when new required capabilities make older apps incompatible.
+  static const minimumSupportedAppVersion = '0.20.0';
   static const maxBytes = 128 * 1024;
   final Map<String, dynamic> _json;
 
@@ -321,7 +325,7 @@ final class SceneryManifest {
         'loadRadiusM': item['loadRadiusM'] ?? 2500,
         'unloadRadiusM': radius,
       },
-      'minimumAppVersion': '0.20.0',
+      'minimumAppVersion': minimumSupportedAppVersion,
       'extensions': {'cesium': item, 'bundledAlignment': item['alignment']},
     });
   }

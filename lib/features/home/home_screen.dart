@@ -697,6 +697,20 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
                               : '3D tunnels / obstacle models on',
                         ),
                       ),
+                      DropdownMenuItem(
+                        value: 3,
+                        child: Text(
+                          german ? 'Nur 3D-Tunnel' : '3D tunnels only',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 4,
+                        child: Text(
+                          german
+                              ? 'Nur Hindernismodelle'
+                              : 'Obstacle models only',
+                        ),
+                      ),
                     ],
                     onChanged: (value) =>
                         refresh(() => extrasProfile = value ?? 0),
@@ -812,7 +826,8 @@ class _FPVHomeScreenState extends State<FPVHomeScreen> {
         repetitions: choice.$2,
         structureTuning: choice.$3,
         standardizeExtras: choice.$4 != 0,
-        enableBenchmarkExtras: choice.$4 == 2,
+        benchmarkTunnels: choice.$4 == 2 || choice.$4 == 3,
+        benchmarkObstacles: choice.$4 == 2 || choice.$4 == 4,
         rotationTest: choice.$5,
         platform: platform,
         quiesceProfiler: _quiesceBenchmarkProfiler,

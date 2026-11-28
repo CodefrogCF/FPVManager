@@ -1,10 +1,12 @@
+import '../../core/models/application_version.dart';
+
 import 'scenery_alignment_edit.dart';
 import 'scenery_manifest.dart';
 import 'scenery_storage.dart';
 import 'scenery_tileset_options.dart';
 
-// Keep aligned with pubspec's application version; checked by regression test.
-const sceneryApplicationVersion = '0.20.0';
+// Legacy name for the generated runtime application version.
+const sceneryApplicationVersion = applicationVersion;
 
 /// Resolve references without storing bytes or duplicating Cesium loaders.
 /// Future managed-file/3D-Tiles providers implement this same boundary.
